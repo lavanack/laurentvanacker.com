@@ -1,0 +1,104 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--Generated (UTC): 2019年7月2日 下午 02:06:14-->
+<languages>
+	<language>
+		<displayName>Czech (Czech Republic)</displayName>
+		<fileName>cs-CZ_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Danish (Denmark)</displayName>
+		<fileName>da-DK_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>German (Germany)</displayName>
+		<fileName>de-DE_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>English (United Kingdom)</displayName>
+		<fileName>en-GB_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Spanish (Spain)</displayName>
+		<fileName>es-ES_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Spanish (Mexico)</displayName>
+		<fileName>es-MX_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Estonian (Estonia)</displayName>
+		<fileName>et-EE_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Finnish (Finland)</displayName>
+		<fileName>fi-FI_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>French (Canada)</displayName>
+		<fileName>fr-CA_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>French (France)</displayName>
+		<fileName>fr-FR_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Croatian (Croatia)</displayName>
+		<fileName>hr-HR_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Hungarian (Hungary)</displayName>
+		<fileName>hu-HU_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Italian (Italy)</displayName>
+		<fileName>it-IT_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Latvian (Latvia)</displayName>
+		<fileName>lv-LV_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Norwegian, Bokmål (Norway)</displayName>
+		<fileName>nb-NO_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Dutch (Netherlands)</displayName>
+		<fileName>nl-NL_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Polish (Poland)</displayName>
+		<fileName>pl-PL_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Portuguese (Brazil)</displayName>
+		<fileName>pt-BR_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Portuguese (Portugal)</displayName>
+		<fileName>pt-PT_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Romanian (Romania)</displayName>
+		<fileName>ro-RO_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Slovak (Slovakia)</displayName>
+		<fileName>sk-SK_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Slovenian (Slovenia)</displayName>
+		<fileName>sl-SI_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Serbian (Latin, Serbia)</displayName>
+		<fileName>sr-Latn-RS_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Swedish (Sweden)</displayName>
+		<fileName>sv-SE_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Turkish (Turkey)</displayName>
+		<fileName>tr-TR_PFL.xml</fileName>
+	</language>
+</languages>

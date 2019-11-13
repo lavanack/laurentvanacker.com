@@ -1,0 +1,64 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--Generated (UTC): Thursday, April 6, 2017 2:20:58 PM-->
+<languages>
+	<language>
+		<displayName>Czech (Czech Republic)</displayName>
+		<fileName>cs-CZ_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Danish (Denmark)</displayName>
+		<fileName>da-DK_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>German (Germany)</displayName>
+		<fileName>de-DE_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Spanish (Spain)</displayName>
+		<fileName>es-ES_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Finnish (Finland)</displayName>
+		<fileName>fi-FI_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>French (France)</displayName>
+		<fileName>fr-FR_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Hungarian (Hungary)</displayName>
+		<fileName>hu-HU_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Italian (Italy)</displayName>
+		<fileName>it-IT_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Norwegian, Bokmål (Norway)</displayName>
+		<fileName>nb-NO_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Dutch (Netherlands)</displayName>
+		<fileName>nl-NL_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Polish (Poland)</displayName>
+		<fileName>pl-PL_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Portuguese (Brazil)</displayName>
+		<fileName>pt-BR_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Portuguese (Portugal)</displayName>
+		<fileName>pt-PT_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Swedish (Sweden)</displayName>
+		<fileName>sv-SE_PFL.xml</fileName>
+	</language>
+	<language>
+		<displayName>Turkish (Turkey)</displayName>
+		<fileName>tr-TR_PFL.xml</fileName>
+	</language>
+</languages>

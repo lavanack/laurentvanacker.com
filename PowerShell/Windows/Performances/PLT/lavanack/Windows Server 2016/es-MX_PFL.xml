@@ -1,0 +1,6640 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--Generated (UTC): sobota, 1 kwietnia 2017 19:18:05-->
+<!--OS Version : Microsoft Windows Server 2016 Standard-->
+<Counters>
+	<!--Counter Id: 10772-->
+	<Counter>
+		<org>Logout Normal</org>
+		<en>Logout Normal</en>
+	</Counter>
+	<!--Counter Id: 10692-->
+	<Counter>
+		<org>TransportBytesReceived</org>
+		<en>TransportBytesReceived</en>
+	</Counter>
+	<!--Counter Id: 264-->
+	<Counter>
+		<org>Bytes recibidos/s</org>
+		<en>Bytes Received/sec</en>
+	</Counter>
+	<!--Counter Id: 10764-->
+	<Counter>
+		<org>Failed Logins</org>
+		<en>Failed Logins</en>
+	</Counter>
+	<!--Counter Id: 10816-->
+	<Counter>
+		<org>SoftAssociations</org>
+		<en>SoftAssociations</en>
+	</Counter>
+	<!--Counter Id: 328-->
+	<Counter>
+		<org>Sesiones suspendidas del servidor</org>
+		<en>Server Sessions Hung</en>
+	</Counter>
+	<!--Counter Id: 1630-->
+	<Counter>
+		<org>Solicitudes de TGS de delegación restringida de tipos de recursos del KDC</org>
+		<en>KDC resource type constrained delegation TGS Requests</en>
+	</Counter>
+	<!--Counter Id: 10550-->
+	<Counter>
+		<org>PDUs Sent</org>
+		<en>PDUs Sent</en>
+	</Counter>
+	<!--Counter Id: 6034-->
+	<Counter>
+		<org>Clases enlazadas a un contexto cargadas</org>
+		<en>Context-Bound Classes Loaded</en>
+	</Counter>
+	<!--Counter Id: 474-->
+	<Counter>
+		<org>Bytes de trama rechazados/s</org>
+		<en>Frame Bytes Rejected/sec</en>
+	</Counter>
+	<!--Counter Id: 488-->
+	<Counter>
+		<org>IPX de NWLink</org>
+		<en>NWLink IPX</en>
+	</Counter>
+	<!--Counter Id: 1562-->
+	<Counter>
+		<org>Solicitudes de enrutador enviadas</org>
+		<en>Sent Router Solicit</en>
+	</Counter>
+	<!--Counter Id: 1052-->
+	<Counter>
+		<org>Paquetes de entrada/s</org>
+		<en>Packets In/sec</en>
+	</Counter>
+	<!--Counter Id: 500-->
+	<Counter>
+		<org>Recursos agotados</org>
+		<en>Times Exhausted</en>
+	</Counter>
+	<!--Counter Id: 1426-->
+	<Counter>
+		<org>Otros bytes de ES/s</org>
+		<en>IO Other Bytes/sec</en>
+	</Counter>
+	<!--Counter Id: 2370-->
+	<Counter>
+		<org>Persistent Indexes L8</org>
+		<en>Persistent Indexes L8</en>
+	</Counter>
+	<!--Counter Id: 648-->
+	<Counter>
+		<org>Errores de conexión</org>
+		<en>Connection Failures</en>
+	</Counter>
+	<!--Counter Id: 1806-->
+	<Counter>
+		<org>% de VAFragmentation</org>
+		<en>% VAFragmentation</en>
+	</Counter>
+	<!--Counter Id: 86-->
+	<Counter>
+		<org>Caché</org>
+		<en>Cache</en>
+	</Counter>
+	<!--Counter Id: 262-->
+	<Counter>
+		<org>Redirector</org>
+		<en>Redirector</en>
+	</Counter>
+	<!--Counter Id: 506-->
+	<Counter>
+		<org>Bytes enviados/s</org>
+		<en>Bytes Sent/sec</en>
+	</Counter>
+	<!--Counter Id: 5044-->
+	<Counter>
+		<org>Latencia media en ms para transferencias isócronas</org>
+		<en>Avg ms latency for ISO transfers</en>
+	</Counter>
+	<!--Counter Id: 430-->
+	<Counter>
+		<org>Errores de recursos remotos</org>
+		<en>Failures Resource Remote</en>
+	</Counter>
+	<!--Counter Id: 10410-->
+	<Counter>
+		<org>iSCSI Initiator Instance</org>
+		<en>iSCSI Initiator Instance</en>
+	</Counter>
+	<!--Counter Id: 746-->
+	<Counter>
+		<org>Espacio no asignado en Solo lectura</org>
+		<en>Unassigned Space Read Only</en>
+	</Counter>
+	<!--Counter Id: 820-->
+	<Counter>
+		<org>Uso máximo de los bytes de caché</org>
+		<en>Cache Bytes Peak</en>
+	</Counter>
+	<!--Counter Id: 130-->
+	<Counter>
+		<org>Errores de recursos de lecturas rápidas/s</org>
+		<en>Fast Read Resource Misses/sec</en>
+	</Counter>
+	<!--Counter Id: 100-->
+	<Counter>
+		<org>Lecturas sincrónicas de anclaje/s</org>
+		<en>Sync Pin Reads/sec</en>
+	</Counter>
+	<!--Counter Id: 10658-->
+	<Counter>
+		<org>PDUReceived</org>
+		<en>PDUReceived</en>
+	</Counter>
+	<!--Counter Id: 5898-->
+	<Counter>
+		<org>Tamaño del montón de gen. 0</org>
+		<en>Gen 0 heap size</en>
+	</Counter>
+	<!--Counter Id: 2200-->
+	<Counter>
+		<org>Performance Level</org>
+		<en>Performance Level</en>
+	</Counter>
+	<!--Counter Id: 1328-->
+	<Counter>
+		<org>Bytes escritos/s</org>
+		<en>Write Bytes/sec</en>
+	</Counter>
+	<!--Counter Id: 214-->
+	<Counter>
+		<org>Lecturas de disco/s</org>
+		<en>Disk Reads/sec</en>
+	</Counter>
+	<!--Counter Id: 10546-->
+	<Counter>
+		<org>Digest Errors</org>
+		<en>Digest Errors</en>
+	</Counter>
+	<!--Counter Id: 10624-->
+	<Counter>
+		<org>InvalidCookiesReceived</org>
+		<en>InvalidCookiesReceived</en>
+	</Counter>
+	<!--Counter Id: 10592-->
+	<Counter>
+		<org>Logins  Failed</org>
+		<en>Logins  Failed</en>
+	</Counter>
+	<!--Counter Id: 608-->
+	<Counter>
+		<org>Mensajes de máscara de dirección recibidos</org>
+		<en>Received Address Mask</en>
+	</Counter>
+	<!--Counter Id: 8268-->
+	<Counter>
+		<org>SoftDisconnectsPerSecond</org>
+		<en>SoftDisconnectsPerSecond</en>
+	</Counter>
+	<!--Counter Id: 148-->
+	<Counter>
+		<org>Interrupciones/s</org>
+		<en>Interrupts/sec</en>
+	</Counter>
+	<!--Counter Id: 388-->
+	<Counter>
+		<org>Total de bytes/s</org>
+		<en>Bytes Total/sec</en>
+	</Counter>
+	<!--Counter Id: 1450-->
+	<Counter>
+		<org>Cola de impresión</org>
+		<en>Print Queue</en>
+	</Counter>
+	<!--Counter Id: 1372-->
+	<Counter>
+		<org>Uso máximo de carga de asignación VLM</org>
+		<en>VLM Commit Charge Peak</en>
+	</Counter>
+	<!--Counter Id: 10488-->
+	<Counter>
+		<org>BytesTransmitted</org>
+		<en>BytesTransmitted</en>
+	</Counter>
+	<!--Counter Id: 10454-->
+	<Counter>
+		<org>GetSPIFailures</org>
+		<en>GetSPIFailures</en>
+	</Counter>
+	<!--Counter Id: 428-->
+	<Counter>
+		<org>Conexiones canceladas</org>
+		<en>Connections Canceled</en>
+	</Counter>
+	<!--Counter Id: 208-->
+	<Counter>
+		<org>Promedio de segundos de disco/lectura</org>
+		<en>Avg. Disk sec/Read</en>
+	</Counter>
+	<!--Counter Id: 8256-->
+	<Counter>
+		<org>HttpWebRequests anulados/s</org>
+		<en>HttpWebRequests Aborted/Sec</en>
+	</Counter>
+	<!--Counter Id: 1472-->
+	<Counter>
+		<org>Errores de trabajo</org>
+		<en>Job Errors</en>
+	</Counter>
+	<!--Counter Id: 8250-->
+	<Counter>
+		<org>HttpWebRequests en cola/s</org>
+		<en>HttpWebRequests Queued/Sec</en>
+	</Counter>
+	<!--Counter Id: 10814-->
+	<Counter>
+		<org>SendFailures</org>
+		<en>SendFailures</en>
+	</Counter>
+	<!--Counter Id: 744-->
+	<Counter>
+		<org>Espacio no asignado en Sin acceso</org>
+		<en>Unassigned Space No Access</en>
+	</Counter>
+	<!--Counter Id: 1564-->
+	<Counter>
+		<org>Anuncios de enrutador enviados</org>
+		<en>Sent Router Advert</en>
+	</Counter>
+	<!--Counter Id: 50-->
+	<Counter>
+		<org>Escrituras de páginas/s</org>
+		<en>Page Writes/sec</en>
+	</Counter>
+	<!--Counter Id: 606-->
+	<Counter>
+		<org>Mensajes de respuesta a marca de tiempo recibidos/s</org>
+		<en>Received Timestamp Reply/sec</en>
+	</Counter>
+	<!--Counter Id: 712-->
+	<Counter>
+		<org>Espacio asignado en Solo lectura</org>
+		<en>Mapped Space Read Only</en>
+	</Counter>
+	<!--Counter Id: 476-->
+	<Counter>
+		<org>Expiraciones de respuesta</org>
+		<en>Expirations Response</en>
+	</Counter>
+	<!--Counter Id: 6860-->
+	<Counter>
+		<org>NumberOfActiveConnections</org>
+		<en>NumberOfActiveConnections</en>
+	</Counter>
+	<!--Counter Id: 2292-->
+	<Counter>
+		<org>L0 Merges (flushes) Now.</org>
+		<en>L0 Merges (flushes) Now.</en>
+	</Counter>
+	<!--Counter Id: 2246-->
+	<Counter>
+		<org>System IO traffic rate</org>
+		<en>System IO traffic rate</en>
+	</Counter>
+	<!--Counter Id: 10748-->
+	<Counter>
+		<org>Session Cxn Timeout Errors</org>
+		<en>Session Cxn Timeout Errors</en>
+	</Counter>
+	<!--Counter Id: 1804-->
+	<Counter>
+		<org>% de fragmentación</org>
+		<en>% Fragmentation</en>
+	</Counter>
+	<!--Counter Id: 78-->
+	<Counter>
+		<org>Anuncios de dominio/s</org>
+		<en>Announcements Domain/sec</en>
+	</Counter>
+	<!--Counter Id: 7664-->
+	<Counter>
+		<org>URI con registro cancelado para net.pipe</org>
+		<en>Uris Unregistered for net.pipe</en>
+	</Counter>
+	<!--Counter Id: 588-->
+	<Counter>
+		<org>Mensajes recibidos con errores</org>
+		<en>Messages Received Errors</en>
+	</Counter>
+	<!--Counter Id: 884-->
+	<Counter>
+		<org>Errores de CRC</org>
+		<en>CRC Errors</en>
+	</Counter>
+	<!--Counter Id: 1532-->
+	<Counter>
+		<org>UDPv6</org>
+		<en>UDPv6</en>
+	</Counter>
+	<!--Counter Id: 10870-->
+	<Counter>
+		<org>Average Request Processing Time</org>
+		<en>Average Request Processing Time</en>
+	</Counter>
+	<!--Counter Id: 1834-->
+	<Counter>
+		<org>Bytes hash enviados de BranchCache V2 para SMB</org>
+		<en>SMB BranchCache Hash V2 Bytes Sent</en>
+	</Counter>
+	<!--Counter Id: 4732-->
+	<Counter>
+		<org>Bytes recibidos/s</org>
+		<en>Bytes Received/Sec</en>
+	</Counter>
+	<!--Counter Id: 748-->
+	<Counter>
+		<org>Espacio no asignado en Lectura/escritura</org>
+		<en>Unassigned Space Read/Write</en>
+	</Counter>
+	<!--Counter Id: 1822-->
+	<Counter>
+		<org>MBytes de lista de modo de espera</org>
+		<en>Standby List MBytes</en>
+	</Counter>
+	<!--Counter Id: 10514-->
+	<Counter>
+		<org>PacketsNotAuthenticated</org>
+		<en>PacketsNotAuthenticated</en>
+	</Counter>
+	<!--Counter Id: 10442-->
+	<Counter>
+		<org>AcquireFailures</org>
+		<en>AcquireFailures</en>
+	</Counter>
+	<!--Counter Id: 10416-->
+	<Counter>
+		<org>Sessions Failed</org>
+		<en>Sessions Failed</en>
+	</Counter>
+	<!--Counter Id: 1112-->
+	<Counter>
+		<org>Total de tramas recibidas/s</org>
+		<en>Total frames received/second</en>
+	</Counter>
+	<!--Counter Id: 10404-->
+	<Counter>
+		<org>Bytes Sent</org>
+		<en>Bytes Sent</en>
+	</Counter>
+	<!--Counter Id: 10598-->
+	<Counter>
+		<org>Login Negotiation Failed</org>
+		<en>Login Negotiation Failed</en>
+	</Counter>
+	<!--Counter Id: 10652-->
+	<Counter>
+		<org>MSiSCSI_NICPerformance</org>
+		<en>MSiSCSI_NICPerformance</en>
+	</Counter>
+	<!--Counter Id: 6844-->
+	<Counter>
+		<org>SoftConnectsPerSecond</org>
+		<en>SoftConnectsPerSecond</en>
+	</Counter>
+	<!--Counter Id: 924-->
+	<Counter>
+		<org>Registros de grupo/s</org>
+		<en>Group Registrations/sec</en>
+	</Counter>
+	<!--Counter Id: 1920-->
+	<Counter>
+		<org>Number of Active Telephones</org>
+		<en>Number of Active Telephones</en>
+	</Counter>
+	<!--Counter Id: 538-->
+	<Counter>
+		<org>Paquetes de no unidifusión enviados/s</org>
+		<en>Packets Sent Non-Unicast/sec</en>
+	</Counter>
+	<!--Counter Id: 6382-->
+	<Counter>
+		<org>Flujos de trabajo en ejecución</org>
+		<en>Workflows Executing</en>
+	</Counter>
+	<!--Counter Id: 2206-->
+	<Counter>
+		<org>Filter Processes Max</org>
+		<en>Filter Processes Max</en>
+	</Counter>
+	<!--Counter Id: 146-->
+	<Counter>
+		<org>Cambios de contexto/s</org>
+		<en>Context Switches/sec</en>
+	</Counter>
+	<!--Counter Id: 1402-->
+	<Counter>
+		<org>Longitud promedio de cola de lectura de disco</org>
+		<en>Avg. Disk Read Queue Length</en>
+	</Counter>
+	<!--Counter Id: 528-->
+	<Counter>
+		<org>Paquetes recibidos descartados</org>
+		<en>Packets Received Discarded</en>
+	</Counter>
+	<!--Counter Id: 94-->
+	<Counter>
+		<org>% de aciertos en asignaciones de datos</org>
+		<en>Data Map Hits %</en>
+	</Counter>
+	<!--Counter Id: 10724-->
+	<Counter>
+		<org>Processor Frequency</org>
+		<en>Processor Frequency</en>
+	</Counter>
+	<!--Counter Id: 5022-->
+	<Counter>
+		<org>Bytes de transferencia masiva/s</org>
+		<en>Bulk Bytes/Sec</en>
+	</Counter>
+	<!--Counter Id: 2232-->
+	<Counter>
+		<org>Documents Successfully Filtered</org>
+		<en>Documents Successfully Filtered</en>
+	</Counter>
+	<!--Counter Id: 10750-->
+	<Counter>
+		<org>Session Digest Errors</org>
+		<en>Session Digest Errors</en>
+	</Counter>
+	<!--Counter Id: 114-->
+	<Counter>
+		<org>Lecturas mediante MDL/s</org>
+		<en>MDL Reads/sec</en>
+	</Counter>
+	<!--Counter Id: 1474-->
+	<Counter>
+		<org>Llamadas de enumeración de impresora de red</org>
+		<en>Enumerate Network Printer Calls</en>
+	</Counter>
+	<!--Counter Id: 700-->
+	<Counter>
+		<org>Archivo de paginación</org>
+		<en>Paging File</en>
+	</Counter>
+	<!--Counter Id: 1772-->
+	<Counter>
+		<org>Velocidad promedio de asignaciones</org>
+		<en>Avg. alloc rate</en>
+	</Counter>
+	<!--Counter Id: 422-->
+	<Counter>
+		<org>Errores de vinculación</org>
+		<en>Failures Link</en>
+	</Counter>
+	<!--Counter Id: 1010-->
+	<Counter>
+		<org>Sesiones actuales</org>
+		<en>Current Sessions</en>
+	</Counter>
+	<!--Counter Id: 38-->
+	<Counter>
+		<org>Errores de solicitud de cero/s</org>
+		<en>Demand Zero Faults/sec</en>
+	</Counter>
+	<!--Counter Id: 948-->
+	<Counter>
+		<org>Consultas correctas/s</org>
+		<en>Successful Queries/sec</en>
+	</Counter>
+	<!--Counter Id: 24-->
+	<Counter>
+		<org>Bytes disponibles</org>
+		<en>Available Bytes</en>
+	</Counter>
+	<!--Counter Id: 7638-->
+	<Counter>
+		<org>Errores de protocolo a través de net.tcp</org>
+		<en>Protocol Failures over net.tcp</en>
+	</Counter>
+	<!--Counter Id: 5956-->
+	<Counter>
+		<org>Ensamblados actuales</org>
+		<en>Current Assemblies</en>
+	</Counter>
+	<!--Counter Id: 2356-->
+	<Counter>
+		<org>L6 Merge - Count</org>
+		<en>L6 Merge - Count</en>
+	</Counter>
+	<!--Counter Id: 5018-->
+	<Counter>
+		<org>Transacciones confirmadas/s</org>
+		<en>Committed Transactions/sec</en>
+	</Counter>
+	<!--Counter Id: 10610-->
+	<Counter>
+		<org>AcquireFailures</org>
+		<en>AcquireFailures</en>
+	</Counter>
+	<!--Counter Id: 1566-->
+	<Counter>
+		<org>Solicitudes de vecino enviadas</org>
+		<en>Sent Neighbor Solicit</en>
+	</Counter>
+	<!--Counter Id: 260-->
+	<Counter>
+		<org>Objetos</org>
+		<en>Objects</en>
+	</Counter>
+	<!--Counter Id: 202-->
+	<Counter>
+		<org>% de tiempo de lectura de disco</org>
+		<en>% Disk Read Time</en>
+	</Counter>
+	<!--Counter Id: 618-->
+	<Counter>
+		<org>Mensajes de tiempo superado enviados</org>
+		<en>Sent Time Exceeded</en>
+	</Counter>
+	<!--Counter Id: 300-->
+	<Counter>
+		<org>Operaciones aleatorias de escritura/s</org>
+		<en>Write Operations Random/sec</en>
+	</Counter>
+	<!--Counter Id: 1082-->
+	<Counter>
+		<org>Paquetes RTMP/s</org>
+		<en>RTMP Packets/sec</en>
+	</Counter>
+	<!--Counter Id: 1160-->
+	<Counter>
+		<org>Llamadas salientes/s</org>
+		<en>Outgoing Calls/sec</en>
+	</Counter>
+	<!--Counter Id: 10796-->
+	<Counter>
+		<org>KeyAdditionFailures</org>
+		<en>KeyAdditionFailures</en>
+	</Counter>
+	<!--Counter Id: 1786-->
+	<Counter>
+		<org>Liberaciones menores que 1 KB/s</org>
+		<en>Frees &lt;1K/sec</en>
+	</Counter>
+	<!--Counter Id: 4708-->
+	<Counter>
+		<org>Bytes recibidos</org>
+		<en>Bytes Received</en>
+	</Counter>
+	<!--Counter Id: 10784-->
+	<Counter>
+		<org>ActiveReceive</org>
+		<en>ActiveReceive</en>
+	</Counter>
+	<!--Counter Id: 1918-->
+	<Counter>
+		<org>Number of Active Lines</org>
+		<en>Number of Active Lines</en>
+	</Counter>
+	<!--Counter Id: 586-->
+	<Counter>
+		<org>Mensajes recibidos/s</org>
+		<en>Messages Received/sec</en>
+	</Counter>
+	<!--Counter Id: 10602-->
+	<Counter>
+		<org>Login Redirect Responses</org>
+		<en>Login Redirect Responses</en>
+	</Counter>
+	<!--Counter Id: 348-->
+	<Counter>
+		<org>Errores de inicio de sesión</org>
+		<en>Errors Logon</en>
+	</Counter>
+	<!--Counter Id: 1802-->
+	<Counter>
+		<org>Profundidad más grande en caché</org>
+		<en>Largest Cache Depth</en>
+	</Counter>
+	<!--Counter Id: 1836-->
+	<Counter>
+		<org>Solicitudes hash de BranchCache V2 para SMB atendidas desde Dedup</org>
+		<en>SMB BranchCache Hash V2 Requests Served From Dedup</en>
+	</Counter>
+	<!--Counter Id: 10448-->
+	<Counter>
+		<org>ActiveReceive</org>
+		<en>ActiveReceive</en>
+	</Counter>
+	<!--Counter Id: 2172-->
+	<Counter>
+		<org>Document Moves/Renames</org>
+		<en>Document Moves/Renames</en>
+	</Counter>
+	<!--Counter Id: 1118-->
+	<Counter>
+		<org>Tramas de multidifusión recibidas/s</org>
+		<en>Multicast frames received/second</en>
+	</Counter>
+	<!--Counter Id: 1366-->
+	<Counter>
+		<org>Uso máximo de tamaño virtual VLM</org>
+		<en>VLM Virtual Size Peak</en>
+	</Counter>
+	<!--Counter Id: 10688-->
+	<Counter>
+		<org>PendingKeyOperations</org>
+		<en>PendingKeyOperations</en>
+	</Counter>
+	<!--Counter Id: 10654-->
+	<Counter>
+		<org>BytesReceived</org>
+		<en>BytesReceived</en>
+	</Counter>
+	<!--Counter Id: 6388-->
+	<Counter>
+		<org>Flujos de trabajo pendientes</org>
+		<en>Workflows Pending</en>
+	</Counter>
+	<!--Counter Id: 494-->
+	<Counter>
+		<org>Recurso NetBEUI</org>
+		<en>NetBEUI Resource</en>
+	</Counter>
+	<!--Counter Id: 10536-->
+	<Counter>
+		<org>Max Request Processing Time</org>
+		<en>Max Request Processing Time</en>
+	</Counter>
+	<!--Counter Id: 4728-->
+	<Counter>
+		<org>Total de errores</org>
+		<en>Total Errors</en>
+	</Counter>
+	<!--Counter Id: 10460-->
+	<Counter>
+		<org>KeyAdditionFailures</org>
+		<en>KeyAdditionFailures</en>
+	</Counter>
+	<!--Counter Id: 102-->
+	<Counter>
+		<org>Lecturas asincrónicas de anclaje/s</org>
+		<en>Async Pin Reads/sec</en>
+	</Counter>
+	<!--Counter Id: 198-->
+	<Counter>
+		<org>Longitud actual de la cola de disco</org>
+		<en>Current Disk Queue Length</en>
+	</Counter>
+	<!--Counter Id: 5916-->
+	<Counter>
+		<org>No se muestra</org>
+		<en>Not Displayed</en>
+	</Counter>
+	<!--Counter Id: 144-->
+	<Counter>
+		<org>% de tiempo privilegiado</org>
+		<en>% Privileged Time</en>
+	</Counter>
+	<!--Counter Id: 10400-->
+	<Counter>
+		<org>iSCSI Connections</org>
+		<en>iSCSI Connections</en>
+	</Counter>
+	<!--Counter Id: 818-->
+	<Counter>
+		<org>Bytes de caché</org>
+		<en>Cache Bytes</en>
+	</Counter>
+	<!--Counter Id: 6050-->
+	<Counter>
+		<org>Número de bloques Finally por segundo</org>
+		<en># of Finallys / sec</en>
+	</Counter>
+	<!--Counter Id: 692-->
+	<Counter>
+		<org>Inicios de sesión/s</org>
+		<en>Logon/sec</en>
+	</Counter>
+	<!--Counter Id: 540-->
+	<Counter>
+		<org>Paquetes de salida descartados</org>
+		<en>Packets Outbound Discarded</en>
+	</Counter>
+	<!--Counter Id: 5906-->
+	<Counter>
+		<org>Superviviente de finalización</org>
+		<en>Finalization Survivors</en>
+	</Counter>
+	<!--Counter Id: 720-->
+	<Counter>
+		<org>Espacio asignado en Ejecución y solo lectura</org>
+		<en>Mapped Space Exec Read Only</en>
+	</Counter>
+	<!--Counter Id: 190-->
+	<Counter>
+		<org>Total de enumeraciones/s</org>
+		<en>Enumerations Total/sec</en>
+	</Counter>
+	<!--Counter Id: 10504-->
+	<Counter>
+		<org>BadSPIPackets</org>
+		<en>BadSPIPackets</en>
+	</Counter>
+	<!--Counter Id: 1778-->
+	<Counter>
+		<org>Asignaciones - liberaciones</org>
+		<en>Allocs - Frees</en>
+	</Counter>
+	<!--Counter Id: 6008-->
+	<Counter>
+		<org>Número de subprocesos totales reconocidos</org>
+		<en># of total recognized threads</en>
+	</Counter>
+	<!--Counter Id: 424-->
+	<Counter>
+		<org>Errores en el adaptador</org>
+		<en>Failures Adapter</en>
+	</Counter>
+	<!--Counter Id: 204-->
+	<Counter>
+		<org>% de tiempo de escritura en disco</org>
+		<en>% Disk Write Time</en>
+	</Counter>
+	<!--Counter Id: 64-->
+	<Counter>
+		<org>Asignaciones de bloque no paginado</org>
+		<en>Pool Nonpaged Allocs</en>
+	</Counter>
+	<!--Counter Id: 5922-->
+	<Counter>
+		<org>Número de bytes totales reservados</org>
+		<en># Total reserved Bytes</en>
+	</Counter>
+	<!--Counter Id: 228-->
+	<Counter>
+		<org>Promedio de bytes de disco/escritura</org>
+		<en>Avg. Disk Bytes/Write</en>
+	</Counter>
+	<!--Counter Id: 2238-->
+	<Counter>
+		<org>Word Breakers Cached</org>
+		<en>Word Breakers Cached</en>
+	</Counter>
+	<!--Counter Id: 10638-->
+	<Counter>
+		<org>OakleyMainMode</org>
+		<en>OakleyMainMode</en>
+	</Counter>
+	<!--Counter Id: 892-->
+	<Counter>
+		<org>Errores de saturación del búfer</org>
+		<en>Buffer Overrun Errors</en>
+	</Counter>
+	<!--Counter Id: 10502-->
+	<Counter>
+		<org>AuthenticatedBytesSent</org>
+		<en>AuthenticatedBytesSent</en>
+	</Counter>
+	<!--Counter Id: 788-->
+	<Counter>
+		<org>Sin acceso</org>
+		<en>No Access</en>
+	</Counter>
+	<!--Counter Id: 1526-->
+	<Counter>
+		<org>Total ms - Modo kernel</org>
+		<en>Total mSec - Kernel Mode</en>
+	</Counter>
+	<!--Counter Id: 716-->
+	<Counter>
+		<org>Espacio asignado en Escritura en copia</org>
+		<en>Mapped Space Write Copy</en>
+	</Counter>
+	<!--Counter Id: 7640-->
+	<Counter>
+		<org>Errores de protocolo a través de net.pipe</org>
+		<en>Protocol Failures over net.pipe</en>
+	</Counter>
+	<!--Counter Id: 878-->
+	<Counter>
+		<org>Tramas recibidas</org>
+		<en>Frames Received.</en>
+	</Counter>
+	<!--Counter Id: 10558-->
+	<Counter>
+		<org>% of Maximum Frequency</org>
+		<en>% of Maximum Frequency</en>
+	</Counter>
+	<!--Counter Id: 10856-->
+	<Counter>
+		<org>PendingKeyOperations</org>
+		<en>PendingKeyOperations</en>
+	</Counter>
+	<!--Counter Id: 1276-->
+	<Counter>
+		<org>Total de identificadores resistentes</org>
+		<en>Total Resilient Handles</en>
+	</Counter>
+	<!--Counter Id: 1560-->
+	<Counter>
+		<org>Reducciones de pertenencia enviadas</org>
+		<en>Sent Membership Reduction</en>
+	</Counter>
+	<!--Counter Id: 10604-->
+	<Counter>
+		<org>Logout Normal</org>
+		<en>Logout Normal</en>
+	</Counter>
+	<!--Counter Id: 10798-->
+	<Counter>
+		<org>KeyAdditions</org>
+		<en>KeyAdditions</en>
+	</Counter>
+	<!--Counter Id: 4994-->
+	<Counter>
+		<org>Coordinador de transacciones distribuidas</org>
+		<en>Distributed Transaction Coordinator</en>
+	</Counter>
+	<!--Counter Id: 6356-->
+	<Counter>
+		<org>Flujos de trabajo cargados</org>
+		<en>Workflows Loaded</en>
+	</Counter>
+	<!--Counter Id: 558-->
+	<Counter>
+		<org>Datagramas recibidos con protocolo desconocido</org>
+		<en>Datagrams Received Unknown Protocol</en>
+	</Counter>
+	<!--Counter Id: 584-->
+	<Counter>
+		<org>Mensajes/s</org>
+		<en>Messages/sec</en>
+	</Counter>
+	<!--Counter Id: 5918-->
+	<Counter>
+		<org>Número de bytes en todos los montones</org>
+		<en># Bytes in all Heaps</en>
+	</Counter>
+	<!--Counter Id: 152-->
+	<Counter>
+		<org>Cargas de TLB de nivel 1/s</org>
+		<en>Level 1 TLB Fills/sec</en>
+	</Counter>
+	<!--Counter Id: 5944-->
+	<Counter>
+		<org>Tasa de AppDomain descargados</org>
+		<en>Rate of appdomains unloaded</en>
+	</Counter>
+	<!--Counter Id: 1460-->
+	<Counter>
+		<org>Referencias</org>
+		<en>References</en>
+	</Counter>
+	<!--Counter Id: 2344-->
+	<Counter>
+		<org>L5 Merge Speed - average</org>
+		<en>L5 Merge Speed - average</en>
+	</Counter>
+	<!--Counter Id: 10446-->
+	<Counter>
+		<org>ActiveAcquire</org>
+		<en>ActiveAcquire</en>
+	</Counter>
+	<!--Counter Id: 8242-->
+	<Counter>
+		<org>Datagramas enviados</org>
+		<en>Datagrams Sent</en>
+	</Counter>
+	<!--Counter Id: 1364-->
+	<Counter>
+		<org>Tamaño virtual VLM</org>
+		<en>VLM Virtual Size</en>
+	</Counter>
+	<!--Counter Id: 2178-->
+	<Counter>
+		<org>History Recovery Progress</org>
+		<en>History Recovery Progress</en>
+	</Counter>
+	<!--Counter Id: 8244-->
+	<Counter>
+		<org>HttpWebRequests creados/s</org>
+		<en>HttpWebRequests Created/Sec</en>
+	</Counter>
+	<!--Counter Id: 108-->
+	<Counter>
+		<org>Lecturas sincrónicas de copia/s</org>
+		<en>Sync Copy Reads/sec</en>
+	</Counter>
+	<!--Counter Id: 292-->
+	<Counter>
+		<org>Paquetes de lectura/s</org>
+		<en>Read Packets/sec</en>
+	</Counter>
+	<!--Counter Id: 1500-->
+	<Counter>
+		<org>Objeto de trabajo</org>
+		<en>Job Object</en>
+	</Counter>
+	<!--Counter Id: 10682-->
+	<Counter>
+		<org>PacketsNotAuthenticated</org>
+		<en>PacketsNotAuthenticated</en>
+	</Counter>
+	<!--Counter Id: 2202-->
+	<Counter>
+		<org>Active Queue Length</org>
+		<en>Active Queue Length</en>
+	</Counter>
+	<!--Counter Id: 254-->
+	<Counter>
+		<org>Semáforos</org>
+		<en>Semaphores</en>
+	</Counter>
+	<!--Counter Id: 10774-->
+	<Counter>
+		<org>Logout Other Codes</org>
+		<en>Logout Other Codes</en>
+	</Counter>
+	<!--Counter Id: 650-->
+	<Counter>
+		<org>Conexiones reinicializadas</org>
+		<en>Connections Reset</en>
+	</Counter>
+	<!--Counter Id: 682-->
+	<Counter>
+		<org>Prioridad base</org>
+		<en>Priority Base</en>
+	</Counter>
+	<!--Counter Id: 1596-->
+	<Counter>
+		<org>Conexiones descargadas</org>
+		<en>Offloaded Connections</en>
+	</Counter>
+	<!--Counter Id: 10552-->
+	<Counter>
+		<org>PDUs Received</org>
+		<en>PDUs Received</en>
+	</Counter>
+	<!--Counter Id: 10728-->
+	<Counter>
+		<org>Processor State Flags</org>
+		<en>Processor State Flags</en>
+	</Counter>
+	<!--Counter Id: 10890-->
+	<Counter>
+		<org>Processor Performance</org>
+		<en>Processor Performance</en>
+	</Counter>
+	<!--Counter Id: 5904-->
+	<Counter>
+		<org>Tamaño del montón del objeto grande</org>
+		<en>Large Object Heap size</en>
+	</Counter>
+	<!--Counter Id: 6850-->
+	<Counter>
+		<org>NumberOfPooledConnections</org>
+		<en>NumberOfPooledConnections</en>
+	</Counter>
+	<!--Counter Id: 140-->
+	<Counter>
+		<org>Páginas de vaciado de datos/s</org>
+		<en>Data Flush Pages/sec</en>
+	</Counter>
+	<!--Counter Id: 2092-->
+	<Counter>
+		<org>Documents On Hold</org>
+		<en>Documents On Hold</en>
+	</Counter>
+	<!--Counter Id: 6036-->
+	<Counter>
+		<org>Asignación de objetos enlazados a un contexto por segundo</org>
+		<en>Context-Bound Objects Alloc / sec</en>
+	</Counter>
+	<!--Counter Id: 10806-->
+	<Counter>
+		<org>OakleyMainMode</org>
+		<en>OakleyMainMode</en>
+	</Counter>
+	<!--Counter Id: 5880-->
+	<Counter>
+		<org>Número de colecciones de gen. 0</org>
+		<en># Gen 0 Collections</en>
+	</Counter>
+	<!--Counter Id: 524-->
+	<Counter>
+		<org>Paquetes de unidifusión recibidos/s</org>
+		<en>Packets Received Unicast/sec</en>
+	</Counter>
+	<!--Counter Id: 756-->
+	<Counter>
+		<org>Espacio no asignado en Ejecución y lectura/escritura</org>
+		<en>Unassigned Space Exec Read/Write</en>
+	</Counter>
+	<!--Counter Id: 2318-->
+	<Counter>
+		<org>L2 Merge Speed - last</org>
+		<en>L2 Merge Speed - last</en>
+	</Counter>
+	<!--Counter Id: 7422-->
+	<Counter>
+		<org>Promedio de base de tiempo de respuesta de confirmación de participantes</org>
+		<en>Average participant commit response time Base</en>
+	</Counter>
+	<!--Counter Id: 10648-->
+	<Counter>
+		<org>SoftAssociations</org>
+		<en>SoftAssociations</en>
+	</Counter>
+	<!--Counter Id: 10854-->
+	<Counter>
+		<org>PacketsWithReplayDetection</org>
+		<en>PacketsWithReplayDetection</en>
+	</Counter>
+	<!--Counter Id: 436-->
+	<Counter>
+		<org>Errores por no haber escucha</org>
+		<en>Failures No Listen</en>
+	</Counter>
+	<!--Counter Id: 1000-->
+	<Counter>
+		<org>Servidor MacFile</org>
+		<en>MacFile Server</en>
+	</Counter>
+	<!--Counter Id: 10606-->
+	<Counter>
+		<org>Logout Other Codes</org>
+		<en>Logout Other Codes</en>
+	</Counter>
+	<!--Counter Id: 6854-->
+	<Counter>
+		<org>NumberOfInactiveConnectionPoolGroups</org>
+		<en>NumberOfInactiveConnectionPoolGroups</en>
+	</Counter>
+	<!--Counter Id: 8258-->
+	<Counter>
+		<org>HttpWebRequests erróneos/s</org>
+		<en>HttpWebRequests Failed/Sec</en>
+	</Counter>
+	<!--Counter Id: 158-->
+	<Counter>
+		<org>Enumeraciones de dominio/s</org>
+		<en>Enumerations Domain/sec</en>
+	</Counter>
+	<!--Counter Id: 1070-->
+	<Counter>
+		<org>Paquetes ATP/s</org>
+		<en>ATP Packets/sec</en>
+	</Counter>
+	<!--Counter Id: 2190-->
+	<Counter>
+		<org>Heartbeats</org>
+		<en>Heartbeats</en>
+	</Counter>
+	<!--Counter Id: 2342-->
+	<Counter>
+		<org>L5 Merges Now.</org>
+		<en>L5 Merges Now.</en>
+	</Counter>
+	<!--Counter Id: 10736-->
+	<Counter>
+		<org>iSCSI Connections</org>
+		<en>iSCSI Connections</en>
+	</Counter>
+	<!--Counter Id: 398-->
+	<Counter>
+		<org>NetBIOS de NWLink</org>
+		<en>NWLink NetBIOS</en>
+	</Counter>
+	<!--Counter Id: 1156-->
+	<Counter>
+		<org>Líneas activas</org>
+		<en>Active Lines</en>
+	</Counter>
+	<!--Counter Id: 10600-->
+	<Counter>
+		<org>Login Other Failed Responses</org>
+		<en>Login Other Failed Responses</en>
+	</Counter>
+	<!--Counter Id: 1362-->
+	<Counter>
+		<org>% de tamaño virtual VLM en uso</org>
+		<en>VLM % Virtual Size In Use</en>
+	</Counter>
+	<!--Counter Id: 7406-->
+	<Counter>
+		<org>Número de reintentos de confirmación/s</org>
+		<en>Commit retry count/sec</en>
+	</Counter>
+	<!--Counter Id: 10444-->
+	<Counter>
+		<org>AcquireHeapSize</org>
+		<en>AcquireHeapSize</en>
+	</Counter>
+	<!--Counter Id: 1544-->
+	<Counter>
+		<org>Solicitudes de enrutador recibidas</org>
+		<en>Received Router Solicit</en>
+	</Counter>
+	<!--Counter Id: 256-->
+	<Counter>
+		<org>Exclusiones mutuas</org>
+		<en>Mutexes</en>
+	</Counter>
+	<!--Counter Id: 1264-->
+	<Counter>
+		<org>Identificadores duraderos reconectados</org>
+		<en>Reconnected Durable Handles</en>
+	</Counter>
+	<!--Counter Id: 2258-->
+	<Counter>
+		<org>Master Merge Progress</org>
+		<en>Master Merge Progress</en>
+	</Counter>
+	<!--Counter Id: 282-->
+	<Counter>
+		<org>Bytes escritos que no son de la paginación/s</org>
+		<en>Write Bytes Non-Paging/sec</en>
+	</Counter>
+	<!--Counter Id: 10782-->
+	<Counter>
+		<org>ActiveAcquire</org>
+		<en>ActiveAcquire</en>
+	</Counter>
+	<!--Counter Id: 26-->
+	<Counter>
+		<org>Bytes confirmados</org>
+		<en>Committed Bytes</en>
+	</Counter>
+	<!--Counter Id: 1594-->
+	<Counter>
+		<org>Solicitudes Kerberos reenviadas</org>
+		<en>Forwarded Kerberos Requests</en>
+	</Counter>
+	<!--Counter Id: 1028-->
+	<Counter>
+		<org>Longitud de cola actual</org>
+		<en>Current Queue Length</en>
+	</Counter>
+	<!--Counter Id: 10762-->
+	<Counter>
+		<org>Login Authentication Failed Responses</org>
+		<en>Login Authentication Failed Responses</en>
+	</Counter>
+	<!--Counter Id: 466-->
+	<Counter>
+		<org>Bytes de trama recibidos/s</org>
+		<en>Frame Bytes Received/sec</en>
+	</Counter>
+	<!--Counter Id: 1464-->
+	<Counter>
+		<org>Trabajos en cola</org>
+		<en>Jobs Spooling</en>
+	</Counter>
+	<!--Counter Id: 5754-->
+	<Counter>
+		<org>Cache Entries</org>
+		<en>Cache Entries</en>
+	</Counter>
+	<!--Counter Id: 10758-->
+	<Counter>
+		<org>Login Accept Responses</org>
+		<en>Login Accept Responses</en>
+	</Counter>
+	<!--Counter Id: 10670-->
+	<Counter>
+		<org>AuthenticatedBytesSent</org>
+		<en>AuthenticatedBytesSent</en>
+	</Counter>
+	<!--Counter Id: 68-->
+	<Counter>
+		<org>Total de bytes de código del sistema</org>
+		<en>System Code Total Bytes</en>
+	</Counter>
+	<!--Counter Id: 768-->
+	<Counter>
+		<org>Espacio de imagen en Ejecución</org>
+		<en>Image Space Executable</en>
+	</Counter>
+	<!--Counter Id: 598-->
+	<Counter>
+		<org>Mensajes de redirección recibidos/s</org>
+		<en>Received Redirect/sec</en>
+	</Counter>
+	<!--Counter Id: 10804-->
+	<Counter>
+		<org>NegotiationFailures</org>
+		<en>NegotiationFailures</en>
+	</Counter>
+	<!--Counter Id: 1522-->
+	<Counter>
+		<org>Total ms - Procesador</org>
+		<en>Total mSec - Processor</en>
+	</Counter>
+	<!--Counter Id: 5978-->
+	<Counter>
+		<org>Interoperabilidad de .NET CLR</org>
+		<en>.NET CLR Interop</en>
+	</Counter>
+	<!--Counter Id: 526-->
+	<Counter>
+		<org>Paquetes de no unidifusión recibidos/s</org>
+		<en>Packets Received Non-Unicast/sec</en>
+	</Counter>
+	<!--Counter Id: 2134-->
+	<Counter>
+		<org>Filtered Text</org>
+		<en>Filtered Text</en>
+	</Counter>
+	<!--Counter Id: 480-->
+	<Counter>
+		<org>Ventana de envío máxima</org>
+		<en>Window Send Maximum</en>
+	</Counter>
+	<!--Counter Id: 2316-->
+	<Counter>
+		<org>L2 Merge - Count</org>
+		<en>L2 Merge - Count</en>
+	</Counter>
+	<!--Counter Id: 2144-->
+	<Counter>
+		<org>Not Modified</org>
+		<en>Not Modified</en>
+	</Counter>
+	<!--Counter Id: 248-->
+	<Counter>
+		<org>Procesos</org>
+		<en>Processes</en>
+	</Counter>
+	<!--Counter Id: 642-->
+	<Counter>
+		<org>Conexiones establecidas</org>
+		<en>Connections Established</en>
+	</Counter>
+	<!--Counter Id: 6346-->
+	<Counter>
+		<org>WF (System.Workflow) 4.0.0.0</org>
+		<en>WF (System.Workflow) 4.0.0.0</en>
+	</Counter>
+	<!--Counter Id: 10642-->
+	<Counter>
+		<org>ReceiveFailures</org>
+		<en>ReceiveFailures</en>
+	</Counter>
+	<!--Counter Id: 10490-->
+	<Counter>
+		<org>PDUReceived</org>
+		<en>PDUReceived</en>
+	</Counter>
+	<!--Counter Id: 308-->
+	<Counter>
+		<org>Lecturas denegadas/s</org>
+		<en>Reads Denied/sec</en>
+	</Counter>
+	<!--Counter Id: 696-->
+	<Counter>
+		<org>% de tiempo de DPC</org>
+		<en>% DPC Time</en>
+	</Counter>
+	<!--Counter Id: 156-->
+	<Counter>
+		<org>Enumeraciones de servidor/s</org>
+		<en>Enumerations Server/sec</en>
+	</Counter>
+	<!--Counter Id: 1238-->
+	<Counter>
+		<org>Tiempos de espera agotados de escritura de Packet Burst/s</org>
+		<en>Packet Burst Write Timeouts/sec</en>
+	</Counter>
+	<!--Counter Id: 84-->
+	<Counter>
+		<org>Solicitudes de lista de servidores/s</org>
+		<en>Server List Requests/sec</en>
+	</Counter>
+	<!--Counter Id: 276-->
+	<Counter>
+		<org>Bytes transmitidos/s</org>
+		<en>Bytes Transmitted/sec</en>
+	</Counter>
+	<!--Counter Id: 10734-->
+	<Counter>
+		<org>HiPerf Validity</org>
+		<en>HiPerf Validity</en>
+	</Counter>
+	<!--Counter Id: 6018-->
+	<Counter>
+		<org>Número de comprobaciones del tiempo de vinculación</org>
+		<en># Link Time Checks</en>
+	</Counter>
+	<!--Counter Id: 1154-->
+	<Counter>
+		<org>Dispositivos telefónicos</org>
+		<en>Telephone Devices</en>
+	</Counter>
+	<!--Counter Id: 2348-->
+	<Counter>
+		<org>L5 Merge Speed - last</org>
+		<en>L5 Merge Speed - last</en>
+	</Counter>
+	<!--Counter Id: 392-->
+	<Counter>
+		<org>Comandos actuales</org>
+		<en>Current Commands</en>
+	</Counter>
+	<!--Counter Id: 520-->
+	<Counter>
+		<org>Ancho de banda actual</org>
+		<en>Current Bandwidth</en>
+	</Counter>
+	<!--Counter Id: 10622-->
+	<Counter>
+		<org>GetSPIFailures</org>
+		<en>GetSPIFailures</en>
+	</Counter>
+	<!--Counter Id: 1762-->
+	<Counter>
+		<org>Bytes confirmados</org>
+		<en>Committed Bytes</en>
+	</Counter>
+	<!--Counter Id: 30-->
+	<Counter>
+		<org>Límite de confirmación</org>
+		<en>Commit Limit</en>
+	</Counter>
+	<!--Counter Id: 1262-->
+	<Counter>
+		<org>Total de identificadores duraderos</org>
+		<en>Total Durable Handles</en>
+	</Counter>
+	<!--Counter Id: 1308-->
+	<Counter>
+		<org>Elementos de trabajo disponibles</org>
+		<en>Available Work Items</en>
+	</Counter>
+	<!--Counter Id: 28-->
+	<Counter>
+		<org>Errores de página/s</org>
+		<en>Page Faults/sec</en>
+	</Counter>
+	<!--Counter Id: 482-->
+	<Counter>
+		<org>Ventana de envío media</org>
+		<en>Window Send Average</en>
+	</Counter>
+	<!--Counter Id: 10544-->
+	<Counter>
+		<org>ConnectionTimeout Errors</org>
+		<en>ConnectionTimeout Errors</en>
+	</Counter>
+	<!--Counter Id: 10708-->
+	<Counter>
+		<org>Bytes Received</org>
+		<en>Bytes Received</en>
+	</Counter>
+	<!--Counter Id: 1410-->
+	<Counter>
+		<org>Id. de proceso de creación</org>
+		<en>Creating Process ID</en>
+	</Counter>
+	<!--Counter Id: 40-->
+	<Counter>
+		<org>Páginas/s</org>
+		<en>Pages/sec</en>
+	</Counter>
+	<!--Counter Id: 2152-->
+	<Counter>
+		<org>Started Documents</org>
+		<en>Started Documents</en>
+	</Counter>
+	<!--Counter Id: 1592-->
+	<Counter>
+		<org>Autenticaciones implícitas</org>
+		<en>Digest Authentications</en>
+	</Counter>
+	<!--Counter Id: 770-->
+	<Counter>
+		<org>Espacio de imagen en Ejecución y solo lectura</org>
+		<en>Image Space Exec Read Only</en>
+	</Counter>
+	<!--Counter Id: 1378-->
+	<Counter>
+		<org>Carga de asignación compartida VLM de sistema</org>
+		<en>System VLM Shared Commit Charge</en>
+	</Counter>
+	<!--Counter Id: 2274-->
+	<Counter>
+		<org>Work Items Deleted</org>
+		<en>Work Items Deleted</en>
+	</Counter>
+	<!--Counter Id: 5010-->
+	<Counter>
+		<org>Tiempo de respuesta mínimo</org>
+		<en>Response Time -- Minimum</en>
+	</Counter>
+	<!--Counter Id: 88-->
+	<Counter>
+		<org>Asignaciones de datos/s</org>
+		<en>Data Maps/sec</en>
+	</Counter>
+	<!--Counter Id: 5972-->
+	<Counter>
+		<org>Errores estándar de compilación JIT</org>
+		<en>Standard Jit Failures</en>
+	</Counter>
+	<!--Counter Id: 566-->
+	<Counter>
+		<org>Datagramas de salida descartados</org>
+		<en>Datagrams Outbound Discarded</en>
+	</Counter>
+	<!--Counter Id: 66-->
+	<Counter>
+		<org>Bytes residentes de bloque paginado</org>
+		<en>Pool Paged Resident Bytes</en>
+	</Counter>
+	<!--Counter Id: 596-->
+	<Counter>
+		<org>Mensajes de control de flujo (source quench) recibidos</org>
+		<en>Received Source Quench</en>
+	</Counter>
+	<!--Counter Id: 358-->
+	<Counter>
+		<org>Falta de elementos de trabajo</org>
+		<en>Work Item Shortages</en>
+	</Counter>
+	<!--Counter Id: 10694-->
+	<Counter>
+		<org>TransportBytesSent</org>
+		<en>TransportBytesSent</en>
+	</Counter>
+	<!--Counter Id: 10478-->
+	<Counter>
+		<org>SendFailures</org>
+		<en>SendFailures</en>
+	</Counter>
+	<!--Counter Id: 1930-->
+	<Counter>
+		<org>Current Incoming Calls</org>
+		<en>Current Incoming Calls</en>
+	</Counter>
+	<!--Counter Id: 932-->
+	<Counter>
+		<org>Número total de renovaciones/s</org>
+		<en>Total Number of Renewals/sec</en>
+	</Counter>
+	<!--Counter Id: 10800-->
+	<Counter>
+		<org>KeyUpdateFailures</org>
+		<en>KeyUpdateFailures</en>
+	</Counter>
+	<!--Counter Id: 2314-->
+	<Counter>
+		<org>L2 Merge Speed - average</org>
+		<en>L2 Merge Speed - average</en>
+	</Counter>
+	<!--Counter Id: 2146-->
+	<Counter>
+		<org>Iterating History In Progress Flag</org>
+		<en>Iterating History In Progress Flag</en>
+	</Counter>
+	<!--Counter Id: 10644-->
+	<Counter>
+		<org>ReceiveHeapSize</org>
+		<en>ReceiveHeapSize</en>
+	</Counter>
+	<!--Counter Id: 6386-->
+	<Counter>
+		<org>Flujos de trabajo que se pueden ejecutar</org>
+		<en>Workflows Runnable</en>
+	</Counter>
+	<!--Counter Id: 484-->
+	<Counter>
+		<org>Reconocimientos superpuestos en cola/s</org>
+		<en>Piggyback Ack Queued/sec</en>
+	</Counter>
+	<!--Counter Id: 4738-->
+	<Counter>
+		<org>Total de errores/s</org>
+		<en>Total Errors/Sec</en>
+	</Counter>
+	<!--Counter Id: 116-->
+	<Counter>
+		<org>Lecturas sincrónicas mediante MDL/s</org>
+		<en>Sync MDL Reads/sec</en>
+	</Counter>
+	<!--Counter Id: 502-->
+	<Counter>
+		<org>Conexión NBT</org>
+		<en>NBT Connection</en>
+	</Counter>
+	<!--Counter Id: 6010-->
+	<Counter>
+		<org>Tasa de subprocesos reconocidos por segundo</org>
+		<en>rate of recognized threads / sec</en>
+	</Counter>
+	<!--Counter Id: 2298-->
+	<Counter>
+		<org>L0 Merge (Flush) Speed - Last</org>
+		<en>L0 Merge (Flush) Speed - Last</en>
+	</Counter>
+	<!--Counter Id: 154-->
+	<Counter>
+		<org>Cargas de TLB de nivel 2/s</org>
+		<en>Level 2 TLB Fills/sec</en>
+	</Counter>
+	<!--Counter Id: 1236-->
+	<Counter>
+		<org>Número de solicitudes de NCP de escritura de Packet Burst/s</org>
+		<en>Packet Burst Write NCP Count/sec</en>
+	</Counter>
+	<!--Counter Id: 10838-->
+	<Counter>
+		<org>AuthenticatedBytesSent</org>
+		<en>AuthenticatedBytesSent</en>
+	</Counter>
+	<!--Counter Id: 1152-->
+	<Counter>
+		<org>Líneas</org>
+		<en>Lines</en>
+	</Counter>
+	<!--Counter Id: 5048-->
+	<Counter>
+		<org>Controlador de host inactivo</org>
+		<en>Host Controller Idle</en>
+	</Counter>
+	<!--Counter Id: 1074-->
+	<Counter>
+		<org>Paquetes NBP/s</org>
+		<en>NBP Packets/sec</en>
+	</Counter>
+	<!--Counter Id: 926-->
+	<Counter>
+		<org>Número total de registros/s</org>
+		<en>Total Number of Registrations/sec</en>
+	</Counter>
+	<!--Counter Id: 1794-->
+	<Counter>
+		<org>Liberaciones mayores que 8 KB/s</org>
+		<en>Frees over 8K/sec</en>
+	</Counter>
+	<!--Counter Id: 1324-->
+	<Counter>
+		<org>Bytes leídos/s</org>
+		<en>Read Bytes/sec</en>
+	</Counter>
+	<!--Counter Id: 218-->
+	<Counter>
+		<org>Bytes de disco/s</org>
+		<en>Disk Bytes/sec</en>
+	</Counter>
+	<!--Counter Id: 920-->
+	<Counter>
+		<org>Servidor WINS</org>
+		<en>WINS Server</en>
+	</Counter>
+	<!--Counter Id: 2228-->
+	<Counter>
+		<org>Threads Accessing Network</org>
+		<en>Threads Accessing Network</en>
+	</Counter>
+	<!--Counter Id: 10628-->
+	<Counter>
+		<org>KeyAdditionFailures</org>
+		<en>KeyAdditionFailures</en>
+	</Counter>
+	<!--Counter Id: 440-->
+	<Counter>
+		<org>Bytes de datagrama/s</org>
+		<en>Datagram Bytes/sec</en>
+	</Counter>
+	<!--Counter Id: 1268-->
+	<Counter>
+		<org>Solicitudes de generación de hash de BranchCache para SMB</org>
+		<en>SMB BranchCache Hash Generation Requests</en>
+	</Counter>
+	<!--Counter Id: 10802-->
+	<Counter>
+		<org>KeyUpdates</org>
+		<en>KeyUpdates</en>
+	</Counter>
+	<!--Counter Id: 532-->
+	<Counter>
+		<org>Paquetes recibidos desconocidos</org>
+		<en>Packets Received Unknown</en>
+	</Counter>
+	<!--Counter Id: 2130-->
+	<Counter>
+		<org>Filtered Office</org>
+		<en>Filtered Office</en>
+	</Counter>
+	<!--Counter Id: 10702-->
+	<Counter>
+		<org>Average Request Processing Time</org>
+		<en>Average Request Processing Time</en>
+	</Counter>
+	<!--Counter Id: 1912-->
+	<Counter>
+		<org>Telephony</org>
+		<en>Telephony</en>
+	</Counter>
+	<!--Counter Id: 2188-->
+	<Counter>
+		<org>Admin Clients</org>
+		<en>Admin Clients</en>
+	</Counter>
+	<!--Counter Id: 10568-->
+	<Counter>
+		<org>iSCSI Connections</org>
+		<en>iSCSI Connections</en>
+	</Counter>
+	<!--Counter Id: 10846-->
+	<Counter>
+		<org>KeyAdditions</org>
+		<en>KeyAdditions</en>
+	</Counter>
+	<!--Counter Id: 1820-->
+	<Counter>
+		<org>Adaptador de red</org>
+		<en>Network Adapter</en>
+	</Counter>
+	<!--Counter Id: 7418-->
+	<Counter>
+		<org>Promedio de base de tiempo de respuesta de preparación de participantes</org>
+		<en>Average participant prepare response time Base</en>
+	</Counter>
+	<!--Counter Id: 6352-->
+	<Counter>
+		<org>Flujos de trabajo descargados</org>
+		<en>Workflows Unloaded</en>
+	</Counter>
+	<!--Counter Id: 1476-->
+	<Counter>
+		<org>Llamadas de adición de impresora de red</org>
+		<en>Add Network Printer Calls</en>
+	</Counter>
+	<!--Counter Id: 370-->
+	<Counter>
+		<org>Errores de bloque no paginado</org>
+		<en>Pool Nonpaged Failures</en>
+	</Counter>
+	<!--Counter Id: 10690-->
+	<Counter>
+		<org>ReKeys</org>
+		<en>ReKeys</en>
+	</Counter>
+	<!--Counter Id: 568-->
+	<Counter>
+		<org>Datagramas de salida sin enrutamiento</org>
+		<en>Datagrams Outbound No Route</en>
+	</Counter>
+	<!--Counter Id: 2-->
+	<Counter>
+		<org>Sistema</org>
+		<en>System</en>
+	</Counter>
+	<!--Counter Id: 10808-->
+	<Counter>
+		<org>OakleyQuickMode</org>
+		<en>OakleyQuickMode</en>
+	</Counter>
+	<!--Counter Id: 8252-->
+	<Counter>
+		<org>Media de tiempo en cola de HttpWebRequests</org>
+		<en>HttpWebRequests Average Queue Time</en>
+	</Counter>
+	<!--Counter Id: 5974-->
+	<Counter>
+		<org>% de tiempo de JIT</org>
+		<en>% Time in Jit</en>
+	</Counter>
+	<!--Counter Id: 704-->
+	<Counter>
+		<org>% de uso máximo</org>
+		<en>% Usage Peak</en>
+	</Counter>
+	<!--Counter Id: 2354-->
+	<Counter>
+		<org>L6 Merge Speed - average</org>
+		<en>L6 Merge Speed - average</en>
+	</Counter>
+	<!--Counter Id: 5016-->
+	<Counter>
+		<org>Transacciones/s</org>
+		<en>Transactions/sec</en>
+	</Counter>
+	<!--Counter Id: 352-->
+	<Counter>
+		<org>Errores de acceso concedido</org>
+		<en>Errors Granted Access</en>
+	</Counter>
+	<!--Counter Id: 472-->
+	<Counter>
+		<org>Tramas rechazadas/s</org>
+		<en>Frames Rejected/sec</en>
+	</Counter>
+	<!--Counter Id: 10472-->
+	<Counter>
+		<org>OakleyQuickMode</org>
+		<en>OakleyQuickMode</en>
+	</Counter>
+	<!--Counter Id: 2148-->
+	<Counter>
+		<org>Incremental Crawls</org>
+		<en>Incremental Crawls</en>
+	</Counter>
+	<!--Counter Id: 320-->
+	<Counter>
+		<org>Conexiones LAN Manager 2.0</org>
+		<en>Connects Lan Manager 2.0</en>
+	</Counter>
+	<!--Counter Id: 4996-->
+	<Counter>
+		<org>Transacciones activas</org>
+		<en>Active Transactions</en>
+	</Counter>
+	<!--Counter Id: 4-->
+	<Counter>
+		<org>Memoria</org>
+		<en>Memory</en>
+	</Counter>
+	<!--Counter Id: 244-->
+	<Counter>
+		<org>% de tiempo total privilegiado</org>
+		<en>% Total Privileged Time</en>
+	</Counter>
+	<!--Counter Id: 10832-->
+	<Counter>
+		<org>ActiveSA</org>
+		<en>ActiveSA</en>
+	</Counter>
+	<!--Counter Id: 740-->
+	<Counter>
+		<org>Imagen</org>
+		<en>Image</en>
+	</Counter>
+	<!--Counter Id: 10862-->
+	<Counter>
+		<org>TransportBytesSent</org>
+		<en>TransportBytesSent</en>
+	</Counter>
+	<!--Counter Id: 1100-->
+	<Counter>
+		<org>Reintentos remotos de ATP</org>
+		<en>ATP Retries Remote</en>
+	</Counter>
+	<!--Counter Id: 10744-->
+	<Counter>
+		<org>PDUs Received</org>
+		<en>PDUs Received</en>
+	</Counter>
+	<!--Counter Id: 2296-->
+	<Counter>
+		<org>L0 Merge (Flush) - Count</org>
+		<en>L0 Merge (Flush) - Count</en>
+	</Counter>
+	<!--Counter Id: 1808-->
+	<Counter>
+		<org>Contención de bloqueo de montón</org>
+		<en>Heap Lock contention</en>
+	</Counter>
+	<!--Counter Id: 1234-->
+	<Counter>
+		<org>Tiempos de espera agotados de lectura de Packet Burst/s</org>
+		<en>Packet Burst Read Timeouts/sec</en>
+	</Counter>
+	<!--Counter Id: 508-->
+	<Counter>
+		<org>Total de bytes/s</org>
+		<en>Total Bytes/sec</en>
+	</Counter>
+	<!--Counter Id: 1586-->
+	<Counter>
+		<org>Protocolos de enlace SSL de reconexión del lado cliente</org>
+		<en>SSL Client-Side Reconnect Handshakes</en>
+	</Counter>
+	<!--Counter Id: 10570-->
+	<Counter>
+		<org>Bytes Received</org>
+		<en>Bytes Received</en>
+	</Counter>
+	<!--Counter Id: 1076-->
+	<Counter>
+		<org>Tiempo promedio/paquete ZIP</org>
+		<en>Average Time/ZIP Packet</en>
+	</Counter>
+	<!--Counter Id: 1796-->
+	<Counter>
+		<org>Número total de asignaciones/s</org>
+		<en>Total Allocs/sec</en>
+	</Counter>
+	<!--Counter Id: 464-->
+	<Counter>
+		<org>Tramas recibidas/s</org>
+		<en>Frames Received/sec</en>
+	</Counter>
+	<!--Counter Id: 212-->
+	<Counter>
+		<org>Transferencias de disco/s</org>
+		<en>Disk Transfers/sec</en>
+	</Counter>
+	<!--Counter Id: 1530-->
+	<Counter>
+		<org>TCPv6</org>
+		<en>TCPv6</en>
+	</Counter>
+	<!--Counter Id: 10656-->
+	<Counter>
+		<org>BytesTransmitted</org>
+		<en>BytesTransmitted</en>
+	</Counter>
+	<!--Counter Id: 1790-->
+	<Counter>
+		<org>Liberaciones entre 1 y 8 KB/s</org>
+		<en>Frees 1-8K/sec</en>
+	</Counter>
+	<!--Counter Id: 4726-->
+	<Counter>
+		<org>Errores de saturación del búfer</org>
+		<en>Buffer Overrun Errors</en>
+	</Counter>
+	<!--Counter Id: 10430-->
+	<Counter>
+		<org>Login Negotiation Failed</org>
+		<en>Login Negotiation Failed</en>
+	</Counter>
+	<!--Counter Id: 632-->
+	<Counter>
+		<org>Mensajes de respuesta a marca de tiempo enviados/s</org>
+		<en>Sent Timestamp Reply/sec</en>
+	</Counter>
+	<!--Counter Id: 7652-->
+	<Counter>
+		<org>Conexiones aceptadas a través de net.pipe</org>
+		<en>Connections Accepted over net.pipe</en>
+	</Counter>
+	<!--Counter Id: 10482-->
+	<Counter>
+		<org>TotalGetSPI</org>
+		<en>TotalGetSPI</en>
+	</Counter>
+	<!--Counter Id: 8254-->
+	<Counter>
+		<org>Base de media de tiempo en cola de HttpWebRequests</org>
+		<en>HttpWebRequests Average Queue Time Base</en>
+	</Counter>
+	<!--Counter Id: 5914-->
+	<Counter>
+		<org>% de tiempo del GC</org>
+		<en>% Time in GC</en>
+	</Counter>
+	<!--Counter Id: 2328-->
+	<Counter>
+		<org>L3 Merge Speed - last</org>
+		<en>L3 Merge Speed - last</en>
+	</Counter>
+	<!--Counter Id: 2250-->
+	<Counter>
+		<org>Threads blocked due to back off</org>
+		<en>Threads blocked due to back off</en>
+	</Counter>
+	<!--Counter Id: 7650-->
+	<Counter>
+		<org>Conexiones aceptadas a través de net.tcp</org>
+		<en>Connections Accepted over net.tcp</en>
+	</Counter>
+	<!--Counter Id: 6358-->
+	<Counter>
+		<org>Flujos de trabajo cargados/s</org>
+		<en>Workflows Loaded/sec</en>
+	</Counter>
+	<!--Counter Id: 2114-->
+	<Counter>
+		<org>File Errors</org>
+		<en>File Errors</en>
+	</Counter>
+	<!--Counter Id: 5980-->
+	<Counter>
+		<org>Número de contenedores CCW</org>
+		<en># of CCWs</en>
+	</Counter>
+	<!--Counter Id: 758-->
+	<Counter>
+		<org>Espacio no asignado en Ejecución y escritura en copia</org>
+		<en>Unassigned Space Exec Write Copy</en>
+	</Counter>
+	<!--Counter Id: 1776-->
+	<Counter>
+		<org>Tamaño de intervalos no confirmados</org>
+		<en>Uncommitted Ranges Length</en>
+	</Counter>
+	<!--Counter Id: 426-->
+	<Counter>
+		<org>Tiempos de espera agotados de sesión de conexión</org>
+		<en>Connection Session Timeouts</en>
+	</Counter>
+	<!--Counter Id: 206-->
+	<Counter>
+		<org>Promedio de segundos de disco/transferencia</org>
+		<en>Avg. Disk sec/Transfer</en>
+	</Counter>
+	<!--Counter Id: 562-->
+	<Counter>
+		<org>Datagramas recibidos entregados/s</org>
+		<en>Datagrams Received Delivered/sec</en>
+	</Counter>
+	<!--Counter Id: 8236-->
+	<Counter>
+		<org>Bytes recibidos</org>
+		<en>Bytes Received</en>
+	</Counter>
+	<!--Counter Id: 6-->
+	<Counter>
+		<org>% de tiempo de procesador</org>
+		<en>% Processor Time</en>
+	</Counter>
+	<!--Counter Id: 684-->
+	<Counter>
+		<org>Tiempo transcurrido</org>
+		<en>Elapsed Time</en>
+	</Counter>
+	<!--Counter Id: 168-->
+	<Counter>
+		<org>Asignaciones de anuncios de servidor con errores/s</org>
+		<en>Server Announce Allocations Failed/sec</en>
+	</Counter>
+	<!--Counter Id: 1548-->
+	<Counter>
+		<org>Detalles del objeto de trabajo</org>
+		<en>Job Object Details</en>
+	</Counter>
+	<!--Counter Id: 2352-->
+	<Counter>
+		<org>L6 Merges Now.</org>
+		<en>L6 Merges Now.</en>
+	</Counter>
+	<!--Counter Id: 354-->
+	<Counter>
+		<org>Errores del sistema</org>
+		<en>Errors System</en>
+	</Counter>
+	<!--Counter Id: 1470-->
+	<Counter>
+		<org>Errores de impresora no lista</org>
+		<en>Not Ready Errors</en>
+	</Counter>
+	<!--Counter Id: 1068-->
+	<Counter>
+		<org>Tiempo promedio/paquete ATP</org>
+		<en>Average Time/ATP Packet</en>
+	</Counter>
+	<!--Counter Id: 5014-->
+	<Counter>
+		<org>Tiempo de respuesta máximo</org>
+		<en>Response Time -- Maximum</en>
+	</Counter>
+	<!--Counter Id: 2142-->
+	<Counter>
+		<org>Recovery In Progress Flag</org>
+		<en>Recovery In Progress Flag</en>
+	</Counter>
+	<!--Counter Id: 882-->
+	<Counter>
+		<org>Porcentaje de compresión de entrada</org>
+		<en>Percent Compression In</en>
+	</Counter>
+	<!--Counter Id: 6862-->
+	<Counter>
+		<org>NumberOfFreeConnections</org>
+		<en>NumberOfFreeConnections</en>
+	</Counter>
+	<!--Counter Id: 112-->
+	<Counter>
+		<org>% de aciertos de lecturas de copia</org>
+		<en>Copy Read Hits %</en>
+	</Counter>
+	<!--Counter Id: 10556-->
+	<Counter>
+		<org>Processor Frequency</org>
+		<en>Processor Frequency</en>
+	</Counter>
+	<!--Counter Id: 246-->
+	<Counter>
+		<org>Total de interrupciones/s</org>
+		<en>Total Interrupts/sec</en>
+	</Counter>
+	<!--Counter Id: 1274-->
+	<Counter>
+		<org>Bytes hash enviados de BranchCache para SMB</org>
+		<en>SMB BranchCache Hash Bytes Sent</en>
+	</Counter>
+	<!--Counter Id: 7662-->
+	<Counter>
+		<org>URI con registro cancelado para net.tcp</org>
+		<en>Uris Unregistered for net.tcp</en>
+	</Counter>
+	<!--Counter Id: 1420-->
+	<Counter>
+		<org>Bytes de lectura de ES/s</org>
+		<en>IO Read Bytes/sec</en>
+	</Counter>
+	<!--Counter Id: 824-->
+	<Counter>
+		<org>Páginas de transición reasignadas/s</org>
+		<en>Transition Pages RePurposed/sec</en>
+	</Counter>
+	<!--Counter Id: 10746-->
+	<Counter>
+		<org>iSCSI Initiator Instance</org>
+		<en>iSCSI Initiator Instance</en>
+	</Counter>
+	<!--Counter Id: 2294-->
+	<Counter>
+		<org>L0 Merge (Flush) Speed - Average</org>
+		<en>L0 Merge (Flush) Speed - Average</en>
+	</Counter>
+	<!--Counter Id: 880-->
+	<Counter>
+		<org>Porcentaje de compresión de salida</org>
+		<en>Percent Compression Out</en>
+	</Counter>
+	<!--Counter Id: 640-->
+	<Counter>
+		<org>Segmentos/s</org>
+		<en>Segments/sec</en>
+	</Counter>
+	<!--Counter Id: 10792-->
+	<Counter>
+		<org>InvalidCookiesReceived</org>
+		<en>InvalidCookiesReceived</en>
+	</Counter>
+	<!--Counter Id: 1584-->
+	<Counter>
+		<org>Protocolos de enlace SSL completos del lado cliente</org>
+		<en>SSL Client-Side Full Handshakes</en>
+	</Counter>
+	<!--Counter Id: 70-->
+	<Counter>
+		<org>Bytes residentes de código del sistema</org>
+		<en>System Code Resident Bytes</en>
+	</Counter>
+	<!--Counter Id: 2138-->
+	<Counter>
+		<org>Crawls in progress</org>
+		<en>Crawls in progress</en>
+	</Counter>
+	<!--Counter Id: 1114-->
+	<Counter>
+		<org>Total de bytes recibidos/s</org>
+		<en>Total bytes received/second</en>
+	</Counter>
+	<!--Counter Id: 2100-->
+	<Counter>
+		<org>Processed Documents Rate</org>
+		<en>Processed Documents Rate</en>
+	</Counter>
+	<!--Counter Id: 10672-->
+	<Counter>
+		<org>BadSPIPackets</org>
+		<en>BadSPIPackets</en>
+	</Counter>
+	<!--Counter Id: 10418-->
+	<Counter>
+		<org>Session Format Errors</org>
+		<en>Session Format Errors</en>
+	</Counter>
+	<!--Counter Id: 2108-->
+	<Counter>
+		<org>Error Rate</org>
+		<en>Error Rate</en>
+	</Counter>
+	<!--Counter Id: 106-->
+	<Counter>
+		<org>Lecturas de copia/s</org>
+		<en>Copy Reads/sec</en>
+	</Counter>
+	<!--Counter Id: 638-->
+	<Counter>
+		<org>TCPv4</org>
+		<en>TCPv4</en>
+	</Counter>
+	<!--Counter Id: 5890-->
+	<Counter>
+		<org>Bytes por segundo promocionados de gen. 0</org>
+		<en>Gen 0 Promoted Bytes/Sec</en>
+	</Counter>
+	<!--Counter Id: 4724-->
+	<Counter>
+		<org>Errores de alineación</org>
+		<en>Alignment Errors</en>
+	</Counter>
+	<!--Counter Id: 1466-->
+	<Counter>
+		<org>Número máximo de trabajos en cola</org>
+		<en>Max Jobs Spooling</en>
+	</Counter>
+	<!--Counter Id: 8292-->
+	<Counter>
+		<org>SqlClient: Número actual de conexiones agrupadas y no agrupadas</org>
+		<en>SqlClient: Current # pooled and nonpooled connections</en>
+	</Counter>
+	<!--Counter Id: 536-->
+	<Counter>
+		<org>Paquetes de unidifusión enviados/s</org>
+		<en>Packets Sent Unicast/sec</en>
+	</Counter>
+	<!--Counter Id: 2320-->
+	<Counter>
+		<org>Persistent Indexes L3</org>
+		<en>Persistent Indexes L3</en>
+	</Counter>
+	<!--Counter Id: 2208-->
+	<Counter>
+		<org>Filter Process Created</org>
+		<en>Filter Process Created</en>
+	</Counter>
+	<!--Counter Id: 1320-->
+	<Counter>
+		<org>Bytes transferidos/s</org>
+		<en>Bytes Transferred/sec</en>
+	</Counter>
+	<!--Counter Id: 5878-->
+	<Counter>
+		<org>Memoria de .NET CLR</org>
+		<en>.NET CLR Memory</en>
+	</Counter>
+	<!--Counter Id: 2154-->
+	<Counter>
+		<org>Retries</org>
+		<en>Retries</en>
+	</Counter>
+	<!--Counter Id: 2170-->
+	<Counter>
+		<org>Changed Documents</org>
+		<en>Changed Documents</en>
+	</Counter>
+	<!--Counter Id: 5912-->
+	<Counter>
+		<org>Número de GC provocados</org>
+		<en># Induced GC</en>
+	</Counter>
+	<!--Counter Id: 2322-->
+	<Counter>
+		<org>L3 Merges Now.</org>
+		<en>L3 Merges Now.</en>
+	</Counter>
+	<!--Counter Id: 5910-->
+	<Counter>
+		<org>Bytes asignados por segundo</org>
+		<en>Allocated Bytes/sec</en>
+	</Counter>
+	<!--Counter Id: 1922-->
+	<Counter>
+		<org>Outgoing calls/sec</org>
+		<en>Outgoing calls/sec</en>
+	</Counter>
+	<!--Counter Id: 5950-->
+	<Counter>
+		<org>AppDomain actuales</org>
+		<en>Current appdomains</en>
+	</Counter>
+	<!--Counter Id: 1774-->
+	<Counter>
+		<org>Velocidad promedio de liberaciones</org>
+		<en>Avg. free rate</en>
+	</Counter>
+	<!--Counter Id: 1916-->
+	<Counter>
+		<org>Number of Telephone devices</org>
+		<en>Number of Telephone devices</en>
+	</Counter>
+	<!--Counter Id: 686-->
+	<Counter>
+		<org>Correcciones de alineación/s</org>
+		<en>Alignment Fixups/sec</en>
+	</Counter>
+	<!--Counter Id: 1060-->
+	<Counter>
+		<org>Tiempo promedio/paquete DDP</org>
+		<en>Average Time/DDP Packet</en>
+	</Counter>
+	<!--Counter Id: 1370-->
+	<Counter>
+		<org>Carga de asignación VLM</org>
+		<en>VLM Commit Charge</en>
+	</Counter>
+	<!--Counter Id: 314-->
+	<Counter>
+		<org>Sesiones del servidor</org>
+		<en>Server Sessions</en>
+	</Counter>
+	<!--Counter Id: 10770-->
+	<Counter>
+		<org>Login Redirect Responses</org>
+		<en>Login Redirect Responses</en>
+	</Counter>
+	<!--Counter Id: 2234-->
+	<Counter>
+		<org>Documents Successfully Filtered Rate</org>
+		<en>Documents Successfully Filtered Rate</en>
+	</Counter>
+	<!--Counter Id: 1300-->
+	<Counter>
+		<org>Colas de trabajo del servidor</org>
+		<en>Server Work Queues</en>
+	</Counter>
+	<!--Counter Id: 162-->
+	<Counter>
+		<org>Anuncios de servidor perdidos</org>
+		<en>Missed Server Announcements</en>
+	</Counter>
+	<!--Counter Id: 784-->
+	<Counter>
+		<org>Id. de proceso</org>
+		<en>ID Process</en>
+	</Counter>
+	<!--Counter Id: 5964-->
+	<Counter>
+		<org>Número de métodos compilados mediante JIT</org>
+		<en># of Methods Jitted</en>
+	</Counter>
+	<!--Counter Id: 708-->
+	<Counter>
+		<org>Contador de programa del usuario</org>
+		<en>User PC</en>
+	</Counter>
+	<!--Counter Id: 2358-->
+	<Counter>
+		<org>L6 Merge Speed - last</org>
+		<en>L6 Merge Speed - last</en>
+	</Counter>
+	<!--Counter Id: 934-->
+	<Counter>
+		<org>Liberaciones/s</org>
+		<en>Releases/sec</en>
+	</Counter>
+	<!--Counter Id: 5012-->
+	<Counter>
+		<org>Tiempo de respuesta medio</org>
+		<en>Response Time -- Average</en>
+	</Counter>
+	<!--Counter Id: 230-->
+	<Counter>
+		<org>Proceso</org>
+		<en>Process</en>
+	</Counter>
+	<!--Counter Id: 7636-->
+	<Counter>
+		<org>SMSvcHost 4.0.0.0</org>
+		<en>SMSvcHost 4.0.0.0</en>
+	</Counter>
+	<!--Counter Id: 72-->
+	<Counter>
+		<org>Total de bytes de controladores del sistema</org>
+		<en>System Driver Total Bytes</en>
+	</Counter>
+	<!--Counter Id: 1302-->
+	<Counter>
+		<org>Longitud de cola</org>
+		<en>Queue Length</en>
+	</Counter>
+	<!--Counter Id: 574-->
+	<Counter>
+		<org>Errores de reensamblado de fragmentos</org>
+		<en>Fragment Re-assembly Failures</en>
+	</Counter>
+	<!--Counter Id: 1272-->
+	<Counter>
+		<org>Respuestas hash enviadas de BranchCache para SMB</org>
+		<en>SMB BranchCache Hash Responses Sent</en>
+	</Counter>
+	<!--Counter Id: 8238-->
+	<Counter>
+		<org>Bytes enviados</org>
+		<en>Bytes Sent</en>
+	</Counter>
+	<!--Counter Id: 10554-->
+	<Counter>
+		<org>Processor Performance</org>
+		<en>Processor Performance</en>
+	</Counter>
+	<!--Counter Id: 10616-->
+	<Counter>
+		<org>ActiveReceive</org>
+		<en>ActiveReceive</en>
+	</Counter>
+	<!--Counter Id: 1312-->
+	<Counter>
+		<org>Falta de elementos de trabajo</org>
+		<en>Work Item Shortages</en>
+	</Counter>
+	<!--Counter Id: 470-->
+	<Counter>
+		<org>Bytes de trama reenviados/s</org>
+		<en>Frame Bytes Re-Sent/sec</en>
+	</Counter>
+	<!--Counter Id: 10852-->
+	<Counter>
+		<org>PacketsNotDecrypted</org>
+		<en>PacketsNotDecrypted</en>
+	</Counter>
+	<!--Counter Id: 240-->
+	<Counter>
+		<org>% de tiempo total de procesador</org>
+		<en>% Total Processor Time</en>
+	</Counter>
+	<!--Counter Id: 936-->
+	<Counter>
+		<org>Consultas/s</org>
+		<en>Queries/sec</en>
+	</Counter>
+	<!--Counter Id: 346-->
+	<Counter>
+		<org>Sesiones cerradas forzadamente</org>
+		<en>Sessions Forced Off</en>
+	</Counter>
+	<!--Counter Id: 7408-->
+	<Counter>
+		<org>Número de reintentos preparados/s</org>
+		<en>Prepared retry count/sec</en>
+	</Counter>
+	<!--Counter Id: 498-->
+	<Counter>
+		<org>Uso medio</org>
+		<en>Used Average</en>
+	</Counter>
+	<!--Counter Id: 1368-->
+	<Counter>
+		<org>Tamaño virtual VLM disponible</org>
+		<en>VLM Virtual Size Available</en>
+	</Counter>
+	<!--Counter Id: 1484-->
+	<Counter>
+		<org>ES divididas/s</org>
+		<en>Split IO/Sec</en>
+	</Counter>
+	<!--Counter Id: 340-->
+	<Counter>
+		<org>Sesiones cuyo tiempo de espera terminó</org>
+		<en>Sessions Timed Out</en>
+	</Counter>
+	<!--Counter Id: 688-->
+	<Counter>
+		<org>Envíos de excepciones/s</org>
+		<en>Exception Dispatches/sec</en>
+	</Counter>
+	<!--Counter Id: 8294-->
+	<Counter>
+		<org>SqlClient: Número actual de conexiones agrupadas</org>
+		<en>SqlClient: Current # pooled connections</en>
+	</Counter>
+	<!--Counter Id: 1626-->
+	<Counter>
+		<org>Solicitudes de TGS de identidad confirmada por el servicio compatible con notificaciones del KDC</org>
+		<en>KDC claims-aware service asserted identity TGS requests</en>
+	</Counter>
+	<!--Counter Id: 104-->
+	<Counter>
+		<org>% de aciertos de lecturas de anclaje</org>
+		<en>Pin Read Hits %</en>
+	</Counter>
+	<!--Counter Id: 576-->
+	<Counter>
+		<org>Datagramas fragmentados/s</org>
+		<en>Fragmented Datagrams/sec</en>
+	</Counter>
+	<!--Counter Id: 636-->
+	<Counter>
+		<org>Mensajes de respuesta a máscara de dirección enviados</org>
+		<en>Sent Address Mask Reply</en>
+	</Counter>
+	<!--Counter Id: 1110-->
+	<Counter>
+		<org>Segmento de red</org>
+		<en>Network Segment</en>
+	</Counter>
+	<!--Counter Id: 216-->
+	<Counter>
+		<org>Escrituras en disco/s</org>
+		<en>Disk Writes/sec</en>
+	</Counter>
+	<!--Counter Id: 8240-->
+	<Counter>
+		<org>Datagramas recibidos</org>
+		<en>Datagrams Received</en>
+	</Counter>
+	<!--Counter Id: 10468-->
+	<Counter>
+		<org>NegotiationFailures</org>
+		<en>NegotiationFailures</en>
+	</Counter>
+	<!--Counter Id: 2324-->
+	<Counter>
+		<org>L3 Merge Speed - average</org>
+		<en>L3 Merge Speed - average</en>
+	</Counter>
+	<!--Counter Id: 4720-->
+	<Counter>
+		<org>Errores de tiempo de espera</org>
+		<en>Timeout Errors</en>
+	</Counter>
+	<!--Counter Id: 2156-->
+	<Counter>
+		<org>Retries Rate</org>
+		<en>Retries Rate</en>
+	</Counter>
+	<!--Counter Id: 10510-->
+	<Counter>
+		<org>KeyAdditions</org>
+		<en>KeyAdditions</en>
+	</Counter>
+	<!--Counter Id: 468-->
+	<Counter>
+		<org>Tramas reenviadas/s</org>
+		<en>Frames Re-Sent/sec</en>
+	</Counter>
+	<!--Counter Id: 710-->
+	<Counter>
+		<org>Espacio asignado en Sin acceso</org>
+		<en>Mapped Space No Access</en>
+	</Counter>
+	<!--Counter Id: 6384-->
+	<Counter>
+		<org>Flujos de trabajo inactivos/s</org>
+		<en>Workflows Idle/sec</en>
+	</Counter>
+	<!--Counter Id: 5756-->
+	<Counter>
+		<org>Cache Turnover Rate</org>
+		<en>Cache Turnover Rate</en>
+	</Counter>
+	<!--Counter Id: 10516-->
+	<Counter>
+		<org>PacketsNotDecrypted</org>
+		<en>PacketsNotDecrypted</en>
+	</Counter>
+	<!--Counter Id: 2288-->
+	<Counter>
+		<org>Queries Succeeded</org>
+		<en>Queries Succeeded</en>
+	</Counter>
+	<!--Counter Id: 2300-->
+	<Counter>
+		<org>Persistent Indexes L1</org>
+		<en>Persistent Indexes L1</en>
+	</Counter>
+	<!--Counter Id: 10828-->
+	<Counter>
+		<org>PDUTransmitted</org>
+		<en>PDUTransmitted</en>
+	</Counter>
+	<!--Counter Id: 316-->
+	<Counter>
+		<org>Reconexiones del servidor</org>
+		<en>Server Reconnects</en>
+	</Counter>
+	<!--Counter Id: 1418-->
+	<Counter>
+		<org>Otras operaciones de ES/s</org>
+		<en>IO Other Operations/sec</en>
+	</Counter>
+	<!--Counter Id: 2236-->
+	<Counter>
+		<org>Documents Delayed Retry</org>
+		<en>Documents Delayed Retry</en>
+	</Counter>
+	<!--Counter Id: 702-->
+	<Counter>
+		<org>% de uso</org>
+		<en>% Usage</en>
+	</Counter>
+	<!--Counter Id: 10752-->
+	<Counter>
+		<org>Sessions Failed</org>
+		<en>Sessions Failed</en>
+	</Counter>
+	<!--Counter Id: 1770-->
+	<Counter>
+		<org>Longitud de lista de bloques libres</org>
+		<en>Free List Length</en>
+	</Counter>
+	<!--Counter Id: 10580-->
+	<Counter>
+		<org>Session Cxn Timeout Errors</org>
+		<en>Session Cxn Timeout Errors</en>
+	</Counter>
+	<!--Counter Id: 10860-->
+	<Counter>
+		<org>TransportBytesReceived</org>
+		<en>TransportBytesReceived</en>
+	</Counter>
+	<!--Counter Id: 10414-->
+	<Counter>
+		<org>Session Digest Errors</org>
+		<en>Session Digest Errors</en>
+	</Counter>
+	<!--Counter Id: 786-->
+	<Counter>
+		<org>Espacio de direcciones de proceso</org>
+		<en>Process Address Space</en>
+	</Counter>
+	<!--Counter Id: 2306-->
+	<Counter>
+		<org>L1 Merge - Count</org>
+		<en>L1 Merge - Count</en>
+	</Counter>
+	<!--Counter Id: 1064-->
+	<Counter>
+		<org>Tiempo promedio/paquete AARP</org>
+		<en>Average Time/AARP Packet</en>
+	</Counter>
+	<!--Counter Id: 1784-->
+	<Counter>
+		<org>Asignaciones menores que 1 KB/s</org>
+		<en>Allocs &lt;1K/sec</en>
+	</Counter>
+	<!--Counter Id: 2230-->
+	<Counter>
+		<org>Threads In Plug-ins</org>
+		<en>Threads In Plug-ins</en>
+	</Counter>
+	<!--Counter Id: 1314-->
+	<Counter>
+		<org>Clientes actuales</org>
+		<en>Current Clients</en>
+	</Counter>
+	<!--Counter Id: 6344-->
+	<Counter>
+		<org>Datagramas enviados</org>
+		<en>Datagrams Sent</en>
+	</Counter>
+	<!--Counter Id: 10618-->
+	<Counter>
+		<org>AuthenticationFailures</org>
+		<en>AuthenticationFailures</en>
+	</Counter>
+	<!--Counter Id: 1278-->
+	<Counter>
+		<org>Identificadores resistentes reconectados</org>
+		<en>Reconnected Resilient Handles</en>
+	</Counter>
+	<!--Counter Id: 1098-->
+	<Counter>
+		<org>Paquetes descartados</org>
+		<en>Packets dropped</en>
+	</Counter>
+	<!--Counter Id: 1672-->
+	<Counter>
+		<org>Identificadores de credencial</org>
+		<en>Credential Handles</en>
+	</Counter>
+	<!--Counter Id: 5026-->
+	<Counter>
+		<org>Bytes de transferencia interrumpida/s</org>
+		<en>Interrupt Bytes/Sec</en>
+	</Counter>
+	<!--Counter Id: 1380-->
+	<Counter>
+		<org>KB disponibles</org>
+		<en>Available KBytes</en>
+	</Counter>
+	<!--Counter Id: 7402-->
+	<Counter>
+		<org>Errores de envío de mensajes/s</org>
+		<en>Message send failures/sec</en>
+	</Counter>
+	<!--Counter Id: 1768-->
+	<Counter>
+		<org>Bytes disponibles</org>
+		<en>Free Bytes</en>
+	</Counter>
+	<!--Counter Id: 676-->
+	<Counter>
+		<org>Número de identificadores del sistema</org>
+		<en>System Handle Count</en>
+	</Counter>
+	<!--Counter Id: 6040-->
+	<Counter>
+		<org>Número total de llamadas remotas</org>
+		<en>Total Remote Calls</en>
+	</Counter>
+	<!--Counter Id: 1624-->
+	<Counter>
+		<org>Solicitudes de AS compatibles con notificaciones del KDC</org>
+		<en>KDC claims-aware AS Requests</en>
+	</Counter>
+	<!--Counter Id: 578-->
+	<Counter>
+		<org>Errores de fragmentación</org>
+		<en>Fragmentation Failures</en>
+	</Counter>
+	<!--Counter Id: 802-->
+	<Counter>
+		<org>Ejecución y escritura en copia</org>
+		<en>Exec Write Copy</en>
+	</Counter>
+	<!--Counter Id: 1116-->
+	<Counter>
+		<org>Tramas de difusión recibidas/s</org>
+		<en>Broadcast frames received/second</en>
+	</Counter>
+	<!--Counter Id: 1482-->
+	<Counter>
+		<org>% de tiempo inactivo</org>
+		<en>% Idle Time</en>
+	</Counter>
+	<!--Counter Id: 1480-->
+	<Counter>
+		<org>Espacio de trabajo - Compartido</org>
+		<en>Working Set - Shared</en>
+	</Counter>
+	<!--Counter Id: 2364-->
+	<Counter>
+		<org>L7 Merge Speed - average</org>
+		<en>L7 Merge Speed - average</en>
+	</Counter>
+	<!--Counter Id: 1502-->
+	<Counter>
+		<org>% actual de tiempo de procesador</org>
+		<en>Current % Processor Time</en>
+	</Counter>
+	<!--Counter Id: 462-->
+	<Counter>
+		<org>Bytes de trama enviados/s</org>
+		<en>Frame Bytes Sent/sec</en>
+	</Counter>
+	<!--Counter Id: 1598-->
+	<Counter>
+		<org>Conexiones RSC activas TCP</org>
+		<en>TCP Active RSC Connections</en>
+	</Counter>
+	<!--Counter Id: 90-->
+	<Counter>
+		<org>Asignaciones sincrónicas de datos/s</org>
+		<en>Sync Data Maps/sec</en>
+	</Counter>
+	<!--Counter Id: 5050-->
+	<Counter>
+		<org>Programación asincrónica de controlador de host inactiva</org>
+		<en>Host Controller Async Idle</en>
+	</Counter>
+	<!--Counter Id: 10820-->
+	<Counter>
+		<org>MSiSCSI_NICPerformance</org>
+		<en>MSiSCSI_NICPerformance</en>
+	</Counter>
+	<!--Counter Id: 10858-->
+	<Counter>
+		<org>ReKeys</org>
+		<en>ReKeys</en>
+	</Counter>
+	<!--Counter Id: 124-->
+	<Counter>
+		<org>Lecturas rápidas/s</org>
+		<en>Fast Reads/sec</en>
+	</Counter>
+	<!--Counter Id: 10822-->
+	<Counter>
+		<org>BytesReceived</org>
+		<en>BytesReceived</en>
+	</Counter>
+	<!--Counter Id: 2276-->
+	<Counter>
+		<org>Clean WidSets</org>
+		<en>Clean WidSets</en>
+	</Counter>
+	<!--Counter Id: 7416-->
+	<Counter>
+		<org>Promedio de tiempo de respuesta de preparación de participantes</org>
+		<en>Average participant prepare response time</en>
+	</Counter>
+	<!--Counter Id: 10754-->
+	<Counter>
+		<org>Session Format Errors</org>
+		<en>Session Format Errors</en>
+	</Counter>
+	<!--Counter Id: 2286-->
+	<Counter>
+		<org>Queries Failed</org>
+		<en>Queries Failed</en>
+	</Counter>
+	<!--Counter Id: 10892-->
+	<Counter>
+		<org>Processor Frequency</org>
+		<en>Processor Frequency</en>
+	</Counter>
+	<!--Counter Id: 922-->
+	<Counter>
+		<org>Registros únicos/s</org>
+		<en>Unique Registrations/sec</en>
+	</Counter>
+	<!--Counter Id: 594-->
+	<Counter>
+		<org>Mensajes de problemas de parámetros recibidos</org>
+		<en>Received Parameter Problem</en>
+	</Counter>
+	<!--Counter Id: 2304-->
+	<Counter>
+		<org>L1 Merge Speed - average</org>
+		<en>L1 Merge Speed - average</en>
+	</Counter>
+	<!--Counter Id: 10646-->
+	<Counter>
+		<org>SendFailures</org>
+		<en>SendFailures</en>
+	</Counter>
+	<!--Counter Id: 8288-->
+	<Counter>
+		<org>NumberOfReclaimedConnections</org>
+		<en>NumberOfReclaimedConnections</en>
+	</Counter>
+	<!--Counter Id: 10612-->
+	<Counter>
+		<org>AcquireHeapSize</org>
+		<en>AcquireHeapSize</en>
+	</Counter>
+	<!--Counter Id: 1232-->
+	<Counter>
+		<org>Número de solicitudes de NCP de lectura de Packet Burst/s</org>
+		<en>Packet Burst Read NCP Count/sec</en>
+	</Counter>
+	<!--Counter Id: 1812-->
+	<Counter>
+		<org>Umbral de páginas desfasadas</org>
+		<en>Dirty Page Threshold</en>
+	</Counter>
+	<!--Counter Id: 754-->
+	<Counter>
+		<org>Espacio no asignado en Ejecución y solo lectura</org>
+		<en>Unassigned Space Exec Read Only</en>
+	</Counter>
+	<!--Counter Id: 1684-->
+	<Counter>
+		<org>Bytes principales de caché en modo de espera</org>
+		<en>Standby Cache Core Bytes</en>
+	</Counter>
+	<!--Counter Id: 4736-->
+	<Counter>
+		<org>Tramas recibidas/s</org>
+		<en>Frames Received/Sec</en>
+	</Counter>
+	<!--Counter Id: 1678-->
+	<Counter>
+		<org>Bytes de lista de páginas modificadas</org>
+		<en>Modified Page List Bytes</en>
+	</Counter>
+	<!--Counter Id: 304-->
+	<Counter>
+		<org>Operaciones de escritura grandes/s</org>
+		<en>Writes Large/sec</en>
+	</Counter>
+	<!--Counter Id: 622-->
+	<Counter>
+		<org>Mensajes de control de flujo (source quench) enviados</org>
+		<en>Sent Source Quench</en>
+	</Counter>
+	<!--Counter Id: 6340-->
+	<Counter>
+		<org>Bytes enviados</org>
+		<en>Bytes Sent</en>
+	</Counter>
+	<!--Counter Id: 942-->
+	<Counter>
+		<org>Número total de conflictos/s</org>
+		<en>Total Number of Conflicts/sec</en>
+	</Counter>
+	<!--Counter Id: 2338-->
+	<Counter>
+		<org>L4 Merge Speed - last</org>
+		<en>L4 Merge Speed - last</en>
+	</Counter>
+	<!--Counter Id: 10738-->
+	<Counter>
+		<org>Bytes Received</org>
+		<en>Bytes Received</en>
+	</Counter>
+	<!--Counter Id: 6014-->
+	<Counter>
+		<org>Número total de comprobaciones en tiempo de ejecución</org>
+		<en>Total Runtime Checks</en>
+	</Counter>
+	<!--Counter Id: 1158-->
+	<Counter>
+		<org>Teléfonos activos</org>
+		<en>Active Telephones</en>
+	</Counter>
+	<!--Counter Id: 762-->
+	<Counter>
+		<org>Espacio de imagen en Solo lectura</org>
+		<en>Image Space Read Only</en>
+	</Counter>
+	<!--Counter Id: 6368-->
+	<Counter>
+		<org>Flujos de trabajo terminados</org>
+		<en>Workflows Terminated</en>
+	</Counter>
+	<!--Counter Id: 928-->
+	<Counter>
+		<org>Renovaciones únicas/s</org>
+		<en>Unique Renewals/sec</en>
+	</Counter>
+	<!--Counter Id: 1552-->
+	<Counter>
+		<org>Anuncios de vecino recibidos</org>
+		<en>Received Neighbor Advert</en>
+	</Counter>
+	<!--Counter Id: 1766-->
+	<Counter>
+		<org>Bytes virtuales</org>
+		<en>Virtual Bytes</en>
+	</Counter>
+	<!--Counter Id: 10710-->
+	<Counter>
+		<org>Bytes Sent</org>
+		<en>Bytes Sent</en>
+	</Counter>
+	<!--Counter Id: 1622-->
+	<Counter>
+		<org>Solicitudes de TGS blindadas del KDC</org>
+		<en>KDC armored TGS Requests</en>
+	</Counter>
+	<!--Counter Id: 178-->
+	<Counter>
+		<org>Uso máximo del espacio de trabajo</org>
+		<en>Working Set Peak</en>
+	</Counter>
+	<!--Counter Id: 1090-->
+	<Counter>
+		<org>Respuestas ATP ALO/s</org>
+		<en>ATP ALO Response/Sec</en>
+	</Counter>
+	<!--Counter Id: 10794-->
+	<Counter>
+		<org>InvalidPackets</org>
+		<en>InvalidPackets</en>
+	</Counter>
+	<!--Counter Id: 250-->
+	<Counter>
+		<org>Subprocesos</org>
+		<en>Threads</en>
+	</Counter>
+	<!--Counter Id: 1508-->
+	<Counter>
+		<org>Este período ms - Procesador</org>
+		<en>This Period mSec - Processor</en>
+	</Counter>
+	<!--Counter Id: 490-->
+	<Counter>
+		<org>SPX de NWLink</org>
+		<en>NWLink SPX</en>
+	</Counter>
+	<!--Counter Id: 2222-->
+	<Counter>
+		<org>Time Outs</org>
+		<en>Time Outs</en>
+	</Counter>
+	<!--Counter Id: 2366-->
+	<Counter>
+		<org>L7 Merge - Count</org>
+		<en>L7 Merge - Count</en>
+	</Counter>
+	<!--Counter Id: 10780-->
+	<Counter>
+		<org>AcquireHeapSize</org>
+		<en>AcquireHeapSize</en>
+	</Counter>
+	<!--Counter Id: 330-->
+	<Counter>
+		<org>Servidor</org>
+		<en>Server</en>
+	</Counter>
+	<!--Counter Id: 5752-->
+	<Counter>
+		<org>Cache Trims</org>
+		<en>Cache Trims</en>
+	</Counter>
+	<!--Counter Id: 10512-->
+	<Counter>
+		<org>KeyDeletions</org>
+		<en>KeyDeletions</en>
+	</Counter>
+	<!--Counter Id: 10844-->
+	<Counter>
+		<org>ConfidentialBytesSent</org>
+		<en>ConfidentialBytesSent</en>
+	</Counter>
+	<!--Counter Id: 126-->
+	<Counter>
+		<org>Lecturas sincrónicas rápidas/s</org>
+		<en>Sync Fast Reads/sec</en>
+	</Counter>
+	<!--Counter Id: 10562-->
+	<Counter>
+		<org>WMI Objects</org>
+		<en>WMI Objects</en>
+	</Counter>
+	<!--Counter Id: 2278-->
+	<Counter>
+		<org>Dirty WidSets</org>
+		<en>Dirty WidSets</en>
+	</Counter>
+	<!--Counter Id: 10756-->
+	<Counter>
+		<org>iSCSI Initiator Login statistics</org>
+		<en>iSCSI Initiator Login statistics</en>
+	</Counter>
+	<!--Counter Id: 2284-->
+	<Counter>
+		<org>Queries</org>
+		<en>Queries</en>
+	</Counter>
+	<!--Counter Id: 774-->
+	<Counter>
+		<org>Espacio de imagen en Ejecución y escritura en copia</org>
+		<en>Image Space Exec Write Copy</en>
+	</Counter>
+	<!--Counter Id: 2302-->
+	<Counter>
+		<org>L1 Merges Now.</org>
+		<en>L1 Merges Now.</en>
+	</Counter>
+	<!--Counter Id: 5976-->
+	<Counter>
+		<org>No se muestra</org>
+		<en>Not Displayed</en>
+	</Counter>
+	<!--Counter Id: 10474-->
+	<Counter>
+		<org>ReceiveFailures</org>
+		<en>ReceiveFailures</en>
+	</Counter>
+	<!--Counter Id: 1016-->
+	<Counter>
+		<org>Máximo de archivos abiertos</org>
+		<en>Maximum Files Open</en>
+	</Counter>
+	<!--Counter Id: 10500-->
+	<Counter>
+		<org>AuthenticatedBytesReceived</org>
+		<en>AuthenticatedBytesReceived</en>
+	</Counter>
+	<!--Counter Id: 10678-->
+	<Counter>
+		<org>KeyAdditions</org>
+		<en>KeyAdditions</en>
+	</Counter>
+	<!--Counter Id: 10872-->
+	<Counter>
+		<org>Max Request Processing Time</org>
+		<en>Max Request Processing Time</en>
+	</Counter>
+	<!--Counter Id: 1520-->
+	<Counter>
+		<org>Número de procesos - Terminados</org>
+		<en>Process Count - Terminated</en>
+	</Counter>
+	<!--Counter Id: 628-->
+	<Counter>
+		<org>Mensajes de respuesta al eco enviados/s</org>
+		<en>Sent Echo Reply/sec</en>
+	</Counter>
+	<!--Counter Id: 1686-->
+	<Counter>
+		<org>Duración en caché de modo de espera promedio a largo plazo (s)</org>
+		<en>Long-Term Average Standby Cache Lifetime (s)</en>
+	</Counter>
+	<!--Counter Id: 810-->
+	<Counter>
+		<org>Aperturas de buzón interproceso con errores/s</org>
+		<en>Mailslot Opens Failed/sec</en>
+	</Counter>
+	<!--Counter Id: 8282-->
+	<Counter>
+		<org>NumberOfActiveConnections</org>
+		<en>NumberOfActiveConnections</en>
+	</Counter>
+	<!--Counter Id: 2310-->
+	<Counter>
+		<org>Persistent Indexes L2</org>
+		<en>Persistent Indexes L2</en>
+	</Counter>
+	<!--Counter Id: 306-->
+	<Counter>
+		<org>Paquetes de escritura pequeños/s</org>
+		<en>Write Packets Small/sec</en>
+	</Counter>
+	<!--Counter Id: 12-->
+	<Counter>
+		<org>Operaciones de escritura de archivo/s</org>
+		<en>File Write Operations/sec</en>
+	</Counter>
+	<!--Counter Id: 10834-->
+	<Counter>
+		<org>ActiveTunnels</org>
+		<en>ActiveTunnels</en>
+	</Counter>
+	<!--Counter Id: 1680-->
+	<Counter>
+		<org>Bytes de reserva de caché en modo de espera</org>
+		<en>Standby Cache Reserve Bytes</en>
+	</Counter>
+	<!--Counter Id: 1558-->
+	<Counter>
+		<org>Informes de pertenencia enviados</org>
+		<en>Sent Membership Report</en>
+	</Counter>
+	<!--Counter Id: 2198-->
+	<Counter>
+		<org>Document Entries</org>
+		<en>Document Entries</en>
+	</Counter>
+	<!--Counter Id: 10520-->
+	<Counter>
+		<org>PendingKeyOperations</org>
+		<en>PendingKeyOperations</en>
+	</Counter>
+	<!--Counter Id: 6016-->
+	<Counter>
+		<org>% de tiempo autenticando firmas</org>
+		<en>% Time Sig. Authenticating</en>
+	</Counter>
+	<!--Counter Id: 10880-->
+	<Counter>
+		<org>ConnectionTimeout Errors</org>
+		<en>ConnectionTimeout Errors</en>
+	</Counter>
+	<!--Counter Id: 2332-->
+	<Counter>
+		<org>L4 Merges Now.</org>
+		<en>L4 Merges Now.</en>
+	</Counter>
+	<!--Counter Id: 6000-->
+	<Counter>
+		<org>Longitud de la cola por segundo</org>
+		<en>Queue Length / sec</en>
+	</Counter>
+	<!--Counter Id: 150-->
+	<Counter>
+		<org>Llamadas al sistema/s</org>
+		<en>System Calls/sec</en>
+	</Counter>
+	<!--Counter Id: 672-->
+	<Counter>
+		<org>Errores de asignación</org>
+		<en>Allocation Failures</en>
+	</Counter>
+	<!--Counter Id: 1798-->
+	<Counter>
+		<org>Número total de liberaciones/s</org>
+		<en>Total Frees/sec</en>
+	</Counter>
+	<!--Counter Id: 1764-->
+	<Counter>
+		<org>Bytes reservados</org>
+		<en>Reserved Bytes</en>
+	</Counter>
+	<!--Counter Id: 2340-->
+	<Counter>
+		<org>Persistent Indexes L5</org>
+		<en>Persistent Indexes L5</en>
+	</Counter>
+	<!--Counter Id: 2224-->
+	<Counter>
+		<org>Servers Currently Unavailable</org>
+		<en>Servers Currently Unavailable</en>
+	</Counter>
+	<!--Counter Id: 10662-->
+	<Counter>
+		<org>iSCSI HBA Quick Mode IPSEC Statistics</org>
+		<en>iSCSI HBA Quick Mode IPSEC Statistics</en>
+	</Counter>
+	<!--Counter Id: 172-->
+	<Counter>
+		<org>Uso máximo de bytes virtuales</org>
+		<en>Virtual Bytes Peak</en>
+	</Counter>
+	<!--Counter Id: 10706-->
+	<Counter>
+		<org>iSCSI Sessions</org>
+		<en>iSCSI Sessions</en>
+	</Counter>
+	<!--Counter Id: 1096-->
+	<Counter>
+		<org>Paquetes de entrada enrutados/s</org>
+		<en>Packets Routed In/Sec</en>
+	</Counter>
+	<!--Counter Id: 794-->
+	<Counter>
+		<org>Escritura en copia</org>
+		<en>Write Copy</en>
+	</Counter>
+	<!--Counter Id: 2104-->
+	<Counter>
+		<org>Success Rate</org>
+		<en>Success Rate</en>
+	</Counter>
+	<!--Counter Id: 938-->
+	<Counter>
+		<org>Conflictos únicos/s</org>
+		<en>Unique Conflicts/sec</en>
+	</Counter>
+	<!--Counter Id: 2082-->
+	<Counter>
+		<org>Document Delete Rate</org>
+		<en>Document Delete Rate</en>
+	</Counter>
+	<!--Counter Id: 2116-->
+	<Counter>
+		<org>File Errors Rate</org>
+		<en>File Errors Rate</en>
+	</Counter>
+	<!--Counter Id: 20-->
+	<Counter>
+		<org>Bytes de control de archivo/s</org>
+		<en>File Control Bytes/sec</en>
+	</Counter>
+	<!--Counter Id: 10896-->
+	<Counter>
+		<org>Processor State Flags</org>
+		<en>Processor State Flags</en>
+	</Counter>
+	<!--Counter Id: 10842-->
+	<Counter>
+		<org>ConfidentialBytesReceived</org>
+		<en>ConfidentialBytesReceived</en>
+	</Counter>
+	<!--Counter Id: 1400-->
+	<Counter>
+		<org>Longitud promedio de la cola de disco</org>
+		<en>Avg. Disk Queue Length</en>
+	</Counter>
+	<!--Counter Id: 356-->
+	<Counter>
+		<org>Solicitudes de bloqueo rechazadas</org>
+		<en>Blocking Requests Rejected</en>
+	</Counter>
+	<!--Counter Id: 4704-->
+	<Counter>
+		<org>Puerto RAS</org>
+		<en>RAS Port</en>
+	</Counter>
+	<!--Counter Id: 10476-->
+	<Counter>
+		<org>ReceiveHeapSize</org>
+		<en>ReceiveHeapSize</en>
+	</Counter>
+	<!--Counter Id: 890-->
+	<Counter>
+		<org>Errores de alineación</org>
+		<en>Alignment Errors</en>
+	</Counter>
+	<!--Counter Id: 2210-->
+	<Counter>
+		<org>Delayed Documents</org>
+		<en>Delayed Documents</en>
+	</Counter>
+	<!--Counter Id: 10412-->
+	<Counter>
+		<org>Session Cxn Timeout Errors</org>
+		<en>Session Cxn Timeout Errors</en>
+	</Counter>
+	<!--Counter Id: 10422-->
+	<Counter>
+		<org>Login Accept Responses</org>
+		<en>Login Accept Responses</en>
+	</Counter>
+	<!--Counter Id: 5030-->
+	<Counter>
+		<org>Interrupciones PCI de controlador/s</org>
+		<en>Controller PCI Interrupts/Sec</en>
+	</Counter>
+	<!--Counter Id: 8284-->
+	<Counter>
+		<org>NumberOfFreeConnections</org>
+		<en>NumberOfFreeConnections</en>
+	</Counter>
+	<!--Counter Id: 412-->
+	<Counter>
+		<org>Conexiones abiertas</org>
+		<en>Connections Open</en>
+	</Counter>
+	<!--Counter Id: 18-->
+	<Counter>
+		<org>Bytes de escritura de archivo/s</org>
+		<en>File Write Bytes/sec</en>
+	</Counter>
+	<!--Counter Id: 5996-->
+	<Counter>
+		<org>Longitud de cola actual</org>
+		<en>Current Queue Length</en>
+	</Counter>
+	<!--Counter Id: 6848-->
+	<Counter>
+		<org>NumberOfNonPooledConnections</org>
+		<en>NumberOfNonPooledConnections</en>
+	</Counter>
+	<!--Counter Id: 136-->
+	<Counter>
+		<org>Páginas de escritura lenta/s</org>
+		<en>Lazy Write Pages/sec</en>
+	</Counter>
+	<!--Counter Id: 5038-->
+	<Counter>
+		<org>USB</org>
+		<en>USB</en>
+	</Counter>
+	<!--Counter Id: 76-->
+	<Counter>
+		<org>Bytes residentes de caché del sistema</org>
+		<en>System Cache Resident Bytes</en>
+	</Counter>
+	<!--Counter Id: 10836-->
+	<Counter>
+		<org>AuthenticatedBytesReceived</org>
+		<en>AuthenticatedBytesReceived</en>
+	</Counter>
+	<!--Counter Id: 728-->
+	<Counter>
+		<org>Espacio reservado en Solo lectura</org>
+		<en>Reserved Space Read Only</en>
+	</Counter>
+	<!--Counter Id: 690-->
+	<Counter>
+		<org>Emulaciones de punto flotante/s</org>
+		<en>Floating Emulations/sec</en>
+	</Counter>
+	<!--Counter Id: 2334-->
+	<Counter>
+		<org>L4 Merge Speed - average</org>
+		<en>L4 Merge Speed - average</en>
+	</Counter>
+	<!--Counter Id: 1556-->
+	<Counter>
+		<org>Consultas de pertenencia enviadas</org>
+		<en>Sent Membership Query</en>
+	</Counter>
+	<!--Counter Id: 2084-->
+	<Counter>
+		<org>Document Modifies</org>
+		<en>Document Modifies</en>
+	</Counter>
+	<!--Counter Id: 2078-->
+	<Counter>
+		<org>Document Add Rate</org>
+		<en>Document Add Rate</en>
+	</Counter>
+	<!--Counter Id: 1582-->
+	<Counter>
+		<org>Entradas de la caché de la sesión de SChannel activa</org>
+		<en>Active Schannel Session Cache Entries</en>
+	</Counter>
+	<!--Counter Id: 1072-->
+	<Counter>
+		<org>Tiempo promedio/paquete NBP</org>
+		<en>Average Time/NBP Packet</en>
+	</Counter>
+	<!--Counter Id: 5746-->
+	<Counter>
+		<org>Cache Misses</org>
+		<en>Cache Misses</en>
+	</Counter>
+	<!--Counter Id: 1350-->
+	<Counter>
+		<org>% de cuota de Registro en uso</org>
+		<en>% Registry Quota In Use</en>
+	</Counter>
+	<!--Counter Id: 1792-->
+	<Counter>
+		<org>Asignaciones mayores que 8 KB/s</org>
+		<en>Allocs over 8K/sec</en>
+	</Counter>
+	<!--Counter Id: 2226-->
+	<Counter>
+		<org>Servers Unavailable</org>
+		<en>Servers Unavailable</en>
+	</Counter>
+	<!--Counter Id: 210-->
+	<Counter>
+		<org>Promedio de segundos de disco/escritura</org>
+		<en>Avg. Disk sec/Write</en>
+	</Counter>
+	<!--Counter Id: 888-->
+	<Counter>
+		<org>Errores de saturación serie</org>
+		<en>Serial Overrun Errors</en>
+	</Counter>
+	<!--Counter Id: 796-->
+	<Counter>
+		<org>Ejecución</org>
+		<en>Executable</en>
+	</Counter>
+	<!--Counter Id: 1094-->
+	<Counter>
+		<org>Bloque no paginado actual</org>
+		<en>Current NonPaged Pool</en>
+	</Counter>
+	<!--Counter Id: 2182-->
+	<Counter>
+		<org>Notification Sources</org>
+		<en>Notification Sources</en>
+	</Counter>
+	<!--Counter Id: 1260-->
+	<Counter>
+		<org>Total de inicios de sesión</org>
+		<en>Logon Total</en>
+	</Counter>
+	<!--Counter Id: 236-->
+	<Counter>
+		<org>Disco lógico</org>
+		<en>LogicalDisk</en>
+	</Counter>
+	<!--Counter Id: 2106-->
+	<Counter>
+		<org>Status Error</org>
+		<en>Status Error</en>
+	</Counter>
+	<!--Counter Id: 6354-->
+	<Counter>
+		<org>Flujos de trabajo descargados/s</org>
+		<en>Workflows Unloaded/sec</en>
+	</Counter>
+	<!--Counter Id: 10566-->
+	<Counter>
+		<org>HiPerf Validity</org>
+		<en>HiPerf Validity</en>
+	</Counter>
+	<!--Counter Id: 10480-->
+	<Counter>
+		<org>SoftAssociations</org>
+		<en>SoftAssociations</en>
+	</Counter>
+	<!--Counter Id: 10848-->
+	<Counter>
+		<org>KeyDeletions</org>
+		<en>KeyDeletions</en>
+	</Counter>
+	<!--Counter Id: 1914-->
+	<Counter>
+		<org>Number of Lines</org>
+		<en>Number of Lines</en>
+	</Counter>
+	<!--Counter Id: 164-->
+	<Counter>
+		<org>Datagramas de buzón interproceso perdidos</org>
+		<en>Missed Mailslot Datagrams</en>
+	</Counter>
+	<!--Counter Id: 560-->
+	<Counter>
+		<org>Datagramas recibidos descartados</org>
+		<en>Datagrams Received Discarded</en>
+	</Counter>
+	<!--Counter Id: 1758-->
+	<Counter>
+		<org>Transiciones a C3/s</org>
+		<en>C3 Transitions/sec</en>
+	</Counter>
+	<!--Counter Id: 10760-->
+	<Counter>
+		<org>Logins  Failed</org>
+		<en>Logins  Failed</en>
+	</Counter>
+	<!--Counter Id: 2244-->
+	<Counter>
+		<org>Notifications Rate</org>
+		<en>Notifications Rate</en>
+	</Counter>
+	<!--Counter Id: 666-->
+	<Counter>
+		<org>Datagramas recibidos con errores</org>
+		<en>Datagrams Received Errors</en>
+	</Counter>
+	<!--Counter Id: 288-->
+	<Counter>
+		<org>Operaciones de lectura/s</org>
+		<en>Read Operations/sec</en>
+	</Counter>
+	<!--Counter Id: 350-->
+	<Counter>
+		<org>Errores de permisos de acceso</org>
+		<en>Errors Access Permissions</en>
+	</Counter>
+	<!--Counter Id: 2140-->
+	<Counter>
+		<org>Gatherer Paused Flag</org>
+		<en>Gatherer Paused Flag</en>
+	</Counter>
+	<!--Counter Id: 16-->
+	<Counter>
+		<org>Bytes de lectura de archivo/s</org>
+		<en>File Read Bytes/sec</en>
+	</Counter>
+	<!--Counter Id: 242-->
+	<Counter>
+		<org>% de tiempo total de usuario</org>
+		<en>% Total User Time</en>
+	</Counter>
+	<!--Counter Id: 2374-->
+	<Counter>
+		<org>L8 Merge Speed - average</org>
+		<en>L8 Merge Speed - average</en>
+	</Counter>
+	<!--Counter Id: 1516-->
+	<Counter>
+		<org>Número de procesos - Total</org>
+		<en>Process Count - Total</en>
+	</Counter>
+	<!--Counter Id: 1102-->
+	<Counter>
+		<org>Paquetes de salida enrutados/s</org>
+		<en>Packets Routed Out/Sec</en>
+	</Counter>
+	<!--Counter Id: 726-->
+	<Counter>
+		<org>Espacio reservado en Sin acceso</org>
+		<en>Reserved Space No Access</en>
+	</Counter>
+	<!--Counter Id: 1588-->
+	<Counter>
+		<org>Protocolos de enlace SSL completos del lado servidor</org>
+		<en>SSL Server-Side Full Handshakes</en>
+	</Counter>
+	<!--Counter Id: 1554-->
+	<Counter>
+		<org>Paquetes demasiado grandes enviados</org>
+		<en>Sent Packet Too Big</en>
+	</Counter>
+	<!--Counter Id: 2086-->
+	<Counter>
+		<org>Document Modifies Rate</org>
+		<en>Document Modifies Rate</en>
+	</Counter>
+	<!--Counter Id: 10578-->
+	<Counter>
+		<org>iSCSI Initiator Instance</org>
+		<en>iSCSI Initiator Instance</en>
+	</Counter>
+	<!--Counter Id: 1926-->
+	<Counter>
+		<org>Number of Client Apps</org>
+		<en>Number of Client Apps</en>
+	</Counter>
+	<!--Counter Id: 134-->
+	<Counter>
+		<org>Vaciados de escritura lenta/s</org>
+		<en>Lazy Write Flushes/sec</en>
+	</Counter>
+	<!--Counter Id: 1580-->
+	<Counter>
+		<org>Entradas de la caché de la sesión de SChannel</org>
+		<en>Schannel Session Cache Entries</en>
+	</Counter>
+	<!--Counter Id: 5748-->
+	<Counter>
+		<org>Cache Hit Ratio</org>
+		<en>Cache Hit Ratio</en>
+	</Counter>
+	<!--Counter Id: 2266-->
+	<Counter>
+		<org>Index Size</org>
+		<en>Index Size</en>
+	</Counter>
+	<!--Counter Id: 10524-->
+	<Counter>
+		<org>TransportBytesReceived</org>
+		<en>TransportBytesReceived</en>
+	</Counter>
+	<!--Counter Id: 8296-->
+	<Counter>
+		<org>SqlClient: Número actual de grupos de conexión</org>
+		<en>SqlClient: Current # connection pools</en>
+	</Counter>
+	<!--Counter Id: 10882-->
+	<Counter>
+		<org>Digest Errors</org>
+		<en>Digest Errors</en>
+	</Counter>
+	<!--Counter Id: 634-->
+	<Counter>
+		<org>Mensajes de máscara de dirección enviados</org>
+		<en>Sent Address Mask</en>
+	</Counter>
+	<!--Counter Id: 5002-->
+	<Counter>
+		<org>Transacciones dudosas</org>
+		<en>In Doubt Transactions</en>
+	</Counter>
+	<!--Counter Id: 10590-->
+	<Counter>
+		<org>Login Accept Responses</org>
+		<en>Login Accept Responses</en>
+	</Counter>
+	<!--Counter Id: 10508-->
+	<Counter>
+		<org>ConfidentialBytesSent</org>
+		<en>ConfidentialBytesSent</en>
+	</Counter>
+	<!--Counter Id: 1600-->
+	<Counter>
+		<org>Paquetes unidos RSC TCP/s</org>
+		<en>TCP RSC Coalesced Packets/sec</en>
+	</Counter>
+	<!--Counter Id: 8290-->
+	<Counter>
+		<org>Datos de .NET CLR</org>
+		<en>.NET CLR Data</en>
+	</Counter>
+	<!--Counter Id: 6348-->
+	<Counter>
+		<org>Flujos de trabajo creados</org>
+		<en>Workflows Created</en>
+	</Counter>
+	<!--Counter Id: 2220-->
+	<Counter>
+		<org>Documents Filtered Rate</org>
+		<en>Documents Filtered Rate</en>
+	</Counter>
+	<!--Counter Id: 1344-->
+	<Counter>
+		<org>Velocidad total de DPC</org>
+		<en>Total DPC Rate</en>
+	</Counter>
+	<!--Counter Id: 2326-->
+	<Counter>
+		<org>L3 Merge - Count</org>
+		<en>L3 Merge - Count</en>
+	</Counter>
+	<!--Counter Id: 10436-->
+	<Counter>
+		<org>Logout Normal</org>
+		<en>Logout Normal</en>
+	</Counter>
+	<!--Counter Id: 2184-->
+	<Counter>
+		<org>Ext. Notifications Received</org>
+		<en>Ext. Notifications Received</en>
+	</Counter>
+	<!--Counter Id: 10450-->
+	<Counter>
+		<org>AuthenticationFailures</org>
+		<en>AuthenticationFailures</en>
+	</Counter>
+	<!--Counter Id: 2282-->
+	<Counter>
+		<org>Active Connections</org>
+		<en>Active Connections</en>
+	</Counter>
+	<!--Counter Id: 1590-->
+	<Counter>
+		<org>Protocolos de enlace SSL de reconexión del lado servidor</org>
+		<en>SSL Server-Side Reconnect Handshakes</en>
+	</Counter>
+	<!--Counter Id: 5934-->
+	<Counter>
+		<org>Longitud de búsqueda del ensamblado</org>
+		<en>Assembly Search Length</en>
+	</Counter>
+	<!--Counter Id: 166-->
+	<Counter>
+		<org>Solicitudes de lista de servidores perdidas</org>
+		<en>Missed Server List Requests</en>
+	</Counter>
+	<!--Counter Id: 952-->
+	<Counter>
+		<org>Número de identificadores</org>
+		<en>Handle Count</en>
+	</Counter>
+	<!--Counter Id: 318-->
+	<Counter>
+		<org>Conexiones de núcleo</org>
+		<en>Connects Core</en>
+	</Counter>
+	<!--Counter Id: 750-->
+	<Counter>
+		<org>Espacio no asignado en Escritura en copia</org>
+		<en>Unassigned Space Write Copy</en>
+	</Counter>
+	<!--Counter Id: 6378-->
+	<Counter>
+		<org>Flujos de trabajo guardados</org>
+		<en>Workflows Persisted</en>
+	</Counter>
+	<!--Counter Id: 160-->
+	<Counter>
+		<org>Enumeraciones de otros/s</org>
+		<en>Enumerations Other/sec</en>
+	</Counter>
+	<!--Counter Id: 1066-->
+	<Counter>
+		<org>Paquetes AARP/s</org>
+		<en>AARP Packets/sec</en>
+	</Counter>
+	<!--Counter Id: 8260-->
+	<Counter>
+		<org>Proveedor de datos .NET para SQL Server</org>
+		<en>.NET Data Provider for SqlServer</en>
+	</Counter>
+	<!--Counter Id: 1542-->
+	<Counter>
+		<org>Reducciones de pertenencia recibidas</org>
+		<en>Received Membership Reduction</en>
+	</Counter>
+	<!--Counter Id: 10398-->
+	<Counter>
+		<org>HiPerf Validity</org>
+		<en>HiPerf Validity</en>
+	</Counter>
+	<!--Counter Id: 1304-->
+	<Counter>
+		<org>Subprocesos activos</org>
+		<en>Active Threads</en>
+	</Counter>
+	<!--Counter Id: 1752-->
+	<Counter>
+		<org>% de tiempo en C3</org>
+		<en>% C3 Time</en>
+	</Counter>
+	<!--Counter Id: 56-->
+	<Counter>
+		<org>Bytes de bloque paginado</org>
+		<en>Pool Paged Bytes</en>
+	</Counter>
+	<!--Counter Id: 806-->
+	<Counter>
+		<org>Recepciones de buzón interproceso con errores</org>
+		<en>Mailslot Receives Failed</en>
+	</Counter>
+	<!--Counter Id: 766-->
+	<Counter>
+		<org>Espacio de imágenes en Escritura en copia</org>
+		<en>Image Space Write Copy</en>
+	</Counter>
+	<!--Counter Id: 2376-->
+	<Counter>
+		<org>L8 Merge - Count</org>
+		<en>L8 Merge - Count</en>
+	</Counter>
+	<!--Counter Id: 5034-->
+	<Counter>
+		<org>% de ancho de banda total usado para transferencias interrumpidas</org>
+		<en>% Total Bandwidth Used for Interrupt</en>
+	</Counter>
+	<!--Counter Id: 1514-->
+	<Counter>
+		<org>Páginas/s</org>
+		<en>Pages/Sec</en>
+	</Counter>
+	<!--Counter Id: 724-->
+	<Counter>
+		<org>Espacio asignado en Ejecución y escritura en copia</org>
+		<en>Mapped Space Exec Write Copy</en>
+	</Counter>
+	<!--Counter Id: 2088-->
+	<Counter>
+		<org>Waiting Documents</org>
+		<en>Waiting Documents</en>
+	</Counter>
+	<!--Counter Id: 8246-->
+	<Counter>
+		<org>Duración media de HttpWebRequests</org>
+		<en>HttpWebRequests Average Lifetime</en>
+	</Counter>
+	<!--Counter Id: 5742-->
+	<Counter>
+		<org>.NET Memory Cache 4.0</org>
+		<en>.NET Memory Cache 4.0</en>
+	</Counter>
+	<!--Counter Id: 10874-->
+	<Counter>
+		<org>iSCSI Sessions</org>
+		<en>iSCSI Sessions</en>
+	</Counter>
+	<!--Counter Id: 10888-->
+	<Counter>
+		<org>PDUs Received</org>
+		<en>PDUs Received</en>
+	</Counter>
+	<!--Counter Id: 10572-->
+	<Counter>
+		<org>Bytes Sent</org>
+		<en>Bytes Sent</en>
+	</Counter>
+	<!--Counter Id: 2268-->
+	<Counter>
+		<org>Unique Keys</org>
+		<en>Unique Keys</en>
+	</Counter>
+	<!--Counter Id: 800-->
+	<Counter>
+		<org>Ejecución y lectura/escritura</org>
+		<en>Exec Read/Write</en>
+	</Counter>
+	<!--Counter Id: 10680-->
+	<Counter>
+		<org>KeyDeletions</org>
+		<en>KeyDeletions</en>
+	</Counter>
+	<!--Counter Id: 5966-->
+	<Counter>
+		<org>Número de bytes de IL con compilación JIT</org>
+		<en># of IL Bytes Jitted</en>
+	</Counter>
+	<!--Counter Id: 808-->
+	<Counter>
+		<org>Escrituras de buzón interproceso con errores</org>
+		<en>Mailslot Writes Failed</en>
+	</Counter>
+	<!--Counter Id: 664-->
+	<Counter>
+		<org>Datagramas sin puerto/s</org>
+		<en>Datagrams No Port/sec</en>
+	</Counter>
+	<!--Counter Id: 10464-->
+	<Counter>
+		<org>KeyUpdateFailures</org>
+		<en>KeyUpdateFailures</en>
+	</Counter>
+	<!--Counter Id: 630-->
+	<Counter>
+		<org>Mensajes de marca de tiempo enviados/s</org>
+		<en>Sent Timestamp/sec</en>
+	</Counter>
+	<!--Counter Id: 10584-->
+	<Counter>
+		<org>Sessions Failed</org>
+		<en>Sessions Failed</en>
+	</Counter>
+	<!--Counter Id: 10438-->
+	<Counter>
+		<org>Logout Other Codes</org>
+		<en>Logout Other Codes</en>
+	</Counter>
+	<!--Counter Id: 2186-->
+	<Counter>
+		<org>Ext. Notifications Rate</org>
+		<en>Ext. Notifications Rate</en>
+	</Counter>
+	<!--Counter Id: 8276-->
+	<Counter>
+		<org>NumberOfInactiveConnectionPoolGroups</org>
+		<en>NumberOfInactiveConnectionPoolGroups</en>
+	</Counter>
+	<!--Counter Id: 1452-->
+	<Counter>
+		<org>Número total de trabajos impresos</org>
+		<en>Total Jobs Printed</en>
+	</Counter>
+	<!--Counter Id: 312-->
+	<Counter>
+		<org>Errores de red/s</org>
+		<en>Network Errors/sec</en>
+	</Counter>
+	<!--Counter Id: 2090-->
+	<Counter>
+		<org>Documents In Progress</org>
+		<en>Documents In Progress</en>
+	</Counter>
+	<!--Counter Id: 5936-->
+	<Counter>
+		<org>Número total de errores de carga</org>
+		<en>Total # of Load Failures</en>
+	</Counter>
+	<!--Counter Id: 10824-->
+	<Counter>
+		<org>BytesTransmitted</org>
+		<en>BytesTransmitted</en>
+	</Counter>
+	<!--Counter Id: 6350-->
+	<Counter>
+		<org>Flujos de trabajo creados/s</org>
+		<en>Workflows Created/sec</en>
+	</Counter>
+	<!--Counter Id: 1014-->
+	<Counter>
+		<org>Archivos abiertos actuales</org>
+		<en>Current Files Open</en>
+	</Counter>
+	<!--Counter Id: 732-->
+	<Counter>
+		<org>Espacio reservado en Escritura en copia</org>
+		<en>Reserved Space Write Copy</en>
+	</Counter>
+	<!--Counter Id: 798-->
+	<Counter>
+		<org>Ejecución y solo lectura</org>
+		<en>Exec Read Only</en>
+	</Counter>
+	<!--Counter Id: 456-->
+	<Counter>
+		<org>Tramas/s</org>
+		<en>Frames/sec</en>
+	</Counter>
+	<!--Counter Id: 5930-->
+	<Counter>
+		<org>Número total de clases cargadas</org>
+		<en>Total Classes Loaded</en>
+	</Counter>
+	<!--Counter Id: 1788-->
+	<Counter>
+		<org>Asignaciones entre 1 y 8 KB/s</org>
+		<en>Allocs 1-8K/sec</en>
+	</Counter>
+	<!--Counter Id: 1754-->
+	<Counter>
+		<org>Transiciones a C1/s</org>
+		<en>C1 Transitions/sec</en>
+	</Counter>
+	<!--Counter Id: 1080-->
+	<Counter>
+		<org>Tiempo promedio/paquete RTMP</org>
+		<en>Average Time/RTMP Packet</en>
+	</Counter>
+	<!--Counter Id: 54-->
+	<Counter>
+		<org>Anuncios de servidor/s</org>
+		<en>Announcements Server/sec</en>
+	</Counter>
+	<!--Counter Id: 1780-->
+	<Counter>
+		<org>Asignaciones en caché/s</org>
+		<en>Cached Allocs/sec</en>
+	</Counter>
+	<!--Counter Id: 10420-->
+	<Counter>
+		<org>iSCSI Initiator Login statistics</org>
+		<en>iSCSI Initiator Login statistics</en>
+	</Counter>
+	<!--Counter Id: 1512-->
+	<Counter>
+		<org>Este período ms - Modo kernel</org>
+		<en>This Period mSec - Kernel Mode</en>
+	</Counter>
+	<!--Counter Id: 1818-->
+	<Counter>
+		<org>MB de lista de páginas libres y cero</org>
+		<en>Free &amp; Zero Page List MBytes</en>
+	</Counter>
+	<!--Counter Id: 1086-->
+	<Counter>
+		<org>Tiempos de espera agotados de respuestas ATP</org>
+		<en>ATP Response Timouts</en>
+	</Counter>
+	<!--Counter Id: 10790-->
+	<Counter>
+		<org>GetSPIFailures</org>
+		<en>GetSPIFailures</en>
+	</Counter>
+	<!--Counter Id: 8234-->
+	<Counter>
+		<org>Conexiones establecidas</org>
+		<en>Connections Established</en>
+	</Counter>
+	<!--Counter Id: 2240-->
+	<Counter>
+		<org>Stemmers Cached</org>
+		<en>Stemmers Cached</en>
+	</Counter>
+	<!--Counter Id: 658-->
+	<Counter>
+		<org>UDPv4</org>
+		<en>UDPv4</en>
+	</Counter>
+	<!--Counter Id: 580-->
+	<Counter>
+		<org>Fragmentos creados/s</org>
+		<en>Fragments Created/sec</en>
+	</Counter>
+	<!--Counter Id: 2330-->
+	<Counter>
+		<org>Persistent Indexes L4</org>
+		<en>Persistent Indexes L4</en>
+	</Counter>
+	<!--Counter Id: 6856-->
+	<Counter>
+		<org>NumberOfActiveConnectionPools</org>
+		<en>NumberOfActiveConnectionPools</en>
+	</Counter>
+	<!--Counter Id: 10574-->
+	<Counter>
+		<org>PDUs Sent</org>
+		<en>PDUs Sent</en>
+	</Counter>
+	<!--Counter Id: 2262-->
+	<Counter>
+		<org>Shadow Merge Levels Threshold</org>
+		<en>Shadow Merge Levels Threshold</en>
+	</Counter>
+	<!--Counter Id: 10876-->
+	<Counter>
+		<org>Bytes Received</org>
+		<en>Bytes Received</en>
+	</Counter>
+	<!--Counter Id: 6362-->
+	<Counter>
+		<org>Flujos de trabajo completados/s</org>
+		<en>Workflows Completed/sec</en>
+	</Counter>
+	<!--Counter Id: 1628-->
+	<Counter>
+		<org>Solicitudes de TGS de delegación restringida de tipos clásicos del KDC</org>
+		<en>KDC classic type constrained delegation TGS Requests</en>
+	</Counter>
+	<!--Counter Id: 10730-->
+	<Counter>
+		<org>WMI Objects</org>
+		<en>WMI Objects</en>
+	</Counter>
+	<!--Counter Id: 1506-->
+	<Counter>
+		<org>% actual de tiempo en modo kernel</org>
+		<en>Current % Kernel Mode Time</en>
+	</Counter>
+	<!--Counter Id: 604-->
+	<Counter>
+		<org>Mensajes de marca de tiempo recibidos/s</org>
+		<en>Received Timestamp/sec</en>
+	</Counter>
+	<!--Counter Id: 10714-->
+	<Counter>
+		<org>Digest Errors</org>
+		<en>Digest Errors</en>
+	</Counter>
+	<!--Counter Id: 2368-->
+	<Counter>
+		<org>L7 Merge Speed - last</org>
+		<en>L7 Merge Speed - last</en>
+	</Counter>
+	<!--Counter Id: 10466-->
+	<Counter>
+		<org>KeyUpdates</org>
+		<en>KeyUpdates</en>
+	</Counter>
+	<!--Counter Id: 1458-->
+	<Counter>
+		<org>Trabajos</org>
+		<en>Jobs</en>
+	</Counter>
+	<!--Counter Id: 764-->
+	<Counter>
+		<org>Espacio de imagen en Lectura/escritura</org>
+		<en>Image Space Read/Write</en>
+	</Counter>
+	<!--Counter Id: 378-->
+	<Counter>
+		<org>Uso máximo del bloque paginado</org>
+		<en>Pool Paged Peak</en>
+	</Counter>
+	<!--Counter Id: 7420-->
+	<Counter>
+		<org>Promedio de tiempo de respuesta de confirmación de participantes</org>
+		<en>Average participant commit response time</en>
+	</Counter>
+	<!--Counter Id: 602-->
+	<Counter>
+		<org>Mensajes de respuesta al eco recibidos/s</org>
+		<en>Received Echo Reply/sec</en>
+	</Counter>
+	<!--Counter Id: 752-->
+	<Counter>
+		<org>Espacio no asignado en Ejecución</org>
+		<en>Unassigned Space Executable</en>
+	</Counter>
+	<!--Counter Id: 8286-->
+	<Counter>
+		<org>NumberOfStasisConnections</org>
+		<en>NumberOfStasisConnections</en>
+	</Counter>
+	<!--Counter Id: 5028-->
+	<Counter>
+		<org>Bytes de transferencia de datos de control/s</org>
+		<en>Control Data Bytes/Sec</en>
+	</Counter>
+	<!--Counter Id: 10518-->
+	<Counter>
+		<org>PacketsWithReplayDetection</org>
+		<en>PacketsWithReplayDetection</en>
+	</Counter>
+	<!--Counter Id: 10826-->
+	<Counter>
+		<org>PDUReceived</org>
+		<en>PDUReceived</en>
+	</Counter>
+	<!--Counter Id: 738-->
+	<Counter>
+		<org>Espacio reservado en Ejecución y lectura/escritura</org>
+		<en>Reserved Space Exec Read/Write</en>
+	</Counter>
+	<!--Counter Id: 790-->
+	<Counter>
+		<org>Solo lectura</org>
+		<en>Read Only</en>
+	</Counter>
+	<!--Counter Id: 10542-->
+	<Counter>
+		<org>Bytes Sent</org>
+		<en>Bytes Sent</en>
+	</Counter>
+	<!--Counter Id: 7400-->
+	<Counter>
+		<org>MSDTC Bridge 4.0.0.0</org>
+		<en>MSDTC Bridge 4.0.0.0</en>
+	</Counter>
+	<!--Counter Id: 60-->
+	<Counter>
+		<org>Asignaciones de bloque paginado</org>
+		<en>Pool Paged Allocs</en>
+	</Counter>
+	<!--Counter Id: 1546-->
+	<Counter>
+		<org>Anuncios de enrutador recibidos</org>
+		<en>Received Router Advert</en>
+	</Counter>
+	<!--Counter Id: 10530-->
+	<Counter>
+		<org>TunnelBytesSent</org>
+		<en>TunnelBytesSent</en>
+	</Counter>
+	<!--Counter Id: 2094-->
+	<Counter>
+		<org>Delayed Documents</org>
+		<en>Delayed Documents</en>
+	</Counter>
+	<!--Counter Id: 2308-->
+	<Counter>
+		<org>L1 Merge Speed - last</org>
+		<en>L1 Merge Speed - last</en>
+	</Counter>
+	<!--Counter Id: 1062-->
+	<Counter>
+		<org>Paquetes DDP/s</org>
+		<en>DDP Packets/sec</en>
+	</Counter>
+	<!--Counter Id: 2350-->
+	<Counter>
+		<org>Persistent Indexes L6</org>
+		<en>Persistent Indexes L6</en>
+	</Counter>
+	<!--Counter Id: 1422-->
+	<Counter>
+		<org>Bytes de escritura de ES/s</org>
+		<en>IO Write Bytes/sec</en>
+	</Counter>
+	<!--Counter Id: 626-->
+	<Counter>
+		<org>Mensajes de eco enviados/s</org>
+		<en>Sent Echo/sec</en>
+	</Counter>
+	<!--Counter Id: 7646-->
+	<Counter>
+		<org>Conexiones enviadas a través de net.tcp</org>
+		<en>Connections Dispatched over net.tcp</en>
+	</Counter>
+	<!--Counter Id: 342-->
+	<Counter>
+		<org>Sesiones cerradas por un error</org>
+		<en>Sessions Errored Out</en>
+	</Counter>
+	<!--Counter Id: 1674-->
+	<Counter>
+		<org>Identificadores de contexto</org>
+		<en>Context Handles</en>
+	</Counter>
+	<!--Counter Id: 1816-->
+	<Counter>
+		<org>MBytes totales</org>
+		<en>Total MBytes</en>
+	</Counter>
+	<!--Counter Id: 742-->
+	<Counter>
+		<org>Espacio reservado en Ejecución y escritura en copia</org>
+		<en>Reserved Space Exec Write Copy</en>
+	</Counter>
+	<!--Counter Id: 1008-->
+	<Counter>
+		<org>Memoria no paginada actual</org>
+		<en>Current NonPaged memory</en>
+	</Counter>
+	<!--Counter Id: 2192-->
+	<Counter>
+		<org>Heartbeats Rate</org>
+		<en>Heartbeats Rate</en>
+	</Counter>
+	<!--Counter Id: 1538-->
+	<Counter>
+		<org>Consultas de pertenencia recibidas</org>
+		<en>Received Membership Query</en>
+	</Counter>
+	<!--Counter Id: 10424-->
+	<Counter>
+		<org>Logins  Failed</org>
+		<en>Logins  Failed</en>
+	</Counter>
+	<!--Counter Id: 946-->
+	<Counter>
+		<org>Liberaciones con errores/s</org>
+		<en>Failed Releases/sec</en>
+	</Counter>
+	<!--Counter Id: 6364-->
+	<Counter>
+		<org>Flujos de trabajo suspendidos</org>
+		<en>Workflows Suspended</en>
+	</Counter>
+	<!--Counter Id: 8300-->
+	<Counter>
+		<org>SqlClient: Número total de conexiones fallidas</org>
+		<en>SqlClient: Total # failed connects</en>
+	</Counter>
+	<!--Counter Id: 4718-->
+	<Counter>
+		<org>Errores de CRC</org>
+		<en>CRC Errors</en>
+	</Counter>
+	<!--Counter Id: 8298-->
+	<Counter>
+		<org>SqlClient: Número máximo de conexiones agrupadas</org>
+		<en>SqlClient: Peak # pooled connections</en>
+	</Counter>
+	<!--Counter Id: 5940-->
+	<Counter>
+		<org>Bytes del montón del cargador</org>
+		<en>Bytes in Loader Heap</en>
+	</Counter>
+	<!--Counter Id: 10878-->
+	<Counter>
+		<org>Bytes Sent</org>
+		<en>Bytes Sent</en>
+	</Counter>
+	<!--Counter Id: 678-->
+	<Counter>
+		<org>Entradas libres de la tabla de páginas del sistema</org>
+		<en>Free System Page Table Entries</en>
+	</Counter>
+	<!--Counter Id: 174-->
+	<Counter>
+		<org>Bytes virtuales</org>
+		<en>Virtual Bytes</en>
+	</Counter>
+	<!--Counter Id: 1360-->
+	<Counter>
+		<org>Memoria VL</org>
+		<en>VL Memory</en>
+	</Counter>
+	<!--Counter Id: 272-->
+	<Counter>
+		<org>Bytes leídos de la caché/s</org>
+		<en>Read Bytes Cache/sec</en>
+	</Counter>
+	<!--Counter Id: 2362-->
+	<Counter>
+		<org>L7 Merges Now.</org>
+		<en>L7 Merges Now.</en>
+	</Counter>
+	<!--Counter Id: 10716-->
+	<Counter>
+		<org>Format Errors</org>
+		<en>Format Errors</en>
+	</Counter>
+	<!--Counter Id: 1504-->
+	<Counter>
+		<org>% actual de tiempo en modo usuario</org>
+		<en>Current % User Mode Time</en>
+	</Counter>
+	<!--Counter Id: 894-->
+	<Counter>
+		<org>Total de errores</org>
+		<en>Total Errors</en>
+	</Counter>
+	<!--Counter Id: 1342-->
+	<Counter>
+		<org>Total de DPC en cola/s</org>
+		<en>Total DPCs Queued/sec</en>
+	</Counter>
+	<!--Counter Id: 804-->
+	<Counter>
+		<org>Id. de subproceso</org>
+		<en>ID Thread</en>
+	</Counter>
+	<!--Counter Id: 1748-->
+	<Counter>
+		<org>% de tiempo en C1</org>
+		<en>% C1 Time</en>
+	</Counter>
+	<!--Counter Id: 34-->
+	<Counter>
+		<org>Errores de transición/s</org>
+		<en>Transition Faults/sec</en>
+	</Counter>
+	<!--Counter Id: 1078-->
+	<Counter>
+		<org>Paquetes ZIP/s</org>
+		<en>ZIP Packets/sec</en>
+	</Counter>
+	<!--Counter Id: 6852-->
+	<Counter>
+		<org>NumberOfActiveConnectionPoolGroups</org>
+		<en>NumberOfActiveConnectionPoolGroups</en>
+	</Counter>
+	<!--Counter Id: 10434-->
+	<Counter>
+		<org>Login Redirect Responses</org>
+		<en>Login Redirect Responses</en>
+	</Counter>
+	<!--Counter Id: 5020-->
+	<Counter>
+		<org>Transacciones anuladas/s</org>
+		<en>Aborted Transactions/sec</en>
+	</Counter>
+	<!--Counter Id: 122-->
+	<Counter>
+		<org>Lecturas anticipadas/s</org>
+		<en>Read Aheads/sec</en>
+	</Counter>
+	<!--Counter Id: 1020-->
+	<Counter>
+		<org>Datos leídos/s</org>
+		<en>Data Read/sec</en>
+	</Counter>
+	<!--Counter Id: 5052-->
+	<Counter>
+		<org>Recuento de vaciados de caché asincrónica del controlador de host</org>
+		<en>Host Controller Async Cache Flush Count</en>
+	</Counter>
+	<!--Counter Id: 10894-->
+	<Counter>
+		<org>% of Maximum Frequency</org>
+		<en>% of Maximum Frequency</en>
+	</Counter>
+	<!--Counter Id: 7410-->
+	<Counter>
+		<org>Número de reintentos de reproducción/s</org>
+		<en>Replay retry count/sec</en>
+	</Counter>
+	<!--Counter Id: 1406-->
+	<Counter>
+		<org>% de bytes confirmados en uso</org>
+		<en>% Committed Bytes In Use</en>
+	</Counter>
+	<!--Counter Id: 10700-->
+	<Counter>
+		<org>iSCSI Request Processing Time</org>
+		<en>iSCSI Request Processing Time</en>
+	</Counter>
+	<!--Counter Id: 10660-->
+	<Counter>
+		<org>PDUTransmitted</org>
+		<en>PDUTransmitted</en>
+	</Counter>
+	<!--Counter Id: 5750-->
+	<Counter>
+		<org>Cache Hit Ratio Base</org>
+		<en>Cache Hit Ratio Base</en>
+	</Counter>
+	<!--Counter Id: 614-->
+	<Counter>
+		<org>Mensajes enviados con errores</org>
+		<en>Messages Outbound Errors</en>
+	</Counter>
+	<!--Counter Id: 10704-->
+	<Counter>
+		<org>Max Request Processing Time</org>
+		<en>Max Request Processing Time</en>
+	</Counter>
+	<!--Counter Id: 5886-->
+	<Counter>
+		<org>Memoria promocionada de gen. 0</org>
+		<en>Promoted Memory from Gen 0</en>
+	</Counter>
+	<!--Counter Id: 2096-->
+	<Counter>
+		<org>URLs in History</org>
+		<en>URLs in History</en>
+	</Counter>
+	<!--Counter Id: 6866-->
+	<Counter>
+		<org>NumberOfReclaimedConnections</org>
+		<en>NumberOfReclaimedConnections</en>
+	</Counter>
+	<!--Counter Id: 294-->
+	<Counter>
+		<org>Operaciones de lectura grandes/s</org>
+		<en>Reads Large/sec</en>
+	</Counter>
+	<!--Counter Id: 780-->
+	<Counter>
+		<org>Bytes reservados</org>
+		<en>Bytes Reserved</en>
+	</Counter>
+	<!--Counter Id: 418-->
+	<Counter>
+		<org>Desconexiones locales</org>
+		<en>Disconnects Local</en>
+	</Counter>
+	<!--Counter Id: 2122-->
+	<Counter>
+		<org>Accessed Files</org>
+		<en>Accessed Files</en>
+	</Counter>
+	<!--Counter Id: 10534-->
+	<Counter>
+		<org>Average Request Processing Time</org>
+		<en>Average Request Processing Time</en>
+	</Counter>
+	<!--Counter Id: 624-->
+	<Counter>
+		<org>Mensajes de redirección enviados/s</org>
+		<en>Sent Redirect/sec</en>
+	</Counter>
+	<!--Counter Id: 5994-->
+	<Counter>
+		<org>Tasa de contención por segundo</org>
+		<en>Contention Rate / sec</en>
+	</Counter>
+	<!--Counter Id: 10496-->
+	<Counter>
+		<org>ActiveSA</org>
+		<en>ActiveSA</en>
+	</Counter>
+	<!--Counter Id: 1006-->
+	<Counter>
+		<org>Máximo de memoria no paginada</org>
+		<en>Max NonPaged Memory</en>
+	</Counter>
+	<!--Counter Id: 1682-->
+	<Counter>
+		<org>Bytes de prioridad normal de caché en modo de espera</org>
+		<en>Standby Cache Normal Priority Bytes</en>
+	</Counter>
+	<!--Counter Id: 362-->
+	<Counter>
+		<org>Archivos abiertos</org>
+		<en>Files Open</en>
+	</Counter>
+	<!--Counter Id: 2336-->
+	<Counter>
+		<org>L4 Merge - Count</org>
+		<en>L4 Merge - Count</en>
+	</Counter>
+	<!--Counter Id: 4730-->
+	<Counter>
+		<org>Bytes transmitidos/s</org>
+		<en>Bytes Transmitted/Sec</en>
+	</Counter>
+	<!--Counter Id: 714-->
+	<Counter>
+		<org>Espacio asignado en Lectura/escritura</org>
+		<en>Mapped Space Read/Write</en>
+	</Counter>
+	<!--Counter Id: 10426-->
+	<Counter>
+		<org>Login Authentication Failed Responses</org>
+		<en>Login Authentication Failed Responses</en>
+	</Counter>
+	<!--Counter Id: 2194-->
+	<Counter>
+		<org>Filtering Threads</org>
+		<en>Filtering Threads</en>
+	</Counter>
+	<!--Counter Id: 6012-->
+	<Counter>
+		<org>Seguridad de .NET CLR</org>
+		<en>.NET CLR Security</en>
+	</Counter>
+	<!--Counter Id: 944-->
+	<Counter>
+		<org>Liberaciones correctas/s</org>
+		<en>Successful Releases/sec</en>
+	</Counter>
+	<!--Counter Id: 2076-->
+	<Counter>
+		<org>Document Additions</org>
+		<en>Document Additions</en>
+	</Counter>
+	<!--Counter Id: 6366-->
+	<Counter>
+		<org>Flujos de trabajo suspendidos/s</org>
+		<en>Workflows Suspended/sec</en>
+	</Counter>
+	<!--Counter Id: 8302-->
+	<Counter>
+		<org>SqlClient: Número total de comandos fallidos</org>
+		<en>SqlClient: Total # failed commands</en>
+	</Counter>
+	<!--Counter Id: 1150-->
+	<Counter>
+		<org>Telefonía</org>
+		<en>Telephony</en>
+	</Counter>
+	<!--Counter Id: 1058-->
+	<Counter>
+		<org>Bytes de salida/s</org>
+		<en>Bytes Out/sec</en>
+	</Counter>
+	<!--Counter Id: 4712-->
+	<Counter>
+		<org>Tramas recibidas</org>
+		<en>Frames Received</en>
+	</Counter>
+	<!--Counter Id: 5924-->
+	<Counter>
+		<org>Número de objetos anclados</org>
+		<en># of Pinned Objects</en>
+	</Counter>
+	<!--Counter Id: 6360-->
+	<Counter>
+		<org>Flujos de trabajo completados</org>
+		<en>Workflows Completed</en>
+	</Counter>
+	<!--Counter Id: 1760-->
+	<Counter>
+		<org>Montón</org>
+		<en>Heap</en>
+	</Counter>
+	<!--Counter Id: 10718-->
+	<Counter>
+		<org>PDUs Sent</org>
+		<en>PDUs Sent</en>
+	</Counter>
+	<!--Counter Id: 886-->
+	<Counter>
+		<org>Errores de tiempo de espera</org>
+		<en>Timeout Errors</en>
+	</Counter>
+	<!--Counter Id: 4998-->
+	<Counter>
+		<org>Transacciones confirmadas</org>
+		<en>Committed Transactions</en>
+	</Counter>
+	<!--Counter Id: 1416-->
+	<Counter>
+		<org>Operaciones de ES de datos/s</org>
+		<en>IO Data Operations/sec</en>
+	</Counter>
+	<!--Counter Id: 410-->
+	<Counter>
+		<org>Megabytes disponibles</org>
+		<en>Free Megabytes</en>
+	</Counter>
+	<!--Counter Id: 812-->
+	<Counter>
+		<org>Anuncios maestros duplicados</org>
+		<en>Duplicate Master Announcements</en>
+	</Counter>
+	<!--Counter Id: 46-->
+	<Counter>
+		<org>Estado de subproceso</org>
+		<en>Thread State</en>
+	</Counter>
+	<!--Counter Id: 344-->
+	<Counter>
+		<org>Sesiones cerradas</org>
+		<en>Sessions Logged Off</en>
+	</Counter>
+	<!--Counter Id: 10850-->
+	<Counter>
+		<org>PacketsNotAuthenticated</org>
+		<en>PacketsNotAuthenticated</en>
+	</Counter>
+	<!--Counter Id: 2248-->
+	<Counter>
+		<org>Reason to back off</org>
+		<en>Reason to back off</en>
+	</Counter>
+	<!--Counter Id: 776-->
+	<Counter>
+		<org>Bytes de imagen reservados</org>
+		<en>Bytes Image Reserved</en>
+	</Counter>
+	<!--Counter Id: 170-->
+	<Counter>
+		<org>Asignaciones de buzón interproceso con errores</org>
+		<en>Mailslot Allocations Failed</en>
+	</Counter>
+	<!--Counter Id: 400-->
+	<Counter>
+		<org>Paquetes/s</org>
+		<en>Packets/sec</en>
+	</Counter>
+	<!--Counter Id: 2270-->
+	<Counter>
+		<org>Documents Filtered</org>
+		<en>Documents Filtered</en>
+	</Counter>
+	<!--Counter Id: 902-->
+	<Counter>
+		<org>Tramas recibidas/s</org>
+		<en>Frames Received/Sec</en>
+	</Counter>
+	<!--Counter Id: 10494-->
+	<Counter>
+		<org>iSCSI HBA Quick Mode IPSEC Statistics</org>
+		<en>iSCSI HBA Quick Mode IPSEC Statistics</en>
+	</Counter>
+	<!--Counter Id: 5884-->
+	<Counter>
+		<org>Número de colecciones de gen. 2</org>
+		<en># Gen 2 Collections</en>
+	</Counter>
+	<!--Counter Id: 10586-->
+	<Counter>
+		<org>Session Format Errors</org>
+		<en>Session Format Errors</en>
+	</Counter>
+	<!--Counter Id: 1632-->
+	<Counter>
+		<org>Solicitudes de TGS compatibles con notificaciones del KDC</org>
+		<en>KDC claims-aware TGS Requests</en>
+	</Counter>
+	<!--Counter Id: 416-->
+	<Counter>
+		<org>Conexiones con reintentos</org>
+		<en>Connections With Retries</en>
+	</Counter>
+	<!--Counter Id: 5992-->
+	<Counter>
+		<org>Número total de contenciones</org>
+		<en>Total # of Contentions</en>
+	</Counter>
+	<!--Counter Id: 6864-->
+	<Counter>
+		<org>NumberOfStasisConnections</org>
+		<en>NumberOfStasisConnections</en>
+	</Counter>
+	<!--Counter Id: 14-->
+	<Counter>
+		<org>Operaciones de control de archivo/s</org>
+		<en>File Control Operations/sec</en>
+	</Counter>
+	<!--Counter Id: 7656-->
+	<Counter>
+		<org>Registros activos para net.pipe</org>
+		<en>Registrations Active for net.pipe</en>
+	</Counter>
+	<!--Counter Id: 1382-->
+	<Counter>
+		<org>Mbytes disponibles</org>
+		<en>Available MBytes</en>
+	</Counter>
+	<!--Counter Id: 654-->
+	<Counter>
+		<org>Segmentos enviados/s</org>
+		<en>Segments Sent/sec</en>
+	</Counter>
+	<!--Counter Id: 8280-->
+	<Counter>
+		<org>NumberOfInactiveConnectionPools</org>
+		<en>NumberOfInactiveConnectionPools</en>
+	</Counter>
+	<!--Counter Id: 1124-->
+	<Counter>
+		<org>% de tramas de difusión</org>
+		<en>% Broadcast Frames</en>
+	</Counter>
+	<!--Counter Id: 6032-->
+	<Counter>
+		<org>Servidores proxy de contexto</org>
+		<en>Context Proxies</en>
+	</Counter>
+	<!--Counter Id: 10594-->
+	<Counter>
+		<org>Login Authentication Failed Responses</org>
+		<en>Login Authentication Failed Responses</en>
+	</Counter>
+	<!--Counter Id: 778-->
+	<Counter>
+		<org>Bytes de imagen disponibles</org>
+		<en>Bytes Image Free</en>
+	</Counter>
+	<!--Counter Id: 1670-->
+	<Counter>
+		<org>Estadísticas de seguridad por proceso</org>
+		<en>Security Per-Process Statistics</en>
+	</Counter>
+	<!--Counter Id: 2196-->
+	<Counter>
+		<org>Idle Threads</org>
+		<en>Idle Threads</en>
+	</Counter>
+	<!--Counter Id: 80-->
+	<Counter>
+		<org>Paquetes de elección/s</org>
+		<en>Election Packets/sec</en>
+	</Counter>
+	<!--Counter Id: 2074-->
+	<Counter>
+		<org>Search Gatherer Projects</org>
+		<en>Search Gatherer Projects</en>
+	</Counter>
+	<!--Counter Id: 4714-->
+	<Counter>
+		<org>Porcentaje de compresión de salida</org>
+		<en>Percent Compression Out</en>
+	</Counter>
+	<!--Counter Id: 660-->
+	<Counter>
+		<org>% de tiempo total de DPC</org>
+		<en>% Total DPC Time</en>
+	</Counter>
+	<!--Counter Id: 1550-->
+	<Counter>
+		<org>Solicitudes de vecino recibidas</org>
+		<en>Received Neighbor Solicit</en>
+	</Counter>
+	<!--Counter Id: 10526-->
+	<Counter>
+		<org>TransportBytesSent</org>
+		<en>TransportBytesSent</en>
+	</Counter>
+	<!--Counter Id: 8266-->
+	<Counter>
+		<org>SoftConnectsPerSecond</org>
+		<en>SoftConnectsPerSecond</en>
+	</Counter>
+	<!--Counter Id: 10712-->
+	<Counter>
+		<org>ConnectionTimeout Errors</org>
+		<en>ConnectionTimeout Errors</en>
+	</Counter>
+	<!--Counter Id: 6042-->
+	<Counter>
+		<org>Excepciones de .NET CLR</org>
+		<en>.NET CLR Exceptions</en>
+	</Counter>
+	<!--Counter Id: 1578-->
+	<Counter>
+		<org>Solicitudes KDC TGS</org>
+		<en>KDC TGS Requests</en>
+	</Counter>
+	<!--Counter Id: 10540-->
+	<Counter>
+		<org>Bytes Received</org>
+		<en>Bytes Received</en>
+	</Counter>
+	<!--Counter Id: 446-->
+	<Counter>
+		<org>Datagramas recibidos/s</org>
+		<en>Datagrams Received/sec</en>
+	</Counter>
+	<!--Counter Id: 2102-->
+	<Counter>
+		<org>Status Success</org>
+		<en>Status Success</en>
+	</Counter>
+	<!--Counter Id: 2360-->
+	<Counter>
+		<org>Persistent Indexes L7</org>
+		<en>Persistent Indexes L7</en>
+	</Counter>
+	<!--Counter Id: 872-->
+	<Counter>
+		<org>Bytes transmitidos</org>
+		<en>Bytes Transmitted</en>
+	</Counter>
+	<!--Counter Id: 44-->
+	<Counter>
+		<org>Longitud de la cola del procesador</org>
+		<en>Processor Queue Length</en>
+	</Counter>
+	<!--Counter Id: 1828-->
+	<Counter>
+		<org>Solicitudes de generación de hash de BranchCache V2 para SMB</org>
+		<en>SMB BranchCache Hash V2 Generation Requests</en>
+	</Counter>
+	<!--Counter Id: 1030-->
+	<Counter>
+		<org>Longitud máxima de cola</org>
+		<en>Maximum Queue Length</en>
+	</Counter>
+	<!--Counter Id: 10686-->
+	<Counter>
+		<org>PacketsWithReplayDetection</org>
+		<en>PacketsWithReplayDetection</en>
+	</Counter>
+	<!--Counter Id: 120-->
+	<Counter>
+		<org>% de aciertos de lecturas mediante MDL</org>
+		<en>MDL Read Hits %</en>
+	</Counter>
+	<!--Counter Id: 5882-->
+	<Counter>
+		<org>Número de colecciones de gen. 1</org>
+		<en># Gen 1 Collections</en>
+	</Counter>
+	<!--Counter Id: 652-->
+	<Counter>
+		<org>Segmentos recibidos/s</org>
+		<en>Segments Received/sec</en>
+	</Counter>
+	<!--Counter Id: 1408-->
+	<Counter>
+		<org>Imagen completa</org>
+		<en>Full Image</en>
+	</Counter>
+	<!--Counter Id: 6342-->
+	<Counter>
+		<org>Datagramas recibidos</org>
+		<en>Datagrams Received</en>
+	</Counter>
+	<!--Counter Id: 662-->
+	<Counter>
+		<org>% de tiempo total de interrupción</org>
+		<en>% Total Interrupt Time</en>
+	</Counter>
+	<!--Counter Id: 406-->
+	<Counter>
+		<org>Operaciones con datos de archivo/s</org>
+		<en>File Data Operations/sec</en>
+	</Counter>
+	<!--Counter Id: 5970-->
+	<Counter>
+		<org>Bytes de IL con compilación JIT por segundo</org>
+		<en>IL Bytes Jitted / sec</en>
+	</Counter>
+	<!--Counter Id: 10866-->
+	<Counter>
+		<org>TunnelBytesSent</org>
+		<en>TunnelBytesSent</en>
+	</Counter>
+	<!--Counter Id: 10564-->
+	<Counter>
+		<org>HiPerf Classes</org>
+		<en>HiPerf Classes</en>
+	</Counter>
+	<!--Counter Id: 414-->
+	<Counter>
+		<org>Conexiones sin reintentos</org>
+		<en>Connections No Retries</en>
+	</Counter>
+	<!--Counter Id: 6372-->
+	<Counter>
+		<org>Flujos de trabajo en memoria</org>
+		<en>Workflows In Memory</en>
+	</Counter>
+	<!--Counter Id: 186-->
+	<Counter>
+		<org>Bytes privados</org>
+		<en>Private Bytes</en>
+	</Counter>
+	<!--Counter Id: 1164-->
+	<Counter>
+		<org>Aplicaciones cliente</org>
+		<en>Client Apps</en>
+	</Counter>
+	<!--Counter Id: 5998-->
+	<Counter>
+		<org>Máxima longitud de cola</org>
+		<en>Queue Length Peak</en>
+	</Counter>
+	<!--Counter Id: 2378-->
+	<Counter>
+		<org>L8 Merge Speed - last</org>
+		<en>L8 Merge Speed - last</en>
+	</Counter>
+	<!--Counter Id: 5036-->
+	<Counter>
+		<org>% de ancho de banda total usado para transferencias isócronas</org>
+		<en>% Total Bandwidth Used for Iso</en>
+	</Counter>
+	<!--Counter Id: 620-->
+	<Counter>
+		<org>Mensajes de problemas de parámetros enviados</org>
+		<en>Sent Parameter Problem</en>
+	</Counter>
+	<!--Counter Id: 1800-->
+	<Counter>
+		<org>Bloques en la caché del montón</org>
+		<en>Blocks in Heap Cache</en>
+	</Counter>
+	<!--Counter Id: 2242-->
+	<Counter>
+		<org>All Notifications Received</org>
+		<en>All Notifications Received</en>
+	</Counter>
+	<!--Counter Id: 10492-->
+	<Counter>
+		<org>PDUTransmitted</org>
+		<en>PDUTransmitted</en>
+	</Counter>
+	<!--Counter Id: 10-->
+	<Counter>
+		<org>Operaciones de lectura de archivo/s</org>
+		<en>File Read Operations/sec</en>
+	</Counter>
+	<!--Counter Id: 10886-->
+	<Counter>
+		<org>PDUs Sent</org>
+		<en>PDUs Sent</en>
+	</Counter>
+	<!--Counter Id: 138-->
+	<Counter>
+		<org>Vaciados de datos/s</org>
+		<en>Data Flushes/sec</en>
+	</Counter>
+	<!--Counter Id: 674-->
+	<Counter>
+		<org>Tiempo de actividad del sistema</org>
+		<en>System Up Time</en>
+	</Counter>
+	<!--Counter Id: 5900-->
+	<Counter>
+		<org>Tamaño del montón de gen. 1</org>
+		<en>Gen 1 heap size</en>
+	</Counter>
+	<!--Counter Id: 10528-->
+	<Counter>
+		<org>TunnelBytesReceived</org>
+		<en>TunnelBytesReceived</en>
+	</Counter>
+	<!--Counter Id: 816-->
+	<Counter>
+		<org>Detalles de subprocesos</org>
+		<en>Thread Details</en>
+	</Counter>
+	<!--Counter Id: 10650-->
+	<Counter>
+		<org>TotalGetSPI</org>
+		<en>TotalGetSPI</en>
+	</Counter>
+	<!--Counter Id: 6044-->
+	<Counter>
+		<org>Número de excepciones producidas</org>
+		<en># of Exceps Thrown</en>
+	</Counter>
+	<!--Counter Id: 5006-->
+	<Counter>
+		<org>Forzar transacciones confirmadas</org>
+		<en>Force Committed Transactions</en>
+	</Counter>
+	<!--Counter Id: 600-->
+	<Counter>
+		<org>Mensajes de eco recibidos/s</org>
+		<en>Received Echo/sec</en>
+	</Counter>
+	<!--Counter Id: 10432-->
+	<Counter>
+		<org>Login Other Failed Responses</org>
+		<en>Login Other Failed Responses</en>
+	</Counter>
+	<!--Counter Id: 706-->
+	<Counter>
+		<org>Dirección de inicio</org>
+		<en>Start Address</en>
+	</Counter>
+	<!--Counter Id: 1572-->
+	<Counter>
+		<org>Autenticaciones NTLM</org>
+		<en>NTLM Authentications</en>
+	</Counter>
+	<!--Counter Id: 10452-->
+	<Counter>
+		<org>ConnectionListSize</org>
+		<en>ConnectionListSize</en>
+	</Counter>
+	<!--Counter Id: 10462-->
+	<Counter>
+		<org>KeyAdditions</org>
+		<en>KeyAdditions</en>
+	</Counter>
+	<!--Counter Id: 4734-->
+	<Counter>
+		<org>Tramas transmitidas/s</org>
+		<en>Frames Transmitted/Sec</en>
+	</Counter>
+	<!--Counter Id: 5952-->
+	<Counter>
+		<org>Número total de AppDomain</org>
+		<en>Total Appdomains</en>
+	</Counter>
+	<!--Counter Id: 546-->
+	<Counter>
+		<org>IPv4</org>
+		<en>IPv4</en>
+	</Counter>
+	<!--Counter Id: 772-->
+	<Counter>
+		<org>Espacio de imagen en Ejecución y lectura/escritura</org>
+		<en>Image Space Exec Read/Write</en>
+	</Counter>
+	<!--Counter Id: 10722-->
+	<Counter>
+		<org>Processor Performance</org>
+		<en>Processor Performance</en>
+	</Counter>
+	<!--Counter Id: 5968-->
+	<Counter>
+		<org>Número total de bytes de IL con compilación JIT</org>
+		<en>Total # of IL Bytes Jitted</en>
+	</Counter>
+	<!--Counter Id: 612-->
+	<Counter>
+		<org>Mensajes enviados/s</org>
+		<en>Messages Sent/sec</en>
+	</Counter>
+	<!--Counter Id: 200-->
+	<Counter>
+		<org>% de tiempo de disco</org>
+		<en>% Disk Time</en>
+	</Counter>
+	<!--Counter Id: 5938-->
+	<Counter>
+		<org>Tasa de errores de carga</org>
+		<en>Rate of Load Failures</en>
+	</Counter>
+	<!--Counter Id: 1240-->
+	<Counter>
+		<org>ES de Packet Burst/s</org>
+		<en>Packet Burst IO/sec</en>
+	</Counter>
+	<!--Counter Id: 10732-->
+	<Counter>
+		<org>HiPerf Classes</org>
+		<en>HiPerf Classes</en>
+	</Counter>
+	<!--Counter Id: 10668-->
+	<Counter>
+		<org>AuthenticatedBytesReceived</org>
+		<en>AuthenticatedBytesReceived</en>
+	</Counter>
+	<!--Counter Id: 590-->
+	<Counter>
+		<org>Mensajes de destino inaccesible recibidos</org>
+		<en>Received Dest. Unreachable</en>
+	</Counter>
+	<!--Counter Id: 6374-->
+	<Counter>
+		<org>Flujos de trabajo anulados</org>
+		<en>Workflows Aborted</en>
+	</Counter>
+	<!--Counter Id: 1306-->
+	<Counter>
+		<org>Subprocesos disponibles</org>
+		<en>Available Threads</en>
+	</Counter>
+	<!--Counter Id: 1756-->
+	<Counter>
+		<org>Transiciones a C2/s</org>
+		<en>C2 Transitions/sec</en>
+	</Counter>
+	<!--Counter Id: 10394-->
+	<Counter>
+		<org>WMI Objects</org>
+		<en>WMI Objects</en>
+	</Counter>
+	<!--Counter Id: 52-->
+	<Counter>
+		<org>Explorador</org>
+		<en>Browser</en>
+	</Counter>
+	<!--Counter Id: 184-->
+	<Counter>
+		<org>Bytes del archivo de paginación</org>
+		<en>Page File Bytes</en>
+	</Counter>
+	<!--Counter Id: 92-->
+	<Counter>
+		<org>Asignaciones asincrónicas de datos/s</org>
+		<en>Async Data Maps/sec</en>
+	</Counter>
+	<!--Counter Id: 1050-->
+	<Counter>
+		<org>AppleTalk</org>
+		<en>AppleTalk</en>
+	</Counter>
+	<!--Counter Id: 326-->
+	<Counter>
+		<org>Desconexiones del servidor</org>
+		<en>Server Disconnects</en>
+	</Counter>
+	<!--Counter Id: 822-->
+	<Counter>
+		<org>Entrada de páginas/s</org>
+		<en>Pages Input/sec</en>
+	</Counter>
+	<!--Counter Id: 2372-->
+	<Counter>
+		<org>L8 Merges Now.</org>
+		<en>L8 Merges Now.</en>
+	</Counter>
+	<!--Counter Id: 1750-->
+	<Counter>
+		<org>% de tiempo en C2</org>
+		<en>% C2 Time</en>
+	</Counter>
+	<!--Counter Id: 694-->
+	<Counter>
+		<org>Prioridad actual</org>
+		<en>Priority Current</en>
+	</Counter>
+	<!--Counter Id: 1166-->
+	<Counter>
+		<org>Llamadas salientes actuales</org>
+		<en>Current Outgoing Calls</en>
+	</Counter>
+	<!--Counter Id: 1084-->
+	<Counter>
+		<org>Reintentos locales ATP</org>
+		<en>ATP Retries Local</en>
+	</Counter>
+	<!--Counter Id: 110-->
+	<Counter>
+		<org>Lecturas asincrónicas de copia/s</org>
+		<en>Async Copy Reads/sec</en>
+	</Counter>
+	<!--Counter Id: 1018-->
+	<Counter>
+		<org>Inicios de sesión con errores</org>
+		<en>Failed Logons</en>
+	</Counter>
+	<!--Counter Id: 1518-->
+	<Counter>
+		<org>Número de procesos - Activos</org>
+		<en>Process Count - Active</en>
+	</Counter>
+	<!--Counter Id: 10740-->
+	<Counter>
+		<org>Bytes Sent</org>
+		<en>Bytes Sent</en>
+	</Counter>
+	<!--Counter Id: 2290-->
+	<Counter>
+		<org>L0 Indexes (Wordlists)</org>
+		<en>L0 Indexes (Wordlists)</en>
+	</Counter>
+	<!--Counter Id: 6842-->
+	<Counter>
+		<org>HardDisconnectsPerSecond</org>
+		<en>HardDisconnectsPerSecond</en>
+	</Counter>
+	<!--Counter Id: 132-->
+	<Counter>
+		<org>Lecturas rápidas no posibles/s</org>
+		<en>Fast Read Not Possibles/sec</en>
+	</Counter>
+	<!--Counter Id: 234-->
+	<Counter>
+		<org>Disco físico</org>
+		<en>PhysicalDisk</en>
+	</Counter>
+	<!--Counter Id: 10576-->
+	<Counter>
+		<org>PDUs Received</org>
+		<en>PDUs Received</en>
+	</Counter>
+	<!--Counter Id: 10522-->
+	<Counter>
+		<org>ReKeys</org>
+		<en>ReKeys</en>
+	</Counter>
+	<!--Counter Id: 5042-->
+	<Counter>
+		<org>Errores de paquetes isócronos/s</org>
+		<en>Iso Packet Errors/Sec</en>
+	</Counter>
+	<!--Counter Id: 10884-->
+	<Counter>
+		<org>Format Errors</org>
+		<en>Format Errors</en>
+	</Counter>
+	<!--Counter Id: 2264-->
+	<Counter>
+		<org>Persistent Indexes</org>
+		<en>Persistent Indexes</en>
+	</Counter>
+	<!--Counter Id: 530-->
+	<Counter>
+		<org>Paquetes recibidos con errores</org>
+		<en>Packets Received Errors</en>
+	</Counter>
+	<!--Counter Id: 814-->
+	<Counter>
+		<org>Datagramas incorrectos/s</org>
+		<en>Illegal Datagrams/sec</en>
+	</Counter>
+	<!--Counter Id: 1846-->
+	<Counter>
+		<org>Marcador de final</org>
+		<en>End Marker</en>
+	</Counter>
+	<!--Counter Id: 512-->
+	<Counter>
+		<org>Bytes/s</org>
+		<en>Bytes/sec</en>
+	</Counter>
+	<!--Counter Id: 5004-->
+	<Counter>
+		<org>Máximo de transacciones activas</org>
+		<en>Active Transactions Maximum</en>
+	</Counter>
+	<!--Counter Id: 5896-->
+	<Counter>
+		<org>Id. de proceso</org>
+		<en>Process ID</en>
+	</Counter>
+	<!--Counter Id: 302-->
+	<Counter>
+		<org>Paquetes de escritura/s</org>
+		<en>Write Packets/sec</en>
+	</Counter>
+	<!--Counter Id: 718-->
+	<Counter>
+		<org>Espacio asignado en Ejecución</org>
+		<en>Mapped Space Executable</en>
+	</Counter>
+	<!--Counter Id: 2132-->
+	<Counter>
+		<org>Filtered Office Rate</org>
+		<en>Filtered Office Rate</en>
+	</Counter>
+	<!--Counter Id: 1456-->
+	<Counter>
+		<org>Número total de páginas impresas</org>
+		<en>Total Pages Printed</en>
+	</Counter>
+	<!--Counter Id: 128-->
+	<Counter>
+		<org>Lecturas asincrónicas rápidas/s</org>
+		<en>Async Fast Reads/sec</en>
+	</Counter>
+	<!--Counter Id: 544-->
+	<Counter>
+		<org>Longitud de la cola de salida</org>
+		<en>Output Queue Length</en>
+	</Counter>
+	<!--Counter Id: 8272-->
+	<Counter>
+		<org>NumberOfPooledConnections</org>
+		<en>NumberOfPooledConnections</en>
+	</Counter>
+	<!--Counter Id: 5984-->
+	<Counter>
+		<org>Número de cálculo de referencias</org>
+		<en># of marshalling</en>
+	</Counter>
+	<!--Counter Id: 5958-->
+	<Counter>
+		<org>Número total de ensamblados</org>
+		<en>Total Assemblies</en>
+	</Counter>
+	<!--Counter Id: 6028-->
+	<Counter>
+		<org>Llamadas remotas por segundo</org>
+		<en>Remote Calls/sec</en>
+	</Counter>
+	<!--Counter Id: 10486-->
+	<Counter>
+		<org>BytesReceived</org>
+		<en>BytesReceived</en>
+	</Counter>
+	<!--Counter Id: 8270-->
+	<Counter>
+		<org>NumberOfNonPooledConnections</org>
+		<en>NumberOfNonPooledConnections</en>
+	</Counter>
+	<!--Counter Id: 372-->
+	<Counter>
+		<org>Uso máximo del bloque no paginado</org>
+		<en>Pool Nonpaged Peak</en>
+	</Counter>
+	<!--Counter Id: 680-->
+	<Counter>
+		<org>Número de subprocesos</org>
+		<en>Thread Count</en>
+	</Counter>
+	<!--Counter Id: 452-->
+	<Counter>
+		<org>Paquetes enviados/s</org>
+		<en>Packets Sent/sec</en>
+	</Counter>
+	<!--Counter Id: 6334-->
+	<Counter>
+		<org>Red de .NET CLR</org>
+		<en>.NET CLR Networking</en>
+	</Counter>
+	<!--Counter Id: 10696-->
+	<Counter>
+		<org>TunnelBytesReceived</org>
+		<en>TunnelBytesReceived</en>
+	</Counter>
+	<!--Counter Id: 2164-->
+	<Counter>
+		<org>Adaptive Crawl Errors</org>
+		<en>Adaptive Crawl Errors</en>
+	</Counter>
+	<!--Counter Id: 6376-->
+	<Counter>
+		<org>Flujos de trabajo anulados/s</org>
+		<en>Workflows Aborted/sec</en>
+	</Counter>
+	<!--Counter Id: 734-->
+	<Counter>
+		<org>Espacio reservado en Ejecución</org>
+		<en>Reserved Space Executable</en>
+	</Counter>
+	<!--Counter Id: 722-->
+	<Counter>
+		<org>Espacio asignado en Ejecución y lectura/escritura</org>
+		<en>Mapped Space Exec Read/Write</en>
+	</Counter>
+	<!--Counter Id: 10396-->
+	<Counter>
+		<org>HiPerf Classes</org>
+		<en>HiPerf Classes</en>
+	</Counter>
+	<!--Counter Id: 268-->
+	<Counter>
+		<org>Bytes leídos de paginación/s</org>
+		<en>Read Bytes Paging/sec</en>
+	</Counter>
+	<!--Counter Id: 10812-->
+	<Counter>
+		<org>ReceiveHeapSize</org>
+		<en>ReceiveHeapSize</en>
+	</Counter>
+	<!--Counter Id: 10768-->
+	<Counter>
+		<org>Login Other Failed Responses</org>
+		<en>Login Other Failed Responses</en>
+	</Counter>
+	<!--Counter Id: 58-->
+	<Counter>
+		<org>Bytes de bloque no paginado</org>
+		<en>Pool Nonpaged Bytes</en>
+	</Counter>
+	<!--Counter Id: 7644-->
+	<Counter>
+		<org>Errores de envío a través de net.pipe</org>
+		<en>Dispatch Failures over net.pipe</en>
+	</Counter>
+	<!--Counter Id: 6840-->
+	<Counter>
+		<org>HardConnectsPerSecond</org>
+		<en>HardConnectsPerSecond</en>
+	</Counter>
+	<!--Counter Id: 1032-->
+	<Counter>
+		<org>Subprocesos actuales</org>
+		<en>Current Threads</en>
+	</Counter>
+	<!--Counter Id: 182-->
+	<Counter>
+		<org>Uso máximo de los bytes del archivo de paginación</org>
+		<en>Page File Bytes Peak</en>
+	</Counter>
+	<!--Counter Id: 1168-->
+	<Counter>
+		<org>Llamadas entrantes actuales</org>
+		<en>Current Incoming Calls</en>
+	</Counter>
+	<!--Counter Id: 1814-->
+	<Counter>
+		<org>Memoria de nodo NUMA</org>
+		<en>NUMA Node Memory</en>
+	</Counter>
+	<!--Counter Id: 180-->
+	<Counter>
+		<org>Espacio de trabajo</org>
+		<en>Working Set</en>
+	</Counter>
+	<!--Counter Id: 5032-->
+	<Counter>
+		<org>Señales de trabajo de controlador/s</org>
+		<en>Controller WorkSignals/Sec</en>
+	</Counter>
+	<!--Counter Id: 1056-->
+	<Counter>
+		<org>Bytes de entrada/s</org>
+		<en>Bytes In/sec</en>
+	</Counter>
+	<!--Counter Id: 1270-->
+	<Counter>
+		<org>Solicitudes hash recibidas de BranchCache para SMB</org>
+		<en>SMB BranchCache Hash Requests Received</en>
+	</Counter>
+	<!--Counter Id: 232-->
+	<Counter>
+		<org>Subproceso</org>
+		<en>Thread</en>
+	</Counter>
+	<!--Counter Id: 10676-->
+	<Counter>
+		<org>ConfidentialBytesSent</org>
+		<en>ConfidentialBytesSent</en>
+	</Counter>
+	<!--Counter Id: 96-->
+	<Counter>
+		<org>Asignaciones de datos ancladas/s</org>
+		<en>Data Map Pins/sec</en>
+	</Counter>
+	<!--Counter Id: 6020-->
+	<Counter>
+		<org>% de tiempo de comprobaciones RT</org>
+		<en>% Time in RT checks</en>
+	</Counter>
+	<!--Counter Id: 1534-->
+	<Counter>
+		<org>ICMPv6</org>
+		<en>ICMPv6</en>
+	</Counter>
+	<!--Counter Id: 5894-->
+	<Counter>
+		<org>Memoria de finalización promocionada de gen. 0</org>
+		<en>Promoted Finalization-Memory from Gen 0</en>
+	</Counter>
+	<!--Counter Id: 10596-->
+	<Counter>
+		<org>Failed Logins</org>
+		<en>Failed Logins</en>
+	</Counter>
+	<!--Counter Id: 1928-->
+	<Counter>
+		<org>Current Outgoing Calls</org>
+		<en>Current Outgoing Calls</en>
+	</Counter>
+	<!--Counter Id: 542-->
+	<Counter>
+		<org>Paquetes de salida con errores</org>
+		<en>Packets Outbound Errors</en>
+	</Counter>
+	<!--Counter Id: 10402-->
+	<Counter>
+		<org>Bytes Received</org>
+		<en>Bytes Received</en>
+	</Counter>
+	<!--Counter Id: 510-->
+	<Counter>
+		<org>Interfaz de red</org>
+		<en>Network Interface</en>
+	</Counter>
+	<!--Counter Id: 1454-->
+	<Counter>
+		<org>Bytes impresos/s</org>
+		<en>Bytes Printed/sec</en>
+	</Counter>
+	<!--Counter Id: 8278-->
+	<Counter>
+		<org>NumberOfActiveConnectionPools</org>
+		<en>NumberOfActiveConnectionPools</en>
+	</Counter>
+	<!--Counter Id: 5982-->
+	<Counter>
+		<org>Número de códigos auxiliares</org>
+		<en># of Stubs</en>
+	</Counter>
+	<!--Counter Id: 2150-->
+	<Counter>
+		<org>Filtering Documents</org>
+		<en>Filtering Documents</en>
+	</Counter>
+	<!--Counter Id: 1810-->
+	<Counter>
+		<org>Páginas desfasadas</org>
+		<en>Dirty Pages</en>
+	</Counter>
+	<!--Counter Id: 616-->
+	<Counter>
+		<org>Mensajes de destino inaccesible enviados</org>
+		<en>Sent Destination Unreachable</en>
+	</Counter>
+	<!--Counter Id: 2212-->
+	<Counter>
+		<org>Server Objects</org>
+		<en>Server Objects</en>
+	</Counter>
+	<!--Counter Id: 5024-->
+	<Counter>
+		<org>Bytes de transferencia isócrona/s</org>
+		<en>Isochronous Bytes/Sec</en>
+	</Counter>
+	<!--Counter Id: 610-->
+	<Counter>
+		<org>Mensajes de respuesta a máscara de dirección recibidos</org>
+		<en>Received Address Mask Reply</en>
+	</Counter>
+	<!--Counter Id: 10630-->
+	<Counter>
+		<org>KeyAdditions</org>
+		<en>KeyAdditions</en>
+	</Counter>
+	<!--Counter Id: 6336-->
+	<Counter>
+		<org>Conexiones establecidas</org>
+		<en>Connections Established</en>
+	</Counter>
+	<!--Counter Id: 310-->
+	<Counter>
+		<org>Escrituras denegadas/s</org>
+		<en>Writes Denied/sec</en>
+	</Counter>
+	<!--Counter Id: 2098-->
+	<Counter>
+		<org>Processed Documents</org>
+		<en>Processed Documents</en>
+	</Counter>
+	<!--Counter Id: 458-->
+	<Counter>
+		<org>Bytes de trama/s</org>
+		<en>Frame Bytes/sec</en>
+	</Counter>
+	<!--Counter Id: 10484-->
+	<Counter>
+		<org>MSiSCSI_NICPerformance</org>
+		<en>MSiSCSI_NICPerformance</en>
+	</Counter>
+	<!--Counter Id: 296-->
+	<Counter>
+		<org>Paquetes de lectura pequeños/s</org>
+		<en>Read Packets Small/sec</en>
+	</Counter>
+	<!--Counter Id: 10742-->
+	<Counter>
+		<org>PDUs Sent</org>
+		<en>PDUs Sent</en>
+	</Counter>
+	<!--Counter Id: 266-->
+	<Counter>
+		<org>Paquetes recibidos/s</org>
+		<en>Packets Received/sec</en>
+	</Counter>
+	<!--Counter Id: 7642-->
+	<Counter>
+		<org>Errores de envío a través de net.tcp</org>
+		<en>Dispatch Failures over net.tcp</en>
+	</Counter>
+	<!--Counter Id: 10766-->
+	<Counter>
+		<org>Login Negotiation Failed</org>
+		<en>Login Negotiation Failed</en>
+	</Counter>
+	<!--Counter Id: 6052-->
+	<Counter>
+		<org>Profundidad por segundo de la instrucción Throw a la instrucción Catch</org>
+		<en>Throw To Catch Depth / sec</en>
+	</Counter>
+	<!--Counter Id: 290-->
+	<Counter>
+		<org>Operaciones aleatorias de lectura/s</org>
+		<en>Read Operations Random/sec</en>
+	</Counter>
+	<!--Counter Id: 1568-->
+	<Counter>
+		<org>Anuncios de vecino enviados</org>
+		<en>Sent Neighbor Advert</en>
+	</Counter>
+	<!--Counter Id: 1034-->
+	<Counter>
+		<org>Máximo de subprocesos</org>
+		<en>Maximum Threads</en>
+	</Counter>
+	<!--Counter Id: 1004-->
+	<Counter>
+		<org>Memoria paginada actual</org>
+		<en>Current Paged Memory</en>
+	</Counter>
+	<!--Counter Id: 1088-->
+	<Counter>
+		<org>Respuestas ATP XO/s</org>
+		<en>ATP XO Response/Sec</en>
+	</Counter>
+	<!--Counter Id: 10428-->
+	<Counter>
+		<org>Failed Logins</org>
+		<en>Failed Logins</en>
+	</Counter>
+	<!--Counter Id: 10674-->
+	<Counter>
+		<org>ConfidentialBytesReceived</org>
+		<en>ConfidentialBytesReceived</en>
+	</Counter>
+	<!--Counter Id: 8232-->
+	<Counter>
+		<org>Red de .NET CLR 4.0.0.0</org>
+		<en>.NET CLR Networking 4.0.0.0</en>
+	</Counter>
+	<!--Counter Id: 5986-->
+	<Counter>
+		<org>Número de importaciones TLB por segundo</org>
+		<en># of TLB imports / sec</en>
+	</Counter>
+	<!--Counter Id: 10440-->
+	<Counter>
+		<org>iSCSI HBA Main Mode IPSEC Statistics</org>
+		<en>iSCSI HBA Main Mode IPSEC Statistics</en>
+	</Counter>
+	<!--Counter Id: 10830-->
+	<Counter>
+		<org>iSCSI HBA Quick Mode IPSEC Statistics</org>
+		<en>iSCSI HBA Quick Mode IPSEC Statistics</en>
+	</Counter>
+	<!--Counter Id: 5926-->
+	<Counter>
+		<org>Número de bloques de sincronización en uso</org>
+		<en># of Sink Blocks in use</en>
+	</Counter>
+	<!--Counter Id: 2260-->
+	<Counter>
+		<org>Shadow Merge Levels</org>
+		<en>Shadow Merge Levels</en>
+	</Counter>
+	<!--Counter Id: 492-->
+	<Counter>
+		<org>NetBEUI</org>
+		<en>NetBEUI</en>
+	</Counter>
+	<!--Counter Id: 1620-->
+	<Counter>
+		<org>Solicitudes de AS blindadas del KDC</org>
+		<en>KDC armored AS Requests</en>
+	</Counter>
+	<!--Counter Id: 572-->
+	<Counter>
+		<org>Fragmentos reensamblados/s</org>
+		<en>Fragments Re-assembled/sec</en>
+	</Counter>
+	<!--Counter Id: 6026-->
+	<Counter>
+		<org>Entorno remoto de .NET CLR</org>
+		<en>.NET CLR Remoting</en>
+	</Counter>
+	<!--Counter Id: 10408-->
+	<Counter>
+		<org>PDUs Received</org>
+		<en>PDUs Received</en>
+	</Counter>
+	<!--Counter Id: 1414-->
+	<Counter>
+		<org>Operaciones de ES de escritura/s</org>
+		<en>IO Write Operations/sec</en>
+	</Counter>
+	<!--Counter Id: 4742-->
+	<Counter>
+		<org>Total de conexiones</org>
+		<en>Total Connections</en>
+	</Counter>
+	<!--Counter Id: 10720-->
+	<Counter>
+		<org>PDUs Received</org>
+		<en>PDUs Received</en>
+	</Counter>
+	<!--Counter Id: 656-->
+	<Counter>
+		<org>Segmentos retransmitidos/s</org>
+		<en>Segments Retransmitted/sec</en>
+	</Counter>
+	<!--Counter Id: 1676-->
+	<Counter>
+		<org>Bytes de lista de páginas libres y cero</org>
+		<en>Free &amp; Zero Page List Bytes</en>
+	</Counter>
+	<!--Counter Id: 98-->
+	<Counter>
+		<org>Lecturas de anclaje/s</org>
+		<en>Pin Reads/sec</en>
+	</Counter>
+	<!--Counter Id: 2218-->
+	<Counter>
+		<org>Documents Filtered</org>
+		<en>Documents Filtered</en>
+	</Counter>
+	<!--Counter Id: 2180-->
+	<Counter>
+		<org>Search Gatherer</org>
+		<en>Search Gatherer</en>
+	</Counter>
+	<!--Counter Id: 5056-->
+	<Counter>
+		<org>Recuento de vaciados de caché periódica del controlador de host</org>
+		<en>Host Controller Periodic Cache Flush Count</en>
+	</Counter>
+	<!--Counter Id: 142-->
+	<Counter>
+		<org>% de tiempo de usuario</org>
+		<en>% User Time</en>
+	</Counter>
+	<!--Counter Id: 5988-->
+	<Counter>
+		<org>Número de exportaciones TLB por segundo</org>
+		<en># of TLB exports / sec</en>
+	</Counter>
+	<!--Counter Id: 1012-->
+	<Counter>
+		<org>Máximo de sesiones</org>
+		<en>Maximum Sessions</en>
+	</Counter>
+	<!--Counter Id: 6002-->
+	<Counter>
+		<org>Número de subprocesos lógicos actuales</org>
+		<en># of current logical Threads</en>
+	</Counter>
+	<!--Counter Id: 6338-->
+	<Counter>
+		<org>Bytes recibidos</org>
+		<en>Bytes Received</en>
+	</Counter>
+	<!--Counter Id: 908-->
+	<Counter>
+		<org>Total de conexiones</org>
+		<en>Total Connections</en>
+	</Counter>
+	<!--Counter Id: 226-->
+	<Counter>
+		<org>Promedio de bytes de disco/lectura</org>
+		<en>Avg. Disk Bytes/Read</en>
+	</Counter>
+	<!--Counter Id: 10636-->
+	<Counter>
+		<org>NegotiationFailures</org>
+		<en>NegotiationFailures</en>
+	</Counter>
+	<!--Counter Id: 298-->
+	<Counter>
+		<org>Operaciones de escritura/s</org>
+		<en>Write Operations/sec</en>
+	</Counter>
+	<!--Counter Id: 1332-->
+	<Counter>
+		<org>Total de operaciones/s</org>
+		<en>Total Operations/sec</en>
+	</Counter>
+	<!--Counter Id: 8274-->
+	<Counter>
+		<org>NumberOfActiveConnectionPoolGroups</org>
+		<en>NumberOfActiveConnectionPoolGroups</en>
+	</Counter>
+	<!--Counter Id: 554-->
+	<Counter>
+		<org>Datagramas recibidos con errores de dirección</org>
+		<en>Datagrams Received Address Errors</en>
+	</Counter>
+	<!--Counter Id: 1540-->
+	<Counter>
+		<org>Informes de pertenencia recibidos</org>
+		<en>Received Membership Report</en>
+	</Counter>
+	<!--Counter Id: 730-->
+	<Counter>
+		<org>Espacio reservado en Lectura/escritura</org>
+		<en>Reserved Space Read/Write</en>
+	</Counter>
+	<!--Counter Id: 10538-->
+	<Counter>
+		<org>iSCSI Sessions</org>
+		<en>iSCSI Sessions</en>
+	</Counter>
+	<!--Counter Id: 7648-->
+	<Counter>
+		<org>Conexiones enviadas a través de net.pipe</org>
+		<en>Connections Dispatched over net.pipe</en>
+	</Counter>
+	<!--Counter Id: 366-->
+	<Counter>
+		<org>Búsquedas de directorio de archivos</org>
+		<en>File Directory Searches</en>
+	</Counter>
+	<!--Counter Id: 1002-->
+	<Counter>
+		<org>Máximo de memoria paginada</org>
+		<en>Max Paged Memory</en>
+	</Counter>
+	<!--Counter Id: 1126-->
+	<Counter>
+		<org>% de tramas de multidifusión</org>
+		<en>% Multicast Frames</en>
+	</Counter>
+	<!--Counter Id: 582-->
+	<Counter>
+		<org>ICMP</org>
+		<en>ICMP</en>
+	</Counter>
+	<!--Counter Id: 1510-->
+	<Counter>
+		<org>Este período ms - Modo usuario</org>
+		<en>This Period mSec - User Mode</en>
+	</Counter>
+	<!--Counter Id: 8264-->
+	<Counter>
+		<org>HardDisconnectsPerSecond</org>
+		<en>HardDisconnectsPerSecond</en>
+	</Counter>
+	<!--Counter Id: 5942-->
+	<Counter>
+		<org>Número total de AppDomain descargados</org>
+		<en>Total appdomains unloaded</en>
+	</Counter>
+	<!--Counter Id: 556-->
+	<Counter>
+		<org>Datagramas reenviados/s</org>
+		<en>Datagrams Forwarded/sec</en>
+	</Counter>
+	<!--Counter Id: 1832-->
+	<Counter>
+		<org>Respuestas hash enviadas de BranchCache V2 para SMB</org>
+		<en>SMB BranchCache Hash V2 Responses Sent</en>
+	</Counter>
+	<!--Counter Id: 2204-->
+	<Counter>
+		<org>Filter Processes</org>
+		<en>Filter Processes</en>
+	</Counter>
+	<!--Counter Id: 4716-->
+	<Counter>
+		<org>Porcentaje de compresión de entrada</org>
+		<en>Percent Compression In</en>
+	</Counter>
+	<!--Counter Id: 5962-->
+	<Counter>
+		<org>Compilador JIT de .NET CLR</org>
+		<en>.NET CLR Jit</en>
+	</Counter>
+	<!--Counter Id: 782-->
+	<Counter>
+		<org>Bytes disponibles</org>
+		<en>Bytes Free</en>
+	</Counter>
+	<!--Counter Id: 5928-->
+	<Counter>
+		<org>Carga de .NET CLR</org>
+		<en>.NET CLR Loading</en>
+	</Counter>
+	<!--Counter Id: 670-->
+	<Counter>
+		<org>Unidad de almacenamiento en disco</org>
+		<en>Disk Storage Unit</en>
+	</Counter>
+	<!--Counter Id: 698-->
+	<Counter>
+		<org>% de tiempo de interrupción</org>
+		<en>% Interrupt Time</en>
+	</Counter>
+	<!--Counter Id: 10684-->
+	<Counter>
+		<org>PacketsNotDecrypted</org>
+		<en>PacketsNotDecrypted</en>
+	</Counter>
+	<!--Counter Id: 2176-->
+	<Counter>
+		<org>Unique Documents</org>
+		<en>Unique Documents</en>
+	</Counter>
+	<!--Counter Id: 1412-->
+	<Counter>
+		<org>Operaciones de ES de lectura/s</org>
+		<en>IO Read Operations/sec</en>
+	</Counter>
+	<!--Counter Id: 6024-->
+	<Counter>
+		<org>Profundidad del recorrido de la pila</org>
+		<en>Stack Walk Depth</en>
+	</Counter>
+	<!--Counter Id: 444-->
+	<Counter>
+		<org>Bytes de datagrama enviados/s</org>
+		<en>Datagram Bytes Sent/sec</en>
+	</Counter>
+	<!--Counter Id: 5920-->
+	<Counter>
+		<org>Número de bytes totales confirmados</org>
+		<en># Total committed Bytes</en>
+	</Counter>
+	<!--Counter Id: 10406-->
+	<Counter>
+		<org>PDUs Sent</org>
+		<en>PDUs Sent</en>
+	</Counter>
+	<!--Counter Id: 5960-->
+	<Counter>
+		<org>Tasa de ensamblados</org>
+		<en>Rate of Assemblies</en>
+	</Counter>
+	<!--Counter Id: 1746-->
+	<Counter>
+		<org>% de tiempo inactivo</org>
+		<en>% Idle Time</en>
+	</Counter>
+	<!--Counter Id: 42-->
+	<Counter>
+		<org>Lecturas de páginas/s</org>
+		<en>Page Reads/sec</en>
+	</Counter>
+	<!--Counter Id: 6846-->
+	<Counter>
+		<org>SoftDisconnectsPerSecond</org>
+		<en>SoftDisconnectsPerSecond</en>
+	</Counter>
+	<!--Counter Id: 1924-->
+	<Counter>
+		<org>Incoming calls/sec</org>
+		<en>Incoming calls/sec</en>
+	</Counter>
+	<!--Counter Id: 1524-->
+	<Counter>
+		<org>Total ms - Modo usuario</org>
+		<en>Total mSec - User Mode</en>
+	</Counter>
+	<!--Counter Id: 336-->
+	<Counter>
+		<org>Razón de espera del subproceso</org>
+		<en>Thread Wait Reason</en>
+	</Counter>
+	<!--Counter Id: 5902-->
+	<Counter>
+		<org>Tamaño del montón de gen. 2</org>
+		<en>Gen 2 heap size</en>
+	</Counter>
+	<!--Counter Id: 2216-->
+	<Counter>
+		<org>Filter Objects</org>
+		<en>Filter Objects</en>
+	</Counter>
+	<!--Counter Id: 896-->
+	<Counter>
+		<org>Bytes transmitidos/s</org>
+		<en>Bytes Transmitted/Sec</en>
+	</Counter>
+	<!--Counter Id: 5054-->
+	<Counter>
+		<org>Programación periódica del controlador de host inactiva</org>
+		<en>Host Controller Periodic Idle</en>
+	</Counter>
+	<!--Counter Id: 10726-->
+	<Counter>
+		<org>% of Maximum Frequency</org>
+		<en>% of Maximum Frequency</en>
+	</Counter>
+	<!--Counter Id: 874-->
+	<Counter>
+		<org>Bytes recibidos</org>
+		<en>Bytes Received</en>
+	</Counter>
+	<!--Counter Id: 8262-->
+	<Counter>
+		<org>HardConnectsPerSecond</org>
+		<en>HardConnectsPerSecond</en>
+	</Counter>
+	<!--Counter Id: 900-->
+	<Counter>
+		<org>Tramas transmitidas/s</org>
+		<en>Frames Transmitted/Sec</en>
+	</Counter>
+	<!--Counter Id: 6004-->
+	<Counter>
+		<org>Número de subprocesos físicos actuales</org>
+		<en># of current physical Threads</en>
+	</Counter>
+	<!--Counter Id: 5888-->
+	<Counter>
+		<org>Memoria promocionada de gen.1</org>
+		<en>Promoted Memory from Gen 1</en>
+	</Counter>
+	<!--Counter Id: 274-->
+	<Counter>
+		<org>Bytes leídos de la red/s</org>
+		<en>Read Bytes Network/sec</en>
+	</Counter>
+	<!--Counter Id: 224-->
+	<Counter>
+		<org>Promedio de bytes de disco/transferencia</org>
+		<en>Avg. Disk Bytes/Transfer</en>
+	</Counter>
+	<!--Counter Id: 404-->
+	<Counter>
+		<org>Bloques de contexto en cola/s</org>
+		<en>Context Blocks Queued/sec</en>
+	</Counter>
+	<!--Counter Id: 2124-->
+	<Counter>
+		<org>Accessed File Rate</org>
+		<en>Accessed File Rate</en>
+	</Counter>
+	<!--Counter Id: 10532-->
+	<Counter>
+		<org>iSCSI Request Processing Time</org>
+		<en>iSCSI Request Processing Time</en>
+	</Counter>
+	<!--Counter Id: 10868-->
+	<Counter>
+		<org>iSCSI Request Processing Time</org>
+		<en>iSCSI Request Processing Time</en>
+	</Counter>
+	<!--Counter Id: 222-->
+	<Counter>
+		<org>Bytes de escritura en disco/s</org>
+		<en>Disk Write Bytes/sec</en>
+	</Counter>
+	<!--Counter Id: 10634-->
+	<Counter>
+		<org>KeyUpdates</org>
+		<en>KeyUpdates</en>
+	</Counter>
+	<!--Counter Id: 898-->
+	<Counter>
+		<org>Bytes recibidos/s</org>
+		<en>Bytes Received/Sec</en>
+	</Counter>
+	<!--Counter Id: 10582-->
+	<Counter>
+		<org>Session Digest Errors</org>
+		<en>Session Digest Errors</en>
+	</Counter>
+	<!--Counter Id: 10640-->
+	<Counter>
+		<org>OakleyQuickMode</org>
+		<en>OakleyQuickMode</en>
+	</Counter>
+	<!--Counter Id: 10614-->
+	<Counter>
+		<org>ActiveAcquire</org>
+		<en>ActiveAcquire</en>
+	</Counter>
+	<!--Counter Id: 5040-->
+	<Counter>
+		<org>Tamaño medio de bytes/transferencia</org>
+		<en>Avg. Bytes/Transfer</en>
+	</Counter>
+	<!--Counter Id: 420-->
+	<Counter>
+		<org>Desconexiones remotas</org>
+		<en>Disconnects Remote</en>
+	</Counter>
+	<!--Counter Id: 5946-->
+	<Counter>
+		<org>Clases cargadas actualmente</org>
+		<en>Current Classes Loaded</en>
+	</Counter>
+	<!--Counter Id: 10498-->
+	<Counter>
+		<org>ActiveTunnels</org>
+		<en>ActiveTunnels</en>
+	</Counter>
+	<!--Counter Id: 220-->
+	<Counter>
+		<org>Bytes de lectura de disco/s</org>
+		<en>Disk Read Bytes/sec</en>
+	</Counter>
+	<!--Counter Id: 438-->
+	<Counter>
+		<org>Datagramas/s</org>
+		<en>Datagrams/sec</en>
+	</Counter>
+	<!--Counter Id: 760-->
+	<Counter>
+		<org>Espacio de imagen en Sin acceso</org>
+		<en>Image Space No Access</en>
+	</Counter>
+	<!--Counter Id: 10608-->
+	<Counter>
+		<org>iSCSI HBA Main Mode IPSEC Statistics</org>
+		<en>iSCSI HBA Main Mode IPSEC Statistics</en>
+	</Counter>
+	<!--Counter Id: 4722-->
+	<Counter>
+		<org>Errores de saturación serie</org>
+		<en>Serial Overrun Errors</en>
+	</Counter>
+	<!--Counter Id: 4706-->
+	<Counter>
+		<org>Bytes transmitidos</org>
+		<en>Bytes Transmitted</en>
+	</Counter>
+	<!--Counter Id: 1120-->
+	<Counter>
+		<org>% de uso de red</org>
+		<en>% Network utilization</en>
+	</Counter>
+	<!--Counter Id: 1462-->
+	<Counter>
+		<org>Máximo de referencias</org>
+		<en>Max References</en>
+	</Counter>
+	<!--Counter Id: 5948-->
+	<Counter>
+		<org>Tasa de clases cargadas</org>
+		<en>Rate of Classes Loaded</en>
+	</Counter>
+	<!--Counter Id: 6838-->
+	<Counter>
+		<org>Proveedor de datos .NET para Oracle</org>
+		<en>.NET Data Provider for Oracle</en>
+	</Counter>
+	<!--Counter Id: 7404-->
+	<Counter>
+		<org>Número de reintentos de preparación/s</org>
+		<en>Prepare retry count/sec</en>
+	</Counter>
+	<!--Counter Id: 32-->
+	<Counter>
+		<org>Copias de escritura/s</org>
+		<en>Write Copies/sec</en>
+	</Counter>
+	<!--Counter Id: 6046-->
+	<Counter>
+		<org>Número de excepciones producidas por segundo</org>
+		<en># of Exceps Thrown / sec</en>
+	</Counter>
+	<!--Counter Id: 4710-->
+	<Counter>
+		<org>Tramas transmitidas</org>
+		<en>Frames Transmitted</en>
+	</Counter>
+	<!--Counter Id: 930-->
+	<Counter>
+		<org>Renovaciones de grupo/s</org>
+		<en>Group Renewals/sec</en>
+	</Counter>
+	<!--Counter Id: 1574-->
+	<Counter>
+		<org>Autenticaciones Kerberos</org>
+		<en>Kerberos Authentications</en>
+	</Counter>
+	<!--Counter Id: 2174-->
+	<Counter>
+		<org>Document Move and Rename Rate</org>
+		<en>Document Move and Rename Rate</en>
+	</Counter>
+	<!--Counter Id: 270-->
+	<Counter>
+		<org>Bytes leídos que no son de paginación/s</org>
+		<en>Read Bytes Non-Paging/sec</en>
+	</Counter>
+	<!--Counter Id: 7412-->
+	<Counter>
+		<org>Número de errores recibidos/s</org>
+		<en>Faults received count/sec</en>
+	</Counter>
+	<!--Counter Id: 6022-->
+	<Counter>
+		<org>No se muestra</org>
+		<en>Not Displayed</en>
+	</Counter>
+	<!--Counter Id: 486-->
+	<Counter>
+		<org>Tiempos de espera agotados de reconocimientos superpuestos</org>
+		<en>Piggyback Ack Timeouts</en>
+	</Counter>
+	<!--Counter Id: 496-->
+	<Counter>
+		<org>Uso máximo</org>
+		<en>Used Maximum</en>
+	</Counter>
+	<!--Counter Id: 950-->
+	<Counter>
+		<org>Consultas con errores/s</org>
+		<en>Failed Queries/sec</en>
+	</Counter>
+	<!--Counter Id: 1310-->
+	<Counter>
+		<org>Elementos de trabajo prestados</org>
+		<en>Borrowed Work Items</en>
+	</Counter>
+	<!--Counter Id: 284-->
+	<Counter>
+		<org>Bytes escritos en la caché/s</org>
+		<en>Write Bytes Cache/sec</en>
+	</Counter>
+	<!--Counter Id: 258-->
+	<Counter>
+		<org>Secciones</org>
+		<en>Sections</en>
+	</Counter>
+	<!--Counter Id: 2256-->
+	<Counter>
+		<org>Master Merges to Date</org>
+		<en>Master Merges to Date</en>
+	</Counter>
+	<!--Counter Id: 10778-->
+	<Counter>
+		<org>AcquireFailures</org>
+		<en>AcquireFailures</en>
+	</Counter>
+	<!--Counter Id: 6380-->
+	<Counter>
+		<org>Flujos de trabajo guardados/s</org>
+		<en>Workflows Persisted/sec</en>
+	</Counter>
+	<!--Counter Id: 48-->
+	<Counter>
+		<org>Salida de páginas/s</org>
+		<en>Pages Output/sec</en>
+	</Counter>
+	<!--Counter Id: 7654-->
+	<Counter>
+		<org>Registros activos para net.tcp</org>
+		<en>Registrations Active for net.tcp</en>
+	</Counter>
+	<!--Counter Id: 2214-->
+	<Counter>
+		<org>Server Objects Created</org>
+		<en>Server Objects Created</en>
+	</Counter>
+	<!--Counter Id: 4740-->
+	<Counter>
+		<org>Total de RAS</org>
+		<en>RAS Total</en>
+	</Counter>
+	<!--Counter Id: 1022-->
+	<Counter>
+		<org>Datos escritos/s</org>
+		<en>Data Written/sec</en>
+	</Counter>
+	<!--Counter Id: 876-->
+	<Counter>
+		<org>Tramas transmitidas</org>
+		<en>Frames Transmitted</en>
+	</Counter>
+	<!--Counter Id: 1824-->
+	<Counter>
+		<org>Mbytes disponibles</org>
+		<en>Available MBytes</en>
+	</Counter>
+	<!--Counter Id: 5908-->
+	<Counter>
+		<org>Número de identificadores del GC</org>
+		<en># GC Handles</en>
+	</Counter>
+	<!--Counter Id: 6006-->
+	<Counter>
+		<org>Número de subprocesos reconocidos actuales</org>
+		<en># of current recognized threads</en>
+	</Counter>
+	<!--Counter Id: 2280-->
+	<Counter>
+		<org>Master Merges Now.</org>
+		<en>Master Merges Now.</en>
+	</Counter>
+	<!--Counter Id: 10666-->
+	<Counter>
+		<org>ActiveTunnels</org>
+		<en>ActiveTunnels</en>
+	</Counter>
+	<!--Counter Id: 1404-->
+	<Counter>
+		<org>Longitud promedio de cola de escritura de disco</org>
+		<en>Avg. Disk Write Queue Length</en>
+	</Counter>
+	<!--Counter Id: 10632-->
+	<Counter>
+		<org>KeyUpdateFailures</org>
+		<en>KeyUpdateFailures</en>
+	</Counter>
+	<!--Counter Id: 904-->
+	<Counter>
+		<org>Total de errores/s</org>
+		<en>Total Errors/Sec</en>
+	</Counter>
+	<!--Counter Id: 10864-->
+	<Counter>
+		<org>TunnelBytesReceived</org>
+		<en>TunnelBytesReceived</en>
+	</Counter>
+	<!--Counter Id: 10588-->
+	<Counter>
+		<org>iSCSI Initiator Login statistics</org>
+		<en>iSCSI Initiator Login statistics</en>
+	</Counter>
+	<!--Counter Id: 10470-->
+	<Counter>
+		<org>OakleyMainMode</org>
+		<en>OakleyMainMode</en>
+	</Counter>
+	<!--Counter Id: 442-->
+	<Counter>
+		<org>Datagramas enviados/s</org>
+		<en>Datagrams Sent/sec</en>
+	</Counter>
+	<!--Counter Id: 736-->
+	<Counter>
+		<org>Espacio reservado en Ejecución y solo lectura</org>
+		<en>Reserved Space Exec Read Only</en>
+	</Counter>
+	<!--Counter Id: 324-->
+	<Counter>
+		<org>Conexiones Windows NT</org>
+		<en>Connects Windows NT</en>
+	</Counter>
+	<!--Counter Id: 6038-->
+	<Counter>
+		<org>Contextos</org>
+		<en>Contexts</en>
+	</Counter>
+	<!--Counter Id: 460-->
+	<Counter>
+		<org>Tramas enviadas/s</org>
+		<en>Frames Sent/sec</en>
+	</Counter>
+	<!--Counter Id: 408-->
+	<Counter>
+		<org>% de espacio disponible</org>
+		<en>% Free Space</en>
+	</Counter>
+	<!--Counter Id: 82-->
+	<Counter>
+		<org>Escrituras de buzón interproceso/s</org>
+		<en>Mailslot Writes/sec</en>
+	</Counter>
+	<!--Counter Id: 644-->
+	<Counter>
+		<org>Conexiones activas</org>
+		<en>Connections Active</en>
+	</Counter>
+	<!--Counter Id: 360-->
+	<Counter>
+		<org>Total de archivos abiertos</org>
+		<en>Files Opened Total</en>
+	</Counter>
+	<!--Counter Id: 432-->
+	<Counter>
+		<org>Errores de recursos locales</org>
+		<en>Failures Resource Local</en>
+	</Counter>
+	<!--Counter Id: 2346-->
+	<Counter>
+		<org>L5 Merge - Count</org>
+		<en>L5 Merge - Count</en>
+	</Counter>
+	<!--Counter Id: 6858-->
+	<Counter>
+		<org>NumberOfInactiveConnectionPools</org>
+		<en>NumberOfInactiveConnectionPools</en>
+	</Counter>
+	<!--Counter Id: 2272-->
+	<Counter>
+		<org>Work Items Created</org>
+		<en>Work Items Created</en>
+	</Counter>
+	<!--Counter Id: 6048-->
+	<Counter>
+		<org>Número de filtros por segundo</org>
+		<en># of Filters / sec</en>
+	</Counter>
+	<!--Counter Id: 118-->
+	<Counter>
+		<org>Lecturas asincrónicas mediante MDL/s</org>
+		<en>Async MDL Reads/sec</en>
+	</Counter>
+	<!--Counter Id: 1576-->
+	<Counter>
+		<org>Solicitudes KDC AS</org>
+		<en>KDC AS Requests</en>
+	</Counter>
+	<!--Counter Id: 448-->
+	<Counter>
+		<org>Bytes de datagrama recibidos/s</org>
+		<en>Datagram Bytes Received/sec</en>
+	</Counter>
+	<!--Counter Id: 1092-->
+	<Counter>
+		<org>Liberaciones de ATP recibidas/s</org>
+		<en>ATP Recvd Release/Sec</en>
+	</Counter>
+	<!--Counter Id: 286-->
+	<Counter>
+		<org>Bytes escritos en la red/s</org>
+		<en>Write Bytes Network/sec</en>
+	</Counter>
+	<!--Counter Id: 5000-->
+	<Counter>
+		<org>Transacciones anuladas</org>
+		<en>Aborted Transactions</en>
+	</Counter>
+	<!--Counter Id: 1570-->
+	<Counter>
+		<org>Estadísticas de seguridad para todo el sistema</org>
+		<en>Security System-Wide Statistics</en>
+	</Counter>
+	<!--Counter Id: 10786-->
+	<Counter>
+		<org>AuthenticationFailures</org>
+		<en>AuthenticationFailures</en>
+	</Counter>
+	<!--Counter Id: 2254-->
+	<Counter>
+		<org>Master Index Level.</org>
+		<en>Master Index Level.</en>
+	</Counter>
+	<!--Counter Id: 10776-->
+	<Counter>
+		<org>iSCSI HBA Main Mode IPSEC Statistics</org>
+		<en>iSCSI HBA Main Mode IPSEC Statistics</en>
+	</Counter>
+	<!--Counter Id: 1602-->
+	<Counter>
+		<org>Excepciones RSC TCP/s</org>
+		<en>TCP RSC Exceptions/sec</en>
+	</Counter>
+	<!--Counter Id: 252-->
+	<Counter>
+		<org>Eventos</org>
+		<en>Events</en>
+	</Counter>
+	<!--Counter Id: 1024-->
+	<Counter>
+		<org>Datos recibidos/s</org>
+		<en>Data Received/sec</en>
+	</Counter>
+	<!--Counter Id: 10560-->
+	<Counter>
+		<org>Processor State Flags</org>
+		<en>Processor State Flags</en>
+	</Counter>
+	<!--Counter Id: 10840-->
+	<Counter>
+		<org>BadSPIPackets</org>
+		<en>BadSPIPackets</en>
+	</Counter>
+	<!--Counter Id: 1826-->
+	<Counter>
+		<org>Solicitudes de encabezado de hash de BranchCache V2 para SMB</org>
+		<en>SMB BranchCache Hash V2 Header Requests</en>
+	</Counter>
+	<!--Counter Id: 478-->
+	<Counter>
+		<org>Expiraciones de confirmación</org>
+		<en>Expirations Ack</en>
+	</Counter>
+	<!--Counter Id: 10458-->
+	<Counter>
+		<org>InvalidPackets</org>
+		<en>InvalidPackets</en>
+	</Counter>
+	<!--Counter Id: 5932-->
+	<Counter>
+		<org>% de tiempo de carga</org>
+		<en>% Time Loading</en>
+	</Counter>
+	<!--Counter Id: 1376-->
+	<Counter>
+		<org>Uso máximo de carga de asignación VLM de sistema</org>
+		<en>System VLM Commit Charge Peak</en>
+	</Counter>
+	<!--Counter Id: 1336-->
+	<Counter>
+		<org>Velocidad de DPC</org>
+		<en>DPC Rate</en>
+	</Counter>
+	<!--Counter Id: 10698-->
+	<Counter>
+		<org>TunnelBytesSent</org>
+		<en>TunnelBytesSent</en>
+	</Counter>
+	<!--Counter Id: 10664-->
+	<Counter>
+		<org>ActiveSA</org>
+		<en>ActiveSA</en>
+	</Counter>
+	<!--Counter Id: 1334-->
+	<Counter>
+		<org>DPC en cola/s</org>
+		<en>DPCs Queued/sec</en>
+	</Counter>
+	<!--Counter Id: 10810-->
+	<Counter>
+		<org>ReceiveFailures</org>
+		<en>ReceiveFailures</en>
+	</Counter>
+	<!--Counter Id: 322-->
+	<Counter>
+		<org>Conexiones LAN Manager 2.1</org>
+		<en>Connects Lan Manager 2.1</en>
+	</Counter>
+	<!--Counter Id: 6030-->
+	<Counter>
+		<org>Canales</org>
+		<en>Channels</en>
+	</Counter>
+	<!--Counter Id: 188-->
+	<Counter>
+		<org>Total de anuncios/s</org>
+		<en>Announcements Total/sec</en>
+	</Counter>
+	<!--Counter Id: 6370-->
+	<Counter>
+		<org>Flujos de trabajo terminados/s</org>
+		<en>Workflows Terminated/sec</en>
+	</Counter>
+	<!--Counter Id: 1162-->
+	<Counter>
+		<org>Llamadas entrantes/s</org>
+		<en>Incoming Calls/sec</en>
+	</Counter>
+	<!--Counter Id: 10818-->
+	<Counter>
+		<org>TotalGetSPI</org>
+		<en>TotalGetSPI</en>
+	</Counter>
+	<!--Counter Id: 5744-->
+	<Counter>
+		<org>Cache Hits</org>
+		<en>Cache Hits</en>
+	</Counter>
+	<!--Counter Id: 570-->
+	<Counter>
+		<org>Fragmentos recibidos/s</org>
+		<en>Fragments Received/sec</en>
+	</Counter>
+	<!--Counter Id: 10506-->
+	<Counter>
+		<org>ConfidentialBytesReceived</org>
+		<en>ConfidentialBytesReceived</en>
+	</Counter>
+	<!--Counter Id: 2312-->
+	<Counter>
+		<org>L2 Merges Now.</org>
+		<en>L2 Merges Now.</en>
+	</Counter>
+	<!--Counter Id: 1054-->
+	<Counter>
+		<org>Paquetes de salida/s</org>
+		<en>Packets Out/sec</en>
+	</Counter>
+	<!--Counter Id: 5990-->
+	<Counter>
+		<org>LocksAndThreads de .NET CLR</org>
+		<en>.NET CLR LocksAndThreads</en>
+	</Counter>
+	<!--Counter Id: 1424-->
+	<Counter>
+		<org>Bytes de datos ES/s</org>
+		<en>IO Data Bytes/sec</en>
+	</Counter>
+	<!--Counter Id: 434-->
+	<Counter>
+		<org>Errores no encontrados</org>
+		<en>Failures Not Found</en>
+	</Counter>
+	<!--Counter Id: 646-->
+	<Counter>
+		<org>Conexiones pasivas</org>
+		<en>Connections Passive</en>
+	</Counter>
+	<!--Counter Id: 74-->
+	<Counter>
+		<org>Bytes residentes de controladores del sistema</org>
+		<en>System Driver Resident Bytes</en>
+	</Counter>
+	<!--Counter Id: 238-->
+	<Counter>
+		<org>Procesador</org>
+		<en>Processor</en>
+	</Counter>
+	<!--Counter Id: 1468-->
+	<Counter>
+		<org>Errores de papel agotado</org>
+		<en>Out of Paper Errors</en>
+	</Counter>
+	<!--Counter Id: 5046-->
+	<Counter>
+		<org>Errores de transferencia/s</org>
+		<en>Transfer Errors/Sec</en>
+	</Counter>
+	<!--Counter Id: 940-->
+	<Counter>
+		<org>Conflictos de grupo/s</org>
+		<en>Group Conflicts/sec</en>
+	</Counter>
+	<!--Counter Id: 7414-->
+	<Counter>
+		<org>Número de errores enviados/s</org>
+		<en>Faults sent count/sec</en>
+	</Counter>
+	<!--Counter Id: 36-->
+	<Counter>
+		<org>Errores de caché/s</org>
+		<en>Cache Faults/sec</en>
+	</Counter>
+	<!--Counter Id: 1536-->
+	<Counter>
+		<org>Paquetes demasiado grandes recibidos</org>
+		<en>Received Packet Too Big</en>
+	</Counter>
+	<!--Counter Id: 8248-->
+	<Counter>
+		<org>Base de duración media de HttpWebRequests</org>
+		<en>HttpWebRequests Average Lifetime Base</en>
+	</Counter>
+	<!--Counter Id: 5892-->
+	<Counter>
+		<org>Bytes por segundo promocionados de gen. 1</org>
+		<en>Gen 1 Promoted Bytes/Sec</en>
+	</Counter>
+	<!--Counter Id: 10620-->
+	<Counter>
+		<org>ConnectionListSize</org>
+		<en>ConnectionListSize</en>
+	</Counter>
+	<!--Counter Id: 1782-->
+	<Counter>
+		<org>Liberaciones en caché/s</org>
+		<en>Cached Frees/sec</en>
+	</Counter>
+	<!--Counter Id: 5008-->
+	<Counter>
+		<org>Forzar transacciones anuladas</org>
+		<en>Force Aborted Transactions</en>
+	</Counter>
+	<!--Counter Id: 792-->
+	<Counter>
+		<org>Lectura/escritura</org>
+		<en>Read/Write</en>
+	</Counter>
+	<!--Counter Id: 2136-->
+	<Counter>
+		<org>Filtered Text Rate</org>
+		<en>Filtered Text Rate</en>
+	</Counter>
+	<!--Counter Id: 10548-->
+	<Counter>
+		<org>Format Errors</org>
+		<en>Format Errors</en>
+	</Counter>
+	<!--Counter Id: 2252-->
+	<Counter>
+		<org>Search Indexer</org>
+		<en>Search Indexer</en>
+	</Counter>
+	<!--Counter Id: 10626-->
+	<Counter>
+		<org>InvalidPackets</org>
+		<en>InvalidPackets</en>
+	</Counter>
+	<!--Counter Id: 1604-->
+	<Counter>
+		<org>Tamaño promedio de paquete RSC TCP</org>
+		<en>TCP RSC Average Packet Size</en>
+	</Counter>
+	<!--Counter Id: 552-->
+	<Counter>
+		<org>Datagramas recibidos con errores de encabezado</org>
+		<en>Datagrams Received Header Errors</en>
+	</Counter>
+	<!--Counter Id: 1830-->
+	<Counter>
+		<org>Solicitudes hash recibidas de BranchCache V2 para SMB</org>
+		<en>SMB BranchCache Hash V2 Requests Received</en>
+	</Counter>
+	<!--Counter Id: 1266-->
+	<Counter>
+		<org>Solicitudes de encabezado de hash de BranchCache para SMB</org>
+		<en>SMB BranchCache Hash Header Requests</en>
+	</Counter>
+	<!--Counter Id: 2080-->
+	<Counter>
+		<org>Document Deletes</org>
+		<en>Document Deletes</en>
+	</Counter>
+	<!--Counter Id: 10788-->
+	<Counter>
+		<org>ConnectionListSize</org>
+		<en>ConnectionListSize</en>
+	</Counter>
+	<!--Counter Id: 548-->
+	<Counter>
+		<org>IPv6</org>
+		<en>IPv6</en>
+	</Counter>
+	<!--Counter Id: 7658-->
+	<Counter>
+		<org>URI registrados para net.tcp</org>
+		<en>Uris Registered for net.tcp</en>
+	</Counter>
+	<!--Counter Id: 280-->
+	<Counter>
+		<org>Bytes escritos en paginación/s</org>
+		<en>Write Bytes Paging/sec</en>
+	</Counter>
+	<!--Counter Id: 1026-->
+	<Counter>
+		<org>Datos transmitidos/s</org>
+		<en>Data Transmitted/sec</en>
+	</Counter>
+	<!--Counter Id: 376-->
+	<Counter>
+		<org>Errores de bloque paginado</org>
+		<en>Pool Paged Failures</en>
+	</Counter>
+	<!--Counter Id: 5954-->
+	<Counter>
+		<org>Tasa de AppDomain</org>
+		<en>Rate of appdomains</en>
+	</Counter>
+	<!--Counter Id: 278-->
+	<Counter>
+		<org>Paquetes transmitidos/s</org>
+		<en>Packets Transmitted/sec</en>
+	</Counter>
+	<!--Counter Id: 10456-->
+	<Counter>
+		<org>InvalidCookiesReceived</org>
+		<en>InvalidCookiesReceived</en>
+	</Counter>
+	<!--Counter Id: 7660-->
+	<Counter>
+		<org>URI registrados para net.pipe</org>
+		<en>Uris Registered for net.pipe</en>
+	</Counter>
+	<!--Counter Id: 1374-->
+	<Counter>
+		<org>Carga de asignación VLM de sistema</org>
+		<en>System VLM Commit Charge</en>
+	</Counter>
+	<!--Counter Id: 592-->
+	<Counter>
+		<org>Mensajes de tiempo superado recibidos</org>
+		<en>Received Time Exceeded</en>
+	</Counter>
+	<!--Counter Id: 1478-->
+	<Counter>
+		<org>Espacio de trabajo - Privado</org>
+		<en>Working Set - Private</en>
+	</Counter>
+</Counters>
