@@ -666,7 +666,7 @@ New-PLTFile -OutputDir $OSDir -PerformanceCounterCSVFile $PerformanceCounterCSVF
 #File referencing all translation files for PLT
 New-PLTLangFile -FullName $OSDir -Verbose
 
-#Next language pack to process and reboot (and recall this script)
+#Next language pack to process and reboot (and you just have to recall this script until the last language pack is processed)
 Push-WinUILanguageOverride -Verbose -Action Reboot
 
 #Uncomment only when you want to find counter name inconsistencies across the os versions 
