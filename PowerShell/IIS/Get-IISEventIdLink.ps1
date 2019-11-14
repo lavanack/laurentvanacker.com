@@ -157,8 +157,16 @@ if (-not(Test-Path -Path $IISEventIdLinkCSVFilePath))
     $IISEventIdLink | Export-Csv -Path $IISEventIdLinkCSVFilePath -NoTypeInformation -Encoding UTF8
 }
 
-#Looking or local IIS-related event IDs ("Warning" or "Error" only)
-$WarningOrErrorIISEventIdLinkHT = $IISEventIdLink | Where-Object -FilterScript { $_.Severity -in "Warning", "Error"} | Group-Object -Property ID -AsHashTable -AsString
-$FilteredIISWinEvent = Get-FilteredIISWinEvent -Filter $WarningOrErrorIISEventIdLinkHT -Verbose
-Write-Host "[INFO] Filtered IIS Win Events have been exported to $FilteredIISWinEventCSVFilePath"
-$FilteredIISWinEvent | Export-Csv -Path $FilteredIISWinEventCSVFilePath -NoTypeInformation -Encoding UTF8
+if (Test-Path -Path $IISEventIdLinkCSVFilePath)
+{
+    $IISEventIdLink = Import-Csv -Path $IISEventIdLinkCSVFilePath -Encoding UTF8
+    #Looking or local IIS-related event IDs ("Warning" or "Error" only)
+    $WarningOrErrorIISEventIdLinkHT = $IISEventIdLink | Where-Object -FilterScript { $_.Severity -in "Warning", "Error"} | Group-Object -Property ID -AsHashTable -AsString
+    $FilteredIISWinEvent = Get-FilteredIISWinEvent -Filter $WarningOrErrorIISEventIdLinkHT -Verbose
+    Write-Host "[INFO] Filtered IIS Win Events have been exported to $FilteredIISWinEventCSVFilePath"
+    $FilteredIISWinEvent | Export-Csv -Path $FilteredIISWinEventCSVFilePath -NoTypeInformation -Encoding UTF8
+}
+Else
+{
+    Write-Error "[ERROR] No '$IISEventIdLinkCSVFilePath' file found ..."
+}
