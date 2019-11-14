@@ -15,17 +15,15 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#Requires -version 5 -RunAsAdministrator
+#Requires -version 5 #-RunAsAdministrator
 
 function Get-IISEventIdLink
 {
     [CmdletBinding()]
     Param (
-        [Parameter(Mandatory=$True)]
+        [Parameter(Mandatory=$False)]
         [Object]$Root,
-        [Parameter(Mandatory=$True)]
-        [string]$RootURI,
-        [Parameter(Mandatory=$True)]
+        [Parameter(Mandatory=$False)]
         [string]$FolderURI,
         #Just for progress bar
         [Parameter(Mandatory=$False)]
@@ -34,14 +32,33 @@ function Get-IISEventIdLink
         [Parameter(Mandatory=$False)]
         [string]$Path = ""
     )
-    #We use the embedded images to categorize the severity
-    $Severity=@{"images/dd300121.green%28ws.10%29.jpg"="Information";"images/dd299897.yellow%28ws.10%29.jpg"="Warning";"images/ee406008.red%28ws.10%29.jpg"="Error";}
-
-    #Result
-    $IISEventIdLink = @()
-    $CurrentSection = $Root.toc_title
     #For progress bar
     $Index = 0
+    #Result
+    $IISEventIdLink = @()
+    #We use the embedded images to categorize the severity
+    $Severity=@{"images/dd300121.green%28ws.10%29.jpg"="Information";"images/dd299897.yellow%28ws.10%29.jpg"="Warning";"images/ee406008.red%28ws.10%29.jpg"="Error";}
+    if (-not($Root))
+    {
+        $URI = "https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2008-R2-and-2008/toc.json"
+        $FolderURI = $URI.Substring(0, $URI.LastIndexOf("/"))
+
+        #Testing if Internet is reachable ...
+        if (Test-NetConnection -ComputerName www.microsoft.com -CommonTCPPort HTTP  -InformationLevel Quiet)
+        {
+            #Get JSON Content
+            $WindowsServer = Invoke-WebRequest $URI -ContentType  'charset=utf-8' | ConvertFrom-Json
+            #Get IIS 7.5 location in the the JSON Data
+            $Root=$WindowsServer.items.children[6].children[0].children[2].children[15]
+            #Main function doing the job by recursive call
+        }
+        else
+        {
+            Write-Error "[ERROR] Unable to connect to Internet ..." -ErrorAction Stop
+        }
+    }
+
+    $CurrentSection = $Root.toc_title
     #For first call the Path is useless
     if ([string]::IsNullOrEmpty($Path))
     {
@@ -86,7 +103,7 @@ function Get-IISEventIdLink
         else
         {
             Write-Verbose "Recursive call from $($CurrentChild.toc_title)"
-            $IISEventIdLink += Get-IISEventIdLink -Root $CurrentChild -RootURI $RootURI -Depth ($Depth+1) -FolderURI $FolderURI -Path "$Path / $($CurrentChild.toc_title)"
+            $IISEventIdLink += Get-IISEventIdLink -Root $CurrentChild -Depth ($Depth+1) -FolderURI $FolderURI -Path "$Path / $($CurrentChild.toc_title)"
         }
     }
     Write-Progress -Id $Depth -Activity 'Completed !' -Status 'Completed !' -Completed
@@ -135,26 +152,12 @@ $FilteredIISWinEventCSVFilePath = Join-Path -Path $CurrentDir -ChildPath "$($env
 
 if (-not(Test-Path -Path $IISEventIdLinkCSVFilePath))
 {
-    #Testing if Internet is reachable ...
-    if (Test-NetConnection -ComputerName www.microsoft.com -CommonTCPPort HTTP  -InformationLevel Quiet)
-    {
-        $URI = "https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2008-R2-and-2008/toc.json"
-        $FolderURI = $URI.Substring(0, $URI.LastIndexOf("/"))
-
-        #Get JSON Content
-        $WindowsServer = Invoke-WebRequest $URI -ContentType  'charset=utf-8' | ConvertFrom-Json
-        #Get IIS 7.5 location in the the JSON Data
-        $IIS75Root=$WindowsServer.items.children[6].children[0].children[2].children[15]
-        #Main function doing the job by recursive call
-        $IISEventIdLink = Get-IISEventIdLink -Root $IIS75Root -RootURI $URI -FolderURI $FolderURI -Verbose
-        Write-Host "[INFO] Event ID Link Data have been exported to $IISEventIdLinkFilePath"
-        $IISEventIdLink | Export-Csv -Path $IISEventIdLinkCSVFilePath -NoTypeInformation -Encoding UTF8
-    }
-    else
-    {
-        Write-Error "[ERROR] Unable to connect to Internet ..."
-    }
+    $IISEventIdLink = Get-IISEventIdLink -Verbose
+    Write-Host "[INFO] Event ID Link Data have been exported to $IISEventIdLinkFilePath"
+    $IISEventIdLink | Export-Csv -Path $IISEventIdLinkCSVFilePath -NoTypeInformation -Encoding UTF8
 }
+
+#Looking or local IIS-related event IDs ("Warning" or "Error" only)
 $WarningOrErrorIISEventIdLinkHT = $IISEventIdLink | Where { $_.Severity -in "Warning", "Error"} | Group-Object -Property ID -AsHashTable -AsString
 $FilteredIISWinEvent = Get-FilteredIISWinEvent -Filter $WarningOrErrorIISEventIdLinkHT -Verbose
 Write-Host "[INFO] Filtered IIS Win Events have been exported to $FilteredIISWinEventCSVFilePath"
