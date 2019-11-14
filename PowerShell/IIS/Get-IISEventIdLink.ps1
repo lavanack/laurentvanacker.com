@@ -85,8 +85,8 @@ function Get-IISEventIdLink
             $CurrentMessage = ($CurrentResponse.AllElements.InnerText -match "^Message:(.+)") -split ":" -replace "`r`n" | Select-Object -Skip 1 -First 1
             $CurrentVersion = ($CurrentResponse.AllElements.InnerText -match "^Version:(.+)$") -split ":"| Select-Object -Skip 1 -First 1
             $CurrentSymbolicName = ($CurrentResponse.AllElements.InnerText -match "^Symbolic Name:(.+)$") -split ":" | Select-Object -Skip 1 -First 1
-            $CurrentDescription = ($CurrentResponse.ParsedHtml.body.getElementsByTagName("p") | Select innerText -First 1 -Skip 4).innerText
-            $Image = ($CurrentResponse.Images | Where { $_.Src }).Src.Trim() | Select-Object -First 1
+            $CurrentDescription = ($CurrentResponse.ParsedHtml.body.getElementsByTagName("p") | Select-Object -Property innerText -First 1 -Skip 4).innerText
+            $Image = ($CurrentResponse.Images | Where-Object -FilterScript { $_.Src }).Src.Trim() | Select-Object -First 1
             if ($Image)
             {
                 $CurrentSeverity = $Severity[$Image]
@@ -158,7 +158,7 @@ if (-not(Test-Path -Path $IISEventIdLinkCSVFilePath))
 }
 
 #Looking or local IIS-related event IDs ("Warning" or "Error" only)
-$WarningOrErrorIISEventIdLinkHT = $IISEventIdLink | Where { $_.Severity -in "Warning", "Error"} | Group-Object -Property ID -AsHashTable -AsString
+$WarningOrErrorIISEventIdLinkHT = $IISEventIdLink | Where-Object -FilterScript { $_.Severity -in "Warning", "Error"} | Group-Object -Property ID -AsHashTable -AsString
 $FilteredIISWinEvent = Get-FilteredIISWinEvent -Filter $WarningOrErrorIISEventIdLinkHT -Verbose
 Write-Host "[INFO] Filtered IIS Win Events have been exported to $FilteredIISWinEventCSVFilePath"
 $FilteredIISWinEvent | Export-Csv -Path $FilteredIISWinEventCSVFilePath -NoTypeInformation -Encoding UTF8
