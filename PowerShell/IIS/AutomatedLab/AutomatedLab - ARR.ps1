@@ -322,14 +322,16 @@ Invoke-LabCommand -ActivityName 'SNI/CSS, ARR and URL Rewrite Setup' -ComputerNa
     #Require SSL
     Get-IISConfigSection -SectionPath 'system.webServer/security/access' -Location "$using:WebSiteName" | Set-IISConfigAttributeValue -AttributeName sslFlags -AttributeValue Ssl
 
-    #ARR Webfarm
-    Add-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter 'webFarms' -Name '.' -Value @{
-        name    = "$using:WebSiteName"
-        enabled = $True
-    }
-    
-    Write-Verbose "Sleeping 10 seconds ..."
-    Start-Sleep -Seconds 10
+    Do 
+    {
+        #ARR Webfarm
+        Add-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter 'webFarms' -Name '.' -Value @{
+            name    = "$using:WebSiteName"
+            enabled = $True
+        }
+        Write-Verbose -Message 'Waiting the creation of the ARR web farm. Sleeping 10 seconds ...'
+        Start-Sleep -Seconds 10
+    } While (-not(Get-WebConfiguration -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter "webFarms/webFarm[@name='arr.contoso.com']"))
 
     Add-WebConfiguration -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter "webFarms/webFarm[@name='$using:WebSiteName']" -Value @(
         @{
