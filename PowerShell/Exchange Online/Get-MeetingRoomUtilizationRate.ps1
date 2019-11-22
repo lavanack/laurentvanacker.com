@@ -1024,7 +1024,7 @@ if (!$isImportSuccessful)
 $AccessToken = Get-AccessToken -TenantName $TenantName -ClientID $ClientID -redirectUri $redirectUri -resourceAppIdURI $resourceAppIdURI -CredPrompt $CredPrompt -Verbose 
 $ExchangeService = New-EWSExchangeService -MailBox $Whoami -URL 'https://outlook.office365.com/EWS/Exchange.asmx' -AccessToken $AccessToken -Office365 -AllowInsecureRedirection -Verbose #-Trace 
 $EWSRoomLists = Get-EWSRoomList -ExchangeService $ExchangeService -Address -Filter "*france*"
-$MeetingRoomData = $EWSRoomLists | Get-EWSMeetingRoomData -ExchangeService $ExchangeService -Skip Saturday, Sunday -Verbose -Filter "*C7E14*"
+$MeetingRoomData = $EWSRoomLists | Get-EWSMeetingRoomData -ExchangeService $ExchangeService -Skip Saturday, Sunday -Verbose #-Filter "*Paris*"
 
 #Measuring meeting room utilization
 if ($MeetingRoomData)
