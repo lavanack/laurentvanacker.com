@@ -80,7 +80,7 @@ Function Get-LastModifiedAndContentLengthHeaders {
 	return New-Object -TypeName psobject -Property @{LastModified = $LastModified; ContentLength = $ContentLength }
 }
 
-Function Get-MissionNasaPictures {
+Function Get-MissionNasaPicture {
 	[CmdletBinding()]
 	Param(
 		[Parameter(Mandatory = $True, ValueFromPipeline = $False, ValueFromPipelineByPropertyName = $False)]
@@ -423,12 +423,12 @@ Function Get-SDONasaPictures {
 	return $SDONasaPictures
 }
 
-
-Function Download-NasaPictures {
+Function Get-NasaPicture {
 	[CmdletBinding()]
 	Param(
 		#The BLG File to convert
 		[Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $False)]
+		[Alias("Pictures")]
 		[Object[]]$Images,
 
 		[parameter(Mandatory = $false)]
@@ -445,7 +445,7 @@ Function Download-NasaPictures {
 		}
 	}
 	process {
-		ForEach ($CurrentImage in $Images) {
+		ForEach ($CurrentImage in $Image) {
 			$CurrentImageURI = $CurrentImage.ImageURI
 			$CurrentImageDestination = $CurrentImage.Destination
 			If (!(Test-Path -Path $CurrentImageDestination)) {
@@ -674,7 +674,7 @@ ForEach ($CurrentSDO in $SDOs.Keys) {
 
 ForEach ($CurrentMission in $Missions.Keys) {
 	$DestinationFolder = Join-Path -Path $DownloadFolder -ChildPath $CurrentMission
-	$NasaPictures += Get-MissionNasaPictures -Verbose -Domain 'https://www.nasa.gov' -URI $Missions[$CurrentMission] -Destination $DestinationFolder
+	$NasaPictures += Get-MissionNasaPicture -Verbose -Domain 'https://www.nasa.gov' -URI $Missions[$CurrentMission] -Destination $DestinationFolder
 } 
 
 ForEach ($CurrentAPI in $APIs.Keys) {
@@ -698,7 +698,7 @@ $NasaPictures | Export-Csv -Path $OutputCSVFile -NoTypeInformation
 
 #$NasaPictures = Import-Csv -Path $OutputCSVFile -Verbose
 
-$NasaPictures | Download-NasaPictures -Asynchronous -Verbose #-Force #Use -Force to force the download of previously downloaded content
+$NasaPictures | Get-NasaPicture -Asynchronous -Verbose #-Force #Use -Force to force the download of previously downloaded content
 
 $ElapsedTime = New-TimeSpan $StartTime $(Get-Date) 
 $ElapsedTime
