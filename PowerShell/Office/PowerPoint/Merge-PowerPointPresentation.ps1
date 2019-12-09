@@ -124,12 +124,11 @@ Function Merge-PowerPointPresentation
 Clear-Host
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $MyInvocation.MyCommand.Path
+$DestinationFile = Join-Path -Path $CurrentDir -ChildPath "MergedPresentations.pptx"
 #Loading the PowerPoint assembly
 
 #Example 1 : Processing all the PowerPoint presentation in current directory in the alphabetical order
-#Get-ChildItem -Path "C:\Users\lavanack\OneDrive - Microsoft\Microsoft\Technical Ressources\WorkShop Plus\WorkshopPLUS-IIS_Troubleshooting and Best Practices\PowerPoint\Trainer" -Filter *.pptx | Sort-Object -Property Name | Merge-PowerPointPresentation -Verbose -Open
-Get-ChildItem -Path "C:\Users\lavanack\OneDrive - Microsoft\Microsoft\Technical Ressources\WorkShop Plus\WorkshopPLUS-Windows_PowerShell_IT_Management\PPT\Trainer" -Filter "*_HiddenSections.pptx" | Sort-Object -Property Name | Merge-PowerPointPresentation -Verbose -Open
-#Get-ChildItem -Path "C:\Users\lavanack\OneDrive - Microsoft\Microsoft\Technical Ressources\WorkShop Plus\WorkshopPLUS-Windows_PowerShell_Foundation_Skills\PPT\V1.1\Student" -Filter "*.pptx" | Sort-Object -Property Name | Merge-PowerPointPresentation -Verbose -Open
+Get-ChildItem -Path $CurrentDir -Filter "*.pptx" -File | Sort-Object -Property Name | Merge-PowerPointPresentation -Verbose -Open -Destination $DestinationFile
 
 
 #Example 2 : Processing a list of some PowerPoint presentations specified by their absolute path
