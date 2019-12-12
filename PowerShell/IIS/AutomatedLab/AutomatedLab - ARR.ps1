@@ -132,7 +132,11 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into the f
     {
         $WebServerSSLCert | Export-PfxCertificate -FilePath "C:\CentralCertificateStore\$using:WebSiteName.pfx" -Password $Using:SecurePassword
         $WebServerSSLCert | Remove-Item -Force
-        Import-PfxCertificate -FilePath "C:\CentralCertificateStore\$using:WebSiteName.pfx" -Password $Using:SecurePassword -CertStoreLocation Cert:\LocalMachine\My\ -Exportable 
+        #Import-PfxCertificate -FilePath "C:\CentralCertificateStore\$using:WebSiteName.pfx" -Password $Using:SecurePassword -CertStoreLocation Cert:\LocalMachine\My\ -Exportable 
+    }
+    else
+    {
+        Write-Error -Exception "[ERROR] Unable to create the 'Web Server SSL' certificate for $using:WebSiteName"
     }
 }
 
