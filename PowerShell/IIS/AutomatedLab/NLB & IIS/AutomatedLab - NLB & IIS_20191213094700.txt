@@ -1,0 +1,27 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20191213094700
+Username: LAVANACK09\lavanack
+RunAs User: LAVANACK09\lavanack
+Configuration Name: 
+Machine: LAVANACK09 (Microsoft Windows NT 10.0.18363.0)
+Host Application: C:\WINDOWS\system32\WindowsPowerShell\v1.0\PowerShell_ISE.exe
+Process ID: 9612
+PSVersion: 5.1.18362.145
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.18362.145
+BuildVersion: 10.0.18362.145
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+Transcript started, output file is C:\Users\lavanack\OneDrive - Microsoft\Source Control\GitHub\laurentvanacker.com\PowerShell\IIS\AutomatedLab\NLB & IIS\AutomatedLab - NLB & IIS_20191213094700.txt
+**********************
+Command start time: 20191213094702
+**********************
+PS C:\WINDOWS\system32> CommandInvocation(Remove-PSBreakpoint): "Remove-PSBreakpoint"
+>> ParameterBinding(Remove-PSBreakpoint): name="Id"; value="0"
+VERBOSE: Import-Lab Entering... (Path=C:\ProgramData\AutomatedLab\Labs\NLBIISLab\Lab.xml,ErrorAction=<null>,PassThru=True)
+VERBOSE: Clear-Lab Entering... )
+VERBOSE: Clear-Lab...leaving...(Time elapsed: 00:00:00:086)
