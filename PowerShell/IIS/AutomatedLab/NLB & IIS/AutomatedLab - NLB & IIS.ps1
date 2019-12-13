@@ -313,6 +313,8 @@ Invoke-LabCommand -ActivityName 'Exporting IIS Shared Configuration and Windows 
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'False'
     #Enabling the Windows authentication
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'enabled' -value 'True'
+    #Enabling ASP.Net Impersonation (local web.config)
+    Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:WebSiteName"  -filter 'system.web/identity' -name 'impersonate' -value 'True'
 
     #Enabling the Anonymous authentication for the healthcheck test page
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName/healthcheck.aspx" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'True'
@@ -327,11 +329,16 @@ Invoke-LabCommand -ActivityName 'Exporting IIS Shared Configuration and Windows 
     Export-IISConfiguration -PhysicalPath C:\IISSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
 }
 
-Invoke-LabCommand -ActivityName 'Exporting IIS Shared Configuration' -ComputerName IISNODE01 -ScriptBlock {
-    #Changing the application pool identity for an AD Account : mandatory for Kerberos authentication
+Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration on IIS servers' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
+    #Install-WindowsFeature Web-Windows-Auth  -includeManagementTools
     New-Item -Path C:\IISSharedConfiguration -ItemType Directory -Force
-    #Exporting the configuration
-    Export-IISConfiguration -PhysicalPath C:\IISSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
+
+    While (-not(Test-Path -Path C:\IISSharedConfiguration\applicationHost.config))
+    {
+        Write-Verbose -Message 'Waiting the replication via DFS-R of applicationHost.config. Sleeping 10 seconds ...'
+        Start-Sleep -Seconds 10
+    }
+    #Enabling the shared configuration
     Enable-IISSharedConfig  -PhysicalPath C:\IISSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
 }
 
