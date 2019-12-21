@@ -147,7 +147,7 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $WebSiteName to the
     Set-ItemProperty -Path $AdminKey -Name 'IsInstalled' -Value 0 -Force
     Set-ItemProperty -Path $UserKey -Name 'IsInstalled' -Value 0 -Force
 
-    #Setting arr.contoso.com, IISNODE01.contoso.com and IISNODE02.contoso.com in the Local Intranet Zone for all servers : mandatory for Kerberos authentication       
+    #Setting arr.contoso.com (and optionally all nodes) in the Local Intranet Zone for all servers : mandatory for Kerberos authentication       
     $null = New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:WebSiteName" -Force
     Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:WebSiteName" -Name http -Value 1 -Type DWord -Force
     Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:WebSiteName" -Name https -Value 1 -Type DWord -Force
@@ -169,6 +169,10 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $WebSiteName to the
     $name = "start page"
     $value = "https://$using:WebSiteName/"
     Set-ItemProperty -Path $path -Name $name -Value $value -Force
+    #Bonus : To open all the available websites accross all nodes
+    $name = "Secondary Start Pages"
+    $value="https://arrnode01.$using:FQDNDomainName", "https://arrnode02.$using:FQDNDomainName", "http://iisnode01.$using:FQDNDomainName", "http://iisnode02.$using:FQDNDomainName"
+    New-ItemProperty -Path $path -PropertyType MultiString -Name $name -Value $value -Force
 }
 
 #Copying Web site content on all IIS & ARR servers
@@ -337,6 +341,7 @@ Invoke-LabCommand -ActivityName 'SNI/CSS, ARR and URL Rewrite Setup' -ComputerNa
     #New-WebBinding -Name "$using:WebSiteName" -Port 443 -IPAddress * -Protocol https -sslFlags 3 -HostHeader "$using:WebSiteName"
     New-WebBinding -Name "$using:WebSiteName" -sslFlags 3 -Protocol https -HostHeader "$using:WebSiteName"
     New-Item -Path "IIS:\SslBindings\!443!$using:WebSiteName" -sslFlags 3 -Store CentralCertStore
+
     #Removing Default Binding
     #Get-WebBinding -Port 80 -Name "$using:WebSiteName" | Remove-WebBinding
 
@@ -498,6 +503,10 @@ Invoke-LabCommand -ActivityName 'Exporting IIS Shared Configuration' -ComputerNa
     #Exporting the configuration
     Export-IISConfiguration -PhysicalPath C:\ARRSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
     Enable-IISSharedConfig  -PhysicalPath C:\ARRSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
+
+    #Bonus : To access directly to the SSL web site hosted on ARR nodes by using the arr node names.
+    Copy-Item "C:\CentralCertificateStore\$using:WebSiteName.pfx" "C:\CentralCertificateStore\$env:COMPUTERNAME.$using:FQDNDomainName.pfx"
+    New-WebBinding -Name "$using:WebSiteName" -sslFlags 3 -Protocol https -HostHeader "$env:COMPUTERNAME.$using:FQDNDomainName"
 }
 
 Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration on ARR servers' -ComputerName ARRNODE02 -ScriptBlock {
@@ -509,6 +518,10 @@ Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration on ARR server
         Start-Sleep -Seconds 10
     }
     Enable-IISSharedConfig  -PhysicalPath C:\ARRSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
+
+    #Bonus : To access directly to the SSL web site hosted on ARR nodes by using the arr node names.
+    Copy-Item "C:\CentralCertificateStore\$using:WebSiteName.pfx" "C:\CentralCertificateStore\$env:COMPUTERNAME.$using:FQDNDomainName.pfx"
+    New-WebBinding -Name "$using:WebSiteName" -sslFlags 3 -Protocol https -HostHeader "$env:COMPUTERNAME.$using:FQDNDomainName"
 }
 
 Show-LabDeploymentSummary -Detailed
