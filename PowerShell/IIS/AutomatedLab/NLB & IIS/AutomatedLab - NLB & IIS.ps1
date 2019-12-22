@@ -302,7 +302,7 @@ Invoke-LabCommand -ActivityName 'SNI/CSS and URL Rewrite Setup' -ComputerName II
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.webServer/rewrite/globalRules/rule[@name='HTTP to HTTPS Redirect']/action" -name 'redirectType' -value 'Permanent' 
 }
 
-Invoke-LabCommand -ActivityName 'Exporting IIS Shared Configuration and Windows Authentication Setup' -ComputerName IISNODE01 -ScriptBlock {
+Invoke-LabCommand -ActivityName 'Exporting IIS Shared Configuration and Windows Authentication Setup' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
     #Changing the application pool identity for an AD Account : mandatory for Kerberos authentication
     Import-Module -Name WebAdministration
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']/processModel" -name 'identityType' -value 3
@@ -339,17 +339,6 @@ Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration on IIS server
         Start-Sleep -Seconds 10
     }
     #Enabling the shared configuration
-    Enable-IISSharedConfig  -PhysicalPath C:\IISSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
-}
-
-Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration on IIS servers' -ComputerName IISNODE02 -ScriptBlock {
-    New-Item -Path C:\IISSharedConfiguration -ItemType Directory -Force
-    #Enabling the shared configuration
-    While (-not(Test-Path -Path C:\IISSharedConfiguration\applicationHost.config))
-    {
-        Write-Verbose -Message 'Waiting the replication via DFS-R of applicationHost.config. Sleeping 10 seconds ...'
-        Start-Sleep -Seconds 10
-    }
     Enable-IISSharedConfig  -PhysicalPath C:\IISSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
 }
 
