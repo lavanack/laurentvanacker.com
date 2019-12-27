@@ -88,13 +88,14 @@ $PSDefaultParameterValues = @{
 
 #Domain controller
 Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress 10.0.0.1
+#Certificate Authority
 Add-LabMachineDefinition -Name CA01 -Roles CARoot -IpAddress 10.0.0.2
 
 #IIS Front End
 Add-LabMachineDefinition -Name IISNODE01 -IpAddress 10.0.0.11
 Add-LabMachineDefinition -Name IISNODE02 -IpAddress 10.0.0.12
 
-#3 NICS for ARR servers (1 for server communications, 1 for NLB and Default Switch for Internet)
+#2 NICS for ARR servers (1 for server communications and 1 for NLB)
 $netAdapter = @()
 $netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address 10.0.0.21/16
 $netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address 10.0.0.201/16
@@ -125,6 +126,7 @@ Get-LabCertificate -ComputerName ARRNODE01 -SearchString "$WebSiteName" -FindTyp
 
 Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into the future "Central Certificate Store" directory' -ComputerName ARRNODE01, ARRNODE02 -ScriptBlock {
     New-Item -Path C:\CentralCertificateStore -ItemType Directory -Force
+    Enable-WebCentralCertProvider -CertStoreLocation 'C:\CentralCertificateStore\' -UserName $Using:Logon -Password $Using:ClearTextPassword -PrivateKeyPassword $Using:ClearTextPassword
     $WebServerSSLCert = Get-ChildItem -Path Cert:\LocalMachine\My\ -DnsName "$using:WebSiteName" -SSLServerAuthentication | Where-Object -FilterScript {
         $_.hasPrivateKey 
     }  
@@ -276,7 +278,7 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Sc
 #Copying required IIS extensions on the ARR servers for ARR
 Copy-LabFileItem -Path $CurrentDir\Extensions.zip -DestinationFolderPath C:\Temp -ComputerName ARRNODE01, ARRNODE02
 
-Invoke-LabCommand -ActivityName 'IIS Extensions, NLB, IIS Central Certificate Store and ARR Shared Configuration Setup on ARR servers' -ComputerName ARRNODE01, ARRNODE02 -ScriptBlock {
+Invoke-LabCommand -ActivityName 'IIS Extensions, NLB and ARR Shared Configuration Setup on ARR servers' -ComputerName ARRNODE01, ARRNODE02 -ScriptBlock {
     Expand-Archive 'C:\Temp\Extensions.zip' -DestinationPath C:\ -Force
     C:\Extensions\Install-IISExtension.ps1
 
@@ -287,7 +289,6 @@ Invoke-LabCommand -ActivityName 'IIS Extensions, NLB, IIS Central Certificate St
     Rename-NetAdapter -Name "$using:labName 1" -NewName 'NLB' -PassThru | Set-NetIPInterface -InterfaceMetric 2
     #Creating replicated folder for shared configuration
     New-Item -Path C:\ARRSharedConfiguration -ItemType Directory -Force
-    Enable-WebCentralCertProvider -CertStoreLocation 'C:\CentralCertificateStore\' -UserName $Using:Logon -Password $Using:ClearTextPassword -PrivateKeyPassword $Using:ClearTextPassword
 
     #Adding handler for image watermark
     Add-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:WebSiteName"  -filter 'system.webServer/handlers' -name '.' -value @{
@@ -341,6 +342,9 @@ Invoke-LabCommand -ActivityName 'SNI/CSS, ARR and URL Rewrite Setup' -ComputerNa
     #New-WebBinding -Name "$using:WebSiteName" -Port 443 -IPAddress * -Protocol https -sslFlags 3 -HostHeader "$using:WebSiteName"
     New-WebBinding -Name "$using:WebSiteName" -sslFlags 3 -Protocol https -HostHeader "$using:WebSiteName"
     New-Item -Path "IIS:\SslBindings\!443!$using:WebSiteName" -sslFlags 3 -Store CentralCertStore
+    #Bonus : To access directly to the SSL web site hosted on ARR nodes by using the arr node names.
+    Copy-Item "C:\CentralCertificateStore\$using:WebSiteName.pfx" "C:\CentralCertificateStore\$env:COMPUTERNAME.$using:FQDNDomainName.pfx"
+    New-WebBinding -Name "$using:WebSiteName" -sslFlags 3 -Protocol https -HostHeader "$env:COMPUTERNAME.$using:FQDNDomainName"
 
     #Removing Default Binding
     #Get-WebBinding -Port 80 -Name "$using:WebSiteName" | Remove-WebBinding
@@ -503,10 +507,6 @@ Invoke-LabCommand -ActivityName 'Exporting IIS Shared Configuration' -ComputerNa
     #Exporting the configuration
     Export-IISConfiguration -PhysicalPath C:\ARRSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
     Enable-IISSharedConfig  -PhysicalPath C:\ARRSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
-
-    #Bonus : To access directly to the SSL web site hosted on ARR nodes by using the arr node names.
-    Copy-Item "C:\CentralCertificateStore\$using:WebSiteName.pfx" "C:\CentralCertificateStore\$env:COMPUTERNAME.$using:FQDNDomainName.pfx"
-    New-WebBinding -Name "$using:WebSiteName" -sslFlags 3 -Protocol https -HostHeader "$env:COMPUTERNAME.$using:FQDNDomainName"
 }
 
 Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration on ARR servers' -ComputerName ARRNODE02 -ScriptBlock {
@@ -518,10 +518,6 @@ Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration on ARR server
         Start-Sleep -Seconds 10
     }
     Enable-IISSharedConfig  -PhysicalPath C:\ARRSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
-
-    #Bonus : To access directly to the SSL web site hosted on ARR nodes by using the arr node names.
-    Copy-Item "C:\CentralCertificateStore\$using:WebSiteName.pfx" "C:\CentralCertificateStore\$env:COMPUTERNAME.$using:FQDNDomainName.pfx"
-    New-WebBinding -Name "$using:WebSiteName" -sslFlags 3 -Protocol https -HostHeader "$env:COMPUTERNAME.$using:FQDNDomainName"
 }
 
 Show-LabDeploymentSummary -Detailed
