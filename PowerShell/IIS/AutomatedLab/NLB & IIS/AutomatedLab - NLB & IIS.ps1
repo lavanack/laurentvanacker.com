@@ -192,17 +192,6 @@ Invoke-LabCommand -ActivityName 'NLB, IIS Central Certificate Store and IIS Shar
     #Renaming the NIC and setting up the metric for NLB management
     Rename-NetAdapter -Name "$using:labName 0" -NewName 'Internal' -PassThru | Set-NetIPInterface -InterfaceMetric 1
     Rename-NetAdapter -Name "$using:labName 1" -NewName 'NLB' -PassThru | Set-NetIPInterface -InterfaceMetric 2
-
-    #Creating replicated folder for Central Certificate Store
-    New-Item -Path C:\CentralCertificateStore -ItemType Directory -Force
-    Enable-WebCentralCertProvider -CertStoreLocation 'C:\CentralCertificateStore\' -UserName $Using:Logon -Password $Using:ClearTextPassword -PrivateKeyPassword $Using:ClearTextPassword
-
-    #Creating replicated folder for shared configuration
-    New-Item -Path C:\IISSharedConfiguration -ItemType Directory -Force
-
-    #Restarting DFSR service
-    Restart-Service -Name DFSR -Force
-    Start-Sleep -Seconds 10
 }
 
 Invoke-LabCommand -ActivityName 'NLB Setup and IIS Shared Configuration Export' -ComputerName IISNODE01 {
@@ -231,7 +220,7 @@ Get-LabCertificate -ComputerName IISNODE01 -SearchString "$WebSiteName" -FindTyp
 #Copying Web site content on all IIS servers
 Copy-LabFileItem -Path $CurrentDir\nlb.contoso.com.zip -DestinationFolderPath C:\Temp -ComputerName IISNODE01, IISNODE02
 
-Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Central Certificate Store Directory' -ComputerName IISNODE01 -ScriptBlock {
+Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Central Certificate Store Directory, Unzipping Web Site Content and Enabling IIS Shared Configuration' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
     $WebServerSSLCert = Get-ChildItem -Path Cert:\LocalMachine\My\ -DnsName "$using:WebSiteName" -SSLServerAuthentication | Where-Object -FilterScript {
         $_.hasPrivateKey 
     }  
@@ -247,9 +236,19 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
     {
         Write-Error -Exception "[ERROR] Unable to get the 'Web Server SSL' certificate for $using:WebSiteName"
     }
-}
 
-Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Enabling IIS Shared Configuration' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
+
+    #Creating replicated folder for Central Certificate Store
+    New-Item -Path C:\CentralCertificateStore -ItemType Directory -Force
+    Enable-WebCentralCertProvider -CertStoreLocation 'C:\CentralCertificateStore\' -UserName $Using:Logon -Password $Using:ClearTextPassword -PrivateKeyPassword $Using:ClearTextPassword
+
+    #Creating replicated folder for shared configuration
+    New-Item -Path C:\IISSharedConfiguration -ItemType Directory -Force
+
+    #Restarting DFSR service
+    Restart-Service -Name DFSR -Force
+    Start-Sleep -Seconds 10
+
     Expand-Archive 'C:\Temp\nlb.contoso.com.zip' -DestinationPath C:\inetpub\wwwroot -Force
     '<%=HttpContext.Current.Server.MachineName%>' | Out-File -FilePath 'C:\inetpub\wwwroot\server.aspx' -Force
     'ok' | Out-File -FilePath 'C:\inetpub\wwwroot\healthcheck.aspx' -Force
@@ -261,10 +260,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Enabling IIS Sha
         Start-Sleep -Seconds 10
     }
     Enable-IISSharedConfig  -PhysicalPath C:\IISSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
-}
 
-#Setting up IIS web site 
-Invoke-LabCommand -ActivityName 'IIS Website Setup' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
     Import-Module -Name WebAdministration
     #Removing "Default Web Site"
     Remove-WebSite -Name 'Default Web Site'
