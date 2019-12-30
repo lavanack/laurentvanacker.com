@@ -187,14 +187,14 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Sc
     setspn.exe -S "HTTP/IISNODE02" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
 }
 
-Invoke-LabCommand -ActivityName 'NLB, IIS Central Certificate Store and IIS Shared Configuration Directory Creation on IIS servers' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
+Invoke-LabCommand -ActivityName 'Renaming NICs' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
 
     #Renaming the NIC and setting up the metric for NLB management
     Rename-NetAdapter -Name "$using:labName 0" -NewName 'Internal' -PassThru | Set-NetIPInterface -InterfaceMetric 1
     Rename-NetAdapter -Name "$using:labName 1" -NewName 'NLB' -PassThru | Set-NetIPInterface -InterfaceMetric 2
 }
 
-Invoke-LabCommand -ActivityName 'NLB Setup and IIS Shared Configuration Export' -ComputerName IISNODE01 {
+Invoke-LabCommand -ActivityName 'NLB Setup' -ComputerName IISNODE01 {
     #Creating new NLB cluster
     New-NlbCluster -HostName IISNODE01 -ClusterName "$using:WebSiteName" -InterfaceName NLB -ClusterPrimaryIP 10.0.0.101 -SubnetMask 255.255.0.0 -OperationMode 'Multicast'
     #Removing default port rule for the new cluster
@@ -206,21 +206,22 @@ Invoke-LabCommand -ActivityName 'NLB Setup and IIS Shared Configuration Export' 
     Get-NlbCluster | Add-NlbClusterNode -NewNodeName IISNODE02 -NewNodeInterface NLB
     #Client Affinity: Do not enable it to see the load balacing between the two IIS Servers    
     Get-NlbClusterPortRule | Set-NlbClusterPortRule -NewAffinity None
-
-    #Exporting the configuration only from one node
-    Export-IISConfiguration -PhysicalPath C:\IISSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
 }
 
 
 $CertificationAuthority = Get-LabIssuingCA
 New-LabCATemplate -TemplateName WebServerSSL -DisplayName 'Web Server SSL' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ComputerName $CertificationAuthority -ErrorAction Stop
 $WebServerSSLCert = Request-LabCertificate -Subject "CN=$WebSiteName" -SAN "nlb", "$WebSiteName", "IISNODE01", "IISNODE01.$FQDNDomainName", "IISNODE02", "IISNODE02.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName IISNODE01 -PassThru -ErrorAction Stop
-Get-LabCertificate -ComputerName IISNODE01 -SearchString "$WebSiteName" -FindType FindBySubjectName  -ExportPrivateKey -Password $SecurePassword #| Add-LabCertificate -ComputerName IISNODE02 -Location CERT_SYSTEM_STORE_LOCAL_MACHINE -Store My -Password $ClearTextPassword
+Get-LabCertificate -ComputerName IISNODE01 -SearchString "$WebSiteName" -FindType FindBySubjectName  -ExportPrivateKey -Password $SecurePassword | Add-LabCertificate -ComputerName IISNODE02 -Location CERT_SYSTEM_STORE_LOCAL_MACHINE -Store My -Password $ClearTextPassword
 
 #Copying Web site content on all IIS servers
 Copy-LabFileItem -Path $CurrentDir\nlb.contoso.com.zip -DestinationFolderPath C:\Temp -ComputerName IISNODE01, IISNODE02
 
 Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Central Certificate Store Directory, Unzipping Web Site Content and Enabling IIS Shared Configuration' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
+    #Restarting DFSR service
+    Restart-Service -Name DFSR -Force
+    Start-Sleep -Seconds 10
+
     $WebServerSSLCert = Get-ChildItem -Path Cert:\LocalMachine\My\ -DnsName "$using:WebSiteName" -SSLServerAuthentication | Where-Object -FilterScript {
         $_.hasPrivateKey 
     }  
@@ -230,13 +231,12 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
         #Bonus : To access directly to the SSL web site hosted on IIS nodes
         Copy-Item "C:\CentralCertificateStore\$using:WebSiteName.pfx" "C:\CentralCertificateStore\iisnode01.$using:FQDNDomainName.pfx"
         Copy-Item "C:\CentralCertificateStore\$using:WebSiteName.pfx" "C:\CentralCertificateStore\iisnode02.$using:FQDNDomainName.pfx"
-        #$WebServerSSLCert | Remove-Item -Force
+        $WebServerSSLCert | Remove-Item -Force
     }
     else
     {
         Write-Error -Exception "[ERROR] Unable to get the 'Web Server SSL' certificate for $using:WebSiteName"
     }
-
 
     #Creating replicated folder for Central Certificate Store
     New-Item -Path C:\CentralCertificateStore -ItemType Directory -Force
@@ -245,21 +245,9 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
     #Creating replicated folder for shared configuration
     New-Item -Path C:\IISSharedConfiguration -ItemType Directory -Force
 
-    #Restarting DFSR service
-    Restart-Service -Name DFSR -Force
-    Start-Sleep -Seconds 10
-
     Expand-Archive 'C:\Temp\nlb.contoso.com.zip' -DestinationPath C:\inetpub\wwwroot -Force
     '<%=HttpContext.Current.Server.MachineName%>' | Out-File -FilePath 'C:\inetpub\wwwroot\server.aspx' -Force
     'ok' | Out-File -FilePath 'C:\inetpub\wwwroot\healthcheck.aspx' -Force
-
-    #Enabling the shared configuration for all IIS nodes
-    While (-not(Test-Path -Path C:\IISSharedConfiguration\applicationHost.config))
-    {
-        Write-Verbose -Message 'Waiting the replication via DFS-R of applicationHost.config. Sleeping 10 seconds ...'
-        Start-Sleep -Seconds 10
-    }
-    Enable-IISSharedConfig  -PhysicalPath C:\IISSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
 
     Import-Module -Name WebAdministration
     #Removing "Default Web Site"
@@ -327,6 +315,22 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
 
     #Disabling validation for application pool in integrated mode due to ASP.Net impersonation incompatibility
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName"  -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False' -verbose
+}
+
+Invoke-LabCommand -ActivityName 'IIS Shared Configuration Export' -ComputerName IISNODE01 {
+    #Exporting the configuration only from one node
+    Export-IISConfiguration -PhysicalPath C:\IISSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
+}
+
+Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
+    #Enabling the shared configuration for all IIS nodes
+    While (-not(Test-Path -Path C:\IISSharedConfiguration\applicationHost.config))
+    {
+        Write-Verbose -Message 'Waiting the replication via DFS-R of applicationHost.config. Sleeping 10 seconds ...'
+        Start-Sleep -Seconds 10
+    }
+    Enable-IISSharedConfig  -PhysicalPath C:\IISSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
+    
 }
 
 Show-LabDeploymentSummary -Detailed
