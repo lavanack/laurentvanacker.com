@@ -168,6 +168,8 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Sc
     Set-DfsrMembership -GroupName 'IIS Shared Configuration' -FolderName 'C:\IISSharedConfiguration' -ContentPath 'C:\IISSharedConfiguration' -ComputerName 'IISNODE01' -PrimaryMember $True -Force
     Set-DfsrMembership -GroupName 'IIS Shared Configuration' -FolderName 'C:\IISSharedConfiguration' -ContentPath 'C:\IISSharedConfiguration' -ComputerName 'IISNODE02' -Force
 
+    #Removing any DFS Replication group with the same name
+    Get-DfsReplicationGroup -GroupName 'Central Certificate Store' | Remove-DfsReplicationGroup -Force -RemoveReplicatedFolders
     #Creating the DFS Replication group for the shared configuration
     New-DfsReplicationGroup -GroupName 'Central Certificate Store' |
     New-DfsReplicatedFolder -FolderName 'C:\CentralCertificateStore' |
@@ -246,8 +248,6 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
     New-Item -Path C:\IISSharedConfiguration -ItemType Directory -Force
 
     Expand-Archive 'C:\Temp\nlb.contoso.com.zip' -DestinationPath C:\inetpub\wwwroot -Force
-    '<%=HttpContext.Current.Server.MachineName%>' | Out-File -FilePath 'C:\inetpub\wwwroot\server.aspx' -Force
-    'ok' | Out-File -FilePath 'C:\inetpub\wwwroot\healthcheck.aspx' -Force
 
     Import-Module -Name WebAdministration
     #Removing "Default Web Site"
@@ -308,16 +308,16 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
     #Enabling ASP.Net Impersonation (local web.config)
     Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:WebSiteName"  -filter 'system.web/identity' -name 'impersonate' -value 'True'
 
-    #Enabling the Anonymous authentication for the healthcheck test page
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName/healthcheck.aspx" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'True'
+    #Enabling the Anonymous authentication for the healthcheck folder
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName/healthcheck/" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'True'
     #Disabling the Windows authentication for the healthcheck test page
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName/healthcheck.aspx" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'enabled' -value 'False'
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName/healthcheck/" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'enabled' -value 'False'
 
     #Disabling validation for application pool in integrated mode due to ASP.Net impersonation incompatibility
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName"  -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False' -verbose
 }
 
-Invoke-LabCommand -ActivityName 'IIS Shared Configuration Export' -ComputerName IISNODE01 {
+Invoke-LabCommand -ActivityName 'Exporting IIS Shared Configuration' -ComputerName IISNODE01 {
     #Exporting the configuration only from one node
     Export-IISConfiguration -PhysicalPath C:\IISSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
 }
