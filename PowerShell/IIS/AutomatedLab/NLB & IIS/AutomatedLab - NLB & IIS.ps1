@@ -38,22 +38,27 @@ $WebSiteName="nlb.$FQDNDomainName"
 $LabName = 'NLBIISLab'
 #endregion
 
-#Dirty Clean up
+#region Dirty Clean up
 If (Test-Path -Path C:\ProgramData\AutomatedLab\Labs\$LabName\Lab.xml)
 {
+    #Importing lpreviously existing lab
     $Lab = Import-Lab -Path C:\ProgramData\AutomatedLab\Labs\$LabName\Lab.xml -ErrorAction SilentlyContinue -PassThru
     if ($Lab)
     {
         #Get-LabVM | Get-VM | Restore-VMCheckpoint -Name "FullInstall" -Confirm:$false
+        #Getting exisiting VM
         $HyperVLabVM = Get-LabVM | Get-VM -ErrorAction SilentlyContinue
         if ($HyperVLabVM)
         {
             $HyperVLabVMPath = (Get-Item $($HyperVLabVM.Path)).Parent.FullName
+            #Turning off existing VM
             $HyperVLabVM | Stop-VM -TurnOff -Force -Passthru | Remove-VM -Force -Verbose
+            #Removing related files
             Remove-Item $HyperVLabVMPath -Recurse -Force -Verbose #-WhatIf
         }
         try
         {
+            #Clearing lab from an AutomatedLab (AL) perspective
             Remove-Lab -Name $LabName -Verbose -Confirm:$false -ErrorAction SilentlyContinue
         }
         catch 
@@ -62,7 +67,7 @@ If (Test-Path -Path C:\ProgramData\AutomatedLab\Labs\$LabName\Lab.xml)
         }
     }
 }
-
+#endregion
 #create an empty lab template and define where the lab XML files and the VMs will be stored
 New-LabDefinition -Name $LabName -DefaultVirtualizationEngine HyperV
 
@@ -91,29 +96,29 @@ Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress 10.0.0.1
 #Certificate Authority
 Add-LabMachineDefinition -Name CA01 -Roles CARoot -IpAddress 10.0.0.2
 
-#IIS Front End
 
-#2 NICS for IIS servers (1 for server communications and 1 for NLB)
+#region 2 NICS for IIS servers (1 for server communications and 1 for NLB)
 $netAdapter = @()
 $netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address 10.0.0.21/16
 $netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address 10.0.0.201/16
 Add-LabMachineDefinition -Name IISNODE01 -NetworkAdapter $netAdapter
-
 $netAdapter = @()
 $netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address 10.0.0.22/16
 $netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address 10.0.0.202/16
 Add-LabMachineDefinition -Name IISNODE02 -NetworkAdapter $netAdapter
+#endregion
 
 #Installing servers
 Install-Lab
 #Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 
-
+#region Installing Required Windows Features
 $machines = Get-LabVM
 Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools
 Install-LabWindowsFeature -FeatureName FS-DFS-Replication, Web-Server, Web-Asp-Net45, Web-Request-Monitor, Web-Windows-Auth  -ComputerName IISNODE01, IISNODE02 -IncludeManagementTools
 Install-LabWindowsFeature -FeatureName FS-DFS-Replication -ComputerName DC01 -IncludeManagementTools
 Install-LabWindowsFeature -FeatureName NLB, Web-CertProvider -ComputerName IISNODE01, IISNODE02 -IncludeManagementTools
+#endregion
 
 Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $WebSiteName to the IE intranet zone" -ComputerName $machines -ScriptBlock {
     #Disabling IE ESC
@@ -144,7 +149,6 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $WebSiteName to the
     New-ItemProperty -Path $path -PropertyType MultiString -Name $name -Value $value -Force
 }
 
-
 #Installing and setting up DFS-R on DC for replicated folder on IIS Servers for shared confguration
 Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -ScriptBlock {
     New-ADUser -Name "$Using:IISAppPoolUser" -PasswordNeverExpires $True -AccountPassword $Using:SecurePassword -CannotChangePassword $True -Enabled $True
@@ -153,8 +157,6 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Sc
     Add-DnsServerPrimaryZone -NetworkID '10.0.0.0/16' -ReplicationScope 'Forest' 
     #DNS Host entry for the nlb.contoso.com website 
     Add-DnsServerResourceRecordA -Name 'nlb' -ZoneName $using:FQDNDomainName -IPv4Address '10.0.0.101' -CreatePtr
-    #Installing DFS-R on IIS servers for the shared configuration
-    #Install-WindowsFeature FS-DFS-Replication -includeManagementTools
 
     #Removing any DFS Replication group with the same name
     Get-DfsReplicationGroup -GroupName 'IIS Shared Configuration' | Remove-DfsReplicationGroup -Force -RemoveReplicatedFolders
@@ -189,6 +191,7 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Sc
     setspn.exe -S "HTTP/IISNODE02" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
 }
 
+#Renaming the NIC and setting up the metric for NLB management
 Invoke-LabCommand -ActivityName 'Renaming NICs' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
 
     #Renaming the NIC and setting up the metric for NLB management
@@ -210,11 +213,16 @@ Invoke-LabCommand -ActivityName 'NLB Setup' -ComputerName IISNODE01 {
     Get-NlbClusterPortRule | Set-NlbClusterPortRule -NewAffinity None
 }
 
-
+#region Certification Authority : Creation and SSL Certificate Generation
+#Get the CA
 $CertificationAuthority = Get-LabIssuingCA
+#Generating a new template for SSL Web Server certificate
 New-LabCATemplate -TemplateName WebServerSSL -DisplayName 'Web Server SSL' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ComputerName $CertificationAuthority -ErrorAction Stop
+#Getting a New SSL Web Server Certificate
 $WebServerSSLCert = Request-LabCertificate -Subject "CN=$WebSiteName" -SAN "nlb", "$WebSiteName", "IISNODE01", "IISNODE01.$FQDNDomainName", "IISNODE02", "IISNODE02.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName IISNODE01 -PassThru -ErrorAction Stop
+#Copying The Previously Generated Certificate to the second IIS node
 Get-LabCertificate -ComputerName IISNODE01 -SearchString "$WebSiteName" -FindType FindBySubjectName  -ExportPrivateKey -Password $SecurePassword | Add-LabCertificate -ComputerName IISNODE02 -Location CERT_SYSTEM_STORE_LOCAL_MACHINE -Store My -Password $ClearTextPassword
+#endregion
 
 #Copying Web site content on all IIS servers
 Copy-LabFileItem -Path $CurrentDir\nlb.contoso.com.zip -DestinationFolderPath C:\Temp -ComputerName IISNODE01, IISNODE02
@@ -224,15 +232,18 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
     Restart-Service -Name DFSR -Force
     Start-Sleep -Seconds 10
 
+    #Getting the local SSL Certificate
     $WebServerSSLCert = Get-ChildItem -Path Cert:\LocalMachine\My\ -DnsName "$using:WebSiteName" -SSLServerAuthentication | Where-Object -FilterScript {
         $_.hasPrivateKey 
     }  
     if ($WebServerSSLCert)
     {    
+        #Exporting the local SSL Certificate to a local (replicated via DFS-R) PFX file
         $WebServerSSLCert | Export-PfxCertificate -FilePath "C:\CentralCertificateStore\$using:WebSiteName.pfx" -Password $Using:SecurePassword
-        #Bonus : To access directly to the SSL web site hosted on IIS nodes
+        #Bonus : To access directly to the SSL web site hosted on IIS nodes by using the node names
         Copy-Item "C:\CentralCertificateStore\$using:WebSiteName.pfx" "C:\CentralCertificateStore\iisnode01.$using:FQDNDomainName.pfx"
         Copy-Item "C:\CentralCertificateStore\$using:WebSiteName.pfx" "C:\CentralCertificateStore\iisnode02.$using:FQDNDomainName.pfx"
+        #removing the local SSL Certificate
         $WebServerSSLCert | Remove-Item -Force
     }
     else
@@ -242,6 +253,7 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
 
     #Creating replicated folder for Central Certificate Store
     New-Item -Path C:\CentralCertificateStore -ItemType Directory -Force
+    #Enabling the Central Certificate Store
     Enable-WebCentralCertProvider -CertStoreLocation 'C:\CentralCertificateStore\' -UserName $Using:Logon -Password $Using:ClearTextPassword -PrivateKeyPassword $Using:ClearTextPassword
 
     #Creating replicated folder for shared configuration
@@ -249,6 +261,7 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
 
     Expand-Archive 'C:\Temp\nlb.contoso.com.zip' -DestinationPath C:\inetpub\wwwroot -Force
 
+    #PowerShell module for IIS Management
     Import-Module -Name WebAdministration
     #Removing "Default Web Site"
     Remove-WebSite -Name 'Default Web Site'
@@ -265,7 +278,7 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
 
     #Creating a dedicated web site 
     New-WebSite -Name "$using:WebSiteName" -Port 80 -PhysicalPath "$env:systemdrive\inetpub\wwwroot" -Force
-    #Assigning the the nlb.contoso.com application pool to the nlb.contoso.com web sitre
+    #Assigning the the nlb.contoso.com application pool to the nlb.contoso.com web site
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:WebSiteName']/application[@path='/']" -name 'applicationPool' -value "$using:WebSiteName"
     #Enabling the Windows useAppPoolCredentials
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'useAppPoolCredentials' -value 'True'
@@ -284,7 +297,9 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
     #2: Central certificate store.
     #3: SNI certificate in central certificate store.
     #New-WebBinding -Name "$using:WebSiteName" -Port 443 -IPAddress * -Protocol https -sslFlags 3 -HostHeader "$using:WebSiteName"
+    #Binding for the Web site
     New-WebBinding -Name "$using:WebSiteName" -sslFlags 3 -Protocol https -HostHeader "$using:WebSiteName"
+    #Binding for every IIS nodes
     New-WebBinding -Name "$using:WebSiteName" -sslFlags 3 -Protocol https -HostHeader "iisnode01.$using:FQDNDomainName"
     New-WebBinding -Name "$using:WebSiteName" -sslFlags 3 -Protocol https -HostHeader "iisnode02.$using:FQDNDomainName"
     New-Item -Path "IIS:\SslBindings\!443!$using:WebSiteName" -sslFlags 3 -Store CentralCertStore
@@ -296,7 +311,6 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
     Get-IISConfigSection -SectionPath 'system.webServer/security/access' -Location "$using:WebSiteName" | Set-IISConfigAttributeValue -AttributeName sslFlags -AttributeValue Ssl
 
     #Changing the application pool identity for an AD Account : mandatory for Kerberos authentication
-
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']/processModel" -name 'identityType' -value 3
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']/processModel" -name 'userName' -value "$Using:NetBiosDomainName\$Using:IISAppPoolUser"
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']/processModel" -name 'password' -value $Using:ClearTextPassword
@@ -310,20 +324,22 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
 
     #Enabling the Anonymous authentication for the healthcheck folder
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName/healthcheck/" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'True'
-    #Disabling the Windows authentication for the healthcheck test page
+    #Disabling the Windows authentication for the healthcheck folder
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName/healthcheck/" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'enabled' -value 'False'
 
     #Disabling validation for application pool in integrated mode due to ASP.Net impersonation incompatibility
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName"  -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False' -verbose
 }
 
+#Exporting IIS Shared Configuration From The First IIS Node
 Invoke-LabCommand -ActivityName 'Exporting IIS Shared Configuration' -ComputerName IISNODE01 {
     #Exporting the configuration only from one node
     Export-IISConfiguration -PhysicalPath C:\IISSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
 }
 
+#Enabling the shared configuration for all IIS nodes
 Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
-    #Enabling the shared configuration for all IIS nodes
+    #Waiting the DFS replication completes
     While (-not(Test-Path -Path C:\IISSharedConfiguration\applicationHost.config))
     {
         Write-Verbose -Message 'Waiting the replication via DFS-R of applicationHost.config. Sleeping 10 seconds ...'
