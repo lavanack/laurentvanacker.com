@@ -38,7 +38,7 @@ $WebSiteName="arr.$FQDNDomainName"
 $LabName = 'NLBARRLab'
 #endregion
 
-#Dirty Clean up
+#region Dirty Clean up
 If (Test-Path -Path C:\ProgramData\AutomatedLab\Labs\$LabName\Lab.xml)
 {
     $Lab = Import-Lab -Path C:\ProgramData\AutomatedLab\Labs\$LabName\Lab.xml -ErrorAction SilentlyContinue -PassThru
@@ -62,6 +62,7 @@ If (Test-Path -Path C:\ProgramData\AutomatedLab\Labs\$LabName\Lab.xml)
         }
     }
 }
+#endregion
 
 #create an empty lab template and define where the lab XML files and the VMs will be stored
 New-LabDefinition -Name $LabName -DefaultVirtualizationEngine HyperV
@@ -91,11 +92,12 @@ Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress 10.0.0.1
 #Certificate Authority
 Add-LabMachineDefinition -Name CA01 -Roles CARoot -IpAddress 10.0.0.2
 
-#IIS Front End
+#region IIS front-end servers
 Add-LabMachineDefinition -Name IISNODE01 -IpAddress 10.0.0.11
 Add-LabMachineDefinition -Name IISNODE02 -IpAddress 10.0.0.12
+#endregion
 
-#2 NICS for ARR servers (1 for server communications and 1 for NLB)
+#region ARR servers : 2 NICS for  (1 for server communications and 1 for NLB)
 $netAdapter = @()
 $netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address 10.0.0.21/16
 $netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address 10.0.0.201/16
@@ -105,42 +107,21 @@ $netAdapter = @()
 $netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address 10.0.0.22/16
 $netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address 10.0.0.202/16
 Add-LabMachineDefinition -Name ARRNODE02 -NetworkAdapter $netAdapter
+#endregion
 
 #Installing servers
 Install-Lab
 #Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 
 
+#region Installing Required Windows Features
 $machines = Get-LabVM
 Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools
 Install-LabWindowsFeature -FeatureName FS-DFS-Replication, Web-Server, Web-Asp-Net45, Web-Request-Monitor -ComputerName IISNODE01, IISNODE02, ARRNODE01, ARRNODE02 -IncludeManagementTools
 Install-LabWindowsFeature -FeatureName FS-DFS-Replication -ComputerName DC01 -IncludeManagementTools
 Install-LabWindowsFeature -FeatureName NLB, Web-CertProvider -ComputerName ARRNODE01, ARRNODE02 -IncludeManagementTools
 Install-LabWindowsFeature -FeatureName Web-Windows-Auth -ComputerName IISNODE01, IISNODE02 -IncludeManagementTools
-
-
-$CertificationAuthority = Get-LabIssuingCA
-New-LabCATemplate -TemplateName WebServerSSL -DisplayName 'Web Server SSL' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ComputerName $CertificationAuthority -ErrorAction Stop
-$WebServerSSLCert = Request-LabCertificate -Subject "CN=$WebSiteName" -SAN "arr", "$WebSiteName", "ARRNODE01", "ARRNODE01.$FQDNDomainName", "ARRNODE02", "ARRNODE02.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName ARRNODE01 -PassThru -ErrorAction Stop
-Get-LabCertificate -ComputerName ARRNODE01 -SearchString "$WebSiteName" -FindType FindBySubjectName  -ExportPrivateKey -Password $SecurePassword | Add-LabCertificate -ComputerName ARRNODE02 -Store My -Password $ClearTextPassword
-
-Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into the future "Central Certificate Store" directory' -ComputerName ARRNODE01, ARRNODE02 -ScriptBlock {
-    New-Item -Path C:\CentralCertificateStore -ItemType Directory -Force
-    Enable-WebCentralCertProvider -CertStoreLocation 'C:\CentralCertificateStore\' -UserName $Using:Logon -Password $Using:ClearTextPassword -PrivateKeyPassword $Using:ClearTextPassword
-    $WebServerSSLCert = Get-ChildItem -Path Cert:\LocalMachine\My\ -DnsName "$using:WebSiteName" -SSLServerAuthentication | Where-Object -FilterScript {
-        $_.hasPrivateKey 
-    }  
-    if ($WebServerSSLCert)
-    {
-        $WebServerSSLCert | Export-PfxCertificate -FilePath "C:\CentralCertificateStore\$using:WebSiteName.pfx" -Password $Using:SecurePassword
-        $WebServerSSLCert | Remove-Item -Force
-        #Import-PfxCertificate -FilePath "C:\CentralCertificateStore\$using:WebSiteName.pfx" -Password $Using:SecurePassword -CertStoreLocation Cert:\LocalMachine\My\ -Exportable 
-    }
-    else
-    {
-        Write-Error -Exception "[ERROR] Unable to create the 'Web Server SSL' certificate for $using:WebSiteName"
-    }
-}
+#endregion
 
 Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $WebSiteName to the IE intranet zone" -ComputerName $machines -ScriptBlock {
     #Disabling IE ESC
@@ -177,12 +158,152 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $WebSiteName to the
     New-ItemProperty -Path $path -PropertyType MultiString -Name $name -Value $value -Force
 }
 
+
+#Installing and setting up DFS-R on DC for replicated folder on ARR Servers for shared confguration
+Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -ScriptBlock {
+    New-ADUser -Name "$Using:IISAppPoolUser" -PasswordNeverExpires $True -AccountPassword $Using:SecurePassword -CannotChangePassword $True -Enabled $True
+
+    #region DNS management
+    #Reverse lookup zone creation
+    Add-DnsServerPrimaryZone -NetworkID '10.0.0.0/16' -ReplicationScope 'Forest' 
+    #DNS Host entry for the arr.contoso.com website 
+    Add-DnsServerResourceRecordA -Name 'arr' -ZoneName $using:FQDNDomainName -IPv4Address '10.0.0.101' -CreatePtr
+    #Installing DFS-R on ARR servers for the shared configuration
+    #Install-WindowsFeature FS-DFS-Replication -includeManagementTools
+    #endregion
+
+    #region ARR servers : IIS Shared Configuration
+    #Removing any DFS Replication group with the same name
+    Get-DfsReplicationGroup -GroupName 'ARR Shared Configuration' | Remove-DfsReplicationGroup -Force -RemoveReplicatedFolders
+    #Creating the DFS Replication group for the shared configuration
+    New-DfsReplicationGroup -GroupName 'ARR Shared Configuration' |
+    New-DfsReplicatedFolder -FolderName 'C:\ARRSharedConfiguration' |
+    Add-DfsrMember -ComputerName ARRNODE01, ARRNODE02
+    #Adding the member (replication in both ways)
+    Add-DfsrConnection -GroupName 'ARR Shared Configuration' -SourceComputerName 'ARRNODE01' -DestinationComputerName 'ARRNODE02'
+    #Adding the members and specifiyng the primary server
+    Set-DfsrMembership -GroupName 'ARR Shared Configuration' -FolderName 'C:\ARRSharedConfiguration' -ContentPath 'C:\ARRSharedConfiguration' -ComputerName 'ARRNODE01' -PrimaryMember $True -Force
+    Set-DfsrMembership -GroupName 'ARR Shared Configuration' -FolderName 'C:\ARRSharedConfiguration' -ContentPath 'C:\ARRSharedConfiguration' -ComputerName 'ARRNODE02' -Force
+    #endregion
+
+    #region IIS front-end servers : IIS Shared Configuration
+    #Removing any DFS Replication group with the same name
+    Get-DfsReplicationGroup -GroupName 'IIS Shared Configuration' | Remove-DfsReplicationGroup -Force -RemoveReplicatedFolders
+    #Creating the DFS Replication group for the shared configuration
+    New-DfsReplicationGroup -GroupName 'IIS Shared Configuration' |
+    New-DfsReplicatedFolder -FolderName 'C:\IISSharedConfiguration' |
+    Add-DfsrMember -ComputerName IISNODE01, IISNODE02
+    #Adding the member (replication in both ways)
+    Add-DfsrConnection -GroupName 'IIS Shared Configuration' -SourceComputerName 'IISNODE01' -DestinationComputerName 'IISNODE02'
+    #Adding the members and specifiyng the primary server
+    Set-DfsrMembership -GroupName 'IIS Shared Configuration' -FolderName 'C:\IISSharedConfiguration' -ContentPath 'C:\IISSharedConfiguration' -ComputerName 'IISNODE01' -PrimaryMember $True -Force
+    Set-DfsrMembership -GroupName 'IIS Shared Configuration' -FolderName 'C:\IISSharedConfiguration' -ContentPath 'C:\IISSharedConfiguration' -ComputerName 'IISNODE02' -Force
+    #endregion
+
+    #region Central Certificate Store
+    #Removing any DFS Replication group with the same name
+    Get-DfsReplicationGroup -GroupName 'Central Certificate Store' | Remove-DfsReplicationGroup -Force -RemoveReplicatedFolders
+    #Creating the DFS Replication group for the shared configuration
+    New-DfsReplicationGroup -GroupName 'Central Certificate Store' |
+    New-DfsReplicatedFolder -FolderName 'C:\CentralCertificateStore' |
+    Add-DfsrMember -ComputerName ARRNODE01, ARRNODE02
+    #Adding the member (replication in both ways)
+    Add-DfsrConnection -GroupName 'Central Certificate Store' -SourceComputerName 'ARRNODE01' -DestinationComputerName 'ARRNODE02'
+    #Adding the members and specifiyng the primary server
+    Set-DfsrMembership -GroupName 'Central Certificate Store' -FolderName 'C:\CentralCertificateStore' -ContentPath 'C:\CentralCertificateStore' -ComputerName 'ARRNODE01' -PrimaryMember $True -Force
+    Set-DfsrMembership -GroupName 'Central Certificate Store' -FolderName 'C:\CentralCertificateStore' -ContentPath 'C:\CentralCertificateStore' -ComputerName 'ARRNODE02' -Force
+    #endregion
+
+    #region Setting SPN on the Application Pool Identity
+    setspn.exe -S "HTTP/$using:WebSiteName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
+    setspn.exe -S "HTTP/arr" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
+    setspn.exe -S "HTTP/IISNODE01.$using:FQDNDomainName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
+    setspn.exe -S "HTTP/IISNODE01" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
+    setspn.exe -S "HTTP/IISNODE02.$using:FQDNDomainName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
+    setspn.exe -S "HTTP/IISNODE02" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
+    setspn.exe -S "HTTP/ARRNODE01.$using:FQDNDomainName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
+    setspn.exe -S "HTTP/ARRNODE01" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
+    setspn.exe -S "HTTP/ARRNODE02.$using:FQDNDomainName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
+    setspn.exe -S "HTTP/ARRNODE02" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
+    #endregion
+}
+
+#ERR servers : Renaming the NIC and setting up the metric for NLB management
+Invoke-LabCommand -ActivityName 'Renaming NICs' -ComputerName ARRNODE01, ARRNODE02 -ScriptBlock {
+
+    #Renaming the NIC and setting up the metric for NLB management
+    Rename-NetAdapter -Name "$using:labName 0" -NewName 'Internal' -PassThru | Set-NetIPInterface -InterfaceMetric 1
+    Rename-NetAdapter -Name "$using:labName 1" -NewName 'NLB' -PassThru | Set-NetIPInterface -InterfaceMetric 2
+}
+
+Invoke-LabCommand -ActivityName 'NLB Setup' -ComputerName ARRNODE01 {
+    #Creating new NLB cluster
+    New-NlbCluster -HostName ARRNODE01 -ClusterName "$using:WebSiteName" -InterfaceName NLB -ClusterPrimaryIP 10.0.0.101 -SubnetMask 255.255.0.0 -OperationMode 'Multicast'
+    #Removing default port rule for the new cluster
+    #Get-NlbClusterPortRule -HostName . | Remove-NlbClusterPortRule -Force
+    #Adding port rules
+    #Add-NlbClusterPortRule -Protocol Tcp -Mode Multiple -Affinity Single -StartPort 80 -EndPort 80 -InterfaceName $InterfaceName | Out-Null
+    #Add-NlbClusterPortRule -Protocol Tcp -Mode Multiple -Affinity Single -StartPort 443 -EndPort 443 -InterfaceName $InterfaceName | Out-Null
+    #Adding the second node to the cluster
+    Get-NlbCluster | Add-NlbClusterNode -NewNodeName ARRNODE02 -NewNodeInterface NLB
+    #Client Affinity: Do not enable it to see the load balacing between the two ARR Servers    
+    Get-NlbClusterPortRule | Set-NlbClusterPortRule -NewAffinity None
+}
+
+#region Certification Authority : Creation and SSL Certificate Generation
+#Get the CA
+$CertificationAuthority = Get-LabIssuingCA
+#Generating a new template for SSL Web Server certificate
+New-LabCATemplate -TemplateName WebServerSSL -DisplayName 'Web Server SSL' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ComputerName $CertificationAuthority -ErrorAction Stop
+#Getting a New SSL Web Server Certificate
+$WebServerSSLCert = Request-LabCertificate -Subject "CN=$WebSiteName" -SAN "arr", "$WebSiteName", "ARRNODE01", "ARRNODE01.$FQDNDomainName", "ARRNODE02", "ARRNODE02.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName ARRNODE01 -PassThru -ErrorAction Stop
+#Copying The Previously Generated Certificate to the second IIS node
+Get-LabCertificate -ComputerName ARRNODE01 -SearchString "$WebSiteName" -FindType FindBySubjectName  -ExportPrivateKey -Password $SecurePassword | Add-LabCertificate -ComputerName ARRNODE02 -Store My -Password $ClearTextPassword
+#endregion
+
 #Copying Web site content on all IIS & ARR servers
 Copy-LabFileItem -Path $CurrentDir\arr.contoso.com.zip -DestinationFolderPath C:\Temp -ComputerName ARRNODE01, ARRNODE02, IISNODE01, IISNODE02
+#Copying required IIS extensions on the ARR servers for ARR
+Copy-LabFileItem -Path $CurrentDir\Extensions.zip -DestinationFolderPath C:\Temp -ComputerName ARRNODE01, ARRNODE02
+
+Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into the future "Central Certificate Store" directory' -ComputerName ARRNODE01, ARRNODE02 -ScriptBlock {
+    #Restarting DFSR service
+    Restart-Service -Name DFSR -Force
+    Start-Sleep -Seconds 10
+
+    #Creating replicated folder for Central Certificate Store
+    New-Item -Path C:\CentralCertificateStore -ItemType Directory -Force
+
+    #Creating replicated folder for shared configuration
+    New-Item -Path C:\ARRSharedConfiguration -ItemType Directory -Force
+
+    $WebServerSSLCert = Get-ChildItem -Path Cert:\LocalMachine\My\ -DnsName "$using:WebSiteName" -SSLServerAuthentication | Where-Object -FilterScript {
+        $_.hasPrivateKey 
+    }  
+    if ($WebServerSSLCert)
+    {
+        $WebServerSSLCert | Export-PfxCertificate -FilePath "C:\CentralCertificateStore\$using:WebSiteName.pfx" -Password $Using:SecurePassword
+        #Bonus : To access directly to the SSL web site hosted on IIS nodes by using the node names
+        Copy-Item "C:\CentralCertificateStore\$using:WebSiteName.pfx" "C:\CentralCertificateStore\arrnode01.$using:FQDNDomainName.pfx"
+        Copy-Item "C:\CentralCertificateStore\$using:WebSiteName.pfx" "C:\CentralCertificateStore\arrnode02.$using:FQDNDomainName.pfx"
+        $WebServerSSLCert | Remove-Item -Force
+    }
+    else
+    {
+        Write-Error -Exception "[ERROR] Unable to create the 'Web Server SSL' certificate for $using:WebSiteName"
+    }
+
+    #Enabling the Central Certificate Store
+    Enable-WebCentralCertProvider -CertStoreLocation 'C:\CentralCertificateStore\' -UserName $Using:Logon -Password $Using:ClearTextPassword -PrivateKeyPassword $Using:ClearTextPassword
+}
 
 #Installing IIS and ASP.Net on all servers excepts DC
 Invoke-LabCommand -ActivityName 'IIS Setup' -ComputerName IISNODE01, IISNODE02, ARRNODE01, ARRNODE02 -ScriptBlock {
-    #Install-WindowsFeature FS-DFS-Replication, Web-Server,Web-Asp-Net45,Web-Request-Monitor -includeManagementTools
+    Expand-Archive 'C:\Temp\arr.contoso.com.zip' -DestinationPath C:\inetpub\wwwroot -Force
+
+    #PowerShell module for IIS Management
+    Import-Module -Name WebAdministration
+
     #Removing "Default Web Site"
     Remove-WebSite -Name 'Default Web Site'
 
@@ -198,7 +319,7 @@ Invoke-LabCommand -ActivityName 'IIS Setup' -ComputerName IISNODE01, IISNODE02, 
 
     #Creating a dedicated web site 
     New-WebSite -Name "$using:WebSiteName" -Port 80 -PhysicalPath "$env:systemdrive\inetpub\wwwroot" -Force
-    #Assigning the the arr.contoso.com application pool to the arr.contoso.com web sitre
+    #Assigning the the arr.contoso.com application pool to the arr.contoso.com web site
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:WebSiteName']/application[@path='/']" -name 'applicationPool' -value "$using:WebSiteName"
     #Enabling the Windows useAppPoolCredentials
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'useAppPoolCredentials' -value 'True'
@@ -211,84 +332,11 @@ Invoke-LabCommand -ActivityName 'IIS Setup' -ComputerName IISNODE01, IISNODE02, 
         value = 'default.aspx'
     } -Force
     
-    Expand-Archive 'C:\Temp\arr.contoso.com.zip' -DestinationPath C:\inetpub\wwwroot -Force
-    '<%=HttpContext.Current.Server.MachineName%>' | Out-File -FilePath 'C:\inetpub\wwwroot\server.aspx' -Force
-    'ok' | Out-File -FilePath 'C:\inetpub\wwwroot\healthcheck.aspx' -Force
 }
-
-#Installing and setting up DFS-R on DC for replicated folder on ARR Servers for shared confguration
-Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -ScriptBlock {
-    New-ADUser -Name "$Using:IISAppPoolUser" -PasswordNeverExpires $True -AccountPassword $Using:SecurePassword -CannotChangePassword $True -Enabled $True
-
-    #Reverse lookup zone creation
-    Add-DnsServerPrimaryZone -NetworkID '10.0.0.0/16' -ReplicationScope 'Forest' 
-    #DNS Host entry for the arr.contoso.com website 
-    Add-DnsServerResourceRecordA -Name 'arr' -ZoneName $using:FQDNDomainName -IPv4Address '10.0.0.101' -CreatePtr
-    #Installing DFS-R on ARR servers for the shared configuration
-    #Install-WindowsFeature FS-DFS-Replication -includeManagementTools
-
-    #Removing any DFS Replication group with the same name
-    Get-DfsReplicationGroup -GroupName 'ARR Shared Configuration' | Remove-DfsReplicationGroup -Force -RemoveReplicatedFolders
-    #Creating the DFS Replication group for the shared configuration
-    New-DfsReplicationGroup -GroupName 'ARR Shared Configuration' |
-    New-DfsReplicatedFolder -FolderName 'C:\ARRSharedConfiguration' |
-    Add-DfsrMember -ComputerName ARRNODE01, ARRNODE02
-    #Adding the member (replication in both ways)
-    Add-DfsrConnection -GroupName 'ARR Shared Configuration' -SourceComputerName 'ARRNODE01' -DestinationComputerName 'ARRNODE02'
-    #Adding the members and specifiyng the primary server
-    Set-DfsrMembership -GroupName 'ARR Shared Configuration' -FolderName 'C:\ARRSharedConfiguration' -ContentPath 'C:\ARRSharedConfiguration' -ComputerName 'ARRNODE01' -PrimaryMember $True -Force
-    Set-DfsrMembership -GroupName 'ARR Shared Configuration' -FolderName 'C:\ARRSharedConfiguration' -ContentPath 'C:\ARRSharedConfiguration' -ComputerName 'ARRNODE02' -Force
-
-    #Removing any DFS Replication group with the same name
-    Get-DfsReplicationGroup -GroupName 'IIS Shared Configuration' | Remove-DfsReplicationGroup -Force -RemoveReplicatedFolders
-    #Creating the DFS Replication group for the shared configuration
-    New-DfsReplicationGroup -GroupName 'IIS Shared Configuration' |
-    New-DfsReplicatedFolder -FolderName 'C:\IISSharedConfiguration' |
-    Add-DfsrMember -ComputerName IISNODE01, IISNODE02
-    #Adding the member (replication in both ways)
-    Add-DfsrConnection -GroupName 'IIS Shared Configuration' -SourceComputerName 'IISNODE01' -DestinationComputerName 'IISNODE02'
-    #Adding the members and specifiyng the primary server
-    Set-DfsrMembership -GroupName 'IIS Shared Configuration' -FolderName 'C:\IISSharedConfiguration' -ContentPath 'C:\IISSharedConfiguration' -ComputerName 'IISNODE01' -PrimaryMember $True -Force
-    Set-DfsrMembership -GroupName 'IIS Shared Configuration' -FolderName 'C:\IISSharedConfiguration' -ContentPath 'C:\IISSharedConfiguration' -ComputerName 'IISNODE02' -Force
-
-    Get-DfsReplicationGroup -GroupName 'Central Certificate Store' | Remove-DfsReplicationGroup -Force -RemoveReplicatedFolders
-    #Creating the DFS Replication group for the shared configuration
-    New-DfsReplicationGroup -GroupName 'Central Certificate Store' |
-    New-DfsReplicatedFolder -FolderName 'C:\CentralCertificateStore' |
-    Add-DfsrMember -ComputerName ARRNODE01, ARRNODE02
-    #Adding the member (replication in both ways)
-    Add-DfsrConnection -GroupName 'Central Certificate Store' -SourceComputerName 'ARRNODE01' -DestinationComputerName 'ARRNODE02'
-    #Adding the members and specifiyng the primary server
-    Set-DfsrMembership -GroupName 'Central Certificate Store' -FolderName 'C:\CentralCertificateStore' -ContentPath 'C:\CentralCertificateStore' -ComputerName 'ARRNODE01' -PrimaryMember $True -Force
-    Set-DfsrMembership -GroupName 'Central Certificate Store' -FolderName 'C:\CentralCertificateStore' -ContentPath 'C:\CentralCertificateStore' -ComputerName 'ARRNODE02' -Force
-
-    #Setting SPN on the Application Pool Identity
-    setspn.exe -S "HTTP/$using:WebSiteName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/arr" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/IISNODE01.$using:FQDNDomainName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/IISNODE01" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/IISNODE02.$using:FQDNDomainName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/IISNODE02" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/ARRNODE01.$using:FQDNDomainName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/ARRNODE01" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/ARRNODE02.$using:FQDNDomainName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/ARRNODE02" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-}
-
-#Copying required IIS extensions on the ARR servers for ARR
-Copy-LabFileItem -Path $CurrentDir\Extensions.zip -DestinationFolderPath C:\Temp -ComputerName ARRNODE01, ARRNODE02
 
 Invoke-LabCommand -ActivityName 'IIS Extensions, NLB and ARR Shared Configuration Setup on ARR servers' -ComputerName ARRNODE01, ARRNODE02 -ScriptBlock {
     Expand-Archive 'C:\Temp\Extensions.zip' -DestinationPath C:\ -Force
     C:\Extensions\Install-IISExtension.ps1
-
-    #Installing and setting up DFS-R, NLB and Windows Authentication on ARR Servers
-    #Install-WindowsFeature NLB, Web-CertProvider -includeManagementTools
-    #Renaming the NIC and setting up the metric for NLB management
-    Rename-NetAdapter -Name "$using:labName 0" -NewName 'Internal' -PassThru | Set-NetIPInterface -InterfaceMetric 1
-    Rename-NetAdapter -Name "$using:labName 1" -NewName 'NLB' -PassThru | Set-NetIPInterface -InterfaceMetric 2
-    #Creating replicated folder for shared configuration
-    New-Item -Path C:\ARRSharedConfiguration -ItemType Directory -Force
 
     #Adding handler for image watermark
     Add-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:WebSiteName"  -filter 'system.webServer/handlers' -name '.' -value @{
@@ -317,20 +365,6 @@ Invoke-LabCommand -ActivityName 'IIS Extensions, NLB and ARR Shared Configuratio
     }
 }
 
-Invoke-LabCommand -ActivityName 'NLB Setup' -ComputerName ARRNODE01 {
-    #Creating new NLB cluster
-    New-NlbCluster -HostName ARRNODE01 -ClusterName "$using:WebSiteName" -InterfaceName NLB -ClusterPrimaryIP 10.0.0.101 -SubnetMask 255.255.0.0 -OperationMode 'Multicast'
-    #Removing default port rule for the new cluster
-    #Get-NlbClusterPortRule -HostName . | Remove-NlbClusterPortRule -Force
-    #Adding port rules
-    #Add-NlbClusterPortRule -Protocol Tcp -Mode Multiple -Affinity Single -StartPort 80 -EndPort 80 -InterfaceName $InterfaceName | Out-Null
-    #Add-NlbClusterPortRule -Protocol Tcp -Mode Multiple -Affinity Single -StartPort 443 -EndPort 443 -InterfaceName $InterfaceName | Out-Null
-    #Adding the second node to the cluster
-    Get-NlbCluster | Add-NlbClusterNode -NewNodeName ARRNODE02 -NewNodeInterface NLB
-    #Client Affinity: Do not enable it to see the load balacing between the two ARR Servers    
-    Get-NlbClusterPortRule | Set-NlbClusterPortRule -NewAffinity None
-}
-
 #Installing and setting up ARR and NLB on ARR Servers
 Invoke-LabCommand -ActivityName 'SNI/CSS, ARR and URL Rewrite Setup' -ComputerName ARRNODE01, ARRNODE02 {
     Import-Module -Name WebAdministration
@@ -341,10 +375,10 @@ Invoke-LabCommand -ActivityName 'SNI/CSS, ARR and URL Rewrite Setup' -ComputerNa
     #3: SNI certificate in central certificate store.
     #New-WebBinding -Name "$using:WebSiteName" -Port 443 -IPAddress * -Protocol https -sslFlags 3 -HostHeader "$using:WebSiteName"
     New-WebBinding -Name "$using:WebSiteName" -sslFlags 3 -Protocol https -HostHeader "$using:WebSiteName"
+    #Binding for every ARR server nodes
+    New-WebBinding -Name "$using:WebSiteName" -sslFlags 3 -Protocol https -HostHeader "arrnode01.$using:FQDNDomainName"
+    New-WebBinding -Name "$using:WebSiteName" -sslFlags 3 -Protocol https -HostHeader "arrnode02.$using:FQDNDomainName"
     New-Item -Path "IIS:\SslBindings\!443!$using:WebSiteName" -sslFlags 3 -Store CentralCertStore
-    #Bonus : To access directly to the SSL web site hosted on ARR nodes by using the arr node names.
-    Copy-Item "C:\CentralCertificateStore\$using:WebSiteName.pfx" "C:\CentralCertificateStore\$env:COMPUTERNAME.$using:FQDNDomainName.pfx"
-    New-WebBinding -Name "$using:WebSiteName" -sslFlags 3 -Protocol https -HostHeader "$env:COMPUTERNAME.$using:FQDNDomainName"
 
     #Removing Default Binding
     #Get-WebBinding -Port 80 -Name "$using:WebSiteName" | Remove-WebBinding
@@ -382,7 +416,7 @@ Invoke-LabCommand -ActivityName 'SNI/CSS, ARR and URL Rewrite Setup' -ComputerNa
 
     #Heatlcheck test page and pattern to found if ok
     Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter "webFarms/webFarm[@name='$using:WebSiteName']/applicationRequestRouting" -Name 'healthcheck' -Value @{
-        url           = "http://$using:WebSiteName/healthcheck.aspx"
+        url           = "http://$using:WebSiteName/healthcheck/default.aspx"
         interval      = '00:00:05'
         responseMatch = 'ok'
     }
@@ -460,7 +494,7 @@ Invoke-LabCommand -ActivityName 'SNI/CSS, ARR and URL Rewrite Setup' -ComputerNa
     }
 }
 
-Invoke-LabCommand -ActivityName 'Exporting IIS Shared Configuration and Windows Authentication Setup' -ComputerName IISNODE01 -ScriptBlock {
+Invoke-LabCommand -ActivityName 'Windows Authentication Setup' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
     #Changing the application pool identity for an AD Account : mandatory for Kerberos authentication
     Import-Module -Name WebAdministration
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']/processModel" -name 'identityType' -value 3
@@ -472,46 +506,41 @@ Invoke-LabCommand -ActivityName 'Exporting IIS Shared Configuration and Windows 
     #Enabling the Windows authentication
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'enabled' -value 'True'
 
-    #Enabling the Anonymous authentication for the healthcheck test page
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName/healthcheck.aspx" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'True'
-    #Disabling the Windows authentication for the healthcheck test page
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName/healthcheck.aspx" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'enabled' -value 'False'
+    #Enabling the Anonymous authentication for the healthcheck folder
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName/healthcheck/" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'True'
+    #Disabling the Windows authentication for the healthcheck folder
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName/healthcheck/" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'enabled' -value 'False'
 
     #Disabling validation for application pool in integrated mode due to ASP.Net impersonation incompatibility
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName"  -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False' -verbose
+}
 
-    New-Item -Path C:\IISSharedConfiguration -ItemType Directory -Force
-    #Exporting the configuration
+#Exporting IIS Shared Configuration from the first IIS node
+Invoke-LabCommand -ActivityName 'Exporting IIS Shared Configuration' -ComputerName IISNODE01 {
+    #Exporting the configuration only from one node
     Export-IISConfiguration -PhysicalPath C:\IISSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
 }
 
-Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration on IIS servers' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
-    #Install-WindowsFeature Web-Windows-Auth  -includeManagementTools
-    New-Item -Path C:\IISSharedConfiguration -ItemType Directory -Force
-
-    #Enabling ASP.Net Impersonation (local web.config)
-    Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:WebSiteName"  -filter 'system.web/identity' -name 'impersonate' -value 'True'
-
+#Enabling the shared configuration for all IIS nodes
+Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
+    #Waiting the DFS replication completes
     While (-not(Test-Path -Path C:\IISSharedConfiguration\applicationHost.config))
     {
         Write-Verbose -Message 'Waiting the replication via DFS-R of applicationHost.config. Sleeping 10 seconds ...'
         Start-Sleep -Seconds 10
     }
-    #Enabling the shared configuration
-    Enable-IISSharedConfig  -PhysicalPath C:\IISSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
+    Enable-IISSharedConfig  -PhysicalPath C:\IISSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force   
 }
 
-Invoke-LabCommand -ActivityName 'Exporting IIS Shared Configuration' -ComputerName ARRNODE01 -ScriptBlock {
-    #Changing the application pool identity for an AD Account : mandatory for Kerberos authentication
-    New-Item -Path C:\ARRSharedConfiguration -ItemType Directory -Force
-    #Exporting the configuration
+#Exporting IIS Shared Configuration from the first ARR server node
+Invoke-LabCommand -ActivityName 'Exporting IIS Shared Configuration' -ComputerName ARRNODE01 {
+    #Exporting the configuration only from one node
     Export-IISConfiguration -PhysicalPath C:\ARRSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
-    Enable-IISSharedConfig  -PhysicalPath C:\ARRSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
 }
 
-Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration on ARR servers' -ComputerName ARRNODE02 -ScriptBlock {
-    New-Item -Path C:\ARRSharedConfiguration -ItemType Directory -Force
-    #Enabling the shared configuration
+#Enabling the shared configuration for all ARR server nodes
+Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration' -ComputerName ARRNODE01, ARRNODE02 -ScriptBlock {
+    #Waiting the DFS replication completes
     While (-not(Test-Path -Path C:\ARRSharedConfiguration\applicationHost.config))
     {
         Write-Verbose -Message 'Waiting the replication via DFS-R of applicationHost.config. Sleeping 10 seconds ...'
