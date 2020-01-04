@@ -68,6 +68,7 @@ If (Test-Path -Path C:\ProgramData\AutomatedLab\Labs\$LabName\Lab.xml)
     }
 }
 #endregion
+
 #create an empty lab template and define where the lab XML files and the VMs will be stored
 New-LabDefinition -Name $LabName -DefaultVirtualizationEngine HyperV
 
@@ -96,8 +97,7 @@ Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress 10.0.0.1
 #Certificate Authority
 Add-LabMachineDefinition -Name CA01 -Roles CARoot -IpAddress 10.0.0.2
 
-
-#region 2 NICS for IIS servers (1 for server communications and 1 for NLB)
+#region IIS front-end servers : 2 NICS for  (1 for server communications and 1 for NLB)
 $netAdapter = @()
 $netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address 10.0.0.21/16
 $netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address 10.0.0.201/16
@@ -149,15 +149,18 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $WebSiteName to the
     New-ItemProperty -Path $path -PropertyType MultiString -Name $name -Value $value -Force
 }
 
-#Installing and setting up DFS-R on DC for replicated folder on IIS Servers for shared confguration
+#Installing and setting up DFS-R on DC for replicated folder on IIS Servers for shared configuration
 Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -ScriptBlock {
     New-ADUser -Name "$Using:IISAppPoolUser" -PasswordNeverExpires $True -AccountPassword $Using:SecurePassword -CannotChangePassword $True -Enabled $True
 
+    #region DNS management
     #Reverse lookup zone creation
     Add-DnsServerPrimaryZone -NetworkID '10.0.0.0/16' -ReplicationScope 'Forest' 
     #DNS Host entry for the nlb.contoso.com website 
     Add-DnsServerResourceRecordA -Name 'nlb' -ZoneName $using:FQDNDomainName -IPv4Address '10.0.0.101' -CreatePtr
+    #endregion
 
+    #region IIS Shared Configuration
     #Removing any DFS Replication group with the same name
     Get-DfsReplicationGroup -GroupName 'IIS Shared Configuration' | Remove-DfsReplicationGroup -Force -RemoveReplicatedFolders
     #Creating the DFS Replication group for the shared configuration
@@ -169,7 +172,9 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Sc
     #Adding the members and specifiyng the primary server
     Set-DfsrMembership -GroupName 'IIS Shared Configuration' -FolderName 'C:\IISSharedConfiguration' -ContentPath 'C:\IISSharedConfiguration' -ComputerName 'IISNODE01' -PrimaryMember $True -Force
     Set-DfsrMembership -GroupName 'IIS Shared Configuration' -FolderName 'C:\IISSharedConfiguration' -ContentPath 'C:\IISSharedConfiguration' -ComputerName 'IISNODE02' -Force
+    #endregion
 
+    #region Central Certificate Store
     #Removing any DFS Replication group with the same name
     Get-DfsReplicationGroup -GroupName 'Central Certificate Store' | Remove-DfsReplicationGroup -Force -RemoveReplicatedFolders
     #Creating the DFS Replication group for the shared configuration
@@ -181,17 +186,19 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Sc
     #Adding the members and specifiyng the primary server
     Set-DfsrMembership -GroupName 'Central Certificate Store' -FolderName 'C:\CentralCertificateStore' -ContentPath 'C:\CentralCertificateStore' -ComputerName 'IISNODE01' -PrimaryMember $True -Force
     Set-DfsrMembership -GroupName 'Central Certificate Store' -FolderName 'C:\CentralCertificateStore' -ContentPath 'C:\CentralCertificateStore' -ComputerName 'IISNODE02' -Force
+    #endregion
 
-    #Setting SPN on the Application Pool Identity
+    #region Setting SPN on the Application Pool Identity
     setspn.exe -S "HTTP/$using:WebSiteName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
     setspn.exe -S "HTTP/nlb" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
     setspn.exe -S "HTTP/IISNODE01.$using:FQDNDomainName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
     setspn.exe -S "HTTP/IISNODE01" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
     setspn.exe -S "HTTP/IISNODE02.$using:FQDNDomainName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
     setspn.exe -S "HTTP/IISNODE02" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
+    #endregion
 }
 
-#Renaming the NIC and setting up the metric for NLB management
+#IIS front-end servers : Renaming the NIC and setting up the metric for NLB management
 Invoke-LabCommand -ActivityName 'Renaming NICs' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
 
     #Renaming the NIC and setting up the metric for NLB management
@@ -232,6 +239,9 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
     Restart-Service -Name DFSR -Force
     Start-Sleep -Seconds 10
 
+    #Creating replicated folder for Central Certificate Store
+    New-Item -Path C:\CentralCertificateStore -ItemType Directory -Force
+
     #Getting the local SSL Certificate
     $WebServerSSLCert = Get-ChildItem -Path Cert:\LocalMachine\My\ -DnsName "$using:WebSiteName" -SSLServerAuthentication | Where-Object -FilterScript {
         $_.hasPrivateKey 
@@ -251,8 +261,6 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
         Write-Error -Exception "[ERROR] Unable to get the 'Web Server SSL' certificate for $using:WebSiteName"
     }
 
-    #Creating replicated folder for Central Certificate Store
-    New-Item -Path C:\CentralCertificateStore -ItemType Directory -Force
     #Enabling the Central Certificate Store
     Enable-WebCentralCertProvider -CertStoreLocation 'C:\CentralCertificateStore\' -UserName $Using:Logon -Password $Using:ClearTextPassword -PrivateKeyPassword $Using:ClearTextPassword
 
@@ -305,7 +313,6 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
     New-Item -Path "IIS:\SslBindings\!443!$using:WebSiteName" -sslFlags 3 -Store CentralCertStore
     #Removing Default Binding
     #Get-WebBinding -Port 80 -Name "$using:WebSiteName" | Remove-WebBinding
-    #Bonus : To access directly to the SSL web site hosted on IIS nodes
 
     #Require SSL
     Get-IISConfigSection -SectionPath 'system.webServer/security/access' -Location "$using:WebSiteName" | Set-IISConfigAttributeValue -AttributeName sslFlags -AttributeValue Ssl

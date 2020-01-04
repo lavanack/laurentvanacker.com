@@ -334,7 +334,7 @@ Invoke-LabCommand -ActivityName 'IIS Setup' -ComputerName IISNODE01, IISNODE02, 
     
 }
 
-Invoke-LabCommand -ActivityName 'IIS Extensions, NLB and ARR Shared Configuration Setup on ARR servers' -ComputerName ARRNODE01, ARRNODE02 -ScriptBlock {
+Invoke-LabCommand -ActivityName 'IIS Extensions, SNI/CSS Setup, ARR and URL Rewrite Setup' -ComputerName ARRNODE01, ARRNODE02 -ScriptBlock {
     Expand-Archive 'C:\Temp\Extensions.zip' -DestinationPath C:\ -Force
     C:\Extensions\Install-IISExtension.ps1
 
@@ -363,10 +363,7 @@ Invoke-LabCommand -ActivityName 'IIS Extensions, NLB and ARR Shared Configuratio
         resourceType  = 'Unspecified'
         requireAccess = 'Script'
     }
-}
 
-#Installing and setting up ARR and NLB on ARR Servers
-Invoke-LabCommand -ActivityName 'SNI/CSS, ARR and URL Rewrite Setup' -ComputerName ARRNODE01, ARRNODE02 {
     Import-Module -Name WebAdministration
     #Adding a HTTP:443 Binding
     #0: Regular certificate in Windows certificate storage.
