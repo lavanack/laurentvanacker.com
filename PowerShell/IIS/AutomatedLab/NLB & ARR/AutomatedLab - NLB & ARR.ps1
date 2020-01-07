@@ -15,7 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -RunAsAdministrator
+#requires -Version 5 -Modules AutomatedLab -RunAsAdministrator 
 Clear-Host
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'Continue'
@@ -256,7 +256,7 @@ $CertificationAuthority = Get-LabIssuingCA
 #Generating a new template for SSL Web Server certificate
 New-LabCATemplate -TemplateName WebServerSSL -DisplayName 'Web Server SSL' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ComputerName $CertificationAuthority -ErrorAction Stop
 #Getting a New SSL Web Server Certificate
-$WebServerSSLCert = Request-LabCertificate -Subject "CN=$WebSiteName" -SAN "arr", "$WebSiteName", "ARRNODE01", "ARRNODE01.$FQDNDomainName", "ARRNODE02", "ARRNODE02.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName ARRNODE01 -PassThru -ErrorAction Stop
+$WebServerSSLCert = Request-LabCertificate -Subject "CN=$WebSiteName" -SAN $WebSiteName, "arr", "ARRNODE01", "ARRNODE01.$FQDNDomainName", "ARRNODE02", "ARRNODE02.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName ARRNODE01 -PassThru -ErrorAction Stop
 #Copying The Previously Generated Certificate to the second IIS node
 Get-LabCertificate -ComputerName ARRNODE01 -SearchString "$WebSiteName" -FindType FindBySubjectName  -ExportPrivateKey -Password $SecurePassword | Add-LabCertificate -ComputerName ARRNODE02 -Store My -Password $ClearTextPassword
 #endregion
@@ -318,9 +318,9 @@ Invoke-LabCommand -ActivityName 'IIS Setup' -ComputerName IISNODE01, IISNODE02, 
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']/processModel" -name 'password' -value $Using:ClearTextPassword
 
     #Creating a dedicated web site 
-    New-WebSite -Name "$using:WebSiteName" -Port 80 -PhysicalPath "$env:systemdrive\inetpub\wwwroot" -Force
+    New-WebSite -Name "$using:WebSiteName" -Port 80 -PhysicalPath "$env:systemdrive\inetpub\wwwroot" -ApplicationPool $using:WebSiteName -Force
     #Assigning the the arr.contoso.com application pool to the arr.contoso.com web site
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:WebSiteName']/application[@path='/']" -name 'applicationPool' -value "$using:WebSiteName"
+    #Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:WebSiteName']/application[@path='/']" -name 'applicationPool' -value "$using:WebSiteName"
     #Enabling the Windows useAppPoolCredentials
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'useAppPoolCredentials' -value 'True'
 
@@ -370,7 +370,6 @@ Invoke-LabCommand -ActivityName 'IIS Extensions, SNI/CSS Setup, ARR and URL Rewr
     #1: SNI certificate.
     #2: Central certificate store.
     #3: SNI certificate in central certificate store.
-    #New-WebBinding -Name "$using:WebSiteName" -Port 443 -IPAddress * -Protocol https -sslFlags 3 -HostHeader "$using:WebSiteName"
     New-WebBinding -Name "$using:WebSiteName" -sslFlags 3 -Protocol https -HostHeader "$using:WebSiteName"
     #Binding for every ARR server nodes
     New-WebBinding -Name "$using:WebSiteName" -sslFlags 3 -Protocol https -HostHeader "arrnode01.$using:FQDNDomainName"
