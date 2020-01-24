@@ -34,15 +34,49 @@ $NetBiosDomainName = 'CONTOSO'
 $FQDNDomainName = 'contoso.com'
 $IISAppPoolUser = 'IISAppPoolUser'
 $ADUser='JohnDoe'
-$AnonymousWebSiteName="anonymous.$FQDNDomainName"
-$BasicWebSiteName="basic.$FQDNDomainName"
-$KerberosWebSiteName="kerberos.$FQDNDomainName"
-$NTLMWebSiteName="ntlm.$FQDNDomainName"
-$DigestWebSiteName="digest.$FQDNDomainName"
-$ADClientCertWebSiteName="adclientcert.$FQDNDomainName"
-$IISClientOneToOneCertWebSiteName="iisclientcert-onetoone.$FQDNDomainName"
-$IISClientManyToOneCertWebSiteName="iisclientcert-manytoone.$FQDNDomainName"
-$FormsWebSiteName="forms.$FQDNDomainName"
+
+$NetworkID='10.0.0.0/16' 
+$DCIPv4Address = '10.0.0.1'
+$CAIPv4Address = '10.0.0.2'
+$IISNODEIPv4Address = '10.0.0.21'
+$CLIENTIPv4Address = '10.0.0.22'
+
+$AnonymousNetBiosName='anonymous'
+$AnonymousWebSiteName="$AnonymousNetBiosName.$FQDNDomainName"
+$AnonymousIPv4Address = '10.0.0.101'
+
+$BasicNetBiosName='basic'
+$BasicWebSiteName="$BasicNetBiosName.$FQDNDomainName"
+$BasicIPv4Address = '10.0.0.102'
+
+$KerberosNetBiosName='kerberos'
+$KerberosWebSiteName="$KerberosNetBiosName.$FQDNDomainName"
+$KerberosIPv4Address = '10.0.0.103'
+
+$NTLMNetBiosName='ntlm'
+$NTLMWebSiteName="$NTLMNetBiosName.$FQDNDomainName"
+$NTLMIPv4Address = '10.0.0.104'
+
+$DigestNetBiosName='digest'
+$DigestWebSiteName="$DigestNetBiosName.$FQDNDomainName"
+$DigestIPv4Address = '10.0.0.105'
+
+$ADClientCertNetBiosName='adclientcert'
+$ADClientCertWebSiteName="$ADClientCertNetBiosName.$FQDNDomainName"
+$ADClientCertIPv4Address = '10.0.0.106'
+
+$IISClientOneToOneCertNetBiosName='iisclientcert-onetoone'
+$IISClientOneToOneCertWebSiteName="$IISClientOneToOneCertNetBiosName.$FQDNDomainName"
+$IISClientOneToOneCertIPv4Address = '10.0.0.107'
+
+$IISClientManyToOneCertNetBiosName='iisclientcert-manytoone'
+$IISClientManyToOneCertWebSiteName="$IISClientManyToOneCertNetBiosName.$FQDNDomainName"
+$IISClientManyToOneCertIPv4Address = '10.0.0.108'
+
+$FormsNetBiosName='forms'
+$FormsWebSiteName="$FormsNetBiosName.$FQDNDomainName"
+$FormsIPv4Address = '10.0.0.109'
+
 
 $LabName = 'IISAuthLab'
 #endregion
@@ -84,7 +118,7 @@ New-LabDefinition -Name $LabName -DefaultVirtualizationEngine HyperV
 #make the network definition
 Add-LabVirtualNetworkDefinition -Name $LabName -HyperVProperties @{
     SwitchType = 'Internal'
-} -AddressSpace 10.0.0.0/16
+} -AddressSpace $NetworkID
 
 #and the domain definition with the domain admin account
 Add-LabDomainDefinition -Name $FQDNDomainName -AdminUser $Logon -AdminPassword $ClearTextPassword
@@ -103,13 +137,13 @@ $PSDefaultParameterValues = @{
 
 #region server definitions
 #Domain controller
-Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress 10.0.0.1
+Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress $DCIPv4Address
 #Certificate Authority
-Add-LabMachineDefinition -Name CA01 -Roles CARoot -IpAddress 10.0.0.2
+Add-LabMachineDefinition -Name CA01 -Roles CARoot -IpAddress $CAIPv4Address
 #IIS front-end server
-Add-LabMachineDefinition -Name IISNODE01 -IpAddress 10.0.0.21
+Add-LabMachineDefinition -Name IISNODE01 -IpAddress $IISNODEIPv4Address
 #IIS front-end server
-Add-LabMachineDefinition -Name CLIENT01 -IpAddress 10.0.0.22
+Add-LabMachineDefinition -Name CLIENT01 -IpAddress $CLIENTIPv4Address
 #endregion
 
 #Installing servers
@@ -160,17 +194,17 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Sc
 
     #region DNS management
     #Reverse lookup zone creation
-    Add-DnsServerPrimaryZone -NetworkID '10.0.0.0/16' -ReplicationScope 'Forest' 
+    Add-DnsServerPrimaryZone -NetworkID $using:NetworkID -ReplicationScope 'Forest' 
     #DNS Host entry for the kerberos.contoso.com website 
-    Add-DnsServerResourceRecordA -Name 'anonymous' -ZoneName $using:FQDNDomainName -IPv4Address '10.0.0.101' -CreatePtr
-    Add-DnsServerResourceRecordA -Name 'basic' -ZoneName $using:FQDNDomainName -IPv4Address '10.0.0.102' -CreatePtr
-    Add-DnsServerResourceRecordA -Name 'kerberos' -ZoneName $using:FQDNDomainName -IPv4Address '10.0.0.103' -CreatePtr
-    Add-DnsServerResourceRecordA -Name 'ntlm' -ZoneName $using:FQDNDomainName -IPv4Address '10.0.0.104' -CreatePtr
-    Add-DnsServerResourceRecordA -Name 'digest' -ZoneName $using:FQDNDomainName -IPv4Address '10.0.0.105' -CreatePtr
-    Add-DnsServerResourceRecordA -Name 'adclientcert' -ZoneName $using:FQDNDomainName -IPv4Address '10.0.0.106' -CreatePtr
-    Add-DnsServerResourceRecordA -Name 'iisclientcert-onetoone' -ZoneName $using:FQDNDomainName -IPv4Address '10.0.0.107' -CreatePtr
-    Add-DnsServerResourceRecordA -Name 'iisclientcert-manytoone' -ZoneName $using:FQDNDomainName -IPv4Address '10.0.0.108' -CreatePtr
-    Add-DnsServerResourceRecordA -Name 'forms' -ZoneName $using:FQDNDomainName -IPv4Address '10.0.0.109' -CreatePtr
+    Add-DnsServerResourceRecordA -Name "$using:AnonymousNetBiosName" -ZoneName "$using:FQDNDomainName" -IPv4Address "$using:AnonymousIPv4Address" -CreatePtr
+    Add-DnsServerResourceRecordA -Name "$using:BasicNetBiosName" -ZoneName "$using:FQDNDomainName" -IPv4Address "$using:BasicIPv4Address" -CreatePtr
+    Add-DnsServerResourceRecordA -Name "$using:KerberosNetBiosName" -ZoneName "$using:FQDNDomainName" -IPv4Address "$using:KerberosIPv4Address" -CreatePtr
+    Add-DnsServerResourceRecordA -Name "$using:NTLMNetBiosName" -ZoneName "$using:FQDNDomainName" -IPv4Address "$using:NTLMIPv4Address" -CreatePtr
+    Add-DnsServerResourceRecordA -Name "$using:DigestNetBiosName" -ZoneName "$using:FQDNDomainName" -IPv4Address "$using:DigestIPv4Address" -CreatePtr
+    Add-DnsServerResourceRecordA -Name "$using:ADClientCertNetBiosName" -ZoneName "$using:FQDNDomainName" -IPv4Address "$using:ADClientCertIPv4Address" -CreatePtr
+    Add-DnsServerResourceRecordA -Name "$using:IISClientOneToOneCertNetBiosName" -ZoneName "$using:FQDNDomainName" -IPv4Address "$using:IISClientOneToOneCertIPv4Address" -CreatePtr
+    Add-DnsServerResourceRecordA -Name "$using:IISClientManyToOneCertNetBiosName" -ZoneName "$using:FQDNDomainName" -IPv4Address "$using:IISClientManyToOneCertIPv4Address" -CreatePtr
+    Add-DnsServerResourceRecordA -Name "$using:FormsNetBiosName" -ZoneName "$using:FQDNDomainName" -IPv4Address "$using:FormsIPv4Address" -CreatePtr
     #endregion
 
     #region Setting SPN on the Application Pool Identity for kerberos authentication
@@ -217,15 +251,16 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     [Environment]::SetEnvironmentVariable("SSLKEYLOGFILE", "$env:USERPROFILE\AppData\Local\ssl-keys.log", "User")
     
     #region Assigning dedicated IP address
-    New-NetIPAddress –IPAddress 10.0.0.101 –PrefixLength 24 –InterfaceAlias "Ethernet" 
-    New-NetIPAddress –IPAddress 10.0.0.102 –PrefixLength 24 –InterfaceAlias "Ethernet" 
-    New-NetIPAddress –IPAddress 10.0.0.103 –PrefixLength 24 –InterfaceAlias "Ethernet" 
-    New-NetIPAddress –IPAddress 10.0.0.104 –PrefixLength 24 –InterfaceAlias "Ethernet" 
-    New-NetIPAddress –IPAddress 10.0.0.105 –PrefixLength 24 –InterfaceAlias "Ethernet" 
-    New-NetIPAddress –IPAddress 10.0.0.106 –PrefixLength 24 –InterfaceAlias "Ethernet" 
-    New-NetIPAddress –IPAddress 10.0.0.107 –PrefixLength 24 –InterfaceAlias "Ethernet" 
-    New-NetIPAddress –IPAddress 10.0.0.108 –PrefixLength 24 –InterfaceAlias "Ethernet" 
-    New-NetIPAddress –IPAddress 10.0.0.109 –PrefixLength 24 –InterfaceAlias "Ethernet" 
+    New-NetIPAddress –IPAddress $using:AnonymousIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
+    New-NetIPAddress –IPAddress $using:BasicIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
+    New-NetIPAddress –IPAddress $using:KerberosIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
+    New-NetIPAddress –IPAddress $using:NTLMIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
+    New-NetIPAddress –IPAddress $using:DigestIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
+    New-NetIPAddress –IPAddress $using:ADClientCertIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
+    New-NetIPAddress –IPAddress $using:IISClientOneToOneCertIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
+    New-NetIPAddress –IPAddress $using:IISClientManyToOneCertIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
+    New-NetIPAddress –IPAddress $using:FormsIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
+ 
     #endregion
 
     #Creating directory tree for hosting web sites
@@ -234,15 +269,15 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     Get-ACl C:\inetpub\wwwroot | Set-Acl C:\WebSites
     
     #region unzipping site content to dedicated folders
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath C:\WebSites\$using:AnonymousWebSiteName -Force
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath C:\WebSites\$using:BasicWebSiteName -Force
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath C:\WebSites\$using:KerberosWebSiteName -Force
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath C:\WebSites\$using:NTLMWebSiteName -Force
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath C:\WebSites\$using:DigestWebSiteName -Force
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath C:\WebSites\$using:ADClientCertWebSiteName -Force
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath C:\WebSites\$using:IISClientOneToOneCertWebSiteName -Force
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath C:\WebSites\$using:IISClientManyToOneCertWebSiteName -Force
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath C:\WebSites\$using:FormsWebSiteName -Force
+    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:AnonymousWebSiteName" -Force
+    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:BasicWebSiteName" -Force
+    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:KerberosWebSiteName" -Force
+    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:NTLMWebSiteName" -Force
+    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:DigestWebSiteName" -Force
+    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:ADClientCertWebSiteName" -Force
+    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:IISClientOneToOneCertWebSiteName" -Force
+    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:IISClientManyToOneCertWebSiteName" -Force
+    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:FormsWebSiteName" -Force
     #endregion
 
     #PowerShell module for IIS Management
@@ -273,15 +308,15 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #endregion
 
     #region Creating a dedicated web sites
-    New-WebSite -Name "$using:AnonymousWebSiteName" -Port 80 -IPAddress 10.0.0.101 -PhysicalPath "C:\WebSites\$using:AnonymousWebSiteName" -ApplicationPool $using:AnonymousWebSiteName -Force
-    New-WebSite -Name "$using:BasicWebSiteName" -Port 443 -IPAddress 10.0.0.102 -PhysicalPath "C:\WebSites\$using:BasicWebSiteName" -ApplicationPool $using:BasicWebSiteName -Ssl -SslFlags 0 -Force
-    New-WebSite -Name "$using:KerberosWebSiteName" -Port 80 -IPAddress 10.0.0.103 -PhysicalPath "C:\WebSites\$using:KerberosWebSiteName" -ApplicationPool $using:KerberosWebSiteName -Force
-    New-WebSite -Name "$using:NTLMWebSiteName" -Port 80 -IPAddress 10.0.0.104 -PhysicalPath "C:\WebSites\$using:NTLMWebSiteName" -ApplicationPool $using:NTLMWebSiteName -Force
-    New-WebSite -Name "$using:DigestWebSiteName" -Port 80 -IPAddress 10.0.0.105 -PhysicalPath "C:\WebSites\$using:DigestWebSiteName" -ApplicationPool $using:DigestWebSiteName -Force
-    New-WebSite -Name "$using:ADClientCertWebSiteName" -Port 443 -IPAddress 10.0.0.106 -PhysicalPath "C:\WebSites\$using:ADClientCertWebSiteName" -ApplicationPool $using:ADClientCertWebSiteName -Ssl -SslFlags 0 -Force
-    New-WebSite -Name "$using:IISClientOneToOneCertWebSiteName" -Port 443 -IPAddress 10.0.0.107 -PhysicalPath "C:\WebSites\$using:IISClientOneToOneCertWebSiteName" -ApplicationPool $using:IISClientOneToOneCertWebSiteName -Ssl -SslFlags 0 -Force
-    New-WebSite -Name "$using:IISClientManyToOneCertWebSiteName" -Port 443 -IPAddress 10.0.0.108 -PhysicalPath "C:\WebSites\$using:IISClientManyToOneCertWebSiteName" -ApplicationPool $using:IISClientManyToOneCertWebSiteName -Ssl -SslFlags 0 -Force
-    New-WebSite -Name "$using:FormsWebSiteName" -Port 443 -IPAddress 10.0.0.109 -PhysicalPath "C:\WebSites\$using:FormsWebSiteName" -ApplicationPool $using:FormsWebSiteName -Ssl -SslFlags 0 -Force
+    New-WebSite -Name "$using:AnonymousWebSiteName" -Port 80 -IPAddress $using:AnonymousIPv4Address -PhysicalPath "C:\WebSites\$using:AnonymousWebSiteName" -ApplicationPool "$using:AnonymousWebSiteName" -Force
+    New-WebSite -Name "$using:BasicWebSiteName" -Port 443 -IPAddress $using:BasicIPv4Address -PhysicalPath "C:\WebSites\$using:BasicWebSiteName" -ApplicationPool "$using:BasicWebSiteName" -Ssl -SslFlags 0 -Force
+    New-WebSite -Name "$using:KerberosWebSiteName" -Port 80 -IPAddress $using:KerberosIPv4Address -PhysicalPath "C:\WebSites\$using:KerberosWebSiteName" -ApplicationPool "$using:KerberosWebSiteName" -Force
+    New-WebSite -Name "$using:NTLMWebSiteName" -Port 80 -IPAddress $using:NTLMIPv4Address -PhysicalPath "C:\WebSites\$using:NTLMWebSiteName" -ApplicationPool "$using:NTLMWebSiteName" -Force
+    New-WebSite -Name "$using:DigestWebSiteName" -Port 80 -IPAddress $using:DigestIPv4Address -PhysicalPath "C:\WebSites\$using:DigestWebSiteName" -ApplicationPool "$using:DigestWebSiteName" -Force
+    New-WebSite -Name "$using:ADClientCertWebSiteName" -Port 443 -IPAddress $using:ADClientCertIPv4Address -PhysicalPath "C:\WebSites\$using:ADClientCertWebSiteName" -ApplicationPool "$using:ADClientCertWebSiteName" -Ssl -SslFlags 0 -Force
+    New-WebSite -Name "$using:IISClientOneToOneCertWebSiteName" -Port 443 -IPAddress $using:IISClientOneToOneCertIPv4Address -PhysicalPath "C:\WebSites\$using:IISClientOneToOneCertWebSiteName" -ApplicationPool "$using:IISClientOneToOneCertWebSiteName" -Ssl -SslFlags 0 -Force
+    New-WebSite -Name "$using:IISClientManyToOneCertWebSiteName" -Port 443 -IPAddress $using:IISClientManyToOneCertIPv4Address -PhysicalPath "C:\WebSites\$using:IISClientManyToOneCertWebSiteName" -ApplicationPool "$using:IISClientManyToOneCertWebSiteName" -Ssl -SslFlags 0 -Force
+    New-WebSite -Name "$using:FormsWebSiteName" -Port 443 -IPAddress $using:FormsIPv4Address -PhysicalPath "C:\WebSites\$using:FormsWebSiteName" -ApplicationPool "$using:FormsWebSiteName" -Ssl -SslFlags 0 -Force
     #endregion
 
     #region : Anonymous website management
@@ -295,7 +330,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #1: SNI certificate.
     #2: Central certificate store.
     #3: SNI certificate in central certificate store.
-    New-Item -Path "IIS:\SslBindings\10.0.0.102!443!$using:BasicWebSiteName" -Thumbprint $($using:BasicWebSiteSSLCert).Thumbprint -sslFlags 0
+    New-Item -Path "IIS:\SslBindings\$using:BasicIPv4Address!443!$using:BasicWebSiteName" -Thumbprint $($using:BasicWebSiteSSLCert).Thumbprint -sslFlags 0
     #Require SSL
     #Get-IISConfigSection -SectionPath 'system.webServer/security/access' -Location "$using:BasicWebSiteName" | Set-IISConfigAttributeValue -AttributeName sslFlags -AttributeValue Ssl
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:BasicWebSiteName" -filter "system.webServer/security/access" -name "sslFlags" -value "Ssl"
@@ -373,7 +408,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #1: SNI certificate.
     #2: Central certificate store.
     #3: SNI certificate in central certificate store.
-    New-Item -Path "IIS:\SslBindings\10.0.0.106!443!$using:ADClientCertWebSiteName" -Thumbprint $($using:ADClientCertWebSiteSSLCert).Thumbprint -sslFlags 0
+    New-Item -Path "IIS:\SslBindings\$using:ADClientCertIPv4Address!443!$using:ADClientCertWebSiteName" -Thumbprint $($using:ADClientCertWebSiteSSLCert).Thumbprint -sslFlags 0
     #Enabling the 'Active Directory Client Certificate Authentication' at the server level 
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.webServer/security/authentication/clientCertificateMappingAuthentication" -name "enabled" -value "True"
     #Enabling DsMapper for the website (mandatory) for AD Client Certificate
@@ -402,7 +437,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #1: SNI certificate.
     #2: Central certificate store.
     #3: SNI certificate in central certificate store.
-    New-Item -Path "IIS:\SslBindings\10.0.0.107!443!$using:IISClientOneToOneCertWebSiteName" -Thumbprint $($using:IISClientOneToOneCertWebSiteSSLCert).Thumbprint -sslFlags 0
+    New-Item -Path "IIS:\SslBindings\$using:IISClientOneToOneCertIPv4Address!443!$using:IISClientOneToOneCertWebSiteName" -Thumbprint $($using:IISClientOneToOneCertWebSiteSSLCert).Thumbprint -sslFlags 0
     #SSL + Negotiate Client Certificate 
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter "system.webServer/security/access" -name "sslFlags" -value "Ssl,SslNegotiateCert"
     
@@ -429,7 +464,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #1: SNI certificate.
     #2: Central certificate store.
     #3: SNI certificate in central certificate store.
-    New-Item -Path "IIS:\SslBindings\10.0.0.108!443!$using:IISClientManyToOneCertWebSiteName" -Thumbprint $($using:IISClientManyToOneCertWebSiteSSLCert).Thumbprint -sslFlags 0
+    New-Item -Path "IIS:\SslBindings\$using:IISClientManyToOneCertIPv4Address!443!$using:IISClientManyToOneCertWebSiteName" -Thumbprint $($using:IISClientManyToOneCertWebSiteSSLCert).Thumbprint -sslFlags 0
 
     #SSL + Negotiate Client Certificate 
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientManyToOneCertWebSiteName" -filter "system.webServer/security/access" -name "sslFlags" -value "Ssl,SslNegotiateCert"
