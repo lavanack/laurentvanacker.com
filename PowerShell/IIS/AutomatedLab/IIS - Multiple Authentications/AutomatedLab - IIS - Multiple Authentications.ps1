@@ -89,7 +89,7 @@ If (Test-Path -Path C:\ProgramData\AutomatedLab\Labs\$LabName\Lab.xml)
     if ($Lab)
     {
         #Get-LabVM | Get-VM | Restore-VMCheckpoint -Name "FullInstall" -Confirm:$false
-        #Getting exisiting VM
+        #Getting existing VM
         $HyperVLabVM = Get-LabVM | Get-VM -ErrorAction SilentlyContinue
         if ($HyperVLabVM)
         {
