@@ -23,7 +23,7 @@ $ErrorActionPreference = 'Stop'
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
-$TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}" -f (get-date)).txt"
+$TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}" -f (Get-Date)).txt"
 Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 
 #region Global variables definition
@@ -33,31 +33,26 @@ $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText
 $NetBiosDomainName = 'CONTOSO'
 $FQDNDomainName = 'contoso.com'
 $IISAppPoolUser = 'IISAppPoolUser'
-$WebSiteName="arr.$FQDNDomainName"
+$WebSiteName = "arr.$FQDNDomainName"
 
 $LabName = 'NLBARRLab'
 #endregion
 
 #region Dirty Clean up
-If (Test-Path -Path C:\ProgramData\AutomatedLab\Labs\$LabName\Lab.xml)
-{
+If (Test-Path -Path C:\ProgramData\AutomatedLab\Labs\$LabName\Lab.xml) {
     $Lab = Import-Lab -Path C:\ProgramData\AutomatedLab\Labs\$LabName\Lab.xml -ErrorAction SilentlyContinue -PassThru
-    if ($Lab)
-    {
+    if ($Lab) {
         #Get-LabVM | Get-VM | Restore-VMCheckpoint -Name "FullInstall" -Confirm:$false
         $HyperVLabVM = Get-LabVM | Get-VM -ErrorAction SilentlyContinue
-        if ($HyperVLabVM)
-        {
+        if ($HyperVLabVM) {
             $HyperVLabVMPath = (Get-Item $($HyperVLabVM.Path)).Parent.FullName
             $HyperVLabVM | Stop-VM -TurnOff -Force -Passthru | Remove-VM -Force -Verbose
             Remove-Item $HyperVLabVMPath -Recurse -Force -Verbose #-WhatIf
         }
-        try
-        {
+        try {
             Remove-Lab -Name $LabName -Verbose -Confirm:$false -ErrorAction SilentlyContinue
         }
-        catch 
-        {
+        catch {
 
         }
     }
@@ -80,11 +75,11 @@ Set-LabInstallationCredential -Username $Logon -Password $ClearTextPassword
 
 #defining default parameter values, as these ones are the same for all the machines
 $PSDefaultParameterValues = @{
-    'Add-LabMachineDefinition:Network'       = $LabName
-    'Add-LabMachineDefinition:DomainName'    = $FQDNDomainName
-    'Add-LabMachineDefinition:Memory'        = 2GB
-    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2016 Standard (Desktop Experience)'
-    'Add-LabMachineDefinition:Processors'    = 2
+    'Add-LabMachineDefinition:Network'         = $LabName
+    'Add-LabMachineDefinition:DomainName'      = $FQDNDomainName
+    'Add-LabMachineDefinition:Memory'          = 2GB
+    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Standard (Desktop Experience)'
+    'Add-LabMachineDefinition:Processors'      = 2
 }
 
 #Domain controller
@@ -154,7 +149,7 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $WebSiteName to the
     Set-ItemProperty -Path $path -Name $name -Value $value -Force
     #Bonus : To open all the available websites accross all nodes
     $name = "Secondary Start Pages"
-    $value="https://arrnode01.$using:FQDNDomainName", "https://arrnode02.$using:FQDNDomainName", "http://iisnode01.$using:FQDNDomainName", "http://iisnode02.$using:FQDNDomainName"
+    $value = "https://arrnode01.$using:FQDNDomainName", "https://arrnode02.$using:FQDNDomainName", "http://iisnode01.$using:FQDNDomainName", "http://iisnode02.$using:FQDNDomainName"
     New-ItemProperty -Path $path -PropertyType MultiString -Name $name -Value $value -Force
 }
 
@@ -258,7 +253,7 @@ New-LabCATemplate -TemplateName WebServerSSL -DisplayName 'Web Server SSL' -Sour
 #Getting a New SSL Web Server Certificate
 $WebServerSSLCert = Request-LabCertificate -Subject "CN=$WebSiteName" -SAN $WebSiteName, "arr", "ARRNODE01", "ARRNODE01.$FQDNDomainName", "ARRNODE02", "ARRNODE02.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName ARRNODE01 -PassThru -ErrorAction Stop
 #Copying The Previously Generated Certificate to the second IIS node
-Get-LabCertificate -ComputerName ARRNODE01 -SearchString "$WebSiteName" -FindType FindBySubjectName  -ExportPrivateKey -Password $SecurePassword | Add-LabCertificate -ComputerName ARRNODE02 -Store My -Password $ClearTextPassword
+Get-LabCertificate -ComputerName ARRNODE01 -SearchString "$WebSiteName" -FindType FindBySubjectName -ExportPrivateKey -Password $SecurePassword | Add-LabCertificate -ComputerName ARRNODE02 -Store My -Password $ClearTextPassword
 #endregion
 
 #Copying Web site content on all IIS & ARR servers
@@ -280,17 +275,15 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into the f
     $WebServerSSLCert = Get-ChildItem -Path Cert:\LocalMachine\My\ -DnsName "$using:WebSiteName" -SSLServerAuthentication | Where-Object -FilterScript {
         $_.hasPrivateKey 
     }  
-    if ($WebServerSSLCert)
-    {
+    if ($WebServerSSLCert) {
         $WebServerSSLCert | Export-PfxCertificate -FilePath "C:\CentralCertificateStore\$using:WebSiteName.pfx" -Password $Using:SecurePassword
         #Bonus : To access directly to the SSL web site hosted on IIS nodes by using the node names
         Copy-Item "C:\CentralCertificateStore\$using:WebSiteName.pfx" "C:\CentralCertificateStore\arrnode01.$using:FQDNDomainName.pfx"
         Copy-Item "C:\CentralCertificateStore\$using:WebSiteName.pfx" "C:\CentralCertificateStore\arrnode02.$using:FQDNDomainName.pfx"
         $WebServerSSLCert | Remove-Item -Force
     }
-    else
-    {
-        Write-Error -Exception "[ERROR] Unable to create the 'Web Server SSL' certificate for $using:WebSiteName"
+    else {
+        Write-Error -Exception "[ERROR] Unable to get or export the 'Web Server SSL' certificate for $using:WebSiteName"
     }
 
     #Enabling the Central Certificate Store
@@ -382,8 +375,7 @@ Invoke-LabCommand -ActivityName 'IIS Extensions, SNI/CSS Setup, ARR and URL Rewr
     #Require SSL
     Get-IISConfigSection -SectionPath 'system.webServer/security/access' -Location "$using:WebSiteName" | Set-IISConfigAttributeValue -AttributeName sslFlags -AttributeValue Ssl
 
-    Do 
-    {
+    Do {
         #ARR Webfarm
         Add-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter 'webFarms' -Name '.' -Value @{
             name    = "$using:WebSiteName"
@@ -501,6 +493,8 @@ Invoke-LabCommand -ActivityName 'Windows Authentication Setup' -ComputerName IIS
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'False'
     #Enabling the Windows authentication
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'enabled' -value 'True'
+    #Enabling ASP.Net Impersonation (local web.config)
+    Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:WebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
 
     #Enabling the Anonymous authentication for the healthcheck folder
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName/healthcheck/" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'True'
@@ -520,8 +514,7 @@ Invoke-LabCommand -ActivityName 'Exporting IIS Shared Configuration' -ComputerNa
 #Enabling the shared configuration for all IIS nodes
 Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
     #Waiting the DFS replication completes
-    While (-not(Test-Path -Path C:\IISSharedConfiguration\applicationHost.config))
-    {
+    While (-not(Test-Path -Path C:\IISSharedConfiguration\applicationHost.config)) {
         Write-Verbose -Message 'Waiting the replication via DFS-R of applicationHost.config. Sleeping 10 seconds ...'
         Start-Sleep -Seconds 10
     }
@@ -537,8 +530,7 @@ Invoke-LabCommand -ActivityName 'Exporting IIS Shared Configuration' -ComputerNa
 #Enabling the shared configuration for all ARR server nodes
 Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration' -ComputerName ARRNODE01, ARRNODE02 -ScriptBlock {
     #Waiting the DFS replication completes
-    While (-not(Test-Path -Path C:\ARRSharedConfiguration\applicationHost.config))
-    {
+    While (-not(Test-Path -Path C:\ARRSharedConfiguration\applicationHost.config)) {
         Write-Verbose -Message 'Waiting the replication via DFS-R of applicationHost.config. Sleeping 10 seconds ...'
         Start-Sleep -Seconds 10
     }
@@ -548,5 +540,6 @@ Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration' -ComputerNam
 Show-LabDeploymentSummary -Detailed
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All -Verbose
 $VerbosePreference = $PreviousVerbosePreference
-#Get-LabVM | Get-VM | Restore-VMCheckpoint -Name "FullInstall" -Confirm:$false
+#Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All -Verbose
+
 Stop-Transcript
