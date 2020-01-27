@@ -75,7 +75,7 @@ New-LabDefinition -Name $LabName -DefaultVirtualizationEngine HyperV
 #make the network definition
 Add-LabVirtualNetworkDefinition -Name $LabName -HyperVProperties @{
     SwitchType = 'Internal'
-}  -AddressSpace 10.0.0.0/16
+} -AddressSpace 10.0.0.0/16
 
 #and the domain definition with the domain admin account
 Add-LabDomainDefinition -Name $FQDNDomainName -AdminUser $Logon -AdminPassword $ClearTextPassword
@@ -88,7 +88,7 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:Network'       = $LabName
     'Add-LabMachineDefinition:DomainName'    = $FQDNDomainName
     'Add-LabMachineDefinition:Memory'        = 2GB
-    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2016 Standard (Desktop Experience)'
+    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Standard (Desktop Experience)'
     'Add-LabMachineDefinition:Processors'    = 2
 }
 
@@ -115,7 +115,7 @@ Install-Lab
 #region Installing Required Windows Features
 $machines = Get-LabVM
 Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools
-Install-LabWindowsFeature -FeatureName FS-DFS-Replication, Web-Server, Web-Asp-Net45, Web-Request-Monitor, Web-Windows-Auth  -ComputerName IISNODE01, IISNODE02 -IncludeManagementTools
+Install-LabWindowsFeature -FeatureName FS-DFS-Replication, Web-Server, Web-Asp-Net45, Web-Request-Monitor, Web-Windows-Auth -ComputerName IISNODE01, IISNODE02 -IncludeManagementTools
 Install-LabWindowsFeature -FeatureName FS-DFS-Replication -ComputerName DC01 -IncludeManagementTools
 Install-LabWindowsFeature -FeatureName NLB, Web-CertProvider -ComputerName IISNODE01, IISNODE02 -IncludeManagementTools
 #endregion
@@ -228,7 +228,8 @@ New-LabCATemplate -TemplateName WebServerSSL -DisplayName 'Web Server SSL' -Sour
 #Getting a New SSL Web Server Certificate
 $WebServerSSLCert = Request-LabCertificate -Subject "CN=$WebSiteName" -SAN $WebSiteName, "nlb", "IISNODE01", "IISNODE01.$FQDNDomainName", "IISNODE02", "IISNODE02.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName IISNODE01 -PassThru -ErrorAction Stop
 #Copying The Previously Generated Certificate to the second IIS node
-Get-LabCertificate -ComputerName IISNODE01 -SearchString "$WebSiteName" -FindType FindBySubjectName  -ExportPrivateKey -Password $SecurePassword | Add-LabCertificate -ComputerName IISNODE02 -Location CERT_SYSTEM_STORE_LOCAL_MACHINE -Store My -Password $ClearTextPassword
+Get-LabCertificate -ComputerName IISNODE01 -SearchString "$WebSiteName" -FindType FindBySubjectName -ExportPrivateKey -Password $SecurePassword | Add-LabCertificate -ComputerName IISNODE02 -Location CERT_SYSTEM_STORE_LOCAL_MACHINE -Store My -Password $ClearTextPassword
+#$WebServerSSLCert | Add-LabCertificate -ComputerName IISNODE02 -Location CERT_SYSTEM_STORE_LOCAL_MACHINE -Store My -Password $ClearTextPassword
 #endregion
 
 #Copying Web site content on all IIS servers
@@ -258,7 +259,7 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
     }
     else
     {
-        Write-Error -Exception "[ERROR] Unable to get the 'Web Server SSL' certificate for $using:WebSiteName"
+        Write-Error -Exception "[ERROR] Unable to get or export the 'Web Server SSL' certificate for $using:WebSiteName"
     }
 
     #Enabling the Central Certificate Store
@@ -278,11 +279,11 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
     New-WebAppPool -Name "$using:WebSiteName" -Force
 
     #Changing the application pool identity to classic mode (for ASP.Net impersonation)
-    #Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']" -name "managedPipelineMode" -value "Classic"
+    #Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']" -name "managedPipelineMode" -value "Classic"
     #Changing the application pool identity for an AD Account : mandatory for Kerberos authentication
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']/processModel" -name 'identityType' -value 3
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']/processModel" -name 'userName' -value "$Using:NetBiosDomainName\$Using:IISAppPoolUser"
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']/processModel" -name 'password' -value $Using:ClearTextPassword
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']/processModel" -name 'identityType' -value 3
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']/processModel" -name 'userName' -value "$Using:NetBiosDomainName\$Using:IISAppPoolUser"
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']/processModel" -name 'password' -value $Using:ClearTextPassword
 
     #Creating a dedicated web site 
     #New-WebSite -Name "$using:WebSiteName" -Port 80 -PhysicalPath "$env:systemdrive\inetpub\wwwroot" -ApplicationPool $using:WebSiteName -Force
@@ -293,7 +294,7 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
     #3: SNI certificate in central certificate store.
     New-WebSite -Name "$using:WebSiteName" -Port 443 -PhysicalPath "$env:systemdrive\inetpub\wwwroot" -ApplicationPool $using:WebSiteName -Ssl -SslFlags 3 -HostHeader "$using:WebSiteName" -Force
     #Assigning the the nlb.contoso.com application pool to the nlb.contoso.com web site
-    #Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:WebSiteName']/application[@path='/']" -name 'applicationPool' -value "$using:WebSiteName"
+    #Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.applicationHost/sites/site[@name='$using:WebSiteName']/application[@path='/']" -name 'applicationPool' -value "$using:WebSiteName"
     #Enabling the Windows useAppPoolCredentials
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'useAppPoolCredentials' -value 'True'
 
@@ -328,10 +329,10 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
     #Enabling the Windows authentication
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'enabled' -value 'True'
     #Enabling ASP.Net Impersonation (local web.config)
-    Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:WebSiteName"  -filter 'system.web/identity' -name 'impersonate' -value 'True'
+    Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:WebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
 
     #Disabling validation for application pool in integrated mode due to ASP.Net impersonation incompatibility
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName"  -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False' -verbose
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False' -verbose
 }
 
 #Exporting IIS Shared Configuration From The First IIS Node
@@ -348,12 +349,13 @@ Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration' -ComputerNam
         Write-Verbose -Message 'Waiting the replication via DFS-R of applicationHost.config. Sleeping 10 seconds ...'
         Start-Sleep -Seconds 10
     }
-    Enable-IISSharedConfig  -PhysicalPath C:\IISSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
+    Enable-IISSharedConfig -PhysicalPath C:\IISSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
     
 }
 
 Show-LabDeploymentSummary -Detailed
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All -Verbose
 $VerbosePreference = $PreviousVerbosePreference
-#Get-LabVM | Get-VM | Restore-VMCheckpoint -Name "FullInstall" -Confirm:$false
+#Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All -Verbose
+
 Stop-Transcript
