@@ -19,6 +19,7 @@ of the Sample Code.
 Clear-Host
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'Continue'
+$PreviousErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'Stop'
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
@@ -522,6 +523,7 @@ Show-LabDeploymentSummary -Detailed
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All -Verbose
 
 $VerbosePreference = $PreviousVerbosePreference
+$ErrorActionPreference = $PreviousErrorActionPreference
 #Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All -Verbose
 
 Stop-Transcript
