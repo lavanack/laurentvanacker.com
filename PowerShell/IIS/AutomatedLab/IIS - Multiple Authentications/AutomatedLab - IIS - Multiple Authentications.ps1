@@ -234,14 +234,14 @@ $ADClientCertWebSiteSSLCert = Request-LabCertificate -Subject "CN=$ADClientCertW
 #Copying Web site content on all IIS servers
 Copy-LabFileItem -Path $CurrentDir\contoso.com.zip -DestinationFolderPath C:\Temp -ComputerName IISNODE01
 
-$IISClientOneToOneCertContent = Invoke-LabCommand -ActivityName 'IIS Client Certificate One To One Management' -ComputerName CLIENT01 -PassThru -ScriptBlock {
+$IISClientCertContent = Invoke-LabCommand -ActivityName 'IIS Client Certificate Management' -ComputerName CLIENT01 -PassThru -ScriptBlock {
     $null = Add-LocalGroupMember -Group "Administrators" -Member "$using:NetBiosDomainName\$using:ADUser" 
-    #Getting a IIS client Certificate for the IIS client certificate website
-    $IISClientOneToOneCert = Get-Certificate -Template ClientAuthentication -Url ldap: -CertStoreLocation Cert:\CurrentUser\My
-    if ($IISClientOneToOneCert)
+    #Getting a IIS client Certificate for the client certificate (IIS 1:1, IIS N:1 and AD) websites
+    $IISClientCert = Get-Certificate -Template ClientAuthentication -Url ldap: -CertStoreLocation Cert:\CurrentUser\My
+    if ($IISClientCert)
     {
         #Getting the content of the IIS client Certificate for the IIS client certificate website (needed later in the IIS Configuration)
-        [System.Convert]::ToBase64String($IISClientOneToOneCert.Certificate.RawData, [System.Base64FormattingOptions]::None)
+        [System.Convert]::ToBase64String($IISClientCert.Certificate.RawData, [System.Base64FormattingOptions]::None)
     }
      
 }
@@ -450,7 +450,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter 'system.webServer/security/authentication/iisClientCertificateMappingAuthentication' -name 'enabled' -value 'True'
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter "system.webServer/security/authentication/iisClientCertificateMappingAuthentication" -name "oneToOneCertificateMappingsEnabled" -value "True"
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter "system.webServer/security/authentication/iisClientCertificateMappingAuthentication" -name "manyToOneCertificateMappingsEnabled" -value "False"
-    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter "system.webServer/security/authentication/iisClientCertificateMappingAuthentication/oneToOneMappings" -name "." -value @{userName="$Using:NetBiosDomainName\$Using:Logon";password="$Using:ClearTextPassword";certificate=$using:IISClientOneToOneCertContent}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter "system.webServer/security/authentication/iisClientCertificateMappingAuthentication/oneToOneMappings" -name "." -value @{userName="$Using:NetBiosDomainName\$Using:Logon";password="$Using:ClearTextPassword";certificate=$using:IISClientCertContent}
 
     #Enabling ASP.Net Impersonation (local web.config)
     Set-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST/$using:IISClientOneToOneCertWebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
