@@ -34,7 +34,6 @@ $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText
 $NetBiosDomainName = 'CONTOSO'
 $FQDNDomainName = 'contoso.com'
 $IISAppPoolUser = 'IISAppPoolUser'
-$NLBWebSiteName="nlb.$FQDNDomainName"
 
 $NetworkID='10.0.0.0/16' 
 
