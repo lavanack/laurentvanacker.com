@@ -183,7 +183,7 @@ $CSVFile = $CurrentScript.replace((Get-Item -Path $CurrentScript).Extension, '.c
 
 $TargetIISServers="IIS002","DC001"
 #Pushing/Duplicating local machine keys (after a manual setting on the source server) on the targeted computers
-Push-MachineKey Push-MachineKey -ComputerName $TargetIISServers -Verbose
+Push-MachineKey -ComputerName $TargetIISServers -Verbose
 
 
 #Checking all machine keys across the web servers
