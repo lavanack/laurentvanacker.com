@@ -19,6 +19,7 @@ of the Sample Code.
 Clear-Host
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'Continue'
+$PreviousErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'Stop'
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
@@ -33,7 +34,23 @@ $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText
 $NetBiosDomainName = 'CONTOSO'
 $FQDNDomainName = 'contoso.com'
 $IISAppPoolUser = 'IISAppPoolUser'
-$WebSiteName = "arr.$FQDNDomainName"
+
+$NetworkID='10.0.0.0/16' 
+
+$DCIPv4Address = '10.0.0.1'
+$CAIPv4Address = '10.0.0.2'
+
+$IISNODE01IPv4Address = '10.0.0.11'
+$IISNODE02IPv4Address = '10.0.0.12'
+
+$ARRNODE01IPv4Address = '10.0.0.21/16'
+$ARRNODE02IPv4Address = '10.0.0.22/16'
+$NLBARRNODE01IPv4Address = '10.0.0.201/16'
+$NLBARRNODE02IPv4Address = '10.0.0.202/16'
+
+$ARRNetBiosName='arr'
+$ARRWebSiteName="$ARRNetBiosName.$FQDNDomainName"
+$ARRIPv4Address = '10.0.0.101'
 
 $LabName = 'NLBARRLab'
 #endregion
@@ -65,7 +82,7 @@ New-LabDefinition -Name $LabName -DefaultVirtualizationEngine HyperV
 #make the network definition
 Add-LabVirtualNetworkDefinition -Name $LabName -HyperVProperties @{
     SwitchType = 'Internal'
-}  -AddressSpace 10.0.0.0/16
+}  -AddressSpace $NetworkID
 
 #and the domain definition with the domain admin account
 Add-LabDomainDefinition -Name $FQDNDomainName -AdminUser $Logon -AdminPassword $ClearTextPassword
@@ -83,24 +100,24 @@ $PSDefaultParameterValues = @{
 }
 
 #Domain controller
-Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress 10.0.0.1
+Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress $DCIPv4Address
 #Certificate Authority
-Add-LabMachineDefinition -Name CA01 -Roles CARoot -IpAddress 10.0.0.2
+Add-LabMachineDefinition -Name CA01 -Roles CARoot -IpAddress $CAIPv4Address
 
 #region IIS front-end servers
-Add-LabMachineDefinition -Name IISNODE01 -IpAddress 10.0.0.11
-Add-LabMachineDefinition -Name IISNODE02 -IpAddress 10.0.0.12
+Add-LabMachineDefinition -Name IISNODE01 -IpAddress $IISNODE01IPv4Address
+Add-LabMachineDefinition -Name IISNODE02 -IpAddress $IISNODE02IPv4Address
 #endregion
 
 #region ARR servers : 2 NICS for  (1 for server communications and 1 for NLB)
 $netAdapter = @()
-$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address 10.0.0.21/16
-$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address 10.0.0.201/16
+$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $ARRNODE01IPv4Address
+$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $NLBARRNODE01IPv4Address
 Add-LabMachineDefinition -Name ARRNODE01 -NetworkAdapter $netAdapter
 
 $netAdapter = @()
-$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address 10.0.0.22/16
-$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address 10.0.0.202/16
+$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $ARRNODE02IPv4Address
+$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $NLBARRNODE02IPv4Address
 Add-LabMachineDefinition -Name ARRNODE02 -NetworkAdapter $netAdapter
 #endregion
 
@@ -118,7 +135,7 @@ Install-LabWindowsFeature -FeatureName NLB, Web-CertProvider -ComputerName ARRNO
 Install-LabWindowsFeature -FeatureName Web-Windows-Auth -ComputerName IISNODE01, IISNODE02 -IncludeManagementTools
 #endregion
 
-Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $WebSiteName to the IE intranet zone" -ComputerName $machines -ScriptBlock {
+Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $ARRWebSiteName to the IE intranet zone" -ComputerName $machines -ScriptBlock {
     #Disabling IE ESC
     $AdminKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}'
     $UserKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}'
@@ -126,9 +143,9 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $WebSiteName to the
     Set-ItemProperty -Path $UserKey -Name 'IsInstalled' -Value 0 -Force
 
     #Setting arr.contoso.com (and optionally all nodes) in the Local Intranet Zone for all servers : mandatory for Kerberos authentication       
-    $null = New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:WebSiteName" -Force
-    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:WebSiteName" -Name http -Value 1 -Type DWord -Force
-    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:WebSiteName" -Name https -Value 1 -Type DWord -Force
+    $null = New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:ARRWebSiteName" -Force
+    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:ARRWebSiteName" -Name http -Value 1 -Type DWord -Force
+    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:ARRWebSiteName" -Name https -Value 1 -Type DWord -Force
     $null = New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\IISNODE01.$using:FQDNDomainName" -Force
     Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\IISNODE01.$using:FQDNDomainName" -Name http -Value 1 -Type DWord -Force
     #Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\IISNODE01.$using:FQDNDomainName" -Name https -Value 1 -Type DWord -Force
@@ -145,7 +162,7 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $WebSiteName to the
     #Changing the start page for IE
     $path = "HKCU:\Software\Microsoft\Internet Explorer\Main\"
     $name = "start page"
-    $value = "https://$using:WebSiteName/"
+    $value = "https://$using:ARRWebSiteName/"
     Set-ItemProperty -Path $path -Name $name -Value $value -Force
     #Bonus : To open all the available websites accross all nodes
     $name = "Secondary Start Pages"
@@ -160,9 +177,9 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Sc
 
     #region DNS management
     #Reverse lookup zone creation
-    Add-DnsServerPrimaryZone -NetworkID '10.0.0.0/16' -ReplicationScope 'Forest' 
+    Add-DnsServerPrimaryZone -NetworkID $using:NetworkID -ReplicationScope 'Forest' 
     #DNS Host entry for the arr.contoso.com website 
-    Add-DnsServerResourceRecordA -Name 'arr' -ZoneName $using:FQDNDomainName -IPv4Address '10.0.0.101' -CreatePtr
+    Add-DnsServerResourceRecordA -Name $using:ARRNetBiosName -ZoneName $using:FQDNDomainName -IPv4Address $using:ARRIPv4Address -CreatePtr
     #Installing DFS-R on ARR servers for the shared configuration
     #Install-WindowsFeature FS-DFS-Replication -includeManagementTools
     #endregion
@@ -210,8 +227,8 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Sc
     #endregion
 
     #region Setting SPN on the Application Pool Identity
-    setspn.exe -S "HTTP/$using:WebSiteName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/arr" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
+    setspn.exe -S "HTTP/$using:ARRWebSiteName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
+    setspn.exe -S "HTTP/$using:ARRNetBiosName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
     setspn.exe -S "HTTP/IISNODE01.$using:FQDNDomainName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
     setspn.exe -S "HTTP/IISNODE01" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
     setspn.exe -S "HTTP/IISNODE02.$using:FQDNDomainName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
@@ -233,7 +250,7 @@ Invoke-LabCommand -ActivityName 'Renaming NICs' -ComputerName ARRNODE01, ARRNODE
 
 Invoke-LabCommand -ActivityName 'NLB Setup' -ComputerName ARRNODE01 {
     #Creating new NLB cluster
-    New-NlbCluster -HostName ARRNODE01 -ClusterName "$using:WebSiteName" -InterfaceName NLB -ClusterPrimaryIP 10.0.0.101 -SubnetMask 255.255.0.0 -OperationMode 'Multicast'
+    New-NlbCluster -HostName ARRNODE01 -ClusterName "$using:ARRWebSiteName" -InterfaceName NLB -ClusterPrimaryIP $using:ARRIPv4Address  -SubnetMask 255.255.0.0 -OperationMode 'Multicast'
     #Removing default port rule for the new cluster
     #Get-NlbClusterPortRule -HostName . | Remove-NlbClusterPortRule -Force
     #Adding port rules
@@ -251,9 +268,9 @@ $CertificationAuthority = Get-LabIssuingCA
 #Generating a new template for SSL Web Server certificate
 New-LabCATemplate -TemplateName WebServerSSL -DisplayName 'Web Server SSL' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ComputerName $CertificationAuthority -ErrorAction Stop
 #Getting a New SSL Web Server Certificate
-$WebServerSSLCert = Request-LabCertificate -Subject "CN=$WebSiteName" -SAN $WebSiteName, "arr", "ARRNODE01", "ARRNODE01.$FQDNDomainName", "ARRNODE02", "ARRNODE02.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName ARRNODE01 -PassThru -ErrorAction Stop
+$WebServerSSLCert = Request-LabCertificate -Subject "CN=$ARRWebSiteName" -SAN $ARRWebSiteName, $ARRNetBiosName, "ARRNODE01", "ARRNODE01.$FQDNDomainName", "ARRNODE02", "ARRNODE02.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName ARRNODE01 -PassThru -ErrorAction Stop
 #Copying The Previously Generated Certificate to the second IIS node
-Get-LabCertificate -ComputerName ARRNODE01 -SearchString "$WebSiteName" -FindType FindBySubjectName -ExportPrivateKey -Password $SecurePassword | Add-LabCertificate -ComputerName ARRNODE02 -Store My -Password $ClearTextPassword
+Get-LabCertificate -ComputerName ARRNODE01 -SearchString "$ARRWebSiteName" -FindType FindBySubjectName -ExportPrivateKey -Password $SecurePassword | Add-LabCertificate -ComputerName ARRNODE02 -Store My -Password $ClearTextPassword
 #endregion
 
 #Copying Web site content on all IIS & ARR servers
@@ -272,18 +289,18 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into the f
     #Creating replicated folder for shared configuration
     New-Item -Path C:\ARRSharedConfiguration -ItemType Directory -Force
 
-    $WebServerSSLCert = Get-ChildItem -Path Cert:\LocalMachine\My\ -DnsName "$using:WebSiteName" -SSLServerAuthentication | Where-Object -FilterScript {
+    $WebServerSSLCert = Get-ChildItem -Path Cert:\LocalMachine\My\ -DnsName "$using:ARRWebSiteName" -SSLServerAuthentication | Where-Object -FilterScript {
         $_.hasPrivateKey 
     }  
     if ($WebServerSSLCert) {
-        $WebServerSSLCert | Export-PfxCertificate -FilePath "C:\CentralCertificateStore\$using:WebSiteName.pfx" -Password $Using:SecurePassword
+        $WebServerSSLCert | Export-PfxCertificate -FilePath "C:\CentralCertificateStore\$using:ARRWebSiteName.pfx" -Password $Using:SecurePassword
         #Bonus : To access directly to the SSL web site hosted on IIS nodes by using the node names
-        Copy-Item "C:\CentralCertificateStore\$using:WebSiteName.pfx" "C:\CentralCertificateStore\arrnode01.$using:FQDNDomainName.pfx"
-        Copy-Item "C:\CentralCertificateStore\$using:WebSiteName.pfx" "C:\CentralCertificateStore\arrnode02.$using:FQDNDomainName.pfx"
+        Copy-Item "C:\CentralCertificateStore\$using:ARRWebSiteName.pfx" "C:\CentralCertificateStore\arrnode01.$using:FQDNDomainName.pfx"
+        Copy-Item "C:\CentralCertificateStore\$using:ARRWebSiteName.pfx" "C:\CentralCertificateStore\arrnode02.$using:FQDNDomainName.pfx"
         $WebServerSSLCert | Remove-Item -Force
     }
     else {
-        Write-Error -Exception "[ERROR] Unable to get or export the 'Web Server SSL' certificate for $using:WebSiteName"
+        Write-Error -Exception "[ERROR] Unable to get or export the 'Web Server SSL' certificate for $using:ARRWebSiteName"
     }
 
     #Enabling the Central Certificate Store
@@ -301,27 +318,27 @@ Invoke-LabCommand -ActivityName 'IIS Setup' -ComputerName IISNODE01, IISNODE02, 
     Remove-WebSite -Name 'Default Web Site'
 
     #Creating a dedicated application pool
-    New-WebAppPool -Name "$using:WebSiteName" -Force
+    New-WebAppPool -Name "$using:ARRWebSiteName" -Force
 
     #Changing the application pool identity to classic mode (for ASP.Net impersonation)
-    #Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']" -name "managedPipelineMode" -value "Classic"
+    #Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='$using:ARRWebSiteName']" -name "managedPipelineMode" -value "Classic"
     #Changing the application pool identity for an AD Account : mandatory for Kerberos authentication
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']/processModel" -name 'identityType' -value 3
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']/processModel" -name 'userName' -value "$Using:NetBiosDomainName\$Using:IISAppPoolUser"
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']/processModel" -name 'password' -value $Using:ClearTextPassword
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='$using:ARRWebSiteName']/processModel" -name 'identityType' -value 3
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='$using:ARRWebSiteName']/processModel" -name 'userName' -value "$Using:NetBiosDomainName\$Using:IISAppPoolUser"
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='$using:ARRWebSiteName']/processModel" -name 'password' -value $Using:ClearTextPassword
 
     #Creating a dedicated web site 
-    New-WebSite -Name "$using:WebSiteName" -Port 80 -PhysicalPath "$env:systemdrive\inetpub\wwwroot" -ApplicationPool $using:WebSiteName -Force
+    New-WebSite -Name "$using:ARRWebSiteName" -Port 80 -PhysicalPath "$env:systemdrive\inetpub\wwwroot" -ApplicationPool $using:ARRWebSiteName -Force
     #Assigning the the arr.contoso.com application pool to the arr.contoso.com web site
-    #Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:WebSiteName']/application[@path='/']" -name 'applicationPool' -value "$using:WebSiteName"
+    #Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:ARRWebSiteName']/application[@path='/']" -name 'applicationPool' -value "$using:ARRWebSiteName"
     #Enabling the Windows useAppPoolCredentials
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'useAppPoolCredentials' -value 'True'
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:ARRWebSiteName" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'useAppPoolCredentials' -value 'True'
 
     #setting default.aspx as first default page
-    Remove-WebconfigurationProperty -Filter 'system.webserver/defaultdocument/files' -Location "IIS:\sites\$using:WebSiteName" -name collection -AtElement @{
+    Remove-WebconfigurationProperty -Filter 'system.webserver/defaultdocument/files' -Location "IIS:\sites\$using:ARRWebSiteName" -name collection -AtElement @{
         value = 'default.aspx'
     } -Force
-    Add-WebConfiguration -Filter 'system.webserver/defaultdocument/files' -Location "IIS:\sites\$using:WebSiteName" -atIndex 0 -Value @{
+    Add-WebConfiguration -Filter 'system.webserver/defaultdocument/files' -Location "IIS:\sites\$using:ARRWebSiteName" -atIndex 0 -Value @{
         value = 'default.aspx'
     } -Force
     
@@ -332,7 +349,7 @@ Invoke-LabCommand -ActivityName 'IIS Extensions, SNI/CSS Setup, ARR and URL Rewr
     C:\Extensions\Install-IISExtension.ps1
 
     #Adding handler for image watermark
-    Add-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:WebSiteName"  -filter 'system.webServer/handlers' -name '.' -value @{
+    Add-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:ARRWebSiteName"  -filter 'system.webServer/handlers' -name '.' -value @{
         name          = 'JpgHttpHandler'
         path          = '*.jpg'
         type          = 'JpgHttpHandler'
@@ -340,7 +357,7 @@ Invoke-LabCommand -ActivityName 'IIS Extensions, SNI/CSS Setup, ARR and URL Rewr
         resourceType  = 'Unspecified'
         requireAccess = 'Script'
     }
-    Add-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:WebSiteName"  -filter 'system.webServer/handlers' -name '.' -value @{
+    Add-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:ARRWebSiteName"  -filter 'system.webServer/handlers' -name '.' -value @{
         name          = 'GifHttpHandler'
         path          = '*.gif'
         type          = 'JpgHttpHandler'
@@ -348,7 +365,7 @@ Invoke-LabCommand -ActivityName 'IIS Extensions, SNI/CSS Setup, ARR and URL Rewr
         resourceType  = 'Unspecified'
         requireAccess = 'Script'
     }
-    Add-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:WebSiteName"  -filter 'system.webServer/handlers' -name '.' -value @{
+    Add-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:ARRWebSiteName"  -filter 'system.webServer/handlers' -name '.' -value @{
         name          = 'PngHttpHandler'
         path          = '*.png'
         type          = 'JpgHttpHandler'
@@ -363,29 +380,29 @@ Invoke-LabCommand -ActivityName 'IIS Extensions, SNI/CSS Setup, ARR and URL Rewr
     #1: SNI certificate.
     #2: Central certificate store.
     #3: SNI certificate in central certificate store.
-    New-WebBinding -Name "$using:WebSiteName" -sslFlags 3 -Protocol https -HostHeader "$using:WebSiteName"
+    New-WebBinding -Name "$using:ARRWebSiteName" -sslFlags 3 -Protocol https -HostHeader "$using:ARRWebSiteName"
     #Binding for every ARR server nodes
-    New-WebBinding -Name "$using:WebSiteName" -sslFlags 3 -Protocol https -HostHeader "arrnode01.$using:FQDNDomainName"
-    New-WebBinding -Name "$using:WebSiteName" -sslFlags 3 -Protocol https -HostHeader "arrnode02.$using:FQDNDomainName"
-    New-Item -Path "IIS:\SslBindings\!443!$using:WebSiteName" -sslFlags 3 -Store CentralCertStore
+    New-WebBinding -Name "$using:ARRWebSiteName" -sslFlags 3 -Protocol https -HostHeader "arrnode01.$using:FQDNDomainName"
+    New-WebBinding -Name "$using:ARRWebSiteName" -sslFlags 3 -Protocol https -HostHeader "arrnode02.$using:FQDNDomainName"
+    New-Item -Path "IIS:\SslBindings\!443!$using:ARRWebSiteName" -sslFlags 3 -Store CentralCertStore
 
     #Removing Default Binding
-    #Get-WebBinding -Port 80 -Name "$using:WebSiteName" | Remove-WebBinding
+    #Get-WebBinding -Port 80 -Name "$using:ARRWebSiteName" | Remove-WebBinding
 
     #Require SSL
-    Get-IISConfigSection -SectionPath 'system.webServer/security/access' -Location "$using:WebSiteName" | Set-IISConfigAttributeValue -AttributeName sslFlags -AttributeValue Ssl
+    Get-IISConfigSection -SectionPath 'system.webServer/security/access' -Location "$using:ARRWebSiteName" | Set-IISConfigAttributeValue -AttributeName sslFlags -AttributeValue Ssl
 
     Do {
         #ARR Webfarm
         Add-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter 'webFarms' -Name '.' -Value @{
-            name    = "$using:WebSiteName"
+            name    = "$using:ARRWebSiteName"
             enabled = $True
         }
         Write-Verbose -Message 'Waiting the creation of the ARR web farm. Sleeping 10 seconds ...'
         Start-Sleep -Seconds 10
-    } While (-not(Get-WebConfiguration -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter "webFarms/webFarm[@name='arr.contoso.com']"))
+    } While (-not(Get-WebConfiguration -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter "webFarms/webFarm[@name='$using:ARRWebSiteName']"))
 
-    Add-WebConfiguration -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter "webFarms/webFarm[@name='$using:WebSiteName']" -Value @(
+    Add-WebConfiguration -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter "webFarms/webFarm[@name='$using:ARRWebSiteName']" -Value @(
         @{
             address = 'IISNODE01'
             enabled = $True
@@ -397,14 +414,14 @@ Invoke-LabCommand -ActivityName 'IIS Extensions, SNI/CSS Setup, ARR and URL Rewr
     )
 
     #Port 80 and 443 only (default settings)
-    #Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter "webFarms/webFarm[@name='$using:WebSiteName']/server[@address='ARRNODE01']" -Name 'applicationRequestRouting' -Value @{ httpPort = 80 }
-    #Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter "webFarms/webFarm[@name='$using:WebSiteName']/server[@address='ARRNODE02']" -Name 'applicationRequestRouting' -Value @{ httpPort = 80 }
-    #Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter "webFarms/webFarm[@name='$using:WebSiteName']/server[@address='ARRNODE01']" -Name 'applicationRequestRouting' -Value @{ httpPort = 443 }
-    #Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter "webFarms/webFarm[@name='$using:WebSiteName']/server[@address='ARRNODE02']" -Name 'applicationRequestRouting' -Value @{ httpPort = 443 }
+    #Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter "webFarms/webFarm[@name='$using:ARRWebSiteName']/server[@address='ARRNODE01']" -Name 'applicationRequestRouting' -Value @{ httpPort = 80 }
+    #Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter "webFarms/webFarm[@name='$using:ARRWebSiteName']/server[@address='ARRNODE02']" -Name 'applicationRequestRouting' -Value @{ httpPort = 80 }
+    #Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter "webFarms/webFarm[@name='$using:ARRWebSiteName']/server[@address='ARRNODE01']" -Name 'applicationRequestRouting' -Value @{ httpPort = 443 }
+    #Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter "webFarms/webFarm[@name='$using:ARRWebSiteName']/server[@address='ARRNODE02']" -Name 'applicationRequestRouting' -Value @{ httpPort = 443 }
 
     #Heatlcheck test page and pattern to found if ok
-    Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter "webFarms/webFarm[@name='$using:WebSiteName']/applicationRequestRouting" -Name 'healthcheck' -Value @{
-        url           = "http://$using:WebSiteName/healthcheck/default.aspx"
+    Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter "webFarms/webFarm[@name='$using:ARRWebSiteName']/applicationRequestRouting" -Name 'healthcheck' -Value @{
+        url           = "http://$using:ARRWebSiteName/healthcheck/default.aspx"
         interval      = '00:00:05'
         responseMatch = 'ok'
     }
@@ -426,56 +443,56 @@ Invoke-LabCommand -ActivityName 'IIS Extensions, SNI/CSS Setup, ARR and URL Rewr
 
     #URL Rewrite for ARR
     Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter 'system.webServer/rewrite/globalRules' -name '.' -value @{
-        name           = "ARR_$($using:WebSiteName)_loadbalance"
+        name           = "ARR_$($using:ARRWebSiteName)_loadbalance"
         patternSyntax  = 'Wildcard'
         stopProcessing = 'True'
         enabled        = $True
     }
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.webServer/rewrite/globalRules/rule[@name='ARR_$($using:WebSiteName)_loadbalance']/match" -name 'url' -value '*'
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.webServer/rewrite/globalRules/rule[@name='ARR_$($using:WebSiteName)_loadbalance']/action" -name 'type' -value 'Rewrite'
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.webServer/rewrite/globalRules/rule[@name='ARR_$($using:WebSiteName)_loadbalance']/action" -name 'url' -value "http://$using:WebSiteName/{R:0}"
-    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.webServer/rewrite/globalRules/rule[@name='ARR_$($using:WebSiteName)_loadbalance']/conditions" -name '.' -value @{
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.webServer/rewrite/globalRules/rule[@name='ARR_$($using:ARRWebSiteName)_loadbalance']/match" -name 'url' -value '*'
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.webServer/rewrite/globalRules/rule[@name='ARR_$($using:ARRWebSiteName)_loadbalance']/action" -name 'type' -value 'Rewrite'
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.webServer/rewrite/globalRules/rule[@name='ARR_$($using:ARRWebSiteName)_loadbalance']/action" -name 'url' -value "http://$using:ARRWebSiteName/{R:0}"
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.webServer/rewrite/globalRules/rule[@name='ARR_$($using:ARRWebSiteName)_loadbalance']/conditions" -name '.' -value @{
         input   = '{HTTP_HOST}'
-        pattern = "$using:WebSiteName"
+        pattern = "$using:ARRWebSiteName"
     }
 
     #Client Affinity: Do not enable it to see the load balacing between the two IIS Servers
-    #Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "webFarms/webFarm[@name='$using:WebSiteName']/applicationRequestRouting/affinity" -name "useCookie" -value "True"
+    #Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "webFarms/webFarm[@name='$using:ARRWebSiteName']/applicationRequestRouting/affinity" -name "useCookie" -value "True"
 
     #Extensions not forwarded
-    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.webServer/rewrite/globalRules/rule[@name='ARR_$($using:WebSiteName)_loadbalance']/conditions" -name '.' -value @{
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.webServer/rewrite/globalRules/rule[@name='ARR_$($using:ARRWebSiteName)_loadbalance']/conditions" -name '.' -value @{
         input   = 'EXT_{URL}'
         pattern = '*.css'
         negate  = 'True'
     }
-    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.webServer/rewrite/globalRules/rule[@name='ARR_$($using:WebSiteName)_loadbalance']/conditions" -name '.' -value @{
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.webServer/rewrite/globalRules/rule[@name='ARR_$($using:ARRWebSiteName)_loadbalance']/conditions" -name '.' -value @{
         input   = 'EXT_{URL}'
         pattern = '*.jpg'
         negate  = 'True'
     }
-    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.webServer/rewrite/globalRules/rule[@name='ARR_$($using:WebSiteName)_loadbalance']/conditions" -name '.' -value @{
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.webServer/rewrite/globalRules/rule[@name='ARR_$($using:ARRWebSiteName)_loadbalance']/conditions" -name '.' -value @{
         input   = 'EXT_{URL}'
         pattern = '*.gif'
         negate  = 'True'
     }
     
     #Patterns not forwarded
-    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.webServer/rewrite/globalRules/rule[@name='ARR_$($using:WebSiteName)_loadbalance']/conditions" -name '.' -value @{
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.webServer/rewrite/globalRules/rule[@name='ARR_$($using:ARRWebSiteName)_loadbalance']/conditions" -name '.' -value @{
         input   = '{URL}'
         pattern = '/images/*'
         negate  = 'True'
     }
-    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.webServer/rewrite/globalRules/rule[@name='ARR_$($using:WebSiteName)_loadbalance']/conditions" -name '.' -value @{
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.webServer/rewrite/globalRules/rule[@name='ARR_$($using:ARRWebSiteName)_loadbalance']/conditions" -name '.' -value @{
         input   = '{URL}'
         pattern = '/css/*'
         negate  = 'True'
     }
-    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.webServer/rewrite/globalRules/rule[@name='ARR_$($using:WebSiteName)_loadbalance']/conditions" -name '.' -value @{
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.webServer/rewrite/globalRules/rule[@name='ARR_$($using:ARRWebSiteName)_loadbalance']/conditions" -name '.' -value @{
         input   = '{URL}'
         pattern = '/javascript/*'
         negate  = 'True'
     }
-    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.webServer/rewrite/globalRules/rule[@name='ARR_$($using:WebSiteName)_loadbalance']/conditions" -name '.' -value @{
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.webServer/rewrite/globalRules/rule[@name='ARR_$($using:ARRWebSiteName)_loadbalance']/conditions" -name '.' -value @{
         input   = '{URL}'
         pattern = '/js/*'
         negate  = 'True'
@@ -485,24 +502,24 @@ Invoke-LabCommand -ActivityName 'IIS Extensions, SNI/CSS Setup, ARR and URL Rewr
 Invoke-LabCommand -ActivityName 'Windows Authentication Setup' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
     #Changing the application pool identity for an AD Account : mandatory for Kerberos authentication
     Import-Module -Name WebAdministration
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']/processModel" -name 'identityType' -value 3
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']/processModel" -name 'userName' -value "$Using:NetBiosDomainName\$Using:IISAppPoolUser"
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']/processModel" -name 'password' -value $Using:ClearTextPassword
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='$using:ARRWebSiteName']/processModel" -name 'identityType' -value 3
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='$using:ARRWebSiteName']/processModel" -name 'userName' -value "$Using:NetBiosDomainName\$Using:IISAppPoolUser"
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='$using:ARRWebSiteName']/processModel" -name 'password' -value $Using:ClearTextPassword
 
     #Disabling the Anonymous authentication
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'False'
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:ARRWebSiteName" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'False'
     #Enabling the Windows authentication
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'enabled' -value 'True'
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:ARRWebSiteName" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'enabled' -value 'True'
     #Enabling ASP.Net Impersonation (local web.config)
-    Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:WebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
+    Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:ARRWebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
 
     #Enabling the Anonymous authentication for the healthcheck folder
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName/healthcheck/" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'True'
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:ARRWebSiteName/healthcheck/" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'True'
     #Disabling the Windows authentication for the healthcheck folder
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName/healthcheck/" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'enabled' -value 'False'
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:ARRWebSiteName/healthcheck/" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'enabled' -value 'False'
 
     #Disabling validation for application pool in integrated mode due to ASP.Net impersonation incompatibility
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName"  -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False' -verbose
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:ARRWebSiteName"  -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False' -verbose
 }
 
 #Exporting IIS Shared Configuration from the first IIS node
@@ -540,6 +557,7 @@ Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration' -ComputerNam
 Show-LabDeploymentSummary -Detailed
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All -Verbose
 $VerbosePreference = $PreviousVerbosePreference
+$ErrorActionPreference = $PreviousErrorActionPreference
 #Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All -Verbose
 
 Stop-Transcript
