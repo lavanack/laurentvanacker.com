@@ -19,6 +19,7 @@ of the Sample Code.
 Clear-Host
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'Continue'
+$PreviousErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'Stop'
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
@@ -33,7 +34,21 @@ $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText
 $NetBiosDomainName = 'CONTOSO'
 $FQDNDomainName = 'contoso.com'
 $IISAppPoolUser = 'IISAppPoolUser'
-$WebSiteName="nlb.$FQDNDomainName"
+$NLBWebSiteName="nlb.$FQDNDomainName"
+
+$NetworkID='10.0.0.0/16' 
+
+$DCIPv4Address = '10.0.0.1'
+$CAIPv4Address = '10.0.0.2'
+$IISNODE01IPv4Address = '10.0.0.21/16'
+$IISNODE02IPv4Address = '10.0.0.22/16'
+$NLBIISNODE01IPv4Address = '10.0.0.201/16'
+$NLBIISNODE02IPv4Address = '10.0.0.202/16'
+
+$NLBNetBiosName='nlb'
+$NLBWebSiteName="$NLBNetBiosName.$FQDNDomainName"
+$NLBIPv4Address = '10.0.0.101'
+
 
 $LabName = 'NLBIISLab'
 #endregion
@@ -75,7 +90,7 @@ New-LabDefinition -Name $LabName -DefaultVirtualizationEngine HyperV
 #make the network definition
 Add-LabVirtualNetworkDefinition -Name $LabName -HyperVProperties @{
     SwitchType = 'Internal'
-} -AddressSpace 10.0.0.0/16
+} -AddressSpace $NetworkID
 
 #and the domain definition with the domain admin account
 Add-LabDomainDefinition -Name $FQDNDomainName -AdminUser $Logon -AdminPassword $ClearTextPassword
@@ -93,18 +108,18 @@ $PSDefaultParameterValues = @{
 }
 
 #Domain controller
-Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress 10.0.0.1
+Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress $DCIPv4Address
 #Certificate Authority
-Add-LabMachineDefinition -Name CA01 -Roles CARoot -IpAddress 10.0.0.2
+Add-LabMachineDefinition -Name CA01 -Roles CARoot -IpAddress $CAIPv4Address
 
 #region IIS front-end servers : 2 NICS for  (1 for server communications and 1 for NLB)
 $netAdapter = @()
-$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address 10.0.0.21/16
-$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address 10.0.0.201/16
+$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $IISNODE01IPv4Address
+$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $NLBIISNODE01IPv4Address
 Add-LabMachineDefinition -Name IISNODE01 -NetworkAdapter $netAdapter
 $netAdapter = @()
-$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address 10.0.0.22/16
-$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address 10.0.0.202/16
+$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $IISNODE02IPv4Address
+$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $NLBIISNODE02IPv4Address
 Add-LabMachineDefinition -Name IISNODE02 -NetworkAdapter $netAdapter
 #endregion
 
@@ -120,7 +135,7 @@ Install-LabWindowsFeature -FeatureName FS-DFS-Replication -ComputerName DC01 -In
 Install-LabWindowsFeature -FeatureName NLB, Web-CertProvider -ComputerName IISNODE01, IISNODE02 -IncludeManagementTools
 #endregion
 
-Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $WebSiteName to the IE intranet zone" -ComputerName $machines -ScriptBlock {
+Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $NLBWebSiteName to the IE intranet zone" -ComputerName $machines -ScriptBlock {
     #Disabling IE ESC
     $AdminKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}'
     $UserKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}'
@@ -128,9 +143,9 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $WebSiteName to the
     Set-ItemProperty -Path $UserKey -Name 'IsInstalled' -Value 0 -Force
 
     #Setting nlb.contoso.com, IISNODE01.contoso.com and IISNODE02.contoso.com in the Local Intranet Zone for all servers : mandatory for Kerberos authentication       
-    $null = New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:WebSiteName" -Force
-    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:WebSiteName" -Name http -Value 1 -Type DWord -Force
-    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:WebSiteName" -Name https -Value 1 -Type DWord -Force
+    $null = New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:NLBWebSiteName" -Force
+    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:NLBWebSiteName" -Name http -Value 1 -Type DWord -Force
+    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:NLBWebSiteName" -Name https -Value 1 -Type DWord -Force
     $null = New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\IISNODE01.$using:FQDNDomainName" -Force
     Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\IISNODE01.$using:FQDNDomainName" -Name http -Value 1 -Type DWord -Force
     Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\IISNODE01.$using:FQDNDomainName" -Name https -Value 1 -Type DWord -Force
@@ -141,7 +156,7 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $WebSiteName to the
     #Changing the start page for IE
     $path = "HKCU:\Software\Microsoft\Internet Explorer\Main\"
     $name = "start page"
-    $value = "https://$using:WebSiteName/"
+    $value = "https://$using:NLBWebSiteName/"
     Set-ItemProperty -Path $path -Name $name -Value $value -Force
     #Bonus : To open all the available websites accross all nodes
     $name = "Secondary Start Pages"
@@ -155,9 +170,9 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Sc
 
     #region DNS management
     #Reverse lookup zone creation
-    Add-DnsServerPrimaryZone -NetworkID '10.0.0.0/16' -ReplicationScope 'Forest' 
+    Add-DnsServerPrimaryZone -NetworkID $using:NetworkID -ReplicationScope 'Forest' 
     #DNS Host entry for the nlb.contoso.com website 
-    Add-DnsServerResourceRecordA -Name 'nlb' -ZoneName $using:FQDNDomainName -IPv4Address '10.0.0.101' -CreatePtr
+    Add-DnsServerResourceRecordA -Name $using:NLBNetBiosName -ZoneName $using:FQDNDomainName -IPv4Address $using:NLBIPv4Address -CreatePtr
     #endregion
 
     #region IIS Shared Configuration
@@ -189,8 +204,8 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Sc
     #endregion
 
     #region Setting SPN on the Application Pool Identity
-    setspn.exe -S "HTTP/$using:WebSiteName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/nlb" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
+    setspn.exe -S "HTTP/$using:NLBWebSiteName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
+    setspn.exe -S "HTTP/$using:NLBNetBiosName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
     setspn.exe -S "HTTP/IISNODE01.$using:FQDNDomainName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
     setspn.exe -S "HTTP/IISNODE01" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
     setspn.exe -S "HTTP/IISNODE02.$using:FQDNDomainName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
@@ -208,7 +223,7 @@ Invoke-LabCommand -ActivityName 'Renaming NICs' -ComputerName IISNODE01, IISNODE
 
 Invoke-LabCommand -ActivityName 'NLB Setup' -ComputerName IISNODE01 {
     #Creating new NLB cluster
-    New-NlbCluster -HostName IISNODE01 -ClusterName "$using:WebSiteName" -InterfaceName NLB -ClusterPrimaryIP 10.0.0.101 -SubnetMask 255.255.0.0 -OperationMode 'Multicast'
+    New-NlbCluster -HostName IISNODE01 -ClusterName "$using:NLBWebSiteName" -InterfaceName NLB -ClusterPrimaryIP $using:NLBIPv4Address -SubnetMask 255.255.0.0 -OperationMode 'Multicast'
     #Removing default port rule for the new cluster
     #Get-NlbClusterPortRule -HostName . | Remove-NlbClusterPortRule -Force
     #Adding port rules
@@ -226,9 +241,9 @@ $CertificationAuthority = Get-LabIssuingCA
 #Generating a new template for SSL Web Server certificate
 New-LabCATemplate -TemplateName WebServerSSL -DisplayName 'Web Server SSL' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ComputerName $CertificationAuthority -ErrorAction Stop
 #Getting a New SSL Web Server Certificate
-$WebServerSSLCert = Request-LabCertificate -Subject "CN=$WebSiteName" -SAN $WebSiteName, "nlb", "IISNODE01", "IISNODE01.$FQDNDomainName", "IISNODE02", "IISNODE02.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName IISNODE01 -PassThru -ErrorAction Stop
+$WebServerSSLCert = Request-LabCertificate -Subject "CN=$NLBWebSiteName" -SAN $NLBWebSiteName, $NLBNetBiosName, "IISNODE01", "IISNODE01.$FQDNDomainName", "IISNODE02", "IISNODE02.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName IISNODE01 -PassThru -ErrorAction Stop
 #Copying The Previously Generated Certificate to the second IIS node
-Get-LabCertificate -ComputerName IISNODE01 -SearchString "$WebSiteName" -FindType FindBySubjectName -ExportPrivateKey -Password $SecurePassword | Add-LabCertificate -ComputerName IISNODE02 -Location CERT_SYSTEM_STORE_LOCAL_MACHINE -Store My -Password $ClearTextPassword
+Get-LabCertificate -ComputerName IISNODE01 -SearchString "$NLBWebSiteName" -FindType FindBySubjectName -ExportPrivateKey -Password $SecurePassword | Add-LabCertificate -ComputerName IISNODE02 -Location CERT_SYSTEM_STORE_LOCAL_MACHINE -Store My -Password $ClearTextPassword
 #$WebServerSSLCert | Add-LabCertificate -ComputerName IISNODE02 -Location CERT_SYSTEM_STORE_LOCAL_MACHINE -Store My -Password $ClearTextPassword
 #endregion
 
@@ -244,22 +259,22 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
     New-Item -Path C:\CentralCertificateStore -ItemType Directory -Force
 
     #Getting the local SSL Certificate
-    $WebServerSSLCert = Get-ChildItem -Path Cert:\LocalMachine\My\ -DnsName "$using:WebSiteName" -SSLServerAuthentication | Where-Object -FilterScript {
+    $WebServerSSLCert = Get-ChildItem -Path Cert:\LocalMachine\My\ -DnsName "$using:NLBWebSiteName" -SSLServerAuthentication | Where-Object -FilterScript {
         $_.hasPrivateKey 
     }  
     if ($WebServerSSLCert)
     {    
         #Exporting the local SSL Certificate to a local (replicated via DFS-R) PFX file
-        $WebServerSSLCert | Export-PfxCertificate -FilePath "C:\CentralCertificateStore\$using:WebSiteName.pfx" -Password $Using:SecurePassword
+        $WebServerSSLCert | Export-PfxCertificate -FilePath "C:\CentralCertificateStore\$using:NLBWebSiteName.pfx" -Password $Using:SecurePassword
         #Bonus : To access directly to the SSL web site hosted on IIS nodes by using the node names
-        Copy-Item "C:\CentralCertificateStore\$using:WebSiteName.pfx" "C:\CentralCertificateStore\iisnode01.$using:FQDNDomainName.pfx"
-        Copy-Item "C:\CentralCertificateStore\$using:WebSiteName.pfx" "C:\CentralCertificateStore\iisnode02.$using:FQDNDomainName.pfx"
+        Copy-Item "C:\CentralCertificateStore\$using:NLBWebSiteName.pfx" "C:\CentralCertificateStore\iisnode01.$using:FQDNDomainName.pfx"
+        Copy-Item "C:\CentralCertificateStore\$using:NLBWebSiteName.pfx" "C:\CentralCertificateStore\iisnode02.$using:FQDNDomainName.pfx"
         #removing the local SSL Certificate
         $WebServerSSLCert | Remove-Item -Force
     }
     else
     {
-        Write-Error -Exception "[ERROR] Unable to get or export the 'Web Server SSL' certificate for $using:WebSiteName"
+        Write-Error -Exception "[ERROR] Unable to get or export the 'Web Server SSL' certificate for $using:NLBWebSiteName"
     }
 
     #Enabling the Central Certificate Store
@@ -276,33 +291,33 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
     Remove-WebSite -Name 'Default Web Site'
 
     #Creating a dedicated application pool
-    New-WebAppPool -Name "$using:WebSiteName" -Force
+    New-WebAppPool -Name "$using:NLBWebSiteName" -Force
 
     #Changing the application pool identity to classic mode (for ASP.Net impersonation)
-    #Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']" -name "managedPipelineMode" -value "Classic"
+    #Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.applicationHost/applicationPools/add[@name='$using:NLBWebSiteName']" -name "managedPipelineMode" -value "Classic"
     #Changing the application pool identity for an AD Account : mandatory for Kerberos authentication
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']/processModel" -name 'identityType' -value 3
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']/processModel" -name 'userName' -value "$Using:NetBiosDomainName\$Using:IISAppPoolUser"
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.applicationHost/applicationPools/add[@name='$using:WebSiteName']/processModel" -name 'password' -value $Using:ClearTextPassword
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.applicationHost/applicationPools/add[@name='$using:NLBWebSiteName']/processModel" -name 'identityType' -value 3
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.applicationHost/applicationPools/add[@name='$using:NLBWebSiteName']/processModel" -name 'userName' -value "$Using:NetBiosDomainName\$Using:IISAppPoolUser"
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.applicationHost/applicationPools/add[@name='$using:NLBWebSiteName']/processModel" -name 'password' -value $Using:ClearTextPassword
 
     #Creating a dedicated web site 
-    #New-WebSite -Name "$using:WebSiteName" -Port 80 -PhysicalPath "$env:systemdrive\inetpub\wwwroot" -ApplicationPool $using:WebSiteName -Force
+    #New-WebSite -Name "$using:NLBWebSiteName" -Port 80 -PhysicalPath "$env:systemdrive\inetpub\wwwroot" -ApplicationPool $using:NLBWebSiteName -Force
     #Adding a HTTP:443 Binding
     #0: Regular certificate in Windows certificate storage.
     #1: SNI certificate.
     #2: Central certificate store.
     #3: SNI certificate in central certificate store.
-    New-WebSite -Name "$using:WebSiteName" -Port 443 -PhysicalPath "$env:systemdrive\inetpub\wwwroot" -ApplicationPool $using:WebSiteName -Ssl -SslFlags 3 -HostHeader "$using:WebSiteName" -Force
+    New-WebSite -Name "$using:NLBWebSiteName" -Port 443 -PhysicalPath "$env:systemdrive\inetpub\wwwroot" -ApplicationPool $using:NLBWebSiteName -Ssl -SslFlags 3 -HostHeader "$using:NLBWebSiteName" -Force
     #Assigning the the nlb.contoso.com application pool to the nlb.contoso.com web site
-    #Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.applicationHost/sites/site[@name='$using:WebSiteName']/application[@path='/']" -name 'applicationPool' -value "$using:WebSiteName"
+    #Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.applicationHost/sites/site[@name='$using:NLBWebSiteName']/application[@path='/']" -name 'applicationPool' -value "$using:NLBWebSiteName"
     #Enabling the Windows useAppPoolCredentials
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'useAppPoolCredentials' -value 'True'
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'useAppPoolCredentials' -value 'True'
 
     #setting default.aspx as first default page
-    Remove-WebconfigurationProperty -Filter 'system.webserver/defaultdocument/files' -Location "IIS:\sites\$using:WebSiteName" -name collection -AtElement @{
+    Remove-WebconfigurationProperty -Filter 'system.webserver/defaultdocument/files' -Location "IIS:\sites\$using:NLBWebSiteName" -name collection -AtElement @{
         value = 'default.aspx'
     } -Force
-    Add-WebConfiguration -Filter 'system.webserver/defaultdocument/files' -Location "IIS:\sites\$using:WebSiteName" -atIndex 0 -Value @{
+    Add-WebConfiguration -Filter 'system.webserver/defaultdocument/files' -Location "IIS:\sites\$using:NLBWebSiteName" -atIndex 0 -Value @{
         value = 'default.aspx'
     } -Force
     
@@ -311,28 +326,28 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
     #1: SNI certificate.
     #2: Central certificate store.
     #3: SNI certificate in central certificate store.
-    #New-WebBinding -Name "$using:WebSiteName" -Port 443 -IPAddress * -Protocol https -sslFlags 3 -HostHeader "$using:WebSiteName"
+    #New-WebBinding -Name "$using:NLBWebSiteName" -Port 443 -IPAddress * -Protocol https -sslFlags 3 -HostHeader "$using:NLBWebSiteName"
     #Binding for the Web site
-    #New-WebBinding -Name "$using:WebSiteName" -sslFlags 3 -Protocol https -HostHeader "$using:WebSiteName"
+    #New-WebBinding -Name "$using:NLBWebSiteName" -sslFlags 3 -Protocol https -HostHeader "$using:NLBWebSiteName"
     #Binding for every IIS nodes
-    New-WebBinding -Name "$using:WebSiteName" -sslFlags 3 -Protocol https -HostHeader "iisnode01.$using:FQDNDomainName"
-    New-WebBinding -Name "$using:WebSiteName" -sslFlags 3 -Protocol https -HostHeader "iisnode02.$using:FQDNDomainName"
-    New-Item -Path "IIS:\SslBindings\!443!$using:WebSiteName" -sslFlags 3 -Store CentralCertStore
+    New-WebBinding -Name "$using:NLBWebSiteName" -sslFlags 3 -Protocol https -HostHeader "iisnode01.$using:FQDNDomainName"
+    New-WebBinding -Name "$using:NLBWebSiteName" -sslFlags 3 -Protocol https -HostHeader "iisnode02.$using:FQDNDomainName"
+    New-Item -Path "IIS:\SslBindings\!443!$using:NLBWebSiteName" -sslFlags 3 -Store CentralCertStore
     #Removing Default Binding
-    #Get-WebBinding -Port 80 -Name "$using:WebSiteName" | Remove-WebBinding
+    #Get-WebBinding -Port 80 -Name "$using:NLBWebSiteName" | Remove-WebBinding
 
     #Require SSL
-    Get-IISConfigSection -SectionPath 'system.webServer/security/access' -Location "$using:WebSiteName" | Set-IISConfigAttributeValue -AttributeName sslFlags -AttributeValue Ssl
+    Get-IISConfigSection -SectionPath 'system.webServer/security/access' -Location "$using:NLBWebSiteName" | Set-IISConfigAttributeValue -AttributeName sslFlags -AttributeValue Ssl
 
     #Disabling the Anonymous authentication
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'False'
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'False'
     #Enabling the Windows authentication
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'enabled' -value 'True'
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'enabled' -value 'True'
     #Enabling ASP.Net Impersonation (local web.config)
-    Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:WebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
+    Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:NLBWebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
 
     #Disabling validation for application pool in integrated mode due to ASP.Net impersonation incompatibility
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:WebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False' -verbose
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False' -verbose
 }
 
 #Exporting IIS Shared Configuration From The First IIS Node
@@ -356,6 +371,7 @@ Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration' -ComputerNam
 Show-LabDeploymentSummary -Detailed
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All -Verbose
 $VerbosePreference = $PreviousVerbosePreference
+$ErrorActionPreference = $PreviousErrorActionPreference
 #Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All -Verbose
 
 Stop-Transcript
