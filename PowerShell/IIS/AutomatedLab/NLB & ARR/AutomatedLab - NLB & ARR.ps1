@@ -329,7 +329,7 @@ Invoke-LabCommand -ActivityName 'IIS Setup' -ComputerName IISNODE01, IISNODE02, 
 
     #Creating a dedicated web site 
     New-WebSite -Name "$using:ARRWebSiteName" -Port 80 -PhysicalPath "$env:systemdrive\inetpub\wwwroot" -ApplicationPool $using:ARRWebSiteName -Force
-    #Assigning the the arr.contoso.com application pool to the arr.contoso.com web site
+    #Assigning the arr.contoso.com application pool to the arr.contoso.com web site
     #Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:ARRWebSiteName']/application[@path='/']" -name 'applicationPool' -value "$using:ARRWebSiteName"
     #Enabling the Windows useAppPoolCredentials
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:ARRWebSiteName" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'useAppPoolCredentials' -value 'True'

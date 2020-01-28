@@ -307,7 +307,7 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
     #2: Central certificate store.
     #3: SNI certificate in central certificate store.
     New-WebSite -Name "$using:NLBWebSiteName" -Port 443 -PhysicalPath "$env:systemdrive\inetpub\wwwroot" -ApplicationPool $using:NLBWebSiteName -Ssl -SslFlags 3 -HostHeader "$using:NLBWebSiteName" -Force
-    #Assigning the the nlb.contoso.com application pool to the nlb.contoso.com web site
+    #Assigning the nlb.contoso.com application pool to the nlb.contoso.com web site
     #Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.applicationHost/sites/site[@name='$using:NLBWebSiteName']/application[@path='/']" -name 'applicationPool' -value "$using:NLBWebSiteName"
     #Enabling the Windows useAppPoolCredentials
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'useAppPoolCredentials' -value 'True'
