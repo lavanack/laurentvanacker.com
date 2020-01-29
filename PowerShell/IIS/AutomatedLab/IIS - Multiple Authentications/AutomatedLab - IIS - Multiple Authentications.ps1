@@ -164,6 +164,15 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $KerberosWebSiteNam
     $UserKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}'
     Set-ItemProperty -Path $AdminKey -Name 'IsInstalled' -Value 0 -Force
     Set-ItemProperty -Path $UserKey -Name 'IsInstalled' -Value 0 -Force
+    Rundll32 iesetup.dll, IEHardenLMSettings
+    Rundll32 iesetup.dll, IEHardenUser
+    Rundll32 iesetup.dll, IEHardenAdmin
+    Remove-Item -Path $AdminKey -Force
+    Remove-Item -Path $UserKey -Force
+    $MainKey = 'HKCU:\Software\Microsoft\Internet Explorer\Main'
+    Remove-ItemProperty -Path $MainKey -Name 'First Home Page' -Force
+    Set-ItemProperty -Path $MainKey -Name 'Default_Page_URL' -Value "http://$using:AnonymousWebSiteName" -Force
+    Set-ItemProperty -Path $MainKey -Name 'Start Page' -Value "http://$using:AnonymousWebSiteName" -Force
 
     #Setting kerberos.contoso.com, IISNODE01.contoso.com and IISNODE02.contoso.com in the Local Intranet Zone for all servers : mandatory for Kerberos authentication       
     $null = New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:KerberosWebSiteName" -Force
@@ -175,7 +184,7 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $KerberosWebSiteNam
 
     #Changing the start page for IE
     $path = "HKCU:\Software\Microsoft\Internet Explorer\Main\"
-    $name = "start page"
+    $name = "Start Page"
     $value = "http://$using:AnonymousWebSiteName/"
     Set-ItemProperty -Path $path -Name $name -Value $value -Force
     #Bonus : To open all the available websites accross all nodes
@@ -189,7 +198,7 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Sc
     #Creating AD Users
     #User for testing authentications
     New-ADUser -Name $Using:ADUser -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -CannotChangePassword $True -Enabled $true
-    Add-ADGroupMember -Identity "Administrators" -Member $Using:ADUSer
+    #Add-ADGroupMember -Identity "Administrators" -Members $Using:ADUSer
     #Application Pool Identity
     New-ADUser -Name $Using:IISAppPoolUser -AccountPassword $Using:SecurePassword -PasswordNeverExpires $True -CannotChangePassword $True -Enabled $True
 
@@ -251,36 +260,11 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #For decryptinging SSL traffic via network tools : https://support.f5.com/csp/article/K50557518
     [Environment]::SetEnvironmentVariable("SSLKEYLOGFILE", "$env:USERPROFILE\AppData\Local\ssl-keys.log", "User")
     
-    #region Assigning dedicated IP address
-    New-NetIPAddress –IPAddress $using:AnonymousIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
-    New-NetIPAddress –IPAddress $using:BasicIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
-    New-NetIPAddress –IPAddress $using:KerberosIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
-    New-NetIPAddress –IPAddress $using:NTLMIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
-    New-NetIPAddress –IPAddress $using:DigestIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
-    New-NetIPAddress –IPAddress $using:ADClientCertIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
-    New-NetIPAddress –IPAddress $using:IISClientOneToOneCertIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
-    New-NetIPAddress –IPAddress $using:IISClientManyToOneCertIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
-    New-NetIPAddress –IPAddress $using:FormsIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
- 
-    #endregion
-
     #Creating directory tree for hosting web sites
     $null=New-Item -Path C:\WebSites -ItemType Directory -Force
     #applying the required ACL (via PowerShell Copy and Paste)
     Get-ACl C:\inetpub\wwwroot | Set-Acl C:\WebSites
     
-    #region unzipping site content to dedicated folders
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:AnonymousWebSiteName" -Force
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:BasicWebSiteName" -Force
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:KerberosWebSiteName" -Force
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:NTLMWebSiteName" -Force
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:DigestWebSiteName" -Force
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:ADClientCertWebSiteName" -Force
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:IISClientOneToOneCertWebSiteName" -Force
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:IISClientManyToOneCertWebSiteName" -Force
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:FormsWebSiteName" -Force
-    #endregion
-
     #PowerShell module for IIS Management
     Import-Module -Name WebAdministration
 
@@ -295,37 +279,30 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     Remove-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -filter "system.webServer/defaultDocument/files" -name "." -AtElement @{value='default.aspx'} -Force
     Add-WebConfiguration -Filter 'system.webserver/defaultdocument/files' -atIndex 0 -Value @{ value = 'default.aspx' } -Force
     #endregion 
-    
-    #region Creating a dedicated application pools
-    New-WebAppPool -Name "$using:AnonymousWebSiteName" -Force
-    New-WebAppPool -Name "$using:BasicWebSiteName" -Force
-    New-WebAppPool -Name "$using:KerberosWebSiteName" -Force
-    New-WebAppPool -Name "$using:NTLMWebSiteName" -Force
-    New-WebAppPool -Name "$using:DigestWebSiteName" -Force
-    New-WebAppPool -Name "$using:ADClientCertWebSiteName" -Force
-    New-WebAppPool -Name "$using:IISClientOneToOneCertWebSiteName" -Force
-    New-WebAppPool -Name "$using:IISClientManyToOneCertWebSiteName" -Force
-    New-WebAppPool -Name "$using:FormsWebSiteName" -Force
-    #endregion
-
-    #region Creating a dedicated web sites
-    New-WebSite -Name "$using:AnonymousWebSiteName" -Port 80 -IPAddress $using:AnonymousIPv4Address -PhysicalPath "C:\WebSites\$using:AnonymousWebSiteName" -ApplicationPool "$using:AnonymousWebSiteName" -Force
-    New-WebSite -Name "$using:BasicWebSiteName" -Port 443 -IPAddress $using:BasicIPv4Address -PhysicalPath "C:\WebSites\$using:BasicWebSiteName" -ApplicationPool "$using:BasicWebSiteName" -Ssl -SslFlags 0 -Force
-    New-WebSite -Name "$using:KerberosWebSiteName" -Port 80 -IPAddress $using:KerberosIPv4Address -PhysicalPath "C:\WebSites\$using:KerberosWebSiteName" -ApplicationPool "$using:KerberosWebSiteName" -Force
-    New-WebSite -Name "$using:NTLMWebSiteName" -Port 80 -IPAddress $using:NTLMIPv4Address -PhysicalPath "C:\WebSites\$using:NTLMWebSiteName" -ApplicationPool "$using:NTLMWebSiteName" -Force
-    New-WebSite -Name "$using:DigestWebSiteName" -Port 80 -IPAddress $using:DigestIPv4Address -PhysicalPath "C:\WebSites\$using:DigestWebSiteName" -ApplicationPool "$using:DigestWebSiteName" -Force
-    New-WebSite -Name "$using:ADClientCertWebSiteName" -Port 443 -IPAddress $using:ADClientCertIPv4Address -PhysicalPath "C:\WebSites\$using:ADClientCertWebSiteName" -ApplicationPool "$using:ADClientCertWebSiteName" -Ssl -SslFlags 0 -Force
-    New-WebSite -Name "$using:IISClientOneToOneCertWebSiteName" -Port 443 -IPAddress $using:IISClientOneToOneCertIPv4Address -PhysicalPath "C:\WebSites\$using:IISClientOneToOneCertWebSiteName" -ApplicationPool "$using:IISClientOneToOneCertWebSiteName" -Ssl -SslFlags 0 -Force
-    New-WebSite -Name "$using:IISClientManyToOneCertWebSiteName" -Port 443 -IPAddress $using:IISClientManyToOneCertIPv4Address -PhysicalPath "C:\WebSites\$using:IISClientManyToOneCertWebSiteName" -ApplicationPool "$using:IISClientManyToOneCertWebSiteName" -Ssl -SslFlags 0 -Force
-    New-WebSite -Name "$using:FormsWebSiteName" -Port 443 -IPAddress $using:FormsIPv4Address -PhysicalPath "C:\WebSites\$using:FormsWebSiteName" -ApplicationPool "$using:FormsWebSiteName" -Ssl -SslFlags 0 -Force
-    #endregion
 
     #region : Anonymous website management
+    #Assigning dedicated IP address
+    New-NetIPAddress –IPAddress $using:AnonymousIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
+    #Unzipping site content to dedicated folders
+    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:AnonymousWebSiteName" -Force
+    #Creating a dedicated web site
+    New-WebAppPool -Name "$using:AnonymousWebSiteName" -Force
+    #Creating a dedicated application pool
+    New-WebSite -Name "$using:AnonymousWebSiteName" -Port 80 -IPAddress $using:AnonymousIPv4Address -PhysicalPath "C:\WebSites\$using:AnonymousWebSiteName" -ApplicationPool "$using:AnonymousWebSiteName" -Force
+
     #Enabling the Anonymous authentication
     Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:AnonymousWebSiteName" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'True'
     #endregion
 
     #region : Basic website management
+    #Assigning dedicated IP address
+    New-NetIPAddress –IPAddress $using:BasicIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
+    #Unzipping site content to dedicated folders
+    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:BasicWebSiteName" -Force
+    #Creating a dedicated application pool
+    New-WebAppPool -Name "$using:BasicWebSiteName" -Force
+    #Creating a dedicated web site
+    New-WebSite -Name "$using:BasicWebSiteName" -Port 443 -IPAddress $using:BasicIPv4Address -PhysicalPath "C:\WebSites\$using:BasicWebSiteName" -ApplicationPool "$using:BasicWebSiteName" -Ssl -SslFlags 0 -Force
     #Binding Management for SSL (Neither SNI nor CCS)
     #0: Regular certificate in Windows certificate storage.
     #1: SNI certificate.
@@ -348,6 +325,15 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #endregion
         
     #region : Kerberos website management
+    #Assigning dedicated IP address
+    #Unzipping site content to dedicated folders
+    #Creating a dedicated web site
+    #Creating a dedicated application pool
+    New-NetIPAddress –IPAddress $using:KerberosIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
+    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:KerberosWebSiteName" -Force
+    New-WebAppPool -Name "$using:KerberosWebSiteName" -Force
+    New-WebSite -Name "$using:KerberosWebSiteName" -Port 80 -IPAddress $using:KerberosIPv4Address -PhysicalPath "C:\WebSites\$using:KerberosWebSiteName" -ApplicationPool "$using:KerberosWebSiteName" -Force
+
     #Enabling the Windows useAppPoolCredentials
     Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:KerberosWebSiteName" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'useAppPoolCredentials' -value 'True'
 
@@ -368,6 +354,15 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #endregion
 
     #region : NTLM website management
+    #Assigning dedicated IP address
+    New-NetIPAddress –IPAddress $using:NTLMIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
+    #Unzipping site content to dedicated folders
+    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:NTLMWebSiteName" -Force
+    #Creating a dedicated application pool
+    New-WebAppPool -Name "$using:NTLMWebSiteName" -Force
+    #Creating a dedicated web site
+    New-WebSite -Name "$using:NTLMWebSiteName" -Port 80 -IPAddress $using:NTLMIPv4Address -PhysicalPath "C:\WebSites\$using:NTLMWebSiteName" -ApplicationPool "$using:NTLMWebSiteName" -Force
+
     #Enabling the Windows useAppPoolCredentials
     #Disabling the Anonymous authentication
     Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:NTLMWebSiteName" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'False'
@@ -386,6 +381,15 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
    #endregion
 
     #region : Digest website management
+    #Assigning dedicated IP address
+    New-NetIPAddress –IPAddress $using:DigestIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
+    #Unzipping site content to dedicated folders
+    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:DigestWebSiteName" -Force
+    #Creating a dedicated application pool
+    New-WebAppPool -Name "$using:DigestWebSiteName" -Force
+    #Creating a dedicated web site
+    New-WebSite -Name "$using:DigestWebSiteName" -Port 80 -IPAddress $using:DigestIPv4Address -PhysicalPath "C:\WebSites\$using:DigestWebSiteName" -ApplicationPool "$using:DigestWebSiteName" -Force
+
     #Enabling the Windows useAppPoolCredentials
     #Disabling the Anonymous authentication
     Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:DigestWebSiteName" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'False'
@@ -404,6 +408,15 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
    #endregion
 
     #region : AD Client Certificate website management
+    #Assigning dedicated IP address
+    New-NetIPAddress –IPAddress $using:ADClientCertIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
+    #Unzipping site content to dedicated folders
+    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:ADClientCertWebSiteName" -Force
+    #Creating a dedicated application pool
+    New-WebAppPool -Name "$using:ADClientCertWebSiteName" -Force
+    #Creating a dedicated web site
+    New-WebSite -Name "$using:ADClientCertWebSiteName" -Port 443 -IPAddress $using:ADClientCertIPv4Address -PhysicalPath "C:\WebSites\$using:ADClientCertWebSiteName" -ApplicationPool "$using:ADClientCertWebSiteName" -Ssl -SslFlags 0 -Force
+
     #Binding Management for SSL (Neither SNI nor CCS)
     #0: Regular certificate in Windows certificate storage.
     #1: SNI certificate.
@@ -433,6 +446,15 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #endregion
 
     #region : IIS Client Certificate website management
+    #Assigning dedicated IP address
+    New-NetIPAddress –IPAddress $using:IISClientOneToOneCertIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
+    #Unzipping site content to dedicated folders
+    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:IISClientOneToOneCertWebSiteName" -Force
+    #Creating a dedicated application pool
+    New-WebAppPool -Name "$using:IISClientOneToOneCertWebSiteName" -Force
+    #Creating a dedicated web site
+    New-WebSite -Name "$using:IISClientOneToOneCertWebSiteName" -Port 443 -IPAddress $using:IISClientOneToOneCertIPv4Address -PhysicalPath "C:\WebSites\$using:IISClientOneToOneCertWebSiteName" -ApplicationPool "$using:IISClientOneToOneCertWebSiteName" -Ssl -SslFlags 0 -Force
+
     #Binding Management for SSL (Neither SNI nor CCS)
     #0: Regular certificate in Windows certificate storage.
     #1: SNI certificate.
@@ -460,6 +482,15 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #endregion
 
     #region : IIS Client Certificate website management
+    #Assigning dedicated IP address
+    New-NetIPAddress –IPAddress $using:IISClientManyToOneCertIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
+    #Unzipping site content to dedicated folders
+    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:IISClientManyToOneCertWebSiteName" -Force
+    #Creating a dedicated application pool
+    New-WebAppPool -Name "$using:IISClientManyToOneCertWebSiteName" -Force
+    #Creating a dedicated web site
+    New-WebSite -Name "$using:IISClientManyToOneCertWebSiteName" -Port 443 -IPAddress $using:IISClientManyToOneCertIPv4Address -PhysicalPath "C:\WebSites\$using:IISClientManyToOneCertWebSiteName" -ApplicationPool "$using:IISClientManyToOneCertWebSiteName" -Ssl -SslFlags 0 -Force
+
     #Binding Management for SSL (Neither SNI nor CCS)
     #0: Regular certificate in Windows certificate storage.
     #1: SNI certificate.
@@ -491,6 +522,15 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #endregion
 
     #region : Forms website management
+    #Assigning dedicated IP address
+    New-NetIPAddress –IPAddress $using:FormsIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
+    #Unzipping site content to dedicated folders
+    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:FormsWebSiteName" -Force
+    #Creating a dedicated application pool
+    New-WebAppPool -Name "$using:FormsWebSiteName" -Force
+    #Creating a dedicated web site
+    New-WebSite -Name "$using:FormsWebSiteName" -Port 443 -IPAddress $using:FormsIPv4Address -PhysicalPath "C:\WebSites\$using:FormsWebSiteName" -ApplicationPool "$using:FormsWebSiteName" -Ssl -SslFlags 0 -Force
+
     #Enabling the Anonymous authentication
     Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:FormsWebSiteName" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'True'
     #Enabling the Forms authentication
