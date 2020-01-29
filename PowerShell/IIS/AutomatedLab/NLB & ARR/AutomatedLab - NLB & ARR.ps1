@@ -141,6 +141,15 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $ARRWebSiteName to 
     $UserKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}'
     Set-ItemProperty -Path $AdminKey -Name 'IsInstalled' -Value 0 -Force
     Set-ItemProperty -Path $UserKey -Name 'IsInstalled' -Value 0 -Force
+    Rundll32 iesetup.dll, IEHardenLMSettings
+    Rundll32 iesetup.dll, IEHardenUser
+    Rundll32 iesetup.dll, IEHardenAdmin
+    Remove-Item -Path $AdminKey -Force
+    Remove-Item -Path $UserKey -Force
+    $MainKey = 'HKCU:\Software\Microsoft\Internet Explorer\Main'
+    Remove-ItemProperty -Path $MainKey -Name 'First Home Page' -Force
+    Set-ItemProperty -Path $MainKey -Name 'Default_Page_URL' -Value "http://$using:ARRWebSiteName" -Force
+    Set-ItemProperty -Path $MainKey -Name 'Start Page' -Value "http://$using:ARRWebSiteName" -Force
 
     #Setting arr.contoso.com (and optionally all nodes) in the Local Intranet Zone for all servers : mandatory for Kerberos authentication       
     $null = New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:ARRWebSiteName" -Force
