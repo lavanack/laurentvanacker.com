@@ -245,6 +245,9 @@ $ADClientCertWebSiteSSLCert = Request-LabCertificate -Subject "CN=$ADClientCertW
 Copy-LabFileItem -Path $CurrentDir\contoso.com.zip -DestinationFolderPath C:\Temp -ComputerName IISNODE01
 
 $IISClientCertContent = Invoke-LabCommand -ActivityName 'IIS Client Certificate Management' -ComputerName CLIENT01 -PassThru -ScriptBlock {
+    #For decrypting SSL traffic via network tools : https://support.f5.com/csp/article/K50557518
+    [Environment]::SetEnvironmentVariable("SSLKEYLOGFILE", "$env:USERPROFILE\AppData\Local\ssl-keys.log", "User")
+
     $null = Add-LocalGroupMember -Group "Administrators" -Member "$using:NetBiosDomainName\$using:ADUser" 
     #Getting a IIS client Certificate for the client certificate (IIS 1:1, IIS N:1 and AD) websites
     $IISClientCert = Get-Certificate -Template ClientAuthentication -Url ldap: -CertStoreLocation Cert:\CurrentUser\My
@@ -256,10 +259,7 @@ $IISClientCertContent = Invoke-LabCommand -ActivityName 'IIS Client Certificate 
      
 }
 
-Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the IIS websites' -ComputerName IISNODE01 -ScriptBlock {
-    #For decryptinging SSL traffic via network tools : https://support.f5.com/csp/article/K50557518
-    [Environment]::SetEnvironmentVariable("SSLKEYLOGFILE", "$env:USERPROFILE\AppData\Local\ssl-keys.log", "User")
-    
+Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the IIS websites' -ComputerName IISNODE01 -ScriptBlock {    
     #Creating directory tree for hosting web sites
     $null=New-Item -Path C:\WebSites -ItemType Directory -Force
     #applying the required ACL (via PowerShell Copy and Paste)
