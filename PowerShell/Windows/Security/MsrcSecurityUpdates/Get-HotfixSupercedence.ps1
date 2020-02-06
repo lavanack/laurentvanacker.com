@@ -20,6 +20,9 @@ Clear-Host
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
+#CSV file for exporting data
+$CSVFile = $CurrentScript.replace((Get-Item -Path $CurrentScript).Extension, '.csv')
+
 Import-module -Name MsrcSecurityUpdates
 Set-MSRCApiKey -ApiKey "4378e032dc6843d8b92685ad3a42d14f"
 
@@ -50,4 +53,5 @@ function Get-HotfixSupercedence
 }
 
 #Get-HotfixSupercedence -ID '2019-Jan'
-Get-MsrcSecurityUpdate | Get-HotfixSupercedence -Verbose | Where-Object -FilterScript { "Windows Server 2012 R2" -in $_.ProductName} #| Out-GridView -PassThru
+$HotfixSupercedence = Get-MsrcSecurityUpdate -Verbose | Get-HotfixSupercedence -Verbose | Where-Object -FilterScript { "Windows Server 2012 R2" -in $_.ProductName} #| Out-GridView -PassThru
+$HotfixSupercedence | Export-Csv -Path $CSVFile -NoTypeInformation
