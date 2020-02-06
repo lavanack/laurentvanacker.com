@@ -23,27 +23,26 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 #CSV file for exporting data
 $CSVFile = $CurrentScript.replace((Get-Item -Path $CurrentScript).Extension, '.csv')
 
-Import-module -Name MsrcSecurityUpdates
+Import-Module -Name MsrcSecurityUpdates
 
 #Setting the API Key for Ms RC
 Set-MSRCApiKey -ApiKey "4378e032dc6843d8b92685ad3a42d14f"
 
-function Get-HotfixSupercedence
-{
-	[CmdletBinding()]
+function Get-HotfixSupercedence {
+    [CmdletBinding()]
     Param(
-		[Parameter(ParameterSetName = 'ID', Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
-		[ValidateNotNullOrEmpty()]
-        #Validating the specified IDs are later than April 2016
-        [ValidateScript({ (($_ -match "20\d{2}-Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec") -and ([datetime]$_ -ge [datetime]"2016-Apr"))})]
+        [Parameter(ParameterSetName = 'ID', Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullOrEmpty()]
+        #Validating the specified IDs are later than January 2016
+        #The format is "yyyy-MMM" like 2016-Jan except for particular case like 2017-May-B (2 releases)
+        [ValidateScript( { (($_ -match "20\d{2}-Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec(-\w)?") -and ([datetime]($_.Substring(0,8)) -ge [datetime]"2016-Jan")) })]
         #[ValidateScript({ $_ -in $((Get-MsrcSecurityUpdate).ID)})]
-		[string[]]$ID
-	)
-    begin
-	{
-	}
-	process
-	{
+        [string[]]$ID
+    )
+    begin {
+    }
+    process {
+        Write-Verbose "Processing $ID ..."
         #Looping through the specified ID
         $ID | ForEach-Object {
             $CurrentID = $_
@@ -52,17 +51,16 @@ function Get-HotfixSupercedence
             #Getting the affected products
             $ProductID = $CVRFDoc.ProductTree.FullProductname | Group-Object -Property ProductID -AsHashTable -AsString
             #Getting only data with supercedence
-            $CVRFDoc.Vulnerability.Remediations | Where {($_.SubType) -and ($_.Supercedence)} | Select-Object @{Name="Month";Expression={$CurrentID}}, @{Name="Description";Expression={$_.Description.Value}}, Supercedence, SubType, @{Name="ProductName";Expression={$ProductID[$_.ProductID].Value}} -Unique
+            $CVRFDoc.Vulnerability.Remediations | Where-Object -FilterScript { ($_.SubType) -and ($_.Supercedence) } | Select-Object @{Name = "Month"; Expression = { $CurrentID } }, @{Name = "Description"; Expression = { $_.Description.Value } }, Supercedence, SubType, @{Name = "ProductName"; Expression = { $ProductID[$_.ProductID].Value } } -Unique
         }
     }
-    end
-    {
+    end {
     }
 }
 
 #Getting the hotfix supercedence list for January 2019
 #Get-HotfixSupercedence -ID '2020-Jan'
 #Getting the hotfix supercedence for all update later than April 2016
-$HotfixSupercedence = Get-MsrcSecurityUpdate -Verbose | Get-HotfixSupercedence -Verbose | Where-Object -FilterScript { "Windows Server 2012 R2" -in $_.ProductName} #| Out-GridView -PassThru
+$HotfixSupercedence = Get-MsrcSecurityUpdate -Verbose | Get-HotfixSupercedence -Verbose | Where-Object -FilterScript { "Windows Server 2012 R2" -in $_.ProductName } #| Out-GridView -PassThru
 #Exporting data to a CSV file
 $HotfixSupercedence | Export-Csv -Path $CSVFile -NoTypeInformation
