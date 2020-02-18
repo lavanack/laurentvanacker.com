@@ -129,9 +129,8 @@ Install-Lab
 #region Installing Required Windows Features
 $machines = Get-LabVM
 Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools
-Install-LabWindowsFeature -FeatureName FS-DFS-Replication, Web-Server, Web-Asp-Net45, Web-Request-Monitor, Web-Windows-Auth -ComputerName IISNODE01, IISNODE02 -IncludeManagementTools
+Install-LabWindowsFeature -FeatureName FS-DFS-Replication, Web-Server, Web-Asp-Net45, Web-Request-Monitor, Web-Windows-Auth, NLB, Web-CertProvider -ComputerName IISNODE01, IISNODE02 -IncludeManagementTools
 Install-LabWindowsFeature -FeatureName FS-DFS-Replication -ComputerName DC01 -IncludeManagementTools
-Install-LabWindowsFeature -FeatureName NLB, Web-CertProvider -ComputerName IISNODE01, IISNODE02 -IncludeManagementTools
 #endregion
 
 Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $NLBWebSiteName to the IE intranet zone" -ComputerName $machines -ScriptBlock {
@@ -258,7 +257,7 @@ Get-LabCertificate -ComputerName IISNODE01 -SearchString "$NLBWebSiteName" -Find
 #Copying Web site content on all IIS servers
 Copy-LabFileItem -Path $CurrentDir\nlb.contoso.com.zip -DestinationFolderPath C:\Temp -ComputerName IISNODE01, IISNODE02
 
-Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Central Certificate Store Directory, Unzipping Web Site Content and Enabling IIS Shared Configuration' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
+Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Central Certificate Store Directory, Unzipping Web Site Content' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
     #Restarting DFSR service
     Restart-Service -Name DFSR -Force
     Start-Sleep -Seconds 10
