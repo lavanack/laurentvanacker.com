@@ -35,7 +35,7 @@ function Get-HotfixSupercedence {
         [ValidateNotNullOrEmpty()]
         #Validating the specified IDs are later than January 2016
         #The format is "yyyy-MMM" like 2016-Jan except for particular case like 2017-May-B (2 releases)
-        [ValidateScript( { (($_ -match "20\d{2}-Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec(-\w)?") -and ([datetime]($_.Substring(0,8)) -ge [datetime]"2016-Jan")) })]
+        [ValidateScript( { (($_ -match "20\d{2}-Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec(-\w)?") -and ([datetime]($_.Substring(0, 8)) -ge [datetime]"2016-Jan")) })]
         #[ValidateScript({ $_ -in $((Get-MsrcSecurityUpdate).ID)})]
         [string[]]$ID
     )
@@ -60,7 +60,7 @@ function Get-HotfixSupercedence {
 
 #Getting the hotfix supercedence list for January 2019
 #Get-HotfixSupercedence -ID '2020-Jan'
-#Getting the hotfix supercedence for all update later than April 2016
+#Getting the hotfix supercedence for all updates on Windows Server 2012 R2 later than January 2016
 $HotfixSupercedence = Get-MsrcSecurityUpdate -Verbose | Get-HotfixSupercedence -Verbose | Where-Object -FilterScript { "Windows Server 2012 R2" -in $_.ProductName } #| Out-GridView -PassThru
 #Exporting data to a CSV file
 $HotfixSupercedence | Export-Csv -Path $CSVFile -NoTypeInformation
