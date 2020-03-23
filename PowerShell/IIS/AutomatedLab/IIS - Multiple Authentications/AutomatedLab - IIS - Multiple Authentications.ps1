@@ -18,7 +18,7 @@ of the Sample Code.
 #requires -Version 5 -Modules AutomatedLab -RunAsAdministrator 
 Clear-Host
 $PreviousVerbosePreference = $VerbosePreference
-$VerbosePreference = 'Continue'
+$VerbosePreference = 'SilentlyContinue'
 $PreviousErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'Stop'
 $CurrentScript = $MyInvocation.MyCommand.Path
@@ -82,36 +82,11 @@ $FormsIPv4Address = '10.0.0.109'
 $LabName = 'IISAuthLab'
 #endregion
 
-#region Dirty Clean up
-If (Test-Path -Path C:\ProgramData\AutomatedLab\Labs\$LabName\Lab.xml)
+#Cleaning previously existing lab
+if ($LabName -in (Get-Lab -List))
 {
-    #Importing lpreviously existing lab
-    $Lab = Import-Lab -Path C:\ProgramData\AutomatedLab\Labs\$LabName\Lab.xml -ErrorAction SilentlyContinue -PassThru
-    if ($Lab)
-    {
-        #Get-LabVM | Get-VM | Restore-VMCheckpoint -Name "FullInstall" -Confirm:$false
-        #Getting existing VM
-        $HyperVLabVM = Get-LabVM | Get-VM -ErrorAction SilentlyContinue
-        if ($HyperVLabVM)
-        {
-            $HyperVLabVMPath = (Get-Item $($HyperVLabVM.Path)).Parent.FullName
-            #Turning off existing VM
-            $HyperVLabVM | Stop-VM -TurnOff -Force -Passthru | Remove-VM -Force -Verbose
-            #Removing related files
-            Remove-Item $HyperVLabVMPath -Recurse -Force -Verbose #-WhatIf
-        }
-        try
-        {
-            #Clearing lab from an AutomatedLab (AL) perspective
-            Remove-Lab -Name $LabName -Verbose -Confirm:$false -ErrorAction SilentlyContinue
-        }
-        catch 
-        {
-
-        }
-    }
+    Remove-Lab -name $LabName -confirm:$false -ErrorAction SilentlyContinue
 }
-#endregion
 
 #create an empty lab template and define where the lab XML files and the VMs will be stored
 New-LabDefinition -Name $LabName -DefaultVirtualizationEngine HyperV
@@ -143,7 +118,7 @@ Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress $DCIPv4Address
 Add-LabMachineDefinition -Name CA01 -Roles CARoot -IpAddress $CAIPv4Address
 #IIS front-end server
 Add-LabMachineDefinition -Name IISNODE01 -IpAddress $IISNODEIPv4Address
-#IIS front-end server
+#Client
 Add-LabMachineDefinition -Name CLIENT01 -IpAddress $CLIENTIPv4Address
 #endregion
 
@@ -193,7 +168,7 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $KerberosWebSiteNam
     New-ItemProperty -Path $path -PropertyType MultiString -Name $name -Value $value -Force
 }
 
-#Installing and setting up DFS-R on DC for replicated folder on IIS Servers for shared configuration
+#Installing and setting up DNS & DFS-R on DC for replicated folder on IIS Servers for shared configuration
 Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -ScriptBlock {
     #Creating AD Users
     #User for testing authentications
@@ -205,7 +180,7 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Sc
     #region DNS management
     #Reverse lookup zone creation
     Add-DnsServerPrimaryZone -NetworkID $using:NetworkID -ReplicationScope 'Forest' 
-    #DNS Host entry for the kerberos.contoso.com website 
+    #DNS Host entries for the websites 
     Add-DnsServerResourceRecordA -Name "$using:AnonymousNetBiosName" -ZoneName "$using:FQDNDomainName" -IPv4Address "$using:AnonymousIPv4Address" -CreatePtr
     Add-DnsServerResourceRecordA -Name "$using:BasicNetBiosName" -ZoneName "$using:FQDNDomainName" -IPv4Address "$using:BasicIPv4Address" -CreatePtr
     Add-DnsServerResourceRecordA -Name "$using:KerberosNetBiosName" -ZoneName "$using:FQDNDomainName" -IPv4Address "$using:KerberosIPv4Address" -CreatePtr
@@ -233,13 +208,13 @@ $CertificationAuthority = Get-LabIssuingCA
 New-LabCATemplate -TemplateName WebServerSSL -DisplayName 'Web Server SSL' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ComputerName $CertificationAuthority -ErrorAction Stop
 New-LabCATemplate -TemplateName ClientAuthentication -DisplayName 'Client Authentication' -SourceTemplateName ClientAuth -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ComputerName $CertificationAuthority -ErrorAction Stop
 #Getting a New SSL Web Server Certificate for the basic website
-$BasicWebSiteSSLCert = Request-LabCertificate -Subject "CN=$BasicWebSiteName" -SAN "basic", "$BasicWebSiteName", "IISNODE01", "IISNODE01.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName IISNODE01 -PassThru -ErrorAction Stop
+$BasicWebSiteSSLCert = Request-LabCertificate -Subject "CN=$BasicWebSiteName" -SAN $BasicNetBiosName, "$BasicWebSiteName", "IISNODE01", "IISNODE01.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName IISNODE01 -PassThru -ErrorAction Stop
 #Getting a New SSL Web Server Certificate for the IIS client certificate one to one website
-$IISClientOneToOneCertWebSiteSSLCert = Request-LabCertificate -Subject "CN=$IISClientOneToOneCertWebSiteName" -SAN "iisclientcert-onetoone", "$IISClientOneToOneCertWebSiteName", "IISNODE01", "IISNODE01.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName IISNODE01 -PassThru -ErrorAction Stop
+$IISClientOneToOneCertWebSiteSSLCert = Request-LabCertificate -Subject "CN=$IISClientOneToOneCertWebSiteName" -SAN $IISClientOneToOneCertNetBiosName, "$IISClientOneToOneCertWebSiteName", "IISNODE01", "IISNODE01.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName IISNODE01 -PassThru -ErrorAction Stop
 #Getting a New SSL Web Server Certificate for the IIS client certificate many to one website
-$IISClientManyToOneCertWebSiteSSLCert = Request-LabCertificate -Subject "CN=$IISClientManyToOneCertWebSiteName" -SAN "iisclientcert-manytoone", "$IISClientManyToOneCertWebSiteName", "IISNODE01", "IISNODE01.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName IISNODE01 -PassThru -ErrorAction Stop
+$IISClientManyToOneCertWebSiteSSLCert = Request-LabCertificate -Subject "CN=$IISClientManyToOneCertWebSiteName" -SAN $IISClientManyToOneCertNetBiosName, "$IISClientManyToOneCertWebSiteName", "IISNODE01", "IISNODE01.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName IISNODE01 -PassThru -ErrorAction Stop
 #Getting a New SSL Web Server Certificate for the IIS client certificate many to one website
-$ADClientCertWebSiteSSLCert = Request-LabCertificate -Subject "CN=$ADClientCertWebSiteName" -SAN "adclientcert", "$ADClientCertWebSiteName", "IISNODE01", "IISNODE01.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName IISNODE01 -PassThru -ErrorAction Stop
+$ADClientCertWebSiteSSLCert = Request-LabCertificate -Subject "CN=$ADClientCertWebSiteName" -SAN $ADClientCertNetBiosName, "$ADClientCertWebSiteName", "IISNODE01", "IISNODE01.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName IISNODE01 -PassThru -ErrorAction Stop
 
 #Copying Web site content on all IIS servers
 Copy-LabFileItem -Path $CurrentDir\contoso.com.zip -DestinationFolderPath C:\Temp -ComputerName IISNODE01

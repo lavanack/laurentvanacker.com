@@ -18,7 +18,7 @@ of the Sample Code.
 #requires -Version 5 -Modules AutomatedLab -RunAsAdministrator 
 Clear-Host
 $PreviousVerbosePreference = $VerbosePreference
-$VerbosePreference = 'Continue'
+$VerbosePreference = 'SilentlyContinue'
 $PreviousErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'Stop'
 $CurrentScript = $MyInvocation.MyCommand.Path
@@ -55,26 +55,11 @@ $ARRIPv4Address = '10.0.0.101'
 $LabName = 'NLBARRLab'
 #endregion
 
-#region Dirty Clean up
-If (Test-Path -Path C:\ProgramData\AutomatedLab\Labs\$LabName\Lab.xml) {
-    $Lab = Import-Lab -Path C:\ProgramData\AutomatedLab\Labs\$LabName\Lab.xml -ErrorAction SilentlyContinue -PassThru
-    if ($Lab) {
-        #Get-LabVM | Get-VM | Restore-VMCheckpoint -Name "FullInstall" -Confirm:$false
-        $HyperVLabVM = Get-LabVM | Get-VM -ErrorAction SilentlyContinue
-        if ($HyperVLabVM) {
-            $HyperVLabVMPath = (Get-Item $($HyperVLabVM.Path)).Parent.FullName
-            $HyperVLabVM | Stop-VM -TurnOff -Force -Passthru | Remove-VM -Force -Verbose
-            Remove-Item $HyperVLabVMPath -Recurse -Force -Verbose #-WhatIf
-        }
-        try {
-            Remove-Lab -Name $LabName -Verbose -Confirm:$false -ErrorAction SilentlyContinue
-        }
-        catch {
-
-        }
-    }
+#Cleaning previously existing lab
+if ($LabName -in (Get-Lab -List))
+{
+    Remove-Lab -name $LabName -confirm:$false -ErrorAction SilentlyContinue
 }
-#endregion
 
 #create an empty lab template and define where the lab XML files and the VMs will be stored
 New-LabDefinition -Name $LabName -DefaultVirtualizationEngine HyperV
@@ -83,6 +68,7 @@ New-LabDefinition -Name $LabName -DefaultVirtualizationEngine HyperV
 Add-LabVirtualNetworkDefinition -Name $LabName -HyperVProperties @{
     SwitchType = 'Internal'
 }  -AddressSpace $NetworkID
+Add-LabVirtualNetworkDefinition -Name 'Default Switch' -HyperVProperties @{ SwitchType = 'External'; AdapterName = 'Wi-Fi' }
 
 #and the domain definition with the domain admin account
 Add-LabDomainDefinition -Name $FQDNDomainName -AdminUser $Logon -AdminPassword $ClearTextPassword
@@ -249,7 +235,7 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Sc
     #endregion
 }
 
-#ERR servers : Renaming the NIC and setting up the metric for NLB management
+#ARR servers : Renaming the NIC and setting up the metric for NLB management
 Invoke-LabCommand -ActivityName 'Renaming NICs' -ComputerName ARRNODE01, ARRNODE02 -ScriptBlock {
 
     #Renaming the NIC and setting up the metric for NLB management

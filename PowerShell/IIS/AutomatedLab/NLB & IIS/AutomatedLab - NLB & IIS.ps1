@@ -18,7 +18,7 @@ of the Sample Code.
 #requires -Version 5 -Modules AutomatedLab -RunAsAdministrator 
 Clear-Host
 $PreviousVerbosePreference = $VerbosePreference
-$VerbosePreference = 'Continue'
+$VerbosePreference = 'SilentlyContinue'
 $PreviousErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'Stop'
 $CurrentScript = $MyInvocation.MyCommand.Path
@@ -52,36 +52,11 @@ $NLBIPv4Address = '10.0.0.101'
 $LabName = 'NLBIISLab'
 #endregion
 
-#region Dirty Clean up
-If (Test-Path -Path C:\ProgramData\AutomatedLab\Labs\$LabName\Lab.xml)
+#Cleaning previously existing lab
+if ($LabName -in (Get-Lab -List))
 {
-    #Importing lpreviously existing lab
-    $Lab = Import-Lab -Path C:\ProgramData\AutomatedLab\Labs\$LabName\Lab.xml -ErrorAction SilentlyContinue -PassThru
-    if ($Lab)
-    {
-        #Get-LabVM | Get-VM | Restore-VMCheckpoint -Name "FullInstall" -Confirm:$false
-        #Getting exisiting VM
-        $HyperVLabVM = Get-LabVM | Get-VM -ErrorAction SilentlyContinue
-        if ($HyperVLabVM)
-        {
-            $HyperVLabVMPath = (Get-Item $($HyperVLabVM.Path)).Parent.FullName
-            #Turning off existing VM
-            $HyperVLabVM | Stop-VM -TurnOff -Force -Passthru | Remove-VM -Force -Verbose
-            #Removing related files
-            Remove-Item $HyperVLabVMPath -Recurse -Force -Verbose #-WhatIf
-        }
-        try
-        {
-            #Clearing lab from an AutomatedLab (AL) perspective
-            Remove-Lab -Name $LabName -Verbose -Confirm:$false -ErrorAction SilentlyContinue
-        }
-        catch 
-        {
-
-        }
-    }
+    Remove-Lab -name $LabName -confirm:$false -ErrorAction SilentlyContinue
 }
-#endregion
 
 #create an empty lab template and define where the lab XML files and the VMs will be stored
 New-LabDefinition -Name $LabName -DefaultVirtualizationEngine HyperV
