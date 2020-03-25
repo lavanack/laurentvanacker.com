@@ -1,0 +1,74 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RDCMan programVersion="2.7" schemaVersion="3">
+  <file>
+    <credentialsProfiles />
+    <properties>
+      <expanded>True</expanded>
+      <name>RDCManager</name>
+    </properties>
+    <remoteDesktop inherit="None">
+      <sameSizeAsClientArea>True</sameSizeAsClientArea>
+      <fullScreen>False</fullScreen>
+      <colorDepth>24</colorDepth>
+    </remoteDesktop>
+    <localResources inherit="None">
+      <audioRedirection>Client</audioRedirection>
+      <audioRedirectionQuality>Dynamic</audioRedirectionQuality>
+      <audioCaptureRedirection>DoNotRecord</audioCaptureRedirection>
+      <keyboardHook>FullScreenClient</keyboardHook>
+      <redirectClipboard>True</redirectClipboard>
+      <redirectDrives>True</redirectDrives>
+      <redirectDrivesList>
+        <item>C:\</item>
+      </redirectDrivesList>
+      <redirectPrinters>False</redirectPrinters>
+      <redirectPorts>False</redirectPorts>
+      <redirectSmartCards>False</redirectSmartCards>
+      <redirectPnpDevices>False</redirectPnpDevices>
+    </localResources>
+    <encryptionSettings inherit="None">
+      <encryptionMethod>LogonCredentials</encryptionMethod>
+      <credentialName>EUROPE\lavanack</credentialName>
+      <credentialData />
+    </encryptionSettings>
+    <group>
+      <properties>
+        <expanded>True</expanded>
+        <name>Hyper-V (PowerShell)</name>
+      </properties>
+      <logonCredentials inherit="None">
+        <profileName scope="Local">Custom</profileName>
+        <userName>Administrator</userName>
+        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAA4S8nx2nBb0+HZKhocnfBkwAAAAACAAAAAAAQZgAAAAEAACAAAAD9uBOSjdvzW4a6nLGlWKZ73L8K2ZF9u1MKIxDGKPej8AAAAAAOgAAAAAIAACAAAABMxbwcz3sMyLUjtXQN401J5ejXBD4G2jW99nsOUL+LAiAAAAD5x/aLJ+VkbCdTYrUMRXxBzPixamGUNGVF1N6n+4FfxUAAAADieWPFVZZNTPCKTVf22VeJ3wQ/JF7RyZp0h1XZQ19ZKCoiSaGyOPRQ++sx7OQcnevc++1N+Z+ZUmZpDCOC8h6g</password>
+        <domain>CONTOSO</domain>
+      </logonCredentials>
+      <server>
+        <properties>
+          <displayName>2016-DC01</displayName>
+          <name>192.168.0.1</name>
+        </properties>
+      </server>
+      <server>
+        <properties>
+          <displayName>2016-IIS01</displayName>
+          <name>192.168.0.101</name>
+        </properties>
+      </server>
+      <server>
+        <properties>
+          <displayName>2016-IIS02</displayName>
+          <name>192.168.0.102</name>
+        </properties>
+        <logonCredentials inherit="None">
+          <profileName scope="Local">Custom</profileName>
+          <userName>Administrator</userName>
+          <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAA4S8nx2nBb0+HZKhocnfBkwAAAAACAAAAAAAQZgAAAAEAACAAAADqY4KhpZC2b0uzq9dynOG9Fxk4NQP7ch1jcvHrSVG9/gAAAAAOgAAAAAIAACAAAACn/wQYhKgn+bsAZ9rKkgD8JGplvFJ/oVnezHDj5sz3uCAAAACi0KBCwF4R08uWXN5bo59GZb/P/aOuVBC+tfiKItdCoEAAAABy797Qw0eaYf/QYqy/K5Al1y3c3AbGkkxVIluByx6Ptu5APVu142GOqXXbwmFh3dIA1H2b5IO7FXRfzq529VAb</password>
+          <domain>CONTOSO</domain>
+        </logonCredentials>
+      </server>
+    </group>
+  </file>
+  <connected />
+  <favorites />
+  <recentlyUsed />
+</RDCMan>
