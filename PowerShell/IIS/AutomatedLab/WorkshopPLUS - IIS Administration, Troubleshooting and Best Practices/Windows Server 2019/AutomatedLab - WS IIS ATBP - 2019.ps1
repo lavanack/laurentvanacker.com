@@ -105,7 +105,7 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:DomainName'      = $FQDNDomainName
     'Add-LabMachineDefinition:Memory'          = 2GB
     'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Standard (Desktop Experience)'
-    'Add-LabMachineDefinition:Processors'      = 1
+    'Add-LabMachineDefinition:Processors'      = 2
 }
 
 $IIS01NetAdapter = @()
@@ -125,7 +125,7 @@ Add-LabIsoImageDefinition -Name SQLServer2019 -Path $labSources\ISOs\en_sql_serv
 #Domain controller + Certificate Authority
 Add-LabMachineDefinition -Name DC01 -Roles RootDC, CARoot -IpAddress $DC01IPv4Address
 #SQL Server
-Add-LabMachineDefinition -Name SQL01 -Roles $SQLServer2019Role -NetworkAdapter $SQL01NetAdapter
+Add-LabMachineDefinition -Name SQL01 -Roles $SQLServer2019Role -NetworkAdapter $SQL01NetAdapter #-Memory 2GB -Processors 2
 #IIS front-end server
 Add-LabMachineDefinition -Name IIS01 -NetworkAdapter $IIS01NetAdapter
 #IIS front-end server
@@ -255,11 +255,16 @@ foreach ($CurrentIISServer in $IISServers)
 Invoke-LabCommand -ActivityName 'Cleanup on SQL Server' -ComputerName SQL01 -ScriptBlock {
     Remove-Item -Path "C:\vcredist_x*.*" -Force
     Remove-Item -Path "C:\SSMS-Setup-ENU.exe" -Force
-    #Disabling the Internet Connection on the DC (Required for the SQL Setup via AutomatedLab)
+    #Disabling the Internet Connection on the DC (Required only for the SQL Setup via AutomatedLab)
     Get-NetAdapter -Name Internet | Disable-NetAdapter -Confirm:$false
 }
 
+#Removing the Internet Connection on the DC (Required only for the SQL Setup via AutomatedLab)
 Get-VM -Name 'SQL01' | Remove-VMNetworkAdapter -Name 'Default Switch' -ErrorAction SilentlyContinue
+
+#Setting processor number to 1 for all VMs (The AL deployment fails with 1 CPU)
+Get-LabVM -All | Stop-VM -Passthru | Set-VMProcessor -Count 1
+Get-LabVM -All | Start-VM
 
 Show-LabDeploymentSummary -Detailed
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
