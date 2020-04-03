@@ -260,7 +260,7 @@ Invoke-LabCommand -ActivityName 'Cleanup on SQL Server' -ComputerName SQL01 -Scr
     Get-NetAdapter -Name Internet | Disable-NetAdapter -Confirm:$false
 }
 
-#Removing the Internet Connection on the DC (Required only for the SQL Setup via AutomatedLab)
+#Removing the Internet Connection on the SQL Server (Required only for the SQL Setup via AutomatedLab)
 Get-VM -Name 'SQL01' | Remove-VMNetworkAdapter -Name 'Default Switch' -ErrorAction SilentlyContinue
 
 #Setting processor number to 1 for all VMs (The AL deployment fails with 1 CPU)

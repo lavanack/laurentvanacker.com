@@ -251,6 +251,7 @@ Invoke-LabCommand -ActivityName 'Cleanup on DC' -ComputerName 2016-DC01 -ScriptB
     Get-NetAdapter -Name Internet | Disable-NetAdapter -Confirm:$false
 }
 
+#Removing the Internet Connection on the DC (Required only for the SQL Setup via AutomatedLab)
 Get-VM -Name '2016-DC01' | Remove-VMNetworkAdapter -Name 'Default Switch' -ErrorAction SilentlyContinue
 
 Show-LabDeploymentSummary -Detailed
