@@ -16,6 +16,7 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 #requires -Version 5 -Modules AutomatedLab -RunAsAdministrator 
+trap { Write-Host "Stopping Transcript ..."; Stop-Transcript} 
 Clear-Host
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
@@ -105,7 +106,7 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:DomainName'      = $FQDNDomainName
     'Add-LabMachineDefinition:Memory'          = 2GB
     'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Standard (Desktop Experience)'
-    'Add-LabMachineDefinition:Processors'      = 2
+    'Add-LabMachineDefinition:Processors'      = 4
 }
 
 $IIS01NetAdapter = @()
