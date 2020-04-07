@@ -119,7 +119,9 @@ Function Get-WordHyperLinks {
 				#To Select/highlight the link
 				$CurrentHyperLink.Range.Select()
 				$Selection = $Word.Selection
-				
+				$Title = $null
+                $Response = $null
+                $StatusCode = $null
 				#To get the page number
 				$PageNumber = $Selection.Information($wdActiveEndPageNumber)
 				Write-Verbose -Message "$($CurrentHyperLink.Address) - $($CurrentHyperLink.TextToDisplay) - $PageNumber"
