@@ -21,16 +21,17 @@ REM of the Sample Code.
 CLS
 SETLOCAL
 
-
+SET COMPRESSION_TOOL=makecab
 SET LOG_FILE=%~dpn0.log
 SET ERROR_FILE=%~dpn0.err
 
 FOR /F "delims=" %%i IN ('%windir%\system32\inetsrv\appcmd list site /text:id') DO (
 FOR /F "delims=" %%j IN ('%windir%\system32\inetsrv\appcmd.exe list site /id:%%i /text:logfile.directory') DO (
 ECHO [%DATE% %TIME%] Processing %%j\W3SVC%%i ... >> %LOG_FILE% 2>>%ERROR_FILE%
-FORFILES /p %%j\W3SVC%%i /s /m *.* /d -30 /c "cmd /c echo Erasing @path ... && del @path /s" >> %LOG_FILE% 2>>%ERROR_FILE%
+FORFILES /p %%j\W3SVC%%i /s /m *.log /d -10 /c "cmd /c %COMPRESSION_TOOL% @path @fname.cab && echo Compressing @path ... && del @path" >> %LOG_FILE% 2>>%ERROR_FILE%
 )
 )
 
+SET COMPRESSION_TOOL=
 SET LOG_FILE=
 SET ERROR_FILE=
