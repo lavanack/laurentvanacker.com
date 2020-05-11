@@ -16,6 +16,7 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 #requires -Version 5 -Modules AutomatedLab -RunAsAdministrator 
+trap { Write-Host "Stopping Transcript ..."; Stop-Transcript} 
 Clear-Host
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
@@ -28,57 +29,60 @@ $TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}" -f (
 Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 
 #region Global variables definition
-$Logon = 'Administrator'
-$ClearTextPassword = 'P@ssw0rd'
-$SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
-$NetBiosDomainName = 'CONTOSO'
-$FQDNDomainName = 'contoso.com'
-$IISAppPoolUser = 'IISAppPoolUser'
-$ADUser='JohnDoe'
+$Logon             = 'Administrator'
+# This is a lab so we assume to use clear-text password (and the same for all accounts for an easier management :))  
+$ClearTextPassword  = 'P@ssw0rd'
+$SecurePassword     = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
+$NetBiosDomainName  = 'CONTOSO'
+$FQDNDomainName     = 'contoso.com'
+$IISAppPoolUser     = 'IISAppPoolUser'
+$TestUser           = 'JohnDoe'
+$TestUserCredential = New-Object System.Management.Automation.PSCredential ("$NetBiosDomainName\$TestUser", $SecurePassword)
 
-$NetworkID='10.0.0.0/16' 
-$DCIPv4Address = '10.0.0.1'
-$CAIPv4Address = '10.0.0.2'
+$NetworkID          ='10.0.0.0/16' 
+$DCIPv4Address      = '10.0.0.1'
+$CAIPv4Address      = '10.0.0.2'
 $IISNODEIPv4Address = '10.0.0.21'
-$CLIENTIPv4Address = '10.0.0.22'
+$CLIENTIPv4Address  = '10.0.0.22'
 
-$AnonymousNetBiosName='anonymous'
-$AnonymousWebSiteName="$AnonymousNetBiosName.$FQDNDomainName"
+$AnonymousNetBiosName = 'anonymous'
+$AnonymousWebSiteName = "$AnonymousNetBiosName.$FQDNDomainName"
 $AnonymousIPv4Address = '10.0.0.101'
 
-$BasicNetBiosName='basic'
-$BasicWebSiteName="$BasicNetBiosName.$FQDNDomainName"
+$BasicNetBiosName = 'basic'
+$BasicWebSiteName = "$BasicNetBiosName.$FQDNDomainName"
 $BasicIPv4Address = '10.0.0.102'
 
-$KerberosNetBiosName='kerberos'
-$KerberosWebSiteName="$KerberosNetBiosName.$FQDNDomainName"
+$KerberosNetBiosName = 'kerberos'
+$KerberosWebSiteName = "$KerberosNetBiosName.$FQDNDomainName"
 $KerberosIPv4Address = '10.0.0.103'
 
-$NTLMNetBiosName='ntlm'
-$NTLMWebSiteName="$NTLMNetBiosName.$FQDNDomainName"
+$NTLMNetBiosName = 'ntlm'
+$NTLMWebSiteName = "$NTLMNetBiosName.$FQDNDomainName"
 $NTLMIPv4Address = '10.0.0.104'
 
-$DigestNetBiosName='digest'
-$DigestWebSiteName="$DigestNetBiosName.$FQDNDomainName"
+$DigestNetBiosName = 'digest'
+$DigestWebSiteName = "$DigestNetBiosName.$FQDNDomainName"
 $DigestIPv4Address = '10.0.0.105'
 
-$ADClientCertNetBiosName='adclientcert'
-$ADClientCertWebSiteName="$ADClientCertNetBiosName.$FQDNDomainName"
+$ADClientCertNetBiosName = 'adclientcert'
+$ADClientCertWebSiteName = "$ADClientCertNetBiosName.$FQDNDomainName"
 $ADClientCertIPv4Address = '10.0.0.106'
 
-$IISClientOneToOneCertNetBiosName='iisclientcert-onetoone'
-$IISClientOneToOneCertWebSiteName="$IISClientOneToOneCertNetBiosName.$FQDNDomainName"
+$IISClientOneToOneCertNetBiosName = 'iisclientcert-onetoone'
+$IISClientOneToOneCertWebSiteName ="$IISClientOneToOneCertNetBiosName.$FQDNDomainName"
 $IISClientOneToOneCertIPv4Address = '10.0.0.107'
 
-$IISClientManyToOneCertNetBiosName='iisclientcert-manytoone'
-$IISClientManyToOneCertWebSiteName="$IISClientManyToOneCertNetBiosName.$FQDNDomainName"
+$IISClientManyToOneCertNetBiosName = 'iisclientcert-manytoone'
+$IISClientManyToOneCertWebSiteName = "$IISClientManyToOneCertNetBiosName.$FQDNDomainName"
 $IISClientManyToOneCertIPv4Address = '10.0.0.108'
+$IISClientManyToOneCertUser        = 'ManyToOne'
 
-$FormsNetBiosName='forms'
-$FormsWebSiteName="$FormsNetBiosName.$FQDNDomainName"
+$FormsNetBiosName = 'forms'
+$FormsWebSiteName = "$FormsNetBiosName.$FQDNDomainName"
 $FormsIPv4Address = '10.0.0.109'
 
-
+$ClientAuthCertTemplateName = 'ClientAuthentication'
 $LabName = 'IISAuthLab'
 #endregion
 
@@ -104,11 +108,11 @@ Set-LabInstallationCredential -Username $Logon -Password $ClearTextPassword
 
 #defining default parameter values, as these ones are the same for all the machines
 $PSDefaultParameterValues = @{
-    'Add-LabMachineDefinition:Network'       = $LabName
-    'Add-LabMachineDefinition:DomainName'    = $FQDNDomainName
-    'Add-LabMachineDefinition:Memory'        = 2GB
+    'Add-LabMachineDefinition:Network'         = $LabName
+    'Add-LabMachineDefinition:DomainName'      = $FQDNDomainName
+    'Add-LabMachineDefinition:Memory'          = 4GB
     'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Standard (Desktop Experience)'
-    'Add-LabMachineDefinition:Processors'    = 2
+    'Add-LabMachineDefinition:Processors'      = 4
 }
 
 #region server definitions
@@ -133,21 +137,24 @@ Install-LabWindowsFeature -FeatureName Web-Server, Web-Asp-Net45, Web-Request-Mo
 
 #endregion
 
+<#
 Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $KerberosWebSiteName to the IE intranet zone" -ComputerName $machines -ScriptBlock {
     #Disabling IE ESC
     $AdminKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}'
-    $UserKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}'
+    $UserKey  = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}'
     Set-ItemProperty -Path $AdminKey -Name 'IsInstalled' -Value 0 -Force
     Set-ItemProperty -Path $UserKey -Name 'IsInstalled' -Value 0 -Force
     Rundll32 iesetup.dll, IEHardenLMSettings
     Rundll32 iesetup.dll, IEHardenUser
     Rundll32 iesetup.dll, IEHardenAdmin
+    Rundll32 iesetup.dll,IEHardenMachineNow
     Remove-Item -Path $AdminKey -Force
     Remove-Item -Path $UserKey -Force
+
+    #Changing the home page for IE
     $MainKey = 'HKCU:\Software\Microsoft\Internet Explorer\Main'
     Remove-ItemProperty -Path $MainKey -Name 'First Home Page' -Force
     Set-ItemProperty -Path $MainKey -Name 'Default_Page_URL' -Value "http://$using:AnonymousWebSiteName" -Force
-    Set-ItemProperty -Path $MainKey -Name 'Start Page' -Value "http://$using:AnonymousWebSiteName" -Force
 
     #Setting kerberos.contoso.com, IISNODE01.contoso.com and IISNODE02.contoso.com in the Local Intranet Zone for all servers : mandatory for Kerberos authentication       
     $null = New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:KerberosWebSiteName" -Force
@@ -158,24 +165,25 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $KerberosWebSiteNam
     Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\IISNODE01.$using:FQDNDomainName" -Name http -Value 1 -Type DWord -Force
 
     #Changing the start page for IE
-    $path = "HKCU:\Software\Microsoft\Internet Explorer\Main\"
-    $name = "Start Page"
     $value = "http://$using:AnonymousWebSiteName/"
-    Set-ItemProperty -Path $path -Name $name -Value $value -Force
+    Set-ItemProperty -Path $MainKey -Name "Start Page" -Value $value -Force
+
     #Bonus : To open all the available websites accross all nodes
-    $name = "Secondary Start Pages"
     $value="https://$using:BasicWebSiteName", "http://$using:KerberosWebSiteName", "http://$using:NTLMWebSiteName", "http://$using:DigestWebSiteName", "https://$using:ADClientCertWebSiteName", "https://$using:IISClientOneToOneCertWebSiteName", "https://$using:IISClientManyToOneCertWebSiteName", "http://$using:FormsWebSiteName"
-    New-ItemProperty -Path $path -PropertyType MultiString -Name $name -Value $value -Force
+    New-ItemProperty -Path $MainKey -PropertyType MultiString -Name "Secondary Start Pages" -Value $value -Force
 }
+#>
 
 #Installing and setting up DNS & DFS-R on DC for replicated folder on IIS Servers for shared configuration
 Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -ScriptBlock {
     #Creating AD Users
     #User for testing authentications
-    New-ADUser -Name $Using:ADUser -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -CannotChangePassword $True -Enabled $true
-    #Add-ADGroupMember -Identity "Administrators" -Members $Using:ADUSer
+    New-ADUser -Name $Using:TestUser -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -CannotChangePassword $True -Enabled $true
+    #Add-ADGroupMember -Identity "Administrators" -Members $Using:TestUser
     #Application Pool Identity
     New-ADUser -Name $Using:IISAppPoolUser -AccountPassword $Using:SecurePassword -PasswordNeverExpires $True -CannotChangePassword $True -Enabled $True
+    #User for Many to One IIS Certificate Mapping
+    New-ADUser -Name $using:IISClientManyToOneCertUser -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -CannotChangePassword $True -Enabled $true
 
     #region DNS management
     #Reverse lookup zone creation
@@ -193,11 +201,39 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Sc
     #endregion
 
     #region Setting SPN on the Application Pool Identity for kerberos authentication
-    setspn.exe -S "HTTP/$using:KerberosWebSiteName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/kerberos" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/IISNODE01.$using:FQDNDomainName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/IISNODE01" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
+    Set-ADUser -Identity "$Using:IISAppPoolUser" -ServicePrincipalNames @{Add="HTTP/$using:KerberosWebSiteName", "HTTP/kerberos", "HTTP/IISNODE01.$using:FQDNDomainName", "HTTP/IISNODE01"}
     #endregion
+
+    #Creating a GPO at the domain level for certificate autoenrollment
+    $DefaultNamingContext = (Get-ADRootDSE).defaultNamingContext
+    $GPO = New-GPO -Name "User Enrollment Policy" | New-GPLink -Target $DefaultNamingContext
+    #region User Enrollment Policy
+    #https://www.sysadmins.lv/retired-msft-blogs/xdot509/troubleshooting-autoenrollment.aspx : 0x00000007 = Enabled, Update Certificates that user certificates templates configured, Renew expired certificates, update pending certificates, and remove revoked certificates configured
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Cryptography\AutoEnrollment' -ValueName AEPolicy -Type Dword -value 0x00000007 
+    #endregion
+
+    #region IE Settings
+    $GPO = New-GPO -Name "IE Settings" | New-GPLink -Target $DefaultNamingContext
+    #Disabling IE ESC
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}' -ValueName IsInstalled -Type Dword -value 1
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}' -ValueName IsInstalled -Type Dword -value 1
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap' -ValueName IEHarden -Type Dword -value 0
+
+    #Setting kerberos.contoso.com, IISNODE01.contoso.com and IISNODE02.contoso.com in the Local Intranet Zone for all servers : mandatory for Kerberos authentication       
+    #1 for Intranet Zone, 2 for Trusted Sites, 3 for Internet Zone and 4 for Restricted Sites Zone.
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:KerberosWebSiteName" -ValueName http -Type Dword -value 1
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:NTLMWebSiteName" -ValueName http -Type Dword -value 1
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\IISNODE01.$using:FQDNDomainName" -ValueName http -Type Dword -value 1
+
+    #Changing the start page for IE
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Microsoft\Internet Explorer\Main' -ValueName "Start Page" -Type String -Value "http://$using:AnonymousWebSiteName"
+
+    #Bonus : To open all the available websites accross all nodes
+    $SecondaryStartPages = "https://$using:BasicWebSiteName", "http://$using:KerberosWebSiteName", "http://$using:NTLMWebSiteName", "http://$using:DigestWebSiteName", "https://$using:ADClientCertWebSiteName", "https://$using:IISClientOneToOneCertWebSiteName", "https://$using:IISClientManyToOneCertWebSiteName", "http://$using:FormsWebSiteName"
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Microsoft\Internet Explorer\Main' -ValueName "Secondary Start Pages" -Type MultiString -Value $SecondaryStartPages
+    #endregion
+
+    Invoke-GPUpdate -Computer Client01 -Force
 }
 
 
@@ -206,7 +242,7 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Sc
 $CertificationAuthority = Get-LabIssuingCA
 #Generating a new template for SSL Web Server certificate
 New-LabCATemplate -TemplateName WebServerSSL -DisplayName 'Web Server SSL' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ComputerName $CertificationAuthority -ErrorAction Stop
-New-LabCATemplate -TemplateName ClientAuthentication -DisplayName 'Client Authentication' -SourceTemplateName ClientAuth -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ComputerName $CertificationAuthority -ErrorAction Stop
+New-LabCATemplate -TemplateName $ClientAuthCertTemplateName -DisplayName 'Client Authentication' -SourceTemplateName ClientAuth -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers', 'Domain Users' -ComputerName $CertificationAuthority -ErrorAction Stop
 #Getting a New SSL Web Server Certificate for the basic website
 $BasicWebSiteSSLCert = Request-LabCertificate -Subject "CN=$BasicWebSiteName" -SAN $BasicNetBiosName, "$BasicWebSiteName", "IISNODE01", "IISNODE01.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName IISNODE01 -PassThru -ErrorAction Stop
 #Getting a New SSL Web Server Certificate for the IIS client certificate one to one website
@@ -219,19 +255,43 @@ $ADClientCertWebSiteSSLCert = Request-LabCertificate -Subject "CN=$ADClientCertW
 #Copying Web site content on all IIS servers
 Copy-LabFileItem -Path $CurrentDir\contoso.com.zip -DestinationFolderPath C:\Temp -ComputerName IISNODE01
 
-$IISClientCertContent = Invoke-LabCommand -ActivityName 'IIS Client Certificate Management' -ComputerName CLIENT01 -PassThru -ScriptBlock {
+Invoke-LabCommand -ActivityName 'Client Authentication Certificate Management' -ComputerName CA01 -ScriptBlock {
+    $Filter  = "(CN=$using:ClientAuthCertTemplateName)"
+    $ConfigContext = (Get-ADRootDSE).configurationNamingContext
+    $ConfigContext = "CN=Certificate Templates,CN=Public Key Services,CN=Services,$ConfigContext"
+    $DirectorySearcher = New-object System.DirectoryServices.DirectorySearcher([ADSI]"LDAP://$ConfigContext",$Filter )
+    $Template = $DirectorySearcher.Findone().GetDirectoryEntry()
+    #Setting Autoenrollment
+    #https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-crtd/ec71fd43-61c2-407b-83c9-b52272dec8a1 : 56 = CT_FLAG_PUBLISH_TO_DS (0x00000008) + CT_FLAG_AUTO_ENROLLMENT_CHECK_USER_DS_CERTIFICATE (0x00000010) + CT_FLAG_AUTO_ENROLLMENT (0x00000020)
+    $Template.put("msPKI-Enrollment-Flag","56")
+    #Setting Key Size to 4096
+    $Template.put("msPKI-Minimal-Key-Size","4096")
+    $Template.SetInfo()
+}
+
+$AdmIISClientCertContent = Invoke-LabCommand -ActivityName '1:1 IIS and AD Client Certificate Management for Administrator' -ComputerName CLIENT01 -PassThru -ScriptBlock {
     #For decrypting SSL traffic via network tools : https://support.f5.com/csp/article/K50557518
     [Environment]::SetEnvironmentVariable("SSLKEYLOGFILE", "$env:USERPROFILE\AppData\Local\ssl-keys.log", "User")
 
-    $null = Add-LocalGroupMember -Group "Administrators" -Member "$using:NetBiosDomainName\$using:ADUser" 
-    #Getting a IIS client Certificate for the client certificate (IIS 1:1, IIS N:1 and AD) websites
-    $IISClientCert = Get-Certificate -Template ClientAuthentication -Url ldap: -CertStoreLocation Cert:\CurrentUser\My
+    #Adding users to the Administrators group for remote connection via PowerShell for getting a certificate (next step)
+    $null = Add-LocalGroupMember -Group "Administrators" -Member "$using:NetBiosDomainName\$Using:TestUser"
+    #Getting a IIS client Certificate for the client certificate (IIS 1:1 AD) websites
+    $IISClientCert = Get-Certificate -Template $using:ClientAuthCertTemplateName -Url ldap: -CertStoreLocation Cert:\CurrentUser\My
     if ($IISClientCert)
     {
         #Getting the content of the IIS client Certificate for the IIS client certificate website (needed later in the IIS Configuration)
         [System.Convert]::ToBase64String($IISClientCert.Certificate.RawData, [System.Base64FormattingOptions]::None)
     }
-     
+}
+
+$TestUserIISClientCertContent = Invoke-LabCommand -ActivityName '1:1 IIS and AD Client Certificate Management for Test User' -ComputerName CLIENT01 -Credential $TestUserCredential -PassThru -ScriptBlock {
+    #Getting a IIS client Certificate for the client certificate (IIS 1:1 and AD) websites
+    $IISClientCert = Get-Certificate -Template $using:ClientAuthCertTemplateName -Url ldap: -CertStoreLocation Cert:\CurrentUser\My
+    if ($IISClientCert)
+    {
+        #Getting the content of the IIS client Certificate for the IIS client certificate website (needed later in the IIS Configuration)
+        [System.Convert]::ToBase64String($IISClientCert.Certificate.RawData, [System.Base64FormattingOptions]::None)
+    }
 }
 
 Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the IIS websites' -ComputerName IISNODE01 -ScriptBlock {    
@@ -411,7 +471,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #Disabling the Anonymous authentication
     Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:ADClientCertWebSiteName" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'False'
 
-    #Enabling the One to One IIS Client Certificate authentication
+    #Enabling the AD Client Certificate authentication
     Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:ADClientCertWebSiteName" -filter 'system.webServer/security/authentication/clientCertificateMappingAuthentication' -name 'enabled' -value 'True'
     
     #Enabling ASP.Net Impersonation (local web.config)
@@ -448,7 +508,8 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter 'system.webServer/security/authentication/iisClientCertificateMappingAuthentication' -name 'enabled' -value 'True'
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter "system.webServer/security/authentication/iisClientCertificateMappingAuthentication" -name "oneToOneCertificateMappingsEnabled" -value "True"
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter "system.webServer/security/authentication/iisClientCertificateMappingAuthentication" -name "manyToOneCertificateMappingsEnabled" -value "False"
-    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter "system.webServer/security/authentication/iisClientCertificateMappingAuthentication/oneToOneMappings" -name "." -value @{userName="$Using:NetBiosDomainName\$Using:Logon";password="$Using:ClearTextPassword";certificate=$using:IISClientCertContent}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter "system.webServer/security/authentication/iisClientCertificateMappingAuthentication/oneToOneMappings" -name "." -value @{userName="$Using:NetBiosDomainName\$Using:Logon";password="$Using:ClearTextPassword";certificate=$using:AdmIISClientCertContent}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter "system.webServer/security/authentication/iisClientCertificateMappingAuthentication/oneToOneMappings" -name "." -value @{userName="$Using:NetBiosDomainName\$Using:TestUser";password="$Using:ClearTextPassword";certificate=$using:TestUserIISClientCertContent}
 
     #Enabling ASP.Net Impersonation (local web.config)
     Set-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST/$using:IISClientOneToOneCertWebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
@@ -485,9 +546,9 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientManyToOneCertWebSiteName" -filter 'system.webServer/security/authentication/iisClientCertificateMappingAuthentication' -name 'enabled' -value 'True'
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientManyToOneCertWebSiteName" -filter "system.webServer/security/authentication/iisClientCertificateMappingAuthentication" -name "oneToOneCertificateMappingsEnabled" -value "False"
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientManyToOneCertWebSiteName" -filter "system.webServer/security/authentication/iisClientCertificateMappingAuthentication" -name "manyToOneCertificateMappingsEnabled" -value "True"
-    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientManyToOneCertWebSiteName" -filter "system.webServer/security/authentication/iisClientCertificateMappingAuthentication/manyToOneMappings" -name "." -value @{name="$Using:Logon";description="$Using:NetBiosDomainName\$Using:Logon";userName="$Using:NetBiosDomainName\$Using:Logon";password="$Using:ClearTextPassword"}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientManyToOneCertWebSiteName" -filter "system.webServer/security/authentication/iisClientCertificateMappingAuthentication/manyToOneMappings" -name "." -value @{name="$Using:IISClientManyToOneCertUser";description="$Using:NetBiosDomainName\$Using:IISClientManyToOneCertUser";userName="$Using:NetBiosDomainName\$Using:IISClientManyToOneCertUser";password="$Using:ClearTextPassword"}
     #Optional : Adding rules that will give you an option to add multiple patterns for matching based on certificate properties.
-    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientManyToOneCertWebSiteName" -filter "system.webServer/security/authentication/iisClientCertificateMappingAuthentication/manyToOneMappings/add[@name='$Using:Logon']/rules" -name "." -value @{certificateField='Subject';certificateSubField='CN';matchCriteria="$Using:Logon"}
+    #Only client certificates coming from the CA are authorized
     Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientManyToOneCertWebSiteName" -filter "system.webServer/security/authentication/iisClientCertificateMappingAuthentication/manyToOneMappings/add[@name='$Using:Logon']/rules" -name "." -value @{certificateField='Issuer';certificateSubField='CN';matchCriteria="$($using:CertificationAuthority.CaName)"}
     
     #Enabling ASP.Net Impersonation (local web.config)
@@ -514,7 +575,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #Setting up the Forms authentication
     #Adding to authorized users
     Add-WebConfigurationProperty -PSPath "IIS:\Sites\$using:FormsWebSiteName" -filter "system.web/authentication/forms/credentials" -name "." -value @{name="$using:Logon";password="$using:ClearTextPassword"}
-    Add-WebConfigurationProperty -PSPath "IIS:\Sites\$using:FormsWebSiteName" -filter "system.web/authentication/forms/credentials" -name "." -value @{name="$using:ADUser";password="$using:ClearTextPassword"}
+    Add-WebConfigurationProperty -PSPath "IIS:\Sites\$using:FormsWebSiteName" -filter "system.web/authentication/forms/credentials" -name "." -value @{name="$Using:TestUser";password="$using:ClearTextPassword"}
     #Setting up clear text password
     Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:FormsWebSiteName"  -filter "system.web/authentication/forms/credentials" -name "passwordFormat" -value "Clear"
     Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:FormsWebSiteName"  -filter "system.web/authentication/forms" -name "defaultUrl" -value "default.aspx"
