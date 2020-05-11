@@ -39,15 +39,9 @@
       <logonCredentials inherit="None">
         <profileName scope="Local">Custom</profileName>
         <userName>Administrator</userName>
-        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAA8euKjhCVj0WaBZzbRgqLHwAAAAACAAAAAAAQZgAAAAEAACAAAAC6k2JCgN+NFW+XZV96QT+iSMiubqPifRb7MriQx3gxVAAAAAAOgAAAAAIAACAAAAC+sY/UzEtk1ATPolNBAwVM6lpiyqmj95jXiPeboE8pyCAAAAB9oA88cwj6FaBOFXf1YiAEe3ShPCaBKNd4pDW4q63flkAAAAD33xhab9VcaCSubGBN5a/NbhVk0OoomvqAaBiqQeCv4Ld1dXQ4FGfY6LYeRCtlPSFYSF6z0k3hwtcLNvuDud5O</password>
+        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAA4S8nx2nBb0+HZKhocnfBkwAAAAACAAAAAAAQZgAAAAEAACAAAAAWOFjFEQy2K63wWEF5FSem136ODuntA5VOUybf9kP+mAAAAAAOgAAAAAIAACAAAABUPsSHqd0+kJHZtpvNhQalmXFcqfb22yk91vFNOnwxxyAAAAAijQmzOZhBOCDuip7NvRUA937M/CGAnbI/JEza7xdjq0AAAABpjw2/SLy6ersmVoIFBrluJqjC2WYgo8tQwfKv5R0XMXBbMh5R202olaSl6CY0Jeqnq6+NCrFzf+UaGjgjpKb+</password>
         <domain>CONTOSO</domain>
       </logonCredentials>
-      <server>
-        <properties>
-          <displayName>IISNODE01</displayName>
-          <name>10.0.0.21</name>
-        </properties>
-      </server>
       <server>
         <properties>
           <displayName>CA01</displayName>
@@ -61,8 +55,8 @@
         </properties>
         <logonCredentials inherit="None">
           <profileName scope="Local">Custom</profileName>
-          <userName>Administrator</userName>
-          <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAA8euKjhCVj0WaBZzbRgqLHwAAAAACAAAAAAAQZgAAAAEAACAAAADBMS/uG38xcKPqZa29szo3KNbs6XeZ9J6LdtldNqwViAAAAAAOgAAAAAIAACAAAAB3jGt6GDKA+/u6rqfvig9wKNQTrb33pfIjPkXFZoTXciAAAACh8Yvibkhb1CcbU55k1WmfyBV1/LfToF/Y6bAMSqn/MkAAAABDZpNBx2bXhTpBDv74N6IUpEcZATDaNluDN4NMOqDBqwQNovHQX6YPeSVNOpfMgPvlSS4lZqrcRdJCOsJrY+DP</password>
+          <userName>JohnDoe</userName>
+          <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAA4S8nx2nBb0+HZKhocnfBkwAAAAACAAAAAAAQZgAAAAEAACAAAADhem0KqeeJfCDuVn30JxaUS1agtbdbv4GjkEUXI63DXwAAAAAOgAAAAAIAACAAAAAT/YvzSNN8nAXReVxtnCShvB6X0sukOCSeQW7J48dsJyAAAABZzhAA0cqcDz9IOgxkcnHPptjcbiuRuR3XRwS3XYjqykAAAADfy8WNG1Gi2iN1Ld2VhXvqSuhHhQeQtJniqsCmrBH6kZTiHGDJ55InZ8j7CJs+fqaFq1jhQygS3v/a7USJMgAy</password>
           <domain>CONTOSO</domain>
         </logonCredentials>
       </server>
@@ -70,6 +64,12 @@
         <properties>
           <displayName>DC01</displayName>
           <name>10.0.0.1</name>
+        </properties>
+      </server>
+      <server>
+        <properties>
+          <displayName>IISNODE01</displayName>
+          <name>10.0.0.21</name>
         </properties>
       </server>
     </group>
