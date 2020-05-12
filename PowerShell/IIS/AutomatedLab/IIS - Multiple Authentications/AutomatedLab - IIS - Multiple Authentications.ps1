@@ -138,6 +138,7 @@ Install-LabWindowsFeature -FeatureName Web-Server, Web-Asp-Net45, Web-Request-Mo
 #endregion
 
 <#
+# All the code below has been replaced by GPO Settings
 Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $KerberosWebSiteName to the IE intranet zone" -ComputerName $machines -ScriptBlock {
     #Disabling IE ESC
     $AdminKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}'
@@ -175,7 +176,7 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $KerberosWebSiteNam
 #>
 
 #Installing and setting up DNS & DFS-R on DC for replicated folder on IIS Servers for shared configuration
-Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -ScriptBlock {
+Invoke-LabCommand -ActivityName 'DNS, DFS-R Setup & GPO Settings on DC' -ComputerName DC01 -ScriptBlock {
     #Creating AD Users
     #User for testing authentications
     New-ADUser -Name $Using:TestUser -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -CannotChangePassword $True -Enabled $true
