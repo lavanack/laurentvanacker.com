@@ -16,6 +16,7 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 #requires -Version 5 -Modules AutomatedLab -RunAsAdministrator 
+trap { Write-Host "Stopping Transcript ..."; Stop-Transcript} 
 Clear-Host
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
@@ -132,6 +133,7 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $ARRWebSiteName to 
     Rundll32 iesetup.dll, IEHardenAdmin
     Remove-Item -Path $AdminKey -Force
     Remove-Item -Path $UserKey -Force
+
     $MainKey = 'HKCU:\Software\Microsoft\Internet Explorer\Main'
     Remove-ItemProperty -Path $MainKey -Name 'First Home Page' -Force
     Set-ItemProperty -Path $MainKey -Name 'Default_Page_URL' -Value "http://$using:ARRWebSiteName" -Force
