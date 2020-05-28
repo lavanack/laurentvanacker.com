@@ -234,6 +234,13 @@ Invoke-LabCommand -ActivityName 'DNS, DFS-R Setup & GPO Settings on DC' -Compute
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Microsoft\Internet Explorer\Main' -ValueName "Secondary Start Pages" -Type MultiString -Value $SecondaryStartPages
     #endregion
 
+    #region WireShark : (Pre)-Master-Secret Log Filename
+    $GPO = New-GPO -Name "(Pre)-Master-Secret Log Filename" | New-GPLink -Target $DefaultNamingContext
+    #For decrypting SSL traffic via network tools : https://support.f5.com/csp/article/K50557518
+    $SSLKeysFile = '%USERPROFILE%\AppData\Local\ssl-keys.log'
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Environment' -ValueName "SSLKEYLOGFILE" -Type ([Microsoft.Win32.RegistryValueKind]::ExpandString) -Value $SSLKeysFile
+    #endregion
+
     Invoke-GPUpdate -Computer Client01 -Force
 }
 
@@ -271,9 +278,6 @@ Invoke-LabCommand -ActivityName 'Client Authentication Certificate Management' -
 }
 
 $AdmIISClientCertContent = Invoke-LabCommand -ActivityName '1:1 IIS and AD Client Certificate Management for Administrator' -ComputerName CLIENT01 -PassThru -ScriptBlock {
-    #For decrypting SSL traffic via network tools : https://support.f5.com/csp/article/K50557518
-    [Environment]::SetEnvironmentVariable("SSLKEYLOGFILE", "$env:USERPROFILE\AppData\Local\ssl-keys.log", "User")
-
     #Adding users to the Administrators group for remote connection via PowerShell for getting a certificate (next step)
     $null = Add-LocalGroupMember -Group "Administrators" -Member "$using:NetBiosDomainName\$Using:TestUser"
     #Getting a IIS client Certificate for the client certificate (IIS 1:1 AD) websites
@@ -465,7 +469,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     (Get-WebBinding -Name "$using:ADClientCertWebSiteName").EnableDsMapper()
 
     #SSL + Negotiate Client Certificate 
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:ADClientCertWebSiteName" -filter "system.webServer/security/access" -name "sslFlags" -value "Ssl,SslNegotiateCert"
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:ADClientCertWebSiteName" -filter "system.webServer/security/access" -name "sslFlags" -value "Ssl,SslNegotiateCert,SslRequireCert"
     
     #Removing Default Binding
     #Get-WebBinding -Port 80 -Name "$using:ADClientCertWebSiteName" | Remove-WebBinding
@@ -498,7 +502,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #3: SNI certificate in central certificate store.
     New-Item -Path "IIS:\SslBindings\$using:IISClientOneToOneCertIPv4Address!443!$using:IISClientOneToOneCertWebSiteName" -Thumbprint $($using:IISClientOneToOneCertWebSiteSSLCert).Thumbprint -sslFlags 0
     #SSL + Negotiate Client Certificate 
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter "system.webServer/security/access" -name "sslFlags" -value "Ssl,SslNegotiateCert"
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter "system.webServer/security/access" -name "sslFlags" -value "Ssl,SslNegotiateCert,SslRequireCert"
     
     #Removing Default Binding
     #Get-WebBinding -Port 80 -Name "$using:IISClientOneToOneCertWebSiteName" | Remove-WebBinding
@@ -536,7 +540,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     New-Item -Path "IIS:\SslBindings\$using:IISClientManyToOneCertIPv4Address!443!$using:IISClientManyToOneCertWebSiteName" -Thumbprint $($using:IISClientManyToOneCertWebSiteSSLCert).Thumbprint -sslFlags 0
 
     #SSL + Negotiate Client Certificate 
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientManyToOneCertWebSiteName" -filter "system.webServer/security/access" -name "sslFlags" -value "Ssl,SslNegotiateCert"
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientManyToOneCertWebSiteName" -filter "system.webServer/security/access" -name "sslFlags" -value "Ssl,SslNegotiateCert,SslRequireCert"
     
     #Removing Default Binding
     #Get-WebBinding -Port 80 -Name "$using:IISClientManyToOneCertWebSiteName" | Remove-WebBinding
