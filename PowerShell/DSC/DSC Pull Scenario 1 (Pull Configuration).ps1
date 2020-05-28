@@ -34,9 +34,9 @@ Set-LabInstallationCredential -Username Install -Password P@ssw0rd
 
 #defining default parameter values, as these ones are the same for all the machines
 $PSDefaultParameterValues = @{
-    'Add-LabMachineDefinition:Network' = $labName
-    'Add-LabMachineDefinition:DomainName' = 'contoso.com'
-    'Add-LabMachineDefinition:Memory' = 1GB
+    'Add-LabMachineDefinition:Network'         = $labName
+    'Add-LabMachineDefinition:DomainName'      = 'contoso.com'
+    'Add-LabMachineDefinition:Memory'          = 1GB
     'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Datacenter (Desktop Experience)'
 }
 
@@ -59,7 +59,7 @@ Add-LabIsoImageDefinition -Name SQLServer2016 -Path $labSources\ISOs\en_sql_serv
 Add-LabMachineDefinition -Name DSQL -Roles $role
 
 #DSC Pull Server
-$role = Get-LabMachineRoleDefinition -Role DSCPullServer -Properties @{ DatabaseEngine = 'sql'; SqlServer="DSQL"; DatabaseName="DSC" }
+$role = Get-LabMachineRoleDefinition -Role DSCPullServer -Properties @{ DatabaseEngine = 'sql'; SqlServer = "DSQL"; DatabaseName = "DSC" }
 Add-LabMachineDefinition -Name DPull1 -Roles $role
 
 #DSC Pull Clients
