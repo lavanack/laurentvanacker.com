@@ -26,7 +26,7 @@ sudo apt-get update
 # Enable the "universe" repositories
 sudo add-apt-repository universe
 
-# Install PowerShell
+# Install PowerShell from the "universe" repositories
 sudo apt-get install powershell -y
 
 #cd ~
