@@ -1,7 +1,6 @@
 #region function definitions
 #Function for releasing a COM object
-Function Remove-Ref 
-{
+Function Remove-Ref {
 	param
 	(
 		[Object]
@@ -9,8 +8,7 @@ Function Remove-Ref
 	)
 
 	$null = Remove-Variable -Name $ref -ErrorAction SilentlyContinue
-	while ([System.Runtime.InteropServices.Marshal]::ReleaseComObject([System.__ComObject]$ref) -gt 0) 
-	{
+	while ([System.Runtime.InteropServices.Marshal]::ReleaseComObject([System.__ComObject]$ref) -gt 0) {
 
 	}
 	[System.GC]::Collect()
@@ -19,8 +17,7 @@ Function Remove-Ref
 
 
 #Main function for merging PowerPoint presentations
-Function Merge-PowerPointPresentation 
-{
+Function Merge-PowerPointPresentation {
 	<#
 			.SYNOPSIS
 			Merge multiple PowerPoint presentation files to one file
@@ -51,10 +48,10 @@ Function Merge-PowerPointPresentation
 	[CmdletBinding()]
 	Param(
 		#The collection of the powerpoint files to merge
-		[Parameter(Mandatory = $True,ValueFromPipeline = $True,ValueFromPipelineByPropertyName = $True)]
-		[ValidateScript({
-					(Test-Path -Path $_ -PathType Leaf) -and ($_ -match "\.ppt(x{0,1})$")
-		})]
+		[Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+		[ValidateScript( {
+				(Test-Path -Path $_ -PathType Leaf) -and ($_ -match "\.ppt(x{0,1})$")
+			})]
 		[alias('FilePath', 'Path', 'FullName')]
 		[string[]]$Source,
 
@@ -68,8 +65,7 @@ Function Merge-PowerPointPresentation
 		[parameter(Mandatory = $False)]
 		[switch]$Open
 	)
-	begin
-	{
+	begin {
 		#Opening the PowerPoint application once
 		Add-Type -AssemblyName Microsoft.Office.Interop.PowerPoint
 		$Powerpoint = New-Object -ComObject Powerpoint.Application
@@ -79,11 +75,9 @@ Function Merge-PowerPointPresentation
 		$null = $NewPresentation.Slides.Add(1, [Microsoft.Office.Interop.PowerPoint.PpSlideLayout]::ppLayoutBlank)
 		$SlidesNb = 0
 	}
-	process
-	{
+	process {
 		#For all files passed as argument outside a pipeline context
-		foreach ($CurrentSource in $Source)
-		{
+		foreach ($CurrentSource in $Source) {
 			#Getting the base name of the processed presentation
 			$CurrentPresentationName = (Get-Item -Path $CurrentSource).BaseName
 			
@@ -91,26 +85,24 @@ Function Merge-PowerPointPresentation
 			$InsertedSlidesNb = $NewPresentation.Slides.InsertFromfile($CurrentSource, $SlidesNb)
 			
 			#Applying the original template
-			$NewPresentation.Slides.Range(($SlidesNb+1)..($SlidesNb+$InsertedSlidesNb)).ApplyTemplate($CurrentSource)
+			$NewPresentation.Slides.Range(($SlidesNb + 1)..($SlidesNb + $InsertedSlidesNb)).ApplyTemplate($CurrentSource)
 
 			#Adding a new section for the inserted context with the name of the processed presentation
 			Write-Verbose -Message "Adding the section $CurrentPresentationName before Slide $($SlidesNb+1)..."
-			$null = $NewPresentation.SectionProperties.AddBeforeSlide($SlidesNb+1, $CurrentPresentationName)
+			$null = $NewPresentation.SectionProperties.AddBeforeSlide($SlidesNb + 1, $CurrentPresentationName)
 
 			Write-Verbose -Message "Processed file $CurrentSource by inserting $InsertedSlidesNb slides ($($SlidesNb+1) ==> $($SlidesNb+$InsertedSlidesNb)) ..."
 			$SlidesNb += $InsertedSlidesNb
 		}
 	}
-	end
-	{
+	end {
 		#Deleting the useless empty slide (added at the beginning)
-		$NewPresentation.Slides.Range($SlidesNb+1).Delete()
+		$NewPresentation.Slides.Range($SlidesNb + 1).Delete()
 		#Saving the final file
 		$NewPresentation.SaveAs($Destination)
 		Write-Host -Object "The new presentation was saved in $($NewPresentation.FullName) ($SlidesNb slides)"
 		#If the -Open switch is specified we keep the PowerPoint application opened
-		if (!$Open)
-		{
+		if (!$Open) {
 			$NewPresentation.Close()
 			#$Powerpoint.Quit() | Out-Null
 			Write-Verbose -Message 'Releasing PowerPoint ...'
