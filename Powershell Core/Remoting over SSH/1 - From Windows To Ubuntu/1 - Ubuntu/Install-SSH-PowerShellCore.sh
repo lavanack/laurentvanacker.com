@@ -29,6 +29,7 @@ sudo add-apt-repository universe
 
 # Install PowerShell
 sudo apt-get install powershell -y
+#wget https://aka.ms/install-powershell.sh; sudo bash install-powershell.sh; rm install-powershell.sh
 
 #To allow inbound connection from another machine via PowerShell Remoting via SSH tunneling
 sudo -- sh -c "echo 'RSAAuthentication yes' >> /etc/ssh/sshd_config"
