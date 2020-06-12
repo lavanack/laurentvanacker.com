@@ -29,15 +29,18 @@ $TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}" -f (
 Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 
 #region Global variables definition
-$Logon             = 'Administrator'
+$MSEdgeEntUri             = "http://go.microsoft.com/fwlink/?LinkID=2093437"
+$MSEdgeEntX64MSIFile      = Join-Path -Path $CurrentDir -ChildPath "MicrosoftEdgeEnterpriseX64.msi"
+
+$Logon                    = 'Administrator'
 # This is a lab so we assume to use clear-text password (and the same for all accounts for an easier management :))  
-$ClearTextPassword  = 'P@ssw0rd'
-$SecurePassword     = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
-$NetBiosDomainName  = 'CONTOSO'
-$FQDNDomainName     = 'contoso.com'
-$IISAppPoolUser     = 'IISAppPoolUser'
-$TestUser           = 'JohnDoe'
-$TestUserCredential = New-Object System.Management.Automation.PSCredential ("$NetBiosDomainName\$TestUser", $SecurePassword)
+$ClearTextPassword        = 'P@ssw0rd'
+$SecurePassword           = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
+$NetBiosDomainName        = 'CONTOSO'
+$FQDNDomainName           = 'contoso.com'
+$IISAppPoolUser           = 'IISAppPoolUser'
+$TestUser                 = 'JohnDoe'
+$TestUserCredential       = New-Object System.Management.Automation.PSCredential ("$NetBiosDomainName\$TestUser", $SecurePassword)
 
 $NetworkID          ='10.0.0.0/16' 
 $DCIPv4Address      = '10.0.0.1'
@@ -134,8 +137,15 @@ Install-Lab
 $machines = Get-LabVM
 Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools
 Install-LabWindowsFeature -FeatureName Web-Server, Web-Asp-Net45, Web-Request-Monitor, Web-Basic-Auth, Web-Client-Auth, Web-Digest-Auth, Web-Cert-Auth, Web-Windows-Auth -ComputerName IISNODE01 -IncludeManagementTools
+#endregion
+
+
+#Downloading Microsoft Edge and WireShark and copying the on the client 
+Invoke-WebRequest -Uri $MSEdgeEntUri -OutFile $MSEdgeEntX64MSIFile
+Copy-LabFileItem -Path $MSEdgeEntX64MSIFile -DestinationFolderPath C:\Temp -ComputerName CLIENT01
 
 #endregion
+
 
 <#
 # All the code below has been replaced by GPO Settings
@@ -287,6 +297,9 @@ $AdmIISClientCertContent = Invoke-LabCommand -ActivityName '1:1 IIS and AD Clien
         #Getting the content of the IIS client Certificate for the IIS client certificate website (needed later in the IIS Configuration)
         [System.Convert]::ToBase64String($IISClientCert.Certificate.RawData, [System.Base64FormattingOptions]::None)
     }
+
+    #Installing Microsoft Edge
+    Start-Process msiexec.exe -ArgumentList "/i C:\temp\MicrosoftEdgeEnterpriseX64.msi /passive /norestart /log C:\temp\MicrosoftEdgeEnterpriseX64.log" -Wait
 }
 
 $TestUserIISClientCertContent = Invoke-LabCommand -ActivityName '1:1 IIS and AD Client Certificate Management for Test User' -ComputerName CLIENT01 -Credential $TestUserCredential -PassThru -ScriptBlock {
