@@ -79,7 +79,7 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:DomainName'    = $FQDNDomainName
     'Add-LabMachineDefinition:Memory'        = 2GB
     'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Standard (Desktop Experience)'
-    'Add-LabMachineDefinition:Processors'    = 2
+    'Add-LabMachineDefinition:Processors'    = 4
 }
 
 #Domain controller
@@ -99,7 +99,7 @@ Add-LabMachineDefinition -Name IISNODE02 -NetworkAdapter $netAdapter
 #endregion
 
 #Installing servers
-Install-Lab
+Install-Lab -DelayBetweenComputers 120
 #Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 
 #region Installing Required Windows Features
@@ -245,15 +245,19 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
     $WebServerSSLCert = Get-ChildItem -Path Cert:\LocalMachine\My\ -DnsName "$using:NLBWebSiteName" -SSLServerAuthentication | Where-Object -FilterScript {
         $_.hasPrivateKey 
     }  
+    $PFXFilePath = "C:\CentralCertificateStore\$using:NLBWebSiteName.pfx"
     if ($WebServerSSLCert)
     {    
-        #Exporting the local SSL Certificate to a local (replicated via DFS-R) PFX file
-        $WebServerSSLCert | Export-PfxCertificate -FilePath "C:\CentralCertificateStore\$using:NLBWebSiteName.pfx" -Password $Using:SecurePassword
-        #Bonus : To access directly to the SSL web site hosted on IIS nodes by using the node names
-        Copy-Item "C:\CentralCertificateStore\$using:NLBWebSiteName.pfx" "C:\CentralCertificateStore\iisnode01.$using:FQDNDomainName.pfx"
-        Copy-Item "C:\CentralCertificateStore\$using:NLBWebSiteName.pfx" "C:\CentralCertificateStore\iisnode02.$using:FQDNDomainName.pfx"
+        if (-not(Test-Path -Path $PFXFilePath))
+        {    
+            #Exporting the local SSL Certificate to a local (replicated via DFS-R) PFX file
+            $WebServerSSLCert | Export-PfxCertificate -FilePath $PFXFilePath -Password $Using:SecurePassword
+            #Bonus : To access directly to the SSL web site hosted on IIS nodes by using the node names
+            Copy-Item $PFXFilePath "C:\CentralCertificateStore\iisnode01.$using:FQDNDomainName.pfx" -Force
+            Copy-Item $PFXFilePath "C:\CentralCertificateStore\iisnode02.$using:FQDNDomainName.pfx" -Force
+        }
         #removing the local SSL Certificate
-        $WebServerSSLCert | Remove-Item -Force
+        #$WebServerSSLCert | Remove-Item -Force
     }
     else
     {
