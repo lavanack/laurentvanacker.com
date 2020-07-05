@@ -28,6 +28,63 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 $TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}" -f (get-date)).txt"
 Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 
+#region Helper function
+# Generates a <machineKey> element that can be copied + pasted into a Web.config file.
+#From https://support.microsoft.com/en-us/help/2915218/resolving-view-state-message-authentication-code-mac-errors#AppendixA. 
+#Modified to return an object instead of a XML block
+function New-MachineKey {
+  [CmdletBinding()]
+  param (
+    [ValidateSet("AES", "DES", "3DES")]
+    [string]$decryptionAlgorithm = 'AES',
+    [ValidateSet("MD5", "SHA1", "HMACSHA256", "HMACSHA384", "HMACSHA512")]
+    [string]$validationAlgorithm = 'HMACSHA256'
+  )
+  process {
+    function BinaryToHex {
+        [CmdLetBinding()]
+        param($bytes)
+        process {
+            $builder = new-object System.Text.StringBuilder
+            foreach ($b in $bytes) {
+              $builder = $builder.AppendFormat([System.Globalization.CultureInfo]::InvariantCulture, "{0:X2}", $b)
+            }
+            $builder
+        }
+    }
+    switch ($decryptionAlgorithm) {
+      "AES" { $decryptionObject = new-object System.Security.Cryptography.AesCryptoServiceProvider }
+      "DES" { $decryptionObject = new-object System.Security.Cryptography.DESCryptoServiceProvider }
+      "3DES" { $decryptionObject = new-object System.Security.Cryptography.TripleDESCryptoServiceProvider }
+    }
+    $decryptionObject.GenerateKey()
+    $decryptionKey = BinaryToHex($decryptionObject.Key)
+    $decryptionObject.Dispose()
+    switch ($validationAlgorithm) {
+      "MD5" { $validationObject = new-object System.Security.Cryptography.HMACMD5 }
+      "SHA1" { $validationObject = new-object System.Security.Cryptography.HMACSHA1 }
+      "HMACSHA256" { $validationObject = new-object System.Security.Cryptography.HMACSHA256 }
+      "HMACSHA385" { $validationObject = new-object System.Security.Cryptography.HMACSHA384 }
+      "HMACSHA512" { $validationObject = new-object System.Security.Cryptography.HMACSHA512 }
+    }
+    $validationKey = BinaryToHex($validationObject.Key)
+    $validationObject.Dispose()
+    <#
+    [string]::Format([System.Globalization.CultureInfo]::InvariantCulture,
+      "<machineKey decryption=`"{0}`" decryptionKey=`"{1}`" validation=`"{2}`" validationKey=`"{3}`" />",
+      $decryptionAlgorithm.ToUpperInvariant(), $decryptionKey,
+      $validationAlgorithm.ToUpperInvariant(), $validationKey)
+    #>
+    [PSCustomObject]@{
+        "decryption" = [string]::Format([System.Globalization.CultureInfo]::InvariantCulture, "{0}", $decryptionAlgorithm.ToUpperInvariant(), $decryptionKey, $validationAlgorithm.ToUpperInvariant(), $validationKey)
+        "decryptionKey" = [string]::Format([System.Globalization.CultureInfo]::InvariantCulture, "{0}", $decryptionKey)
+        "validation" = [string]::Format([System.Globalization.CultureInfo]::InvariantCulture, "{0}", $validationAlgorithm.ToUpperInvariant())
+        "validationKey" = [string]::Format([System.Globalization.CultureInfo]::InvariantCulture, "{0}", $validationKey)
+    }
+  }
+}
+#endregion
+
 #region Global variables definition
 $Logon = 'Administrator'
 $ClearTextPassword = 'P@ssw0rd'
@@ -75,11 +132,13 @@ Set-LabInstallationCredential -Username $Logon -Password $ClearTextPassword
 
 #defining default parameter values, as these ones are the same for all the machines
 $PSDefaultParameterValues = @{
-    'Add-LabMachineDefinition:Network'       = $LabName
-    'Add-LabMachineDefinition:DomainName'    = $FQDNDomainName
-    'Add-LabMachineDefinition:Memory'        = 2GB
+    'Add-LabMachineDefinition:Network'         = $LabName
+    'Add-LabMachineDefinition:DomainName'      = $FQDNDomainName
+    'Add-LabMachineDefinition:MinMemory'       = 1GB
+    'Add-LabMachineDefinition:MaxMemory'       = 2GB
+    'Add-LabMachineDefinition:Memory'          = 2GB
     'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Standard (Desktop Experience)'
-    'Add-LabMachineDefinition:Processors'    = 4
+    'Add-LabMachineDefinition:Processors'      = 4
 }
 
 #Domain controller
@@ -89,12 +148,12 @@ Add-LabMachineDefinition -Name CA01 -Roles CARoot -IpAddress $CAIPv4Address
 
 #region IIS front-end servers : 2 NICS for  (1 for server communications and 1 for NLB)
 $netAdapter = @()
-$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $IISNODE01IPv4Address
-$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $NLBIISNODE01IPv4Address
+$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $IISNODE01IPv4Address -InterfaceName 'Internal'
+$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $NLBIISNODE01IPv4Address -InterfaceName 'NLB'
 Add-LabMachineDefinition -Name IISNODE01 -NetworkAdapter $netAdapter
 $netAdapter = @()
-$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $IISNODE02IPv4Address
-$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $NLBIISNODE02IPv4Address
+$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $IISNODE02IPv4Address -InterfaceName 'Internal'
+$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $NLBIISNODE02IPv4Address -InterfaceName 'NLB'
 Add-LabMachineDefinition -Name IISNODE02 -NetworkAdapter $netAdapter
 #endregion
 
@@ -224,16 +283,15 @@ $CertificationAuthority = Get-LabIssuingCA
 #Generating a new template for SSL Web Server certificate
 New-LabCATemplate -TemplateName WebServerSSL -DisplayName 'Web Server SSL' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ComputerName $CertificationAuthority -ErrorAction Stop
 #Getting a New SSL Web Server Certificate
-$WebServerSSLCert = Request-LabCertificate -Subject "CN=$NLBWebSiteName" -SAN $NLBWebSiteName, $NLBNetBiosName, "IISNODE01", "IISNODE01.$FQDNDomainName", "IISNODE02", "IISNODE02.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName IISNODE01 -PassThru -ErrorAction Stop
-#Copying The Previously Generated Certificate to the second IIS node
-Get-LabCertificate -ComputerName IISNODE01 -SearchString "$NLBWebSiteName" -FindType FindBySubjectName -ExportPrivateKey -Password $SecurePassword | Add-LabCertificate -ComputerName IISNODE02 -Location CERT_SYSTEM_STORE_LOCAL_MACHINE -Store My -Password $ClearTextPassword
-#$WebServerSSLCert | Add-LabCertificate -ComputerName IISNODE02 -Location CERT_SYSTEM_STORE_LOCAL_MACHINE -Store My -Password $ClearTextPassword
+$WebServerSSLCert = Request-LabCertificate -Subject "CN=$NLBWebSiteName" -SAN $NLBWebSiteName, $NLBNetBiosName, "IISNODE01", "IISNODE01.$FQDNDomainName", "IISNODE02", "IISNODE02.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName "IISNODE01","IISNODE02" -PassThru -ErrorAction Stop
 #endregion
 
 #Copying Web site content on all IIS servers
 Copy-LabFileItem -Path $CurrentDir\nlb.contoso.com.zip -DestinationFolderPath C:\Temp -ComputerName IISNODE01, IISNODE02
 
-Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Central Certificate Store Directory, Unzipping Web Site Content' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
+#Generating machine key (to standardize across all Web farm nodes)
+$MachineKey = New-MachineKey
+Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Central Certificate Store Directory, Unzipping Web Site Content and Setting up the Website' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
     #Restarting DFSR service
     Restart-Service -Name DFSR -Force
     Start-Sleep -Seconds 10
@@ -248,16 +306,13 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
     $PFXFilePath = "C:\CentralCertificateStore\$using:NLBWebSiteName.pfx"
     if ($WebServerSSLCert)
     {    
-        if (-not(Test-Path -Path $PFXFilePath))
-        {    
-            #Exporting the local SSL Certificate to a local (replicated via DFS-R) PFX file
-            $WebServerSSLCert | Export-PfxCertificate -FilePath $PFXFilePath -Password $Using:SecurePassword
-            #Bonus : To access directly to the SSL web site hosted on IIS nodes by using the node names
-            Copy-Item $PFXFilePath "C:\CentralCertificateStore\iisnode01.$using:FQDNDomainName.pfx" -Force
-            Copy-Item $PFXFilePath "C:\CentralCertificateStore\iisnode02.$using:FQDNDomainName.pfx" -Force
-        }
+        #Exporting the local SSL Certificate to a local (replicated via DFS-R) PFX file
+        $WebServerSSLCert | Export-PfxCertificate -FilePath $PFXFilePath -Password $Using:SecurePassword
+        #Bonus : To access directly to the SSL web site hosted on IIS nodes by using the node names
+        Copy-Item $PFXFilePath "C:\CentralCertificateStore\iisnode01.$using:FQDNDomainName.pfx" -Force
+        Copy-Item $PFXFilePath "C:\CentralCertificateStore\iisnode02.$using:FQDNDomainName.pfx" -Force
         #removing the local SSL Certificate
-        #$WebServerSSLCert | Remove-Item -Force
+        $WebServerSSLCert | Remove-Item -Force
     }
     else
     {
@@ -324,17 +379,23 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
     #Get-WebBinding -Port 80 -Name "$using:NLBWebSiteName" | Remove-WebBinding
 
     #Require SSL
-    Get-IISConfigSection -SectionPath 'system.webServer/security/access' -Location "$using:NLBWebSiteName" | Set-IISConfigAttributeValue -AttributeName sslFlags -AttributeValue Ssl
+    Get-IISConfigSection -SectionPath 'system.webServer/security/access' -location "$using:NLBWebSiteName" | Set-IISConfigAttributeValue -AttributeName sslFlags -AttributeValue Ssl
 
     #Disabling the Anonymous authentication
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'False'
     #Enabling the Windows authentication
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'enabled' -value 'True'
     #Enabling ASP.Net Impersonation (local web.config)
-    Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:NLBWebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
 
     #Disabling validation for application pool in integrated mode due to ASP.Net impersonation incompatibility
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False' -verbose
+
+    #Standardizing up machine keys across the web farm nodes
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter '/system.web/machinekey' -Name Decryption -Value $using:MachineKey
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter '/system.web/machinekey' -Name DecryptionKey -Value $using:MachineKey
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter '/system.web/machinekey' -Name Validation -Value $using:MachineKey
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter '/system.web/machinekey' -Name ValidationKey -Value $using:MachineKey
 }
 
 #Exporting IIS Shared Configuration From The First IIS Node
