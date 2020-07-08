@@ -246,12 +246,15 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Sc
     #endregion
 
     #region Setting SPN on the Application Pool Identity
+    <#
     setspn.exe -S "HTTP/$using:NLBWebSiteName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
     setspn.exe -S "HTTP/$using:NLBNetBiosName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
     setspn.exe -S "HTTP/IISNODE01.$using:FQDNDomainName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
     setspn.exe -S "HTTP/IISNODE01" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
     setspn.exe -S "HTTP/IISNODE02.$using:FQDNDomainName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
     setspn.exe -S "HTTP/IISNODE02" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
+    #>
+    Set-ADUser -Identity "$Using:IISAppPoolUser" -ServicePrincipalNames @{Add="HTTP/$using:NLBWebSiteName", "HTTP/$using:NLBNetBiosName", "HTTP/IISNODE01.$using:FQDNDomainName", "HTTP/IISNODE01", "HTTP/IISNODE02.$using:FQDNDomainName", "HTTP/IISNODE02"}
     #endregion
 }
 
@@ -385,7 +388,7 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'False'
     #Enabling the Windows authentication
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'enabled' -value 'True'
-    #Enabling ASP.Net Impersonation (local web.config)
+    #Enabling ASP.Net Impersonation 
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
 
     #Disabling validation for application pool in integrated mode due to ASP.Net impersonation incompatibility
