@@ -104,6 +104,8 @@ Set-LabInstallationCredential -Username $Logon -Password $ClearTextPassword
 $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:Network'         = $LabName
     'Add-LabMachineDefinition:DomainName'      = $FQDNDomainName
+    'Add-LabMachineDefinition:MinMemory'       = 1GB
+    'Add-LabMachineDefinition:MaxMemory'       = 2GB
     'Add-LabMachineDefinition:Memory'          = 2GB
     'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Standard (Desktop Experience)'
     'Add-LabMachineDefinition:Processors'      = 4
@@ -188,12 +190,12 @@ Invoke-LabCommand -ActivityName 'Adding some users to the SQL sysadmin group' -C
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
     Install-Module -Name SqlServer -Force -AllowClobber
     #Adding some AD users to SQL server as sysadmin (used for Web Deploy lab)
-    $SQLMusicStoreAppPoolUsr = Add-SqlLogin -ServerInstance $Env:COMPUTERNAME -LoginName "$Using:NetBiosDomainName\$Using:MusicStoreAppPoolUsr" -LoginType "WindowsUser" -Enable
-    $SQLMusicStoreAppPoolUsr.AddToRole("sysadmin")
-    $SQLMusicStoreAppPoolUsr = Add-SqlLogin -ServerInstance $Env:COMPUTERNAME -LoginName "$Using:NetBiosDomainName\$Using:WDeployConfigWriter" -LoginType "WindowsUser" -Enable
-    $SQLMusicStoreAppPoolUsr.AddToRole("sysadmin")
-    $SQLMusicStoreAppPoolUsr = Add-SqlLogin -ServerInstance $Env:COMPUTERNAME -LoginName "$Using:NetBiosDomainName\$Using:WebDeploySqlUsr" -LoginType "WindowsUser" -Enable
-    $SQLMusicStoreAppPoolUsr.AddToRole("sysadmin")
+    $SQLLogin = Add-SqlLogin -ServerInstance $Env:COMPUTERNAME -LoginName "$Using:NetBiosDomainName\$Using:MusicStoreAppPoolUsr" -LoginType "WindowsUser" -Enable
+    $SQLLogin.AddToRole("sysadmin")
+    $SQLLogin = Add-SqlLogin -ServerInstance $Env:COMPUTERNAME -LoginName "$Using:NetBiosDomainName\$Using:WDeployConfigWriter" -LoginType "WindowsUser" -Enable
+    $SQLLogin.AddToRole("sysadmin")
+    $SQLLogin = Add-SqlLogin -ServerInstance $Env:COMPUTERNAME -LoginName "$Using:NetBiosDomainName\$Using:WebDeploySqlUsr" -LoginType "WindowsUser" -Enable
+    $SQLLogin.AddToRole("sysadmin")
 }
 
 
@@ -227,6 +229,7 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate for the fu
 }
 #>
 
+# Hastable for getting the ISO Path for every VM (needed for .Net 2.0 setup)
 $IsoPathHashTable = Get-LabMachineDefinition | Where-Object { $_.Name -like "*IIS*"}  | Select-Object -Property Name, @{Name="IsoPath"; Expression={$_.OperatingSystem.IsoPath}} | Group-Object -Property Name -AsHashTable -AsString
 
 $IISServers = (Get-LabVM | Where-Object -FilterScript { $_.Name -like "*IIS*"}).Name

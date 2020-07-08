@@ -179,12 +179,12 @@ Invoke-LabCommand -ActivityName 'DNS Setup on DC and Adding some users to the SQ
     New-ADUser -Name $Using:CentralSSLUser -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -CannotChangePassword $True -Enabled $true
 
     #Adding some AD users to SQL server as sysadmin (used for Web Deploy lab)
-    $SQLMusicStoreAppPoolUsr = Add-SqlLogin -ServerInstance $Env:COMPUTERNAME -LoginName "$Using:NetBiosDomainName\$Using:MusicStoreAppPoolUsr" -LoginType "WindowsUser" -Enable
-    $SQLMusicStoreAppPoolUsr.AddToRole("sysadmin")
-    $SQLMusicStoreAppPoolUsr = Add-SqlLogin -ServerInstance $Env:COMPUTERNAME -LoginName "$Using:NetBiosDomainName\$Using:WDeployConfigWriter" -LoginType "WindowsUser" -Enable
-    $SQLMusicStoreAppPoolUsr.AddToRole("sysadmin")
-    $SQLMusicStoreAppPoolUsr = Add-SqlLogin -ServerInstance $Env:COMPUTERNAME -LoginName "$Using:NetBiosDomainName\$Using:WebDeploySqlUsr" -LoginType "WindowsUser" -Enable
-    $SQLMusicStoreAppPoolUsr.AddToRole("sysadmin")
+    $SQLLogin = Add-SqlLogin -ServerInstance $Env:COMPUTERNAME -LoginName "$Using:NetBiosDomainName\$Using:MusicStoreAppPoolUsr" -LoginType "WindowsUser" -Enable
+    $SQLLogin.AddToRole("sysadmin")
+    $SQLLogin = Add-SqlLogin -ServerInstance $Env:COMPUTERNAME -LoginName "$Using:NetBiosDomainName\$Using:WDeployConfigWriter" -LoginType "WindowsUser" -Enable
+    $SQLLogin.AddToRole("sysadmin")
+    $SQLLogin = Add-SqlLogin -ServerInstance $Env:COMPUTERNAME -LoginName "$Using:NetBiosDomainName\$Using:WebDeploySqlUsr" -LoginType "WindowsUser" -Enable
+    $SQLLogin.AddToRole("sysadmin")
 }
 
 
