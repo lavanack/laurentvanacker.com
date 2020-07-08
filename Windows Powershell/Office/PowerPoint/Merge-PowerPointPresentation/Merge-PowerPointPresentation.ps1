@@ -71,8 +71,6 @@ Function Merge-PowerPointPresentation {
 		$Powerpoint = New-Object -ComObject Powerpoint.Application
 		#Creating a new PowerPoint presentation
 		$NewPresentation = $Powerpoint.Presentations.Add($True)
-		# Adding an empty slide : mandatory
-		$null = $NewPresentation.Slides.Add(1, [Microsoft.Office.Interop.PowerPoint.PpSlideLayout]::ppLayoutBlank)
 		$SlidesNb = 0
 	}
 	process {
@@ -96,15 +94,13 @@ Function Merge-PowerPointPresentation {
 		}
 	}
 	end {
-		#Deleting the useless empty slide (added at the beginning)
-		$NewPresentation.Slides.Range($SlidesNb + 1).Delete()
 		#Saving the final file
 		$NewPresentation.SaveAs($Destination)
 		Write-Host -Object "The new presentation was saved in $($NewPresentation.FullName) ($SlidesNb slides)"
 		#If the -Open switch is specified we keep the PowerPoint application opened
 		if (!$Open) {
 			$NewPresentation.Close()
-			#$Powerpoint.Quit() | Out-Null
+			$Powerpoint.Quit() | Out-Null
 			Write-Verbose -Message 'Releasing PowerPoint ...'
 			Remove-Ref -ref ($NewPresentation)
 			Remove-Ref -ref ($Powerpoint)
@@ -116,11 +112,13 @@ Function Merge-PowerPointPresentation {
 Clear-Host
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $MyInvocation.MyCommand.Path
-$DestinationFile = Join-Path -Path $CurrentDir -ChildPath "MergedPresentations.pptx"
+$DestinationFile = Join-Path -Path $CurrentDir -ChildPath $("MergedPresentations_{0:yyyyMMddHHmmss}.pptx" -f (get-date))
+
+
 #Loading the PowerPoint assembly
 
 #Example 1 : Processing all the PowerPoint presentation in current directory in the alphabetical order
-Get-ChildItem -Path $CurrentDir -Filter "*.pptx" -File | Sort-Object -Property Name | Merge-PowerPointPresentation -Verbose -Open -Destination $DestinationFile
+Get-ChildItem -Path $CurrentDir -Filter "Sample*.pptx" -File | Sort-Object -Property Name | Merge-PowerPointPresentation -Verbose -Open -Destination $DestinationFile
 
 
 #Example 2 : Processing a list of some PowerPoint presentations specified by their absolute path
