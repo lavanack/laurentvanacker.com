@@ -114,9 +114,6 @@ Clear-Host
 $CurrentDir = Split-Path -Path $MyInvocation.MyCommand.Path
 $DestinationFile = Join-Path -Path $CurrentDir -ChildPath $("MergedPresentations_{0:yyyyMMddHHmmss}.pptx" -f (get-date))
 
-
-#Loading the PowerPoint assembly
-
 #Example 1 : Processing all the PowerPoint presentation in current directory in the alphabetical order
 Get-ChildItem -Path $CurrentDir -Filter "Sample*.pptx" -File | Sort-Object -Property Name | Merge-PowerPointPresentation -Verbose -Open -Destination $DestinationFile
 
