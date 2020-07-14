@@ -96,11 +96,9 @@ Function Split-PowerPointPresentation {
 Clear-Host
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $MyInvocation.MyCommand.Path
-#Loading the PowerPoint assembly
 
 #Example 1 : Processing all the PowerPoint presentation in current directory in the alphabetical order
 Get-ChildItem -Path $CurrentDir -Filter "PresentationToSplit?.pptx" -File | Split-PowerPointPresentation -Verbose
-
 
 #Example 2 : Processing a list of some PowerPoint presentations specified by their absolute path
 #$Presentations = "$CurrentDir\0.pptx", "$CurrentDir\PresentationToSplit1.pptx", "$CurrentDir\PresentationToSplit2.pptx"
