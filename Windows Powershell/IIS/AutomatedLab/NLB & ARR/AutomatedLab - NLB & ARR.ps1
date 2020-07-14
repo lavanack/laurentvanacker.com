@@ -573,8 +573,9 @@ Invoke-LabCommand -ActivityName 'Windows Authentication and Machine Keys Setup' 
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:ARRWebSiteName" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'False'
     #Enabling the Windows authentication
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:ARRWebSiteName" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'enabled' -value 'True'
+    
     #Enabling ASP.Net Impersonation
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:ARRWebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
+    Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:ARRWebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
 
     #Enabling the Anonymous authentication for the healthcheck folder
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:ARRWebSiteName/healthcheck/" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'True'
@@ -585,10 +586,10 @@ Invoke-LabCommand -ActivityName 'Windows Authentication and Machine Keys Setup' 
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:ARRWebSiteName"  -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False' -verbose
 
     #Standardizing up machine keys across the IIS nodes
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:ARRWebSiteName" -filter '/system.web/machinekey' -Name Decryption -Value $using:MachineKey
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:ARRWebSiteName" -filter '/system.web/machinekey' -Name DecryptionKey -Value $using:MachineKey
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:ARRWebSiteName" -filter '/system.web/machinekey' -Name Validation -Value $using:MachineKey
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:ARRWebSiteName" -filter '/system.web/machinekey' -Name ValidationKey -Value $using:MachineKey
+    Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:ARRWebSiteName" -filter '/system.web/machinekey' -Name Decryption -Value $using:MachineKey
+    Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:ARRWebSiteName" -filter '/system.web/machinekey' -Name DecryptionKey -Value $using:MachineKey
+    Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:ARRWebSiteName" -filter '/system.web/machinekey' -Name Validation -Value $using:MachineKey
+    Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:ARRWebSiteName" -filter '/system.web/machinekey' -Name ValidationKey -Value $using:MachineKey
 }
 
 #Exporting IIS Shared Configuration from the first IIS node

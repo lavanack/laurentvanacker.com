@@ -389,16 +389,16 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
     #Enabling the Windows authentication
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter 'system.webServer/security/authentication/windowsAuthentication' -name 'enabled' -value 'True'
     #Enabling ASP.Net Impersonation 
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
+    Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:NLBWebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
 
     #Disabling validation for application pool in integrated mode due to ASP.Net impersonation incompatibility
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False' -verbose
 
     #Standardizing up machine keys across the web farm nodes
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter '/system.web/machinekey' -Name Decryption -Value $using:MachineKey
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter '/system.web/machinekey' -Name DecryptionKey -Value $using:MachineKey
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter '/system.web/machinekey' -Name Validation -Value $using:MachineKey
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter '/system.web/machinekey' -Name ValidationKey -Value $using:MachineKey
+    Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:NLBWebSiteName" -filter '/system.web/machinekey' -Name Decryption -Value $using:MachineKey
+    Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:NLBWebSiteName" -filter '/system.web/machinekey' -Name DecryptionKey -Value $using:MachineKey
+    Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:NLBWebSiteName" -filter '/system.web/machinekey' -Name Validation -Value $using:MachineKey
+    Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:NLBWebSiteName" -filter '/system.web/machinekey' -Name ValidationKey -Value $using:MachineKey
 }
 
 #Exporting IIS Shared Configuration From The First IIS Node
