@@ -50,7 +50,7 @@ Function Split-PowerPointPresentation {
 		[alias('FilePath', 'Path', 'FullName')]
 		[string[]]$Source,
         [ValidateSet('Section', 'Slide')]
-		[string[]]$Mode='Section'
+		[string]$Mode='Section'
 	)
 	begin {
 		#Opening the PowerPoint application once
