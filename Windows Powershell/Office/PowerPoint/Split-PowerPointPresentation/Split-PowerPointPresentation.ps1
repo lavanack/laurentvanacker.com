@@ -49,8 +49,8 @@ Function Split-PowerPointPresentation {
 			})]
 		[alias('FilePath', 'Path', 'FullName')]
 		[string[]]$Source,
-        [ValidateSet('Section', 'Slide')]
-		[string]$Mode='Section'
+		[ValidateSet('Section', 'Slide')]
+		[string]$Mode = 'Section'
 	)
 	begin {
 		#Opening the PowerPoint application once
@@ -62,59 +62,55 @@ Function Split-PowerPointPresentation {
 		foreach ($CurrentSourcePath in $Source) {
 			#Getting the base name of the processed presentation
 			Write-Verbose -Message "Opening (Read-only mode) $CurrentSourcePath ..."
-            $CurrentSrcPresentation = $Powerpoint.Presentations.Open($CurrentSourcePath, [Microsoft.Office.Core.MsoTriState]::msoTrue)
-            if ($Mode -eq 'Section')
-            {
-    		    for ($SrcSectionIndex=1; $SrcSectionIndex -le $CurrentSrcPresentation.SectionProperties.count; $SrcSectionIndex++) {
-                    if ($CurrentSourcePath -match "(?<filename>.*)\.(?<extension>\w+)")
-                    {
-                        $CurrentDestPath = $Matches["filename"]+$("_{0:D3}_{1}." -f $SrcSectionIndex, $CurrentSrcPresentation.SectionProperties.Name($SrcSectionIndex))+$Matches["extension"]
-                        Write-Verbose "Processing $($CurrentDestPath) ..."
-                        Copy-Item -Path $CurrentSourcePath -Destination $CurrentDestPath -Force
-        			    Write-Verbose -Message "Opening (Write mode) $CurrentDestPath  ..."
-                        $CurrentDestPresentation = $Powerpoint.Presentations.Open($CurrentDestPath, [Microsoft.Office.Core.MsoTriState]::msoFalse)
-                        #Moving the section to keep in the first position
-                        $CurrentDestPresentation.SectionProperties.Move($SrcSectionIndex, 1)
-                        #Removing all other sections
-            		    2 .. $CurrentDestPresentation.SectionProperties.count | ForEach-Object {
-                		    Write-Verbose -Message "Deleting section : $($CurrentDestPresentation.SectionProperties.Name(2))  ..."
-                            $CurrentDestPresentation.SectionProperties.Delete(2, $True)
-                        }
-                        $CurrentDestPresentation.Save()
-                        $CurrentDestPresentation.Close()
-			            Remove-Ref -ref ($CurrentDestPresentation)
-                    }
-                }
-            }
-            elseif ($Mode -eq 'Slide')
-            {
-    		    for ($SrcSlideIndex=1; $SrcSlideIndex -le $CurrentSrcPresentation.Slides.Count; $SrcSlideIndex++) {
-                    if ($CurrentSourcePath -match "(?<filename>.*)\.(?<extension>\w+)")
-                    {
-                        $CurrentDestPath = $Matches["filename"]+$("_{0:D3}." -f $SrcSlideIndex)+$Matches["extension"]
-                        Write-Verbose "Creating $($CurrentDestPath) ..."
-                        $CurrentDestPresentation = $Powerpoint.Presentations.Add($True)
+			$CurrentSrcPresentation = $Powerpoint.Presentations.Open($CurrentSourcePath, [Microsoft.Office.Core.MsoTriState]::msoTrue)
+			if ($Mode -eq 'Section') {
+				for ($SrcSectionIndex = 1; $SrcSectionIndex -le $CurrentSrcPresentation.SectionProperties.count; $SrcSectionIndex++) {
+					if ($CurrentSourcePath -match "(?<filename>.*)\.(?<extension>\w+)") {
+						$CurrentDestPath = $Matches["filename"] + $("_{0:D3}_{1}." -f $SrcSectionIndex, $CurrentSrcPresentation.SectionProperties.Name($SrcSectionIndex)) + $Matches["extension"]
+						Write-Verbose "Processing $($CurrentDestPath) ..."
+						Copy-Item -Path $CurrentSourcePath -Destination $CurrentDestPath -Force
+						Write-Verbose -Message "Opening (Write mode) $CurrentDestPath  ..."
+						$CurrentDestPresentation = $Powerpoint.Presentations.Open($CurrentDestPath, [Microsoft.Office.Core.MsoTriState]::msoFalse)
+						#Moving the section to keep in the first position
+						$CurrentDestPresentation.SectionProperties.Move($SrcSectionIndex, 1)
+						#Removing all other sections
+						2 .. $CurrentDestPresentation.SectionProperties.count | ForEach-Object {
+							Write-Verbose -Message "Deleting section : $($CurrentDestPresentation.SectionProperties.Name(2))  ..."
+							$CurrentDestPresentation.SectionProperties.Delete(2, $True)
+						}
+						$CurrentDestPresentation.Save()
+						$CurrentDestPresentation.Close()
+						Remove-Ref -ref ($CurrentDestPresentation)
+					}
+				}
+			}
+			elseif ($Mode -eq 'Slide') {
+				for ($SrcSlideIndex = 1; $SrcSlideIndex -le $CurrentSrcPresentation.Slides.Count; $SrcSlideIndex++) {
+					if ($CurrentSourcePath -match "(?<filename>.*)\.(?<extension>\w+)") {
+						$CurrentDestPath = $Matches["filename"] + $("_{0:D3}." -f $SrcSlideIndex) + $Matches["extension"]
+						Write-Verbose "Creating $($CurrentDestPath) ..."
+						$CurrentDestPresentation = $Powerpoint.Presentations.Add($True)
 
-			            #Inserting one slide of the current presentation to the new one
-			            $InsertedSlidesNb = $CurrentDestPresentation.Slides.InsertFromfile($CurrentSourcePath, 0, $SrcSlideIndex, $SrcSlideIndex)
+						#Inserting one slide of the current presentation to the new one
+						$null = $CurrentDestPresentation.Slides.InsertFromfile($CurrentSourcePath, 0, $SrcSlideIndex, $SrcSlideIndex)
 			
-			            #Applying the original template
-			            $CurrentDestPresentation.Slides.Range(1..1).ApplyTemplate($CurrentSourcePath)
+						#Applying the original template
+						$CurrentDestPresentation.Slides.Range(1).ApplyTemplate($CurrentSourcePath)
 
-                        $CurrentDestPresentation.SaveAs($CurrentDestPath)
-                        $CurrentDestPresentation.Close()
-			            Remove-Ref -ref ($CurrentDestPresentation)
-                    }
-                }
-            }
-            $CurrentSrcPresentation.Close()
+						$CurrentDestPresentation.SaveAs($CurrentDestPath)
+						$CurrentDestPresentation.Close()
+						Remove-Ref -ref ($CurrentDestPresentation)
+					}
+				}
+			}
+			$CurrentSrcPresentation.Close()
 			Remove-Ref -ref ($CurrentSrcPresentation)
 		}
 	}
 	end {
-			Write-Verbose -Message 'Releasing PowerPoint ...'
-			$Powerpoint.Quit() | Out-Null
-			Remove-Ref -ref ($Powerpoint)
+		Write-Verbose -Message 'Releasing PowerPoint ...'
+		$Powerpoint.Quit() | Out-Null
+		Remove-Ref -ref ($Powerpoint)
 	}
 }
 #endregion
