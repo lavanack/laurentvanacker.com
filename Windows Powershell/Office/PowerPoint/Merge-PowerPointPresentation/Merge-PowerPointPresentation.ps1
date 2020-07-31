@@ -79,7 +79,7 @@ Function Merge-PowerPointPresentation {
 			#Getting the base name of the processed presentation
 			$CurrentPresentationName = (Get-Item -Path $CurrentSource).BaseName
 			
-			#Inserting the slide of the current presentationt o the new one
+			#Inserting the slide of the current presentation to the new one
 			$InsertedSlidesNb = $NewPresentation.Slides.InsertFromfile($CurrentSource, $SlidesNb)
 			
 			#Applying the original template
