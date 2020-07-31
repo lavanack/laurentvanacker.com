@@ -43,7 +43,7 @@ $IISAppPoolUser           = 'IISAppPoolUser'
 $TestUser                 = 'JohnDoe'
 $TestUserCredential       = New-Object System.Management.Automation.PSCredential ("$NetBiosDomainName\$TestUser", $SecurePassword)
 
-$NetworkID          ='10.0.0.0/16' 
+$NetworkID          = '10.0.0.0/16' 
 $DCIPv4Address      = '10.0.0.1'
 $CAIPv4Address      = '10.0.0.2'
 $IISIPv4Address     = '10.0.0.21'
@@ -215,7 +215,7 @@ Invoke-LabCommand -ActivityName 'DNS, DFS-R Setup & GPO Settings on DC' -Compute
     #endregion
 
     #region Setting SPN on the Application Pool Identity for kerberos authentication
-    Set-ADUser -Identity "$Using:IISAppPoolUser" -ServicePrincipalNames @{Add="HTTP/$using:KerberosWebSiteName", "HTTP/kerberos", "HTTP/IIS01.$using:FQDNDomainName", "HTTP/IIS01"}
+    Set-ADUser -Identity "$Using:IISAppPoolUser" -ServicePrincipalNames @{Add="HTTP/$using:KerberosWebSiteName", "HTTP/$using:KerberosNetBiosName", "HTTP/IIS01.$using:FQDNDomainName", "HTTP/IIS01"}
     #endregion
 
     #Creating a GPO at the domain level for certificate autoenrollment

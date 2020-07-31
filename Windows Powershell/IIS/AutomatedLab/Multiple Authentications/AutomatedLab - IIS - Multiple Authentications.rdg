@@ -39,7 +39,7 @@
       <logonCredentials inherit="None">
         <profileName scope="Local">Custom</profileName>
         <userName>Administrator</userName>
-        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAA4S8nx2nBb0+HZKhocnfBkwAAAAACAAAAAAAQZgAAAAEAACAAAAAWOFjFEQy2K63wWEF5FSem136ODuntA5VOUybf9kP+mAAAAAAOgAAAAAIAACAAAABUPsSHqd0+kJHZtpvNhQalmXFcqfb22yk91vFNOnwxxyAAAAAijQmzOZhBOCDuip7NvRUA937M/CGAnbI/JEza7xdjq0AAAABpjw2/SLy6ersmVoIFBrluJqjC2WYgo8tQwfKv5R0XMXBbMh5R202olaSl6CY0Jeqnq6+NCrFzf+UaGjgjpKb+</password>
+        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAADVlNwQ0XXE6U+8MLXE+iUgAAAAACAAAAAAAQZgAAAAEAACAAAADthFYf99axrBj7CmR90oH+pRnHydZg4tHYN4axBvvGWQAAAAAOgAAAAAIAACAAAAARgtEetIUF4KBGPN1dRocKLXaLLVop8hbCenRyNejINSAAAAAaPmmYbMZBuvEGfoyPQ3xK0sQccllEtiv5nGsCo7JmCUAAAAAlnhI7jJ1Tbc78ux3aPEqQ1LdbIubaRROC9vRpBwetlbVpJOp6Efjz8UbzHnTscXQ2nEGnFtkA8gF9nqatg80z</password>
         <domain>CONTOSO</domain>
       </logonCredentials>
       <server>
@@ -56,7 +56,7 @@
         <logonCredentials inherit="None">
           <profileName scope="Local">Custom</profileName>
           <userName>JohnDoe</userName>
-          <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAA4S8nx2nBb0+HZKhocnfBkwAAAAACAAAAAAAQZgAAAAEAACAAAADhem0KqeeJfCDuVn30JxaUS1agtbdbv4GjkEUXI63DXwAAAAAOgAAAAAIAACAAAAAT/YvzSNN8nAXReVxtnCShvB6X0sukOCSeQW7J48dsJyAAAABZzhAA0cqcDz9IOgxkcnHPptjcbiuRuR3XRwS3XYjqykAAAADfy8WNG1Gi2iN1Ld2VhXvqSuhHhQeQtJniqsCmrBH6kZTiHGDJ55InZ8j7CJs+fqaFq1jhQygS3v/a7USJMgAy</password>
+          <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAADVlNwQ0XXE6U+8MLXE+iUgAAAAACAAAAAAAQZgAAAAEAACAAAADD9e7z2xriiK2sVcX2xI7QucaAvLs5C+u1Ke3Ao1ApsQAAAAAOgAAAAAIAACAAAABDPkaUPnfPmQ4vVwPpxlo626Lg2HSP0mJYQFoxHh2f7SAAAAA3EsQo+XVqLPBhZp3UJZw4MWyjdlPZocb0EmCrc4pRjkAAAACE7qqZFRzySLgM36tHVVssDTZa9bITzcB5GvWzCY2EQ2aCQcsm6wSzEkAgbpLsyGWwI7EvkVcSGkhZT86zKh8m</password>
           <domain>CONTOSO</domain>
         </logonCredentials>
       </server>
@@ -68,7 +68,7 @@
       </server>
       <server>
         <properties>
-          <displayName>IISNODE01</displayName>
+          <displayName>IIS01</displayName>
           <name>10.0.0.21</name>
         </properties>
       </server>
