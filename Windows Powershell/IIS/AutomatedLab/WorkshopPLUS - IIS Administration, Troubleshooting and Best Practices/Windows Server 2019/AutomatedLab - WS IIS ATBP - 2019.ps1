@@ -238,7 +238,7 @@ Copy-LabFileItem -Path $LabFilesZipPath -ComputerName $IISServers
 foreach ($CurrentIISServer in $IISServers)
 {
     $Drive = Mount-LabIsoImage -ComputerName $CurrentIISServer -IsoPath $IsoPathHashTable[$CurrentIISServer].IsoPath -PassThru
-    Invoke-LabCommand -ActivityName 'Copying .Net 2.0 cab and lab files locally' -ComputerName $CurrentIISServer -ScriptBlock {
+    Invoke-LabCommand -ActivityName 'Copying .Net 2.0 cab, lab and demo files locally' -ComputerName $CurrentIISServer -ScriptBlock {
         $Sxs=New-Item -Path "C:\Sources\Sxs" -ItemType Directory -Force
         Copy-Item -Path "$($using:Drive.DriveLetter)\sources\sxs\*" -Destination $Sxs -Recurse -Force
 
