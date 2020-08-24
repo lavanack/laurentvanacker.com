@@ -37,45 +37,13 @@ $ClearTextPassword = 'P@ssw0rd'
 $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
 $NetBiosDomainName = 'CONTOSO'
 $FQDNDomainName = 'contoso.com'
-$LabFilesZipPath = Join-Path -Path $CurrentDir -ChildPath "LabFiles.zip"
-$DemoFilesZipPath = Join-Path -Path $CurrentDir -ChildPath "Demos.zip"
-$MusicStoreAppPoolUsr = 'MusicStoreAppPoolUsr'
-$WDeployConfigWriter = 'WDeployConfigWriter'
-$WebDeploySqlUsr = 'WebDeploySqlUsr'
-$CentralSSLUser = 'CentralSSLUser'
 
 $NetworkID='10.0.0.0/16' 
 $DC01IPv4Address = '10.0.0.1'
-$SQL01IPv4Address = '10.0.0.11'
 $IIS01IPv4Address = '10.0.0.101'
 $IIS02IPv4Address = '10.0.0.102'
 
-$SecurityCCSSNINetBiosName='SecurityCCSSNI'
-$SecurityCCSSNIWebSiteName="$SecurityCCSSNINetBiosName.$FQDNDomainName"
-$SecurityCCSSNIIPv4Address = '10.0.0.103'
-
-$SecurityCCSNoSNINetBiosName='SecurityCCSNoSNI'
-$SecurityCCSNoSNIWebSiteName="$SecurityCCSNoSNINetBiosName.$FQDNDomainName"
-$SecurityCCSNoSNIIPv4Address = '10.0.0.104'
-
-$SecurityCCSWildcartCertNetBiosName='*'
-$SecurityCCSWildcartCertWebSiteName="$SecurityCCSWildcartCertNetBiosName.$FQDNDomainName"
-$SecurityCCSWildcartCertIPv4Address = '10.0.0.105'
-
-$SecurityCCSSANCert0NetBiosName='SecurityCCSSANCert0'
-$SecurityCCSSANCert0WebSiteName="$SecurityCCSSANCert0NetBiosName.$FQDNDomainName"
-$SecurityCCSSANCert0IPv4Address = '10.0.0.106'
-
-$SecurityCCSSANCert1NetBiosName='SecurityCCSSANCert1'
-$SecurityCCSSANCert1WebSiteName="$SecurityCCSSANCert1NetBiosName.$FQDNDomainName"
-$SecurityCCSSANCert1IPv4Address = '10.0.0.107'
-
-$SecurityCCSSANCert2NetBiosName='SecurityCCSSANCert2'
-$SecurityCCSSANCert2WebSiteName="$SecurityCCSSANCert2NetBiosName.$FQDNDomainName"
-$SecurityCCSSANCert2IPv4Address = '10.0.0.108'
-
-
-$LabName = 'IISWSPlus2019'
+$LabName = 'IISWSAOBP2019'
 #endregion
 
 #Cleaning previously existing lab
@@ -115,20 +83,9 @@ $IIS01NetAdapter = @()
 $IIS01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $IIS01IPv4Address
 $IIS01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp
 
-$SQL01NetAdapter = @()
-$SQL01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $SQL01IPv4Address
-#Adding an Internet Connection on the DC (Required for the SQL Setup via AutomatedLab)
-$SQL01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp
-
-#SQL Server
-$SQLServer2019Role = Get-LabMachineRoleDefinition -Role SQLServer2019 -Properties @{ Features = 'SQL,Tools' }
-Add-LabIsoImageDefinition -Name SQLServer2019 -Path $labSources\ISOs\en_sql_server_2019_standard_x64_dvd_cdcd4b9f.iso
-
 #region server definitions
 #Domain controller + Certificate Authority
 Add-LabMachineDefinition -Name DC01 -Roles RootDC, CARoot -IpAddress $DC01IPv4Address
-#SQL Server
-Add-LabMachineDefinition -Name SQL01 -Roles $SQLServer2019Role -NetworkAdapter $SQL01NetAdapter #-Memory 2GB -Processors 2
 #IIS front-end server
 Add-LabMachineDefinition -Name IIS01 -NetworkAdapter $IIS01NetAdapter
 #IIS front-end server
@@ -170,34 +127,7 @@ Invoke-LabCommand -ActivityName 'DNS Setup on DC' -ComputerName DC01 -ScriptBloc
     #region DNS management
     #Reverse lookup zone creation
     Add-DnsServerPrimaryZone -NetworkID $using:NetworkID -ReplicationScope 'Forest' 
-    #DNS Host entries for the websites 
-    Add-DnsServerResourceRecordA -Name "$using:SecurityCCSSNINetBiosName" -ZoneName "$using:FQDNDomainName" -IPv4Address "$using:SecurityCCSSNIIPv4Address" -CreatePtr
-    Add-DnsServerResourceRecordA -Name "$using:SecurityCCSNoSNINetBiosName" -ZoneName "$using:FQDNDomainName" -IPv4Address "$using:SecurityCCSNoSNIIPv4Address" -CreatePtr
-    Add-DnsServerResourceRecordA -Name "$using:SecurityCCSWildcartCertNetBiosName" -ZoneName "$using:FQDNDomainName" -IPv4Address "$using:SecurityCCSWildcartCertIPv4Address" -CreatePtr
-    Add-DnsServerResourceRecordA -Name "$using:SecurityCCSSANCert0NetBiosName" -ZoneName "$using:FQDNDomainName" -IPv4Address "$using:SecurityCCSSANCert0IPv4Address" -CreatePtr
-    Add-DnsServerResourceRecordA -Name "$using:SecurityCCSSANCert1NetBiosName" -ZoneName "$using:FQDNDomainName" -IPv4Address "$using:SecurityCCSSANCert1IPv4Address" -CreatePtr
-    Add-DnsServerResourceRecordA -Name "$using:SecurityCCSSANCert2NetBiosName" -ZoneName "$using:FQDNDomainName" -IPv4Address "$using:SecurityCCSSANCert2IPv4Address" -CreatePtr
-
-    #Creating AD Users
-    New-ADUser -Name $Using:MusicStoreAppPoolUsr -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -CannotChangePassword $True -Enabled $true
-    New-ADUser -Name $Using:WDeployConfigWriter -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -CannotChangePassword $True -Enabled $true
-    New-ADUser -Name $Using:WebDeploySqlUsr -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -CannotChangePassword $True -Enabled $true
-    New-ADUser -Name $Using:CentralSSLUser -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -CannotChangePassword $True -Enabled $true
 }
-
-Invoke-LabCommand -ActivityName 'Adding some users to the SQL sysadmin group' -ComputerName SQL01 -ScriptBlock {
-    #SQL Server Management Studio (SSMS), beginning with version 17.0, doesn't install either PowerShell module. To use PowerShell with SSMS, install the SqlServer module from the PowerShell Gallery.
-    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-    Install-Module -Name SqlServer -Force -AllowClobber
-    #Adding some AD users to SQL server as sysadmin (used for Web Deploy lab)
-    $SQLLogin = Add-SqlLogin -ServerInstance $Env:COMPUTERNAME -LoginName "$Using:NetBiosDomainName\$Using:MusicStoreAppPoolUsr" -LoginType "WindowsUser" -Enable
-    $SQLLogin.AddToRole("sysadmin")
-    $SQLLogin = Add-SqlLogin -ServerInstance $Env:COMPUTERNAME -LoginName "$Using:NetBiosDomainName\$Using:WDeployConfigWriter" -LoginType "WindowsUser" -Enable
-    $SQLLogin.AddToRole("sysadmin")
-    $SQLLogin = Add-SqlLogin -ServerInstance $Env:COMPUTERNAME -LoginName "$Using:NetBiosDomainName\$Using:WebDeploySqlUsr" -LoginType "WindowsUser" -Enable
-    $SQLLogin.AddToRole("sysadmin")
-}
-
 
 #region Certification Authority : Creation and SSL Certificate Generation
 #Get the CA
@@ -233,55 +163,23 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate for the fu
 $IsoPathHashTable = Get-LabMachineDefinition | Where-Object { $_.Name -like "*IIS*"}  | Select-Object -Property Name, @{Name="IsoPath"; Expression={$_.OperatingSystem.IsoPath}} | Group-Object -Property Name -AsHashTable -AsString
 
 $IISServers = (Get-LabVM | Where-Object -FilterScript { $_.Name -like "*IIS*"}).Name
-Copy-LabFileItem -Path $DemoFilesZipPath -ComputerName $IISServers
-Copy-LabFileItem -Path $LabFilesZipPath -ComputerName $IISServers
 foreach ($CurrentIISServer in $IISServers)
 {
     $Drive = Mount-LabIsoImage -ComputerName $CurrentIISServer -IsoPath $IsoPathHashTable[$CurrentIISServer].IsoPath -PassThru
     Invoke-LabCommand -ActivityName 'Copying .Net 2.0 cab, lab and demo files locally' -ComputerName $CurrentIISServer -ScriptBlock {
         $Sxs=New-Item -Path "C:\Sources\Sxs" -ItemType Directory -Force
         Copy-Item -Path "$($using:Drive.DriveLetter)\sources\sxs\*" -Destination $Sxs -Recurse -Force
-
-        $null=New-Item -Path "C:\Temp" -ItemType Directory -Force
-        #Lab files
-        $LocalLabFilesZipPath = $(Join-Path -Path $env:SystemDrive -ChildPath $(Split-Path -Path $using:LabFilesZipPath -Leaf ))
-        Expand-Archive $LocalLabFilesZipPath  -DestinationPath "$env:SystemDrive\" -Force
-        Remove-Item $LocalLabFilesZipPath -Force
-
-        #Demo files
-        $LocalDemoFilesZipPath = $(Join-Path -Path $env:SystemDrive -ChildPath $(Split-Path -Path $using:DemoFilesZipPath -Leaf ))
-        Expand-Archive $LocalDemoFilesZipPath  -DestinationPath "$env:SystemDrive\" -Force
-        Remove-Item $LocalDemoFilesZipPath -Force
     }
     Dismount-LabIsoImage -ComputerName $CurrentIISServer
 }
-
-Invoke-LabCommand -ActivityName 'Cleanup on SQL Server' -ComputerName SQL01 -ScriptBlock {
-    Remove-Item -Path "C:\vcredist_x*.*" -Force
-    Remove-Item -Path "C:\SSMS-Setup-ENU.exe" -Force
-    #Disabling the Internet Connection on the DC (Required only for the SQL Setup via AutomatedLab)
-    Get-NetAdapter -Name Internet | Disable-NetAdapter -Confirm:$false
-}
-
-#Removing the Internet Connection on the SQL Server (Required only for the SQL Setup via AutomatedLab)
-Get-VM -Name 'SQL01' | Remove-VMNetworkAdapter -Name 'Default Switch' -ErrorAction SilentlyContinue
 
 #Setting processor number to 1 for all VMs (The AL deployment fails with 1 CPU)
 Get-LabVM -All | Stop-VM -Passthru | Set-VMProcessor -Count 1
 Get-LabVM -All | Start-VM
 
-Checkpoint-LabVM -SnapshotName 'FullInstall' -All
-
-<#
-Invoke-LabCommand -ActivityName 'Demos Setup' -ComputerName IIS01 -ScriptBlock {
-    Start-Process -FilePath "$env:comspec" -ArgumentList "/c C:\Demos\Source\setup_script.bat" -Wait
-}
-Checkpoint-LabVM -SnapshotName 'Demos' -All
-#>
-
-  
 Show-LabDeploymentSummary -Detailed
-
+Checkpoint-LabVM -SnapshotName 'FullInstall' -All
+  
 $VerbosePreference = $PreviousVerbosePreference
 $ErrorActionPreference = $PreviousErrorActionPreference
 #Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All -Verbose
