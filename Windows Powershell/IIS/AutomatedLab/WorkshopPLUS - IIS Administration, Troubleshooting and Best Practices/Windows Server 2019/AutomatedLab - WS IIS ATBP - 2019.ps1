@@ -272,12 +272,10 @@ Get-LabVM -All | Start-VM
 
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 
-<#
 Invoke-LabCommand -ActivityName 'Demos Setup' -ComputerName IIS01 -ScriptBlock {
-    Start-Process -FilePath "$env:comspec" -ArgumentList "/c C:\Demos\Source\setup_script.bat" -Wait
-}
+    Start-Process -FilePath "$env:ComSpec" -ArgumentList "/c C:\Demos\Source\setup_script.bat > C:\Demos\Source\setup_script.log"
+} 
 Checkpoint-LabVM -SnapshotName 'Demos' -All
-#>
 
   
 Show-LabDeploymentSummary -Detailed
