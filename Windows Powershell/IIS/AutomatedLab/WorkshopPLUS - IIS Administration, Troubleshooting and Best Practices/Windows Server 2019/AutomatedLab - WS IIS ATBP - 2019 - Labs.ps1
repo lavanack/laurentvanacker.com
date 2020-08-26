@@ -35,7 +35,7 @@ $LabName = 'IISWSPlus2019'
 #Importing lab
 Import-Lab -Name $LabName
 #Restoring to the snapshot after the installation
-Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All -Verbose
+#Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All -Verbose
 Get-LabVM -All | Start-VM
 
 #region Module 1
@@ -288,7 +288,7 @@ Invoke-LabCommand -ActivityName 'Module 3 - Lab 2 - Exercice 2' -ComputerName II
 	New-WebAppPool -Name "securityCCSSNI.contoso.com" -Force
 	New-WebSite -Name "securityCCSSNI.contoso.com" -Port 443 -PhysicalPath "C:\MyWebContents\securityCCSSNI.contoso.com" -ApplicationPool "securityCCSSNI.contoso.com" -Ssl -SslFlags 3 -HostHeader "securityCCSSNI.contoso.com" -Force
 	New-Item -Path "IIS:\SslBindings\!443!securityCCSSNI.contoso.com" -sslFlags 3 -Store CentralCertStore
-	#netsh http show sslcert  | Out-File C:\CCS_SNI_After.txt
+	netsh http show sslcert  | Out-File C:\CCS_SNI_After.txt
 	Get-ChildItem HKLM:\SYSTEM\CurrentControlSet\Services\HTTP\Parameters 
 }
 #endregion 
@@ -305,7 +305,7 @@ Invoke-LabCommand -ActivityName 'Module 3 - Lab 2 - Exercice 4' -ComputerName II
 	netsh http show sslcert | Out-File C:\CCS_Wildcard_Before.txt
 	New-WebAppPool -Name "securityCCSWildcardCert.contoso.com" -Force
 	New-WebSite -Name "securityCCSWildcardCert.contoso.com" -Port 443 -PhysicalPath "C:\MyWebContents\securityCCSWildcardCert.contoso.com" -ApplicationPool "securityCCSWildcardCert.contoso.com" -Ssl -sslFlags 3 -HostHeader "securityCCSWildcardCert.contoso.com" -Force
-	netsh http show sslcert | Out-File C:\CCS_Wildcard_Before.txt
+	netsh http show sslcert | Out-File C:\CCS_Wildcard_After.txt
 }
 #endregion 
 #region Module 3 - Lab 2 - Exercice 5
