@@ -1,4 +1,4 @@
-Select 
+Select *, 
 Case TO_STRING(crypt-protocol)
 	When '1' Then 'SP_PROT_PCT1_SERVER' 
 	When '2' Then 'SP_PROT_PCT1_CLIENT' 
