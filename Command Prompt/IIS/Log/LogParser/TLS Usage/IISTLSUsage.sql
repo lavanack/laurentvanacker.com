@@ -1,4 +1,4 @@
-Select *, 
+SELECT %IISLogFields%, 
 Case TO_STRING(crypt-protocol)
 	When '1' Then 'SP_PROT_PCT1_SERVER' 
 	When '2' Then 'SP_PROT_PCT1_CLIENT' 
@@ -169,4 +169,4 @@ Case TO_STRING(crypt-keyexchange)
 	When 'fffffffe' Then 'CALG_OID_INFO_PARAMETERS'
 	When 'ffffffff' Then 'CALG_OID_INFO_CNG_ONLY'
 End as KeyExchange
-From u_ex*.log 
+From '%InputFiles%'
