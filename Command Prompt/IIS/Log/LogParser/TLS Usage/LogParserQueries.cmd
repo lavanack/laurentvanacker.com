@@ -31,4 +31,4 @@ LogParser.exe "SELECT cs(User-Agent), COUNT(*) AS Percent INTO 15_User_AgentDist
 REM 16 - Protocol, Cipher, Hash, KeyExchange
 LogParser.exe "SELECT  Protocol, Cipher, Hash, KeyExchange, COUNT(*) AS Number INTO 16_Protocol_Cipher_Hash_KeyExchange.csv FROM u_ex*_TLS.log GROUP BY Protocol, Cipher, Hash, KeyExchange ORDER BY Number DESC" -i:W3C -o:CSV -stats:OFF
 REM 17 - Protocol, Cipher, Hash, KeyExchange, User-Agent
-LogParser.exe "SELECT  Protocol, Cipher, Hash, KeyExchange, cs(User-Agent) as User-Agent, COUNT(*) AS Number INTO 17_Protocol_Cipher_Hash_KeyExchange_User_Agent_Protocol_Cipher_Hash_KeyExchange_User_Agent.csv FROM u_ex*_TLS.log GROUP BY Protocol, Cipher, Hash, KeyExchange, User-Agent ORDER BY Protocol, Cipher, Hash, KeyExchange, Number DESC" -i:W3C -o:CSV -stats:OFF
+LogParser.exe "SELECT  Protocol, Cipher, Hash, KeyExchange, cs(User-Agent) as User-Agent, COUNT(*) AS Number INTO 17_Protocol_Cipher_Hash_KeyExchange_User_Agent.csv FROM u_ex*_TLS.log GROUP BY Protocol, Cipher, Hash, KeyExchange, User-Agent ORDER BY Protocol, Cipher, Hash, KeyExchange, Number DESC" -i:W3C -o:CSV -stats:OFF

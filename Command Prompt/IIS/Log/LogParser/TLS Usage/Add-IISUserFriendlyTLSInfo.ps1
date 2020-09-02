@@ -52,7 +52,8 @@ function Add-IISUserFriendlyTLSInfo
             $OutputCSVFile = "$CurrentFullname" -replace ".log$", "_TLS.log"
             Write-Verbose "`$OutputCSVFile $OutputCSVFile"
             $IISLogFields = ((Get-Content $CurrentFullname -TotalCount 4 | Select-Object -Last 1) -split " " | Select-Object -Skip 1) -join ", "
-            $LogParserParamsInput = "file:`"$LogParserSQLFile`"?InputFiles=`"$CurrentFullname`"+IISLogFields=`"$IISLogFields`" -i:W3C -rtp:-1 -dtLines:0 -stats:OFF -o:W3C"
+            # The dtLines option allows you to specify the number of lines to read to detect the types of fields at runtime. By setting to 0 this avoids an unfortunate side effect which converts for example all the values defined by 'e' in element of type REAL (for example '660e' becomes in 660.000000)
+			$LogParserParamsInput = "file:`"$LogParserSQLFile`"?InputFiles=`"$CurrentFullname`"+IISLogFields=`"$IISLogFields`" -i:W3C -rtp:-1 -dtLines:0 -stats:OFF -o:W3C"
             Write-Verbose "`$LogParserParamsInput : $LogParserParamsInput"
             Write-Verbose "`"$LogParserExe`" $LogParserParamsInput "
             Start-Process -FilePath "$LogParserExe" -ArgumentList $LogParserParamsInput -WindowStyle Hidden -Wait -RedirectStandardOutput $OutputCSVFile
