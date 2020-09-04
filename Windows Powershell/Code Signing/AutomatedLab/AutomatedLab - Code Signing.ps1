@@ -39,6 +39,8 @@ $ClientUser = "ClientUser"
 $DevUserCred = New-Object PSCredential -ArgumentList "$NetBiosDomainName\$DevUser", $SecurePassword   
 $ClientUserCred = New-Object PSCredential -ArgumentList "$NetBiosDomainName\$ClientUser", $SecurePassword   
 $PowerShellCodeSigningTemplateName = "PowerShellCodeSigning"
+$TimestampServer="http://timestamp.verisign.com/scripts/timstamp.dll"
+
 
 $NetworkID='10.0.0.0/16' 
 $DC01IPv4Address = '10.0.0.1'
@@ -205,7 +207,7 @@ Invoke-LabCommand -ActivityName 'RDP Settings & Signing PowerShell Script' -Comp
     #Normally this line is not required when connecting first via RDP because the autoenrollment feature will issue the required certificate
     $CodeSigningCert = Get-Certificate -Template $using:PowerShellCodeSigningTemplateName -Url ldap: -CertStoreLocation Cert:\CurrentUser\My
     #Signing the Powershell Script
-    Set-AuthenticodeSignature -Certificate $CodeSigningCert.Certificate -FilePath $ScriptFilePath -TimestampServer "http://timestamp.verisign.com/scripts/timstamp.dll"
+    Set-AuthenticodeSignature -Certificate $CodeSigningCert.Certificate -FilePath $ScriptFilePath -TimestampServer $using:TimestampServer
 }
 
 Invoke-LabCommand -ActivityName 'Creating Profile' -ComputerName CLIENT01 -Credential $ClientUserCred -ScriptBlock {
