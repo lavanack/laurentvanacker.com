@@ -16,7 +16,9 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 #requires -Version 5 -Modules AutomatedLab -RunAsAdministrator 
-trap { Write-Host "Stopping Transcript ..."; Stop-Transcript} 
+trap {
+    Write-Host "Stopping Transcript ..."; Stop-Transcript
+} 
 Clear-Host
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
@@ -25,7 +27,7 @@ $ErrorActionPreference = 'Stop'
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
-$TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}" -f (get-date)).txt"
+$TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}" -f (Get-Date)).txt"
 Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 
 #region Global variables definition
@@ -39,22 +41,24 @@ $ClientUser = "ClientUser"
 $DevUserCred = New-Object PSCredential -ArgumentList "$NetBiosDomainName\$DevUser", $SecurePassword   
 $ClientUserCred = New-Object PSCredential -ArgumentList "$NetBiosDomainName\$ClientUser", $SecurePassword   
 $PowerShellCodeSigningTemplateName = "PowerShellCodeSigning"
-$TimestampServer="http://timestamp.verisign.com/scripts/timstamp.dll"
+$TimestampServer = "http://timestamp.verisign.com/scripts/timstamp.dll"
 
 
-$NetworkID='10.0.0.0/16' 
+$NetworkID = '10.0.0.0/16' 
 $DC01IPv4Address = '10.0.0.1'
 $CAIPv4Address = '10.0.0.2'
 $DEV01IPv4Address = '10.0.0.21'
 $CLIENT01IPv4Address = '10.0.0.31'
 
+#Using half of the logical processors to speed up the deployement
+[int]$LabMachineDefinitionProcessors = [math]::Max(1, (Get-CimInstance -ClassName Win32_Processor).NumberOfLogicalProcessors)
+
 $LabName = 'PSCodeSigning'
 #endregion
 
 #Cleaning previously existing lab
-if ($LabName -in (Get-Lab -List))
-{
-    Remove-Lab -name $LabName -confirm:$false -ErrorAction SilentlyContinue
+if ($LabName -in (Get-Lab -List)) {
+    Remove-Lab -Name $LabName -Confirm:$false -ErrorAction SilentlyContinue
 }
 
 #create an empty lab template and define where the lab XML files and the VMs will be stored
@@ -81,7 +85,7 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:MaxMemory'       = 2GB
     'Add-LabMachineDefinition:Memory'          = 2GB
     'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Standard (Desktop Experience)'
-    'Add-LabMachineDefinition:Processors'      = 4
+    'Add-LabMachineDefinition:Processors'      = $LabMachineDefinitionProcessors
 }
 
 #Network adapters for dev machine
@@ -95,20 +99,19 @@ Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress $DC01IPv4Address
 #Certificate Authority
 Add-LabMachineDefinition -Name CA01 -Roles CARoot -IpAddress $CAIPv4Address
 #Dev machine
-Add-LabMachineDefinition -Name DEV01 -NetworkAdapter $DEV01NetAdapter
+Add-LabMachineDefinition -Name DEV01 -NetworkAdapter $DEV01NetAdapter -OperatingSystem 'Windows 10 Enterprise'
 #Client Machine 
-Add-LabMachineDefinition -Name CLIENT01 -IpAddress $CLIENT01IPv4Address
+Add-LabMachineDefinition -Name CLIENT01 -IpAddress $CLIENT01IPv4Address -OperatingSystem 'Windows 10 Enterprise'
 #endregion
 
 #Installing servers
 Install-Lab
 
-#region Installing Required Windows Features
-$machines = Get-LabVM
-Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools
-#endregion
+$AllMachines = Get-LabVM
+$WindowsServers = $AllMachines | Where-Object -FilterScript { $_.OperatingSystem -match "2019" }
 
-Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $machines -ScriptBlock {
+
+Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $WindowsServers -ScriptBlock {
     #Disabling IE ESC
     $AdminKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}'
     $UserKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}'
@@ -121,7 +124,10 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $machines -Scri
     Remove-Item -Path $UserKey -Force
     #Setting the Keyboard to French
     Set-WinUserLanguageList -LanguageList "fr-FR" -Force
+}
 
+
+Invoke-LabCommand -ActivityName "Renaming NICs" -ComputerName $AllMachines -ScriptBlock {
     #Renaming the main NIC adapter to Corp (used in the Security lab)
     Rename-NetAdapter -Name "$using:labName 0" -NewName 'Corp' -PassThru -ErrorAction SilentlyContinue
     Rename-NetAdapter -Name "Ethernet" -NewName 'Corp' -PassThru -ErrorAction SilentlyContinue
@@ -182,8 +188,9 @@ New-LabCATemplate -TemplateName $PowerShellCodeSigningTemplateName -DisplayName 
 #Enable-LabCertificateAutoenrollment -Computer -User -CodeSigningTemplateName $using:PowerShellCodeSigningTemplateName
 #endregion
 
-Invoke-LabCommand -ActivityName 'DNS, AD & GPO Settings on DC' -ComputerName DC01 -ScriptBlock {
-    Invoke-GPUpdate -Computer DEV01  -Target "User" -Force
+Invoke-LabCommand -ActivityName 'Group Policy Update' -ComputerName DC01 -ScriptBlock {
+    Invoke-GPUpdate -Computer DEV01 -Force
+    Invoke-GPUpdate -Computer CLIENT01 -Force
 }
 
 
