@@ -54,6 +54,10 @@ $WebPIUri = "https://go.microsoft.com/fwlink/?LinkId=287166"
 $WebPIX64MSIFileName = "WebPlatformInstaller_x64_en-US.msi"
 $WebPIX64MSIPath = Join-Path -Path $CurrentDir -ChildPath $WebPIX64MSIFileName
 
+
+#Using half of the logical processors to speed up the deployement
+[int]$LabMachineDefinitionProcessors = [math]::Max(1, (Get-CimInstance -ClassName Win32_Processor).NumberOfLogicalProcessors)
+
 $LabName = 'IISWebDeploy'
 #endregion
 
@@ -87,7 +91,7 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:MaxMemory'       = 2GB
     'Add-LabMachineDefinition:Memory'          = 2GB
     'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Standard (Desktop Experience)'
-    'Add-LabMachineDefinition:Processors'      = 4
+    'Add-LabMachineDefinition:Processors'      = $LabMachineDefinitionProcessors
 }
 
 $IIS01NetAdapter = @()

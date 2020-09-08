@@ -108,7 +108,7 @@ Add-LabIsoImageDefinition -Name SQLServer2019 -Path $labSources\ISOs\en_sql_serv
 #Domain controller
 Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress $DC01IPv4Address
 #SQL Server
-Add-LabMachineDefinition -Name SQL01 -Roles $SQLServer2019Role -NetworkAdapter $SQL01NetAdapter #-Memory 2GB -Processors 2
+Add-LabMachineDefinition -Name SQL01 -Roles $SQLServer2019Role -NetworkAdapter $SQL01NetAdapter
 #IIS front-end server
 Add-LabMachineDefinition -Name IIS01 -NetworkAdapter $IIS01NetAdapter
 #IIS front-end server

@@ -108,8 +108,7 @@ Add-LabMachineDefinition -Name CLIENT01 -IpAddress $CLIENT01IPv4Address -Operati
 Install-Lab
 
 $AllMachines = Get-LabVM
-$WindowsServers = $AllMachines | Where-Object -FilterScript { $_.OperatingSystem -match "2019" }
-
+$WindowsServers = $AllMachines | Where-Object -FilterScript { $_.OperatingSystem -match "Server" }
 
 Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $WindowsServers -ScriptBlock {
     #Disabling IE ESC
@@ -122,12 +121,13 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $WindowsServers
     Rundll32 iesetup.dll, IEHardenAdmin
     Remove-Item -Path $AdminKey -Force
     Remove-Item -Path $UserKey -Force
-    #Setting the Keyboard to French
-    Set-WinUserLanguageList -LanguageList "fr-FR" -Force
 }
 
 
 Invoke-LabCommand -ActivityName "Renaming NICs" -ComputerName $AllMachines -ScriptBlock {
+    #Setting the Keyboard to French
+    #Set-WinUserLanguageList -LanguageList "fr-FR" -Force
+
     #Renaming the main NIC adapter to Corp (used in the Security lab)
     Rename-NetAdapter -Name "$using:labName 0" -NewName 'Corp' -PassThru -ErrorAction SilentlyContinue
     Rename-NetAdapter -Name "Ethernet" -NewName 'Corp' -PassThru -ErrorAction SilentlyContinue
