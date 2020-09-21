@@ -15,8 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-function Add-IISUserFriendlyTLSInfo
-{
+function Add-IISUserFriendlyTLSInfo {
 	[CmdletBinding()]
 	Param
 	(
@@ -38,33 +37,28 @@ function Add-IISUserFriendlyTLSInfo
 			})]
 		[String]$LogParserExe = "C:\Program Files (x86)\Log Parser 2.2\LogParser.exe",
 
-        [switch] $PassThru
+		[switch] $PassThru
 	)
 	
-	begin 
-	{
+	begin {
 	}
-	process
-	{
-		foreach ($CurrentFullname in $Fullname)
-		{
-            Write-Verbose "Processing $CurrentFullname"
-            $OutputCSVFile = "$CurrentFullname" -replace ".log$", "_TLS.log"
-            Write-Verbose "`$OutputCSVFile $OutputCSVFile"
-            $IISLogFields = ((Get-Content $CurrentFullname -TotalCount 4 | Select-Object -Last 1) -split " " | Select-Object -Skip 1) -join ", "
-            # The dtLines option allows you to specify the number of lines to read to detect the types of fields at runtime. By setting to 0 this avoids an unfortunate side effect which converts for example all the values defined by 'e' in element of type REAL (for example '660e' becomes in 660.000000)
+	process {
+		foreach ($CurrentFullname in $Fullname) {
+			Write-Verbose "Processing $CurrentFullname"
+			$OutputCSVFile = "$CurrentFullname" -replace ".log$", "_TLS.log"
+			Write-Verbose "`$OutputCSVFile $OutputCSVFile"
+			$IISLogFields = ((Get-Content $CurrentFullname -TotalCount 4 | Select-Object -Last 1) -split " " | Select-Object -Skip 1) -join ", "
+			# The dtLines option allows you to specify the number of lines to read to detect the types of fields at runtime. By setting to 0 this avoids an unfortunate side effect which converts for example all the values defined by 'e' in element of type REAL (for example '660e' becomes in 660.000000)
 			$LogParserParamsInput = "file:`"$LogParserSQLFile`"?InputFiles=`"$CurrentFullname`"+IISLogFields=`"$IISLogFields`" -i:W3C -rtp:-1 -dtLines:0 -stats:OFF -o:W3C"
-            Write-Verbose "`$LogParserParamsInput : $LogParserParamsInput"
-            Write-Verbose "`"$LogParserExe`" $LogParserParamsInput "
-            Start-Process -FilePath "$LogParserExe" -ArgumentList $LogParserParamsInput -WindowStyle Hidden -Wait -RedirectStandardOutput $OutputCSVFile
-            if ($PassThru)
-            {
-                $OutputCSVFile
-            }
+			Write-Verbose "`$LogParserParamsInput : $LogParserParamsInput"
+			Write-Verbose "`"$LogParserExe`" $LogParserParamsInput "
+			Start-Process -FilePath "$LogParserExe" -ArgumentList $LogParserParamsInput -WindowStyle Hidden -Wait -RedirectStandardOutput $OutputCSVFile
+			if ($PassThru) {
+				$OutputCSVFile
+			}
 		}
 	}
-	end
-	{
+	end {
 	}
 }
 
