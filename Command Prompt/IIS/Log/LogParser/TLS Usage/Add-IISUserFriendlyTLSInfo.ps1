@@ -45,16 +45,16 @@ function Add-IISUserFriendlyTLSInfo {
 	process {
 		foreach ($CurrentFullname in $Fullname) {
 			Write-Verbose "Processing $CurrentFullname"
-			$OutputCSVFile = "$CurrentFullname" -replace ".log$", "_TLS.log"
-			Write-Verbose "`$OutputCSVFile $OutputCSVFile"
+			$OutputLogFile = "$CurrentFullname" -replace ".log$", "_TLS.log"
+			Write-Verbose "`$OutputLogFile : $OutputLogFile"
 			$IISLogFields = ((Get-Content $CurrentFullname -TotalCount 4 | Select-Object -Last 1) -split " " | Select-Object -Skip 1) -join ", "
 			# The dtLines option allows you to specify the number of lines to read to detect the types of fields at runtime. By setting to 0 this avoids an unfortunate side effect which converts for example all the values defined by 'e' in element of type REAL (for example '660e' becomes in 660.000000)
 			$LogParserParamsInput = "file:`"$LogParserSQLFile`"?InputFiles=`"$CurrentFullname`"+IISLogFields=`"$IISLogFields`" -i:W3C -rtp:-1 -dtLines:0 -stats:OFF -o:W3C"
 			Write-Verbose "`$LogParserParamsInput : $LogParserParamsInput"
 			Write-Verbose "`"$LogParserExe`" $LogParserParamsInput "
-			Start-Process -FilePath "$LogParserExe" -ArgumentList $LogParserParamsInput -WindowStyle Hidden -Wait -RedirectStandardOutput $OutputCSVFile
+			Start-Process -FilePath "$LogParserExe" -ArgumentList $LogParserParamsInput -WindowStyle Hidden -Wait -RedirectStandardOutput $OutputLogFile
 			if ($PassThru) {
-				$OutputCSVFile
+				$OutputLogFile
 			}
 		}
 	}
@@ -69,5 +69,4 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 $LogParserExe = "C:\Program Files (x86)\Log Parser 2.2\LogParser.exe"
 $LogParserSQLFile = Join-Path -Path $CurrentDir -ChildPath "IISTLSUsage.sql"
 
-#Get-ChildItem -Path "C:\BDF\LogIIS\*" -Filter *.log -Exclude *_TLS.log -File -Recurse | Add-IISUserFriendlyTLSInfo -LogParserExe $LogParserExe -LogParserSQLFile $LogParserSQLFile -Verbose
-Get-ChildItem -Path "$CurrentDir\*" -Filter *.log -Exclude *_TLS.log -File -Recurse | Add-IISUserFriendlyTLSInfo -LogParserSQLFile $LogParserSQLFile -Verbose
+Get-ChildItem -Path "$CurrentDir\*" -Filter *.log -Exclude *_TLS.log -File -Recurse | Add-IISUserFriendlyTLSInfo -LogParserSQLFile $LogParserSQLFile -PassThru -Verbose
