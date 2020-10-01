@@ -39,7 +39,7 @@
       <logonCredentials inherit="None">
         <profileName scope="Local">Custom</profileName>
         <userName>Administrator</userName>
-        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAA4S8nx2nBb0+HZKhocnfBkwAAAAACAAAAAAAQZgAAAAEAACAAAADYkQsRRYVUrqG1pTCDByha44nTjFtkObW92wuhrA3wugAAAAAOgAAAAAIAACAAAAACOBwtQOKzE9uPgohYdbJNTyA+prpkrwPYBUx+Qyn13iAAAAAedmhQ0fxgtOPAIcBd+DYhB5FlKzQjx3MbMy4Mq/C5+UAAAADx8G6cV9lpDYLZipycuUF6wk73xrUHl3hQ65hspJd1SY+3WygmJH2zQyZGtypLKLB5dbproQ83DdXRJiVCBI/3</password>
+        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAOs6IcrS64UGeAtEtFiNk9QAAAAACAAAAAAAQZgAAAAEAACAAAACciklp5msfKsBXbpijqxjy2bXM7XluzaVMIxxW6nnJ2gAAAAAOgAAAAAIAACAAAAAP1AYmOVbLCTgZTrm/pyj2TMHnMS/khdWeyfU6/3VF4iAAAADr8w5P0Wnx9Arz4xfIcyk1SQStmPMnnXEujF9Na9JnH0AAAAAUhstRaJ/34DnqzpTGFsldzboPls9d/fHFZYgXzoQHHY2fhZs3j29MzXkVfPhuGvlYx+mv/thCSFFgVecLmjJr</password>
         <domain>CONTOSO</domain>
       </logonCredentials>
       <server>
@@ -62,7 +62,7 @@
         <logonCredentials inherit="None">
           <profileName scope="Local">Custom</profileName>
           <userName>Administrator</userName>
-          <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAA4S8nx2nBb0+HZKhocnfBkwAAAAACAAAAAAAQZgAAAAEAACAAAAAf1ApB6ir2BkyKskGkxWCDGUAmJ9+nUMojdKiZZmWelgAAAAAOgAAAAAIAACAAAADOEgrYz9kQc8WhZ8SFKWWDxNQ7/nuFCLy5PYFzkU0+hiAAAABzqqfTySLrs1TZo3kiOgLi8ziTQGQwLmct9zjLWaiO7EAAAADlWeXGWfUIkVHOLnhtL99FbF8TdFsysF3lrT4TnPOtqDGOhxNhAAe3OAJPlrFKxFSJHZ5rSL3rYW8NW9hYlnvN</password>
+          <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAOs6IcrS64UGeAtEtFiNk9QAAAAACAAAAAAAQZgAAAAEAACAAAACp4aBmwHKcta9lCpjrjq3gOr+ek9VJa51exIKCttE6EgAAAAAOgAAAAAIAACAAAABd9OcQCJnqxkwq7gs5uR1F8TeJtdwXfaPhZ+Todjt2kyAAAAA8dAErIL7JDcU+tI1BtYe8zJeP7p/jBLN8qyS9whhj3UAAAAB0gwou8TaCG8BuFRDtfCMR03qlCxG7ZNtOL03knabxK/evyntxhQVjZfGqpwG4XCf4RBLCzCWDdnbmuJgNSM0K</password>
           <domain>CONTOSO</domain>
         </logonCredentials>
       </server>
