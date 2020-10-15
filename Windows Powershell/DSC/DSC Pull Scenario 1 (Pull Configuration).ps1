@@ -54,8 +54,8 @@ Add-LabMachineDefinition -Name DCA1 -Roles CaRoot
 
 
 #SQL Server
-$role = Get-LabMachineRoleDefinition -Role SQLServer2016
-Add-LabIsoImageDefinition -Name SQLServer2016 -Path $labSources\ISOs\en_sql_server_2016_standard_with_service_pack_2_x64_dvd_12124191.iso
+$role = Get-LabMachineRoleDefinition -Role SQLServer2017
+Add-LabIsoImageDefinition -Name SQLServer2017 -Path $labSources\ISOs\en_sql_server_2019_standard_x64_dvd_cdcd4b9f.iso
 Add-LabMachineDefinition -Name DSQL -Roles $role
 
 #DSC Pull Server
