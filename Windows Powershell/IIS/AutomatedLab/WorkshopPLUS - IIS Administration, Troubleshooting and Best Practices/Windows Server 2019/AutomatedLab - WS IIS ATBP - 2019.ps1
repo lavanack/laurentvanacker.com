@@ -16,7 +16,9 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 #requires -Version 5 -Modules AutomatedLab -RunAsAdministrator 
-trap { Write-Host "Stopping Transcript ..."; Stop-Transcript} 
+trap {
+    Write-Host "Stopping Transcript ..."; Stop-Transcript
+} 
 Clear-Host
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
@@ -25,7 +27,7 @@ $ErrorActionPreference = 'Stop'
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
-$TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}" -f (get-date)).txt"
+$TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}" -f (Get-Date)).txt"
 Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 
 #region Global variables definition
@@ -44,34 +46,34 @@ $WDeployConfigWriter = 'WDeployConfigWriter'
 $WebDeploySqlUsr = 'WebDeploySqlUsr'
 $CentralSSLUser = 'CentralSSLUser'
 
-$NetworkID='10.0.0.0/16' 
+$NetworkID = '10.0.0.0/16' 
 $DC01IPv4Address = '10.0.0.1'
 $SQL01IPv4Address = '10.0.0.11'
 $IIS01IPv4Address = '10.0.0.101'
 $IIS02IPv4Address = '10.0.0.102'
 
-$SecurityCCSSNINetBiosName='SecurityCCSSNI'
-$SecurityCCSSNIWebSiteName="$SecurityCCSSNINetBiosName.$FQDNDomainName"
+$SecurityCCSSNINetBiosName = 'SecurityCCSSNI'
+$SecurityCCSSNIWebSiteName = "$SecurityCCSSNINetBiosName.$FQDNDomainName"
 $SecurityCCSSNIIPv4Address = '10.0.0.103'
 
-$SecurityCCSNoSNINetBiosName='SecurityCCSNoSNI'
-$SecurityCCSNoSNIWebSiteName="$SecurityCCSNoSNINetBiosName.$FQDNDomainName"
+$SecurityCCSNoSNINetBiosName = 'SecurityCCSNoSNI'
+$SecurityCCSNoSNIWebSiteName = "$SecurityCCSNoSNINetBiosName.$FQDNDomainName"
 $SecurityCCSNoSNIIPv4Address = '10.0.0.104'
 
-$SecurityCCSWildcartCertNetBiosName='*'
-$SecurityCCSWildcartCertWebSiteName="$SecurityCCSWildcartCertNetBiosName.$FQDNDomainName"
+$SecurityCCSWildcartCertNetBiosName = '*'
+$SecurityCCSWildcartCertWebSiteName = "$SecurityCCSWildcartCertNetBiosName.$FQDNDomainName"
 $SecurityCCSWildcartCertIPv4Address = '10.0.0.105'
 
-$SecurityCCSSANCert0NetBiosName='SecurityCCSSANCert0'
-$SecurityCCSSANCert0WebSiteName="$SecurityCCSSANCert0NetBiosName.$FQDNDomainName"
+$SecurityCCSSANCert0NetBiosName = 'SecurityCCSSANCert0'
+$SecurityCCSSANCert0WebSiteName = "$SecurityCCSSANCert0NetBiosName.$FQDNDomainName"
 $SecurityCCSSANCert0IPv4Address = '10.0.0.106'
 
-$SecurityCCSSANCert1NetBiosName='SecurityCCSSANCert1'
-$SecurityCCSSANCert1WebSiteName="$SecurityCCSSANCert1NetBiosName.$FQDNDomainName"
+$SecurityCCSSANCert1NetBiosName = 'SecurityCCSSANCert1'
+$SecurityCCSSANCert1WebSiteName = "$SecurityCCSSANCert1NetBiosName.$FQDNDomainName"
 $SecurityCCSSANCert1IPv4Address = '10.0.0.107'
 
-$SecurityCCSSANCert2NetBiosName='SecurityCCSSANCert2'
-$SecurityCCSSANCert2WebSiteName="$SecurityCCSSANCert2NetBiosName.$FQDNDomainName"
+$SecurityCCSSANCert2NetBiosName = 'SecurityCCSSANCert2'
+$SecurityCCSSANCert2WebSiteName = "$SecurityCCSSANCert2NetBiosName.$FQDNDomainName"
 $SecurityCCSSANCert2IPv4Address = '10.0.0.108'
 
 
@@ -79,9 +81,8 @@ $LabName = 'IISWSPlus2019'
 #endregion
 
 #Cleaning previously existing lab
-if ($LabName -in (Get-Lab -List))
-{
-    Remove-Lab -name $LabName -confirm:$false -ErrorAction SilentlyContinue
+if ($LabName -in (Get-Lab -List)) {
+    Remove-Lab -Name $LabName -Confirm:$false -ErrorAction SilentlyContinue
 }
 
 #create an empty lab template and define where the lab XML files and the VMs will be stored
@@ -108,7 +109,7 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:MaxMemory'       = 2GB
     'Add-LabMachineDefinition:Memory'          = 2GB
     'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Standard (Desktop Experience)'
-    'Add-LabMachineDefinition:Processors'      = 4
+    #'Add-LabMachineDefinition:Processors'      = 4
 }
 
 $IIS01NetAdapter = @()
@@ -165,7 +166,7 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $machines -Scri
 }
 
 #Installing and setting up DNS
-Invoke-LabCommand -ActivityName 'DNS Setup on DC' -ComputerName DC01 -ScriptBlock {
+Invoke-LabCommand -ActivityName 'DNS & AD Setup on DC' -ComputerName DC01 -ScriptBlock {
 
     #region DNS management
     #Reverse lookup zone creation
@@ -230,19 +231,18 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate for the fu
 #>
 
 # Hastable for getting the ISO Path for every VM (needed for .Net 2.0 setup)
-$IsoPathHashTable = Get-LabMachineDefinition | Where-Object { $_.Name -like "*IIS*"}  | Select-Object -Property Name, @{Name="IsoPath"; Expression={$_.OperatingSystem.IsoPath}} | Group-Object -Property Name -AsHashTable -AsString
+$IsoPathHashTable = Get-LabMachineDefinition | Where-Object { $_.Name -like "*IIS*" }  | Select-Object -Property Name, @{Name = "IsoPath"; Expression = { $_.OperatingSystem.IsoPath } } | Group-Object -Property Name -AsHashTable -AsString
 
-$IISServers = (Get-LabVM | Where-Object -FilterScript { $_.Name -like "*IIS*"}).Name
+$IISServers = (Get-LabVM | Where-Object -FilterScript { $_.Name -like "*IIS*" }).Name
 Copy-LabFileItem -Path $DemoFilesZipPath -ComputerName $IISServers
 Copy-LabFileItem -Path $LabFilesZipPath -ComputerName $IISServers
-foreach ($CurrentIISServer in $IISServers)
-{
+foreach ($CurrentIISServer in $IISServers) {
     $Drive = Mount-LabIsoImage -ComputerName $CurrentIISServer -IsoPath $IsoPathHashTable[$CurrentIISServer].IsoPath -PassThru
     Invoke-LabCommand -ActivityName 'Copying .Net 2.0 cab, lab and demo files locally' -ComputerName $CurrentIISServer -ScriptBlock {
-        $Sxs=New-Item -Path "C:\Sources\Sxs" -ItemType Directory -Force
+        $Sxs = New-Item -Path "C:\Sources\Sxs" -ItemType Directory -Force
         Copy-Item -Path "$($using:Drive.DriveLetter)\sources\sxs\*" -Destination $Sxs -Recurse -Force
 
-        $null=New-Item -Path "C:\Temp" -ItemType Directory -Force
+        $null = New-Item -Path "C:\Temp" -ItemType Directory -Force
         #Lab files
         $LocalLabFilesZipPath = $(Join-Path -Path $env:SystemDrive -ChildPath $(Split-Path -Path $using:LabFilesZipPath -Leaf ))
         Expand-Archive $LocalLabFilesZipPath  -DestinationPath "$env:SystemDrive\" -Force
@@ -263,12 +263,17 @@ Invoke-LabCommand -ActivityName 'Cleanup on SQL Server' -ComputerName SQL01 -Scr
     Get-NetAdapter -Name Internet | Disable-NetAdapter -Confirm:$false
 }
 
+
+Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName IIS01 -ScriptBlock {
+    Stop-Service WUAUSERV -PassThru | Set-Service -StartupType Disabled
+} 
+
 #Removing the Internet Connection on the SQL Server (Required only for the SQL Setup via AutomatedLab)
 Get-VM -Name 'SQL01' | Remove-VMNetworkAdapter -Name 'Default Switch' -ErrorAction SilentlyContinue
 
 #Setting processor number to 1 for all VMs (The AL deployment fails with 1 CPU)
 Get-LabVM -All | Stop-VM -Passthru | Set-VMProcessor -Count 1
-Get-LabVM -All | Start-VM
+Start-LabVm -All -ProgressIndicator 1 -Wait
 
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 
@@ -277,7 +282,26 @@ Invoke-LabCommand -ActivityName 'Demos Setup' -ComputerName IIS01 -ScriptBlock {
 } 
 Checkpoint-LabVM -SnapshotName 'Demos' -All
 
-  
+<#
+#region Merging disks with parent disks
+Stop-LabVM -Wait -ProgressIndicator 1 -All
+$VHD = Get-LabVM | Get-VM | Select-Object VMId | Get-VHD -ErrorAction Ignore
+$VHD | ForEach-Object -Process {
+    $VHDFolder = $(Split-Path -Path $_.Path -Parent)
+    $VHDFile = $(Split-Path -Path $_.Path -Leaf)
+    #Copying the parent disk to the same folder that the child disk
+    $NewParent = Copy-Item -Path $_.ParentPath -Destination $VHDFolder -PassThru -Verbose
+    #Changing the link to the parent disk to the new copied file
+    Set-VHD -Path $_.Path -ParentPath $NewParent -Verbose
+    #Merging the child disk with its parents
+    $NewVHD = Merge-VHD -Path $_.Path -Passthru -Force
+    #Renaming the merged disk with the same name that the original one.
+    Rename-Item -Path $NewVHD.Path -NewName $VHDFile -Verbose
+} 
+Start-LabVm -All -ProgressIndicator 1 -Wait
+#endregion
+#>
+
 Show-LabDeploymentSummary -Detailed
 
 $VerbosePreference = $PreviousVerbosePreference
