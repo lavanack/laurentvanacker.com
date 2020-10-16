@@ -34,8 +34,8 @@ Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 
 #region Global variables definition
 $Now = Get-Date
-$10YearsFrom = $Now.AddYears(10)
-$CertValidityPeriod = New-TimeSpan -Start $Now -End $10YearsFrom
+$5YearsFrom = $Now.AddYears(5)
+$CertValidityPeriod = New-TimeSpan -Start $Now -End $5YearsFrom
 $Logon = 'Administrator'
 #$ClearTextPassword = 'PowerShell5!'
 $ClearTextPassword = 'P@ssw0rd'
@@ -87,12 +87,6 @@ $PSDefaultParameterValues = @{
     #'Add-LabMachineDefinition:Processors'      = 4
 }
 
-
-$DCNetAdapter = @()
-$DCNetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $DCIPv4Address
-#Adding an Internet Connection on the DC (Required for the SQL Setup via AutomatedLab)
-$DCNetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp
-
 $PULLNetAdapter = @()
 $PULLNetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $PULLIPv4Address
 #Adding an Internet Connection on the DC (Required for the SQL Setup via AutomatedLab)
@@ -100,7 +94,7 @@ $PULLNetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switc
 
 #region server definitions
 #Domain controller + Certificate Authority
-Add-LabMachineDefinition -Name DC -Roles RootDC, CARoot -NetworkAdapter $DCNetAdapter
+Add-LabMachineDefinition -Name DC -Roles RootDC, CARoot -IpAddress $DCIPv4Address
 #SQL Server
 Add-LabMachineDefinition -Name PULL -NetworkAdapter $PULLNetAdapter
 #IIS front-end server
@@ -137,41 +131,36 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $machines -Scri
 }
 
 #Installing and setting up DNS
-Invoke-LabCommand -ActivityName 'DNS, AD & CA Setup on DC' -ComputerName DC -ScriptBlock {
+Invoke-LabCommand -ActivityName 'DNS, AD Setup on DC' -ComputerName DC -ScriptBlock {
     #region DNS management
     #Reverse lookup zone creation
     Add-DnsServerPrimaryZone -NetworkID $using:NetworkID -ReplicationScope 'Forest' 
 
     #Creating AD Users
     New-ADUser -Name $Using:StandardUser -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -CannotChangePassword $True -Enabled $true
-
-    #Installing the ADCSTemplateForPSEncryption for creating a Document Encryption template (Internet connection required)
-    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-    Install-Module -Name ADCSTemplateForPSEncryption -Force
-
-    Import-Module -Name ADCSTemplateForPSEncryption -Force
-    #Creating the Document Encryption template
-    New-ADCSTemplateForPSEncryption -DisplayName DocumentEncryption -Server ([System.Net.Dns]::GetHostByName($env:computerName)).Hostname -GroupName "Domain Computers", "Domain Controllers" -AutoEnroll #-Publish
 }
 
 #region Certification Authority : Creation and SSL Certificate Generation
 #Get the CA
 $CertificationAuthority = Get-LabIssuingCA
-#Generating a new template for 10-year SSL Web Server certificate
-New-LabCATemplate -TemplateName WebServer10Years -DisplayName 'WebServer10Years' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ValidityPeriod $CertValidityPeriod -ComputerName $CertificationAuthority -ErrorAction Stop
-#Generating a new template for 10-year document encryption certificate
-New-LabCATemplate -TemplateName DocumentEncryption10Years -DisplayName 'DocumentEncryption10Years' -SourceTemplateName DocumentEncryption -ApplicationPolicy 'Document Encryption' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ValidityPeriod $CertValidityPeriod -ComputerName $CertificationAuthority -ErrorAction Stop
+#Generating a new template for 5-year SSL Web Server certificate
+New-LabCATemplate -TemplateName WebServer5Years -DisplayName 'WebServer5Years' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ValidityPeriod $CertValidityPeriod -ComputerName $CertificationAuthority -ErrorAction Stop
+#Generating a new template for 5-year document encryption certificate
+New-LabCATemplate -TemplateName DocumentEncryption5Years -DisplayName 'DocumentEncryption5Years' -SourceTemplateName CEPEncryption -ApplicationPolicy 'Document Encryption' -KeyUsage KEY_ENCIPHERMENT, DATA_ENCIPHERMENT -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -SamAccountName 'Domain Computers' -ValidityPeriod $CertValidityPeriod -ComputerName $CertificationAuthority -ErrorAction Stop
 
-$PULLWebSiteSSLCert = Request-LabCertificate -Subject "CN=pull.contoso.com" -SAN "pull", "pull.contoso.com" -TemplateName WebServer10Years -ComputerName PULL -PassThru -ErrorAction Stop
+$PULLWebSiteSSLCert = Request-LabCertificate -Subject "CN=pull.$FQDNDomainName" -SAN "pull", "pull.$FQDNDomainName" -TemplateName WebServer5Years -ComputerName PULL -PassThru -ErrorAction Stop
+$PULLDocumentEncryptionCert = Request-LabCertificate -Subject "CN=pull.$FQDNDomainName" -SAN "pull", "pull.$FQDNDomainName" -TemplateName DocumentEncryption5Years -ComputerName PULL -PassThru -ErrorAction Stop
+$DCDocumentEncryptionCert = Request-LabCertificate -Subject "CN=dc.$FQDNDomainName" -SAN "dc", "dc.$FQDNDomainName" -TemplateName DocumentEncryption5Years -ComputerName DC -PassThru -ErrorAction Stop
+$MS1DocumentEncryptionCert = Request-LabCertificate -Subject "CN=ms1.$FQDNDomainName" -SAN "ms1", "ms1.$FQDNDomainName" -TemplateName DocumentEncryption5Years -ComputerName MS1 -PassThru -ErrorAction Stop
+$MS2DocumentEncryptionCert = Request-LabCertificate -Subject "CN=ms2.$FQDNDomainName" -SAN "ms2", "ms2.$FQDNDomainName" -TemplateName DocumentEncryption5Years -ComputerName MS2 -PassThru -ErrorAction Stop
 
-Invoke-LabCommand -ActivityName 'Requesting Document Encryption Certificate & Disabling Windows Update service' -ComputerName $machines -ScriptBlock {
-    $DocumentEncryption10YearsCert = Get-Certificate -Template DocumentEncryption10Years -Url 'ldap:' -CertStoreLocation 'Cert:\LocalMachine\My'
+Invoke-LabCommand -ActivityName 'Requesting and Exporting Document Encryption Certificate & Disabling Windows Update service' -ComputerName $machines -ScriptBlock {
     Stop-Service WUAUSERV -PassThru | Set-Service -StartupType Disabled
     
+    $DocumentEncryption5YearsCert = Get-ChildItem Cert:\LocalMachine\My -DocumentEncryptionCert | Select-Object -Last 1    
     New-Item -Path \\pull\c$\PublicKeys\ -ItemType Directory -Force
-    Export-Certificate -Cert $DocumentEncryption10YearsCert.Certificate -FilePath "\\pull\c$\PublicKeys\$env:COMPUTERNAME.cer" -Force
+    Export-Certificate -Cert $DocumentEncryption5YearsCert -FilePath "\\pull\c$\PublicKeys\$env:COMPUTERNAME.cer" -Force
 } 
-
 
 Invoke-LabCommand -ActivityName 'Generating CSV file for listing certificate data' -ComputerName PULL -ScriptBlock {
     $PublicKeysFolder = "C:\PublicKeys"
@@ -194,10 +183,6 @@ Invoke-LabCommand -ActivityName 'Generating CSV file for listing certificate dat
     }
     $CSVData | Export-Csv -Path $CSVFile -NoTypeInformation -Encoding UTF8
 } 
-
-
-#Removing the Internet Connection on the DC (Required only for installing the ADCSTemplateForPSEncryption PowerShell module)
-Get-VM -Name 'DC' | Remove-VMNetworkAdapter -Name 'Default Switch' -ErrorAction SilentlyContinue
 
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 
