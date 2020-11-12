@@ -60,7 +60,7 @@ $SecurityCCSNoSNINetBiosName = 'SecurityCCSNoSNI'
 $SecurityCCSNoSNIWebSiteName = "$SecurityCCSNoSNINetBiosName.$FQDNDomainName"
 $SecurityCCSNoSNIIPv4Address = '10.0.0.104'
 
-$SecurityCCSWildcartCertNetBiosName = '*'
+$SecurityCCSWildcartCertNetBiosName = 'securityCCSWildcardCert'
 $SecurityCCSWildcartCertWebSiteName = "$SecurityCCSWildcartCertNetBiosName.$FQDNDomainName"
 $SecurityCCSWildcartCertIPv4Address = '10.0.0.105'
 
@@ -277,10 +277,12 @@ Start-LabVm -All -ProgressIndicator 1 -Wait
 
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 
+<#
 Invoke-LabCommand -ActivityName 'Demos Setup' -ComputerName IIS01 -ScriptBlock {
-    Start-Process -FilePath "$env:ComSpec" -ArgumentList "/c C:\Demos\Source\setup_script.bat > C:\Demos\Source\setup_script.log"
+    Start-Process -FilePath "$env:ComSpec" -ArgumentList "/c C:\Demos\Source\setup_script.bat > C:\Demos\Source\setup_script.log" -Wait
 } 
 Checkpoint-LabVM -SnapshotName 'Demos' -All
+#>
 
 <#
 #region Merging disks with parent disks
