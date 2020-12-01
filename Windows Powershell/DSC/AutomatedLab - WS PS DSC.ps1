@@ -42,8 +42,8 @@ $ClearTextPassword = 'P@ssw0rd'
 $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
 $NetBiosDomainName = 'CONTOSO'
 $FQDNDomainName = 'contoso.com'
-$LabFilesZipPath = Join-Path -Path $CurrentDir -ChildPath "LabFiles.zip"
-$DemoFilesZipPath = Join-Path -Path $CurrentDir -ChildPath "Demos.zip"
+
+
 $StandardUser = 'ericlang'
 
 $NetworkID = '10.0.0.0/16' 
@@ -96,7 +96,7 @@ $PULLNetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switc
 #Domain controller + Certificate Authority
 Add-LabMachineDefinition -Name DC -Roles RootDC, CARoot -IpAddress $DCIPv4Address
 #SQL Server
-Add-LabMachineDefinition -Name PULL -NetworkAdapter $PULLNetAdapter
+Add-LabMachineDefinition -Name PULL -NetworkAdapter $PULLNetAdapter -Memory 4GB -MinMemory 2GB -MaxMemory 4GB
 #IIS front-end server
 Add-LabMachineDefinition -Name MS1 -IpAddress $MS1IPv4Address
 #IIS front-end server
@@ -105,7 +105,7 @@ Add-LabMachineDefinition -Name MS2 -IpAddress $MS2IPv4Address
 
 #Installing servers
 Install-Lab
-Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
+#Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 
 #region Installing Required Windows Features
 $machines = Get-LabVM
@@ -160,7 +160,10 @@ Invoke-LabCommand -ActivityName 'Requesting and Exporting Document Encryption Ce
     $DocumentEncryption5YearsCert = Get-ChildItem Cert:\LocalMachine\My -DocumentEncryptionCert | Select-Object -Last 1    
     New-Item -Path \\pull\c$\PublicKeys\ -ItemType Directory -Force
     Export-Certificate -Cert $DocumentEncryption5YearsCert -FilePath "\\pull\c$\PublicKeys\$env:COMPUTERNAME.cer" -Force
+
+    $null = New-Item -ItemType Directory -Path C:\PShell\Demos -ErrorAction SilentlyContinue -Force
 } 
+Copy-LabFileItem -Path C:\PoshDSC\Demos -DestinationFolder C:\PShell\ -ComputerName $machines -Recurse
 
 Invoke-LabCommand -ActivityName 'Generating CSV file for listing certificate data' -ComputerName PULL -ScriptBlock {
     $PublicKeysFolder = "C:\PublicKeys"
