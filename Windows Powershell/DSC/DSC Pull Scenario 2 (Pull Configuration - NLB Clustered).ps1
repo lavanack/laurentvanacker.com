@@ -38,9 +38,9 @@ $NLBWebSiteName="$NLBNetBiosName.$FQDNDomainName"
 $NLBIPv4Address = '10.0.0.100'
 $ServerComment='PSDSCPullServer'
 
-$RegistrationKey = Get-LabConfigurationItem -Name DscPullServerRegistrationKey
+#$RegistrationKey = Get-LabConfigurationItem -Name DscPullServerRegistrationKey
 
-#Using half of the logical processors to speed up the deployement
+#Using half of the logical processors to speed up the deployment
 [int]$LabMachineDefinitionProcessors = [math]::Max(1, (Get-CimInstance -ClassName Win32_Processor).NumberOfLogicalProcessors)
 
 $LabName = 'DSCPullNLB'

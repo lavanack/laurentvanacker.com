@@ -3,13 +3,6 @@
 #region function definitions
 
 Function Remove-Ref {
-	[CmdletBinding()]
-	param
-	(
-		[Object]
-		$ref
-	)
-
 	<#
 			.SYNOPSIS
 			Releases a COM Object
@@ -24,7 +17,14 @@ Function Remove-Ref {
 			$Word=new-object -ComObject "Word.Application"
 			...
 			Remove-Ref ($Word)
-	#>
+	#>	
+	[CmdletBinding()]
+	param
+	(
+		[Object]
+		$ref
+	)
+
 	$null = Remove-Variable -Name $ref -ErrorAction SilentlyContinue
 	while ([System.Runtime.InteropServices.Marshal]::ReleaseComObject([System.__ComObject]$ref) -gt 0) {
 
@@ -120,8 +120,8 @@ Function Get-WordHyperLinks {
 				$CurrentHyperLink.Range.Select()
 				$Selection = $Word.Selection
 				$Title = $null
-                $Response = $null
-                $StatusCode = $null
+				$Response = $null
+				$StatusCode = $null
 				#To get the page number
 				$PageNumber = $Selection.Information($wdActiveEndPageNumber)
 				Write-Verbose -Message "$($CurrentHyperLink.Address) - $($CurrentHyperLink.TextToDisplay) - $PageNumber"
