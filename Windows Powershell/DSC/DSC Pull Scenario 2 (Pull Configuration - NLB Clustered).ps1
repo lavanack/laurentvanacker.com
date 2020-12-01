@@ -20,10 +20,11 @@ $ClearTextPassword = 'P@ssw0rd'
 $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
 $NetBiosDomainName = 'CONTOSO'
 $FQDNDomainName = 'contoso.com'
+$PSWSAppPoolUsr = 'PSWSAppPoolUsr'
 
 $NetworkID = '10.0.0.0/16' 
 $DC01IPv4Address = '10.0.0.1'
-$CA01IPv4Address = '10.0.0.11'
+$DC02IPv4Address = '10.0.0.2'
 $ROUTER01IPv4Address = '10.0.0.21'
 $SQL01IPv4Address = '10.0.0.31'
 $PULL01IPv4Address = '10.0.0.41'
@@ -38,7 +39,7 @@ $NLBWebSiteName="$NLBNetBiosName.$FQDNDomainName"
 $NLBIPv4Address = '10.0.0.100'
 $ServerComment='PSDSCPullServer'
 
-#$RegistrationKey = Get-LabConfigurationItem -Name DscPullServerRegistrationKey
+$RegistrationKey = Get-LabConfigurationItem -Name DscPullServerRegistrationKey
 
 #Using half of the logical processors to speed up the deployment
 [int]$LabMachineDefinitionProcessors = [math]::Max(1, (Get-CimInstance -ClassName Win32_Processor).NumberOfLogicalProcessors)
@@ -83,7 +84,8 @@ $PSDefaultParameterValues = @{
 $postInstallActivity = Get-LabPostInstallationActivity -ScriptFileName PrepareRootDomain.ps1 -DependencyFolder $labSources\PostInstallationActivities\PrepareRootDomain
 #DC + CA
 #Add-LabMachineDefinition -Name CA01 -Roles CaRoot -IpAddress $CA01IPv4Address
-Add-LabMachineDefinition -Name DC01 -Roles RootDC, CaRoot -PostInstallationActivity $postInstallActivity -OperatingSystem 'Windows Server 2012 Datacenter (Server with a GUI)'
+Add-LabMachineDefinition -Name DC01 -Roles RootDC, CaRoot -PostInstallationActivity $postInstallActivity -OperatingSystem 'Windows Server 2012 Datacenter (Server with a GUI)' -IpAddress $DC01IPv4Address
+Add-LabMachineDefinition -Name DC02 -Roles DC -OperatingSystem 'Windows Server 2012 Datacenter (Server with a GUI)' -IpAddress $DC02IPv4Address
 
 #Router
 $netAdapter = @()
@@ -94,7 +96,7 @@ Add-LabMachineDefinition -Name ROUTER01 -Roles Routing -NetworkAdapter $netAdapt
 #SQL Server
 $role = Get-LabMachineRoleDefinition -Role SQLServer2017
 Add-LabIsoImageDefinition -Name SQLServer2017 -Path $labSources\ISOs\en_sql_server_2019_standard_x64_dvd_cdcd4b9f.iso
-Add-LabMachineDefinition -Name SQL01 -Roles $role -IpAddress $SQL01IPv4Address
+Add-LabMachineDefinition -Name SQL01 -Roles $role -IpAddress $SQL01IPv4Address -Processors 4 -Memory 4GB -MinMemory 2GB -MaxMemory 4GB
 
 #DSC Pull Servers
 $role = Get-LabMachineRoleDefinition -Role DSCPullServer -Properties @{ DatabaseEngine = 'sql'; SqlServer = "SQL01"; DatabaseName = "DSC" }
@@ -120,6 +122,7 @@ Install-Lab
 $AllMachines = Get-LabVM
 $PullServers = Get-LabVM -Role DSCPullServer
 $DSCClients = Get-LabVM | Where-Object -FilterScript { -not($_.Roles) }
+$DomainControllers = Get-LabVM -Role DC, RootDC
 
 Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
 
@@ -127,7 +130,7 @@ Checkpoint-LabVM -SnapshotName $LabName -All #-Verbose
 
 #Installing NLB on the PUll Servers
 Install-LabWindowsFeature -FeatureName FS-DFS-Replication, NLB -ComputerName $PullServers -IncludeManagementTools
-Install-LabWindowsFeature -FeatureName FS-DFS-Replication, RSAT-DFS-Mgmt-Con -ComputerName DC01 -Verbose
+Install-LabWindowsFeature -FeatureName FS-DFS-Replication, RSAT-DFS-Mgmt-Con -ComputerName $DomainControllers -Verbose
 
 Invoke-LabCommand -ActivityName "Keyboard management" -ComputerName $AllMachines -ScriptBlock {
     #Setting the Keyboard to French
@@ -135,13 +138,16 @@ Invoke-LabCommand -ActivityName "Keyboard management" -ComputerName $AllMachines
 }
 
 #Installing and setting up DFS-R on DC for replicated folder on IIS Servers for shared configuration
-Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -ScriptBlock {
+Invoke-LabCommand -ActivityName 'AD & DNS Setup on DC' -ComputerName DC01 -ScriptBlock {
     #region DNS management
     #Reverse lookup zone creation
     Add-DnsServerPrimaryZone -NetworkID $using:NetworkID -ReplicationScope 'Forest' 
     #DNS Host entry for the nlb.contoso.com website 
     Add-DnsServerResourceRecordA -Name $using:NLBNetBiosName -ZoneName $using:FQDNDomainName -IPv4Address $using:NLBIPv4Address -CreatePtr
     #endregion
+
+    #Creating user for the PSWS application pool used for the Pull web site to replace localsystem by this user
+    New-ADUser -Name $Using:PSWSAppPoolUsr -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -CannotChangePassword $True -Enabled $true -Description "PSWS Application Pool User"
 }
 
 #IIS front-end servers : Renaming the NIC and setting up the metric for NLB management
@@ -150,7 +156,7 @@ Invoke-LabCommand -ActivityName 'Creating junction to DSC Modules and Configurat
     New-Item -ItemType Junction -Path "C:\DscService\Configuration" -Target "C:\Program Files\WindowsPowerShell\DscService\Configuration"
 }
 
-Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Verbose -ScriptBlock {
+Invoke-LabCommand -ActivityName 'DFS-R Setup on DC' -ComputerName DC01 -Verbose -ScriptBlock {
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin RG Delete /Rgname:`"DSC Module Path`"" -Wait
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin RG New /Rgname:`"DSC Module Path`"" -Wait
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin rf New /Rgname:`"DSC Module Path`" /rfname:`"DSCModulePath`"" -Wait
@@ -161,15 +167,25 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Ve
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Membership Set /Rgname:`"DSC Module Path`" /rfname:`"DSCModulePath`" /memname:PULL01 /localpath:`"C:\DscService\Modules`" /isprimary:true /membershipEnabled:true" -Wait
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Membership Set /Rgname:`"DSC Module Path`" /rfname:`"DSCModulePath`" /memname:PULL02 /localpath:`"C:\DscService\Modules`" /membershipEnabled:true" -Wait
 
-    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin RG Delete /Rgname:`"Configuration Path`"" -Wait
-    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin RG New /Rgname:`"Configuration Path`"" -Wait
-    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin rf New /Rgname:`"Configuration Path`" /rfname:`"Configuration Path`"" -Wait
-    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Mem New /Rgname:`"Configuration Path`" /memname:PULL01" -Wait
-    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Mem New /Rgname:`"Configuration Path`" /memname:PULL02" -Wait
-    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Conn New /Rgname:`"Configuration Path`" /sendmem:PULL01 /recvmem:PULL02" -Wait
-    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Conn New /Rgname:`"Configuration Path`" /sendmem:PULL02 /recvmem:PULL01" -Wait
-    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Membership Set /Rgname:`"Configuration Path`" /rfname:`"Configuration Path`" /memname:PULL01 /localpath:`"C:\DscService\Configuration`" /isprimary:true /membershipEnabled:true" -Wait
-    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Membership Set /Rgname:`"Configuration Path`" /rfname:`"Configuration Path`" /memname:PULL02 /localpath:`"C:\DscService\Configuration`" /membershipEnabled:true" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin RG Delete /Rgname:`"DSC Configuration Path`"" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin RG New /Rgname:`"DSC Configuration Path`"" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin rf New /Rgname:`"DSC Configuration Path`" /rfname:`"DSC Configuration Path`"" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Mem New /Rgname:`"DSC Configuration Path`" /memname:PULL01" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Mem New /Rgname:`"DSC Configuration Path`" /memname:PULL02" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Conn New /Rgname:`"DSC Configuration Path`" /sendmem:PULL01 /recvmem:PULL02" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Conn New /Rgname:`"DSC Configuration Path`" /sendmem:PULL02 /recvmem:PULL01" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Membership Set /Rgname:`"DSC Configuration Path`" /rfname:`"DSC Configuration Path`" /memname:PULL01 /localpath:`"C:\DscService\Configuration`" /isprimary:true /membershipEnabled:true" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Membership Set /Rgname:`"DSC Configuration Path`" /rfname:`"DSC Configuration Path`" /memname:PULL02 /localpath:`"C:\DscService\Configuration`" /membershipEnabled:true" -Wait
+
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin RG Delete /Rgname:`"IIS Shared Configuration`"" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin RG New /Rgname:`"IIS Shared Configuration`"" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin rf New /Rgname:`"IIS Shared Configuration`" /rfname:`"IIS Shared Configuration`"" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Mem New /Rgname:`"IIS Shared Configuration`" /memname:PULL01" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Mem New /Rgname:`"IIS Shared Configuration`" /memname:PULL02" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Conn New /Rgname:`"IIS Shared Configuration`" /sendmem:PULL01 /recvmem:PULL02" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Conn New /Rgname:`"IIS Shared Configuration`" /sendmem:PULL02 /recvmem:PULL01" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Membership Set /Rgname:`"IIS Shared Configuration`" /rfname:`"IIS Shared Configuration`" /memname:PULL01 /localpath:`"C:\IISSharedConfiguration`" /isprimary:true /membershipEnabled:true" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Membership Set /Rgname:`"IIS Shared Configuration`" /rfname:`"IIS Shared Configuration`" /memname:PULL02 /localpath:`"C:\IISSharedConfiguration`" /membershipEnabled:true" -Wait
 }
 
 #IIS front-end servers : Renaming the NIC and setting up the metric for NLB management
@@ -185,7 +201,7 @@ Invoke-LabCommand -ActivityName 'Renaming NICs' -ComputerName $PullServers -Scri
 
 Invoke-LabCommand -ActivityName 'NLB Setup' -ComputerName PULL01 {
     #Creating New  NLB cluster
-    New-NlbCluster -HostName PULL01 -ClusterName "$using:ServerComment" -InterfaceName NLB -ClusterPrimaryIP $using:NLBIPv4Address -SubnetMask 255.255.0.0 -OperationMode 'Multicast'
+    New-NlbCluster -HostName PULL01 -ClusterName "$using:NLBWebSiteName" -InterfaceName NLB -ClusterPrimaryIP $using:NLBIPv4Address -SubnetMask 255.255.0.0 -OperationMode 'Multicast'
     #Removing default port rule for the New  cluster
     #Get-NlbClusterPortRule -HostName . | Remove-NlbClusterPortRule -Force
     #Adding port rules
@@ -240,10 +256,17 @@ Invoke-LabCommand -ActivityName 'Importing the Web Server Certificate & Setting 
     {
         Write-Error -Exception "[ERROR] Unable to import the 'Web Server SSL' certificate for $using:NLBWebSiteName"
     }
+
+    #Changing the application pool identity from localsystem to a domain account
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='PSWS']/processModel" -name "identityType" -value "SpecificUser"
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='PSWS']/processModel" -name "userName" -value "$using:NetBiosDomainName\$using:PSWSAppPoolUsr"
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='PSWS']/processModel" -name "password" -value $using:ClearTextPassword
+
+
     #Removing Default Binding
     Get-WebBinding -Port 8080 -Name "$using:ServerComment" | Remove-WebBinding
     Remove-Item -Path "IIS:\SslBindings\0.0.0.0!8080" -Force -ErrorAction Ignore
-    New-WebBinding -Name "$using:ServerComment" -sslFlags 0 -Protocol https -Port 8080
+    New-WebBinding -Name "$using:ServerComment" -sslFlags 0 -Protocol https -Port 8080 -HostHeader "$using:NLBWebSiteName"
     New-Item -Path "IIS:\SslBindings\!8080!$using:NLBWebSiteName" -Thumbprint $($using:WebServerSSLCert).Thumbprint -sslFlags 0
     
     #ASPX Page to view the server running the request
@@ -253,7 +276,8 @@ Invoke-LabCommand -ActivityName 'Importing the Web Server Certificate & Setting 
 #Copy-LabFileItem -Path $labSources\PostInstallationActivities\SetupDscPullServer\CreateDscSqlDatabase.ps1 -DestinationFolderPath C:\Temp -ComputerName SQL01
 Copy-LabFileItem -Path $CurrentDir\CreateDscSqlDatabase.ps1 -DestinationFolderPath C:\Temp -ComputerName SQL01
 Invoke-LabCommand -ActivityName 'Create SQL Database for DSC Reporting' -ComputerName SQL01 -ScriptBlock {
-    C:\Temp\CreateDscSqlDatabase.ps1 -DomainAndComputerName CONTOSO\PULL01, CONTOSO\PULL02
+    #C:\Temp\CreateDscSqlDatabase.ps1 -DomainAndComputerName $using:NetBiosDomainName\PULL01$, $using:NetBiosDomainName\PULL02$
+    C:\Temp\CreateDscSqlDatabase.ps1 -DomainAndComputerName $using:NetBiosDomainName\$using:PSWSAppPoolUsr
 }
 
 Install-LabDscClient -ComputerName $DSCClients -PullServer PULL01 -Verbose 
@@ -312,6 +336,21 @@ Invoke-LabCommand -ActivityName 'Updating Test DSC Configuration' -ComputerName 
     Publish-DscModuleAndMof -Source C:\DscTestConfig  -ModuleNameList xWebAdministration -Verbose
 }
 
+Invoke-LabCommand -ActivityName 'Exporting IIS Shared Configuration' -ComputerName PULL01 {
+    #Exporting the configuration only from one node
+    Export-IISConfiguration -PhysicalPath C:\IISSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
+}
+
+#Enabling the shared configuration for all IIS nodes
+Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration' -ComputerName PULL01, PULL02 -ScriptBlock {
+    #Waiting the DFS replication completes
+    While (-not(Test-Path -Path C:\IISSharedConfiguration\applicationHost.config)) {
+        Write-Verbose -Message 'Waiting the replication via DFS-R of applicationHost.config. Sleeping 10 seconds ...'
+        Start-Sleep -Seconds 10
+    }
+    Enable-IISSharedConfig  -PhysicalPath C:\IISSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force   
+}
+
 Invoke-LabCommand -ActivityName 'Updating the LCM Configuration to use the NLB VIP' -ComputerName $DSCClients -ScriptBlock {
     [DSCLocalConfigurationManager()]
     Configuration PullClient
@@ -329,7 +368,7 @@ Invoke-LabCommand -ActivityName 'Updating the LCM Configuration to use the NLB V
 
             ConfigurationRepositoryWeb "PullServer_1"
             {
-                ServerURL          = "https://pull.contoso.com:8080/PSDSCPullServer.svc"
+                ServerURL          = "https://pull.$($using:FQDNDomainName):8080/PSDSCPullServer.svc"
                 RegistrationKey    = $using:RegistrationKey
                 ConfigurationNames = @("TestConfigPULL01", "IISConfigPull")
                 #AllowUnsecureConnection = $true
@@ -350,7 +389,7 @@ Invoke-LabCommand -ActivityName 'Updating the LCM Configuration to use the NLB V
 
             ReportServerWeb CONTOSO-PullSrv
             {
-                ServerURL       = "https://pull.contoso.com:8080/PSDSCPullServer.svc"
+                ServerURL       = "https://pull.$($using:FQDNDomainName):8080/PSDSCPullServer.svc"
                 RegistrationKey = $using:RegistrationKey
                 #AllowUnsecureConnection = $true
             }
@@ -371,7 +410,7 @@ Install-LabSoftwarePackage -ComputerName SQL01 -Path $labSources\SoftwarePackage
 Copy-LabFileItem -Path "$CurrentDir\DSC Dashboard.pbix" -ComputerName SQL01
 
 #Coping the PowerShell Script to have a local report of the DSC deployments
-Copy-LabFileItem -Path "$CurrentDir\Get-DSCReport.ps1" -ComputerName $DSCClients
+Copy-LabFileItem -Path "$CurrentDir\Get-DSC*.ps1" -ComputerName $DSCClients
 
 Show-LabDeploymentSummary -Detailed
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
