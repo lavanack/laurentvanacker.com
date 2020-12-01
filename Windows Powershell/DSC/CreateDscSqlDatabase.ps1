@@ -591,7 +591,7 @@ foreach ($CurrentDomainAndComputerName in $DomainAndComputerName)
         $domain = 'NT AUTHORITY'
         $name = 'SYSTEM'
     }
-    $name = $name + '$'
+    #$name = $name + '$'
 
     $account = New-Object System.Security.Principal.NTAccount($domain, $name)
     try
