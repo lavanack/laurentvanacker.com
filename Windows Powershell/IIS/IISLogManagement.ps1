@@ -657,7 +657,7 @@ $IISLogFiles | Remove-Item -Force -Verbose
 # Returns a collection of IIS log files (*.log only) older than 10 days for every hosted web sites.
 $IISLogFiles = Get-Website | Get-IISLogFile -Verbose -OlderThanXDays 10
 # Compresses these files, set the last write time of the compressed file to the last write time of the source file and returns a collection of the compressed files
-$CompressedFiles = $IISLogFiles | Compress-File -Force -Verbose -PreserveLastWriteTime
+$CompressedFiles = $IISLogFiles | Compress-FileV5 -Force -Verbose -PreserveLastWriteTime
 # Removes the non-compressed files (to keep only those compressed at the previous line)
 $IISLogFiles | Remove-Item -Force -Verbose 
 
