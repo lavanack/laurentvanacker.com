@@ -137,10 +137,14 @@ function New-IISLogFile
 		#[String]$Encoding="UTF-8",
 		[String]$Encoding,
 		
-		[Parameter(Mandatory = $False)]
+		[Parameter(Mandatory = $False, ParameterSetName="Size")]
 		[ValidateRange(1,100MB)]
 		[int]$Size = 1MB,
-		[switch]$Force
+		
+		[Parameter(Mandatory = $False, ParameterSetName="Content")]
+
+        [switch]$Content,
+        [switch]$Force
 	)
 	begin 
 	{
@@ -158,6 +162,14 @@ function New-IISLogFile
 			}
 			Write-Verbose -Message "Encoding : $Encoding"
 		}
+        $IISLogFileContent = @'
+#Software: Microsoft Internet Information Services 10.0
+#Version: 1.0
+#Date: 2020-12-10 15:02:48
+#Fields: date time s-sitename s-computername s-ip cs-method cs-uri-stem cs-uri-query s-port cs-username c-ip cs-version cs(User-Agent) cs(Cookie) cs(Referer) cs-host sc-status sc-substatus sc-win32-status sc-bytes cs-bytes time-taken
+2020-12-10 15:02:48 W3SVC1 IIS01 127.0.0.1 GET / - 80 - 127.0.0.1 HTTP/1.1 Mozilla/5.0+(Windows+NT+10.0;+WOW64;+Trident/7.0;+Touch;+rv:11.0)+like+Gecko - - 127.0.0.1 304 0 0 166 359 140
+2020-12-10 15:02:48 W3SVC1 IIS01 127.0.0.1 GET /iisstart.png - 80 - 127.0.0.1 HTTP/1.1 Mozilla/5.0+(Windows+NT+10.0;+WOW64;+Trident/7.0;+Touch;+rv:11.0)+like+Gecko - http://www.contoso.com/ 127.0.0.1 304 0 0 166 413 15
+'@
 	}
 	process
 	{
@@ -216,12 +228,19 @@ function New-IISLogFile
 						# fsutil file createnew $CurrentLogFile $Size | Out-Null
 						# $NewIISLogFile = Get-Item -Path $CurrentLogFile
 						# $NewIISLogFile.LastWriteTimeUTC = $LogFileLastWriteTimeUTC
+                        if ($Content)
+                        {
+                                $IISLogFileContent | Out-File -FilePath $CurrentLogFile
+                                (Get-Item -Path $CurrentLogFile).LastWriteTimeUtc = $LogFileLastWriteTimeUTC
+                        }
+                        else
+                        {
+						    $NewIISLogFile = [System.IO.File]::Create($CurrentLogFile)
+						    $NewIISLogFile.SetLength($Size)
+						    $NewIISLogFile.Close()
+						    [System.IO.File]::SetLastWriteTimeUTC($CurrentLogFile, $LogFileLastWriteTimeUTC)
 
-						$NewIISLogFile = [System.IO.File]::Create($CurrentLogFile)
-						$NewIISLogFile.SetLength($Size)
-						$NewIISLogFile.Close()
-						[System.IO.File]::SetLastWriteTimeUTC($CurrentLogFile, $LogFileLastWriteTimeUTC)
-
+                        }
 						$NewIISLogFiles += $NewIISLogFile
 					}
 					else
@@ -235,10 +254,18 @@ function New-IISLogFile
 							#$NewIISLogFile = Get-Item -Path $CurrentLogFile
 							#$NewIISLogFile.LastWriteTimeUTC = $LogFileLastWriteTimeUTC
 
-							$NewIISLogFile = [System.IO.File]::Create($CurrentLogFile)
-							$NewIISLogFile.SetLength($Size)
-							$NewIISLogFile.Close()
-							[System.IO.File]::SetLastWriteTimeUTC($CurrentLogFile, $LogFileLastWriteTimeUTC)
+                            if ($Content)
+							{
+                                $IISLogFileContent | Out-File -FilePath $CurrentLogFile
+                                (Get-Item -Path $CurrentLogFile).LastWriteTimeUtc = $LogFileLastWriteTimeUTC
+                            }
+                            else
+							{
+                                $NewIISLogFile = [System.IO.File]::Create($CurrentLogFile)
+							    $NewIISLogFile.SetLength($Size)
+							    $NewIISLogFile.Close()
+							    [System.IO.File]::SetLastWriteTimeUTC($CurrentLogFile, $LogFileLastWriteTimeUTC)
+                            }
 							
 							$NewIISLogFiles += $NewIISLogFile
 						}
@@ -619,7 +646,7 @@ function Compress-FileV5
 
 Clear-Host
 # Generates 100 fake log files (one log file per day) for every hosted web sites.
-$NewIISLogFiles = Get-Website | New-IISLogFile -Verbose -Force -Days 100
+$NewIISLogFiles = Get-Website | New-IISLogFile -Verbose -Days 100 -Content -Force 
 
 # The 11 following lines are a good example to show you how to keep an history of the 30 newest IIS log files (an IIS log file per day/site): the 10 newest are in the orginal clear text format and the others are compressed.
 # Returns a collection of files contained in the IIS log folder (*.*) older than 30 days for every hosted web sites.
