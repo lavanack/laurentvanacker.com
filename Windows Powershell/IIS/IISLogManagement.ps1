@@ -230,7 +230,7 @@ function New-IISLogFile
 						# $NewIISLogFile.LastWriteTimeUTC = $LogFileLastWriteTimeUTC
                         if ($Content)
                         {
-                                $IISLogFileContent | Out-File -FilePath $CurrentLogFile
+                                $IISLogFileContent | Out-File -FilePath $CurrentLogFile -Encoding $Encoding
                                 (Get-Item -Path $CurrentLogFile).LastWriteTimeUtc = $LogFileLastWriteTimeUTC
                         }
                         else
@@ -256,7 +256,7 @@ function New-IISLogFile
 
                             if ($Content)
 							{
-                                $IISLogFileContent | Out-File -FilePath $CurrentLogFile
+                                $IISLogFileContent | Out-File -FilePath $CurrentLogFile -Encoding $Encoding
                                 (Get-Item -Path $CurrentLogFile).LastWriteTimeUtc = $LogFileLastWriteTimeUTC
                             }
                             else
