@@ -133,8 +133,8 @@ function New-IISLogFile
 		[String]$Format,
 		
 		[Parameter(Mandatory = $False)]
-		[ValidateSet('UTF-8', 'ANSI')]
-		#[String]$Encoding="UTF-8",
+		[ValidateSet('UTF8', 'ANSI')]
+		#[String]$Encoding="UTF8",
 		[String]$Encoding,
 		
 		[Parameter(Mandatory = $False, ParameterSetName="Size")]
@@ -154,7 +154,7 @@ function New-IISLogFile
 		{
 			if ((Get-WebConfiguration -Filter system.applicationHost/log).logInUTF8)
 			{
-				$Encoding = 'UTF-8'
+				$Encoding = 'UTF8'
 			}
 			else
 			{
