@@ -5,8 +5,7 @@ Import-Module -Name WebAdministration
 #endregion
 
 #region Function definition
-Function Remove-Ref 
-{
+Function Remove-Ref {
 	param
 	(
 		[Object]
@@ -29,16 +28,14 @@ Function Remove-Ref
 			Remove-Ref($Word)
 	#>
 	$null = Remove-Variable -Name $ref -ErrorAction SilentlyContinue
-	while ([System.Runtime.InteropServices.Marshal]::ReleaseComObject([System.__ComObject]$ref) -gt 0) 
-	{
+	while ([System.Runtime.InteropServices.Marshal]::ReleaseComObject([System.__ComObject]$ref) -gt 0) {
 
 	}
 	[System.GC]::Collect()
 	[System.GC]::WaitForPendingFinalizers() 
 }
 
-function Expand-String 
-{ 
+function Expand-String { 
 	<#
 			.SYNOPSIS
 			Expands a string 
@@ -57,24 +54,21 @@ function Expand-String
 	#>
 	[CmdletBinding()]
 	param( 
-		[Parameter(Mandatory = $true,ValueFromPipeline = $true)] 
+		[Parameter(Mandatory = $true, ValueFromPipeline = $true)] 
 		[string]$Value, 
 
 		[switch]$EnvironmentVariable 
 	)
 
-	if($EnvironmentVariable)
-	{
+	if ($EnvironmentVariable) {
 		[System.Environment]::ExpandEnvironmentVariables($Value)
 	} 
-	else 
-	{
+	else {
 		$ExecutionContext.InvokeCommand.ExpandString($Value)
 	} 
 } 
 
-function New-IISLogFile
-{
+function New-IISLogFile {
 	<#
 			.SYNOPSIS
 			Generates fake log files for the specified web sites. The collection of the generated log files is returned.
@@ -125,7 +119,7 @@ function New-IISLogFile
 		[String[]]$WebSite,
 		
 		[Parameter(Mandatory = $False)]
-		[ValidateRange(1,366)]
+		[ValidateRange(1, 366)]
 		[int]$Days = 365,
 		
 		[Parameter(Mandatory = $False)]
@@ -137,32 +131,28 @@ function New-IISLogFile
 		#[String]$Encoding="UTF8",
 		[String]$Encoding,
 		
-		[Parameter(Mandatory = $False, ParameterSetName="Size")]
-		[ValidateRange(1,100MB)]
+		[Parameter(Mandatory = $False, ParameterSetName = "Size")]
+		[ValidateRange(1, 100MB)]
 		[int]$Size = 1MB,
 		
-		[Parameter(Mandatory = $False, ParameterSetName="Content")]
+		[Parameter(Mandatory = $False, ParameterSetName = "Content")]
 
-        [switch]$Content,
-        [switch]$Force
+		[switch]$Content,
+		[switch]$Force
 	)
-	begin 
-	{
+	begin {
 		#The collection of the generated fake IIS log files.
 		$NewIISLogFiles = @()
-		if (-not($Encoding))
-		{
-			if ((Get-WebConfiguration -Filter system.applicationHost/log).logInUTF8)
-			{
+		if (-not($Encoding)) {
+			if ((Get-WebConfiguration -Filter system.applicationHost/log).logInUTF8) {
 				$Encoding = 'UTF8'
 			}
-			else
-			{
+			else {
 				$Encoding = 'ANSI'
 			}
 			Write-Verbose -Message "Encoding : $Encoding"
 		}
-        $IISLogFileContent = @'
+		$IISLogFileContent = @'
 #Software: Microsoft Internet Information Services 10.0
 #Version: 1.0
 #Date: 2020-12-10 15:02:48
@@ -171,82 +161,66 @@ function New-IISLogFile
 2020-12-10 15:02:48 W3SVC1 IIS01 127.0.0.1 GET /iisstart.png - 80 - 127.0.0.1 HTTP/1.1 Mozilla/5.0+(Windows+NT+10.0;+WOW64;+Trident/7.0;+Touch;+rv:11.0)+like+Gecko - http://www.contoso.com/ 127.0.0.1 304 0 0 166 413 15
 '@
 	}
-	process
-	{
-		foreach ($currentWebSiteName in $WebSite)
-		{
+	process {
+		foreach ($currentWebSiteName in $WebSite) {
 			$CurrentWebSite = Get-Website | Where-Object -FilterScript {
 				$_.Name -eq $currentWebSiteName 
 			}
-			if ($CurrentWebSite)
-			{
+			if ($CurrentWebSite) {
 				Write-Verbose -Message "Processing $($CurrentWebSite.Name) ..."
-				$CurrentLogFileDirectory = Expand-String -Value $(Join-Path -Path $CurrentWebSite.logFile.directory -ChildPath $('\W3SVC'+$CurrentWebSite.id)) -EnvironmentVariable
+				$CurrentLogFileDirectory = Expand-String -Value $(Join-Path -Path $CurrentWebSite.logFile.directory -ChildPath $('\W3SVC' + $CurrentWebSite.id)) -EnvironmentVariable
 				Write-Verbose -Message "Log File Directory : $CurrentLogFileDirectory"
-				if (-not(Test-Path -Path $CurrentLogFileDirectory -PathType Leaf))
-				{
+				if (-not(Test-Path -Path $CurrentLogFileDirectory -PathType Leaf)) {
 					Write-Verbose -Message "Creating $CurrentLogFileDirectory directory ..."
 					$null = New-Item -ItemType Directory -Path $CurrentLogFileDirectory -Force
 				}
-				if ($Format)
-				{
+				if ($Format) {
 					$CurrentLogFormat = $Format
 				}
-				else
-				{
+				else {
 					$CurrentLogFormat = $CurrentWebSite.Logfile.logFormat
 				}
 				Write-Verbose -Message "Current Log Format : $CurrentLogFormat ..."
-				(-$Days+1)..0 | ForEach-Object -Process {
+				(-$Days + 1)..0 | ForEach-Object -Process {
 					# Transforming the specified date as UTC time (without shifting) at 23:59:59
 					$LogFileLastWriteTimeUTC = [DateTime]::SpecifyKind((Get-Date).AddDays($_).Date.AddSeconds(-1), [DateTimeKind]::Utc)
 					Write-Verbose -Message "Log File Last Write Time UTC : $LogFileLastWriteTimeUTC ..."
-					switch($CurrentLogFormat)
-					{
-						'W3C' 
-						{
-							if ($Encoding -eq 'ANSI') 
-							{
+					switch ($CurrentLogFormat) {
+						'W3C' {
+							if ($Encoding -eq 'ANSI') {
 								$CurrentLogFile = Join-Path -Path $CurrentLogFileDirectory -ChildPath $('ex{0:yy}{0:MM}{0:dd}.log' -f ($LogFileLastWriteTimeUTC))
-							} else 
-							{
+							}
+							else {
 								$CurrentLogFile = Join-Path -Path $CurrentLogFileDirectory -ChildPath $('u_ex{0:yy}{0:MM}{0:dd}.log' -f ($LogFileLastWriteTimeUTC))
 							}
 						}
-						'IIS' 
-						{
+						'IIS' {
 							$CurrentLogFile = Join-Path -Path $CurrentLogFileDirectory -ChildPath $('u_in{0:yy}{0:MM}{0:dd}.log' -f ($LogFileLastWriteTimeUTC))
 						}
-						'NCSA' 
-						{
+						'NCSA' {
 							$CurrentLogFile = Join-Path -Path $CurrentLogFileDirectory -ChildPath $('u_nc{0:yy}{0:MM}{0:dd}.log' -f ($LogFileLastWriteTimeUTC))
 						}
 					}
-					if (-not (Test-Path -Path $CurrentLogFile -PathType Leaf))
-					{
+					if (-not (Test-Path -Path $CurrentLogFile -PathType Leaf)) {
 						Write-Verbose -Message "Creating the $CurrentLogFile file (Size : $Size) ..."
 						# fsutil file createnew $CurrentLogFile $Size | Out-Null
 						# $NewIISLogFile = Get-Item -Path $CurrentLogFile
 						# $NewIISLogFile.LastWriteTimeUTC = $LogFileLastWriteTimeUTC
-                        if ($Content)
-                        {
-                                $IISLogFileContent | Out-File -FilePath $CurrentLogFile -Encoding $Encoding
-                                (Get-Item -Path $CurrentLogFile).LastWriteTimeUtc = $LogFileLastWriteTimeUTC
-                        }
-                        else
-                        {
-						    $NewIISLogFile = [System.IO.File]::Create($CurrentLogFile)
-						    $NewIISLogFile.SetLength($Size)
-						    $NewIISLogFile.Close()
-						    [System.IO.File]::SetLastWriteTimeUTC($CurrentLogFile, $LogFileLastWriteTimeUTC)
+						if ($Content) {
+							$IISLogFileContent | Out-File -FilePath $CurrentLogFile -Encoding $Encoding
+							(Get-Item -Path $CurrentLogFile).LastWriteTimeUtc = $LogFileLastWriteTimeUTC
+						}
+						else {
+							$NewIISLogFile = [System.IO.File]::Create($CurrentLogFile)
+							$NewIISLogFile.SetLength($Size)
+							$NewIISLogFile.Close()
+							[System.IO.File]::SetLastWriteTimeUTC($CurrentLogFile, $LogFileLastWriteTimeUTC)
 
-                        }
+						}
 						$NewIISLogFiles += $NewIISLogFile
 					}
-					else
-					{
-						if ($Force)
-						{
+					else {
+						if ($Force) {
 							Write-Verbose -Message "Overwriting the $CurrentLogFile file (Size : $Size) ..."
 							Remove-Item -Path $CurrentLogFile -Force
 						    
@@ -254,45 +228,39 @@ function New-IISLogFile
 							#$NewIISLogFile = Get-Item -Path $CurrentLogFile
 							#$NewIISLogFile.LastWriteTimeUTC = $LogFileLastWriteTimeUTC
 
-                            if ($Content)
-							{
-                                $IISLogFileContent | Out-File -FilePath $CurrentLogFile -Encoding $Encoding
-                                (Get-Item -Path $CurrentLogFile).LastWriteTimeUtc = $LogFileLastWriteTimeUTC
-                            }
-                            else
-							{
-                                $NewIISLogFile = [System.IO.File]::Create($CurrentLogFile)
-							    $NewIISLogFile.SetLength($Size)
-							    $NewIISLogFile.Close()
-							    [System.IO.File]::SetLastWriteTimeUTC($CurrentLogFile, $LogFileLastWriteTimeUTC)
-                            }
+							if ($Content) {
+								$IISLogFileContent | Out-File -FilePath $CurrentLogFile -Encoding $Encoding
+								(Get-Item -Path $CurrentLogFile).LastWriteTimeUtc = $LogFileLastWriteTimeUTC
+							}
+							else {
+								$NewIISLogFile = [System.IO.File]::Create($CurrentLogFile)
+								$NewIISLogFile.SetLength($Size)
+								$NewIISLogFile.Close()
+								[System.IO.File]::SetLastWriteTimeUTC($CurrentLogFile, $LogFileLastWriteTimeUTC)
+							}
 							
 							$NewIISLogFiles += $NewIISLogFile
 						}
-						else
-						{
+						else {
 							Write-Verbose -Message "Skipping the $CurrentLogFile file because it already exists ..."
 						}
 					}
-					Write-Progress -Activity "$($CurrentWebSite.Name) - $($('{0:yyyy}/{0:MM}/{0:dd}' -f ($LogFileLastWriteTimeUTC)))" -Status "Processing $CurrentLogFile (Size : $Size)" -PercentComplete (($Days+$_) /$Days * 100)
-					Write-Verbose -Message $('Percent Complete : {0:p0}' -f $(($Days+$_) /$Days))
+					Write-Progress -Activity "$($CurrentWebSite.Name) - $($('{0:yyyy}/{0:MM}/{0:dd}' -f ($LogFileLastWriteTimeUTC)))" -Status "Processing $CurrentLogFile (Size : $Size)" -PercentComplete (($Days + $_) / $Days * 100)
+					Write-Verbose -Message $('Percent Complete : {0:p0}' -f $(($Days + $_) / $Days))
 				}
 				Write-Progress -Activity 'IIS Logs Generation Completed !' -Status 'IIS Logs Generation Completed !' -Completed
 			}
-			else
-			{
+			else {
 				Write-Warning -Message "$currentWebSiteName NOT found"
 			}
 		}
 	}
-	end
-	{
+	end {
 		return $NewIISLogFiles
 	}
 }
 
-function Get-IISLogFile
-{
+function Get-IISLogFile {
 	<#
 			.SYNOPSIS
 			Returns a collection of files (*.log or *.* if -All is specified) in the log directory for the specified web sites
@@ -332,75 +300,63 @@ function Get-IISLogFile
 		[alias('Name')]
 		[String[]]$WebSite,
 
-		[Parameter(Mandatory = $False,ParameterSetName = 'OlderThanThisDate')][ValidateNotNullOrEmpty()][ValidateScript({
-					$_ -le (Get-Date)
-		})]
+		[Parameter(Mandatory = $False, ParameterSetName = 'OlderThanThisDate')][ValidateNotNullOrEmpty()][ValidateScript( {
+				$_ -le (Get-Date)
+			})]
 		[Datetime]$OlderThanThisDate,
 
-		[Parameter(Mandatory = $False,ParameterSetName = 'OlderThanXDays')][ValidateNotNullOrEmpty()]
+		[Parameter(Mandatory = $False, ParameterSetName = 'OlderThanXDays')][ValidateNotNullOrEmpty()]
 		[int]$OlderThanXDays,
 
 		[switch]$All
 	)
 	
-	begin 
-	{
+	begin {
 		#The collection of returned files.
 		$IISLogFiles = @()
 	}
-	process
-	{
-		foreach ($currentWebSiteName in $WebSite)
-		{
+	process {
+		foreach ($currentWebSiteName in $WebSite) {
 			$CurrentWebSite = Get-Website | Where-Object -FilterScript {
 				$_.Name -eq $currentWebSiteName 
 			}
-			if ($CurrentWebSite)
-			{
+			if ($CurrentWebSite) {
 				# Date management
-				if ($OlderThanXDays)
-				{
+				if ($OlderThanXDays) {
 					$PastDate = (Get-Date).AddDays(-$OlderThanXDays)
 				}
-				elseif ($OlderThanThisDate)
-				{
+				elseif ($OlderThanThisDate) {
 					$PastDate = $OlderThanThisDate
 				}
-				else
-				{
+				else {
 					$PastDate = Get-Date
 				}
 				Write-Verbose -Message "Past Date : $PastDate ..."
 
 				Write-Verbose -Message "Processing $($CurrentWebSite.Name) ..."
-				$CurrentLogFileDirectory = Expand-String -Value $(Join-Path -Path $CurrentWebSite.logFile.directory -ChildPath $('W3SVC'+$CurrentWebSite.id)) -EnvironmentVariable
-				if ($All)
-				{
+				$CurrentLogFileDirectory = Expand-String -Value $(Join-Path -Path $CurrentWebSite.logFile.directory -ChildPath $('W3SVC' + $CurrentWebSite.id)) -EnvironmentVariable
+				if ($All) {
 					$Filter = '*.*'
 				}
-				else
-				{
+				else {
 					$Filter = '*.log'
 				}
 				$IISLogFiles += $(Get-ChildItem -Path $CurrentLogFileDirectory -Filter $Filter -ErrorAction SilentlyContinue | Where-Object -FilterScript {
 						$_.LastWriteTime -lt $PastDate
-				})
+					})
 			}
-			else
-			{
+			else {
 				Write-Warning -Message "$currentWebSiteName NOT found"
 			}
 		}
 	}
-	end
-	{
+	end {
 		return $IISLogFiles
 	}
 }
 
 
-function Compress-File
-{
+function Compress-File {
 	<#
 			.SYNOPSIS
 			Compress a file in the zip format by using a Windows native feature.
@@ -441,101 +397,85 @@ function Compress-File
 	Param
 	(
 		[Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
-		[ValidateScript({
-					Test-Path -Path $_ -PathType Leaf
-		})]
+		[ValidateScript( {
+				Test-Path -Path $_ -PathType Leaf
+			})]
 		[String[]]$FullName,
 
 		[Parameter(Mandatory = $False)]
-		[ValidateRange(1,3600)]
+		[ValidateRange(1, 3600)]
 		[int]$TimeoutSec = 600,
 
 		[Parameter(Mandatory = $False)]
-		[ValidateRange(1,5)]
+		[ValidateRange(1, 5)]
 		[int]$SleepingTimeSec = 1,
 		
 		[switch]$PreserveLastWriteTime,
 
 		[switch]$Force
 	)
-	begin
-	{
+	begin {
 		#The collection of returned files.
 		$CompressedFiles = @()
 	}
     
-	process
-	{
-		foreach ($CurrentFullName in $FullName )
-		{
+	process {
+		foreach ($CurrentFullName in $FullName ) {
 			$File = Get-Item -Path $CurrentFullName
 			# Write-Verbose -Message "Processing $File ..."
-			if ($File.Extension -ne '.zip')
-			{
-				$ZipFileName = $File.FullName.replace($File.Extension,'.zip')
-				if (Test-Path -Path $ZipFileName -PathType Leaf)
-				{
-					if ($Force)
-					{
+			if ($File.Extension -ne '.zip') {
+				$ZipFileName = $File.FullName.replace($File.Extension, '.zip')
+				if (Test-Path -Path $ZipFileName -PathType Leaf) {
+					if ($Force) {
 						Write-Verbose -Message "The $ZipFileName already exists and will be overwritten ..."
-						If ($pscmdlet.ShouldProcess($ZipFileName, 'Removing'))
-						{
+						If ($pscmdlet.ShouldProcess($ZipFileName, 'Removing')) {
 							Remove-Item -Path $ZipFileName -Force
 						}
 					}
-					else
-					{
+					else {
 						Write-Warning -Message "The $ZipFileName already exists and won't be overwritten (-Force not specified) ..."
 						continue
 					}
 				}
-				If ($pscmdlet.ShouldProcess($CurrentFullName, 'Compressing'))
-				{
+				If ($pscmdlet.ShouldProcess($CurrentFullName, 'Compressing')) {
 					Set-Content -Path $ZipFileName -Value ('PK' + [char]5 + [char]6 + ("$([char]0)" * 18))
 					$ShellApplication = New-Object -ComObject Shell.Application
 					$ZipObject = $ShellApplication.NameSpace($ZipFileName)
 					$ZipObject.CopyHere($CurrentFullName)
 					# Write-Verbose -Message "Item Number in the $ZipFileName file : $($ZipObject.Items().count)"
 					$WaitTimeSec = 0
-					While(($ZipObject.Items().Item($File.name) -eq $null) -and ($WaitTimeSec -lt $TimeoutSec))
-					{
+					While ($null -eq ($ZipObject.Items().Item($File.name)) -and ($WaitTimeSec -lt $TimeoutSec)) {
 						Write-Verbose -Message "Sleeping $SleepingTimeSec second(s) (Copy in progress : $CurrentFullName ==> $ZipFileName) ..."
 						Start-Sleep -Seconds $SleepingTimeSec
 						$WaitTimeSec += $SleepingTimeSec
 					}
-					if ($ZipObject.Items().Item($File.name))
-					{
+					if ($ZipObject.Items().Item($File.name)) {
 						# Write-Verbose -Message "Item Number in the $ZipFileName file : $($ZipObject.Items().count)"
 						Write-Host -Object "$File is now compressed into the $ZipFileName file"
 						$ZipFile = (Get-Item -Path $ZipFileName)
-						if ($PreserveLastWriteTime)
-						{
+						if ($PreserveLastWriteTime) {
 							$ZipFile.LastWriteTime = $File.LastWriteTime
 							Write-Verbose -Message "Last Write Time of $ZipFileName set to : $($ZipFile.LastWriteTime) ..."
 						}
 						$CompressedFiles += $ZipFile
 					}
-					else
-					{
+					else {
 						Write-Warning -Message "Timeout reached ($TimeoutSec seconds). A potential error occured during the compression of the $CurrentFullName file (Asynchronous operation)"
 					}
 					Remove-Ref -ref ($ShellApplication)
 				}
 			}
-			else
-			{
+			else {
 				Write-Verbose -Message "The $File has a .zip extension and won't be compressed ..."
 			}
 		}
 	}
-	end
-	{
+	end {
 		return $CompressedFiles
 	}
 }
 
-function Compress-FileV5
-{
+function Compress-FileV5 {
 	<#
 			.SYNOPSIS
 			Compress a file in the zip format by using a Windows native feature.
@@ -570,75 +510,61 @@ function Compress-FileV5
 	Param
 	(
 		[Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
-		[ValidateScript({
-					Test-Path -Path $_ -PathType Leaf
-		})]
+		[ValidateScript( {
+				Test-Path -Path $_ -PathType Leaf
+			})]
 		[String[]]$FullName,
 
 		[switch]$PreserveLastWriteTime,
 		
 		[switch]$Force
 	)
-	begin
-	{
+	begin {
 		#The collection of returned files.
 		$CompressedFiles = @()
 	}
     
-	process
-	{
-		foreach ($CurrentFullName in $FullName )
-		{
+	process {
+		foreach ($CurrentFullName in $FullName ) {
 			$File = Get-Item -Path $CurrentFullName
 			Write-Verbose -Message "Processing $File ..."
-			if ($File.Extension -ne '.zip')
-			{
-				$ZipFileName = $File.FullName.replace($File.Extension,'.zip')
-				if (Test-Path -Path $ZipFileName -PathType Leaf)
-				{
-					if ($Force)
-					{
+			if ($File.Extension -ne '.zip') {
+				$ZipFileName = $File.FullName.replace($File.Extension, '.zip')
+				if (Test-Path -Path $ZipFileName -PathType Leaf) {
+					if ($Force) {
 						Write-Verbose -Message "The $ZipFileName already exists and will be overwritten ..."
-						If ($pscmdlet.ShouldProcess($ZipFileName, 'Removing'))
-						{
+						If ($pscmdlet.ShouldProcess($ZipFileName, 'Removing')) {
 							Remove-Item -Path $ZipFileName -Force
 						}
 					}
-					else
-					{
+					else {
 						Write-Warning -Message "The $ZipFileName already exists and won't be overwritten (-Force not specified) ..."
 						continue
 					}
 				}
-				If ($pscmdlet.ShouldProcess($CurrentFullName, 'Compressing'))
-				{
+				If ($pscmdlet.ShouldProcess($CurrentFullName, 'Compressing')) {
 					Compress-Archive -LiteralPath $CurrentFullName -CompressionLevel Optimal -DestinationPath $ZipFileName
 					#Testing if the compression was successful
-					if ($?)
-					{
+					if ($?) {
 						Write-Host -Object "$File is now compressed into the $ZipFileName file"
 						$ZipFile = (Get-Item -Path $ZipFileName)
-						if ($PreserveLastWriteTime)
-						{
+						if ($PreserveLastWriteTime) {
 							$ZipFile.LastWriteTime = $File.LastWriteTime
 							Write-Verbose -Message "Last Write Time of $ZipFileName set to : $($ZipFile.LastWriteTime) ..."
 						}
 						$CompressedFiles += $ZipFile
 					}
-					else
-					{
+					else {
 						Write-Error -Message "An error occured during the compression of the $CurrentFullName file"
 					}
 				}
 			}
-			else
-			{
+			else {
 				Write-Verbose -Message "The $File has a .zip extension and won't be compressed ..."
 			}
 		}
 	}
-	end
-	{
+	end {
 		return $CompressedFiles
 	}
 }
