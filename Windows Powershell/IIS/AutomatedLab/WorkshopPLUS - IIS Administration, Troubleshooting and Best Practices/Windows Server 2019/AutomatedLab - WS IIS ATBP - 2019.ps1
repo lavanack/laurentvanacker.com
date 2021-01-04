@@ -32,8 +32,8 @@ Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 
 #region Global variables definition
 $Now = Get-Date
-$10Years = $Now.AddYears(10)
-$WebServerCertValidityPeriod = New-TimeSpan -Start $Now -End $10Years
+$10YearsFromNow = $Now.AddYears(10)
+$WebServerCertValidityPeriod = New-TimeSpan -Start $Now -End $10YearsFromNow
 $Logon = 'Administrator'
 $ClearTextPassword = 'P@ssw0rd'
 $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
@@ -108,7 +108,7 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:MinMemory'       = 1GB
     'Add-LabMachineDefinition:MaxMemory'       = 2GB
     'Add-LabMachineDefinition:Memory'          = 2GB
-    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Standard (Desktop Experience)'
+    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Datacenter (Desktop Experience)'
     #'Add-LabMachineDefinition:Processors'      = 4
 }
 
@@ -230,15 +230,15 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate for the fu
 }
 #>
 
-# Hastable for getting the ISO Path for every VM (needed for .Net 2.0 setup)
-$IsoPathHashTable = Get-LabMachineDefinition | Where-Object { $_.Name -like "*IIS*" }  | Select-Object -Property Name, @{Name = "IsoPath"; Expression = { $_.OperatingSystem.IsoPath } } | Group-Object -Property Name -AsHashTable -AsString
+# Hastable for getting the ISO Path for every IIS Server (needed for .Net 2.0 setup)
+$IISServers = Get-LabVM | Where-Object -FilterScript { $_.Name -like "*IIS*" }
+$IsoPathHashTable = $IISServers | Select-Object -Property Name, @{Name = "IsoPath"; Expression = { $_.OperatingSystem.IsoPath } } | Group-Object -Property Name -AsHashTable -AsString
 
-$IISServers = (Get-LabVM | Where-Object -FilterScript { $_.Name -like "*IIS*" }).Name
 Copy-LabFileItem -Path $DemoFilesZipPath -ComputerName $IISServers
 Copy-LabFileItem -Path $LabFilesZipPath -ComputerName $IISServers
-foreach ($CurrentIISServer in $IISServers) {
-    $Drive = Mount-LabIsoImage -ComputerName $CurrentIISServer -IsoPath $IsoPathHashTable[$CurrentIISServer].IsoPath -PassThru
-    Invoke-LabCommand -ActivityName 'Copying .Net 2.0 cab, lab and demo files locally' -ComputerName $CurrentIISServer -ScriptBlock {
+foreach ($CurrentIISServerName in $IISServers.Name) {
+    $Drive = Mount-LabIsoImage -ComputerName $CurrentIISServerName -IsoPath $IsoPathHashTable[$CurrentIISServerName].IsoPath -PassThru
+    Invoke-LabCommand -ActivityName 'Copying .Net 2.0 cab, lab and demo files locally' -ComputerName $CurrentIISServerName -ScriptBlock {
         $Sxs = New-Item -Path "C:\Sources\Sxs" -ItemType Directory -Force
         Copy-Item -Path "$($using:Drive.DriveLetter)\sources\sxs\*" -Destination $Sxs -Recurse -Force
 
@@ -253,7 +253,7 @@ foreach ($CurrentIISServer in $IISServers) {
         Expand-Archive $LocalDemoFilesZipPath  -DestinationPath "$env:SystemDrive\" -Force
         Remove-Item $LocalDemoFilesZipPath -Force
     }
-    Dismount-LabIsoImage -ComputerName $CurrentIISServer
+    Dismount-LabIsoImage -ComputerName $CurrentIISServerName
 }
 
 Invoke-LabCommand -ActivityName 'Cleanup on SQL Server' -ComputerName SQL01 -ScriptBlock {
