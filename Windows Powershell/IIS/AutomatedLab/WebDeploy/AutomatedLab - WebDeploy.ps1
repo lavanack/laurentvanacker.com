@@ -90,7 +90,7 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:MinMemory'       = 1GB
     'Add-LabMachineDefinition:MaxMemory'       = 2GB
     'Add-LabMachineDefinition:Memory'          = 2GB
-    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Standard (Desktop Experience)'
+    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Datacenter (Desktop Experience)'
     'Add-LabMachineDefinition:Processors'      = $LabMachineDefinitionProcessors
 }
 
