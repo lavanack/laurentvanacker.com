@@ -117,7 +117,7 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:MinMemory'       = 1GB
     'Add-LabMachineDefinition:MaxMemory'       = 2GB
     'Add-LabMachineDefinition:Memory'          = 2GB
-    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Standard (Desktop Experience)'
+    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Datacenter (Desktop Experience)'
     'Add-LabMachineDefinition:Processors'      = 4
 }
 
@@ -141,14 +141,6 @@ $machines = Get-LabVM
 Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools
 Install-LabWindowsFeature -FeatureName Web-Server, Web-Asp-Net45, Web-Request-Monitor, Web-Basic-Auth, Web-Client-Auth, Web-Digest-Auth, Web-Cert-Auth, Web-Windows-Auth -ComputerName IIS01 -IncludeManagementTools
 #endregion
-
-
-#Downloading Microsoft Edge and WireShark and copying the on the client 
-Invoke-WebRequest -Uri $MSEdgeEntUri -OutFile $MSEdgeEntX64MSIFilePath
-Copy-LabFileItem -Path $MSEdgeEntX64MSIFilePath -DestinationFolderPath C:\Temp -ComputerName CLIENT01
-
-#endregion
-
 
 <#
 # All the code below has been replaced by GPO Settings
@@ -290,6 +282,16 @@ Invoke-LabCommand -ActivityName 'Client Authentication Certificate Management' -
     $Template.SetInfo()
 }
 
+<#
+#region Downloading Microsoft Edge and WireShark and copying the on the client 
+Invoke-WebRequest -Uri $MSEdgeEntUri -OutFile $MSEdgeEntX64MSIFilePath
+Copy-LabFileItem -Path $MSEdgeEntX64MSIFilePath -DestinationFolderPath C:\Temp -ComputerName CLIENT01
+#endregion
+#>
+
+$MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru -FileName $MSEdgeEntX64MSIFile
+Install-LabSoftwarePackage -ComputerName CLIENT01 -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart /log C:\temp\$MSEdgeEntX64MSIFile.log" -AsJob
+
 $AdmIISClientCertContent = Invoke-LabCommand -ActivityName '1:1 IIS and AD Client Certificate Management for Administrator' -ComputerName CLIENT01 -PassThru -ScriptBlock {
     #Adding users to the Administrators group for remote connection via PowerShell for getting a certificate (next step)
     $null = Add-LocalGroupMember -Group "Administrators" -Member "$using:NetBiosDomainName\$Using:TestUser"
@@ -302,7 +304,7 @@ $AdmIISClientCertContent = Invoke-LabCommand -ActivityName '1:1 IIS and AD Clien
     }
 
     #Installing Microsoft Edge
-    Start-Process msiexec.exe -ArgumentList "/i C:\temp\$($using:MSEdgeEntX64MSIFile) /passive /norestart /log C:\temp\$($using:MSEdgeEntX64MSIFile).log" -Wait
+    #Start-Process msiexec.exe -ArgumentList "/i C:\temp\$($using:MSEdgeEntX64MSIFile) /passive /norestart /log C:\temp\$($using:MSEdgeEntX64MSIFile).log" -Wait
 }
 
 $TestUserIISClientCertContent = Invoke-LabCommand -ActivityName '1:1 IIS and AD Client Certificate Management for Test User' -ComputerName CLIENT01 -Credential $TestUserCredential -PassThru -ScriptBlock {
