@@ -1,0 +1,74 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RDCMan programVersion="2.7" schemaVersion="3">
+  <file>
+    <credentialsProfiles />
+    <properties>
+      <expanded>True</expanded>
+      <name>RDCManager</name>
+    </properties>
+    <remoteDesktop inherit="None">
+      <sameSizeAsClientArea>True</sameSizeAsClientArea>
+      <fullScreen>False</fullScreen>
+      <colorDepth>24</colorDepth>
+    </remoteDesktop>
+    <localResources inherit="None">
+      <audioRedirection>Client</audioRedirection>
+      <audioRedirectionQuality>Dynamic</audioRedirectionQuality>
+      <audioCaptureRedirection>DoNotRecord</audioCaptureRedirection>
+      <keyboardHook>FullScreenClient</keyboardHook>
+      <redirectClipboard>True</redirectClipboard>
+      <redirectDrives>True</redirectDrives>
+      <redirectDrivesList>
+        <item>C:\</item>
+      </redirectDrivesList>
+      <redirectPrinters>False</redirectPrinters>
+      <redirectPorts>False</redirectPorts>
+      <redirectSmartCards>False</redirectSmartCards>
+      <redirectPnpDevices>False</redirectPnpDevices>
+    </localResources>
+    <encryptionSettings inherit="None">
+      <encryptionMethod>LogonCredentials</encryptionMethod>
+      <credentialName>EUROPE\lavanack</credentialName>
+      <credentialData />
+    </encryptionSettings>
+    <group>
+      <properties>
+        <expanded>True</expanded>
+        <name>Hyper-V (PowerShell)</name>
+      </properties>
+      <logonCredentials inherit="None">
+        <profileName scope="Local">Custom</profileName>
+        <userName>Administrator</userName>
+        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAmyg1SqmS1kaBZLKrHbhzhwAAAAACAAAAAAAQZgAAAAEAACAAAABFXqqH/GjgvNpuh2U5LY6k+aVoMN7dAKDbVOUyNKUfTwAAAAAOgAAAAAIAACAAAAAJWJHgyCIakb0tDHbzlC2fuEDBSa3hNdU9pl6TiQOf5SAAAAD1W72fPNcbJyOS11HNWCH/qA33G8WVMS75jSuWXeS6U0AAAAAb2xDZN/D9VhUSZOkrRg7QiBK0aTu52zo5wxpTj2MDsY1u6dCHJ9JVvF+i+3svKffTYCy9qEFPlLVvmGwoNjqo</password>
+        <domain>CONTOSO</domain>
+      </logonCredentials>
+      <server>
+        <properties>
+          <displayName>DC01</displayName>
+          <name>10.0.0.1</name>
+        </properties>
+      </server>
+      <server>
+        <properties>
+          <displayName>IIS01</displayName>
+          <name>10.0.0.21</name>
+        </properties>
+      </server>
+      <server>
+        <properties>
+          <displayName>SCOM01</displayName>
+          <name>10.0.0.31</name>
+        </properties>
+      </server>
+      <server>
+        <properties>
+          <displayName>SQL01</displayName>
+          <name>10.0.0.11</name>
+        </properties>
+      </server>
+    </group>
+  </file>
+  <connected />
+  <favorites />
+  <recentlyUsed />
+</RDCMan>
