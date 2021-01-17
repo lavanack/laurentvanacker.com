@@ -81,7 +81,7 @@ $SystemCLRTypesForSQLServer2014x64URI = 'https://download.microsoft.com/download
 $SQLServer2019ReportingServicesURI = 'https://download.microsoft.com/download/1/a/a/1aaa9177-3578-4931-b8f3-373b24f63342/SQLServerReportingServices.exe'
 $SCOMNETAPMManagementPackURI = 'https://download.microsoft.com/download/C/C/2/CC264378-4ADE-4FC3-A6BB-7257CF7D6640/Package/Microsoft.SystemCenter.ApplicationInsights.msi'
 
-#CU8 : 01/01/2021
+#Latest SQL CU : CU8 when this script was released in January 2021
 $SQLServer2019LatestCUURI =  'https://download.microsoft.com/download/6/e/7/6e72dddf-dfa4-4889-bc3d-e5d3a0fd11ce/SQLServer2019-KB4577194-x64.exe'
 
 $NetworkID = '10.0.0.0/16' 
@@ -139,39 +139,33 @@ $SCOM01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ip
 #Adding an Internet Connection on the DC (Required for the SQL Setup via AutomatedLab)
 $SCOM01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp
 
-#SQL Server
-$SQLServer2017Role = Get-LabMachineRoleDefinition -Role SQLServer2017 -Properties @{ Features = 'SQL,Tools' }
-Add-LabIsoImageDefinition -Name SQLServer2017 -Path $labSources\ISOs\en_sql_server_2017_standard_x64_dvd_11294407.iso
-
 $SQLServer2019Role = Get-LabMachineRoleDefinition -Role SQLServer2019 -Properties @{ Features = 'SQL,Tools' }
 Add-LabIsoImageDefinition -Name SQLServer2019 -Path $labSources\ISOs\en_sql_server_2019_standard_x64_dvd_cdcd4b9f.iso
 
 #region server definitions
-#Domain controller + Certificate Authority
+#Root Domain controller
 Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress $DC01IPv4Address
 #SCOM server
 Add-LabMachineDefinition -Name SCOM01 -NetworkAdapter $SCOM01NetAdapter -Memory 8GB -MinMemory 4GB -MaxMemory 8GB -Processors 4
 #SQL Server
-Add-LabMachineDefinition -Name SQL01 -Roles $SQLServer2017Role -NetworkAdapter $SQL01NetAdapter -Memory 4GB -MinMemory 2GB -MaxMemory 4GB -Processors 2
-#Add-LabMachineDefinition -Name SQL01 -Roles $SQLServer2019Role -NetworkAdapter $SQL01NetAdapter -Memory 4GB -MinMemory 2GB -MaxMemory 4GB -Processors 2
-
+Add-LabMachineDefinition -Name SQL01 -Roles $SQLServer2019Role -NetworkAdapter $SQL01NetAdapter -Memory 4GB -MinMemory 2GB -MaxMemory 4GB -Processors 2
 #IIS front-end server
 Add-LabMachineDefinition -Name IIS01 -NetworkAdapter $IIS01NetAdapter
 #endregion
 
 #Installing servers
 Install-Lab
-Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
+Checkpoint-LabVM -SnapshotName FreshInstall -All
 
-<#
-#Installing SQL Server 2019 CU8 (or later)
+#Downloading SQL Server 2019 CU8 (or later)
 $SQLServer2019LatestCU = Get-LabInternetFile -Uri $SQLServer2019LatestCUURI -Path $labSources\SoftwarePackages -PassThru
-Install-LabSoftwarePackage -ComputerName SQL01 -Path $SQLServer2019LatestCU.FullName -CommandLine " /qs /IAcceptSQLServerLicenseTerms /Action=Patch /InstanceName=SQL01"
-#>
+#Installing SQL Server 2019 CU8 (or later)
+Install-LabSoftwarePackage -ComputerName SQL01 -Path $SQLServer2019LatestCU.FullName -CommandLine " /QUIET /IACCEPTSQLSERVERLICENSETERMS /ACTION=PATCH /ALLINSTANCES" #-AsJob
+#Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
 
 #region Installing Required Windows Features
 $machines = Get-LabVM
-Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools
+Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools -AsJob
 #endregion
 
 Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $machines -ScriptBlock {
@@ -188,7 +182,7 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $machines -Scri
      #Setting the Keyboard to French
      #Set-WinUserLanguageList -LanguageList "fr-FR" -Force
 
-     #Renaming the main NIC adapter to Corp (used in the Security lab)
+     #Renaming the main NIC adapter to Corp
      Rename-NetAdapter -Name "$using:labName 0" -NewName 'Corp' -PassThru -ErrorAction SilentlyContinue
      Rename-NetAdapter -Name "Ethernet" -NewName 'Corp' -PassThru -ErrorAction SilentlyContinue
      Rename-NetAdapter -Name "Default Switch 0" -NewName 'Internet' -PassThru -ErrorAction SilentlyContinue
@@ -225,15 +219,14 @@ Invoke-LabCommand -ActivityName 'Adding the SCOM Admins AD Group to the local Ad
     Add-LocalGroupMember -Member $using:NetBiosDomainName\$using:SCOMAdmins -Group Administrators
 }
 
-Invoke-LabCommand -ActivityName 'Installing IIS and ASP.NET 4.5+' -ComputerName IIS01 -ScriptBlock {
-    Install-WindowsFeature Web-Server, Web-Asp-Net45 -IncludeManagementTools
+Invoke-LabCommand -ActivityName 'Installing IIS, ASP and ASP.NET 4.5+' -ComputerName IIS01 -ScriptBlock {
+    Install-WindowsFeature Web-Server, Web-Asp, Web-Asp-Net45 -IncludeManagementTools
     Import-Module -Name WebAdministration
     $WebSiteName = 'www.contoso.com'
-    #Creating a dedicated web site
-    New-WebAppPool -Name "$WebSiteName" -Force
     #Creating a dedicated application pool
+    New-WebAppPool -Name "$WebSiteName" -Force
+    #Creating a dedicated web site
     New-WebSite -Name "$WebSiteName" -Port 81 -PhysicalPath "$env:SystemDrive\inetpub\wwwroot" -ApplicationPool "$WebSiteName" -Force
-
 }
 
 Invoke-LabCommand -ActivityName 'Adding some users to the SQL sysadmin group' -ComputerName SQL01 -ScriptBlock {
@@ -245,7 +238,8 @@ Invoke-LabCommand -ActivityName 'Adding some users to the SQL sysadmin group' -C
 
     $SQLLogin = Add-SqlLogin -ServerInstance $Env:COMPUTERNAME -LoginName "$using:NetBiosDomainName\$using:SQLUser" -LoginType "WindowsUser" -Enable
     $SQLLogin.AddToRole("sysadmin")
-
+    
+    #Setting up some firewall rules
     Set-NetFirewallRule -Name WMI-WINMGMT-In-TCP -Enabled True
     New-NetFirewallRule -Name "SQL DB" -DisplayName "SQL Database" -Profile Domain -Direction Inbound -LocalPort 1433 -Protocol TCP -Action Allow
     New-NetFirewallRule -Name "SQL Server Admin Connection" -DisplayName "SQL Server Admin Connection" -Profile Domain -Direction Inbound -LocalPort 1433 -Protocol TCP -Action Allow
@@ -306,21 +300,22 @@ Invoke-LabCommand -ActivityName 'Installing the Operations Manager Management se
     '/WebConsoleAuthorizationMode:Mixed /EnableErrorReporting:Always /SendCEIPReports:1 /UseMicrosoftUpdate:1 /AcceptEndUserLicenseAgreement:1 /silent'
     )
     #Note: The installation status can also be checked in the SCOM installation log: OpsMgrSetupWizard.log which is found at: %LocalAppData%\SCOM\LOGS
-    Start-Process -FilePath "$using:SCOMSetupLocalFolder\Setup.exe" -ArgumentList $ArgumentList -Wait -Verbose
+    Start-Process -FilePath "$using:SCOMSetupLocalFolder\Setup.exe" -ArgumentList $ArgumentList -Wait
     "`"$using:SCOMSetupLocalFolder\Setup.exe`" $($ArgumentList -join ' ')" | Out-File "$ENV:SystemDrive\SCOMUnattendedSetup.cmd"
     
     Write-Verbose "The SCOM has been installed. Don't forget to license SCOM"
-    
+
     if ($using:SCOMLicense -match "^\w{5}-\w{5}-\w{5}-\w{5}-\w{5}$")
     {
-        Import-module -Name OperationsManager
+        #Importing the OperationsManager module by specifying the full folder path
+        Import-Module "${env:ProgramFiles}\Microsoft System Center\Operations Manager\Powershell\OperationsManager"
         $Cred = New-Object System.Management.Automation.PSCredential ($(whoami), $using:SecurePassword)
         #To properly license SCOM, install the product key using the following cmdlet: 
-        Set-SCOMLicense -ProductId $using:SCOMLicense -ManagementServer $((Get-SCOMManagementServer).DisplayName) -Credential $Cred -Confirm:$false -Verbose
-        #Restarting the 'System Center Data Access Service'is mandatory to take effect
-        Restart-Service -DisplayName 'System Center Data Access Service' -Verbose
+        Set-SCOMLicense -ProductId $using:SCOMLicense -ManagementServer $((Get-SCOMManagementServer).DisplayName) -Credential $Cred -Confirm:$false
+        #(Re)Starting the 'System Center Data Access Service'is mandatory to take effect
+        Start-Service -DisplayName 'System Center Data Access Service' #-Force
         #Checking the SkuForLicense = Retail 
-        Get-SCOMManagementGroup | Format-Table -Property skuforlicense, version, timeofexpiration -AutoSize
+        Get-SCOMManagementGroup | Format-Table -Property SKUForLicense, Version, TimeOfExpiration -AutoSize
     }
 }
 Dismount-LabIsoImage -ComputerName SCOM01
@@ -431,7 +426,7 @@ Invoke-LabCommand -ActivityName 'Installing the Operations Manager Reporting on 
     "/SendODRReports:1 /UseMicrosoftUpdate:1 /AcceptEndUserLicenseAgreement:1 /silent"
     )
     #Note: The installation status can also be checked in the SCOM installation log: OpsMgrSetupWizard.log which is found at: %LocalAppData%\SCOM\LOGS
-    Start-Process -FilePath "$using:SCOMSetupLocalFolder\Setup.exe" -ArgumentList $ArgumentList -Wait -Verbose
+    Start-Process -FilePath "$using:SCOMSetupLocalFolder\Setup.exe" -ArgumentList $ArgumentList -Wait
     "`"$using:SCOMSetupLocalFolder\Setup.exe`" $($ArgumentList -join ' ')" | Out-File "$ENV:SystemDrive\SCOMUnattendedSetup.cmd"
 }
 Dismount-LabIsoImage -ComputerName SQL01
@@ -468,18 +463,18 @@ Invoke-LabCommand -ActivityName 'Installing Management Packs' -ComputerName SCOM
     Import-Module "${env:ProgramFiles}\Microsoft System Center\Operations Manager\Powershell\OperationsManager"
     & "$env:ProgramFiles\Microsoft System Center\Operations Manager\Powershell\OperationsManager\Functions.ps1"
     & "$env:ProgramFiles\Microsoft System Center\Operations Manager\Powershell\OperationsManager\Startup.ps1"
-    Get-ChildItem -Path "${env:ProgramFiles(x86)}\System Center Management Packs\" -File -Filter *.mp? -Recurse | Where-Object -FilterScript {$_.BaseName -in 'Microsoft.Windows.Server.Library'} | Import-SCOMManagementPack -Verbose
-    Get-ChildItem -Path "${env:ProgramFiles(x86)}\System Center Management Packs\" -File -Filter *.mp? -Recurse | Where-Object -FilterScript {$_.BaseName -in 'Microsoft.Windows.Server.2016.Discovery'} | Import-SCOMManagementPack -Verbose
+    Get-ChildItem -Path "${env:ProgramFiles(x86)}\System Center Management Packs\" -File -Filter *.mp? -Recurse | Where-Object -FilterScript {$_.BaseName -in 'Microsoft.Windows.Server.Library'} | Import-SCOMManagementPack
+    Get-ChildItem -Path "${env:ProgramFiles(x86)}\System Center Management Packs\" -File -Filter *.mp? -Recurse | Where-Object -FilterScript {$_.BaseName -in 'Microsoft.Windows.Server.2016.Discovery'} | Import-SCOMManagementPack
     #Installing the Reports and Monitoring Management Pack
-    Get-ChildItem -Path "${env:ProgramFiles(x86)}\System Center Management Packs\" -File -Filter *.mp? -Recurse | Where-Object -FilterScript {$_.BaseName -in 'Microsoft.Windows.Server.Reports'} | Import-SCOMManagementPack -Verbose
-    Get-ChildItem -Path "${env:ProgramFiles(x86)}\System Center Management Packs\" -File -Filter *.mp? -Recurse | Where-Object -FilterScript {$_.BaseName -in 'Microsoft.Windows.Server.2016.Monitoring'} | Import-SCOMManagementPack -Verbose
+    Get-ChildItem -Path "${env:ProgramFiles(x86)}\System Center Management Packs\" -File -Filter *.mp? -Recurse | Where-Object -FilterScript {$_.BaseName -in 'Microsoft.Windows.Server.Reports'} | Import-SCOMManagementPack
+    Get-ChildItem -Path "${env:ProgramFiles(x86)}\System Center Management Packs\" -File -Filter *.mp? -Recurse | Where-Object -FilterScript {$_.BaseName -in 'Microsoft.Windows.Server.2016.Monitoring'} | Import-SCOMManagementPack
     #Installing IIS Management Pack.
-    Get-ChildItem -Path "${env:ProgramFiles(x86)}\System Center Management Packs\" -File -Filter *.mp? -Recurse | Where-Object -FilterScript {$_.BaseName -in 'Microsoft.Windows.InternetInformationServices.CommonLibrary'} | Import-SCOMManagementPack -Verbose
-    Get-ChildItem -Path "${env:ProgramFiles(x86)}\System Center Management Packs\" -File -Filter *.mp? -Recurse | Where-Object -FilterScript {$_.BaseName -in 'Microsoft.Windows.InternetInformationServices.2016' } | Import-SCOMManagementPack -Verbose
+    Get-ChildItem -Path "${env:ProgramFiles(x86)}\System Center Management Packs\" -File -Filter *.mp? -Recurse | Where-Object -FilterScript {$_.BaseName -in 'Microsoft.Windows.InternetInformationServices.CommonLibrary'} | Import-SCOMManagementPack
+    Get-ChildItem -Path "${env:ProgramFiles(x86)}\System Center Management Packs\" -File -Filter *.mp? -Recurse | Where-Object -FilterScript {$_.BaseName -in 'Microsoft.Windows.InternetInformationServices.2016' } | Import-SCOMManagementPack
     #Installing ApplicationInsights ManagementPack.
     Get-ChildItem -Path "${env:ProgramFiles(x86)}\System Center Management Packs\" -File -Filter *.mp? -Recurse | Where-Object -FilterScript {$_.BaseName -in 'Microsoft.SystemCenter.ApplicationInsights'} | Import-SCOMManagementPack
 
-    $SCOMAgent = Install-SCOMAgent -PrimaryManagementServer $(Get-SCOMManagementServer) -DNSHostName IIS01.contoso.com -Verbose -PassThru
+    $SCOMAgent = Install-SCOMAgent -PrimaryManagementServer $(Get-SCOMManagementServer) -DNSHostName IIS01.contoso.com -PassThru
     Get-SCOMPendingManagement | Approve-SCOMPendingManagement
  }
 
@@ -496,6 +491,6 @@ Show-LabDeploymentSummary -Detailed
 
 $VerbosePreference = $PreviousVerbosePreference
 $ErrorActionPreference = $PreviousErrorActionPreference
-#Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All -Verbose
+#Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All
 
 Stop-Transcript
