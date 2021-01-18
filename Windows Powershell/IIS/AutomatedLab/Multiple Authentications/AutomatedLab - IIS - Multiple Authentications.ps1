@@ -31,7 +31,6 @@ Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 #region Global variables definition
 $MSEdgeEntUri             = "http://go.microsoft.com/fwlink/?LinkID=2093437"
 $MSEdgeEntX64MSIFile      = "MicrosoftEdgeEnterpriseX64.msi"
-$MSEdgeEntX64MSIFilePath  = Join-Path -Path $CurrentDir -ChildPath $MSEdgeEntX64MSIFile
 
 $Logon                    = 'Administrator'
 # This is a lab so we assume to use clear-text password (and the same for all accounts for an easier management :))  
@@ -282,15 +281,9 @@ Invoke-LabCommand -ActivityName 'Client Authentication Certificate Management' -
     $Template.SetInfo()
 }
 
-<#
-#region Downloading Microsoft Edge and WireShark and copying the on the client 
-Invoke-WebRequest -Uri $MSEdgeEntUri -OutFile $MSEdgeEntX64MSIFilePath
-Copy-LabFileItem -Path $MSEdgeEntX64MSIFilePath -DestinationFolderPath C:\Temp -ComputerName CLIENT01
-#endregion
-#>
 
-$MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru -FileName $MSEdgeEntX64MSIFile
-Install-LabSoftwarePackage -ComputerName CLIENT01 -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart /log C:\temp\$MSEdgeEntX64MSIFile.log" -AsJob
+$MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru
+Install-LabSoftwarePackage -ComputerName CLIENT01 -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob
 
 $AdmIISClientCertContent = Invoke-LabCommand -ActivityName '1:1 IIS and AD Client Certificate Management for Administrator' -ComputerName CLIENT01 -PassThru -ScriptBlock {
     #Adding users to the Administrators group for remote connection via PowerShell for getting a certificate (next step)
