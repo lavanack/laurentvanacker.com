@@ -1,7 +1,9 @@
-﻿#requires -Version 5 -Modules AutomatedLab -RunAsAdministrator 
+﻿#requires -Version 5 -Modules AutomatedLab, xWebAdministration -RunAsAdministrator 
 trap {
     Write-Host "Stopping Transcript ..."; Stop-Transcript
     [console]::beep(3000,750)
+    $VerbosePreference = $PreviousVerbosePreference
+    $ErrorActionPreference = $PreviousErrorActionPreference
 } 
 Clear-Host
 $PreviousVerbosePreference = $VerbosePreference
@@ -94,8 +96,8 @@ $netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -
 Add-LabMachineDefinition -Name ROUTER01 -Roles Routing -NetworkAdapter $netAdapter
 
 #SQL Server
-$role = Get-LabMachineRoleDefinition -Role SQLServer2017
-Add-LabIsoImageDefinition -Name SQLServer2017 -Path $labSources\ISOs\en_sql_server_2019_standard_x64_dvd_cdcd4b9f.iso
+$role = Get-LabMachineRoleDefinition -Role SQLServer2019
+Add-LabIsoImageDefinition -Name SQLServer2019 -Path $labSources\ISOs\en_sql_server_2019_standard_x64_dvd_814b57aa.iso
 Add-LabMachineDefinition -Name SQL01 -Roles $role -IpAddress $SQL01IPv4Address -Processors 4 -Memory 4GB -MinMemory 2GB -MaxMemory 4GB
 
 #DSC Pull Servers
@@ -220,7 +222,7 @@ $CertificationAuthority = Get-LabIssuingCA
 #Generating a New  template for SSL Web Server certificate
 #New-LabCATemplate -TemplateName WebServerSSL -DisplayName 'Web Server SSL' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ComputerName $CertificationAuthority -ErrorAction Stop
 #Getting a New  SSL Web Server Certificate
-$WebServerSSLCert = Request-LabCertificate -Subject "CN=$NLBWebSiteName" -SAN $NLBWebSiteName, $NLBNetBiosName, "PULL01", "PULL01.$FQDNDomainName", "PULL02", "PULL02.$FQDNDomainName" -TemplateName DscPullSsl -ComputerName "PULL01" -PassThru -ErrorAction Stop
+$WebServerSSLCert = Request-LabCertificate -Subject "CN=$NLBWebSiteName" -SAN $NLBWebSiteName, $NLBNetBiosName, "PULL01", "PULL01.$FQDNDomainName", "PULL02", "PULL02.$FQDNDomainName" -TemplateName DscPullSsl -ComputerName "PULL01" -OnlineCA $CertificationAuthority.Name -PassThru -ErrorAction Stop
 #endregion
 
 Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate ' -ComputerName PULL01 -ScriptBlock {
