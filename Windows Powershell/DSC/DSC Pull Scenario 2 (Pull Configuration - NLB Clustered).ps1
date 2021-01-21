@@ -26,20 +26,20 @@ $NetBiosDomainName = 'CONTOSO'
 $FQDNDomainName = 'contoso.com'
 $PSWSAppPoolUsr = 'PSWSAppPoolUsr'
 
-$NetworkID = '10.1.0.0/16' 
-$DC02IPv4Address = '10.1.0.1'
-$ROUTER01IPv4Address = '10.1.0.21'
-$SQL01IPv4Address = '10.1.0.31'
-$PULL01IPv4Address = '10.1.0.41'
-$PULL02IPv4Address = '10.1.0.42'
-$SERVER01IPv4Address = '10.1.0.51'
-$SERVER02IPv4Address = '10.1.0.52'
-$NLBPULL01IPv4Address = '10.1.0.101/16'
-$NLBPULL02IPv4Address = '10.1.0.102/16'
+$NetworkID = '10.0.0.0/16' 
+$DC01IPv4Address = '10.0.0.1'
+$ROUTER01IPv4Address = '10.0.0.21'
+$SQL01IPv4Address = '10.0.0.31'
+$PULL01IPv4Address = '10.0.0.41'
+$PULL02IPv4Address = '10.0.0.42'
+$SERVER01IPv4Address = '10.0.0.51'
+$SERVER02IPv4Address = '10.0.0.52'
+$NLBPULL01IPv4Address = '10.0.0.101/16'
+$NLBPULL02IPv4Address = '10.0.0.102/16'
 
 $NLBNetBiosName = 'pull'
 $NLBWebSiteName = "$NLBNetBiosName.$FQDNDomainName"
-$NLBIPv4Address = '10.1.0.100'
+$NLBIPv4Address = '10.0.0.100'
 $ServerComment = 'PSDSCPullServer'
 
 $RegistrationKey = Get-LabConfigurationItem -Name DscPullServerRegistrationKey
@@ -86,7 +86,7 @@ $PSDefaultParameterValues = @{
 $postInstallActivity = Get-LabPostInstallationActivity -ScriptFileName PrepareRootDomain.ps1 -DependencyFolder $labSources\PostInstallationActivities\PrepareRootDomain
 #DC + CA
 #Add-LabMachineDefinition -Name CA01 -Roles CaRoot -IpAddress $CA01IPv4Address
-Add-LabMachineDefinition -Name DC02 -Roles RootDC, CaRoot -PostInstallationActivity $postInstallActivity -OperatingSystem 'Windows Server 2012 Datacenter (Server with a GUI)' -IpAddress $DC02IPv4Address
+Add-LabMachineDefinition -Name DC01 -Roles RootDC, CaRoot -PostInstallationActivity $postInstallActivity -OperatingSystem 'Windows Server 2012 Datacenter (Server with a GUI)' -IpAddress $DC01IPv4Address
 
 #Router
 $netAdapter = @()
@@ -139,7 +139,7 @@ Invoke-LabCommand -ActivityName "Keyboard management" -ComputerName $AllMachines
 }
 
 #Installing and setting up DFS-R on DC for replicated folder on IIS Servers for shared configuration
-Invoke-LabCommand -ActivityName 'AD & DNS Setup on DC' -ComputerName DC02 -ScriptBlock {
+Invoke-LabCommand -ActivityName 'AD & DNS Setup on DC' -ComputerName DC01 -ScriptBlock {
     #region DNS management
     #Reverse lookup zone creation
     Add-DnsServerPrimaryZone -NetworkID $using:NetworkID -ReplicationScope 'Forest' 
@@ -157,7 +157,7 @@ Invoke-LabCommand -ActivityName 'Creating junction to DSC Modules and Configurat
     New-Item -ItemType Junction -Path "C:\DscService\Configuration" -Target "C:\Program Files\WindowsPowerShell\DscService\Configuration"
 }
 
-Invoke-LabCommand -ActivityName 'DFS-R Setup on DC' -ComputerName DC02 -Verbose -ScriptBlock {
+Invoke-LabCommand -ActivityName 'DFS-R Setup on DC' -ComputerName DC01 -Verbose -ScriptBlock {
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin RG Delete /Rgname:`"DSC Module Path`"" -Wait
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin RG New /Rgname:`"DSC Module Path`"" -Wait
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin rf New /Rgname:`"DSC Module Path`" /rfname:`"DSCModulePath`"" -Wait
