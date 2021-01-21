@@ -31,7 +31,6 @@ $SQL01IPv4Address = '10.0.0.31'
 $PULL01IPv4Address = '10.0.0.41'
 $PULL02IPv4Address = '10.0.0.42'
 $SERVER01IPv4Address = '10.0.0.51'
-$SERVER02IPv4Address = '10.0.0.52'
 $NLBPULL01IPv4Address = '10.0.0.101/16'
 $NLBPULL02IPv4Address = '10.0.0.102/16'
 
@@ -117,7 +116,6 @@ Add-LabMachineDefinition -Name PULL02 -Roles $role -NetworkAdapter $netAdapter
 
 #DSC Pull Clients
 Add-LabMachineDefinition -Name SERVER01 -IpAddress $SERVER01IPv4Address
-Add-LabMachineDefinition -Name SERVER02 -IpAddress $SERVER02IPv4Address
 
 Install-Lab
 
