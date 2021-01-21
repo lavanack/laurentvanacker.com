@@ -4,8 +4,6 @@ trap {
     $VerbosePreference = $PreviousVerbosePreference
     $ErrorActionPreference = $PreviousErrorActionPreference
     [console]::beep(3000, 750)
-    $VerbosePreference = $PreviousVerbosePreference
-    $ErrorActionPreference = $PreviousErrorActionPreference
 } 
 Clear-Host
 $PreviousVerbosePreference = $VerbosePreference
@@ -43,6 +41,9 @@ $NLBIPv4Address = '10.0.0.100'
 $ServerComment = 'PSDSCPullServer'
 
 $RegistrationKey = Get-LabConfigurationItem -Name DscPullServerRegistrationKey
+
+#URI for the PowerBI Desktop
+$PBIDesktopX64Uri = "https://download.microsoft.com/download/8/8/0/880BCA75-79DD-466A-927D-1ABF1F5454B0/PBIDesktopSetup_x64.exe"
 
 #Using half of the logical processors to speed up the deployment
 [int]$LabMachineDefinitionProcessors = [math]::Max(1, (Get-CimInstance -ClassName Win32_Processor).NumberOfLogicalProcessors)
@@ -392,9 +393,9 @@ Invoke-LabCommand -ActivityName 'Updating the LCM Configuration to use the NLB V
 }
 
 #Installing PowerBI Desktop on the SQL Server (or any machine in the lab)
-$PBIDesktopX64Uri = "https://download.microsoft.com/download/8/8/0/880BCA75-79DD-466A-927D-1ABF1F5454B0/PBIDesktopSetup_x64.exe"
 $PBIDesktopX64 = Get-LabInternetFile -Uri $PBIDesktopX64Uri -Path $labSources\SoftwarePackages -PassThru
-Install-LabSoftwarePackage -ComputerName SQL01 -Path $labSources\SoftwarePackages\PBIDesktopSetup_x64.exe -CommandLine "-quiet -norestart LANGUAGE=en-us ACCEPT_EULA=1 INSTALLDESKTOPSHORTCUT=0" -AsJob
+
+Install-LabSoftwarePackage -ComputerName SQL01 -Path $PBIDesktopX64.FullName -CommandLine "-quiet -norestart LANGUAGE=en-us ACCEPT_EULA=1 INSTALLDESKTOPSHORTCUT=0" -AsJob
 #cf. https://docs.microsoft.com/en-us/archive/blogs/fieldcoding/visualize-dsc-reporting-with-powerbi#powerbi---the-interesting-part
 #Copying the DSC Dashboard on the machine where you have installed PowerBI Desktop 
 Copy-LabFileItem -Path "$CurrentDir\DSC Dashboard.pbix" -ComputerName SQL01
