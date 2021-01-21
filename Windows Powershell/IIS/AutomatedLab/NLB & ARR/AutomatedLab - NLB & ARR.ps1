@@ -168,7 +168,7 @@ Add-LabMachineDefinition -Name ARRNODE02 -NetworkAdapter $netAdapter
 
 #Installing servers
 Install-Lab -DelayBetweenComputers 30
-#Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
+Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 
 
 #region Installing Required Windows Features
@@ -193,7 +193,7 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $ARRWebSiteName to 
     Remove-Item -Path $UserKey -Force
 
     $MainKey = 'HKCU:\Software\Microsoft\Internet Explorer\Main'
-    Remove-ItemProperty -Path $MainKey -Name 'First Home Page' -Force
+    Remove-ItemProperty -Path $MainKey -Name 'First Home Page' -Force -ErrorAction Ignore
     Set-ItemProperty -Path $MainKey -Name 'Default_Page_URL' -Value "http://$using:ARRWebSiteName" -Force
     Set-ItemProperty -Path $MainKey -Name 'Start Page' -Value "http://$using:ARRWebSiteName" -Force
 
@@ -329,7 +329,7 @@ $CertificationAuthority = Get-LabIssuingCA
 #Generating a new template for SSL Web Server certificate
 New-LabCATemplate -TemplateName WebServerSSL -DisplayName 'Web Server SSL' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ComputerName $CertificationAuthority -ErrorAction Stop
 #Getting a New SSL Web Server Certificate
-$WebServerSSLCert = Request-LabCertificate -Subject "CN=$ARRWebSiteName" -SAN $ARRWebSiteName, $ARRNetBiosName, "ARRNODE01", "ARRNODE01.$FQDNDomainName", "ARRNODE02", "ARRNODE02.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName ARRNODE01, ARRNODE02 -PassThru -ErrorAction Stop
+$WebServerSSLCert = Request-LabCertificate -Subject "CN=$ARRWebSiteName" -SAN $ARRWebSiteName, $ARRNetBiosName, "ARRNODE01", "ARRNODE01.$FQDNDomainName", "ARRNODE02", "ARRNODE02.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName ARRNODE01, ARRNODE02 -OnlineCA $CertificationAuthority.Name -PassThru -ErrorAction Stop
 #endregion
 
 #Copying Web site content on all IIS & ARR servers
