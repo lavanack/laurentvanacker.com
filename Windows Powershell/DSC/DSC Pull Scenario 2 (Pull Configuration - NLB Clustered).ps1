@@ -1,9 +1,11 @@
-﻿#requires -Version 5 -Modules AutomatedLab -RunAsAdministrator 
+﻿#requires -Version 5 -Modules AutomatedLab, xWebAdministration -RunAsAdministrator 
 trap {
     Write-Host "Stopping Transcript ..."; Stop-Transcript
     $VerbosePreference = $PreviousVerbosePreference
     $ErrorActionPreference = $PreviousErrorActionPreference
-    [console]::beep(3000,750)
+    [console]::beep(3000, 750)
+    $VerbosePreference = $PreviousVerbosePreference
+    $ErrorActionPreference = $PreviousErrorActionPreference
 } 
 Clear-Host
 $PreviousVerbosePreference = $VerbosePreference
@@ -35,10 +37,10 @@ $SERVER02IPv4Address = '10.1.0.52'
 $NLBPULL01IPv4Address = '10.1.0.101/16'
 $NLBPULL02IPv4Address = '10.1.0.102/16'
 
-$NLBNetBiosName='pull'
-$NLBWebSiteName="$NLBNetBiosName.$FQDNDomainName"
+$NLBNetBiosName = 'pull'
+$NLBWebSiteName = "$NLBNetBiosName.$FQDNDomainName"
 $NLBIPv4Address = '10.1.0.100'
-$ServerComment='PSDSCPullServer'
+$ServerComment = 'PSDSCPullServer'
 
 $RegistrationKey = Get-LabConfigurationItem -Name DscPullServerRegistrationKey
 
@@ -50,9 +52,8 @@ $LabName = 'DSCPullNLB'
 
 
 #Cleaning previously existing lab
-if ($LabName -in (Get-Lab -List))
-{
-    Remove-Lab -name $LabName -confirm:$false -ErrorAction SilentlyContinue
+if ($LabName -in (Get-Lab -List)) {
+    Remove-Lab -Name $LabName -Confirm:$false -ErrorAction SilentlyContinue
 }
 
 #create an empty lab template and define where the lab XML files and the VMs will be stored
@@ -95,7 +96,7 @@ Add-LabMachineDefinition -Name ROUTER01 -Roles Routing -NetworkAdapter $netAdapt
 
 #SQL Server
 $role = Get-LabMachineRoleDefinition -Role SQLServer2019
-Add-LabIsoImageDefinition -Name SQLServer2019 -Path $labSources\ISOs\en_sql_server_2019_standard_x64_dvd_cdcd4b9f.iso
+Add-LabIsoImageDefinition -Name SQLServer2019 -Path $labSources\ISOs\en_sql_server_2019_standard_x64_dvd_814b57aa.iso
 Add-LabMachineDefinition -Name SQL01 -Roles $role -IpAddress $SQL01IPv4Address -Processors 4 -Memory 4GB -MinMemory 2GB -MaxMemory 4GB
 
 #DSC Pull Servers
@@ -220,7 +221,7 @@ $CertificationAuthority = Get-LabIssuingCA
 #Generating a New  template for SSL Web Server certificate
 #New-LabCATemplate -TemplateName WebServerSSL -DisplayName 'Web Server SSL' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ComputerName $CertificationAuthority -ErrorAction Stop
 #Getting a New  SSL Web Server Certificate
-$WebServerSSLCert = Request-LabCertificate -Subject "CN=$NLBWebSiteName" -SAN $NLBWebSiteName, $NLBNetBiosName, "PULL01", "PULL01.$FQDNDomainName", "PULL02", "PULL02.$FQDNDomainName" -TemplateName DscPullSsl -ComputerName "PULL01" -PassThru -ErrorAction Stop
+$WebServerSSLCert = Request-LabCertificate -Subject "CN=$NLBWebSiteName" -SAN $NLBWebSiteName, $NLBNetBiosName, "PULL01", "PULL01.$FQDNDomainName", "PULL02", "PULL02.$FQDNDomainName" -TemplateName DscPullSsl -ComputerName "PULL01" -OnlineCA $CertificationAuthority.Name -PassThru -ErrorAction Stop
 #endregion
 
 Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate ' -ComputerName PULL01 -ScriptBlock {
@@ -233,8 +234,7 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate ' -Compute
         $_.hasPrivateKey 
     }  
     $PFXFilePath = "\\PULL01\C$\CertificateExport\$using:NLBWebSiteName.pfx"
-    if ($WebServerSSLCert)
-    {    
+    if ($WebServerSSLCert) {    
         #Exporting the local SSL Certificate to a local (replicated via DFS-R) PFX file
         $WebServerSSLCert | Export-PfxCertificate -FilePath $PFXFilePath -Password $Using:SecurePassword -Force
         #removing the local SSL Certificate
@@ -244,16 +244,14 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate ' -Compute
 
 Invoke-LabCommand -ActivityName 'Importing the Web Server Certificate & Setting up the Website' -ComputerName $PullServers -ScriptBlock {
     $PFXFilePath = "\\PULL01\C$\CertificateExport\$using:NLBWebSiteName.pfx"
-    if (Test-Path $PFXFilePath -PathType Leaf)
-    {
+    if (Test-Path $PFXFilePath -PathType Leaf) {
         Import-PfxCertificate -FilePath $PFXFilePath -Password $Using:SecurePassword -Exportable -CertStoreLocation Cert:\LocalMachine\My
         #Getting the local SSL Certificate
         $WebServerSSLCert = Get-ChildItem -Path Cert:\LocalMachine\My\ -DnsName "$using:NLBWebSiteName" -SSLServerAuthentication | Where-Object -FilterScript {
             $_.hasPrivateKey 
         }  
     }
-    else
-    {
+    else {
         Write-Error -Exception "[ERROR] Unable to import the 'Web Server SSL' certificate for $using:NLBWebSiteName"
     }
 
@@ -289,43 +287,41 @@ Invoke-LabCommand -ActivityName 'Updating Test DSC Configuration' -ComputerName 
 
     Configuration IISConfigPull
     {
-	    param (
+        param (
             [string[]]$ComputerName = 'localhost'
         )
 
         Import-DSCResource -ModuleName PSDesiredStateConfiguration
         Import-DSCResource -ModuleName xWebAdministration -ModuleVersion 3.2.0
 
-	    Node $ComputerName 
+        Node $ComputerName 
         {
-		    WindowsFeature IIS {
-			    Ensure = 'Present'
-			    Name   = 'Web-Server'
-		    }
+            WindowsFeature IIS {
+                Ensure = 'Present'
+                Name   = 'Web-Server'
+            }
 
-		    WindowsFeature IISConsole {
-			    Ensure = 'Present'
-			    Name   = 'Web-Mgmt-Console'
+            WindowsFeature IISConsole {
+                Ensure    = 'Present'
+                Name      = 'Web-Mgmt-Console'
                 DependsOn = '[WindowsFeature]IIS'
-		    }
+            }
 
-            xIisLogging IISLogging
-            {
-                LogPath = 'C:\IISLogFiles'
-                Logflags = @('Date', 'Time', 'ClientIP', 'UserName', 'SiteName', 'ComputerName', 'ServerIP', 'Method', 'UriStem', 'UriQuery', 'HttpStatus', 'Win32Status', 'BytesSent', 'BytesRecv', 'TimeTaken', 'ServerPort', 'ProtocolVersion', 'Host', 'HttpSubStatus')
+            xIisLogging IISLogging {
+                LogPath              = 'C:\IISLogFiles'
+                Logflags             = @('Date', 'Time', 'ClientIP', 'UserName', 'SiteName', 'ComputerName', 'ServerIP', 'Method', 'UriStem', 'UriQuery', 'HttpStatus', 'Win32Status', 'BytesSent', 'BytesRecv', 'TimeTaken', 'ServerPort', 'ProtocolVersion', 'Host', 'HttpSubStatus')
                 LoglocalTimeRollover = $True
-                LogFormat = 'W3C'
-                DependsOn = '[WindowsFeature]IISConsole'
+                LogFormat            = 'W3C'
+                DependsOn            = '[WindowsFeature]IISConsole'
             }
         
-            File IISDefaultPage
-            {
+            File IISDefaultPage {
                 DestinationPath = "C:\inetpub\wwwroot\iisstart.htm"
-                Contents = "<HTML><HEAD><TITLE>Installed via DSC</TITLE></HEAD><BODY><H1>If you are seeing this page. It means DSC Rocks !!!<BR>Generated at $(Get-Date)</H1></BODY></HTML>"
-                Ensure = "Present"
-                Type = "File" 
-                Force = $True
-	        }
+                Contents        = "<HTML><HEAD><TITLE>Installed via DSC</TITLE></HEAD><BODY><H1>If you are seeing this page. It means DSC Rocks !!!<BR>Generated at $(Get-Date)</H1></BODY></HTML>"
+                Ensure          = "Present"
+                Type            = "File" 
+                Force           = $True
+            }
         }
     }
 
@@ -356,38 +352,33 @@ Invoke-LabCommand -ActivityName 'Updating the LCM Configuration to use the NLB V
     {
         Node localhost
         {
-            Settings
-            {
-                RefreshMode          = 'Pull'
-                RefreshFrequencyMins = 30
+            Settings {
+                RefreshMode                    = 'Pull'
+                RefreshFrequencyMins           = 30
                 ConfigurationModeFrequencyMins = 15
-                ConfigurationMode = 'ApplyAndAutoCorrect'
-                RebootNodeIfNeeded   = $true
+                ConfigurationMode              = 'ApplyAndAutoCorrect'
+                RebootNodeIfNeeded             = $true
             }
 
-            ConfigurationRepositoryWeb "PullServer_1"
-            {
+            ConfigurationRepositoryWeb "PullServer_1" {
                 ServerURL          = "https://pull.$($using:FQDNDomainName):8080/PSDSCPullServer.svc"
                 RegistrationKey    = $using:RegistrationKey
                 ConfigurationNames = @("TestConfigPULL01", "IISConfigPull")
                 #AllowUnsecureConnection = $true
             }
 
-	        PartialConfiguration TestConfigPULL01
-	        {
-		        Description = 'Test Configuration'
-		        ConfigurationSource = '[ConfigurationRepositoryWeb]PullServer_1'
-	        }
+            PartialConfiguration TestConfigPULL01 {
+                Description         = 'Test Configuration'
+                ConfigurationSource = '[ConfigurationRepositoryWeb]PullServer_1'
+            }
  
-	        PartialConfiguration IISConfigPull
-	        {
-		        Description = 'Configuration for the IIS Server'
-		        ConfigurationSource = '[ConfigurationRepositoryWeb]PullServer_1'
-		        DependsOn = '[PartialConfiguration]TestConfigPULL01'
-	        }
+            PartialConfiguration IISConfigPull {
+                Description         = 'Configuration for the IIS Server'
+                ConfigurationSource = '[ConfigurationRepositoryWeb]PullServer_1'
+                DependsOn           = '[PartialConfiguration]TestConfigPULL01'
+            }
 
-            ReportServerWeb CONTOSO-PullSrv
-            {
+            ReportServerWeb CONTOSO-PullSrv {
                 ServerURL       = "https://pull.$($using:FQDNDomainName):8080/PSDSCPullServer.svc"
                 RegistrationKey = $using:RegistrationKey
                 #AllowUnsecureConnection = $true
