@@ -16,7 +16,12 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 #requires -Version 5 -Modules AutomatedLab -RunAsAdministrator 
-trap { Write-Host "Stopping Transcript ..."; Stop-Transcript} 
+trap {
+    Write-Host "Stopping Transcript ..."; Stop-Transcript
+    $VerbosePreference = $PreviousVerbosePreference
+    $ErrorActionPreference = $PreviousErrorActionPreference
+    [console]::beep(3000, 750)
+} 
 Clear-Host
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
@@ -180,7 +185,7 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $NLBWebSiteName to 
     Remove-Item -Path $AdminKey -Force
     Remove-Item -Path $UserKey -Force
     $MainKey = 'HKCU:\Software\Microsoft\Internet Explorer\Main'
-    Remove-ItemProperty -Path $MainKey -Name 'First Home Page' -Force
+    Remove-ItemProperty -Path $MainKey -Name 'First Home Page' -Force -Force -ErrorAction Ignore
     Set-ItemProperty -Path $MainKey -Name 'Default_Page_URL' -Value "http://$using:NLBWebSiteName" -Force
     Set-ItemProperty -Path $MainKey -Name 'Start Page' -Value "http://$using:NLBWebSiteName" -Force
 
