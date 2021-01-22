@@ -30,7 +30,7 @@ $ErrorActionPreference = 'Stop'
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
-$TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}" -f (get-date)).txt"
+$TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}" -f (Get-Date)).txt"
 Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 
 #region Helper function
@@ -38,55 +38,71 @@ Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 #From https://support.microsoft.com/en-us/help/2915218/resolving-view-state-message-authentication-code-mac-errors#AppendixA. 
 #Modified to return an object instead of a XML block
 function New-MachineKey {
-  [CmdletBinding()]
-  param (
-    [ValidateSet("AES", "DES", "3DES")]
-    [string]$decryptionAlgorithm = 'AES',
-    [ValidateSet("MD5", "SHA1", "HMACSHA256", "HMACSHA384", "HMACSHA512")]
-    [string]$validationAlgorithm = 'HMACSHA256'
-  )
-  process {
-    function BinaryToHex {
-        [CmdLetBinding()]
-        param($bytes)
-        process {
-            $builder = new-object System.Text.StringBuilder
-            foreach ($b in $bytes) {
-              $builder = $builder.AppendFormat([System.Globalization.CultureInfo]::InvariantCulture, "{0:X2}", $b)
+    [CmdletBinding()]
+    param (
+        [ValidateSet("AES", "DES", "3DES")]
+        [string]$decryptionAlgorithm = 'AES',
+        [ValidateSet("MD5", "SHA1", "HMACSHA256", "HMACSHA384", "HMACSHA512")]
+        [string]$validationAlgorithm = 'HMACSHA256'
+    )
+    process {
+        function BinaryToHex {
+            [CmdLetBinding()]
+            param($bytes)
+            process {
+                $builder = New-Object System.Text.StringBuilder
+                foreach ($b in $bytes) {
+                    $builder = $builder.AppendFormat([System.Globalization.CultureInfo]::InvariantCulture, "{0:X2}", $b)
+                }
+                $builder
             }
-            $builder
         }
-    }
-    switch ($decryptionAlgorithm) {
-      "AES" { $decryptionObject = new-object System.Security.Cryptography.AesCryptoServiceProvider }
-      "DES" { $decryptionObject = new-object System.Security.Cryptography.DESCryptoServiceProvider }
-      "3DES" { $decryptionObject = new-object System.Security.Cryptography.TripleDESCryptoServiceProvider }
-    }
-    $decryptionObject.GenerateKey()
-    $decryptionKey = BinaryToHex($decryptionObject.Key)
-    $decryptionObject.Dispose()
-    switch ($validationAlgorithm) {
-      "MD5" { $validationObject = new-object System.Security.Cryptography.HMACMD5 }
-      "SHA1" { $validationObject = new-object System.Security.Cryptography.HMACSHA1 }
-      "HMACSHA256" { $validationObject = new-object System.Security.Cryptography.HMACSHA256 }
-      "HMACSHA385" { $validationObject = new-object System.Security.Cryptography.HMACSHA384 }
-      "HMACSHA512" { $validationObject = new-object System.Security.Cryptography.HMACSHA512 }
-    }
-    $validationKey = BinaryToHex($validationObject.Key)
-    $validationObject.Dispose()
-    <#
+        switch ($decryptionAlgorithm) {
+            "AES" {
+                $decryptionObject = New-Object System.Security.Cryptography.AesCryptoServiceProvider 
+            }
+            "DES" {
+                $decryptionObject = New-Object System.Security.Cryptography.DESCryptoServiceProvider 
+            }
+            "3DES" {
+                $decryptionObject = New-Object System.Security.Cryptography.TripleDESCryptoServiceProvider 
+            }
+        }
+        $decryptionObject.GenerateKey()
+        $decryptionKey = BinaryToHex($decryptionObject.Key)
+        $decryptionObject.Dispose()
+        switch ($validationAlgorithm) {
+            "MD5" {
+                $validationObject = New-Object System.Security.Cryptography.HMACMD5 
+            }
+            "SHA1" {
+                $validationObject = New-Object System.Security.Cryptography.HMACSHA1 
+            }
+            "HMACSHA256" {
+                $validationObject = New-Object System.Security.Cryptography.HMACSHA256 
+            }
+            "HMACSHA385" {
+                $validationObject = New-Object System.Security.Cryptography.HMACSHA384 
+            }
+            "HMACSHA512" {
+                $validationObject = New-Object System.Security.Cryptography.HMACSHA512 
+            }
+        }
+        $validationKey = BinaryToHex($validationObject.Key)
+        $validationObject.Dispose()
+        <#
     [string]::Format([System.Globalization.CultureInfo]::InvariantCulture,
       "<machineKey decryption=`"{0}`" decryptionKey=`"{1}`" validation=`"{2}`" validationKey=`"{3}`" />",
       $decryptionAlgorithm.ToUpperInvariant(), $decryptionKey,
       $validationAlgorithm.ToUpperInvariant(), $validationKey)
     #>
-    [PSCustomObject]@{
-        "decryption" = [string]::Format([System.Globalization.CultureInfo]::InvariantCulture, "{0}", $decryptionAlgorithm.ToUpperInvariant(), $decryptionKey, $validationAlgorithm.ToUpperInvariant(), $validationKey)
-        "decryptionKey" = [string]::Format([System.Globalization.CultureInfo]::InvariantCulture, "{0}", $decryptionKey)
-        "validation" = [string]::Format([System.Globalization.CultureInfo]::InvariantCulture, "{0}", $validationAlgorithm.ToUpperInvariant())
-        "validationKey" = [string]::Format([System.Globalization.CultureInfo]::InvariantCulture, "{0}", $validationKey)
+        [PSCustomObject]@{
+            "decryption"    = [string]::Format([System.Globalization.CultureInfo]::InvariantCulture, "{0}", $decryptionAlgorithm.ToUpperInvariant(), $decryptionKey, $validationAlgorithm.ToUpperInvariant(), $validationKey)
+            "decryptionKey" = [string]::Format([System.Globalization.CultureInfo]::InvariantCulture, "{0}", $decryptionKey)
+            "validation"    = [string]::Format([System.Globalization.CultureInfo]::InvariantCulture, "{0}", $validationAlgorithm.ToUpperInvariant())
+            "validationKey" = [string]::Format([System.Globalization.CultureInfo]::InvariantCulture, "{0}", $validationKey)
+        }
     }
-  }
 }
 #endregion
 
@@ -98,7 +114,7 @@ $NetBiosDomainName = 'CONTOSO'
 $FQDNDomainName = 'contoso.com'
 $IISAppPoolUser = 'IISAppPoolUser'
 
-$NetworkID='10.0.0.0/16' 
+$NetworkID = '10.0.0.0/16' 
 
 $DCIPv4Address = '10.0.0.1'
 $CAIPv4Address = '10.0.0.2'
@@ -107,8 +123,8 @@ $IISNODE02IPv4Address = '10.0.0.22/16'
 $NLBIISNODE01IPv4Address = '10.0.0.201/16'
 $NLBIISNODE02IPv4Address = '10.0.0.202/16'
 
-$NLBNetBiosName='nlb'
-$NLBWebSiteName="$NLBNetBiosName.$FQDNDomainName"
+$NLBNetBiosName = 'nlb'
+$NLBWebSiteName = "$NLBNetBiosName.$FQDNDomainName"
 $NLBIPv4Address = '10.0.0.101'
 
 
@@ -116,9 +132,8 @@ $LabName = 'NLBIISLab'
 #endregion
 
 #Cleaning previously existing lab
-if ($LabName -in (Get-Lab -List))
-{
-    Remove-Lab -name $LabName -confirm:$false -ErrorAction SilentlyContinue
+if ($LabName -in (Get-Lab -List)) {
+    Remove-Lab -Name $LabName -Confirm:$false -ErrorAction SilentlyContinue
 }
 
 #create an empty lab template and define where the lab XML files and the VMs will be stored
@@ -185,7 +200,7 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $NLBWebSiteName to 
     Remove-Item -Path $AdminKey -Force
     Remove-Item -Path $UserKey -Force
     $MainKey = 'HKCU:\Software\Microsoft\Internet Explorer\Main'
-    Remove-ItemProperty -Path $MainKey -Name 'First Home Page' -Force -Force -ErrorAction Ignore
+    Remove-ItemProperty -Path $MainKey -Name 'First Home Page' -Force -ErrorAction Ignore
     Set-ItemProperty -Path $MainKey -Name 'Default_Page_URL' -Value "http://$using:NLBWebSiteName" -Force
     Set-ItemProperty -Path $MainKey -Name 'Start Page' -Value "http://$using:NLBWebSiteName" -Force
 
@@ -207,7 +222,7 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $NLBWebSiteName to 
     Set-ItemProperty -Path $path -Name $name -Value $value -Force
     #Bonus : To open all the available websites accross all nodes
     $name = "Secondary Start Pages"
-    $value="https://iisnode01.$using:FQDNDomainName", "https://iisnode02.$using:FQDNDomainName"
+    $value = "https://iisnode01.$using:FQDNDomainName", "https://iisnode02.$using:FQDNDomainName"
     New-ItemProperty -Path $path -PropertyType MultiString -Name $name -Value $value -Force
 }
 
@@ -259,7 +274,7 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Sc
     setspn.exe -S "HTTP/IISNODE02.$using:FQDNDomainName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
     setspn.exe -S "HTTP/IISNODE02" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
     #>
-    Set-ADUser -Identity "$Using:IISAppPoolUser" -ServicePrincipalNames @{Add="HTTP/$using:NLBWebSiteName", "HTTP/$using:NLBNetBiosName", "HTTP/IISNODE01.$using:FQDNDomainName", "HTTP/IISNODE01", "HTTP/IISNODE02.$using:FQDNDomainName", "HTTP/IISNODE02"}
+    Set-ADUser -Identity "$Using:IISAppPoolUser" -ServicePrincipalNames @{Add = "HTTP/$using:NLBWebSiteName", "HTTP/$using:NLBNetBiosName", "HTTP/IISNODE01.$using:FQDNDomainName", "HTTP/IISNODE01", "HTTP/IISNODE02.$using:FQDNDomainName", "HTTP/IISNODE02" }
     #endregion
 }
 
@@ -291,7 +306,7 @@ $CertificationAuthority = Get-LabIssuingCA
 #Generating a new template for SSL Web Server certificate
 New-LabCATemplate -TemplateName WebServerSSL -DisplayName 'Web Server SSL' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ComputerName $CertificationAuthority -ErrorAction Stop
 #Getting a New SSL Web Server Certificate
-$WebServerSSLCert = Request-LabCertificate -Subject "CN=$NLBWebSiteName" -SAN $NLBWebSiteName, $NLBNetBiosName, "IISNODE01", "IISNODE01.$FQDNDomainName", "IISNODE02", "IISNODE02.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName "IISNODE01","IISNODE02" -OnlineCA $CertificationAuthority.Name -PassThru -ErrorAction Stop
+$WebServerSSLCert = Request-LabCertificate -Subject "CN=$NLBWebSiteName" -SAN $NLBWebSiteName, $NLBNetBiosName, "IISNODE01", "IISNODE01.$FQDNDomainName", "IISNODE02", "IISNODE02.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName "IISNODE01", "IISNODE02" -OnlineCA $CertificationAuthority.Name -PassThru -ErrorAction Stop
 #endregion
 
 #Copying Web site content on all IIS servers
@@ -312,8 +327,7 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
         $_.hasPrivateKey 
     }  
     $PFXFilePath = "C:\CentralCertificateStore\$using:NLBWebSiteName.pfx"
-    if ($WebServerSSLCert)
-    {    
+    if ($WebServerSSLCert) {    
         #Exporting the local SSL Certificate to a local (replicated via DFS-R) PFX file
         $WebServerSSLCert | Export-PfxCertificate -FilePath $PFXFilePath -Password $Using:SecurePassword
         #Bonus : To access directly to the SSL web site hosted on IIS nodes by using the node names
@@ -322,8 +336,7 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
         #removing the local SSL Certificate
         $WebServerSSLCert | Remove-Item -Force
     }
-    else
-    {
+    else {
         Write-Error -Exception "[ERROR] Unable to get or export the 'Web Server SSL' certificate for $using:NLBWebSiteName"
     }
 
@@ -397,7 +410,7 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
     Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:NLBWebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
 
     #Disabling validation for application pool in integrated mode due to ASP.Net impersonation incompatibility
-    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False' -verbose
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:NLBWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False' -Verbose
 
     #Standardizing up machine keys across the web farm nodes
     Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:NLBWebSiteName" -filter '/system.web/machinekey' -Name Decryption -Value $using:MachineKey
@@ -415,8 +428,7 @@ Invoke-LabCommand -ActivityName 'Exporting IIS Shared Configuration' -ComputerNa
 #Enabling the shared configuration for all IIS nodes
 Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
     #Waiting the DFS replication completes
-    While (-not(Test-Path -Path C:\IISSharedConfiguration\applicationHost.config))
-    {
+    While (-not(Test-Path -Path C:\IISSharedConfiguration\applicationHost.config)) {
         Write-Verbose -Message 'Waiting the replication via DFS-R of applicationHost.config. Sleeping 10 seconds ...'
         Start-Sleep -Seconds 10
     }
