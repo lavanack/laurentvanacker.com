@@ -21,12 +21,18 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 #CSV file for exporting data
-$HotfixInheritedSuccessorCSVFile = Join-Path -Path $CurrentDir -ChildPath "Get-MsrcHotfixInheritedSuccessor.csv"
-$HotfixInheritedSuccessorJSONFile = Join-Path -Path $CurrentDir -ChildPath "Get-MsrcHotfixInheritedSuccessor.json"
-$HotfixInheritedSupercedenceCSVFile = Join-Path -Path $CurrentDir -ChildPath "Get-MsrcHotfixInheritedSupercedence.csv"
-$HotfixInheritedSupercedenceJSONFile = Join-Path -Path $CurrentDir -ChildPath "Get-MsrcHotfixInheritedSupercedence.json"
-$HotfixSupercedenceCSVFile = Join-Path -Path $CurrentDir -ChildPath "Get-MsrcHotfixSupercedence.csv"
-$HotfixCSVFile = Join-Path -Path $CurrentDir -ChildPath "Get-MsrcHotfix.csv"
+$HotfixCSVFile = Join-Path -Path $CurrentDir -ChildPath "MsrcHotfix.csv"
+$HotfixSupercedenceCSVFile = Join-Path -Path $CurrentDir -ChildPath "MsrcHotfixSupercedence.csv"
+
+$HotfixInheritedSuccessorCSVFile = Join-Path -Path $CurrentDir -ChildPath "MsrcHotfixInheritedSuccessor.csv"
+$HotfixInheritedSuccessorJSONFile = Join-Path -Path $CurrentDir -ChildPath "MsrcHotfixInheritedSuccessor.json"
+
+$HotfixInheritedSupercedenceCSVFile = Join-Path -Path $CurrentDir -ChildPath "MsrcHotfixInheritedSupercedence.csv"
+$HotfixInheritedSupercedenceJSONFile = Join-Path -Path $CurrentDir -ChildPath "MsrcHotfixInheritedSupercedence.json"
+
+$HotfixInheritanceCSVFile = Join-Path -Path $CurrentDir -ChildPath "HotfixInheritance.csv"
+$HotfixInheritanceJSONFile = Join-Path -Path $CurrentDir -ChildPath "HotfixInheritance.json"
+
 
 #For getting a API Key: https://microsoft.github.io/MSRC-Microsoft-Security-Updates-API/
 $MSRCApiKey = "4378e032dc6843d8b92685ad3a42d14f"
@@ -214,14 +220,23 @@ Function Get-MsrcHotfixInheritance {
         [object[]]$HotfixSuccessor
     )
 
-
+    $HotfixInheritedSuccessorHT = $HotfixInheritedSuccessor | Group-Object -Property KBID -AsHashTable -AsString
     for ($index=0; $index -lt $HotfixSupercedence.Count; $index++)
     {
         $CurrentHotFix = $HotfixSupercedence[$index]
         Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] Processing $CurrentHotfix ..."
-        $CurrentHotfix.PSObject.Copy() | Add-Member -MemberType NoteProperty -Name Successors -Value $HotfixSuccessor[$index].Successors -PassThru | Add-Member -MemberType ScriptProperty -Name SuccessorCount -Value { $This.Successors.Length } -PassThru | Add-Member ScriptProperty SuccessorList { $This.Successors -join ', ' } -PassThru
+        Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] Processing $($CurrentHotFix.KBID) ..."
+        if ($HotfixInheritedSuccessorHT[$CurrentHotFix.KBID])
+        {
+            $SuccessorData = $HotfixInheritedSuccessorHT[$CurrentHotFix.KBID][0]
+        }
+        else
+        {
+            $SuccessorData = $null
+        }
+        Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] `$SuccessorData : $SuccessorData ..."
+        $CurrentHotfix.PSObject.Copy() | Add-Member -MemberType NoteProperty -Name Successor -Value $SuccessorData.Successor -PassThru | Add-Member -MemberType NoteProperty -Name Successors -Value $SuccessorData.Successors -PassThru | Add-Member -MemberType ScriptProperty -Name SuccessorCount -Value { $This.Successors.Length } -PassThru | Add-Member ScriptProperty SuccessorList { $This.Successors -join ', ' } -PassThru
     }
-
 }
 
 #Getting all updates regardless the products later than April 2016
@@ -249,4 +264,7 @@ $HotfixInheritedSuccessor = Get-MsrcHotfixInheritedSuccessor -HotfixSupercedence
 $HotfixInheritedSuccessor | Select-Object -Property * -ExcludeProperty Successors | Export-Csv -Path $HotfixInheritedSuccessorCSVFile -NoTypeInformation
 #$HotfixInheritedSuccessor | ConvertTo-Json | Set-Content -Path $HotfixInheritedSuccessorJSONFile
 
+#Building the hotfix supececence and successor chain (supercedence and succession by inheritance) for all updates
 $HotfixInheritance = Get-MsrcHotfixInheritance -HotfixSupercedence $HotfixInheritedSupercedence -HotfixSuccessor $HotfixInheritedSuccessor -Verbose
+$HotfixInheritance | Select-Object -Property * -ExcludeProperty Supercedences, Successors | Export-Csv -Path $HotfixInheritanceCSVFile -NoTypeInformation
+#$HotfixInheritance | ConvertTo-Json | Set-Content -Path $HotfixInheritanceJSONFile
