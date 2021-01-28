@@ -18,8 +18,12 @@ of the Sample Code.
 #requires -Version 5 -Modules AutomatedLab -RunAsAdministrator 
 trap {
     Write-Host "Stopping Transcript ..."; Stop-Transcript
+	$VerbosePreference = $PreviousVerbosePreference
+	$ErrorActionPreference = $PreviousErrorActionPreference
 } 
 Clear-Host
+Import-Module AutomatedLab
+
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
 $PreviousErrorActionPreference = $ErrorActionPreference
@@ -75,18 +79,18 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:MaxMemory'       = 2GB
     'Add-LabMachineDefinition:Memory'          = 2GB
     'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Datacenter (Desktop Experience)'
-    'Add-LabMachineDefinition:Processors'      = $LabMachineDefinitionProcessors
+    #'Add-LabMachineDefinition:Processors'      = $LabMachineDefinitionProcessors
 }
 
-$WINDOWSNetAdapter = @()
-$WINDOWSNetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $WINDOWSIPv4Address
-$WINDOWSNetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp
+$NetAdapter = @()
+$NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $WINDOWSIPv4Address
+$NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp
 
 #region server definitionsS
 #Domain controller
 Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress $DC01IPv4Address
 #Windows 10
-Add-LabMachineDefinition -Name WINDOWS -NetworkAdapter $WINDOWSNetAdapter -OperatingSystem 'Windows 10 Enterprise'
+Add-LabMachineDefinition -Name WINDOWS -NetworkAdapter $NetAdapter -OperatingSystem 'Windows 10 Enterprise'
 #endregion
 
 #Installing servers
@@ -97,7 +101,7 @@ Install-Lab
 $machines = Get-LabVM
 #endregion
 
-Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $machines -ScriptBlock {
+Invoke-LabCommand -ActivityName "Setting the Keyboard to French" -ComputerName $machines -ScriptBlock {
     #Setting the Keyboard to French
     Set-WinUserLanguageList -LanguageList "fr-FR" -Force
 }
