@@ -129,7 +129,7 @@ Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
 Checkpoint-LabVM -SnapshotName $LabName -All #-Verbose
 
 #Installing NLB on the PUll Servers
-Install-LabWindowsFeature -FeatureName FS-DFS-Replication, NLB -ComputerName $PullServers -IncludeManagementTools
+Install-LabWindowsFeature -FeatureName FS-DFS-Replication, NLB, Web-CertProvider -ComputerName $PullServers -IncludeManagementTools
 Install-LabWindowsFeature -FeatureName FS-DFS-Replication, RSAT-DFS-Mgmt-Con -ComputerName $DomainControllers -Verbose
 
 Invoke-LabCommand -ActivityName "Keyboard management" -ComputerName $AllMachines -ScriptBlock {
@@ -154,9 +154,11 @@ Invoke-LabCommand -ActivityName 'AD & DNS Setup on DC' -ComputerName DC01 -Scrip
 Invoke-LabCommand -ActivityName 'Creating junction to DSC Modules and Configurations Folders' -ComputerName $PullServers -ScriptBlock {
     New-Item -ItemType Junction -Path "C:\DscService\Modules" -Target "C:\Program Files\WindowsPowerShell\DscService\Modules"
     New-Item -ItemType Junction -Path "C:\DscService\Configuration" -Target "C:\Program Files\WindowsPowerShell\DscService\Configuration"
+    New-Item -ItemType Junction -Path "C:\WindowsPowerShellModules" -Target "C:\Program Files\WindowsPowerShell\Modules"
 }
 
 Invoke-LabCommand -ActivityName 'DFS-R Setup on DC' -ComputerName DC01 -Verbose -ScriptBlock {
+    #region for IIS
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin RG Delete /Rgname:`"DSC Module Path`"" -Wait
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin RG New /Rgname:`"DSC Module Path`"" -Wait
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin rf New /Rgname:`"DSC Module Path`" /rfname:`"DSCModulePath`"" -Wait
@@ -177,6 +179,28 @@ Invoke-LabCommand -ActivityName 'DFS-R Setup on DC' -ComputerName DC01 -Verbose 
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Membership Set /Rgname:`"DSC Configuration Path`" /rfname:`"DSC Configuration Path`" /memname:PULL01 /localpath:`"C:\DscService\Configuration`" /isprimary:true /membershipEnabled:true" -Wait
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Membership Set /Rgname:`"DSC Configuration Path`" /rfname:`"DSC Configuration Path`" /memname:PULL02 /localpath:`"C:\DscService\Configuration`" /membershipEnabled:true" -Wait
 
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin RG Delete /Rgname:`"DSC Configuration Scripts`"" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin RG New /Rgname:`"DSC Configuration Scripts`"" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin rf New /Rgname:`"DSC Configuration Scripts`" /rfname:`"DSC Configuration Scripts`"" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Mem New /Rgname:`"DSC Configuration Scripts`" /memname:PULL01" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Mem New /Rgname:`"DSC Configuration Scripts`" /memname:PULL02" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Conn New /Rgname:`"DSC Configuration Scripts`" /sendmem:PULL01 /recvmem:PULL02" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Conn New /Rgname:`"DSC Configuration Scripts`" /sendmem:PULL02 /recvmem:PULL01" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Membership Set /Rgname:`"DSC Configuration Scripts`" /rfname:`"DSC Configuration Scripts`" /memname:PULL01 /localpath:`"C:\DSCConfigurationScripts`" /isprimary:true /membershipEnabled:true" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Membership Set /Rgname:`"DSC Configuration Scripts`" /rfname:`"DSC Configuration Scripts`" /memname:PULL02 /localpath:`"C:\DSCConfigurationScripts`" /membershipEnabled:true" -Wait
+
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin RG Delete /Rgname:`"Windows PowerShell Modules`"" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin RG New /Rgname:`"Windows PowerShell Modules`"" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin rf New /Rgname:`"Windows PowerShell Modules`" /rfname:`"Windows PowerShell Modules`"" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Mem New /Rgname:`"Windows PowerShell Modules`" /memname:PULL01" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Mem New /Rgname:`"Windows PowerShell Modules`" /memname:PULL02" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Conn New /Rgname:`"Windows PowerShell Modules`" /sendmem:PULL01 /recvmem:PULL02" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Conn New /Rgname:`"Windows PowerShell Modules`" /sendmem:PULL02 /recvmem:PULL01" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Membership Set /Rgname:`"Windows PowerShell Modules`" /rfname:`"Windows PowerShell Modules`" /memname:PULL01 /localpath:`"C:\WindowsPowerShellModules`" /isprimary:true /membershipEnabled:true" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Membership Set /Rgname:`"Windows PowerShell Modules`" /rfname:`"Windows PowerShell Modules`" /memname:PULL02 /localpath:`"C:\WindowsPowerShellModules`" /membershipEnabled:true" -Wait
+    #endregion
+
+    #region for IIS
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin RG Delete /Rgname:`"IIS Shared Configuration`"" -Wait
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin RG New /Rgname:`"IIS Shared Configuration`"" -Wait
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin rf New /Rgname:`"IIS Shared Configuration`" /rfname:`"IIS Shared Configuration`"" -Wait
@@ -186,6 +210,20 @@ Invoke-LabCommand -ActivityName 'DFS-R Setup on DC' -ComputerName DC01 -Verbose 
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Conn New /Rgname:`"IIS Shared Configuration`" /sendmem:PULL02 /recvmem:PULL01" -Wait
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Membership Set /Rgname:`"IIS Shared Configuration`" /rfname:`"IIS Shared Configuration`" /memname:PULL01 /localpath:`"C:\IISSharedConfiguration`" /isprimary:true /membershipEnabled:true" -Wait
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Membership Set /Rgname:`"IIS Shared Configuration`" /rfname:`"IIS Shared Configuration`" /memname:PULL02 /localpath:`"C:\IISSharedConfiguration`" /membershipEnabled:true" -Wait
+
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin RG Delete /Rgname:`"Central Certificate Store`"" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin RG New /Rgname:`"Central Certificate Store`"" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin rf New /Rgname:`"Central Certificate Store`" /rfname:`"Central Certificate Store`"" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Mem New /Rgname:`"Central Certificate Store`" /memname:PULL01" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Mem New /Rgname:`"Central Certificate Store`" /memname:PULL02" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Conn New /Rgname:`"Central Certificate Store`" /sendmem:PULL01 /recvmem:PULL02" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Conn New /Rgname:`"Central Certificate Store`" /sendmem:PULL02 /recvmem:PULL01" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Membership Set /Rgname:`"Central Certificate Store`" /rfname:`"Central Certificate Store`" /memname:PULL01 /localpath:`"C:\CentralCertificateStore`" /isprimary:true /membershipEnabled:true" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin Membership Set /Rgname:`"Central Certificate Store`" /rfname:`"Central Certificate Store`" /memname:PULL02 /localpath:`"C:\CentralCertificateStore`" /membershipEnabled:true" -Wait
+    #endregion
+
+    #Restarting DFSR service
+    Restart-Service -Name DFSR -Force
 }
 
 #IIS front-end servers : Renaming the NIC and setting up the metric for NLB management
@@ -220,29 +258,33 @@ $CertificationAuthority = Get-LabIssuingCA
 #Generating a New  template for SSL Web Server certificate
 #New-LabCATemplate -TemplateName WebServerSSL -DisplayName 'Web Server SSL' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ComputerName $CertificationAuthority -ErrorAction Stop
 #Getting a New  SSL Web Server Certificate
-$WebServerSSLCert = Request-LabCertificate -Subject "CN=$NLBWebSiteName" -SAN $NLBWebSiteName, $NLBNetBiosName, "PULL01", "PULL01.$FQDNDomainName", "PULL02", "PULL02.$FQDNDomainName" -TemplateName DscPullSsl -ComputerName "PULL01" -OnlineCA $CertificationAuthority.Name -PassThru -ErrorAction Stop
+$WebServerSSLCert = Request-LabCertificate -Subject "CN=$NLBWebSiteName" -SAN $NLBWebSiteName, $NLBNetBiosName, "PULL01", "PULL01.$FQDNDomainName", "PULL02", "PULL02.$FQDNDomainName" -TemplateName DscPullSsl -ComputerName $PullServers -OnlineCA $CertificationAuthority.Name -PassThru -ErrorAction Stop
 #endregion
 
-Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate ' -ComputerName PULL01 -ScriptBlock {
-
+Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate ' -ComputerName $PullServers -ScriptBlock {
     #Creating replicated folder for Central Certificate Store
-    New-Item -Path C:\CertificateExport -ItemType Directory -Force
+    New-Item -Path C:\CentralCertificateStore -ItemType Directory -Force
 
     #Getting the local SSL Certificate
     $WebServerSSLCert = Get-ChildItem -Path Cert:\LocalMachine\My\ -DnsName "$using:NLBWebSiteName" -SSLServerAuthentication | Where-Object -FilterScript {
         $_.hasPrivateKey 
     }  
-    $PFXFilePath = "\\PULL01\C$\CertificateExport\$using:NLBWebSiteName.pfx"
+    $PFXFilePath = "C:\CentralCertificateStore\$using:NLBWebSiteName.pfx"
     if ($WebServerSSLCert) {    
         #Exporting the local SSL Certificate to a local (replicated via DFS-R) PFX file
         $WebServerSSLCert | Export-PfxCertificate -FilePath $PFXFilePath -Password $Using:SecurePassword -Force
+        #Bonus : To access directly to the SSL web site hosted on IIS nodes by using the node names
+        Copy-Item $PFXFilePath "C:\CentralCertificateStore\$env:COMPUTERNAME.$using:FQDNDomainName.pfx"
         #removing the local SSL Certificate
         $WebServerSSLCert | Remove-Item -Force
     }
+
+    #Enabling the Central Certificate Store
+    Enable-WebCentralCertProvider -CertStoreLocation 'C:\CentralCertificateStore\' -UserName $Using:Logon -Password $Using:ClearTextPassword -PrivateKeyPassword $Using:ClearTextPassword
 }
 
 Invoke-LabCommand -ActivityName 'Importing the Web Server Certificate & Setting up the Website' -ComputerName $PullServers -ScriptBlock {
-    $PFXFilePath = "\\PULL01\C$\CertificateExport\$using:NLBWebSiteName.pfx"
+    $PFXFilePath = "C:\CentralCertificateStore\$using:NLBWebSiteName.pfx"
     if (Test-Path $PFXFilePath -PathType Leaf) {
         Import-PfxCertificate -FilePath $PFXFilePath -Password $Using:SecurePassword -Exportable -CertStoreLocation Cert:\LocalMachine\My
         #Getting the local SSL Certificate
@@ -253,7 +295,6 @@ Invoke-LabCommand -ActivityName 'Importing the Web Server Certificate & Setting 
     else {
         Write-Error -Exception "[ERROR] Unable to import the 'Web Server SSL' certificate for $using:NLBWebSiteName"
     }
-
     #Changing the application pool identity from localsystem to a domain account
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='PSWS']/processModel" -name "identityType" -value "SpecificUser"
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/applicationPools/add[@name='PSWS']/processModel" -name "userName" -value "$using:NetBiosDomainName\$using:PSWSAppPoolUsr"
@@ -263,12 +304,36 @@ Invoke-LabCommand -ActivityName 'Importing the Web Server Certificate & Setting 
     #Removing Default Binding
     Get-WebBinding -Port 8080 -Name "$using:ServerComment" | Remove-WebBinding
     Remove-Item -Path "IIS:\SslBindings\0.0.0.0!8080" -Force -ErrorAction Ignore
-    New-WebBinding -Name "$using:ServerComment" -sslFlags 0 -Protocol https -Port 8080 -HostHeader "$using:NLBWebSiteName"
-    New-Item -Path "IIS:\SslBindings\!8080!$using:NLBWebSiteName" -Thumbprint $($using:WebServerSSLCert).Thumbprint -sslFlags 0
-    
+
+    #Adding a HTTP:8080 Binding
+    #0: Regular certificate in Windows certificate storage.
+    #1: SNI certificate.
+    #2: Central certificate store.
+    #3: SNI certificate in central certificate store.
+    #DSC Web Service seems to be incompatible with CCS so we set sslflags to 0
+    New-WebBinding -Name "$using:ServerComment" -sslFlags 0 -Protocol https -Port 8080
+    New-Item -Path "IIS:\SslBindings\!8080!$using:NLBWebSiteName" -Thumbprint $WebServerSSLCert.Thumbprint -sslFlags 0
+   
     #ASPX Page to view the server running the request
     "<%=HttpContext.Current.Server.MachineName%>" | Out-File -FilePath $(Join-Path -Path $(Get-Website -Name $using:ServerComment).PhysicalPath -ChildPath "default.aspx")
 }
+
+
+Invoke-LabCommand -ActivityName 'Exporting IIS Shared Configuration' -ComputerName PULL01 {
+    #Exporting the configuration only from one node
+    Export-IISConfiguration -PhysicalPath C:\IISSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
+}
+
+#Enabling the shared configuration for all IIS nodes
+Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration' -ComputerName $PullServers -ScriptBlock {
+    #Waiting the DFS replication completes
+    While (-not(Test-Path -Path C:\IISSharedConfiguration\applicationHost.config)) {
+        Write-Verbose -Message 'Waiting the replication via DFS-R of applicationHost.config. Sleeping 10 seconds ...'
+        Start-Sleep -Seconds 10
+    }
+    Enable-IISSharedConfig  -PhysicalPath C:\IISSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force   
+}
+
 
 #Copy-LabFileItem -Path $CurrentDir\CreateDscSqlDatabase.ps1 -DestinationFolderPath C:\Temp -ComputerName SQL01
 Copy-LabFileItem -Path $CurrentDir\AddPermissionsToDscSqlDatabase.ps1 -DestinationFolderPath C:\Temp -ComputerName SQL01
@@ -278,7 +343,8 @@ Invoke-LabCommand -ActivityName 'Add Permissions to SQL Database for DSC Reporti
 
 Install-LabDscClient -ComputerName $DSCClients -PullServer PULL01 -Verbose 
 
-Invoke-LabCommand -ActivityName 'Installing Community Ressources modules' -ComputerName $PullServers -ScriptBlock {
+Invoke-LabCommand -ActivityName 'Installing Community Ressources modules' -ComputerName PULL01 -ScriptBlock {
+    #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
     Install-Module -Name xWebAdministration -RequiredVersion 3.2.0
 }
 
@@ -328,21 +394,6 @@ Invoke-LabCommand -ActivityName 'Updating Test DSC Configuration' -ComputerName 
     #Remove-Item "C:\DscTestConfig\IISConfigPull.mof" -Force
     Rename-Item -Path C:\DscTestConfig\localhost.mof -NewName "IISConfigPull.mof"
     Publish-DscModuleAndMof -Source C:\DscTestConfig  -ModuleNameList xWebAdministration -Verbose
-}
-
-Invoke-LabCommand -ActivityName 'Exporting IIS Shared Configuration' -ComputerName PULL01 {
-    #Exporting the configuration only from one node
-    Export-IISConfiguration -PhysicalPath C:\IISSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
-}
-
-#Enabling the shared configuration for all IIS nodes
-Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration' -ComputerName PULL01, PULL02 -ScriptBlock {
-    #Waiting the DFS replication completes
-    While (-not(Test-Path -Path C:\IISSharedConfiguration\applicationHost.config)) {
-        Write-Verbose -Message 'Waiting the replication via DFS-R of applicationHost.config. Sleeping 10 seconds ...'
-        Start-Sleep -Seconds 10
-    }
-    Enable-IISSharedConfig  -PhysicalPath C:\IISSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force   
 }
 
 Invoke-LabCommand -ActivityName 'Updating the LCM Configuration to use the NLB VIP' -ComputerName $DSCClients -ScriptBlock {
