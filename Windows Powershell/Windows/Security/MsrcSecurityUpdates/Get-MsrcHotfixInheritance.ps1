@@ -22,17 +22,10 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 #CSV file for exporting data
 $HotfixCSVFile = Join-Path -Path $CurrentDir -ChildPath "MsrcHotfix.csv"
-$HotfixSupercedenceCSVFile = Join-Path -Path $CurrentDir -ChildPath "MsrcHotfixSupercedence.csv"
+$HotfixJSONFile = Join-Path -Path $CurrentDir -ChildPath "MsrcHotfix.json"
 
-$HotfixInheritedSuccessorCSVFile = Join-Path -Path $CurrentDir -ChildPath "MsrcHotfixInheritedSuccessor.csv"
-$HotfixInheritedSuccessorJSONFile = Join-Path -Path $CurrentDir -ChildPath "MsrcHotfixInheritedSuccessor.json"
-
-$HotfixInheritedSupercedenceCSVFile = Join-Path -Path $CurrentDir -ChildPath "MsrcHotfixInheritedSupercedence.csv"
-$HotfixInheritedSupercedenceJSONFile = Join-Path -Path $CurrentDir -ChildPath "MsrcHotfixInheritedSupercedence.json"
-
-$HotfixInheritanceCSVFile = Join-Path -Path $CurrentDir -ChildPath "HotfixInheritance.csv"
-$HotfixInheritanceJSONFile = Join-Path -Path $CurrentDir -ChildPath "HotfixInheritance.json"
-
+$HotfixInheritanceCSVFile = Join-Path -Path $CurrentDir -ChildPath "MsrcHotfixInheritance.csv"
+$HotfixInheritanceJSONFile = Join-Path -Path $CurrentDir -ChildPath "MsrcHotfixInheritance.json"
 
 #For getting a API Key: https://microsoft.github.io/MSRC-Microsoft-Security-Updates-API/
 $MSRCApiKey = "4378e032dc6843d8b92685ad3a42d14f"
@@ -82,6 +75,7 @@ function Get-MsrcHotfix {
                         {
                             if ($CurrentRemediation.Supercedence -notmatch "\d+")
                             {
+                                Write-Warning -Message "[Warning] Supercedence '$($CurrentRemediation.Supercedence)' is not a KB ID. WE SKIP IT..."
                                 $CurrentRemediation.Supercedence = $null
                             }
                         }
@@ -93,7 +87,15 @@ function Get-MsrcHotfix {
                             Month = $Month
                             Date = $MostRecentRevisionDate
                             KBID = $KBID
-                            Supercedence = $CurrentRemediation.Supercedence
+                            Supercedence = [array]$CurrentRemediation.Supercedence -split ',|;|<br>' | Where-Object -FilterScript { (-not([string]::IsNullOrEmpty($_))) } | ForEach-Object -Process {
+                                $CurrentSupercedence = $_.Trim()
+                                #We skip Microsoft Security Bulletin MSYY-XXX because the related KBID is the item after the comma
+                                if ($CurrentSupercedence -notmatch "^MS") {
+                                    Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] Processing $CurrentSupercedence ..."
+                                    $CurrentSupercedence
+                                }
+                            }
+
                             SubType = $CurrentRemediation.SubType
                             ProductName = $ProductID[$CurrentRemediation.ProductID].Value
                             CVE = $CVE
@@ -114,157 +116,95 @@ function Get-MsrcHotfix {
     }
 }
 
-function Get-MsrcHotfixSupercedence {
-    [CmdletBinding()]
-    Param(
-        [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
-        [ValidateNotNullOrEmpty()]
-        [object[]]$Hotfix
-    )
-    begin {
-    }
-    process {
-        $Hotfix | ForEach-Object -Process {
-            $CurrentHotfix = $_
-            $CurrentHotfix.Supercedence -split ',|;|<br>' | Where-Object -FilterScript { (-not([string]::IsNullOrEmpty($_))) } | ForEach-Object -Process {
-                $CurrentHotfixSupercedence = $_.Trim()
-                #We skip Microsoft Security Bulletin MSYY-XXX because the related KBID is the item after the comma
-                if ($CurrentHotfixSupercedence -notmatch "^MS") {
-                    Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] Processing $CurrentHotfixSupercedence ..."
-                    $CurrentHotfix | Select-Object -ExcludeProperty Supercedence -Property *, @{Name = "Supercedence"; Expression = { $CurrentHotfixSupercedence } }
-                }
-            }
-        }
-    }
-    end {
-    }
-}
-
-Function Get-MsrcHotfixInheritedSupercedence {
-    [CmdletBinding()]
-    Param(
-        [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
-        [ValidateNotNullOrEmpty()]
-        [object[]]$HotfixSupercedence
-    )
-
-    $HotfixInheritedSupercedenceHT = @{}
-    $UniqueHotfixWithSupercedence = $HotfixSupercedence | Sort-Object -Property KBID -Descending | Select-Object -Property KBID, Supercedence -Unique
-
-    $HotfixInheritedSupercedenceHT = @{}
-    $UniqueHotfixWithSupercedence | Sort-Object -Property KBID | ForEach-Object -Process {
-        $CurrentSupercedence = @($_.Supercedence)
-        Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] Processing $CurrentSupercedence for recursive inheritances ..."
-        #recursive supercedence
-        $InheritedSupercedence = $HotfixInheritedSupercedenceHT[$CurrentSupercedence]
-        if ($InheritedSupercedence) {
-            $CurrentSupercedence += @($InheritedSupercedence ) | Select-Object -Unique
-        }
-        $HotfixInheritedSupercedenceHT[$_.KBID] = $CurrentSupercedence
-    }
-
-    #We returned a modified version of the input parameter by adding supercedence data
-    $HotfixInheritedSupercedence = $HotfixSupercedence | Select-Object -Property KBID, Supercedence -Unique
-    $HotfixInheritedSupercedence | ForEach-Object -Process {
-        $CurrentHotfix = $_ | Add-Member -MemberType NoteProperty -Name Supercedences -Value $null -PassThru | Add-Member -MemberType ScriptProperty -Name SupercedenceCount -Value { $This.Supercedences.Length } -PassThru | Add-Member ScriptProperty SupercedenceList { $This.Supercedences -join ', ' } -PassThru
-        Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] Processing $($CurrentHotFix.KBID) for update ..."
-        $CurrentHotfix.Supercedences = $HotfixInheritedSupercedenceHT[$CurrentHotfix.KBID]
-    }
-
-    return $HotfixInheritedSupercedence
-}
-
-Function Get-MsrcHotfixInheritedSuccessor {
-    [CmdletBinding()]
-    Param(
-        [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
-        [ValidateNotNullOrEmpty()]
-        [object[]]$HotfixSupercedence
-    )
-
-    $HotfixInheritedSuccessorHT = @{}
-    $UniqueHotfixWithSupercedence = $HotfixSupercedence | Sort-Object -Property KBID | Select-Object -Property KBID, Supercedence -Unique
-
-    $HotfixInheritedSuccessorHT = @{}
-    $UniqueHotfixWithSupercedence | Sort-Object -Property KBID -Descending | ForEach-Object -Process {
-        $CurrentSuccessor = @($_.KBID)
-        Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] Processing $CurrentSuccessor for recursive succession ..."
-        #recursive succession
-        $InheritedSuccessor = $HotfixInheritedSuccessorHT[$CurrentSuccessor]
-        if ($InheritedSuccessor) {
-            $CurrentSuccessor += @($InheritedSuccessor ) | Select-Object -Unique
-        }
-        $HotfixInheritedSuccessorHT[$_.Supercedence] = $CurrentSuccessor
-    }
-
-    #We returned a modified version of the input parameter by adding succession data
-    $HotfixInheritedSuccessor = $HotfixSupercedence | Select-Object -Property @{Name="Successor"; Expression={$_.KBID}}, @{Name="KBID"; Expression={$_.Supercedence}} -Unique
-    $HotfixInheritedSuccessor | ForEach-Object -Process {
-        $CurrentHotfix = $_ | Add-Member -MemberType NoteProperty -Name Successors -Value $null -PassThru | Add-Member -MemberType ScriptProperty -Name SuccessorCount -Value { $This.Successors.Length } -PassThru | Add-Member ScriptProperty SuccessorList { $This.Successors -join ', ' } -PassThru
-        Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] Processing $($CurrentHotFix.KBID) for update ..."
-        $CurrentHotfix.Successors = $HotfixInheritedSuccessorHT[$CurrentHotfix.KBID]
-    }
-
-    return $HotfixInheritedSuccessor
-}
-
 Function Get-MsrcHotfixInheritance {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [ValidateNotNullOrEmpty()]
-        [object[]]$HotfixSupercedence,
-
-        [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
-        [ValidateNotNullOrEmpty()]
-        [object[]]$HotfixSuccessor
+        [object[]]$HotFix
     )
 
-    $HotfixInheritedSuccessorHT = $HotfixInheritedSuccessor | Group-Object -Property KBID -AsHashTable -AsString
-    for ($index=0; $index -lt $HotfixSupercedence.Count; $index++)
-    {
-        $CurrentHotFix = $HotfixSupercedence[$index]
-        Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] Processing $CurrentHotfix ..."
-        Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] Processing $($CurrentHotFix.KBID) ..."
-        if ($HotfixInheritedSuccessorHT[$CurrentHotFix.KBID])
-        {
-            $SuccessorData = $HotfixInheritedSuccessorHT[$CurrentHotFix.KBID][0]
+    $HotFixHT = $HotFix | Where-Object -FilterScript { $_.Supercedence } | Group-Object -Property KBID -AsHashTable -AsString
+    $UniqueHotfixWithSupercedence = $HotFixHT.Keys | ForEach-Object -Process {
+        $KBID = $_
+        $Supercedence = $HotFixHT[$KBID].Supercedence | Select-Object -Unique
+        [PSCustomObject] @{KBID=$KBID; Supercedence = [array]$Supercedence}
+    } | Sort-Object -Property KBID
+
+    $HotfixInheritedSupercedenceHT = @{}
+    $UniqueHotfixWithSupercedence | ForEach-Object -Process {
+        Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] Processing KB$($_.KBID) ..."
+        $Supercedence = $_.Supercedence
+        #recursive supercedence
+        Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] Processing Supercedence $($Supercedence  -join ', ') for recursive inheritances ..."
+        $AllInheritedSupercedences = $Supercedence | ForEach-Object -Process {
+            $CurrentSupercedence = $_
+            $InheritedSupercedence = $HotfixInheritedSupercedenceHT[$CurrentSupercedence]
+            if ($InheritedSupercedence) {
+                Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] $CurrentSupercedence supersedes $($InheritedSupercedence -join ', ') ..."
+                $InheritedSupercedence
+            }
         }
-        else
-        {
-            $SuccessorData = $null
-        }
-        Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] `$SuccessorData : $SuccessorData ..."
-        $CurrentHotfix.PSObject.Copy() | Add-Member -MemberType NoteProperty -Name Successor -Value $SuccessorData.Successor -PassThru | Add-Member -MemberType NoteProperty -Name Successors -Value $SuccessorData.Successors -PassThru | Add-Member -MemberType ScriptProperty -Name SuccessorCount -Value { $This.Successors.Length } -PassThru | Add-Member ScriptProperty SuccessorList { $This.Successors -join ', ' } -PassThru
+        #Adding recursive supersedence and removing duplicates
+        $HotfixInheritedSupercedenceHT[$_.KBID] =  [array]($Supercedence + $AllInheritedSupercedences | Select-Object -Unique)
+        Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] Inherited Supercedence : $($HotfixInheritedSupercedenceHT[$_.KBID] -join ', ') ..."
     }
+
+    $HotfixInheritedSuccessorHT = @{}
+    $HotfixInheritedSupercedenceHT.Keys | ForEach-Object -Process {
+        $KBID = $_
+        $Supercedence = $HotfixInheritedSupercedenceHT[$KBID]
+        $Supercedence | ForEach-Object -Process {
+            $CurrentSupercedence = $_
+            if ($HotfixInheritedSuccessorHT[$CurrentSupercedence])
+            {
+                if ($KBID -notin $HotfixInheritedSuccessorHT[$CurrentSupercedence])
+                {
+                    Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] Inherited Succession : $KBID ..."
+                    $HotfixInheritedSuccessorHT[$CurrentSupercedence] += $KBID
+                }
+                else
+                {
+                    Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] $KBID is already in the successor list ..."
+                }
+            }
+            else
+            {
+                $HotfixInheritedSuccessorHT[$CurrentSupercedence] = [array]$KBID
+            }
+        }
+    }
+
+
+
+    #We returned a modified version of the input parameter by adding supercedence data
+    $HotfixInheritance = $HotFix | Select-Object -Property KBID, Supercedence -Unique
+    $HotfixInheritance | ForEach-Object -Process {
+        #For Supercedence : Replaced Hotfix
+        $CurrentHotfix = $_ | Add-Member -MemberType NoteProperty -Name Supercedences -Value $null -PassThru | Add-Member -MemberType ScriptProperty -Name SupercedenceCount -Value { $This.Supercedences.Count } -PassThru | Add-Member ScriptProperty SupercedenceList { $This.Supercedences -join ', ' } -PassThru
+        #For Succession : Replacing Hotfix
+        $CurrentHotfix = $_ | Add-Member -MemberType NoteProperty -Name Successors -Value $null -PassThru | Add-Member -MemberType ScriptProperty -Name SuccessorCount -Value { $This.Successors.Count } -PassThru | Add-Member ScriptProperty SuccessorList { $This.Successors -join ', ' } -PassThru
+        Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] Processing $($CurrentHotFix.KBID) for update ..."
+        $CurrentHotfix.Supercedences = $HotfixInheritedSupercedenceHT[$CurrentHotfix.KBID]
+        $CurrentHotfix.Successors = $HotfixInheritedSuccessorHT[$CurrentHotfix.KBID]
+    }
+
+    return $HotfixInheritance
 }
 
 #Getting all updates regardless the products later than April 2016
 $Hotfix = Get-MsrcSecurityUpdate -Verbose | Sort-Object -Property InitialReleaseDate | Where-Object -FilterScript { $_.ID -match "^\d{4}-\w{3}$" } | Get-MsrcHotfix -Verbose #| Out-GridView -PassThru
 #Getting all updates for Windows Server 2012 R2 (OS and products on this OS version) later than April 2016
 #$Hotfix = Get-MsrcSecurityUpdate -Verbose | Sort-Object -Property InitialReleaseDate | Where-Object -FilterScript { $_.ID -match "^\d{4}-\w{3}$"} | Get-MsrcHotfix -Verbose | Where-Object -FilterScript {  $_.ProductName | Select-String -Pattern "Windows Server 2012 R2" -Quiet } #| Out-GridView -PassThru
-$Hotfix | Export-Csv -Path $HotfixCSVFile -NoTypeInformation
-#$Hotfix = Import-Csv -Path $HotfixCSVFile
-
-#Building the hotfix supercedence list for all updates with one entry per supercedence
-$HotfixSupercedence = Get-MsrcHotfixSupercedence -Hotfix $Hotfix -Verbose
-$HotfixSupercedence | Export-Csv -Path $HotfixSupercedenceCSVFile -NoTypeInformation
-#$HotfixSupercedence = Import-Csv -Path $HotfixSupercedenceCSVFile
+#$Hotfix | Export-Csv -Path $HotfixCSVFile -NoTypeInformation
+$Hotfix | ConvertTo-Json | Set-Content -Path $HotfixJSONFile
+#$Hotfix = Get-Content -Path $HotfixJSONFile | ConvertFrom-Json
 
 #For line below cf. https://stackoverflow.com/questions/20848507/why-does-powershell-give-different-result-in-one-liner-than-two-liner-when-conve/38212718#38212718
 Remove-TypeData System.Array -ErrorAction Ignore
 
-#Building the hotfix supercedence chain (supercedence by inheritance) for all updates
-$HotfixInheritedSupercedence = Get-MsrcHotfixInheritedSupercedence -HotfixSupercedence $HotfixSupercedence -Verbose
-$HotfixInheritedSupercedence | Select-Object -Property * -ExcludeProperty Supercedences | Export-Csv -Path $HotfixInheritedSupercedenceCSVFile -NoTypeInformation
-#$HotfixInheritedSupercedence | ConvertTo-Json | Set-Content -Path $HotfixInheritedSupercedenceJSONFile
-
-#Building the hotfix successor chain (succession by inheritance) for all updates
-$HotfixInheritedSuccessor = Get-MsrcHotfixInheritedSuccessor -HotfixSupercedence $HotfixSupercedence -Verbose
-$HotfixInheritedSuccessor | Select-Object -Property * -ExcludeProperty Successors | Export-Csv -Path $HotfixInheritedSuccessorCSVFile -NoTypeInformation
-#$HotfixInheritedSuccessor | ConvertTo-Json | Set-Content -Path $HotfixInheritedSuccessorJSONFile
-
 #Building the hotfix supececence and successor chain (supercedence and succession by inheritance) for all updates
-$HotfixInheritance = Get-MsrcHotfixInheritance -HotfixSupercedence $HotfixInheritedSupercedence -HotfixSuccessor $HotfixInheritedSuccessor -Verbose
-$HotfixInheritance | Select-Object -Property * -ExcludeProperty Supercedences, Successors | Export-Csv -Path $HotfixInheritanceCSVFile -NoTypeInformation
-#$HotfixInheritance | ConvertTo-Json | Set-Content -Path $HotfixInheritanceJSONFile
+$HotfixInheritance = Get-MsrcHotfixInheritance -HotFix $HotFix -Verbose
+#$HotfixInheritance | Select-Object -Property * -ExcludeProperty Supercedences, Successors | Export-Csv -Path $HotfixInheritanceCSVFile -NoTypeInformation
+$HotfixInheritance | ConvertTo-Json | Set-Content -Path $HotfixInheritanceJSONFile
+#$HotfixInheritance = Get-Content -Path $HotfixInheritanceJSONFile | ConvertFrom-Json
