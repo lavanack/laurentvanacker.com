@@ -246,31 +246,31 @@ $param = @{
     ChannelId = $MgTeamChannel.Id
 }
 
-#Sample #1 : Won't work. Probably a bug. 
-$body = [Microsoft.Graph.PowerShell.Models.MicrosoftGraphItemBody]::new()
-$body.Content = '<attachment id="74d20c7f34aa4a7fb74e2b30004247c5"></attachment>'
-$body.ContentType = 'html'
-$attachment = [Microsoft.Graph.PowerShell.Models.MicrosoftGraphChatMessageAttachment]::new()
-$attachment.Id = '74d20c7f34aa4a7fb74e2b30004247c5'
-$attachment.Content = @'
-{
-	"title": "This is an example of posting a card",
-	"subtitle": "<h3>This is the subtitle</h3>",
-	"text": "Here is some body text. <br>\r\nAnd a <a href=\"http://microsoft.com/\">hyperlink</a>. <br>\r\nAnd below that is some buttons:",
-	"buttons": [
-		{
-			"type": "messageBack",
-			"title": "Login to FakeBot",
-			"text": "login",
-			"displayText": "login",
-			"value": "login"
-		}
-	]
-}
-'@
-$attachment.ContentType = 'application/vnd.microsoft.card.thumbnail'
+# #Sample #1 : Won't work. Probably a bug. 
+# $body = [Microsoft.Graph.PowerShell.Models.MicrosoftGraphItemBody]::new()
+# $body.Content = '<attachment id="74d20c7f34aa4a7fb74e2b30004247c5"></attachment>'
+# $body.ContentType = 'html'
+# $attachment = [Microsoft.Graph.PowerShell.Models.MicrosoftGraphChatMessageAttachment]::new()
+# $attachment.Id = '74d20c7f34aa4a7fb74e2b30004247c5'
+# $attachment.Content = @'
+# {
+# 	"title": "This is an example of posting a card",
+# 	"subtitle": "<h3>This is the subtitle</h3>",
+# 	"text": "Here is some body text. <br>\r\nAnd a <a href=\"http://microsoft.com/\">hyperlink</a>. <br>\r\nAnd below that is some buttons:",
+# 	"buttons": [
+# 		{
+# 			"type": "messageBack",
+# 			"title": "Login to FakeBot",
+# 			"text": "login",
+# 			"displayText": "login",
+# 			"value": "login"
+# 		}
+# 	]
+# }
+# '@
+# $attachment.ContentType = 'application/vnd.microsoft.card.thumbnail'
 
-New-MgTeamChannelMessage @param -Body $body -Attachments $attachment
+# New-MgTeamChannelMessage @param -Body $body -Attachments $attachment
 
 #Sample 2 
 $body = [Microsoft.Graph.PowerShell.Models.MicrosoftGraphItemBody]::new()
