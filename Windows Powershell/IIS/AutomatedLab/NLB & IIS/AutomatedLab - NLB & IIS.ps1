@@ -222,7 +222,7 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $NLBWebSiteName to 
     Set-ItemProperty -Path $path -Name $name -Value $value -Force
     #Bonus : To open all the available websites accross all nodes
     $name = "Secondary Start Pages"
-    $value = "https://iisnode01.$using:FQDNDomainName", "https://iisnode02.$using:FQDNDomainName"
+    $value = "https://IISNODE01.$using:FQDNDomainName", "https://IISNODE02.$using:FQDNDomainName"
     New-ItemProperty -Path $path -PropertyType MultiString -Name $name -Value $value -Force
 }
 
@@ -331,8 +331,7 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
         #Exporting the local SSL Certificate to a local (replicated via DFS-R) PFX file
         $WebServerSSLCert | Export-PfxCertificate -FilePath $PFXFilePath -Password $Using:SecurePassword
         #Bonus : To access directly to the SSL web site hosted on IIS nodes by using the node names
-        Copy-Item $PFXFilePath "C:\CentralCertificateStore\iisnode01.$using:FQDNDomainName.pfx" -Force
-        Copy-Item $PFXFilePath "C:\CentralCertificateStore\iisnode02.$using:FQDNDomainName.pfx" -Force
+        Copy-Item $PFXFilePath "C:\CentralCertificateStore\$env:COMPUTERNAME.$using:FQDNDomainName.pfx"
         #removing the local SSL Certificate
         $WebServerSSLCert | Remove-Item -Force
     }
@@ -393,8 +392,8 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Centr
     #Binding for the Web site
     #New-WebBinding -Name "$using:NLBWebSiteName" -sslFlags 3 -Protocol https -HostHeader "$using:NLBWebSiteName"
     #Binding for every IIS nodes
-    New-WebBinding -Name "$using:NLBWebSiteName" -sslFlags 3 -Protocol https -HostHeader "iisnode01.$using:FQDNDomainName"
-    New-WebBinding -Name "$using:NLBWebSiteName" -sslFlags 3 -Protocol https -HostHeader "iisnode02.$using:FQDNDomainName"
+    New-WebBinding -Name "$using:NLBWebSiteName" -sslFlags 3 -Protocol https -HostHeader "IISNODE01.$using:FQDNDomainName"
+    New-WebBinding -Name "$using:NLBWebSiteName" -sslFlags 3 -Protocol https -HostHeader "IISNODE02.$using:FQDNDomainName"
     New-Item -Path "IIS:\SslBindings\!443!$using:NLBWebSiteName" -sslFlags 3 -Store CentralCertStore
     #Removing Default Binding
     #Get-WebBinding -Port 80 -Name "$using:NLBWebSiteName" | Remove-WebBinding

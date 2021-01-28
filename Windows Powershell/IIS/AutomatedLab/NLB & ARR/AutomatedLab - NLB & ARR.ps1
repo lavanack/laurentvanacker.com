@@ -221,7 +221,7 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $ARRWebSiteName to 
     Set-ItemProperty -Path $path -Name $name -Value $value -Force
     #Bonus : To open all the available websites accross all nodes
     $name = "Secondary Start Pages"
-    $value = "https://arrnode01.$using:FQDNDomainName", "https://arrnode02.$using:FQDNDomainName", "http://iisnode01.$using:FQDNDomainName", "http://iisnode02.$using:FQDNDomainName"
+    $value = "https://ARRNODE01.$using:FQDNDomainName", "https://ARRNODE02.$using:FQDNDomainName", "http://iisnode01.$using:FQDNDomainName", "http://iisnode02.$using:FQDNDomainName"
     New-ItemProperty -Path $path -PropertyType MultiString -Name $name -Value $value -Force
 }
 
@@ -356,8 +356,7 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into the f
     if ($WebServerSSLCert) {
         $WebServerSSLCert | Export-PfxCertificate -FilePath $PFXFilePath -Password $Using:SecurePassword
         #Bonus : To access directly to the SSL web site hosted on IIS nodes by using the node names
-        Copy-Item $PFXFilePath "C:\CentralCertificateStore\arrnode01.$using:FQDNDomainName.pfx"
-        Copy-Item $PFXFilePath "C:\CentralCertificateStore\arrnode02.$using:FQDNDomainName.pfx"
+        Copy-Item $PFXFilePath "C:\CentralCertificateStore\$env:COMPUTERNAME.$using:FQDNDomainName.pfx"
         $WebServerSSLCert | Remove-Item -Force
     }
     else {
@@ -443,9 +442,10 @@ Invoke-LabCommand -ActivityName 'IIS Extensions, SNI/CSS Setup, ARR and URL Rewr
     #3: SNI certificate in central certificate store.
     New-WebBinding -Name "$using:ARRWebSiteName" -sslFlags 3 -Protocol https -HostHeader "$using:ARRWebSiteName"
     #Binding for every ARR server nodes
-    New-WebBinding -Name "$using:ARRWebSiteName" -sslFlags 3 -Protocol https -HostHeader "arrnode01.$using:FQDNDomainName"
-    New-WebBinding -Name "$using:ARRWebSiteName" -sslFlags 3 -Protocol https -HostHeader "arrnode02.$using:FQDNDomainName"
+    New-WebBinding -Name "$using:ARRWebSiteName" -sslFlags 3 -Protocol https -HostHeader "ARRNODE01.$using:FQDNDomainName"
+    New-WebBinding -Name "$using:ARRWebSiteName" -sslFlags 3 -Protocol https -HostHeader "ARRNODE02.$using:FQDNDomainName"
     New-Item -Path "IIS:\SslBindings\!443!$using:ARRWebSiteName" -sslFlags 3 -Store CentralCertStore
+
 
     #Removing Default Binding
     #Get-WebBinding -Port 80 -Name "$using:ARRWebSiteName" | Remove-WebBinding
