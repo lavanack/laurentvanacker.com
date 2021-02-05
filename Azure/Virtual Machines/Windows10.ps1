@@ -63,7 +63,7 @@ $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList
 #endregion
 
 #region Define Variables needed for Virtual Machine
-$VMName 	        = "automatedlab"
+$VMName 	        = "WIN10"
 $ImagePublisherName	= "MicrosoftWindowsDesktop"
 $ImageOffer	        = "Windows-10"
 $ImageSku	        = "20h2-ent"
@@ -71,11 +71,11 @@ $VMSize 	        = "Standard_D4s_v3"
 $PublicIPName       = "$VMName-PIP" 
 $NICName            = "$VMName-NIC"
 $OSDiskName         = "$VMName-OSDisk"
-$DataDiskName         = "$VMName-DataDisk"
+$DataDiskName       = "$VMName-DataDisk"
 $OSDiskSize         = "128"
-$DataDiskSize         = "256"
+$DataDiskSize       = "256"
 $OSDiskType         = "Premium_LRS"
-$DataDiskType         = "Premium_LRS"
+$DataDiskType       = "Premium_LRS"
 #endregion
 
 # Login to your Azure subscription.
