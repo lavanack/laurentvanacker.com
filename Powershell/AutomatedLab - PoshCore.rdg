@@ -1,0 +1,90 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RDCMan programVersion="2.7" schemaVersion="3">
+  <file>
+    <credentialsProfiles />
+    <properties>
+      <expanded>True</expanded>
+      <name>RDCManager</name>
+    </properties>
+    <remoteDesktop inherit="None">
+      <sameSizeAsClientArea>True</sameSizeAsClientArea>
+      <fullScreen>False</fullScreen>
+      <colorDepth>24</colorDepth>
+    </remoteDesktop>
+    <localResources inherit="None">
+      <audioRedirection>Client</audioRedirection>
+      <audioRedirectionQuality>Dynamic</audioRedirectionQuality>
+      <audioCaptureRedirection>DoNotRecord</audioCaptureRedirection>
+      <keyboardHook>FullScreenClient</keyboardHook>
+      <redirectClipboard>True</redirectClipboard>
+      <redirectDrives>True</redirectDrives>
+      <redirectDrivesList>
+        <item>C:\</item>
+      </redirectDrivesList>
+      <redirectPrinters>False</redirectPrinters>
+      <redirectPorts>False</redirectPorts>
+      <redirectSmartCards>False</redirectSmartCards>
+      <redirectPnpDevices>False</redirectPnpDevices>
+    </localResources>
+    <encryptionSettings inherit="None">
+      <encryptionMethod>LogonCredentials</encryptionMethod>
+      <credentialName>EUROPE\lavanack</credentialName>
+      <credentialData />
+    </encryptionSettings>
+    <group>
+      <properties>
+        <expanded>True</expanded>
+        <name>Hyper-V (PowerShell)</name>
+      </properties>
+      <logonCredentials inherit="None">
+        <profileName scope="Local">Custom</profileName>
+        <userName>Administrator</userName>
+        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAmyg1SqmS1kaBZLKrHbhzhwAAAAACAAAAAAAQZgAAAAEAACAAAABC6RINtMz6VaNptyO5szUHm+69qYzT2tHeo8CwQMG4CwAAAAAOgAAAAAIAACAAAABBgNFI+dNlFNsCwMMK92bszoQXyllFzjWYMrb3ag1stiAAAADGdb+d8z2ujEiRBXXURaTj68Vy1DIOqqE+W90ta/exo0AAAAAODTpXmbGzoFtIMlYyBrAnEwbqvMFavZlbKyvKHNfV/U0xKH5czUzanGpu6U4mOALnYW1r3LupNhPRnMXczjH5</password>
+        <domain>CONTOSO</domain>
+      </logonCredentials>
+      <server>
+        <properties>
+          <displayName>DC01</displayName>
+          <name>10.0.0.1</name>
+        </properties>
+      </server>
+      <server>
+        <properties>
+          <displayName>Ubuntu</displayName>
+          <name>ubuntu.mshome.net</name>
+        </properties>
+        <logonCredentials inherit="None">
+          <profileName scope="Local">Custom</profileName>
+          <userName>administrator</userName>
+          <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAmyg1SqmS1kaBZLKrHbhzhwAAAAACAAAAAAAQZgAAAAEAACAAAADEx7ybBagcYMYmVc5LY0I3StY4CngZFKK3BDT9ImktHgAAAAAOgAAAAAIAACAAAADy2rWWtgmFmAtahz+XIEBEfqT118GuP4xTeHrnVtKWQiAAAACT4U7PfHn9XSo5y+O/JebHHS+gqKreEEriAoBMInZuBEAAAAAR5TukXRa2x+pGb4Im99qXWvnTRaJ6f1mN2Wd/0aD8nW1VwWXMsOkq3+OnBwFLkWZJ7dN5qkCVUhBAAJ7yFsj8</password>
+          <domain>CONTOSO</domain>
+        </logonCredentials>
+        <localResources inherit="None">
+          <audioRedirection>Client</audioRedirection>
+          <audioRedirectionQuality>Dynamic</audioRedirectionQuality>
+          <audioCaptureRedirection>DoNotRecord</audioCaptureRedirection>
+          <keyboardHook>FullScreenClient</keyboardHook>
+          <redirectClipboard>True</redirectClipboard>
+          <redirectDrives>True</redirectDrives>
+          <redirectDrivesList>
+            <item>C:\</item>
+            <item>D:\</item>
+          </redirectDrivesList>
+          <redirectPrinters>False</redirectPrinters>
+          <redirectPorts>False</redirectPorts>
+          <redirectSmartCards>False</redirectSmartCards>
+          <redirectPnpDevices>False</redirectPnpDevices>
+        </localResources>
+      </server>
+      <server>
+        <properties>
+          <displayName>WIN10</displayName>
+          <name>10.0.0.10</name>
+        </properties>
+      </server>
+    </group>
+  </file>
+  <connected />
+  <favorites />
+  <recentlyUsed />
+</RDCMan>
