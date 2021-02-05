@@ -19,6 +19,9 @@ of the Sample Code.
 trap {
     Write-Host "Stopping Transcript ..."
     Stop-Transcript
+    $VerbosePreference = $PreviousVerbosePreference
+    $ErrorActionPreference = $PreviousErrorActionPreference
+    [console]::beep(3000, 750)
     Send-ALNotification -Activity 'Lab started' -Message ('Lab deployment failed !') -Provider (Get-LabConfigurationItem -Name Notifications.SubscribedProviders)
 } 
 Clear-Host
@@ -165,7 +168,11 @@ Invoke-LabCommand -ActivityName 'Requesting and Exporting Document Encryption Ce
 
     $null = New-Item -ItemType Directory -Path C:\PShell\Demos -ErrorAction SilentlyContinue -Force
 } 
+
 Copy-LabFileItem -Path C:\PoshDSC\Demos -DestinationFolder C:\PShell\ -ComputerName $Machines -Recurse
+Invoke-LabCommand -ActivityName 'Downloading prerequisites' -ComputerName PULL -ScriptBlock {
+    & "C:\PShell\Demos\Install-xModule.ps1" 
+} -AsJob
 
 Invoke-LabCommand -ActivityName 'Generating CSV file for listing certificate data' -ComputerName PULL -ScriptBlock {
     $PublicKeysFolder = "C:\PublicKeys"
@@ -188,6 +195,8 @@ Invoke-LabCommand -ActivityName 'Generating CSV file for listing certificate dat
     }
     $CSVData | Export-Csv -Path $CSVFile -NoTypeInformation -Encoding UTF8
 } 
+
+Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
 
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 

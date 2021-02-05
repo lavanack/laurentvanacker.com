@@ -27,9 +27,12 @@ Based on
 #>
 #requires -Version 5 -Modules AutomatedLab -RunAsAdministrator 
 trap {
-     Write-Host "Stopping Transcript ..."; Stop-Transcript
+    Write-Host "Stopping Transcript ..."
+    Stop-Transcript
     $VerbosePreference = $PreviousVerbosePreference
     $ErrorActionPreference = $PreviousErrorActionPreference
+    [console]::beep(3000, 750)
+    Send-ALNotification -Activity 'Lab started' -Message ('Lab deployment failed !') -Provider (Get-LabConfigurationItem -Name Notifications.SubscribedProviders)
 } 
 Clear-Host
 Import-Module AutomatedLab

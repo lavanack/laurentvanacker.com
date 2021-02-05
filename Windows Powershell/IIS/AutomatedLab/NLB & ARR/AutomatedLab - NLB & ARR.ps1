@@ -16,7 +16,14 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 #requires -Version 5 -Modules AutomatedLab -RunAsAdministrator 
-trap { Write-Host "Stopping Transcript ..."; Stop-Transcript} 
+trap { 
+    Write-Host "Stopping Transcript ..."
+    Stop-Transcript
+    $VerbosePreference = $PreviousVerbosePreference
+    $ErrorActionPreference = $PreviousErrorActionPreference
+    [console]::beep(3000, 750)
+    Send-ALNotification -Activity 'Lab started' -Message ('Lab deployment failed !') -Provider (Get-LabConfigurationItem -Name Notifications.SubscribedProviders)
+} 
 Clear-Host
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
