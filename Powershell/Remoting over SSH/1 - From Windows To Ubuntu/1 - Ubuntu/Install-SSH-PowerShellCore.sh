@@ -32,7 +32,7 @@ sudo ufw allow ssh
 #sudo apt-get install powershell -y
 #End : Old school install
 
-#Or Easier install : https://www.thomasmaurer.ch/2019/07/how-to-install-and-update-powershell-7
+#Easy install : https://www.thomasmaurer.ch/2019/07/how-to-install-and-update-powershell-7
 #-includeide : Installs VSCode and VSCode PowerShell extension (only relevant to machines with a desktop environment)
 wget https://aka.ms/install-powershell.sh; sudo bash install-powershell.sh -includeide; rm install-powershell.sh
 
