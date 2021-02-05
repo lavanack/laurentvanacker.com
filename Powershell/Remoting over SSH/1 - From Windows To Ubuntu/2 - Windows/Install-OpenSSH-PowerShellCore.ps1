@@ -22,31 +22,10 @@ Clear-Host
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
+#Replace the following lines with your own values
 $UbuntuServer="ubuntu.mshome.net"
 $UbuntuUser="administrator"
 $PassPhrase = ""
-
-#region Old School way: Install Powershell Core
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-$uri = 'https://github.com/PowerShell/PowerShell/releases/download/v7.0.1/PowerShell-7.0.1-win-x64.msi'
-$MSIPackageName = Split-Path -Path $uri -Leaf
-$MSIPackageFullName = Join-Path -Path $CurrentDir -ChildPath $MSIPackageName
-if (-not(Test-Path -Path $MSIPackageFullName))
-{
-    Invoke-WebRequest -Uri $uri -outFile $MSIPackageFullName -UseBasicParsing -Verbose
-}
-
-#Start-Process -FilePath $MSIPackageName -ArgumentList "/passive" -Wait
-Start-Process msiexec.exe -ArgumentList "/package PowerShell-7.0.1-win-x64.msi /passive ADD_EXPLORER_CONTEXT_MENU_OPENPOWERSHELL=1 ENABLE_PSREMOTING=1 REGISTER_MANIFEST=1" -Wait
-#endregion
-
-#region Easier way: Install Powershell Core
-Invoke-Expression "& { $(Invoke-RestMethod 'https://aka.ms/install-powershell.ps1 -UseMSI -AddExplorerContextMenu -EnablePSRemoting') }"
-#endregion
-
-
-#New-Item -ItemType SymbolicLink -Path "C:\pwsh" -Target $($(Get-Command pwsh).Source | Split-Path -Parent)
-New-Item -ItemType SymbolicLink -Path "C:\pwsh" -Target $((Get-ChildItem -Path $env:SystemDrive\ -File -Filter pwsh.exe -Recurse -ErrorAction SilentlyContinue).DirectoryName)
 
 #region Install OpenSSH Client & Server
 # Install the OpenSSH Client
@@ -55,6 +34,28 @@ Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
 # Install the OpenSSH Server
 Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
 #endregion
+
+<#
+#region Install Powershell Core : Manual Install
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$uri = 'https://github.com/PowerShell/PowerShell/releases/download/v7.0.2/PowerShell-7.0.2-win-x64.msi'
+$MSIPackageName = Split-Path -Path $uri -Leaf
+$MSIPackageFullName = Join-Path -Path $CurrentDir -ChildPath $MSIPackageName
+if (-not(Test-Path -Path $MSIPackageFullName))
+{
+    Invoke-WebRequest -Uri $uri -outFile $MSIPackageFullName -UseBasicParsing -Verbose
+}
+
+#Start-Process -FilePath $MSIPackageName -ArgumentList "/passive" -Wait
+Start-Process msiexec.exe -ArgumentList "/package PowerShell-7.0.2-win-x64.msi /passive ADD_EXPLORER_CONTEXT_MENU_OPENPOWERSHELL=1 ENABLE_PSREMOTING=1 REGISTER_MANIFEST=1" -Wait
+#endregion
+#>
+#region Install Powershell 7+ : Silent Install
+Invoke-Expression -Command "& { $(Invoke-RestMethod https://aka.ms/install-powershell.ps1) } -UseMSI -Quiet"
+#endregion
+
+#New-Item -ItemType SymbolicLink -Path "C:\pwsh" -Target $($(Get-Command pwsh).Source | Split-Path -Parent)
+New-Item -ItemType SymbolicLink -Path "C:\pwsh" -Target $((Get-ChildItem -Path $env:SystemDrive\ -File -Filter pwsh.exe -Recurse -ErrorAction SilentlyContinue).DirectoryName)
 
 #region Configure OpenSSH Server
 # OPTIONAL but recommended:
@@ -69,6 +70,7 @@ if (-not(Get-NetFirewallRule "OpenSSH-Server-In-TCP"))
 	New-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -DisplayName 'OpenSSH-Server-In-TCP' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
 }
 
+#Changing the SSH config (via RegEx) to meet our needs
 $SshdConfig = Get-Content -Path "$env:ProgramData\ssh\sshd_config"
 $SshdConfig += "RSAAuthentication yes"
 $SshdConfig = $SshdConfig -replace "(#?)(PubkeyAuthentication|PasswordAuthentication|RSAAuthentication)(\s+)(yes|no)", '$2$3yes'
@@ -104,6 +106,7 @@ Start-Process -FilePath "$env:comspec" -ArgumentList "/c ssh-keygen -f $PrivateS
 # Replace /k by /C for closing automatically the windows prompt. With /k you need to close the windows by yourself
 
 #Checking the SSH connectivity
+#You will be prompted for entering the password for connecting to the Ubuntu server. It will be the two only times
 # Start-Process -FilePath "$env:comspec" -ArgumentList "/k ssh -o StrictHostKeyChecking=no $UbuntuUser@$UbuntuServer" -Wait
 Start-Process -FilePath "$env:comspec" -ArgumentList "/k scp -o StrictHostKeyChecking=no $PublicSSHRSAKey $($UbuntuUser)@$($UbuntuServer):/tmp/$($env:USERNAME)_rsa.pub" -Wait
 Start-Process -FilePath "$env:comspec" -ArgumentList "/k ssh -o StrictHostKeyChecking=no $UbuntuUser@$UbuntuServer `"cd ~ && mkdir -p .ssh && chmod 700 .ssh && cat /tmp/$($env:USERNAME)_rsa.pub >> .ssh/authorized_keys && chmod 640 .ssh/authorized_keys && sudo service sshd restart && rm /tmp/$($env:USERNAME)_rsa.pub`"" -Wait
@@ -113,9 +116,9 @@ Start-Process -FilePath "$env:comspec" -ArgumentList "/k ssh -o StrictHostKeyChe
 $WindowsPwshCmdLine = "Invoke-Command -ScriptBlock { `"Hello from `$(hostname)`" } -UserName $UbuntuUser -HostName $UbuntuServer"
 Write-Host "[CLIPBOARD] $WindowsPwshCmdLine"
 
-#Copy the line into the clipboard and just paste it in a PowerShell Core host. It should work like a charm :)
+#Copy the line into the clipboard and just paste it in a new PowerShell Core host (opened at the next line). It should work like a charm :)
 Set-Clipboard -Value $WindowsPwshCmdLine
 
-#Starting a PowerShell Core host and paste the previously code copied into the clipboard
+#Starting a new PowerShell Core host and paste the previously code copied into the clipboard
 Start-Process pwsh
 #endregion
