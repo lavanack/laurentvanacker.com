@@ -158,6 +158,7 @@ Add-LabMachineDefinition -Name IIS01 -NetworkAdapter $IIS01NetAdapter
 
 #Installing servers
 Install-Lab
+Restart-LabVM -ComputerName SQL01 -Wait -ProgressIndicator 10
 Checkpoint-LabVM -SnapshotName FreshInstall -All
 
 #Downloading SQL Server 2019 CU8 (or later)
