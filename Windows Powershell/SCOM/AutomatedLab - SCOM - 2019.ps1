@@ -63,7 +63,7 @@ $SCOMDataWareHouseWriter = 'SCOM-DWH-Writer'
 $SCOMDataWareHouseReader = 'SCOM-DWH-Reader'
 $SCOMServerAction = 'SCOM-Server-Action'
 $SCOMAdmins = 'SCOM-Admins'
-# SCOM management group name (RLLAB, for example)
+# SCOM management group name (AutomatedLab, for example)
 $SCOMMgmtGroup = 'AutomatedLab'
 
 
@@ -119,13 +119,13 @@ Set-LabInstallationCredential -Username $Logon -Password $ClearTextPassword
 
 #defining default parameter values, as these ones are the same for all the machines
 $PSDefaultParameterValues = @{
-     'Add-LabMachineDefinition:Network'           = $LabName
+     'Add-LabMachineDefinition:Network'         = $LabName
      'Add-LabMachineDefinition:DomainName'      = $FQDNDomainName
-     'Add-LabMachineDefinition:MinMemory'          = 1GB
-     'Add-LabMachineDefinition:MaxMemory'          = 2GB
-     'Add-LabMachineDefinition:Memory'           = 2GB
+     'Add-LabMachineDefinition:MinMemory'       = 1GB
+     'Add-LabMachineDefinition:MaxMemory'       = 2GB
+     'Add-LabMachineDefinition:Memory'          = 2GB
      'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Datacenter (Desktop Experience)'
-     #'Add-LabMachineDefinition:Processors'      = 4
+     #'Add-LabMachineDefinition:Processors'     = 4
 }
 
 $IIS01NetAdapter = @()
