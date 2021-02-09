@@ -54,6 +54,8 @@ function Get-MsrcHotfix {
             $CVRFDoc = Get-MsrcCvrfDocument -ID $CurrentID
             #Getting the affected products
             $ProductID = $CVRFDoc.ProductTree.FullProductname | Group-Object -Property ProductID -AsHashTable -AsString
+            #Getting affected softwares
+            $AffectedSoftware = $CVRFDoc | Get-MsrcCvrfAffectedSoftware
 
             #Getting the maximum severity rating per CVE
             $MaximumSeverityRatingHT = $CVRFDoc | Get-MsrcCvrfCVESummary | Select-Object CVE, @{Name = "MaximumSeverityRating"; Expression = { $_."Maximum Severity Rating" } } | Group-Object -Property CVE -AsHashTable -AsString
@@ -68,30 +70,22 @@ function Get-MsrcHotfix {
                 $Month=$CurrentID
                 $Remediations | ForEach-Object {
                     $CurrentRemediation = $_
+                    Write-Verbose -Message "`$CurrentRemediation : $CurrentRemediation"
                     $KBID = $CurrentRemediation.Description.Value
+                    $CurrentAffectedSoftware = $AffectedSoftware | Where-Object -FilterScript {$_.KBArticle.ID -eq $KBID }
+                    $CurrentSupercedence = $CurrentAffectedSoftware.Supercedence | Where-Object -FilterScript { $_ } | Select-Object -Unique
+                    Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] `$CurrentSupercedence : $CurrentSupercedence ..."
                     if ($KBID -match "\d+")
                     {
-                        if ($CurrentRemediation.Supercedence)
-                        {
-                            if ($CurrentRemediation.Supercedence -notmatch "\d+")
-                            {
-                                Write-Warning -Message "[Warning] Supercedence '$($CurrentRemediation.Supercedence)' is not a KB ID. WE SKIP IT..."
-                                $CurrentRemediation.Supercedence = $null
-                            }
-                        }
-                        else
-                        {
-                                $CurrentRemediation = $CurrentRemediation | Add-Member -MemberType NoteProperty -Name Supercedence -Value $null -PassThru
-                        }
                         $CurrentHotfix = [PSCustomObject]@{
                             Month = $Month
                             Date = $MostRecentRevisionDate
                             KBID = $KBID
-                            Supercedence = [array]$CurrentRemediation.Supercedence -split ',|;|<br>' | Where-Object -FilterScript { (-not([string]::IsNullOrEmpty($_))) } | ForEach-Object -Process {
+                                Supercedence = [array] $CurrentSupercedence -split ',|;|<br>' | Where-Object -FilterScript { (-not([string]::IsNullOrEmpty($_))) } | Select-Object -Unique | ForEach-Object -Process {
                                 $CurrentSupercedence = $_.Trim()
                                 #We skip Microsoft Security Bulletin MSYY-XXX because the related KBID is the item after the comma
                                 if ($CurrentSupercedence -notmatch "^MS") {
-                                    Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] Processing $CurrentSupercedence ..."
+                                    Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] `$CurrentSupercedence : $CurrentSupercedence ..."
                                     $CurrentSupercedence
                                 }
                             }
@@ -194,6 +188,8 @@ Function Get-MsrcHotfixInheritance {
 
 #Getting all updates regardless the products later than April 2016
 $Hotfix = Get-MsrcSecurityUpdate -Verbose | Sort-Object -Property InitialReleaseDate | Where-Object -FilterScript { $_.ID -match "^\d{4}-\w{3}$" } | Get-MsrcHotfix -Verbose #| Out-GridView -PassThru
+#Getting all updates for February 2019
+#$Hotfix = Get-MsrcHotfix -ID 2019-Feb -Verbose #| Out-GridView -PassThru
 #Getting all updates for Windows Server 2012 R2 (OS and products on this OS version) later than April 2016
 #$Hotfix = Get-MsrcSecurityUpdate -Verbose | Sort-Object -Property InitialReleaseDate | Where-Object -FilterScript { $_.ID -match "^\d{4}-\w{3}$"} | Get-MsrcHotfix -Verbose | Where-Object -FilterScript {  $_.ProductName | Select-String -Pattern "Windows Server 2012 R2" -Quiet } #| Out-GridView -PassThru
 #$Hotfix | Export-Csv -Path $HotfixCSVFile -NoTypeInformation
