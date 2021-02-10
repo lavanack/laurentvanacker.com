@@ -1,5 +1,4 @@
 ﻿Clear-Host
-Get-Variable -Scope Script | Remove-Variable -Scope Script -Force -ErrorAction Ignore
 
 #region function definitions 
 #Based from https://adamtheautomator.com/powershell-random-password/
