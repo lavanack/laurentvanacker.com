@@ -36,13 +36,16 @@ Set-MSRCApiKey -ApiKey $MSRCApiKey
 function Get-MsrcHotfix {
     [CmdletBinding()]
     Param(
-        [Parameter(ParameterSetName = 'ID', Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [ValidateNotNullOrEmpty()]
         #Validating the specified IDs are later than April 2016
         #The format is "yyyy-MMM" like 2016-Jan except for particular case like 2017-May-B (2 releases)
-        [ValidateScript( { (($_ -match "20\d{2}-Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec(-\w)?") -and ([datetime]($_.Substring(0, 8)) -ge [datetime]"2016-Jan")) })]
+        [ValidateScript( { (($_ -match "20\d{2}-Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec") -and ([datetime]($_.Substring(0, 8)) -ge [datetime]"2016-Jan")) })]
         #[ValidateScript({ $_ -in $((Get-MsrcSecurityUpdate).ID)})]
-        [string[]]$ID
+        [string[]]$ID,
+
+        [Parameter(Mandatory = $False)]
+        [string[]]$Pattern = $null
     )
     begin {
     }
@@ -66,7 +69,16 @@ function Get-MsrcHotfix {
                 $CVE = $CurrentVulnerability.CVE
                 $Title = $CurrentVulnerability.CVE
                 $MostRecentRevisionDate = [datetime]($_.RevisionHistory | Sort-Object -Property Date -Descending | Select-Object -First 1).Date
-                $Remediations = $CurrentVulnerability.Remediations | Where-Object -FilterScript { ($_.SubType) } | Select-Object -Property *
+                if ($Pattern)
+                {
+                    $Remediations = $CurrentVulnerability.Remediations | Where-Object -FilterScript { (($_.SubType) -and ($ProductID[$_.ProductID].Value | Select-String -Pattern $Pattern -Quiet)) } | Select-Object -Property *
+                }
+                else
+                {
+                    $Remediations = $CurrentVulnerability.Remediations | Where-Object -FilterScript { ($_.SubType) } | Select-Object -Property *
+                }
+
+                # | Where-Object -FilterScript {  $_.ProductName | Select-String -Pattern "Windows Server 2012 R2" -Quiet } #| Out-GridView -PassThru
                 $Month=$CurrentID
                 $Remediations | ForEach-Object {
                     $CurrentRemediation = $_
@@ -81,14 +93,14 @@ function Get-MsrcHotfix {
                             Month = $Month
                             Date = $MostRecentRevisionDate
                             KBID = $KBID
-                                Supercedence = [array] $CurrentSupercedence -split ',|;|<br>' | Where-Object -FilterScript { (-not([string]::IsNullOrEmpty($_))) } | Select-Object -Unique | ForEach-Object -Process {
+                                Supercedence = [array] ($CurrentSupercedence -split ',|;|<br>' | Where-Object -FilterScript { (-not([string]::IsNullOrEmpty($_))) } | Select-Object -Unique | ForEach-Object -Process {
                                 $CurrentSupercedence = $_.Trim()
                                 #We skip Microsoft Security Bulletin MSYY-XXX because the related KBID is the item after the comma
                                 if ($CurrentSupercedence -notmatch "^MS") {
                                     Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] `$CurrentSupercedence : $CurrentSupercedence ..."
                                     $CurrentSupercedence
                                 }
-                            }
+                            })
 
                             SubType = $CurrentRemediation.SubType
                             ProductName = $ProductID[$CurrentRemediation.ProductID].Value
@@ -144,6 +156,7 @@ Function Get-MsrcHotfixInheritance {
         Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] Inherited Supercedence : $($HotfixInheritedSupercedenceHT[$_.KBID] -join ', ') ..."
     }
 
+    #recursive successors management
     $HotfixInheritedSuccessorHT = @{}
     $HotfixInheritedSupercedenceHT.Keys | ForEach-Object -Process {
         $KBID = $_
@@ -169,18 +182,21 @@ Function Get-MsrcHotfixInheritance {
         }
     }
 
-
-
-    #We returned a modified version of the input parameter by adding supercedence data
-    $HotfixInheritance = $HotFix | Select-Object -Property KBID, Supercedence -Unique
-    $HotfixInheritance | ForEach-Object -Process {
+    #Building a collection of object for all KBID with all related supercedence/successor data
+    $HotfixInheritance = $Hotfix.KBID | Select-Object -Unique | ForEach-Object -Process {
+        $CurrentHotfix = [PSCustomObject]@{
+            KBID = $_
+            Supercedences = $HotfixInheritedSupercedenceHT[$_]
+            Successors = $HotfixInheritedSuccessorHT[$_]
+        }
+        <#
         #For Supercedence : Replaced Hotfix
-        $CurrentHotfix = $_ | Add-Member -MemberType NoteProperty -Name Supercedences -Value $null -PassThru | Add-Member -MemberType ScriptProperty -Name SupercedenceCount -Value { $This.Supercedences.Count } -PassThru | Add-Member ScriptProperty SupercedenceList { $This.Supercedences -join ', ' } -PassThru
+        $CurrentHotfix = $CurrentHotfix | Add-Member -MemberType ScriptProperty -Name SupercedenceCount -Value { $This.Supercedences.Count } -PassThru | Add-Member ScriptProperty SupercedenceList { $This.Supercedences -join ', ' } -PassThru
         #For Succession : Replacing Hotfix
-        $CurrentHotfix = $_ | Add-Member -MemberType NoteProperty -Name Successors -Value $null -PassThru | Add-Member -MemberType ScriptProperty -Name SuccessorCount -Value { $This.Successors.Count } -PassThru | Add-Member ScriptProperty SuccessorList { $This.Successors -join ', ' } -PassThru
+        $CurrentHotfix = $CurrentHotfix | Add-Member -MemberType ScriptProperty -Name SuccessorCount -Value { $This.Successors.Count } -PassThru | Add-Member ScriptProperty SuccessorList { $This.Successors -join ', ' } -PassThru
         Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] Processing $($CurrentHotFix.KBID) for update ..."
-        $CurrentHotfix.Supercedences = $HotfixInheritedSupercedenceHT[$CurrentHotfix.KBID]
-        $CurrentHotfix.Successors = $HotfixInheritedSuccessorHT[$CurrentHotfix.KBID]
+        #>
+        $CurrentHotfix 
     }
 
     return $HotfixInheritance
@@ -188,11 +204,24 @@ Function Get-MsrcHotfixInheritance {
 
 #Getting all updates regardless the products later than April 2016
 $Hotfix = Get-MsrcSecurityUpdate -Verbose | Sort-Object -Property InitialReleaseDate | Where-Object -FilterScript { $_.ID -match "^\d{4}-\w{3}$" } | Get-MsrcHotfix -Verbose #| Out-GridView -PassThru
-#Getting all updates for February 2019
+
+#Getting all updates for February 2019 regardless the product
 #$Hotfix = Get-MsrcHotfix -ID 2019-Feb -Verbose #| Out-GridView -PassThru
-#Getting all updates for Windows Server 2012 R2 (OS and products on this OS version) later than April 2016
-#$Hotfix = Get-MsrcSecurityUpdate -Verbose | Sort-Object -Property InitialReleaseDate | Where-Object -FilterScript { $_.ID -match "^\d{4}-\w{3}$"} | Get-MsrcHotfix -Verbose | Where-Object -FilterScript {  $_.ProductName | Select-String -Pattern "Windows Server 2012 R2" -Quiet } #| Out-GridView -PassThru
-#$Hotfix | Export-Csv -Path $HotfixCSVFile -NoTypeInformation
+
+#Getting all updates for February 2012 for Windows Server 2012 R2 (OS and products on this OS version)
+#$Hotfix = Get-MsrcHotfix -ID 2019-Feb -Pattern "Windows Server 2012 R2" -Verbose
+
+#Getting all updates for April 2016 for Windows Server 2012 non-R2 and R2 (OS and products on this OS version)
+#$Hotfix = Get-MsrcHotfix -ID 2016-Apr -Pattern "Windows Server 2012" -Verbose
+
+#Getting all updates for May 2016 for Windows Server 2012 non-R2 only (OS and products on this OS version)
+#$Hotfix = Get-MsrcHotfix -ID 2016-May -Pattern "Windows Server 2012(?!\sR2)" -Verbose
+
+#Getting all updates for January 2021 for Windows Server 2016 (Server Core installation) (OS and products on this OS version)
+#$Hotfix = Get-MsrcHotfix -ID 2021-Jan -Pattern "Windows Server 2016\s+\(Server Core installation\)" -Verbose
+
+#Getting all updates for Windows Server 2012 R2 (OS and products on this OS version)
+#$Hotfix = Get-MsrcSecurityUpdate -Verbose | Sort-Object -Property InitialReleaseDate | Where-Object -FilterScript { $_.ID -match "^\d{4}-\w{3}$"} | Get-MsrcHotfix -Filter "Windows Server 2012 R2" -Verbose #| Out-GridView -PassThru
 $Hotfix | ConvertTo-Json | Set-Content -Path $HotfixJSONFile
 #$Hotfix = Get-Content -Path $HotfixJSONFile | ConvertFrom-Json
 
@@ -201,6 +230,6 @@ Remove-TypeData System.Array -ErrorAction Ignore
 
 #Building the hotfix supececence and successor chain (supercedence and succession by inheritance) for all updates
 $HotfixInheritance = Get-MsrcHotfixInheritance -HotFix $HotFix -Verbose
-#$HotfixInheritance | Select-Object -Property * -ExcludeProperty Supercedences, Successors | Export-Csv -Path $HotfixInheritanceCSVFile -NoTypeInformation
+$HotfixInheritance | Select-Object -Property *, @{Name="SupercedenceList";Expression={$_.Supercedences -join ', '}}, @{Name="SupercedenceCount ";Expression={$_.Supercedences.Count}}, @{Name="SuccessorList";Expression={$_.Successors -join ', '}}, @{Name="SucessorCount ";Expression={$_.Successors.Count}} -ExcludeProperty Supercedences, Successors| Export-Csv -Path $HotfixInheritanceCSVFile -NoTypeInformation
 $HotfixInheritance | ConvertTo-Json | Set-Content -Path $HotfixInheritanceJSONFile
 #$HotfixInheritance = Get-Content -Path $HotfixInheritanceJSONFile | ConvertFrom-Json
