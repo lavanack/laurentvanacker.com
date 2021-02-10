@@ -202,13 +202,16 @@ Function Get-MsrcHotfixInheritance {
     return $HotfixInheritance
 }
 
-#Getting all updates regardless the products later than April 2016
+#Getting all updates regardless the products later than January 2016
 $Hotfix = Get-MsrcSecurityUpdate -Verbose | Sort-Object -Property InitialReleaseDate | Where-Object -FilterScript { $_.ID -match "^\d{4}-\w{3}$" } | Get-MsrcHotfix -Verbose #| Out-GridView -PassThru
+
+#Getting all updates for Windows Server 2012 R2 (OS and products on this OS version) later than January 2016
+#$Hotfix = Get-MsrcSecurityUpdate -Verbose | Sort-Object -Property InitialReleaseDate | Where-Object -FilterScript { $_.ID -match "^\d{4}-\w{3}$" } | Get-MsrcHotfix -Pattern "Windows Server 2012 R2" -Verbose #| Out-GridView -PassThru
 
 #Getting all updates for February 2019 regardless the product
 #$Hotfix = Get-MsrcHotfix -ID 2019-Feb -Verbose #| Out-GridView -PassThru
 
-#Getting all updates for February 2012 for Windows Server 2012 R2 (OS and products on this OS version)
+#Getting all updates for February 2019 for Windows Server 2012 R2 (OS and products on this OS version)
 #$Hotfix = Get-MsrcHotfix -ID 2019-Feb -Pattern "Windows Server 2012 R2" -Verbose
 
 #Getting all updates for April 2016 for Windows Server 2012 non-R2 and R2 (OS and products on this OS version)
@@ -220,8 +223,6 @@ $Hotfix = Get-MsrcSecurityUpdate -Verbose | Sort-Object -Property InitialRelease
 #Getting all updates for January 2021 for Windows Server 2016 (Server Core installation) (OS and products on this OS version)
 #$Hotfix = Get-MsrcHotfix -ID 2021-Jan -Pattern "Windows Server 2016\s+\(Server Core installation\)" -Verbose
 
-#Getting all updates for Windows Server 2012 R2 (OS and products on this OS version)
-#$Hotfix = Get-MsrcSecurityUpdate -Verbose | Sort-Object -Property InitialReleaseDate | Where-Object -FilterScript { $_.ID -match "^\d{4}-\w{3}$"} | Get-MsrcHotfix -Filter "Windows Server 2012 R2" -Verbose #| Out-GridView -PassThru
 $Hotfix | ConvertTo-Json | Set-Content -Path $HotfixJSONFile
 #$Hotfix = Get-Content -Path $HotfixJSONFile | ConvertFrom-Json
 
