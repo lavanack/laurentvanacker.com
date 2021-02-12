@@ -98,7 +98,7 @@ Add-LabMachineDefinition -Name ROUTER01 -Roles Routing -NetworkAdapter $netAdapt
 
 #SQL Server
 $role = Get-LabMachineRoleDefinition -Role SQLServer2019
-Add-LabIsoImageDefinition -Name SQLServer2019 -Path $labSources\ISOs\en_sql_server_2019_standard_x64_dvd_814b57aa.iso
+Add-LabIsoImageDefinition -Name SQLServer2019 -Path $labSources\ISOs\en_sql_server_2019_standard_x64_dvd_cdcd4b9f.iso
 Add-LabMachineDefinition -Name SQL01 -Roles $role -IpAddress $SQL01IPv4Address -Processors 4 -Memory 4GB -MinMemory 2GB -MaxMemory 4GB
 
 #DSC Pull Servers
