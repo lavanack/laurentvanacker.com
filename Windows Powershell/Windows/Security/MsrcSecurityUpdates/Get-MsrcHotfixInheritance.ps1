@@ -28,7 +28,7 @@ $HotfixInheritanceCSVFile = Join-Path -Path $CurrentDir -ChildPath "MsrcHotfixIn
 $HotfixInheritanceJSONFile = Join-Path -Path $CurrentDir -ChildPath "MsrcHotfixInheritance.json"
 
 #For getting a API Key: https://microsoft.github.io/MSRC-Microsoft-Security-Updates-API/
-$MSRCApiKey = "Put your MSRC Key here ..."
+$MSRCApiKey = "4378e032dc6843d8b92685ad3a42d14f"
 
 Import-Module -Name MsrcSecurityUpdates
 Set-MSRCApiKey -ApiKey $MSRCApiKey
@@ -67,7 +67,6 @@ function Get-MsrcHotfix {
             $CVRFDoc.Vulnerability | ForEach-Object {
                 $CurrentVulnerability = $_
                 $CVE = $CurrentVulnerability.CVE
-                $Title = $CurrentVulnerability.CVE
                 $MostRecentRevisionDate = [datetime]($_.RevisionHistory | Sort-Object -Property Date -Descending | Select-Object -First 1).Date
                 if ($Pattern) {
                     $Remediations = $CurrentVulnerability.Remediations | Where-Object -FilterScript { (($_.SubType) -and ($ProductID[$_.ProductID].Value | Select-String -Pattern $Pattern -Quiet)) } | Select-Object -Property *
@@ -96,7 +95,7 @@ function Get-MsrcHotfix {
                                     if ($CurrentSupercedence -notmatch "^MS") {
                                         Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] `$CurrentSupercedence : $CurrentSupercedence ..."
                                         $CurrentSupercedence
-                                    }
+                                    } 
                                 })
 
                             SubType               = $CurrentRemediation.SubType
@@ -175,19 +174,12 @@ Function Get-MsrcHotfixInheritance {
     }
 
     #Building a collection of object for all KBID with all related supercedence/successor data
-    $HotfixInheritance = $Hotfix.KBID | Select-Object -Unique | ForEach-Object -Process {
+    $HotfixInheritance = $HotfixInheritedSupercedenceHT.Keys  + $HotfixInheritedSuccessorHT.Keys | Sort-Object | Select-Object -Unique | ForEach-Object -Process {
         $CurrentHotfix = [PSCustomObject]@{
             KBID          = $_
             Supercedences = $HotfixInheritedSupercedenceHT[$_]
             Successors    = $HotfixInheritedSuccessorHT[$_]
         }
-        <#
-        #For Supercedence : Replaced Hotfix
-        $CurrentHotfix = $CurrentHotfix | Add-Member -MemberType ScriptProperty -Name SupercedenceCount -Value { $This.Supercedences.Count } -PassThru | Add-Member ScriptProperty SupercedenceList { $This.Supercedences -join ', ' } -PassThru
-        #For Succession : Replacing Hotfix
-        $CurrentHotfix = $CurrentHotfix | Add-Member -MemberType ScriptProperty -Name SuccessorCount -Value { $This.Successors.Count } -PassThru | Add-Member ScriptProperty SuccessorList { $This.Successors -join ', ' } -PassThru
-        Write-Verbose "[$(Get-Date -Format (Get-Culture).DateTimeFormat.UniversalSortableDateTimePattern)|$($MyInvocation.MyCommand)] Processing $($CurrentHotFix.KBID) for update ..."
-        #>
         $CurrentHotfix 
     }
 
@@ -215,6 +207,7 @@ $Hotfix = Get-MsrcSecurityUpdate -Verbose | Sort-Object -Property InitialRelease
 #Getting all updates for January 2021 for Windows Server 2016 (Server Core installation) (OS and products on this OS version)
 #$Hotfix = Get-MsrcHotfix -ID 2021-Jan -Pattern "Windows Server 2016\s+\(Server Core installation\)" -Verbose
 
+$Hotfix | Select-Object -Property *, @{Name = "SupercedenceList"; Expression = { $_.Supercedence -join ', ' } }, @{Name = "SupercedenceCount "; Expression = { $_.Supercedence.Count } } -ExcludeProperty Supercedence | Export-Csv -Path $HotfixCSVFile -NoTypeInformation
 $Hotfix | ConvertTo-Json | Set-Content -Path $HotfixJSONFile
 #$Hotfix = Get-Content -Path $HotfixJSONFile | ConvertFrom-Json
 
