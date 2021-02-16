@@ -136,8 +136,11 @@ function New-IISLogFile {
 		[int]$Size = 1MB,
 		
 		[Parameter(Mandatory = $False, ParameterSetName = "Content")]
-
 		[switch]$Content,
+
+		[Parameter(Mandatory = $False, ParameterSetName = "Content")]
+		[switch]$Custom,
+
 		[switch]$Force
 	)
 	begin {
@@ -152,6 +155,9 @@ function New-IISLogFile {
 			}
 			Write-Verbose -Message "Encoding : $Encoding"
 		}
+        if ($Custom) {
+            $Content = $true
+        }
 		$IISLogFileContent = @"
 #Software: Microsoft Internet Information Services 10.0
 #Version: 1.0
@@ -159,6 +165,14 @@ function New-IISLogFile {
 #Fields: date time s-sitename s-computername s-ip cs-method cs-uri-stem cs-uri-query s-port cs-username c-ip cs-version cs(User-Agent) cs(Cookie) cs(Referer) cs-host sc-status sc-substatus sc-win32-status sc-bytes cs-bytes time-taken
 2020-12-10 15:02:48 W3SVC1 $env:COMPUTERNAME 127.0.0.1 GET / - 80 - 127.0.0.1 HTTP/1.1 Mozilla/5.0+(Windows+NT+10.0;+WOW64;+Trident/7.0;+Touch;+rv:11.0)+like+Gecko - - 127.0.0.1 304 0 0 166 359 140
 2020-12-10 15:02:48 W3SVC1 $env:COMPUTERNAME 127.0.0.1 GET /iisstart.png - 80 - 127.0.0.1 HTTP/1.1 Mozilla/5.0+(Windows+NT+10.0;+WOW64;+Trident/7.0;+Touch;+rv:11.0)+like+Gecko - http://www.contoso.com/ 127.0.0.1 304 0 0 166 413 15
+"@
+		$IISLogFileCustomContent = @"
+#Software: Microsoft Internet Information Services 10.0
+#Version: 1.0
+#Date: 2020-12-10 15:02:48
+#Fields: date time s-sitename s-computername s-ip cs-method cs-uri-stem cs-uri-query s-port cs-username c-ip cs-version cs(User-Agent) cs(Cookie) cs(Referer) cs-host sc-status sc-substatus sc-win32-status sc-bytes cs-bytes time-taken crypt-protocol crypt-cipher crypt-hash crypt-keyexchange OriginalIP
+2020-12-10 15:02:48 W3SVC1 $env:COMPUTERNAME 127.0.0.1 GET / - 80 - 127.0.0.1 HTTP/1.1 Mozilla/5.0+(Windows+NT+10.0;+WOW64;+Trident/7.0;+Touch;+rv:11.0)+like+Gecko - - 127.0.0.1 304 0 0 166 359 140 400 6610 800d ae06 -
+2020-12-10 15:02:48 W3SVC1 $env:COMPUTERNAME 127.0.0.1 GET /iisstart.png - 80 - 127.0.0.1 HTTP/1.1 Mozilla/5.0+(Windows+NT+10.0;+WOW64;+Trident/7.0;+Touch;+rv:11.0)+like+Gecko - http://www.contoso.com/ 127.0.0.1 304 0 0 166 413 15 400 6610 800d ae06 -
 "@
 	}
 	process {
@@ -201,12 +215,20 @@ function New-IISLogFile {
 							$CurrentLogFile = Join-Path -Path $CurrentLogFileDirectory -ChildPath $('u_nc{0:yy}{0:MM}{0:dd}.log' -f ($LogFileLastWriteTimeUTC))
 						}
 					}
+                    if ($Custom)
+                    {
+                        $CurrentLogFile = $CurrentLogFile -replace ".log$","_x.log"
+                    }
 					if (-not (Test-Path -Path $CurrentLogFile -PathType Leaf)) {
 						Write-Verbose -Message "Creating the $CurrentLogFile file (Size : $Size) ..."
 						# fsutil file createnew $CurrentLogFile $Size | Out-Null
 						# $NewIISLogFile = Get-Item -Path $CurrentLogFile
 						# $NewIISLogFile.LastWriteTimeUTC = $LogFileLastWriteTimeUTC
-						if ($Content) {
+						if ($Custom) {
+							$IISLogFileCustomContent | Out-File -FilePath $CurrentLogFile -Encoding $Encoding
+							(Get-Item -Path $CurrentLogFile).LastWriteTimeUtc = $LogFileLastWriteTimeUTC
+						}
+						elseif ($Content) {
 							$IISLogFileContent | Out-File -FilePath $CurrentLogFile -Encoding $Encoding
 							(Get-Item -Path $CurrentLogFile).LastWriteTimeUtc = $LogFileLastWriteTimeUTC
 						}
@@ -228,7 +250,11 @@ function New-IISLogFile {
 							#$NewIISLogFile = Get-Item -Path $CurrentLogFile
 							#$NewIISLogFile.LastWriteTimeUTC = $LogFileLastWriteTimeUTC
 
-							if ($Content) {
+						    if ($Custom) {
+							    $IISLogFileCustomContent | Out-File -FilePath $CurrentLogFile -Encoding $Encoding
+							    (Get-Item -Path $CurrentLogFile).LastWriteTimeUtc = $LogFileLastWriteTimeUTC
+						    }
+						    elseif ($Content) {
 								$IISLogFileContent | Out-File -FilePath $CurrentLogFile -Encoding $Encoding
 								(Get-Item -Path $CurrentLogFile).LastWriteTimeUtc = $LogFileLastWriteTimeUTC
 							}
@@ -571,8 +597,8 @@ function Compress-FileV5 {
 #endregion
 
 Clear-Host
-# Generates 100 fake log files (one log file per day) for every hosted web sites.
-$NewIISLogFiles = Get-Website | New-IISLogFile -Verbose -Days 100 -Content -Force 
+# Generates 100 fake log files (one log file per day) with custom content (adding custom fields) for every hosted web sites.
+$NewIISLogFiles = Get-Website | New-IISLogFile -Verbose -Days 100 -Custom -Force 
 
 # The 11 following lines are a good example to show you how to keep an history of the 30 newest IIS log files (an IIS log file per day/site): the 10 newest are in the orginal clear text format and the others are compressed.
 # Returns a collection of files contained in the IIS log folder (*.*) older than 30 days for every hosted web sites.
