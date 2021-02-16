@@ -27,11 +27,7 @@ $HotfixJSONFile = Join-Path -Path $CurrentDir -ChildPath "MsrcHotfix.json"
 $HotfixInheritanceCSVFile = Join-Path -Path $CurrentDir -ChildPath "MsrcHotfixInheritance.csv"
 $HotfixInheritanceJSONFile = Join-Path -Path $CurrentDir -ChildPath "MsrcHotfixInheritance.json"
 
-#For getting a API Key: https://microsoft.github.io/MSRC-Microsoft-Security-Updates-API/
-$MSRCApiKey = "4378e032dc6843d8b92685ad3a42d14f"
-
 Import-Module -Name MsrcSecurityUpdates
-Set-MSRCApiKey -ApiKey $MSRCApiKey
 
 function Get-MsrcHotfix {
     [CmdletBinding()]
@@ -174,7 +170,7 @@ Function Get-MsrcHotfixInheritance {
     }
 
     #Building a collection of object for all KBID with all related supercedence/successor data
-    $HotfixInheritance = $HotfixInheritedSupercedenceHT.Keys  + $HotfixInheritedSuccessorHT.Keys | Sort-Object | Select-Object -Unique | ForEach-Object -Process {
+    $HotfixInheritance = $HotfixInheritedSupercedenceHT.Keys + $HotfixInheritedSuccessorHT.Keys | Sort-Object | Select-Object -Unique | ForEach-Object -Process {
         $CurrentHotfix = [PSCustomObject]@{
             KBID          = $_
             Supercedences = $HotfixInheritedSupercedenceHT[$_]
