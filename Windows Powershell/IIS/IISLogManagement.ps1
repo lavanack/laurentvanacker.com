@@ -152,14 +152,14 @@ function New-IISLogFile {
 			}
 			Write-Verbose -Message "Encoding : $Encoding"
 		}
-		$IISLogFileContent = @'
+		$IISLogFileContent = @"
 #Software: Microsoft Internet Information Services 10.0
 #Version: 1.0
 #Date: 2020-12-10 15:02:48
 #Fields: date time s-sitename s-computername s-ip cs-method cs-uri-stem cs-uri-query s-port cs-username c-ip cs-version cs(User-Agent) cs(Cookie) cs(Referer) cs-host sc-status sc-substatus sc-win32-status sc-bytes cs-bytes time-taken
-2020-12-10 15:02:48 W3SVC1 IIS01 127.0.0.1 GET / - 80 - 127.0.0.1 HTTP/1.1 Mozilla/5.0+(Windows+NT+10.0;+WOW64;+Trident/7.0;+Touch;+rv:11.0)+like+Gecko - - 127.0.0.1 304 0 0 166 359 140
-2020-12-10 15:02:48 W3SVC1 IIS01 127.0.0.1 GET /iisstart.png - 80 - 127.0.0.1 HTTP/1.1 Mozilla/5.0+(Windows+NT+10.0;+WOW64;+Trident/7.0;+Touch;+rv:11.0)+like+Gecko - http://www.contoso.com/ 127.0.0.1 304 0 0 166 413 15
-'@
+2020-12-10 15:02:48 W3SVC1 $env:COMPUTERNAME 127.0.0.1 GET / - 80 - 127.0.0.1 HTTP/1.1 Mozilla/5.0+(Windows+NT+10.0;+WOW64;+Trident/7.0;+Touch;+rv:11.0)+like+Gecko - - 127.0.0.1 304 0 0 166 359 140
+2020-12-10 15:02:48 W3SVC1 $env:COMPUTERNAME 127.0.0.1 GET /iisstart.png - 80 - 127.0.0.1 HTTP/1.1 Mozilla/5.0+(Windows+NT+10.0;+WOW64;+Trident/7.0;+Touch;+rv:11.0)+like+Gecko - http://www.contoso.com/ 127.0.0.1 304 0 0 166 413 15
+"@
 	}
 	process {
 		foreach ($currentWebSiteName in $WebSite) {
