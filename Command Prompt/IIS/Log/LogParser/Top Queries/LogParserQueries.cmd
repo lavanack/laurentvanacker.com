@@ -53,7 +53,7 @@ LogParser.exe "SELECT Top 20 TO_LOWERCASE(cs-uri-stem) AS URL, TO_DATE( TO_LOCAL
 REM 27 - Average/Max Processing Time Per Hour
 LogParser.exe "SELECT TO_LocalTime(QUANTIZE(TO_TIMESTAMP(date, time),3600)) AS Hours, AVG(time-taken) AS Avg, MAX(time-taken) AS Max INTO 27_IISHC_AvgMaxProcTimePerHour.gif FROM u_ex*.log WHERE sc-status = 200 GROUP BY Hours ORDER BY Hours" -i:W3C -config:"LogParserScript.js" -o:CHART -charttype:Line -groupsize:800x600 -chartTitle:"Average/Max Processing Time Per Hour (ms)" -stats:OFF
 REM 28 - Aggregated Average Processing Time Per Hour
-LogParser.exe "SELECT TO_LocalTime(quantize(time,3600)) AS Hours, AVG(time-taken) AS Avg INTO 28_IISHC_AggregatedAvgProcTimePerHourRadar.gif FROM u_ex*.log WHERE sc-status = 200 GROUP BY Hours ORDER BY Hours" -i:IISW3C -recurse:-1 -o:CHART -charttype:RadarLineFilled -groupsize:800x600 -chartTitle:"Aggregated Average Processing Time Per Hour (ms)" -stats:OFF
+LogParser.exe "SELECT TO_LocalTime(quantize(time,3600)) AS Hours, AVG(time-taken) AS Avg INTO 28_IISHC_AggregatedAvgProcTimePerHourRadar.gif FROM u_ex*.log WHERE sc-status = 200 GROUP BY Hours ORDER BY Hours" -i:IISW3C -recurse:-1 -o:CHART -charttype:RadarLineFilled -groupsize:800x600 -chartTitle:"Aggregated Average Processing Time Per Hour" -stats:OFF
 REM 29 - Processing Time Per Extension
 LogParser.exe "SELECT EXTRACT_EXTENSION(TO_LOWERCASE(cs-uri-stem)) AS Extension, MUL(PROPSUM(time-taken),100.0) AS ProcessingTime INTO 29_IISHC_ProcTimePerExt.gif FROM u_ex*.log GROUP BY Extension ORDER BY ProcessingTime DESC" -i:W3C -config:"LogParserScript.js" -o:CHART -charttype:PieExploded3D -groupsize:800x600 -chartTitle:"Processing Time Per Extension" -categories:off -stats:OFF
 REM 30 - Outbound BandWidth In MBps
