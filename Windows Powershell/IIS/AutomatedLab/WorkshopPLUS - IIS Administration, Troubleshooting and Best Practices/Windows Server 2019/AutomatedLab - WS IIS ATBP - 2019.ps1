@@ -81,6 +81,7 @@ $SecurityCCSSANCert2NetBiosName = 'SecurityCCSSANCert2'
 $SecurityCCSSANCert2WebSiteName = "$SecurityCCSSANCert2NetBiosName.$FQDNDomainName"
 $SecurityCCSSANCert2IPv4Address = '10.0.0.108'
 
+$MSEdgeEntUri                   = "http://go.microsoft.com/fwlink/?LinkID=2093437"
 
 $LabName = 'IISWSPlus2019'
 #endregion
@@ -261,6 +262,9 @@ foreach ($CurrentIISServerName in $IISServers.Name) {
     Dismount-LabIsoImage -ComputerName $CurrentIISServerName
 }
 
+$MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru
+Install-LabSoftwarePackage -ComputerName $machines -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob
+
 Invoke-LabCommand -ActivityName 'Cleanup on SQL Server' -ComputerName SQL01 -ScriptBlock {
     Remove-Item -Path "C:\vcredist_x*.*" -Force
     Remove-Item -Path "C:\SSMS-Setup-ENU.exe" -Force
@@ -277,8 +281,8 @@ Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName
 Get-VM -Name 'SQL01' | Remove-VMNetworkAdapter -Name 'Default Switch' -ErrorAction SilentlyContinue
 
 #Setting processor number to 1 for all VMs (The AL deployment fails with 1 CPU)
-Get-LabVM -All | Stop-VM -Passthru | Set-VMProcessor -Count 1
-Start-LabVm -All -ProgressIndicator 1 -Wait
+#Get-LabVM -All | Stop-VM -Passthru | Set-VMProcessor -Count 1
+#Start-LabVm -All -ProgressIndicator 1 -Wait
 
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 
