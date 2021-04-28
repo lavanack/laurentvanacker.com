@@ -69,7 +69,6 @@ $SCOMMgmtGroup = 'AutomatedLab'
 
 $SQLSVC = 'SQLSVC'
 $SQLSSRS = 'SQLSSRS'
-# SQL Server port (1433,for example)"
 # User Name with admin rights on SQL Server (SQLUser,for example)
 $SQLUser = 'SQLUser'
 $SCOMSetupLocalFolder = "C:\System Center Operations Manager 2019"       
@@ -329,7 +328,7 @@ $SQLServer2019ReportingServices = Get-LabInternetFile -Uri $SQLServer2019Reporti
 Install-LabSoftwarePackage -ComputerName SQL01 -Path $SQLServer2019ReportingServices.FullName -CommandLine " /quiet /IAcceptLicenseTerms /Edition=Eval"
 #Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
 
-Invoke-LabCommand -ActivityName 'Configuring reporting  Setup on SQL Server' -ComputerName SQL01 -ScriptBlock {
+Invoke-LabCommand -ActivityName 'Configuring Report Server on SQL Server' -ComputerName SQL01 -ScriptBlock {
     #From https://blog.aelterman.com/2018/01/01/silent-installation-and-configuration-for-sql-server-2017-reporting-services/
     #Start-Process -FilePath "$env:ProgramFiles\Microsoft SQL Server Reporting Services\Shared Tools\rsconfig.exe" -ArgumentList "-c -s localhost -d ReportServer -a Windows -i SSRS" -Wait
     # "$env:ProgramFiles\Microsoft SQL Server Reporting Services\Shared Tools\rsconfig.exe -c -s localhost -d ReportServer -a Windows -i SSRS" | Out-File "$ENV:SystemDrive\SCOMUnattendedSetup.cmd" -Append
