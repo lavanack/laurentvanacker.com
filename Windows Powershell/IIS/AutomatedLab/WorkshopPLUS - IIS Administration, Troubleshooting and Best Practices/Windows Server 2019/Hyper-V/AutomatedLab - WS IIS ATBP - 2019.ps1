@@ -284,7 +284,8 @@ Get-VM -Name 'SQL01' | Remove-VMNetworkAdapter -Name 'Default Switch' -ErrorActi
 #Get-LabVM -All | Stop-VM -Passthru | Set-VMProcessor -Count 1
 #Start-LabVm -All -ProgressIndicator 1 -Wait
 
-Checkpoint-LabVM -SnapshotName 'FullInstall' -All
+#Waiting for background jobs
+Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
 
 <#
 Invoke-LabCommand -ActivityName 'Demos Setup' -ComputerName IIS01 -ScriptBlock {
@@ -314,6 +315,7 @@ Start-LabVm -All -ProgressIndicator 1 -Wait
 #>
 
 Show-LabDeploymentSummary -Detailed
+Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 
 $VerbosePreference = $PreviousVerbosePreference
 $ErrorActionPreference = $PreviousErrorActionPreference
