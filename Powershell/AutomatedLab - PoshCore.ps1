@@ -123,10 +123,13 @@ Invoke-LabCommand -ActivityName "Installing Powershell7+, VSCode, PowerShell ext
     #Installing Powershell 7+ : Silent Install
     Invoke-Expression -Command "& { $(Invoke-RestMethod https://aka.ms/install-powershell.ps1) } -UseMSI -Quiet"
 
+    <#
     #Installing VSCode with Powershell extension (and optional additional ones)
     Set-ExecutionPolicy Unrestricted -Force
     Install-Script Install-VSCode -Force
     Install-VSCode.ps1 -AdditionalExtensions $VSCodeExtension.Values
+    #>
+    Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) }  -AdditionalExtensions $($VSCodeExtension.Values)"
 
     #Installing posh-git module
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
