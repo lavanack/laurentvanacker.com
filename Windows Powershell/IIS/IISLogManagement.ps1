@@ -220,7 +220,6 @@ function New-IISLogFile {
                         $CurrentLogFile = $CurrentLogFile -replace ".log$","_x.log"
                     }
 					if (-not (Test-Path -Path $CurrentLogFile -PathType Leaf)) {
-						Write-Verbose -Message "Creating the $CurrentLogFile file (Size : $Size) ..."
 						# fsutil file createnew $CurrentLogFile $Size | Out-Null
 						# $NewIISLogFile = Get-Item -Path $CurrentLogFile
 						# $NewIISLogFile.LastWriteTimeUTC = $LogFileLastWriteTimeUTC
@@ -239,11 +238,11 @@ function New-IISLogFile {
 							[System.IO.File]::SetLastWriteTimeUTC($CurrentLogFile, $LogFileLastWriteTimeUTC)
 
 						}
+						Write-Verbose -Message "Creating the $CurrentLogFile file (Size : $((Get-Item -Path $CurrentLogFile).Length)) ..."
 						$NewIISLogFiles += $NewIISLogFile
 					}
 					else {
 						if ($Force) {
-							Write-Verbose -Message "Overwriting the $CurrentLogFile file (Size : $Size) ..."
 							Remove-Item -Path $CurrentLogFile -Force
 						    
 							#fsutil file createnew $CurrentLogFile $Size | Out-Null
@@ -264,14 +263,14 @@ function New-IISLogFile {
 								$NewIISLogFile.Close()
 								[System.IO.File]::SetLastWriteTimeUTC($CurrentLogFile, $LogFileLastWriteTimeUTC)
 							}
-							
+    						Write-Verbose -Message "Overwriting the $CurrentLogFile file (Size : $((Get-Item -Path $CurrentLogFile).Length)) ..."						
 							$NewIISLogFiles += $NewIISLogFile
 						}
 						else {
 							Write-Verbose -Message "Skipping the $CurrentLogFile file because it already exists ..."
 						}
 					}
-					Write-Progress -Activity "$($CurrentWebSite.Name) - $($('{0:yyyy}/{0:MM}/{0:dd}' -f ($LogFileLastWriteTimeUTC)))" -Status "Processing $CurrentLogFile (Size : $Size)" -PercentComplete (($Days + $_) / $Days * 100)
+					Write-Progress -Activity "$($CurrentWebSite.Name) - $($('{0:yyyy}/{0:MM}/{0:dd}' -f ($LogFileLastWriteTimeUTC)))" -Status "Processing $CurrentLogFile (Size : $((Get-Item -Path $CurrentLogFile).Length))" -PercentComplete (($Days + $_) / $Days * 100)
 					Write-Verbose -Message $('Percent Complete : {0:p0}' -f $(($Days + $_) / $Days))
 				}
 				Write-Progress -Activity 'IIS Logs Generation Completed !' -Status 'IIS Logs Generation Completed !' -Completed
@@ -380,7 +379,6 @@ function Get-IISLogFile {
 		return $IISLogFiles
 	}
 }
-
 
 function Compress-File {
 	<#
