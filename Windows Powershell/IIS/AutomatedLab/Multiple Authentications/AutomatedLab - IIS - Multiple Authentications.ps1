@@ -94,6 +94,18 @@ $FormsIPv4Address = '10.0.0.109'
 
 $ClientAuthCertTemplateName = 'ClientAuthentication'
 $LabName = 'IISAuthLab'
+
+$LocalTempFolder = 'C:\Temp'
+
+#Wireshark Download URI
+$WiresharkWin64LatestExeUri = 'https://1.eu.dl.wireshark.org/win64/Wireshark-win64-latest.exe'
+
+#NPCap Download URI
+$NPCapExeUri = 'https://nmap.org/npcap/dist/npcap-1.31.exe'
+#NMAP Download URI
+$NMAPExeUri = 'https://nmap.org/dist/nmap-7.12-setup.exe'
+# Code from: https://perplexity.nl/windows-powershell/installing-or-updating-7-zip-using-powershell/
+$7zipExeUri = 'https://7-zip.org/' + (Invoke-WebRequest -Uri 'https://7-zip.org/' | Select-Object -ExpandProperty Links | Where-Object {($_.innerHTML -eq 'Download') -and ($_.href -like "a/*") -and ($_.href -like "*-x64.exe")} | Select-Object -First 1 | Select-Object -ExpandProperty href)
 #endregion
 
 #Cleaning previously existing lab
@@ -248,11 +260,11 @@ Invoke-LabCommand -ActivityName 'DNS, DFS-R Setup & GPO Settings on DC' -Compute
     #region WireShark : (Pre)-Master-Secret Log Filename
     $GPO = New-GPO -Name "(Pre)-Master-Secret Log Filename" | New-GPLink -Target $DefaultNamingContext
     #For decrypting SSL traffic via network tools : https://support.f5.com/csp/article/K50557518
-    $SSLKeysFile = '%USERPROFILE%\AppData\Local\ssl-keys.log'
+    $SSLKeysFile = '%USERPROFILE%\AppData\Local\WireShark\ssl-keys.log'
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Environment' -ValueName "SSLKEYLOGFILE" -Type ([Microsoft.Win32.RegistryValueKind]::ExpandString) -Value $SSLKeysFile
     #endregion
 
-    Invoke-GPUpdate -Computer Client01 -Force
+    Invoke-GPUpdate -Computer CLIENT01 -Force
 }
 
 
@@ -262,7 +274,9 @@ $CertificationAuthority = Get-LabIssuingCA
 #Generating a new template for SSL Web Server certificate
 New-LabCATemplate -TemplateName WebServerSSL -DisplayName 'Web Server SSL' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ComputerName $CertificationAuthority -ErrorAction Stop
 New-LabCATemplate -TemplateName $ClientAuthCertTemplateName -DisplayName 'Client Authentication' -SourceTemplateName ClientAuth -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers', 'Domain Users' -ComputerName $CertificationAuthority -ErrorAction Stop
-#Getting a New SSL Web Server Certificate for the basic website
+#Getting a New SSL Web Server Certificate for the anonymous website
+$AnonymousWebSiteSSLCert = Request-LabCertificate -Subject "CN=$AnonymousWebSiteName" -SAN $AnonymousNetBiosName, "$AnonymousWebSiteName", "IIS01", "IIS01.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName IIS01 -PassThru -ErrorAction Stop
+#Getting a New SSL Web Server Certificate for the IIS client certificate one to one website
 $BasicWebSiteSSLCert = Request-LabCertificate -Subject "CN=$BasicWebSiteName" -SAN $BasicNetBiosName, "$BasicWebSiteName", "IIS01", "IIS01.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName IIS01 -PassThru -ErrorAction Stop
 #Getting a New SSL Web Server Certificate for the IIS client certificate one to one website
 $IISClientOneToOneCertWebSiteSSLCert = Request-LabCertificate -Subject "CN=$IISClientOneToOneCertWebSiteName" -SAN $IISClientOneToOneCertNetBiosName, "$IISClientOneToOneCertWebSiteName", "IIS01", "IIS01.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName IIS01 -PassThru -ErrorAction Stop
@@ -270,9 +284,11 @@ $IISClientOneToOneCertWebSiteSSLCert = Request-LabCertificate -Subject "CN=$IISC
 $IISClientManyToOneCertWebSiteSSLCert = Request-LabCertificate -Subject "CN=$IISClientManyToOneCertWebSiteName" -SAN $IISClientManyToOneCertNetBiosName, "$IISClientManyToOneCertWebSiteName", "IIS01", "IIS01.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName IIS01 -PassThru -ErrorAction Stop
 #Getting a New SSL Web Server Certificate for the IIS client certificate many to one website
 $ADClientCertWebSiteSSLCert = Request-LabCertificate -Subject "CN=$ADClientCertWebSiteName" -SAN $ADClientCertNetBiosName, "$ADClientCertWebSiteName", "IIS01", "IIS01.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName IIS01 -PassThru -ErrorAction Stop
+#Getting a New SSL Web Server Certificate for the forms website
+$FormsWebSiteSSLCert = Request-LabCertificate -Subject "CN=$FormsWebSiteName" -SAN $FormsNetBiosName, "$FormsWebSiteName", "IIS01", "IIS01.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName IIS01 -PassThru -ErrorAction Stop
 
 #Copying Web site content on all IIS servers
-Copy-LabFileItem -Path $CurrentDir\contoso.com.zip -DestinationFolderPath C:\Temp -ComputerName IIS01
+Copy-LabFileItem -Path $CurrentDir\contoso.com.zip -DestinationFolderPath $LocalTempFolder -ComputerName IIS01
 
 Invoke-LabCommand -ActivityName 'Client Authentication Certificate Management' -ComputerName CA01 -ScriptBlock {
     $Filter  = "(CN=$using:ClientAuthCertTemplateName)"
@@ -289,8 +305,53 @@ Invoke-LabCommand -ActivityName 'Client Authentication Certificate Management' -
 }
 
 
+#Installing MS Edge on CLIENT01
 $MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru
 Install-LabSoftwarePackage -ComputerName CLIENT01 -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob
+
+#region Wireshark silent install on CLIENT01
+#Copying WireShark on CLIENT01. Silent install is not available due to npcap. cf. https://www.wireshark.org/docs/wsug_html_chunked/ChBuildInstallWinInstall.html
+$WiresharkWin64LatestExe = Get-LabInternetFile -Uri $WiresharkWin64LatestExeUri -Path $labSources\SoftwarePackages -PassThru
+#Install-LabSoftwarePackage -ComputerName CLIENT01 -Path $WiresharkWin64LatestExe.FullName -CommandLine "/S" -AsJob
+$LocalWiresharkWin64LatestExe = Copy-LabFileItem -Path $WiresharkWin64LatestExe.FullName -DestinationFolderPath $LocalTempFolder -ComputerName CLIENT01 -PassThru
+
+#Copying NMAP on CLIENT01. Silent install is not available due to npcap. cf. https://www.wireshark.org/docs/wsug_html_chunked/ChBuildInstallWinInstall.html
+$NMAPExe = Get-LabInternetFile -Uri $NMAPExeUri -Path $labSources\SoftwarePackages -PassThru
+$LocalNMAPExe = Copy-LabFileItem -Path $NMAPExe.FullName -DestinationFolderPath $LocalTempFolder -ComputerName CLIENT01 -PassThru
+
+$7zipExe = Get-LabInternetFile -Uri $7zipExeUri -Path $labSources\SoftwarePackages -PassThru
+Install-LabSoftwarePackage -ComputerName CLIENT01 -Path $7zipExe.FullName -CommandLine "/S"
+
+#cf. https://silentinstallhq.com/wireshark-silent-install-how-to-guide/
+Invoke-LabCommand -ActivityName 'Wireshark Silent Install' -ComputerName CLIENT01 -PassThru -ScriptBlock {
+    #$LocalTempFolder = $(Split-Path -Path $using:LocalNMAPExe -Parent)
+    #WireShark Silent install
+    Start-Process -FilePath $(Join-Path -Path $Env:ProgramFiles -ChildPath '7-Zip\7z.exe') -ArgumentList "x", "$using:LocalNMAPExe", "-o$using:LocalTempFolder", "-y" -Wait
+    Start-Process -FilePath $(Join-Path -Path $using:LocalTempFolder -ChildPath "winpcap-nmap-4.13.exe")  -ArgumentList "/S" -Wait
+    Start-Process -FilePath $using:LocalWiresharkWin64LatestExe -ArgumentList "/S" -Wait
+}
+
+
+Invoke-LabCommand -ActivityName 'Configuration for TLS Key log file' -ComputerName CLIENT01 -Credential $TestUserCredential  -PassThru -ScriptBlock {
+    #WireShark TLS Key Log file Configuration
+    $WireSharkPreferencesFile = Join-Path -Path $env:APPDATA -ChildPath 'Wireshark\preferences'
+    #$TLSKeyLogFile = Join-Path -Path $env:USERPROFILE -ChildPath 'AppData\Local\WireShark\ssl-keys.log'
+    $TLSKeyLogFile = $env:SSLKEYLOGFILE
+    #$null = New-Item -Path $TLSKeyLogFile -ItemType File -Force
+    if (Test-Path $WireSharkPreferencesFile)
+    {
+        $Content = Get-Content -Path $WireSharkPreferencesFile
+        $NewContent = $Content -replace '#?tls.keylog_file:\s*(.*)$', "tls.keylog_file: $TLSKeyLogFile"
+        $NewContent | Set-Content -Path $WireSharkPreferencesFile
+    }
+    else
+    {
+        #$null = New-Item -Path $WireSharkPreferencesFile -ItemType File -Force
+        $Content = "tls.keylog_file: $TLSKeyLogFile"
+        $Content | Set-Content -Path $WireSharkPreferencesFile -Force
+    }
+}
+#endregion
 
 $AdmIISClientCertContent = Invoke-LabCommand -ActivityName '1:1 IIS and AD Client Certificate Management for Administrator' -ComputerName CLIENT01 -PassThru -ScriptBlock {
     #Adding users to the Administrators group for remote connection via PowerShell for getting a certificate (next step)
@@ -304,7 +365,7 @@ $AdmIISClientCertContent = Invoke-LabCommand -ActivityName '1:1 IIS and AD Clien
     }
 
     #Installing Microsoft Edge
-    #Start-Process msiexec.exe -ArgumentList "/i C:\temp\$($using:MSEdgeEntX64MSIFile) /passive /norestart /log C:\temp\$($using:MSEdgeEntX64MSIFile).log" -Wait
+    #Start-Process msiexec.exe -ArgumentList "/i $(Join-Path -Path $using:LocalTempFolder -ChildPath $using:MSEdgeEntX64MSIFile) /passive /norestart /log (Join-Path -Path $using:LocalTempFolder -ChildPath "$($using:MSEdgeEntX64MSIFile).log") -Wait
 }
 
 $TestUserIISClientCertContent = Invoke-LabCommand -ActivityName '1:1 IIS and AD Client Certificate Management for Test User' -ComputerName CLIENT01 -Credential $TestUserCredential -PassThru -ScriptBlock {
@@ -342,7 +403,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #Assigning dedicated IP address
     New-NetIPAddress –IPAddress $using:AnonymousIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
     #Unzipping site content to dedicated folders
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:AnonymousWebSiteName" -Force
+    Expand-Archive $(Join-Path -Path $using:LocalTempFolder -ChildPath "contoso.com.zip") -DestinationPath "C:\WebSites\$using:AnonymousWebSiteName" -Force
     #Creating a dedicated web site
     New-WebAppPool -Name "$using:AnonymousWebSiteName" -Force
     #Creating a dedicated application pool
@@ -356,7 +417,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #Assigning dedicated IP address
     New-NetIPAddress –IPAddress $using:BasicIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
     #Unzipping site content to dedicated folders
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:BasicWebSiteName" -Force
+    Expand-Archive $(Join-Path -Path $using:LocalTempFolder -ChildPath "contoso.com.zip") -DestinationPath "C:\WebSites\$using:BasicWebSiteName" -Force
     #Creating a dedicated application pool
     New-WebAppPool -Name "$using:BasicWebSiteName" -Force
     #Creating a dedicated web site
@@ -388,7 +449,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #Creating a dedicated web site
     #Creating a dedicated application pool
     New-NetIPAddress –IPAddress $using:KerberosIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:KerberosWebSiteName" -Force
+    Expand-Archive $(Join-Path -Path $using:LocalTempFolder -ChildPath "contoso.com.zip") -DestinationPath "C:\WebSites\$using:KerberosWebSiteName" -Force
     New-WebAppPool -Name "$using:KerberosWebSiteName" -Force
     New-WebSite -Name "$using:KerberosWebSiteName" -Port 80 -IPAddress $using:KerberosIPv4Address -PhysicalPath "C:\WebSites\$using:KerberosWebSiteName" -ApplicationPool "$using:KerberosWebSiteName" -Force
 
@@ -415,7 +476,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #Assigning dedicated IP address
     New-NetIPAddress –IPAddress $using:NTLMIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
     #Unzipping site content to dedicated folders
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:NTLMWebSiteName" -Force
+    Expand-Archive $(Join-Path -Path $using:LocalTempFolder -ChildPath "contoso.com.zip") -DestinationPath "C:\WebSites\$using:NTLMWebSiteName" -Force
     #Creating a dedicated application pool
     New-WebAppPool -Name "$using:NTLMWebSiteName" -Force
     #Creating a dedicated web site
@@ -442,7 +503,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #Assigning dedicated IP address
     New-NetIPAddress –IPAddress $using:DigestIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
     #Unzipping site content to dedicated folders
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:DigestWebSiteName" -Force
+    Expand-Archive $(Join-Path -Path $using:LocalTempFolder -ChildPath "contoso.com.zip") -DestinationPath "C:\WebSites\$using:DigestWebSiteName" -Force
     #Creating a dedicated application pool
     New-WebAppPool -Name "$using:DigestWebSiteName" -Force
     #Creating a dedicated web site
@@ -469,7 +530,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #Assigning dedicated IP address
     New-NetIPAddress –IPAddress $using:ADClientCertIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
     #Unzipping site content to dedicated folders
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:ADClientCertWebSiteName" -Force
+    Expand-Archive $(Join-Path -Path $using:LocalTempFolder -ChildPath "contoso.com.zip") -DestinationPath "C:\WebSites\$using:ADClientCertWebSiteName" -Force
     #Creating a dedicated application pool
     New-WebAppPool -Name "$using:ADClientCertWebSiteName" -Force
     #Creating a dedicated web site
@@ -507,7 +568,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #Assigning dedicated IP address
     New-NetIPAddress –IPAddress $using:IISClientOneToOneCertIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
     #Unzipping site content to dedicated folders
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:IISClientOneToOneCertWebSiteName" -Force
+    Expand-Archive $(Join-Path -Path $using:LocalTempFolder -ChildPath "contoso.com.zip") -DestinationPath "C:\WebSites\$using:IISClientOneToOneCertWebSiteName" -Force
     #Creating a dedicated application pool
     New-WebAppPool -Name "$using:IISClientOneToOneCertWebSiteName" -Force
     #Creating a dedicated web site
@@ -544,7 +605,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #Assigning dedicated IP address
     New-NetIPAddress –IPAddress $using:IISClientManyToOneCertIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
     #Unzipping site content to dedicated folders
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:IISClientManyToOneCertWebSiteName" -Force
+    Expand-Archive $(Join-Path -Path $using:LocalTempFolder -ChildPath "contoso.com.zip") -DestinationPath "C:\WebSites\$using:IISClientManyToOneCertWebSiteName" -Force
     #Creating a dedicated application pool
     New-WebAppPool -Name "$using:IISClientManyToOneCertWebSiteName" -Force
     #Creating a dedicated web site
@@ -584,12 +645,21 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #Assigning dedicated IP address
     New-NetIPAddress –IPAddress $using:FormsIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
     #Unzipping site content to dedicated folders
-    Expand-Archive 'C:\Temp\contoso.com.zip' -DestinationPath "C:\WebSites\$using:FormsWebSiteName" -Force
+    Expand-Archive $(Join-Path -Path $using:LocalTempFolder -ChildPath "contoso.com.zip") -DestinationPath "C:\WebSites\$using:FormsWebSiteName" -Force
     #Creating a dedicated application pool
     New-WebAppPool -Name "$using:FormsWebSiteName" -Force
     #Creating a dedicated web site
     New-WebSite -Name "$using:FormsWebSiteName" -Port 443 -IPAddress $using:FormsIPv4Address -PhysicalPath "C:\WebSites\$using:FormsWebSiteName" -ApplicationPool "$using:FormsWebSiteName" -Ssl -SslFlags 0 -Force
-
+    #Binding Management for SSL (Neither SNI nor CCS)
+    #0: Regular certificate in Windows certificate storage.
+    #1: SNI certificate.
+    #2: Central certificate store.
+    #3: SNI certificate in central certificate store.
+    New-Item -Path "IIS:\SslBindings\$using:FormsIPv4Address!443!$using:FormsWebSiteName" -Thumbprint $($using:FormsWebSiteSSLCert).Thumbprint -sslFlags 0
+    #Require SSL
+    #Get-IISConfigSection -SectionPath 'system.webServer/security/access' -Location "$using:FormsWebSiteName" | Set-IISConfigAttributeValue -AttributeName sslFlags -AttributeValue Ssl
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:FormsWebSiteName" -filter "system.webServer/security/access" -name "sslFlags" -value "Ssl"
+    
     #Enabling the Anonymous authentication
     Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:FormsWebSiteName" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'True'
     #Enabling the Forms authentication
@@ -603,6 +673,8 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:FormsWebSiteName"  -filter "system.web/authentication/forms/credentials" -name "passwordFormat" -value "Clear"
     Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:FormsWebSiteName"  -filter "system.web/authentication/forms" -name "defaultUrl" -value "default.aspx"
     Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:FormsWebSiteName"  -filter "system.web/authentication/forms" -name "loginUrl" -value "login.aspx"
+    Set-WebConfigurationProperty -pspath "MACHINE/WEBROOT/APPHOST/$using:FormsWebSiteName"  -filter "system.web/authentication/forms" -name "requireSSL" -value "True"
+    
     #Denying access to anonymous users
     #Local (web.config)
     Add-WebConfigurationProperty -PSPath "IIS:\Sites\$using:FormsWebSiteName" -filter "/system.web/authorization" -Name "." -value @{users='?'} -Type "deny"
@@ -617,6 +689,8 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
    #endregion
 }
 
+#Waiting for background jobs
+Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
 
 Show-LabDeploymentSummary -Detailed
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All -Verbose

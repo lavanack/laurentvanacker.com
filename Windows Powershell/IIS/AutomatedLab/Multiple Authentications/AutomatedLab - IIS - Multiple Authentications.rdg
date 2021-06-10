@@ -39,15 +39,9 @@
       <logonCredentials inherit="None">
         <profileName scope="Local">Custom</profileName>
         <userName>Administrator</userName>
-        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAADVlNwQ0XXE6U+8MLXE+iUgAAAAACAAAAAAAQZgAAAAEAACAAAADthFYf99axrBj7CmR90oH+pRnHydZg4tHYN4axBvvGWQAAAAAOgAAAAAIAACAAAAARgtEetIUF4KBGPN1dRocKLXaLLVop8hbCenRyNejINSAAAAAaPmmYbMZBuvEGfoyPQ3xK0sQccllEtiv5nGsCo7JmCUAAAAAlnhI7jJ1Tbc78ux3aPEqQ1LdbIubaRROC9vRpBwetlbVpJOp6Efjz8UbzHnTscXQ2nEGnFtkA8gF9nqatg80z</password>
+        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAASo4Cfnw++0mzN5WGFvYodAAAAAACAAAAAAAQZgAAAAEAACAAAACXscdmooCttpCnP7SfbhsWYCZm5OdF4J3bwrGSiGjzZgAAAAAOgAAAAAIAACAAAACY/Ex5Bv9s5F101sHJn1Hg4AF7oAcQXRYu5ONs+23q/CAAAADuA41KXB1PhuMEOrO7khQcnr4K4yAsgtE8WUJ9o1mPa0AAAACYjqakcqjUmnvs5dn+fdBr+7y08loCpgaEN93LjoBeAzyefDcUn9CpEd2DHo+L18ZBoGS/jUqV8xhDi1LtX9Ou</password>
         <domain>CONTOSO</domain>
       </logonCredentials>
-      <server>
-        <properties>
-          <displayName>CA01</displayName>
-          <name>10.0.0.2</name>
-        </properties>
-      </server>
       <server>
         <properties>
           <displayName>CLIENT01</displayName>
@@ -56,9 +50,15 @@
         <logonCredentials inherit="None">
           <profileName scope="Local">Custom</profileName>
           <userName>JohnDoe</userName>
-          <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAADVlNwQ0XXE6U+8MLXE+iUgAAAAACAAAAAAAQZgAAAAEAACAAAADD9e7z2xriiK2sVcX2xI7QucaAvLs5C+u1Ke3Ao1ApsQAAAAAOgAAAAAIAACAAAABDPkaUPnfPmQ4vVwPpxlo626Lg2HSP0mJYQFoxHh2f7SAAAAA3EsQo+XVqLPBhZp3UJZw4MWyjdlPZocb0EmCrc4pRjkAAAACE7qqZFRzySLgM36tHVVssDTZa9bITzcB5GvWzCY2EQ2aCQcsm6wSzEkAgbpLsyGWwI7EvkVcSGkhZT86zKh8m</password>
+          <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAASo4Cfnw++0mzN5WGFvYodAAAAAACAAAAAAAQZgAAAAEAACAAAACzJ8WPaCyNwxfJVp1WFO1cMYjJq+PT9Ncv0a0zX27rZAAAAAAOgAAAAAIAACAAAADim+5KQQIiJccQ9Kz5Q2oBicnWwk4yLCeIOUWGcTx8yyAAAAC/0PfxqTI+MWfEqMEaJ/XPMeT3qDYm7zneZ82GQgpLlEAAAADHw9hr7k6UUOKDFWqcLhNuyWkaEadGL6C9ge9dCaP9zZW7JoYC6BAKMhL8QfAt4D41dfafD+fPPGH7qM+kfYq6</password>
           <domain>CONTOSO</domain>
         </logonCredentials>
+      </server>
+      <server>
+        <properties>
+          <displayName>CA01</displayName>
+          <name>10.0.0.2</name>
+        </properties>
       </server>
       <server>
         <properties>
