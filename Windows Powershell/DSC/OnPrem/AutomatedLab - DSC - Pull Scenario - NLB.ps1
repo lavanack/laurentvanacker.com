@@ -246,9 +246,11 @@ Invoke-LabCommand -ActivityName 'Renaming NICs' -ComputerName $PullServers -Scri
     Restart-Service -Name DFSR -Force
     Start-Sleep -Seconds 10
 
+    <#
     #Renaming the NIC and setting up the metric for NLB management
     Rename-NetAdapter -Name "$using:labName 0" -NewName 'Internal' -PassThru | Set-NetIPInterface -InterfaceMetric 1
     Rename-NetAdapter -Name "$using:labName 1" -NewName 'NLB' -PassThru | Set-NetIPInterface -InterfaceMetric 2
+    #>
 }
 
 Invoke-LabCommand -ActivityName 'NLB Setup' -ComputerName PULL01 {
@@ -330,7 +332,7 @@ Invoke-LabCommand -ActivityName 'Importing the Web Server Certificate & Setting 
     #1: SNI certificate.
     #2: Central certificate store.
     #3: SNI certificate in central certificate store.
-    #DSC Web Service seems to be incompatible with CCS so we set sslflags to 0
+    #!!! DSC Web Service seems to be incompatible with CCS so we set sslFlags to 0 !!!
     New-WebBinding -Name "$using:ServerComment" -sslFlags 0 -Protocol https -Port 443
     #New-Item -Path "IIS:\SslBindings\!443!$using:NLBWebSiteName" -Thumbprint $WebServerSSLCert.Thumbprint -sslFlags 0
     New-Item -Path "IIS:\SslBindings\!443" -Thumbprint $WebServerSSLCert.Thumbprint -sslFlags 0

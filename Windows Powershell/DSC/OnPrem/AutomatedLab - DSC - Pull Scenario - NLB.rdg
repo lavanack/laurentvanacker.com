@@ -39,21 +39,9 @@
       <logonCredentials inherit="None">
         <profileName scope="Local">Custom</profileName>
         <userName>Administrator</userName>
-        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAOs6IcrS64UGeAtEtFiNk9QAAAAACAAAAAAAQZgAAAAEAACAAAAB8GM5aLuldcJXWTEEHaA2vI9yip8hy+cuVYwxZX9bwHwAAAAAOgAAAAAIAACAAAAAnS3/YGPMlLmECKSBPGvLe44hvgf1HrwM3/kWfjFz35CAAAABT674efFG8Hi/RklwANdw1UXJlqMp1YAGISujSQrJ0uEAAAADOEJnPfzBGWM9Fw5Lg+pCCHrxrPITakCSXzOhD0sZBwxiPAz8F8KXbEg/WnrwKn1fbDeegjmdB5SR3MGZMc+Cn</password>
+        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAASo4Cfnw++0mzN5WGFvYodAAAAAACAAAAAAAQZgAAAAEAACAAAAAKpcXbUK5SoHeLrUXFsYHSEODQTOo3O2ATGJk8LWjUxQAAAAAOgAAAAAIAACAAAAAYmCpu5y04G4FL+XvJbrkFbMW6LdxnjZyl0YS+UOeAFSAAAAC5I3RW27f1NETd8Df9MH74OEPluOeNJgTi76t9lKUwtUAAAAC1mun5odt1mg0CkL3wDIu69y60oSPj+zuirz34S43Cgkbe37Uu19U/Ain/6dFMmjpT1Q3a+Tu35CTLO9wfwMcl</password>
         <domain>CONTOSO</domain>
       </logonCredentials>
-      <server>
-        <properties>
-          <displayName>SERVER01</displayName>
-          <name>10.0.0.51</name>
-        </properties>
-      </server>
-      <server>
-        <properties>
-          <displayName>CA01</displayName>
-          <name>10.0.0.11</name>
-        </properties>
-      </server>
       <server>
         <properties>
           <displayName>DC01</displayName>
@@ -80,8 +68,8 @@
       </server>
       <server>
         <properties>
-          <displayName>SERVER02</displayName>
-          <name>10.0.0.52</name>
+          <displayName>SERVER01</displayName>
+          <name>10.0.0.51</name>
         </properties>
       </server>
       <server>
