@@ -96,8 +96,9 @@ function New-MachineKey {
 $Logon = 'Administrator'
 $ClearTextPassword = 'P@ssw0rd'
 $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
-$NetBiosDomainName = 'CONTOSO'
 $FQDNDomainName = 'contoso.com'
+#$NetBiosDomainName = 'CONTOSO'
+$NetBiosDomainName = $FQDNDomainName.split('\.')[0].ToUpper()
 $IISAppPoolUser = 'IISAppPoolUser'
 
 $NetworkID='10.0.0.0/16' 
@@ -117,6 +118,7 @@ $ARRNetBiosName='arr'
 $ARRWebSiteName="$ARRNetBiosName.$FQDNDomainName"
 $ARRIPv4Address = '10.0.0.101'
 
+$MSEdgeEntUri = "http://go.microsoft.com/fwlink/?LinkID=2093437"
 $LabName = 'NLBARRLab'
 #endregion
 
@@ -186,6 +188,9 @@ Install-LabWindowsFeature -FeatureName FS-DFS-Replication -ComputerName DC01 -In
 Install-LabWindowsFeature -FeatureName NLB, Web-CertProvider -ComputerName ARRNODE01, ARRNODE02 -IncludeManagementTools
 Install-LabWindowsFeature -FeatureName Web-Windows-Auth -ComputerName IISNODE01, IISNODE02 -IncludeManagementTools
 #endregion
+
+$MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru
+Install-LabSoftwarePackage -ComputerName $machines -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob
 
 Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $ARRWebSiteName to the IE intranet zone" -ComputerName $machines -ScriptBlock {
     #Disabling IE ESC
@@ -309,11 +314,11 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Sc
 Invoke-LabCommand -ActivityName 'Renaming NICs' -ComputerName ARRNODE01, ARRNODE02 -ScriptBlock {
 
     #Renaming the NIC and setting up the metric for NLB management
-    Rename-NetAdapter -Name "$using:labName 0" -NewName 'Internal' -PassThru | Set-NetIPInterface -InterfaceMetric 1
-    Rename-NetAdapter -Name "$using:labName 1" -NewName 'NLB' -PassThru | Set-NetIPInterface -InterfaceMetric 2
+    #Rename-NetAdapter -Name "$using:labName 0" -NewName 'Internal' -PassThru | Set-NetIPInterface -InterfaceMetric 1
+    #Rename-NetAdapter -Name "$using:labName 1" -NewName 'NLB' -PassThru | Set-NetIPInterface -InterfaceMetric 2
 
-    #Get-NetAdapter -Name 'Internal' | Set-NetIPInterface -InterfaceMetric 1
-    #Get-NetAdapter -Name 'NLB'| Set-NetIPInterface -InterfaceMetric 2
+    Get-NetAdapter -Name 'Internal' | Set-NetIPInterface -InterfaceMetric 1
+    Get-NetAdapter -Name 'NLB'| Set-NetIPInterface -InterfaceMetric 2
 }
 
 Invoke-LabCommand -ActivityName 'NLB Setup' -ComputerName ARRNODE01 {
@@ -487,7 +492,7 @@ Invoke-LabCommand -ActivityName 'IIS Extensions, SNI/CSS Setup, ARR and URL Rewr
     #Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter "webFarms/webFarm[@name='$using:ARRWebSiteName']/server[@address='ARRNODE01']" -Name 'applicationRequestRouting' -Value @{ httpPort = 443 }
     #Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter "webFarms/webFarm[@name='$using:ARRWebSiteName']/server[@address='ARRNODE02']" -Name 'applicationRequestRouting' -Value @{ httpPort = 443 }
 
-    #Heatlcheck test page and pattern to found if ok
+    #Healthcheck test page and pattern to found if ok
     Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter "webFarms/webFarm[@name='$using:ARRWebSiteName']/applicationRequestRouting" -Name 'healthcheck' -Value @{
         url           = "http://$using:ARRWebSiteName/healthcheck/default.aspx"
         interval      = '00:00:05'
@@ -630,6 +635,9 @@ Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration' -ComputerNam
     }
     Enable-IISSharedConfig  -PhysicalPath C:\ARRSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
 }
+
+#Waiting for background jobs
+Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
 
 Show-LabDeploymentSummary -Detailed
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All -Verbose
