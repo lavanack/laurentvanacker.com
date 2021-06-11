@@ -332,12 +332,12 @@ Invoke-LabCommand -ActivityName 'Wireshark Silent Install' -ComputerName CLIENT0
 }
 
 
-Invoke-LabCommand -ActivityName 'Configuration for TLS Key log file' -ComputerName CLIENT01 -Credential $TestUserCredential  -PassThru -ScriptBlock {
+Invoke-LabCommand -ActivityName 'Configuration for TLS Key log file' -ComputerName CLIENT01 -Credential $TestUserCredential -PassThru -ScriptBlock {
     #WireShark TLS Key Log file Configuration
     $WireSharkPreferencesFile = Join-Path -Path $env:APPDATA -ChildPath 'Wireshark\preferences'
     #$TLSKeyLogFile = Join-Path -Path $env:USERPROFILE -ChildPath 'AppData\Local\WireShark\ssl-keys.log'
     $TLSKeyLogFile = $env:SSLKEYLOGFILE
-    #$null = New-Item -Path $TLSKeyLogFile -ItemType File -Force
+    $null = New-Item -Path $TLSKeyLogFile -ItemType File -Force
     if (Test-Path $WireSharkPreferencesFile)
     {
         $Content = Get-Content -Path $WireSharkPreferencesFile
@@ -346,7 +346,7 @@ Invoke-LabCommand -ActivityName 'Configuration for TLS Key log file' -ComputerNa
     }
     else
     {
-        #$null = New-Item -Path $WireSharkPreferencesFile -ItemType File -Force
+        $null = New-Item -Path $WireSharkPreferencesFile -ItemType File -Force
         $Content = "tls.keylog_file: $TLSKeyLogFile"
         $Content | Set-Content -Path $WireSharkPreferencesFile -Force
     }
