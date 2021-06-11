@@ -596,7 +596,7 @@ function Compress-FileV5 {
 
 Clear-Host
 # Generates 100 fake log files (one log file per day) with custom content (adding custom fields) for every hosted web sites.
-$NewIISLogFiles = Get-Website | New-IISLogFile -Verbose -Days 100 -Custom -Force 
+$NewIISLogFiles = Get-Website | New-IISLogFile -Verbose -Days 100 -Custom
 
 # The 11 following lines are a good example to show you how to keep an history of the 30 newest IIS log files (an IIS log file per day/site): the 10 newest are in the orginal clear text format and the others are compressed.
 # Returns a collection of files contained in the IIS log folder (*.*) older than 30 days for every hosted web sites.
@@ -607,7 +607,7 @@ $IISLogFiles | Remove-Item -Force -Verbose
 # Returns a collection of IIS log files (*.log only) older than 10 days for every hosted web sites.
 $IISLogFiles = Get-Website | Get-IISLogFile -Verbose -OlderThanXDays 10
 # Compresses these files, set the last write time of the compressed file to the last write time of the source file and returns a collection of the compressed files
-$CompressedFiles = $IISLogFiles | Compress-FileV5 -Force -Verbose -PreserveLastWriteTime
+$CompressedFiles = $IISLogFiles | Compress-File -Force -Verbose -PreserveLastWriteTime
 # Removes the non-compressed files (to keep only those compressed at the previous line)
 $IISLogFiles | Remove-Item -Force -Verbose 
 
