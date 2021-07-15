@@ -155,9 +155,9 @@ function New-IISLogFile {
 			}
 			Write-Verbose -Message "Encoding : $Encoding"
 		}
-        if ($Custom) {
-            $Content = $true
-        }
+		if ($Custom) {
+			$Content = $true
+		}
 		$IISLogFileContent = @"
 #Software: Microsoft Internet Information Services 10.0
 #Version: 1.0
@@ -215,10 +215,9 @@ function New-IISLogFile {
 							$CurrentLogFile = Join-Path -Path $CurrentLogFileDirectory -ChildPath $('u_nc{0:yy}{0:MM}{0:dd}.log' -f ($LogFileLastWriteTimeUTC))
 						}
 					}
-                    if ($Custom)
-                    {
-                        $CurrentLogFile = $CurrentLogFile -replace ".log$","_x.log"
-                    }
+					if ($Custom) {
+						$CurrentLogFile = $CurrentLogFile -replace ".log$", "_x.log"
+					}
 					if (-not (Test-Path -Path $CurrentLogFile -PathType Leaf)) {
 						# fsutil file createnew $CurrentLogFile $Size | Out-Null
 						# $NewIISLogFile = Get-Item -Path $CurrentLogFile
@@ -249,11 +248,11 @@ function New-IISLogFile {
 							#$NewIISLogFile = Get-Item -Path $CurrentLogFile
 							#$NewIISLogFile.LastWriteTimeUTC = $LogFileLastWriteTimeUTC
 
-						    if ($Custom) {
-							    $IISLogFileCustomContent | Out-File -FilePath $CurrentLogFile -Encoding $Encoding
-							    (Get-Item -Path $CurrentLogFile).LastWriteTimeUtc = $LogFileLastWriteTimeUTC
-						    }
-						    elseif ($Content) {
+							if ($Custom) {
+								$IISLogFileCustomContent | Out-File -FilePath $CurrentLogFile -Encoding $Encoding
+								(Get-Item -Path $CurrentLogFile).LastWriteTimeUtc = $LogFileLastWriteTimeUTC
+							}
+							elseif ($Content) {
 								$IISLogFileContent | Out-File -FilePath $CurrentLogFile -Encoding $Encoding
 								(Get-Item -Path $CurrentLogFile).LastWriteTimeUtc = $LogFileLastWriteTimeUTC
 							}
@@ -263,7 +262,7 @@ function New-IISLogFile {
 								$NewIISLogFile.Close()
 								[System.IO.File]::SetLastWriteTimeUTC($CurrentLogFile, $LogFileLastWriteTimeUTC)
 							}
-    						Write-Verbose -Message "Overwriting the $CurrentLogFile file (Size : $((Get-Item -Path $CurrentLogFile).Length)) ..."						
+							Write-Verbose -Message "Overwriting the $CurrentLogFile file (Size : $((Get-Item -Path $CurrentLogFile).Length)) ..."						
 							$NewIISLogFiles += $NewIISLogFile
 						}
 						else {
@@ -596,7 +595,7 @@ function Compress-FileV5 {
 
 Clear-Host
 # Generates 100 fake log files (one log file per day) with custom content (adding custom fields) for every hosted web sites.
-$NewIISLogFiles = Get-Website | New-IISLogFile -Verbose -Days 100 -Custom
+# $NewIISLogFiles = Get-Website | New-IISLogFile -Verbose -Days 100 -Custom
 
 # The 11 following lines are a good example to show you how to keep an history of the 30 newest IIS log files (an IIS log file per day/site): the 10 newest are in the orginal clear text format and the others are compressed.
 # Returns a collection of files contained in the IIS log folder (*.*) older than 30 days for every hosted web sites.
