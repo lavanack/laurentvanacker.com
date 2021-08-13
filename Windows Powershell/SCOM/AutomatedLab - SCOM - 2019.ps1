@@ -83,8 +83,8 @@ $SystemCLRTypesForSQLServer2014x64URI = 'https://download.microsoft.com/download
 $SQLServer2019ReportingServicesURI = 'https://download.microsoft.com/download/1/a/a/1aaa9177-3578-4931-b8f3-373b24f63342/SQLServerReportingServices.exe'
 $SCOMNETAPMManagementPackURI = 'https://download.microsoft.com/download/C/C/2/CC264378-4ADE-4FC3-A6BB-7257CF7D6640/Package/Microsoft.SystemCenter.ApplicationInsights.msi'
 
-#Latest SQL CU : CU8 when this script was released in January 2021
-$SQLServer2019LatestCUURI =  'https://download.microsoft.com/download/6/e/7/6e72dddf-dfa4-4889-bc3d-e5d3a0fd11ce/SQLServer2019-KB4577194-x64.exe'
+#Latest SQL CU : CU12 when this script was released in August 2021
+$SQLServer2019LatestCUURI =  'https://download.microsoft.com/download/6/e/7/6e72dddf-dfa4-4889-bc3d-e5d3a0fd11ce/SQLServer2019-KB5004524-x64.exe'
 
 $NetworkID = '10.0.0.0/16' 
 $DC01IPv4Address = '10.0.0.1'
