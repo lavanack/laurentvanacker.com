@@ -75,7 +75,7 @@ $SCOMSetupLocalFolder = "C:\System Center Operations Manager 2019"
 
 #For Microsoft.Windows.Server.2016.Discovery and Microsoft.Windows.Server.Library
 #$SCOMWSManagementPackURI = 'https://download.microsoft.com/download/f/7/b/f7b960c9-7392-4c5a-bab4-efbb8a66ec2a/SC%20Management%20Pack%20for%20Windows%20Server%20Operating%20System.msi'
-$SCOMWS2016andWS2019ManagementPackURI = 'https://download.microsoft.com/download/D/8/E/D8EB49E9-744E-4F83-B62C-CBBA2B72927C/Microsoft%20System%20Center%20MP%20for%20WS%202016%20and%201709%20Plus.msi'
+$SCOMWS2016andWS2019ManagementPackURI = 'https://download.microsoft.com/download/D/8/E/D8EB49E9-744E-4F83-B62C-CBBA2B72927C/Microsoft%20System%20Center%20MP%20for%20WS%202016%20and%20above.msi'
 #More details on http://mpwiki.viacode.com/default.aspx?g=posts&t=218560
 $SCOMIISManagementPackURI = 'https://download.microsoft.com/download/4/9/A/49A9DD6B-3ECC-46DD-9115-9DB60C052DA7/Microsoft%20System%20Center%20MP%20for%20IIS%202016%20and%201709%20Plus.msi'
 $ReportViewer2015RuntimeURI = 'https://download.microsoft.com/download/A/1/2/A129F694-233C-4C7C-860F-F73139CF2E01/ENU/x86/ReportViewer.msi'
@@ -84,7 +84,9 @@ $SQLServer2019ReportingServicesURI = 'https://download.microsoft.com/download/1/
 $SCOMNETAPMManagementPackURI = 'https://download.microsoft.com/download/C/C/2/CC264378-4ADE-4FC3-A6BB-7257CF7D6640/Package/Microsoft.SystemCenter.ApplicationInsights.msi'
 
 #Latest SQL CU : CU12 when this script was released in August 2021
-$SQLServer2019LatestCUURI =  'https://download.microsoft.com/download/6/e/7/6e72dddf-dfa4-4889-bc3d-e5d3a0fd11ce/SQLServer2019-KB5004524-x64.exe'
+#$SQLServer2019LatestCUURI = 'https://download.microsoft.com/download/6/e/7/6e72dddf-dfa4-4889-bc3d-e5d3a0fd11ce/SQLServer2019-KB5004524-x64.exe'
+#To find dynamically the Latest SQL CU
+$SQLServer2019LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=100809 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "click here to download manually"}).href
 
 $NetworkID = '10.0.0.0/16' 
 $DC01IPv4Address = '10.0.0.1'
@@ -95,6 +97,7 @@ $SCOM01IPv4Address = '10.0.0.31'
 $LabName = 'SCOM2019'
 #endregion
 
+Start-Service -Name ShellHWDetection
 #Cleaning previously existing lab
 if ($LabName -in (Get-Lab -List)) {
      Remove-Lab -Name $LabName -Confirm:$false -ErrorAction SilentlyContinue
@@ -461,21 +464,23 @@ Invoke-LabCommand -ActivityName 'Installing Management Packs' -ComputerName SCOM
     #Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/slavizh/Get-SCOMManagementPacks/master/Get-SCOMManagementPacks.ps1) } -Extract"
     #For some cleanup in case of a previous install
     #'Microsoft.SystemCenter.ApplicationInsights', 'Microsoft.Windows.InternetInformationServices.2016', 'Microsoft.Windows.InternetInformationServices.CommonLibrary','Microsoft.Windows.Server.2016.Discovery', 'Microsoft.Windows.Server.Library' | Get-SCOMManagementPack | Remove-SCOMManagementPack
-    #Installing Windows Server Management Pack prior IIS
     #Importing the OperationsManager module by specifying the full folder path
     Import-Module "${env:ProgramFiles}\Microsoft System Center\Operations Manager\Powershell\OperationsManager"
     & "$env:ProgramFiles\Microsoft System Center\Operations Manager\Powershell\OperationsManager\Functions.ps1"
     & "$env:ProgramFiles\Microsoft System Center\Operations Manager\Powershell\OperationsManager\Startup.ps1"
-    Get-ChildItem -Path "${env:ProgramFiles(x86)}\System Center Management Packs\" -File -Filter *.mp? -Recurse | Where-Object -FilterScript {$_.BaseName -in 'Microsoft.Windows.Server.Library'} | Import-SCOMManagementPack
-    Get-ChildItem -Path "${env:ProgramFiles(x86)}\System Center Management Packs\" -File -Filter *.mp? -Recurse | Where-Object -FilterScript {$_.BaseName -in 'Microsoft.Windows.Server.2016.Discovery'} | Import-SCOMManagementPack
+    #Getting Installed Management Packs
+    $SystemCenterManagementPacks = Get-ChildItem -Path "${env:ProgramFiles(x86)}\System Center Management Packs\" -File -Filter *.mp? -Recurse
+    #Installing Windows Server Management Packs prior IIS
+    $SystemCenterManagementPacks | Where-Object -FilterScript {$_.BaseName -eq 'Microsoft.Windows.Server.Library'} | Import-SCOMManagementPack
+    $SystemCenterManagementPacks | Where-Object -FilterScript {$_.BaseName -eq 'Microsoft.Windows.Server.2016.Discovery'} | Import-SCOMManagementPack
     #Installing the Reports and Monitoring Management Pack
-    Get-ChildItem -Path "${env:ProgramFiles(x86)}\System Center Management Packs\" -File -Filter *.mp? -Recurse | Where-Object -FilterScript {$_.BaseName -in 'Microsoft.Windows.Server.Reports'} | Import-SCOMManagementPack
-    Get-ChildItem -Path "${env:ProgramFiles(x86)}\System Center Management Packs\" -File -Filter *.mp? -Recurse | Where-Object -FilterScript {$_.BaseName -in 'Microsoft.Windows.Server.2016.Monitoring'} | Import-SCOMManagementPack
+    $SystemCenterManagementPacks | Where-Object -FilterScript {$_.BaseName -eq 'Microsoft.Windows.Server.Reports'} | Import-SCOMManagementPack
+    $SystemCenterManagementPacks | Where-Object -FilterScript {$_.BaseName -eq 'Microsoft.Windows.Server.2016.Monitoring'} | Import-SCOMManagementPack
     #Installing IIS Management Pack.
-    Get-ChildItem -Path "${env:ProgramFiles(x86)}\System Center Management Packs\" -File -Filter *.mp? -Recurse | Where-Object -FilterScript {$_.BaseName -in 'Microsoft.Windows.InternetInformationServices.CommonLibrary'} | Import-SCOMManagementPack
-    Get-ChildItem -Path "${env:ProgramFiles(x86)}\System Center Management Packs\" -File -Filter *.mp? -Recurse | Where-Object -FilterScript {$_.BaseName -in 'Microsoft.Windows.InternetInformationServices.2016' } | Import-SCOMManagementPack
+    $SystemCenterManagementPacks | Where-Object -FilterScript {$_.BaseName -eq 'Microsoft.Windows.InternetInformationServices.CommonLibrary'} | Import-SCOMManagementPack
+    $SystemCenterManagementPacks | Where-Object -FilterScript {$_.BaseName -eq 'Microsoft.Windows.InternetInformationServices.2016' } | Import-SCOMManagementPack
     #Installing ApplicationInsights ManagementPack.
-    Get-ChildItem -Path "${env:ProgramFiles(x86)}\System Center Management Packs\" -File -Filter *.mp? -Recurse | Where-Object -FilterScript {$_.BaseName -in 'Microsoft.SystemCenter.ApplicationInsights'} | Import-SCOMManagementPack
+    $SystemCenterManagementPacks | Where-Object -FilterScript {$_.BaseName -eq 'Microsoft.SystemCenter.ApplicationInsights'} | Import-SCOMManagementPack
 
     $SCOMAgent = Install-SCOMAgent -PrimaryManagementServer $(Get-SCOMManagementServer) -DNSHostName IIS01.contoso.com -PassThru
     Get-SCOMPendingManagement | Approve-SCOMPendingManagement
@@ -489,6 +494,19 @@ Get-LabVM -All | Stop-VM -Passthru -Force | Set-VMProcessor -Count 1
 Start-LabVm -All -ProgressIndicator 1 -Wait
 
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
+
+Invoke-LabCommand -ActivityName 'Windows Udpate via the PSWindowsUpdate PowerShell Module' -ComputerName SCOM01 -ScriptBlock {
+    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+    Install-Module -Name PSWindowsUpdate -Force -AllowClobber
+    Import-Module -Name PSWindowsUpdate 
+    #From https://windows-hexerror.linestarve.com/q/so58570077-how-to-install-windows-updates-on-remote-computer-with-powershell: You can't Download or Install Updates on a machine from another remote machine. 
+    #Get-WindowsUpdate -Install -AcceptAll -AutoReboot
+    Invoke-WUJob -ComputerName localhost -Script { Import-Module PSWindowsUpdate ; Get-WindowsUpdate -Install -AcceptAll -AutoReboot -Verbose | Out-File "C:\PSWindowsUpdate_$('{0:yyyyMMddHHmmss}' -f (Get-Date)).log" -Append } -Confirm:$false -Verbose -RunNow
+    #Start-ScheduledTask -TaskName PSWindowsUpdate -Verbose
+    While ((Get-ScheduledTask -TaskName PSWindowsUpdate).State -eq 'Running') { Start-Sleep -Seconds 60}
+}
+
+Checkpoint-LabVM -SnapshotName 'Windows Update' -All
 
 Show-LabDeploymentSummary -Detailed
 
