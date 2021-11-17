@@ -8,6 +8,7 @@ trap {
     Send-ALNotification -Activity 'Lab started' -Message ('Lab deployment failed !') -Provider (Get-LabConfigurationItem -Name Notifications.SubscribedProviders)
 } 
 Clear-Host
+Import-Module -Name AutomatedLab -RequiredVersion 5.38.0
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
 $PreviousErrorActionPreference = $ErrorActionPreference
@@ -25,6 +26,7 @@ $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText
 $NetBiosDomainName = 'CONTOSO'
 $FQDNDomainName = 'contoso.com'
 $PSWSAppPoolUsr = 'PSWSAppPoolUsr'
+$StandardUsr = 'StandardUsr'
 
 $NetworkID = '10.0.0.0/16' 
 $DC01IPv4Address = '10.0.0.1'
@@ -162,7 +164,9 @@ Invoke-LabCommand -ActivityName 'AD & DNS Setup on DC' -ComputerName DC01 -Scrip
 
     #Creating user for the PSWS application pool used for the Pull web site to replace localsystem by this user
     New-ADUser -Name $Using:PSWSAppPoolUsr -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -CannotChangePassword $True -Enabled $true -Description "PSWS Application Pool User"
+    New-ADUser -Name $Using:StandardUsr -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -CannotChangePassword $True -Enabled $true -Description "Standard User"
 }
+
 
 #IIS front-end servers : Renaming the NIC and setting up the metric for NLB management
 Invoke-LabCommand -ActivityName 'Creating junction to DSC Modules and Configurations Folders' -ComputerName $PullServers -ScriptBlock {
@@ -241,10 +245,14 @@ Invoke-LabCommand -ActivityName 'DFS-R Setup on DC' -ComputerName DC01 -Verbose 
 }
 
 #IIS front-end servers : Renaming the NIC and setting up the metric for NLB management
-Invoke-LabCommand -ActivityName 'Renaming NICs' -ComputerName $PullServers -ScriptBlock {
+Invoke-LabCommand -ActivityName 'Restarting DFS-R service and Enabling Object Acces Auditing' -ComputerName $PullServers -ScriptBlock {
     #Restarting DFSR service
     Restart-Service -Name DFSR -Force
     Start-Sleep -Seconds 10
+    auditpol /set /Category:"Object Access" /success:enable /failure:enable
+    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+    Install-Module NtfsSecurity -Force -AllowClobber
+    Add-NTFSAudit -Path 'C:\Program Files\WindowsPowerShell\DscService\Configuration' -AccessRights CreateFiles, CreateDirectories, ReadAttributes, WriteAttributes, Delete, ChangePermissions, TakeOwnership -Account Everyone -AuditFlags Success, Failure -InheritanceFlags ContainerInherit,ObjectInherit -PropagationFlags NoPropagateInherit
 
     <#
     #Renaming the NIC and setting up the metric for NLB management
@@ -453,6 +461,11 @@ Invoke-LabCommand -ActivityName 'Updating the LCM Configuration to use the NLB V
     PullClient -OutputPath c:\Dsc
     Set-DscLocalConfigurationManager -Path C:\Dsc -ComputerName localhost -Verbose
     Update-DscConfiguration -Wait -Verbose
+    #To view when the MOF file doesn't exist anymore on the pull server via the event log: 
+    #Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-Dsc/Operational'; 'Id'='4253'} | Select-Object -ExpandProperty Message
+    #To view when the MOF MOF is not valid (with an updated checksum) o the pull server via the event log: 
+    #Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-Dsc/Operational'; 'Id'='4252'} | Select-Object -ExpandProperty Message
+    Add-LocalGroupMember -Group "Remote Desktop Users" -Member $using:StandardUsr
 }
 
 Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
