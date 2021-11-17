@@ -151,7 +151,7 @@ Add-LabMachineDefinition -Name CLIENT01 -IpAddress $CLIENTIPv4Address
 
 #Installing servers
 Install-Lab
-#Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
+Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 
 #region Installing Required Windows Features
 $machines = Get-LabVM
@@ -373,7 +373,10 @@ Invoke-LabCommand -ActivityName 'Configuration for TLS Key log file' -ComputerNa
     }
 }
 #endregion
+
 Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the IIS websites' -ComputerName IIS01 -ScriptBlock {    
+    #Renaming the NIC 
+    Rename-NetAdapter -Name "$using:labName 0" -NewName 'Ethernet' -PassThru
     #Creating directory tree for hosting web sites
     $null = New-Item -Path C:\WebSites -ItemType Directory -Force
     #applying the required ACL (via PowerShell Copy and Paste)
