@@ -70,6 +70,12 @@ if (-not(Get-NetFirewallRule "OpenSSH-Server-In-TCP"))
 	New-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -DisplayName 'OpenSSH-Server-In-TCP' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
 }
 
+While (-not(Test-Path -Path "$env:ProgramData\ssh\sshd_config"))
+{
+    Write-Host "Sleeping some seconds ... Waiting for `'$env:ProgramData\ssh\sshd_config`'"
+    Start-Sleep -Seconds 2
+}
+
 #Changing the SSH config (via RegEx) to meet our needs
 $SshdConfig = Get-Content -Path "$env:ProgramData\ssh\sshd_config"
 $SshdConfig += "RSAAuthentication yes"
