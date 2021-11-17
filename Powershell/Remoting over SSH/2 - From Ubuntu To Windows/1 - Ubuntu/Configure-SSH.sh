@@ -21,7 +21,7 @@ scp -o StrictHostKeyChecking=no $PublicSSHRSAKey $WindowsUser@$WindowsServer:${U
 ssh -o StrictHostKeyChecking=no $WindowsUser@$WindowsServer "type ${Username}_rsa.pub >> $AuthorizedKeys && net stop sshd && net start sshd && del ${Username}_rsa.pub"
 
 #Copy the line into the clipboard and just paste it in a new PowerShell Core host (opened at the next line). It should work like a charm :)
-echo "Invoke-Command -ScriptBlock { \"Hello from \$(hostname)\" } -UserName $WindowsUser -HostName $WindowsServer" | xclip -selection clipboard 
+echo "Set-PSReadLineOption -HistorySaveStyle SaveNothing; Invoke-Command -ScriptBlock { \"Hello from \$(hostname)\" } -UserName $WindowsUser -HostName $WindowsServer" | xclip -selection clipboard 
 
 #To avoid an access denied on this file
 sudo chown -R $UserName ~/.local/share/powershell/PSReadLine/ConsoleHost_history.txt
