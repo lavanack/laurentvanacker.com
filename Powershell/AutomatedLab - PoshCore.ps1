@@ -29,8 +29,7 @@ Import-Module AutomatedLab
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
 $PreviousErrorActionPreference = $ErrorActionPreference
-#$ErrorActionPreference = 'Stop'
-$ErrorActionPreference = 'Continue'
+$ErrorActionPreference = 'Stop'
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
@@ -44,7 +43,8 @@ $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText
 $NetBiosDomainName = 'CONTOSO'
 $FQDNDomainName = 'contoso.com'
 
-$GitURI = 'https://github.com/git-for-windows/git/releases/download/v2.30.0.windows.1/Git-2.30.0-64-bit.exe'
+#$GitURI = 'https://github.com/git-for-windows/git/releases/download/v2.33.1.windows.1/Git-2.33.1-64-bit.exe'
+$GitURI = ((Invoke-WebRequest -Uri 'https://git-scm.com/download/win').Links | Where-Object -FilterScript { $_.InnerText -eq "64-bit Git For Windows Setup"}).href
 
 $NetworkID='10.0.0.0/16' 
 
@@ -99,14 +99,16 @@ Add-LabMachineDefinition -Name WIN10 -NetworkAdapter $netAdapter -OperatingSyste
 
 #Installing servers
 Install-Lab 
+Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
+
 $Client = (Get-LabVM | Where-Object -FilterScript { $_.Name -eq "WIN10"}).Name
 
 $VSCodeExtension = [ordered]@{
     #"PowerShell" = "ms-vscode.powershell"
-    "Live Share Extension Pack" = "ms-vsliveshare.vsliveshare-pack"
-    "Git Graph" = "mhutchie.git-graph"
-    "Git History" = "donjayamanne.githistory"
-    "GitLens - Git supercharged" = "eamodio.gitlens"
+    'Live Share Extension Pack' = 'ms-vsliveshare.vsliveshare-pack'
+    'Git Graph' = 'mhutchie.git-graph'
+    'Git History' = 'donjayamanne.githistory'
+    'GitLens - Git supercharged' = 'eamodio.gitlens'
 }
 
 #Installing Git
@@ -129,15 +131,15 @@ Invoke-LabCommand -ActivityName "Installing Powershell7+, VSCode, PowerShell ext
     Install-Script Install-VSCode -Force
     Install-VSCode.ps1 -AdditionalExtensions $VSCodeExtension.Values
     #>
-    Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) }  -AdditionalExtensions $($VSCodeExtension.Values)"
+
+    Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) }  -AdditionalExtensions $($VSCodeExtension.Values -join ',')" -Verbose
 
     #Installing posh-git module
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
     Install-Module posh-git -force
-    Enable-GitColors
-} -Variable (Get-Variable -Name VSCodeExtension)
+    #Enable-GitColors
+} -Variable (Get-Variable -Name VSCodeExtension) -Verbose
 
-#Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 Show-LabDeploymentSummary -Detailed
 Restart-LabVM $Client -Wait
 
