@@ -55,17 +55,17 @@ function Set-PowerBIIISLogField {
             $CurrentIISLogFields = ((Get-Content $CurrentFullname -TotalCount 4 | Select-Object -Last 1) -split " " | Select-Object -Skip 1)
 			Write-Verbose "`$CurrentIISLogFields : $CurrentIISLogFields"
 
-			#IIS Fields in the IIS log and used by PowerBI
-            $CurrentIISLogFields = $CurrentIISLogFields | Where-Object -FilterScript { $_ -in $AllIISLogFieldsWithDefaults.Keys}
-			Write-Verbose "PowerBI Filtered`$CurrentIISLogFields : $CurrentIISLogFields"
-
-			#IIS Fields in the IIS log, used by PowerBI and needing name translation like cs(User-Agent) => cs-user-agent
-            $CurrentIISLogFields = $CurrentIISLogFields | ForEach-Object -Process { if ($TranslatedIISLogFields[$_]) {$TranslatedIISLogFields[$_]} else {$_}  }
-			Write-Verbose "Translated `$CurrentIISLogFields : $CurrentIISLogFields"
-
 			#Missing IIS Fields in the IIS log and used by PowerBI
             $MissingIISLogFields = $AllIISLogFieldsWithDefaults.Keys | Where-Object -FilterScript { $_ -notin $CurrentIISLogFields}
 			Write-Verbose "`$MissingIISLogFields : $MissingIISLogFields"
+
+			#IIS Fields in the IIS log and used by PowerBI
+            $CurrentIISLogFields = $CurrentIISLogFields | Where-Object -FilterScript { $_ -in $AllIISLogFieldsWithDefaults.Keys}
+			Write-Verbose "PowerBI Filtered `$CurrentIISLogFields : $CurrentIISLogFields"
+
+			#IIS Fields in the IIS log, used by PowerBI and needing name translation like cs(User-Agent) => cs-user-agent
+            $CurrentIISLogFields = $CurrentIISLogFields | ForEach-Object -Process { if ($TranslatedIISLogFields[$_]) {"$_ as $($TranslatedIISLogFields[$_])"}  else {$_}  }
+			Write-Verbose "Translated `$CurrentIISLogFields : $CurrentIISLogFields"
 
 			#Missing IIS Fields in the IIS log, used by PowerBI and needing name translation like cs(User-Agent) => cs-user-agent
             $MissingIISLogFields = $($MissingIISLogFields | ForEach-Object -Process { if ($TranslatedIISLogFields[$_]) {"'$($AllIISLogFieldsWithDefaults[$_])' as $($TranslatedIISLogFields[$_])"} else {"'$($AllIISLogFieldsWithDefaults[$_])' as $_"} })
@@ -88,10 +88,139 @@ function Set-PowerBIIISLogField {
 	}
 }
 
+function Expand-String { 
+	<#
+			.SYNOPSIS
+			Expands a string 
+
+			.DESCRIPTION
+			Expands a string 
+
+			.PARAMETER Value
+			The string to expand
+
+			.PARAMETER EnvironmentVariable
+			Switch to specify is the string to expand is related to an environment variable
+
+			.EXAMPLE
+			Expand-String -Value $env:Path -EnvironmentVariable
+	#>
+	[CmdletBinding()]
+	param( 
+		[Parameter(Mandatory = $true, ValueFromPipeline = $true)] 
+		[string]$Value, 
+
+		[switch]$EnvironmentVariable 
+	)
+
+	if ($EnvironmentVariable) {
+		[System.Environment]::ExpandEnvironmentVariables($Value)
+	} 
+	else {
+		$ExecutionContext.InvokeCommand.ExpandString($Value)
+	} 
+} 
+
+function Get-IISLogFile {
+	<#
+			.SYNOPSIS
+			Returns a collection of files (*.log or *.* if -All is specified) in the log directory for the specified web sites
+
+			.DESCRIPTION
+			Returns a collection of files (*.log or *.* if -All is specified) in the log directory for the specified web sites
+
+			.PARAMETER WebSite
+			The web sites for which we want generate fake log files
+
+			.PARAMETER OlderThanThisDate
+			The optional date in the past from which we return the log files (based on LastWriteTime property of each file)
+
+			.PARAMETER OlderThanXDays
+			The optional day number in the past (from now) from which we return the log files (based on LastWriteTime property of each file)
+
+			.PARAMETER All 
+			An optional switch specifying if we return all files (*.*) instead only IIS log files (*.log)
+
+			.EXAMPLE
+			$IISLogFiles = Get-Website | Get-IISLogFile -Verbose -OlderThanXDays 30
+			Returns a collections of IIS log files older than 30 days for all hosted web sites and store it in the $IISLogFiles variables. The verbose mode is enabled
+
+			.EXAMPLE
+			$IISLogFiles = "www.contoso.com" | Get-IISLogFile -OlderThanThisDate "01/01/2016"
+			Returns a collections of IIS log files older than the 1st January 2016 for the "www.contoso.com" web site and store it in the $IISLogFiles variables.
+
+			.EXAMPLE
+			$IISLogFiles =  Get-IISLogFile -FullName "www.contoso.com", "Default Web Site" -OlderThanThisDate "01/01/2016"
+			Returns a collections of IIS log files older than the 1st January 2016 for the "www.contoso.com" and "Default Web Site" web sites and store it in the $IISLogFiles variables.
+	#>
+	[CmdletBinding(DefaultParameterSetName = 'OlderThanXDays')]
+	Param
+	(
+		[Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+		[ValidateNotNullOrEmpty()]
+		[alias('Name')]
+		[String[]]$WebSite,
+
+		[Parameter(Mandatory = $False, ParameterSetName = 'OlderThanThisDate')][ValidateNotNullOrEmpty()][ValidateScript( {
+				$_ -le (Get-Date)
+			})]
+		[Datetime]$OlderThanThisDate,
+
+		[Parameter(Mandatory = $False, ParameterSetName = 'OlderThanXDays')][ValidateNotNullOrEmpty()]
+		[int]$OlderThanXDays,
+
+		[switch]$All
+	)
+	
+	begin {
+		#The collection of returned files.
+		$IISLogFiles = @()
+	}
+	process {
+		foreach ($currentWebSiteName in $WebSite) {
+			$CurrentWebSite = Get-Website | Where-Object -FilterScript {
+				$_.Name -eq $currentWebSiteName 
+			}
+			if ($CurrentWebSite) {
+				# Date management
+				if ($OlderThanXDays) {
+					$PastDate = (Get-Date).AddDays(-$OlderThanXDays)
+				}
+				elseif ($OlderThanThisDate) {
+					$PastDate = $OlderThanThisDate
+				}
+				else {
+					$PastDate = Get-Date
+				}
+				Write-Verbose -Message "Past Date : $PastDate ..."
+
+				Write-Verbose -Message "Processing $($CurrentWebSite.Name) ..."
+				$CurrentLogFileDirectory = Expand-String -Value $(Join-Path -Path $CurrentWebSite.logFile.directory -ChildPath $('W3SVC' + $CurrentWebSite.id)) -EnvironmentVariable
+				if ($All) {
+					$Filter = '*.*'
+				}
+				else {
+					$Filter = '*.log'
+				}
+				$IISLogFiles += $(Get-ChildItem -Path $CurrentLogFileDirectory -Filter $Filter -ErrorAction SilentlyContinue | Where-Object -FilterScript {
+						$_.LastWriteTime -lt $PastDate
+					})
+			}
+			else {
+				Write-Warning -Message "$currentWebSiteName NOT found"
+			}
+		}
+	}
+	end {
+		return $IISLogFiles
+	}
+}
+
 Clear-Host
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 $LogParserExe = "C:\Program Files (x86)\Log Parser 2.2\LogParser.exe"
 
-Get-ChildItem -Path "$CurrentDir\*" -Filter *.log -File -Recurse | Set-PowerBIIISLogField -PassThru #-Verbose #-LogParserExe $LogParserExe
+#Get-ChildItem -Path "$CurrentDir\*" -Filter *.log -File -Recurse | Set-PowerBIIISLogField -PassThru #-Verbose #-LogParserExe $LogParserExe
+Get-Website | Get-IISLogFile | Where-Object { $_.Basename -like "*$("{0:yyMMdd}" -f ((Get-Date).AddDays(-1)))*"} | Set-PowerBIIISLogField -PassThru -Verbose #-LogParserExe $LogParserExe
