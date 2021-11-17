@@ -1,24 +1,22 @@
 ﻿#From https://community.idera.com/database-tools/powershell/powertips/b/tips/posts/translating-sid-to-username
-function ConvertFrom-SID
-{
-  param
-  (
-    [Parameter(Mandatory,ValueFromPipeline,ValueFromPipelineByPropertyName)]
-    [Alias('Value')]
-    $Sid 
-  )
+function ConvertFrom-SID {
+    param
+    (
+        [Parameter(Mandatory, ValueFromPipeline, ValueFromPipelineByPropertyName)]
+        [Alias('Value')]
+        $Sid 
+    )
   
-  process
-  {
-    $objSID = New-Object System.Security.Principal.SecurityIdentifier($sid)
-    $objUser = $objSID.Translate( [System.Security.Principal.NTAccount])
-    $objUser.Value
-  }
+    process {
+        $objSID = New-Object System.Security.Principal.SecurityIdentifier($sid)
+        $objUser = $objSID.Translate( [System.Security.Principal.NTAccount])
+        $objUser.Value
+    }
 }
 
 #From https://gallery.technet.microsoft.com/scriptcenter/Get-WinEventData-Extract-344ad840
 Function Get-WinEventData {
-<#
+    <#
 .SYNOPSIS
     Get custom event data from an event log record
 
@@ -63,31 +61,27 @@ Function Get-WinEventData {
 
     [cmdletbinding()]
     param(
-        [Parameter(Mandatory=$true, 
-                   ValueFromPipeline=$true,
-                   ValueFromPipelineByPropertyName=$true, 
-                   ValueFromRemainingArguments=$false, 
-                   Position=0 )]
+        [Parameter(Mandatory = $true, 
+            ValueFromPipeline = $true,
+            ValueFromPipelineByPropertyName = $true, 
+            ValueFromRemainingArguments = $false, 
+            Position = 0 )]
         [System.Diagnostics.Eventing.Reader.EventLogRecord[]]
         $event
     )
 
-    Process
-    {
+    Process {
         #Loop through provided events
-        foreach($entry in $event)
-        {
+        foreach ($entry in $event) {
             #Get the XML...
             $XML = [xml]$entry.ToXml()
         
             #Some events use other nodes, like 'UserData' on Applocker events...
             $XMLData = $null
-            if( $XMLData = @( $XML.Event.EventData.Data ) )
-            {
-                For( $i=0; $i -lt $XMLData.count; $i++ )
-                {
+            if ( $XMLData = @( $XML.Event.EventData.Data ) ) {
+                For ( $i = 0; $i -lt $XMLData.count; $i++ ) {
                     #We don't want to overwrite properties that might be on the original object, or in another event node.
-                    Add-Member -InputObject $entry -MemberType NoteProperty -name "EventData$($XMLData[$i].name)" -Value $XMLData[$i].'#text' -Force
+                    Add-Member -InputObject $entry -MemberType NoteProperty -Name "EventData$($XMLData[$i].name)" -Value $XMLData[$i].'#text' -Force
                 }
             }
 
@@ -95,20 +89,19 @@ Function Get-WinEventData {
         }
     }
 }
-
-Function Get-EditOperation
-{
+Get-Pro
+Function Get-EditOperation {
     [cmdletbinding()]
     param(
-        [ValidateSet(1,2,3)]
+        [ValidateSet(1, 2, 3)]
         [int] $EditOperationType
     )
-    $EditOperation = @{1="Add";2="Delete";3="Modify"}
+    $EditOperation = @{1 = "Add"; 2 = "Delete"; 3 = "Modify" }
     return $EditOperation[$EditOperationType]
 }
 
 #Will list all modifications done in the IIS Configuration store (after enabling the IIS Auditing feature)
-Get-WinEvent -FilterHashtable @{ Logname='Microsoft-IIS-Configuration/Operational' ;Id=29} | Get-WinEventData | Select-Object -Property TimeCreated, @{Name="User"; Expression={ConvertFrom-SID($_.UserId)}}, Event*, @{Name="EventDataEditOperation"; Expression={Get-EditOperation($_.EventDataEditOperationType)}}
+Get-WinEvent -FilterHashtable @{ Logname = 'Microsoft-IIS-Configuration/Operational' ; Id = 29 } | Get-WinEventData | Select-Object -Property TimeCreated, @{Name = "User"; Expression = { ConvertFrom-SID($_.UserId) } }, Event*, @{Name = "EventDataEditOperation"; Expression = { Get-EditOperation($_.EventDataEditOperationType) } }
 
 
 
