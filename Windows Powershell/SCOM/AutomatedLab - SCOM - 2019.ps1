@@ -265,7 +265,7 @@ $SCOMServers = Get-LabVM | Where-Object -FilterScript { $_.Name -like "*SCOM*" }
 $IsoPathHashTable = $SCOMServers | Select-Object -Property Name, @{Name = "IsoPath"; Expression = { $_.OperatingSystem.IsoPath } } | Group-Object -Property Name -AsHashTable -AsString
 foreach ($CurrentSCOMServer in $SCOMServers.Name) {
     $Drive = Mount-LabIsoImage -ComputerName $CurrentSCOMServer -IsoPath $IsoPathHashTable[$CurrentSCOMServer].IsoPath -PassThru
-    Invoke-LabCommand -ActivityName 'Copying .Net 2.0 cab, lab and demo files locally' -ComputerName $CurrentSCOMServer -ScriptBlock {
+    Invoke-LabCommand -ActivityName 'Copying .Net 2.0 cab' -ComputerName $CurrentSCOMServer -ScriptBlock {
         $Sxs = New-Item -Path "C:\Sources\Sxs" -ItemType Directory -Force
         Copy-Item -Path "$($using:Drive.DriveLetter)\sources\sxs\*" -Destination $Sxs -Recurse -Force
     }
