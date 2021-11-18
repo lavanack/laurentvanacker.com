@@ -1,0 +1,28 @@
+{
+    "AzureAD": {
+		"DomainName" : { 
+			"description" : "The managed domain name of the Azure AD", 
+			"value" : "laurentvanacker.onmicrosoft.com" 
+		}
+	},
+    "Azure": {
+		"Location" : { 
+			"description" : "The Azure location for hosting the resources", 
+			"value" : "eastus" 
+		},
+		"SubscriptionName" : { 
+			"description" : "The Azure subscription name", 
+			"value" : "Visual Studio Enterprise with MSDN"
+		}
+    },
+    "WVD": {
+		"TokenExpirationTime" : { 
+			"description" : "The token expiration time expressed in hours", 
+			"value" : "2" 
+		},
+		"ResourceGroupName" : { 
+			"description" : "The resource group name to create for hosting the Windows Virtual Desktop" ,
+			"value" : "WVD-ARM-RG" 
+    	}
+	}
+}

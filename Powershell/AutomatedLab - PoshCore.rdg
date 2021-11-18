@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<RDCMan programVersion="2.7" schemaVersion="3">
+<RDCMan programVersion="2.8" schemaVersion="3">
   <file>
     <credentialsProfiles />
     <properties>
@@ -39,7 +39,7 @@
       <logonCredentials inherit="None">
         <profileName scope="Local">Custom</profileName>
         <userName>Administrator</userName>
-        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAASo4Cfnw++0mzN5WGFvYodAAAAAACAAAAAAAQZgAAAAEAACAAAABVOHT0JBneCAotrCQbaJaoV7wYqijyYGefdFNJEIQ/zQAAAAAOgAAAAAIAACAAAAARxSuCUMIFLhgwSTBA3t2X0dEA6uqgez4tc4MoOQFZfyAAAACy+Fh/xqnH7F+4Tp+tQ+5gTkCG8hSjC8q788SjSPa91UAAAAAj+jRpVaYtKoQ4G5ykVALJyncJWUFrYXAPIxyip1aupw1irIKtfkN6Z2tHVnnbzG2G50T4ygV2e968Qa4LV3UI</password>
+        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAA/g+tuX7eYke1nRm2mrxIKwAAAAACAAAAAAAQZgAAAAEAACAAAADJm2nJzhBbyD4DsOHScb3eXQ15v6p7qWqfk9ZeSsuazgAAAAAOgAAAAAIAACAAAAAjf8odTcTAFnnvldlBRtA0bqvihmFMGg2Mz6kIiYFhdSAAAADZ1vTfo3GKKo8+Sy0L2jaYV7/r3tb39hVIvDUCORa9VEAAAAA1QVciHMx3h1l0FBYHMCGE5hY7Ue5NerLFiPEK80a44q1t2tzJGMihpFWMN1gEFQNDOIjqklKqord6fkrrCGdA</password>
         <domain>CONTOSO</domain>
       </logonCredentials>
       <server>
@@ -56,7 +56,7 @@
         <logonCredentials inherit="None">
           <profileName scope="Local">Custom</profileName>
           <userName>administrator</userName>
-          <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAASo4Cfnw++0mzN5WGFvYodAAAAAACAAAAAAAQZgAAAAEAACAAAADbRTRRuk4yCjrYRNRcvE0Isipm5VPwverS+D+HnA9gGQAAAAAOgAAAAAIAACAAAAAFfjqoO/0g0gpap9QCFOr30WnbTbriQDIOt3llLtgdtiAAAACTR0u9pd0u4H6nbTTLmTEvdiPLIhLtyYtwM56etkkZCEAAAABjo7hltaQc4rUXjDuwPISDZXesMOovJU9U3YIrMwJFXMZWVXpkMIrqgY+JtvN/LCJDikWl9qpncjovvwzhIRxl</password>
+          <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAA/g+tuX7eYke1nRm2mrxIKwAAAAACAAAAAAAQZgAAAAEAACAAAAD00AUk+Rn99OkkA5x/AqC7j4cfh2wO0XDGa5t30qWq/wAAAAAOgAAAAAIAACAAAABvqz1TUreCBsK9naq0x9KTIrhoN2N/Slhk561h61lPiSAAAAAJjsuGa3C2OMzjCS+kEZgmIlIbTAIfYvdJFBSLCWO32UAAAABIaR9nf9SrU9SdXyRvcbJ2xoqx00I0gku/4l91JkRxggSR3T4xABPDwYqUW9K0uAkPoV5hMkuRuesL1lnyEjSq</password>
           <domain>CONTOSO</domain>
         </logonCredentials>
         <localResources inherit="None">

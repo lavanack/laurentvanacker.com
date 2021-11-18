@@ -44,3 +44,6 @@ sudo -- sh -c "echo 'Subsystem powershell /usr/bin/pwsh -sshs -NoLogo -NoProfile
 sudo sed -i 's/^\(#\?\)\(PubkeyAuthentication\|PasswordAuthentication\|RSAAuthentication\) \(yes\|no\)$/\2 yes/g' /etc/ssh/sshd_config
 
 sudo service sshd restart
+
+#starting PowerShell
+pwsh

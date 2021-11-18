@@ -20,11 +20,17 @@ ssh-keygen -f $PrivateSSHRSAKey -t rsa -q -N "$Passphrase"
 scp -o StrictHostKeyChecking=no $PublicSSHRSAKey $WindowsUser@$WindowsServer:${Username}_rsa.pub
 ssh -o StrictHostKeyChecking=no $WindowsUser@$WindowsServer "type ${Username}_rsa.pub >> $AuthorizedKeys && net stop sshd && net start sshd && del ${Username}_rsa.pub"
 
-#Copy the line into the clipboard and just paste it in a new PowerShell Core host (opened at the next line). It should work like a charm :)
-echo "Set-PSReadLineOption -HistorySaveStyle SaveNothing; Invoke-Command -ScriptBlock { \"Hello from \$(hostname)\" } -UserName $WindowsUser -HostName $WindowsServer" | xclip -selection clipboard 
-
+#Generating file for PSReadLine History
+sudo mkdir ~/.local/share/powershell/PSReadLine
+sudo touch ~/.local/share/powershell/PSReadLine/ConsoleHost_history.txt
 #To avoid an access denied on this file
 sudo chown -R $UserName ~/.local/share/powershell/PSReadLine/ConsoleHost_history.txt
+sudo chmod 777 ~/.local/share/powershell/PSReadLine/ConsoleHost_history.txt
+
+#pwsh -Command "& {Set-PSReadLineOption -HistorySaveStyle SaveNothing}"
+ 
+#Copy the line into the clipboard and just paste it in a new PowerShell Core host (opened at the next line). It should work like a charm :)
+echo "Invoke-Command -ScriptBlock { \"Hello from \$(hostname)\" } -UserName $WindowsUser -HostName $WindowsServer" | xclip -selection clipboard 
 
 #Starting a new PowerShell Core host and paste the previously code copied into the clipboard
 pwsh

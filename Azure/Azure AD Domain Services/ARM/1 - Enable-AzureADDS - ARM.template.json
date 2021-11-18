@@ -1,0 +1,237 @@
+﻿{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "domainName": {
+            "type": "string",
+            "defaultValue": "aadscontoso.com",
+            "metadata": {
+                "description": "Domain Name"
+            }
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        },
+        "domainServicesVnetName": {
+            "type": "string",
+            "defaultValue": "domain-services-vnet",
+            "metadata": {
+                "description": "ADDS Virtual Network Name"
+            }
+        },
+        "domainServicesVnetAddressPrefix": {
+            "type": "string",
+            "defaultValue": "10.0.0.0/16",
+            "metadata": {
+                "description": "ADDS Virtual Network Address Prefix"
+            }
+        },
+        "domainServicesSubnetName": {
+            "type": "string",
+            "defaultValue": "domain-services-subnet",
+            "metadata": {
+                "description": "ADDS Subnet Name"
+            }
+        },
+        "domainServicesSubnetAddressPrefix": {
+            "type": "string",
+            "defaultValue": "10.0.0.0/24",
+            "metadata": {
+                "description": "ADDS Subnet Prefix"
+            }
+        },
+        "workloadSubnetName": {
+            "type": "string",
+            "defaultValue": "workload-subnet",
+            "metadata": {
+                "description": "Workload Subnet Name"
+            }
+        },
+        "workloadSubnetAddressPrefix": {
+            "type": "string",
+            "defaultValue": "10.0.1.0/24",
+            "metadata": {
+                "description": "Workload Subnet Prefix"
+            }
+        },
+        "bastionSubnetName": {
+            "type": "string",
+            "defaultValue": "AzureBastionSubnet",
+            "metadata": {
+                "description": "Bastion Subnet Name"
+            }
+        },
+        "bastionSubnetAddressPrefix": {
+            "type": "string",
+            "defaultValue": "10.0.2.0/24",
+            "metadata": {
+                "description": "Bastion Subnet Prefix"
+            }
+        },
+        "managementSubnetName": {
+            "type": "string",
+            "defaultValue": "management-subnet",
+            "metadata": {
+                "description": "Management Subnet Name"
+            }
+        },
+        "managementSubnetAddressPrefix": {
+            "type": "string",
+            "defaultValue": "10.0.3.0/24",
+            "metadata": {
+                "description": "Management Subnet Prefix"
+            }
+        }
+    },
+    "variables": {
+        "domainServicesNSGName": "[concat(parameters('domainServicesSubnetName'), '-NSG')]",
+        "nsgRefId": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('domainServicesNSGName'))]",
+        "vnetRefId": "[resourceId('Microsoft.Network/virtualNetworks/', parameters('domainServicesVnetName'))]",
+        "subnetRefId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('domainServicesVnetName'), parameters('domainServicesSubnetName'))]"
+    },
+    "resources": [
+        {
+            "apiVersion": "2018-10-01",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "name": "[variables('domainServicesNSGName')]",
+            "location": "[parameters('location')]",
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "AllowPSRemoting",
+                        "properties": {
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "5986",
+                            "sourceAddressPrefix": "AzureActiveDirectoryDomainServices",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 301,
+                            "direction": "Inbound"
+                        }
+                    },
+                    {
+                        "name": "AllowRDP",
+                        "properties": {
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "3389",
+                            "sourceAddressPrefix": "CorpNetSaw",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 201,
+                            "direction": "Inbound"
+                        }
+                    },
+                    {
+                        "name": "AllowSyncWithAzureAD",
+                        "properties": {
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "443",
+                            "sourceAddressPrefix": "AzureActiveDirectoryDomainServices",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 101,
+                            "direction": "Inbound"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "2018-10-01",
+            "type": "Microsoft.Network/virtualNetworks",
+            "name": "[parameters('domainServicesVnetName')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[variables('domainServicesNSGName')]"
+            ],
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "[parameters('domainServicesVnetAddressPrefix')]"
+                    ]
+                }
+            },
+            "resources": [
+                {
+                    "apiVersion": "2018-10-01",
+                    "type": "subnets",
+                    "location": "[parameters('location')]",
+                    "name": "[parameters('domainServicesSubnetName')]",
+                    "dependsOn": [
+                        "[parameters('domainServicesVnetName')]"
+                    ],
+                    "properties": {
+                        "addressPrefix": "[parameters('domainServicesSubnetAddressPrefix')]",
+                        "networkSecurityGroup": {
+                            "id": "[variables('nsgRefId')]"
+                        }
+                    }
+                },
+                {
+                    "apiVersion": "2018-10-01",
+                    "type": "subnets",
+                    "location": "[parameters('location')]",
+                    "name": "[parameters('workloadSubnetName')]",
+                    "dependsOn": [
+                        "[parameters('domainServicesVnetName')]",
+                        "[parameters('domainServicesSubnetName')]"
+                    ],
+                    "properties": {
+                        "addressPrefix": "[parameters('workloadSubnetAddressPrefix')]"
+                    }
+                },
+                {
+                    "apiVersion": "2018-10-01",
+                    "type": "subnets",
+                    "location": "[parameters('location')]",
+                    "name": "[parameters('bastionSubnetName')]",
+                    "dependsOn": [
+                        "[parameters('domainServicesVnetName')]",
+                        "[parameters('domainServicesSubnetName')]",
+                        "[parameters('workloadSubnetName')]"
+                    ],
+                    "properties": {
+                        "addressPrefix": "[parameters('bastionSubnetAddressPrefix')]"
+                    }
+                },
+                {
+                    "apiVersion": "2018-10-01",
+                    "type": "subnets",
+                    "location": "[parameters('location')]",
+                    "name": "[parameters('managementSubnetName')]",
+                    "dependsOn": [
+                        "[parameters('domainServicesVnetName')]",
+                        "[parameters('domainServicesSubnetName')]",
+                        "[parameters('workloadSubnetName')]",
+                        "[parameters('bastionSubnetName')]"
+                    ],
+                    "properties": {
+                        "addressPrefix": "[parameters('managementSubnetAddressPrefix')]"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.AAD/DomainServices",
+            "name": "[parameters('domainName')]",
+            "apiVersion": "2017-06-01",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[parameters('domainServicesVnetName')]"
+            ],
+            "properties": {
+                "domainName": "[parameters('domainName')]",
+                "vnetSiteID": "[variables('vnetRefId')]",
+                "subnetId": "[variables('subnetRefId')]"
+            }
+        }
+    ],
+    "outputs": {}
+}

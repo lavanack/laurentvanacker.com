@@ -1,0 +1,38 @@
+{
+    "AzureAD": {
+		"DomainName" : { 
+			"description" : "The managed domain name of the Azure AD", 
+			"value" : "laurentvanacker.onmicrosoft.com" 
+		}
+     },
+    "AzureADDS": {
+		"VirtualNetworkName" : { 
+			"description" : "The virtual network to create for the Azure AD Domain Service",
+			"value" : "AzureADDS-vNet" 
+		}
+     },
+    "Bastion": {
+		"ResourceGroupName" : { 
+			"description" : "The resource group name to create for hosting the bastion",
+			"value" : "Bastion-RG"
+		},
+		"Name" : { 
+			"description" : "The name of the Bastion",
+			"value" : "Bastion"
+		},
+		"PublicIpAddressName" : { 
+			"description" : "The name of the Public IP address for the Bastion",
+			"value" : "BastionPublicIP"
+		}
+    },
+    "Azure": {
+		"Location" : { 
+			"description" : "The Azure location host the resources",
+			"value" : "eastus" 
+		},
+		"SubscriptionName" : { 
+			"description" : "The Azure subscription name",
+			"value" : "Visual Studio Enterprise with MSDN"
+		}
+    }
+}

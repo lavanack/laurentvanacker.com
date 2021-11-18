@@ -1,0 +1,50 @@
+{
+    "AzureAD": {
+		"DomainName" : { 
+			"description" : "The managed domain name of the Azure AD", 
+			"value" : "laurentvanacker.onmicrosoft.com" 
+		},
+		"AdminUserUPN" : { 
+			"description" : "The UPN of an administrator in the Azure AD",
+			"value" : "laurent@laurentvanacker.onmicrosoft.com" 
+		}
+    },
+    "AzureADDS": {
+		"ResourceGroupName" : { 
+			"description" : "The resource group name to create for hosting the Azure AD Domain Service",
+			"value" : "AzureADDS-ARM-RG" 
+		},
+		"VirtualNetworkName" : { 
+			"description" : "The virtual network to create for the Azure AD Domain Service", 
+			"value" : "AzureADDS-vNet" 
+		},
+		"NetworkSecurityGroupName" : {
+			"description" : "The network security group to create for the Azure AD Domain Service",
+			"value" : "AzureADDS-NSG" 
+		},
+		"ManagementSubnetName" : { 
+			"description" : "The management subnet for hosting the management virtual machine", 
+			"value" : "Management-Subnet"
+		}
+     },
+    "Azure": {
+		"Location" : { 
+			"description" : "The Azure location for hosting the resources", 
+			"value" : "eastus" 
+		},
+		"SubscriptionName" : { 
+			"description" : "The Azure subscription name", 
+			"value" : "Visual Studio Enterprise with MSDN"
+		}
+    },
+    "VM": {
+		"Names" : { 
+			"description" : "The name of the management virtual machine(s) to create", 
+			"value" : [ "addsvm01", "addsvm02" ] 
+		},
+		"Size" : { 
+			"description" : "The size of the management virtual machine(s) to create", 
+			"value" : "Standard_DS1_v2" 
+		}
+    }
+}

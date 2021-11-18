@@ -1,0 +1,135 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "artifactsLocation": {
+            "value": "https://wvdportalstorageblob.blob.core.windows.net/galleryartifacts/Configuration_10-26-2020.zip"
+        },
+        "nestedTemplatesLocation": {
+            "value": "https://catalogartifact.azureedge.net/publicartifacts/Microsoft.Hostpool-ARM-1.0.15-preview/"
+        },
+        "hostpoolName": {
+            "value": "wvd-host-pool-1"
+        },
+        "hostpoolDescription": {
+            "value": "Created through the WVD extension"
+        },
+        "validationEnvironment": {
+            "value": false
+        },
+        "addToWorkspace": {
+            "value": true
+        },
+        "hostpoolType": {
+            "value": "Pooled"
+        },
+        "loadBalancerType": {
+            "value": "BreadthFirst"
+        },
+        "customRdpProperty": {
+            "value": ""
+        },
+        "vmTemplate": {
+            "value": "{\"domain\":\"laurentvanacker.onmicrosoft.com\",\"galleryImageOffer\":\"Windows-10\",\"galleryImagePublisher\":\"MicrosoftWindowsDesktop\",\"galleryImageSKU\":\"19h2-evd\",\"imageType\":\"Gallery\",\"imageUri\":null,\"customImageId\":null,\"namePrefix\":\"wvd-vm-pool\",\"osDiskType\":\"StandardSSD_LRS\",\"useManagedDisks\":true,\"vmSize\":{\"id\":\"Standard_D2s_v3\",\"cores\":2,\"ram\":8},\"galleryItemId\":\"Microsoftwindowsdesktop.windows-1019h2-evd\"}"
+        },
+        "tokenExpirationTime": {
+            "value": "2020-11-11T18:17:04.765Z"
+        },
+        "administratorAccountUsername": {
+            "value": "laurent@laurentvanacker.onmicrosoft.com"
+        },
+        "administratorAccountPassword": {
+            "value": null
+        },
+        "createAvailabilitySet": {
+            "value": true
+        },
+        "vmResourceGroup": {
+            "value": ""
+        },
+        "vmSize": {
+            "value": "Standard_D2s_v3"
+        },
+        "vmNumberOfInstances": {
+            "value": 2
+        },
+        "vmNamePrefix": {
+            "value": "wvd-vm-pool"
+        },
+        "vmImageType": {
+            "value": "Gallery"
+        },
+        "vmDiskType": {
+            "value": "StandardSSD_LRS"
+        },
+        "vmUseManagedDisks": {
+            "value": true
+        },
+        "existingVnetName": {
+            "value": "AzureADDS-vNet"
+        },
+        "existingSubnetName": {
+            "value": "DomainServicesSubnet"
+        },
+        "virtualNetworkResourceGroupName": {
+            "value": "AzureADDS-RG"
+        },
+        "usePublicIP": {
+            "value": false
+        },
+        "createNetworkSecurityGroup": {
+            "value": false
+        },
+        "domain": {
+            "value": "laurentvanacker.onmicrosoft.com"
+        },
+        "hostpoolTags": {
+            "value": {}
+        },
+        "applicationGroupTags": {
+            "value": {}
+        },
+        "availabilitySetTags": {
+            "value": {}
+        },
+        "networkInterfaceTags": {
+            "value": {}
+        },
+        "networkSecurityGroupTags": {
+            "value": {}
+        },
+        "publicIPAddressTags": {
+            "value": {}
+        },
+        "virtualMachineTags": {
+            "value": {}
+        },
+        "imageTags": {
+            "value": {}
+        },
+        "apiVersion": {
+            "value": "2019-12-10-preview"
+        },
+        "deploymentId": {
+            "value": "d178cd96-3182-458b-82d8-90cd4862d081"
+        },
+        "vmGalleryImageOffer": {
+            "value": "Windows-10"
+        },
+        "vmGalleryImagePublisher": {
+            "value": "MicrosoftWindowsDesktop"
+        },
+        "vmGalleryImageSKU": {
+            "value": "19h2-evd"
+        },
+        "maxSessionLimit": {
+            "value": 5
+        },
+        "workSpaceName": {
+            "value": "Virtual_Workspace"
+        },
+        "allApplicationGroupReferences": {
+            "value": ""
+        }
+    }
+}
