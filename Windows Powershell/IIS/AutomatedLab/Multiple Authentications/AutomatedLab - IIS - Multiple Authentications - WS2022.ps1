@@ -151,10 +151,11 @@ Add-LabMachineDefinition -Name CLIENT01 -IpAddress $CLIENTIPv4Address
 #Installing servers
 Install-Lab
 Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
+#Restore-LabVMSnapshot -SnapshotName 'FreshInstall' -All -Verbose
 
 #region Installing Required Windows Features
 $machines = Get-LabVM
-Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools
+Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools -AsJob
 Install-LabWindowsFeature -FeatureName Web-Server, Web-Asp-Net45, Web-Request-Monitor, Web-Basic-Auth, Web-Client-Auth, Web-Digest-Auth, Web-Cert-Auth, Web-Windows-Auth -ComputerName IIS01 -IncludeManagementTools
 #endregion
 
@@ -222,7 +223,8 @@ Invoke-LabCommand -ActivityName 'DNS, DFS-R Setup & GPO Settings on DC' -Compute
     $StartPages = "http://$using:AnonymousWebSiteName", "https://$using:BasicWebSiteName", "http://$using:KerberosWebSiteName", "http://$using:NTLMWebSiteName", "http://$using:DigestWebSiteName", "https://$using:ADClientCertWebSiteName", "https://$using:IISClientOneToOneCertWebSiteName", "https://$using:IISClientManyToOneCertWebSiteName", "http://$using:FormsWebSiteName"
     $i=0
     $StartPages | ForEach-Object -Process {
-        Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Edge\RestoreOnStartupURLs' -ValueName "$_" -Type String -Value ++$i
+        $i++
+        Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Edge\RestoreOnStartupURLs' -ValueName $i -Type String -Value "$_"
     }
     #endregion
 
