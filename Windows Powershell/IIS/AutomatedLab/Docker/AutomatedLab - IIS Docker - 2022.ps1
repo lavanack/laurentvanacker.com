@@ -28,7 +28,7 @@ Clear-Host
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
 $PreviousErrorActionPreference = $ErrorActionPreference
-$ErrorActionPreference = 'Stop'
+#$ErrorActionPreference = 'Stop'
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
@@ -54,7 +54,7 @@ FROM mcr.microsoft.com/windows/servercore/iis
 '@
 $DockerFileName = 'DockerFile'
 
-$LabName = 'IISDocker2019'
+$LabName = 'IISDocker2022'
 #endregion
 
 #Cleaning previously existing lab
@@ -102,8 +102,9 @@ Add-LabMachineDefinition -Name DOCKER01 -NetworkAdapter $DOCKER01NetAdapter -Min
 
 #Installing servers
 Install-Lab
-Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
+Checkpoint-LabVM -SnapshotName FreshInstall -All
 #Restore-LabVMSnapshot -SnapshotName 'FreshInstall' -All -Verbose
+
 
 #region Installing Required Windows Features
 $machines = Get-LabVM
@@ -119,7 +120,6 @@ Start-LabVM -All -Wait
 
 #Installing and setting up DNS
 Invoke-LabCommand -ActivityName 'DNS & AD Setup on DC' -ComputerName DC01 -ScriptBlock {
-
     #region DNS management
     #Reverse lookup zone creation
     Add-DnsServerPrimaryZone -NetworkID $using:NetworkID -ReplicationScope 'Forest' 
@@ -131,6 +131,7 @@ Invoke-LabCommand -ActivityName 'DNS & AD Setup on DC' -ComputerName DC01 -Scrip
 $CertificationAuthority = Get-LabIssuingCA
 #Generating a new template for 10-year SSL Web Server certificate
 New-LabCATemplate -TemplateName WebServer10Years -DisplayName 'WebServer10Years' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ValidityPeriod $WebServerCertValidityPeriod -ComputerName $CertificationAuthority -ErrorAction Stop
+#Request-LabCertificate -Subject "CN=DOCKER01.contoso.com" -TemplateName WebServer10Years -ComputerName DOCKER01 -PassThru 
 #endregion
 
 Install-LabWindowsFeature -FeatureName Containers,Hyper-V -ComputerName DOCKER01 -IncludeManagementTools
@@ -145,11 +146,12 @@ Invoke-LabCommand -ActivityName 'Docker Setup' -ComputerName DOCKER01 -ScriptBlo
     #After the installation completes, restart the computer.
 }
 Restart-LabVM -ComputerName DOCKER01 -Wait
+Checkpoint-LabVM -SnapshotName DockerSetup -All
 
-Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -ErrorAction SilentlyContinue -ScriptBlock {
+Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -Verbose -ScriptBlock {
     Start-Service Docker
     #Pulling IIS image
-    docker pull mcr.microsoft.com/windows/servercore/iis
+    #docker pull mcr.microsoft.com/windows/servercore/iis
 
     $null = New-Item -Path $env:SystemDrive\Docker\IIS\$using:DockerFileName -ItemType File -Value $using:IISDockerFileContent -Force
     Set-Location -Path $env:SystemDrive\Docker\IIS\
