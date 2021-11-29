@@ -61,7 +61,7 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
     $PropagationFlag = [System.Security.AccessControl.PropagationFlags]::None
     $objType = [System.Security.AccessControl.AccessControlType]::Allow
     # Create a new FileSystemAccessRule object
-    $AccessRule = New-Object System.Security.AccessControl.FileSystemAccessRule ($identity,$colRights,$InheritanceFlag,$PropagationFlag, $objType)
+    $AccessRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule -ArgumentList ($identity,$colRights,$InheritanceFlag,$PropagationFlag, $objType)
     # Modify the existing ACL to include the new rule
     $existingAcl.SetAccessRule($AccessRule)
 
@@ -72,7 +72,7 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
     $PropagationFlag = [System.Security.AccessControl.PropagationFlags]::InheritOnly           
     $objType = [System.Security.AccessControl.AccessControlType]::Allow
     # Create a new FileSystemAccessRule object
-    $AccessRule = New-Object System.Security.AccessControl.FileSystemAccessRule ($identity,$colRights,$InheritanceFlag,$PropagationFlag, $objType)
+    $AccessRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule -ArgumentList ($identity,$colRights,$InheritanceFlag,$PropagationFlag, $objType)
     # Modify the existing ACL to include the new rule
     $existingAcl.SetAccessRule($AccessRule)
 
@@ -83,7 +83,7 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
     $PropagationFlag = [System.Security.AccessControl.PropagationFlags]::None
     $objType = [System.Security.AccessControl.AccessControlType]::Allow
     # Create a new FileSystemAccessRule object
-    $AccessRule = New-Object System.Security.AccessControl.FileSystemAccessRule ($identity,$colRights,$InheritanceFlag,$PropagationFlag, $objType)
+    $AccessRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule -ArgumentList ($identity,$colRights,$InheritanceFlag,$PropagationFlag, $objType)
     # Modify the existing ACL to include the new rule
     $existingAcl.SetAccessRule($AccessRule)
 
