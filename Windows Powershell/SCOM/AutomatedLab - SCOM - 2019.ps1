@@ -164,7 +164,7 @@ Restart-LabVM -ComputerName SQL01 -Wait -ProgressIndicator 10
 Checkpoint-LabVM -SnapshotName FreshInstall -All
 
 #Downloading SQL Server 2019 CU8 (or later)
-$SQLServer2019LatestCU = Get-LabInternetFile -Uri $SQLServer2019LatestCUURI -Path $labSources\SoftwarePackages -PassThru
+$SQLServer2019LatestCU = Get-LabInternetFile -Uri $SQLServer2019LatestCUURI -Path $labSources\SoftwarePackages -PassThru -Force
 #Installing SQL Server 2019 CU8 (or later)
 Install-LabSoftwarePackage -ComputerName SQL01 -Path $SQLServer2019LatestCU.FullName -CommandLine " /QUIET /IACCEPTSQLSERVERLICENSETERMS /ACTION=PATCH /ALLINSTANCES" #-AsJob
 #Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
@@ -273,10 +273,10 @@ foreach ($CurrentSCOMServer in $SCOMServers.Name) {
 }
 
 #Region Prerequisites for SCOM
-$SystemCLRTypesForSQLServer2014x64 = Get-LabInternetFile -Uri $SystemCLRTypesForSQLServer2014x64URI -Path $labSources\SoftwarePackages -PassThru
+$SystemCLRTypesForSQLServer2014x64 = Get-LabInternetFile -Uri $SystemCLRTypesForSQLServer2014x64URI -Path $labSources\SoftwarePackages -PassThru -Force
 Install-LabSoftwarePackage -ComputerName SCOM01 -Path $SystemCLRTypesForSQLServer2014x64.FullName -CommandLine "/qn  /L* $(Join-Path -Path $env:SystemDrive -ChildPath $($SystemCLRTypesForSQLServer2014x64.FileName+".log")) /norestart ALLUSERS=2"
 
-$ReportViewer2015Runtime = Get-LabInternetFile -Uri $ReportViewer2015RuntimeURI -Path $labSources\SoftwarePackages -PassThru
+$ReportViewer2015Runtime = Get-LabInternetFile -Uri $ReportViewer2015RuntimeURI -Path $labSources\SoftwarePackages -PassThru -Force
 Install-LabSoftwarePackage -ComputerName SCOM01 -Path $ReportViewer2015Runtime.FullName -CommandLine "/qn /L* $(Join-Path -Path $env:SystemDrive -ChildPath $($ReportViewer2015Runtime.FileName+".log")) /norestart ALLUSERS=2"
 #endregion
 
@@ -327,7 +327,7 @@ Invoke-LabCommand -ActivityName 'Installing the Operations Manager Management se
 Dismount-LabIsoImage -ComputerName SCOM01
 
 #Installing SSRS on the SQL Server
-$SQLServer2019ReportingServices = Get-LabInternetFile -Uri $SQLServer2019ReportingServicesURI -Path $labSources\SoftwarePackages -PassThru
+$SQLServer2019ReportingServices = Get-LabInternetFile -Uri $SQLServer2019ReportingServicesURI -Path $labSources\SoftwarePackages -PassThru -Force
 Install-LabSoftwarePackage -ComputerName SQL01 -Path $SQLServer2019ReportingServices.FullName -CommandLine " /quiet /IAcceptLicenseTerms /Edition=Eval"
 #Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
 
@@ -447,10 +447,10 @@ Invoke-LabCommand -ActivityName 'Cleanup on SQL Server' -ComputerName SQL01 -Scr
 
 
 #Downloading the SCOM IIS and dependent Management Packs
-$SCOMIISManagementPack = Get-LabInternetFile -Uri $SCOMIISManagementPackURI -Path $labSources\SoftwarePackages -PassThru
-#$SCOMWSManagementPack = Get-LabInternetFile -Uri $SCOMWSManagementPackURI -Path $labSources\SoftwarePackages -PassThru
-$SCOMWS2016andWS2019ManagementPack = Get-LabInternetFile -Uri $SCOMWS2016andWS2019ManagementPackURI -Path $labSources\SoftwarePackages -PassThru
-$SCOMNETAPMManagementPack = Get-LabInternetFile -Uri $SCOMNETAPMManagementPackURI -Path $labSources\SoftwarePackages -PassThru
+$SCOMIISManagementPack = Get-LabInternetFile -Uri $SCOMIISManagementPackURI -Path $labSources\SoftwarePackages -PassThru -Force
+#$SCOMWSManagementPack = Get-LabInternetFile -Uri $SCOMWSManagementPackURI -Path $labSources\SoftwarePackages -PassThru -Force
+$SCOMWS2016andWS2019ManagementPack = Get-LabInternetFile -Uri $SCOMWS2016andWS2019ManagementPackURI -Path $labSources\SoftwarePackages -PassThru -Force
+$SCOMNETAPMManagementPack = Get-LabInternetFile -Uri $SCOMNETAPMManagementPackURI -Path $labSources\SoftwarePackages -PassThru -Force
 
 #Installing the SCOM IIS and Dependent Management Packs
 #Install-LabSoftwarePackage -ComputerName SCOM01 -Path $SCOMWSManagementPack.FullName -CommandLine "-quiet"
