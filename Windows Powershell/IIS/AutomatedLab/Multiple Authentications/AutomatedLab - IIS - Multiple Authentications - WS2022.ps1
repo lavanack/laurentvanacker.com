@@ -177,9 +177,9 @@ Install-LabSoftwarePackage -ComputerName $machines -Path $MSEdgeEnt.FullName -Co
 
 #region SCHANNEL Hardening
 #Copying IISCrypto and IISCryptoCli on all machines
-$IISCryptoExe = Get-LabInternetFile -Uri $IISCryptoExeUri -Path $labSources\SoftwarePackages -PassThru
+$IISCryptoExe = Get-LabInternetFile -Uri $IISCryptoExeUri -Path $labSources\SoftwarePackages -PassThru -Force
 $null = Copy-LabFileItem -Path $IISCryptoExe.FullName -DestinationFolderPath $LocalTempFolder -ComputerName $machines -PassThru
-$IISCryptoCliExe = Get-LabInternetFile -Uri $IISCryptoCliExeUri -Path $labSources\SoftwarePackages -PassThru
+$IISCryptoCliExe = Get-LabInternetFile -Uri $IISCryptoCliExeUri -Path $labSources\SoftwarePackages -PassThru -Force
 $LocalIISCryptoCliExe = Copy-LabFileItem -Path $IISCryptoCliExe.FullName -DestinationFolderPath $LocalTempFolder -ComputerName $machines -PassThru
 $LocalIISCryptoCliExe = $LocalIISCryptoCliExe | Select-Object -First 1
 
@@ -351,17 +351,17 @@ $TestUserIISClientCertContent = Invoke-LabCommand -ActivityName '1:1 IIS and AD 
 
 #region Wireshark silent install on client machines
 #Copying WireShark on client machines. Silent install is not available due to npcap. cf. https://www.wireshark.org/docs/wsug_html_chunked/ChBuildInstallWinInstall.html
-$WiresharkWin64LatestExe = Get-LabInternetFile -Uri $WiresharkWin64LatestExeUri -Path $labSources\SoftwarePackages -PassThru
+$WiresharkWin64LatestExe = Get-LabInternetFile -Uri $WiresharkWin64LatestExeUri -Path $labSources\SoftwarePackages -PassThru -Force
 #Install-LabSoftwarePackage -ComputerName CLIENT01 -Path $WiresharkWin64LatestExe.FullName -CommandLine "/S" -AsJob
 $LocalWiresharkWin64LatestExe = Copy-LabFileItem -Path $WiresharkWin64LatestExe.FullName -DestinationFolderPath $LocalTempFolder -ComputerName $ClientMachines -PassThru
 $LocalWiresharkWin64LatestExe = $LocalWiresharkWin64LatestExe | Select-Object -First 1
 
 #Copying NMAP on client machines. Silent install is not available due to npcap. cf. https://www.wireshark.org/docs/wsug_html_chunked/ChBuildInstallWinInstall.html
-$NMAPExe = Get-LabInternetFile -Uri $NMAPExeUri -Path $labSources\SoftwarePackages -PassThru
+$NMAPExe = Get-LabInternetFile -Uri $NMAPExeUri -Path $labSources\SoftwarePackages -PassThru -Force
 $LocalNMAPExe = Copy-LabFileItem -Path $NMAPExe.FullName -DestinationFolderPath $LocalTempFolder -ComputerName $ClientMachines -PassThru
 $LocalNMAPExe = $LocalNMAPExe | Select-Object -First 1
 
-$7zipExe = Get-LabInternetFile -Uri $7zipExeUri -Path $labSources\SoftwarePackages -PassThru
+$7zipExe = Get-LabInternetFile -Uri $7zipExeUri -Path $labSources\SoftwarePackages -PassThru -Force
 Install-LabSoftwarePackage -ComputerName $ClientMachines -Path $7zipExe.FullName -CommandLine "/S"
 
 #cf. https://silentinstallhq.com/wireshark-silent-install-how-to-guide/
