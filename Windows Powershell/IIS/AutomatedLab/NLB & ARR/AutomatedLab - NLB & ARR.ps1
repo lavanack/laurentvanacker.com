@@ -189,7 +189,7 @@ Install-LabWindowsFeature -FeatureName NLB, Web-CertProvider -ComputerName ARRNO
 Install-LabWindowsFeature -FeatureName Web-Windows-Auth -ComputerName IISNODE01, IISNODE02 -IncludeManagementTools
 #endregion
 
-$MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru
+$MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru -Force
 Install-LabSoftwarePackage -ComputerName $machines -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob
 
 Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $ARRWebSiteName to the IE intranet zone" -ComputerName $machines -ScriptBlock {

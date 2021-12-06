@@ -112,7 +112,7 @@ $VSCodeExtension = [ordered]@{
 }
 
 #Installing Git
-$Git = Get-LabInternetFile -Uri $GitUri -Path $labSources\SoftwarePackages -PassThru
+$Git = Get-LabInternetFile -Uri $GitUri -Path $labSources\SoftwarePackages -PassThru -Force
 Install-LabSoftwarePackage -ComputerName WIN10 -Path $Git.FullName -CommandLine " /SILENT /CLOSEAPPLICATIONS"
 
 Invoke-LabCommand -ActivityName "Installing Powershell7+, VSCode, PowerShell extensions (and optionally additional ones) and posh-git module" -ComputerName $Client -ScriptBlock {
