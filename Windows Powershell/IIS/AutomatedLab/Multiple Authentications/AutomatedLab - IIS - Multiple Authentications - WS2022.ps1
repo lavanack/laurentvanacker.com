@@ -38,7 +38,6 @@ $TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}" -f (
 Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 
 #region Global variables definition
-
 $Logon = 'Administrator'
 # This is a lab so we assume to use clear-text password (and the same for all accounts for an easier management :))  
 $ClearTextPassword = 'P@ssw0rd'
@@ -98,6 +97,10 @@ $LabName = 'IISAuthLab'
 
 $LocalTempFolder = 'C:\Temp'
 
+#region Tools to download and install
+#Microsoft Edge : Latest version
+$MSEdgeEntUri = "http://go.microsoft.com/fwlink/?LinkID=2093437"
+
 #Wireshark Download URI
 $WiresharkWin64LatestExeUri = 'https://1.eu.dl.wireshark.org/win64/Wireshark-win64-latest.exe'
 
@@ -112,6 +115,7 @@ $NMAPExeUri = 'https://nmap.org/dist/nmap-7.12-setup.exe'
 # Code from: https://perplexity.nl/windows-powershell/installing-or-updating-7-zip-using-powershell/
 $7zipExeUri = 'https://7-zip.org/' + (Invoke-WebRequest -Uri 'https://7-zip.org/' | Select-Object -ExpandProperty Links | Where-Object { ($_.innerHTML -eq 'Download') -and ($_.href -like "a/*") -and ($_.href -like "*-x64.exe") } | Select-Object -First 1 | Select-Object -ExpandProperty href)
 #endregion
+
 
 #Cleaning previously existing lab
 if ($LabName -in (Get-Lab -List)) {
@@ -164,6 +168,10 @@ Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 $machines = Get-LabVM
 $ClientMachines = Get-LabVM -Filter {$_.Name -match "CLIENT"}
 
+#Updating MS Edge on all machines (because even the latest OS build ISO doesn't necessary contain the latest MSEdge version)
+$MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru
+Install-LabSoftwarePackage -ComputerName $machines -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart"
+
 #region SCHANNEL Hardening
 #Copying IISCrypto and IISCryptoCli on all machines
 $IISCryptoExe = Get-LabInternetFile -Uri $IISCryptoExeUri -Path $labSources\SoftwarePackages -PassThru
@@ -176,152 +184,6 @@ $LocalIISCryptoCliExe = $LocalIISCryptoCliExe | Select-Object -First 1
 Invoke-LabCommand -ActivityName 'SCHANNEL Hardening to support only TLS 1.2 and strongest Cipher Suites' -ComputerName $machines -ScriptBlock {
     #Following Strict Template from IISCrypto https://www.nartac.com/Products/IISCrypto
     Start-Process -FilePath "$using:LocalIISCryptoCliExe" -ArgumentList "/template strict" -Wait
-    #Following Strict Template from IISCrypto https://www.nartac.com/Products/IISCrypto
-    <#
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders" -Name "SCHANNEL" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL" -Name "EventLogging" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL" -Name "Ciphers" -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers" -Name "AES 128/128" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers"-Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers" -Name "AES 256/256" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\AES 256/256" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers" -Name "DES 56/56" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\DES 56/56" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers" -Name "NULL" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\NULL" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers" -Name "RC2 128/128" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC2 128/128" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers" -Name "RC2 40/128" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC2 40/128" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers" -Name "RC2 56/128" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC2 56/128" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers" -Name "RC4 128/128" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 128/128" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers" -Name "RC4 40/128" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 40/128" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers" -Name "RC4 56/128" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 56/128" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers" -Name "RC4 64/128" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 64/128" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers" -Name "Triple DES 168" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\Triple DES 168" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL" -Name "CipherSuites" -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes" -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes" -Name "MD5" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes\MD5" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes" -Name "SHA" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes\SHA" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes" -Name "SHA256" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes\SHA256" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes" -Name "SHA384" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes\SHA384" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes" -Name "SHA512" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes\SHA512" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL" -Name "KeyExchangeAlgorithms" -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\KeyExchangeAlgorithms" -Name "Diffie-Hellman" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\KeyExchangeAlgorithms\Diffie-Hellman" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff 
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\KeyExchangeAlgorithms\Diffie-Hellman" -Name "ServerMinKeyBitLength" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000800
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\KeyExchangeAlgorithms" -Name "ECDH" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\KeyExchangeAlgorithms\ECDH" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\KeyExchangeAlgorithms" -Name "PKCS" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\KeyExchangeAlgorithms\PKCS" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols" -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols" -Name "Multi-Protocol Unified Hello" -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\Multi-Protocol Unified Hello" -Name "Client" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\Multi-Protocol Unified Hello\Client" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\Multi-Protocol Unified Hello\Client" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\Multi-Protocol Unified Hello" -Name "Server" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\Multi-Protocol Unified Hello\Server" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\Multi-Protocol Unified Hello\Server" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols" -Name "PCT 1.0" -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\PCT 1.0" -Name "Client" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\PCT 1.0\Client" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\PCT 1.0\Client" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\PCT 1.0" -Name "Server" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\PCT 1.0\Server" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\PCT 1.0\Server" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0" -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0" -Name "Client" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0\Client" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0\Client" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0" -Name "Server" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0\Server" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0\Server" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0" -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0" -Name "Client" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0\Client" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0\Client" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0" -Name "Server" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0\Server" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 -Force 
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0\Server" "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0" -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0" -Name "Client" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Client" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Client" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0" -Name "Server" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1" -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1" -Name "Client" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1" -Name "Server" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2" -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2" -Name "Client" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Client" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff 
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 -Force
-
-    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2" -Name "Server" -Force
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Server" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff 
-    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 -Force
-    #>
 }
 #Restarting the IIS Server to take the SCHANNEL hardening into consideration
 Restart-LabVM -ComputerName $machines -Wait
