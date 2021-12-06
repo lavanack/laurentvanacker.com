@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<RDCMan programVersion="2.7" schemaVersion="3">
+<RDCMan programVersion="2.83" schemaVersion="3">
   <file>
     <credentialsProfiles />
     <properties>
@@ -39,7 +39,7 @@
       <logonCredentials inherit="None">
         <profileName scope="Local">Custom</profileName>
         <userName>Administrator</userName>
-        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAvXE4/GmjDkysg6JwTiK/RgAAAAACAAAAAAAQZgAAAAEAACAAAADUcYrNKhW6+jgAFutGh9WAntpGcb8D7x+nu68ohz9cBQAAAAAOgAAAAAIAACAAAACoosdMgLF+f1aPssKJ+IBgbyrN/KB3ocDykwg/gXYEUSAAAACQhX659KFzxJ6qSNEdTPmhA+uMbGiNSJW2UUKfroCEF0AAAADJHqtmzeI4wCjHuM6OYydBPOSOFF4UJXGnLIsVk39USbyiM2CFVn75+3Kk+ocsRuR/NAn6RDZXb30Yi8wvxA0g</password>
+        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAK6RK+xUbD0ST++uEIIsNnAAAAAACAAAAAAAQZgAAAAEAACAAAAA1czCbyuABn9ojEGCzcOOr5mSry3HMZv2UzRAJmyoozAAAAAAOgAAAAAIAACAAAADjtsy9O9xBnXEFYlpp2SQr0CbeSGEbKttiABM1z8pkHyAAAAB5n9grgt1aWwFvUxFgcoNoRCk/msK5iF3D3cu6cMtDrkAAAAD0402i3/vFaFY80fuL5FPdP/F7Mr4AFihuRBwIhM+78i/dAkMpgSAIaxnsY7N8TkdYMBR0UcEoONGsKa2UdiD2</password>
         <domain>CONTOSO</domain>
       </logonCredentials>
       <server>
@@ -56,7 +56,19 @@
         <logonCredentials inherit="None">
           <profileName scope="Local">Custom</profileName>
           <userName>JohnDoe</userName>
-          <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAvXE4/GmjDkysg6JwTiK/RgAAAAACAAAAAAAQZgAAAAEAACAAAACSaCdvkZb7HPqcSbKJMOCxOFjz/AlL4RUC2r33l+pv5gAAAAAOgAAAAAIAACAAAADE1/fjmmHLxf5kxqi47VmyF9ZvE16cObZ/Egh2T0OO4SAAAAAyGFVnQkucOxsUZZhUJKL0IVGWa1YYJVEC3GuQ3tQHfkAAAADtUSRvlc2VE1ZGEoKfcQN1fESSkgb/sZbRLxhBd4syX+1VP4SLcDtQK0Bchs+QmOodpGdbqVhFfdNrLzwYPeUM</password>
+          <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAK6RK+xUbD0ST++uEIIsNnAAAAAACAAAAAAAQZgAAAAEAACAAAAAI/9RbWqGWGe+nuM1rZAG4qTkv5MsMq0DcTL0QTzxdVQAAAAAOgAAAAAIAACAAAAAbnpbZj5QUroTH4rNzslKNaPP0KeLzXNv465nyfnaakyAAAAAI8pCxQPSzE0ZkmFP5koVn1jy5BGLtXeYpFId0Ugs42EAAAAAZhIafdvHqIeR0gTD1/Hg978lHGzWHI1PFCylAQaWE7aB6OimSqFF1FgUvTKHVMxZLMt1yV5hWlZfzjPE0Hyiq</password>
+          <domain>CONTOSO</domain>
+        </logonCredentials>
+      </server>
+      <server>
+        <properties>
+          <displayName>CLIENT02</displayName>
+          <name>10.0.0.23</name>
+        </properties>
+        <logonCredentials inherit="None">
+          <profileName scope="Local">Custom</profileName>
+          <userName>JohnDoe</userName>
+          <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAK6RK+xUbD0ST++uEIIsNnAAAAAACAAAAAAAQZgAAAAEAACAAAABmPKT+wfEKJD2XAtA35eaEGZxpMN4PLTXxhCq5Mx5gdwAAAAAOgAAAAAIAACAAAACUvfmEdoTyrlBAHpe/kpCN9QsPHw0tQ/FUuC5Kw69WiCAAAABhEbyBC68/AVhNBcybCnXzDd1nvVUIjvKzbE3RVz7RAkAAAAChu/6GhrVY6+bx6UQacOU8Ydc5rb3x325Kz1oDOwUlaEyiBwiWsifZ8Mm21SeukQ5Z6PQeFxGdpbmg1o48YmSn</password>
           <domain>CONTOSO</domain>
         </logonCredentials>
       </server>
