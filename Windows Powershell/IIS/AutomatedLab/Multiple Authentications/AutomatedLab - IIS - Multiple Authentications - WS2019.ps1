@@ -308,7 +308,7 @@ Invoke-LabCommand -ActivityName 'Client Authentication Certificate Management' -
 
 
 #Installing MS Edge on CLIENT01
-$MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru
+$MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru -Force
 Install-LabSoftwarePackage -ComputerName CLIENT01 -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob
 
 $AdmIISClientCertContent = Invoke-LabCommand -ActivityName '1:1 IIS and AD Client Certificate Management for Administrator' -ComputerName CLIENT01 -PassThru -ScriptBlock {

@@ -166,10 +166,10 @@ Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 #Start-LabVM -All -Wait
 
 $machines = Get-LabVM
-$ClientMachines = Get-LabVM -Filter {$_.Name -match "CLIENT"}
+$ClientMachines = Get-LabVM -Filter {$_.Name -match "^CLIENT"}
 
 #Updating MS Edge on all machines (because even the latest OS build ISO doesn't necessary contain the latest MSEdge version)
-$MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru
+$MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru -Force
 Install-LabSoftwarePackage -ComputerName $machines -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart"
 
 #region SCHANNEL Hardening
