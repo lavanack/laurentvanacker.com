@@ -168,9 +168,12 @@ Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 $machines = Get-LabVM
 $ClientMachines = Get-LabVM -Filter {$_.Name -match "^CLIENT"}
 
+#region Installing Microsoft Edge
 #Updating MS Edge on all machines (because even the latest OS build ISO doesn't necessary contain the latest MSEdge version)
+#-Force is used to be sure to download the latest MS Edge version 
 $MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru -Force
-Install-LabSoftwarePackage -ComputerName $machines -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart"
+Install-LabSoftwarePackage -ComputerName $machines -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob
+#endregion
 
 #region SCHANNEL Hardening
 #Copying IISCrypto and IISCryptoCli on all machines

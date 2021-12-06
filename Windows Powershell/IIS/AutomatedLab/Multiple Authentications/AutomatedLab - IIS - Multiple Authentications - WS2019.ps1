@@ -307,9 +307,11 @@ Invoke-LabCommand -ActivityName 'Client Authentication Certificate Management' -
 }
 
 
-#Installing MS Edge on CLIENT01
+#region Installing Microsoft Edge
+#-Force is used to be sure to download the latest MS Edge version 
 $MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru -Force
-Install-LabSoftwarePackage -ComputerName CLIENT01 -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob
+Install-LabSoftwarePackage -ComputerName $CLIENT01 -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob
+#endregion
 
 $AdmIISClientCertContent = Invoke-LabCommand -ActivityName '1:1 IIS and AD Client Certificate Management for Administrator' -ComputerName CLIENT01 -PassThru -ScriptBlock {
     #Adding users to the Administrators group for remote connection via PowerShell for getting a certificate (next step)
