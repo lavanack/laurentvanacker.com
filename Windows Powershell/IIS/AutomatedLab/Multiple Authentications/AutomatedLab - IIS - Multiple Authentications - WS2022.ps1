@@ -30,7 +30,7 @@ Clear-Host
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
 $PreviousErrorActionPreference = $ErrorActionPreference
-$ErrorActionPreference = 'Stop'
+#$ErrorActionPreference = 'Stop'
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
@@ -38,6 +38,7 @@ $TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}" -f (
 Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 
 #region Global variables definition
+
 $Logon = 'Administrator'
 # This is a lab so we assume to use clear-text password (and the same for all accounts for an easier management :))  
 $ClearTextPassword = 'P@ssw0rd'
@@ -49,10 +50,11 @@ $TestUser = 'JohnDoe'
 $TestUserCredential = New-Object System.Management.Automation.PSCredential ("$NetBiosDomainName\$TestUser", $SecurePassword)
 
 $NetworkID = '10.0.0.0/16' 
-$DCIPv4Address = '10.0.0.1'
-$CAIPv4Address = '10.0.0.2'
-$IISIPv4Address = '10.0.0.21'
-$CLIENTIPv4Address = '10.0.0.22'
+$DC01IPv4Address = '10.0.0.1'
+$CA01IPv4Address = '10.0.0.2'
+$IIS01IPv4Address = '10.0.0.21'
+$CLIENT01IPv4Address = '10.0.0.22'
+$CLIENT02IPv4Address = '10.0.0.23'
 
 $AnonymousNetBiosName = 'anonymous'
 $AnonymousWebSiteName = "$AnonymousNetBiosName.$FQDNDomainName"
@@ -99,6 +101,10 @@ $LocalTempFolder = 'C:\Temp'
 #Wireshark Download URI
 $WiresharkWin64LatestExeUri = 'https://1.eu.dl.wireshark.org/win64/Wireshark-win64-latest.exe'
 
+#IIS Crypto Cli Download URI
+$IISCryptoCliExeUri = 'https://www.nartac.com/Downloads/IISCrypto/IISCryptoCli.exe'
+$IISCryptoExeUri = 'https://www.nartac.com/Downloads/IISCrypto/IISCrypto.exe'
+
 #NPCap Download URI
 #$NPCapExeUri = 'https://nmap.org/npcap/dist/npcap-1.31.exe'
 #NMAP Download URI
@@ -139,22 +145,189 @@ $PSDefaultParameterValues = @{
 
 #region server definitions
 #Domain controller
-Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress $DCIPv4Address
+Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress $DC01IPv4Address
 #Certificate Authority
-Add-LabMachineDefinition -Name CA01 -Roles CARoot -IpAddress $CAIPv4Address
+Add-LabMachineDefinition -Name CA01 -Roles CARoot -IpAddress $CA01IPv4Address
 #IIS front-end server
-Add-LabMachineDefinition -Name IIS01 -IpAddress $IISIPv4Address
+Add-LabMachineDefinition -Name IIS01 -IpAddress $IIS01IPv4Address
 #Client
-Add-LabMachineDefinition -Name CLIENT01 -IpAddress $CLIENTIPv4Address
+Add-LabMachineDefinition -Name CLIENT01 -IpAddress $CLIENT01IPv4Address -OperatingSystem 'Windows Server 2019 Datacenter (Desktop Experience)'
+Add-LabMachineDefinition -Name CLIENT02 -IpAddress $CLIENT02IPv4Address
 #endregion
 
 #Installing servers
 Install-Lab
 Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
-#Restore-LabVMSnapshot -SnapshotName 'FreshInstall' -All -Verbose
+#Restore-LabVMSnapshot -SnapshotName FreshInstall -All -Verbose
+#Start-LabVM -All -Wait
+
+$machines = Get-LabVM
+$ClientMachines = Get-LabVM -Filter {$_.Name -match "CLIENT"}
+
+#region SCHANNEL Hardening
+#Copying IISCrypto and IISCryptoCli on all machines
+$IISCryptoExe = Get-LabInternetFile -Uri $IISCryptoExeUri -Path $labSources\SoftwarePackages -PassThru
+$null = Copy-LabFileItem -Path $IISCryptoExe.FullName -DestinationFolderPath $LocalTempFolder -ComputerName $machines -PassThru
+$IISCryptoCliExe = Get-LabInternetFile -Uri $IISCryptoCliExeUri -Path $labSources\SoftwarePackages -PassThru
+$LocalIISCryptoCliExe = Copy-LabFileItem -Path $IISCryptoCliExe.FullName -DestinationFolderPath $LocalTempFolder -ComputerName $machines -PassThru
+$LocalIISCryptoCliExe = $LocalIISCryptoCliExe | Select-Object -First 1
+
+
+Invoke-LabCommand -ActivityName 'SCHANNEL Hardening to support only TLS 1.2 and strongest Cipher Suites' -ComputerName $machines -ScriptBlock {
+    #Following Strict Template from IISCrypto https://www.nartac.com/Products/IISCrypto
+    Start-Process -FilePath "$using:LocalIISCryptoCliExe" -ArgumentList "/template strict" -Wait
+    #Following Strict Template from IISCrypto https://www.nartac.com/Products/IISCrypto
+    <#
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders" -Name "SCHANNEL" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL" -Name "EventLogging" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL" -Name "Ciphers" -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers" -Name "AES 128/128" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers"-Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers" -Name "AES 256/256" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\AES 256/256" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers" -Name "DES 56/56" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\DES 56/56" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers" -Name "NULL" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\NULL" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers" -Name "RC2 128/128" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC2 128/128" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers" -Name "RC2 40/128" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC2 40/128" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers" -Name "RC2 56/128" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC2 56/128" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers" -Name "RC4 128/128" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 128/128" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers" -Name "RC4 40/128" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 40/128" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers" -Name "RC4 56/128" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 56/128" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers" -Name "RC4 64/128" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 64/128" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers" -Name "Triple DES 168" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\Triple DES 168" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL" -Name "CipherSuites" -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes" -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes" -Name "MD5" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes\MD5" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes" -Name "SHA" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes\SHA" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes" -Name "SHA256" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes\SHA256" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes" -Name "SHA384" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes\SHA384" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes" -Name "SHA512" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes\SHA512" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL" -Name "KeyExchangeAlgorithms" -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\KeyExchangeAlgorithms" -Name "Diffie-Hellman" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\KeyExchangeAlgorithms\Diffie-Hellman" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff 
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\KeyExchangeAlgorithms\Diffie-Hellman" -Name "ServerMinKeyBitLength" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000800
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\KeyExchangeAlgorithms" -Name "ECDH" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\KeyExchangeAlgorithms\ECDH" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\KeyExchangeAlgorithms" -Name "PKCS" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\KeyExchangeAlgorithms\PKCS" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols" -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols" -Name "Multi-Protocol Unified Hello" -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\Multi-Protocol Unified Hello" -Name "Client" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\Multi-Protocol Unified Hello\Client" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\Multi-Protocol Unified Hello\Client" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\Multi-Protocol Unified Hello" -Name "Server" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\Multi-Protocol Unified Hello\Server" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\Multi-Protocol Unified Hello\Server" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols" -Name "PCT 1.0" -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\PCT 1.0" -Name "Client" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\PCT 1.0\Client" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\PCT 1.0\Client" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\PCT 1.0" -Name "Server" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\PCT 1.0\Server" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\PCT 1.0\Server" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0" -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0" -Name "Client" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0\Client" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0\Client" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0" -Name "Server" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0\Server" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0\Server" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0" -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0" -Name "Client" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0\Client" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0\Client" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0" -Name "Server" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0\Server" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 -Force 
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0\Server" "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0" -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0" -Name "Client" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Client" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Client" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0" -Name "Server" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1" -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1" -Name "Client" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1" -Name "Server" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000001 -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2" -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2" -Name "Client" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Client" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff 
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 -Force
+
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2" -Name "Server" -Force
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Server" -Name "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0xffffffff 
+    $null = New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server" -Name "DisabledByDefault" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0x00000000 -Force
+    #>
+}
+#Restarting the IIS Server to take the SCHANNEL hardening into consideration
+Restart-LabVM -ComputerName $machines -Wait
+#endregion
 
 #region Installing Required Windows Features
-$machines = Get-LabVM
 Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools -AsJob
 Install-LabWindowsFeature -FeatureName Web-Server, Web-Asp-Net45, Web-Request-Monitor, Web-Basic-Auth, Web-Client-Auth, Web-Digest-Auth, Web-Cert-Auth, Web-Windows-Auth -ComputerName IIS01 -IncludeManagementTools
 #endregion
@@ -163,8 +336,8 @@ Install-LabWindowsFeature -FeatureName Web-Server, Web-Asp-Net45, Web-Request-Mo
 Invoke-LabCommand -ActivityName 'DNS, DFS-R Setup & GPO Settings on DC' -ComputerName DC01 -ScriptBlock {
     #Creating AD Users
     #User for testing authentications
-    New-ADUser -Name $Using:TestUser -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -CannotChangePassword $True -Enabled $true
-    #Add-ADGroupMember -Identity "Administrators" -Members $Using:TestUser
+    #Selecting the option to store the password using reversible encryption. : https://techexpert.tips/iis/iis-digest-authentication/
+    New-ADUser -Name $Using:TestUser -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -CannotChangePassword $True -Enabled $true -AllowReversiblePasswordEncryption $True
     #Application Pool Identity
     New-ADUser -Name $Using:IISAppPoolUser -AccountPassword $Using:SecurePassword -PasswordNeverExpires $True -CannotChangePassword $True -Enabled $True
     #User for Many to One IIS Certificate Mapping
@@ -194,37 +367,40 @@ Invoke-LabCommand -ActivityName 'DNS, DFS-R Setup & GPO Settings on DC' -Compute
     $GPO = New-GPO -Name "Autoenrollment Policy" | New-GPLink -Target $DefaultNamingContext
     #region User Enrollment Policy
     #https://www.sysadmins.lv/retired-msft-blogs/xdot509/troubleshooting-autoenrollment.aspx : 0x00000007 = Enabled, Update Certificates that user certificates templates configured, Renew expired certificates, update pending certificates, and remove revoked certificates configured
-    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Cryptography\AutoEnrollment' -ValueName AEPolicy -Type Dword -value 0x00000007 
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Cryptography\AutoEnrollment' -ValueName AEPolicy -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -value 0x00000007 
     #endregion
 
     #region IE Settings
     $GPO = New-GPO -Name "IE Settings" | New-GPLink -Target $DefaultNamingContext
     #Disabling IE ESC
-    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}' -ValueName IsInstalled -Type Dword -value 1
-    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}' -ValueName IsInstalled -Type Dword -value 1
-    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap' -ValueName IEHarden -Type Dword -value 0
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}' -ValueName IsInstalled -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -value 1
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}' -ValueName IsInstalled -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -value 1
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap' -ValueName IEHarden -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -value 0
 
     #Setting kerberos.contoso.com, IIS01.contoso.com and IIS02.contoso.com in the Local Intranet Zone for all servers : mandatory for Kerberos authentication       
     #1 for Intranet Zone, 2 for Trusted Sites, 3 for Internet Zone and 4 for Restricted Sites Zone.
-    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:KerberosWebSiteName" -ValueName http -Type Dword -value 1
-    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:NTLMWebSiteName" -ValueName http -Type Dword -value 1
-    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\IIS01.$using:FQDNDomainName" -ValueName http -Type Dword -value 1
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:KerberosWebSiteName" -ValueName http -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -value 1
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:NTLMWebSiteName" -ValueName http -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -value 1
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\IIS01.$using:FQDNDomainName" -ValueName http -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -value 1
 
     #Changing the start page for IE
-    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Microsoft\Internet Explorer\Main' -ValueName "Start Page" -Type String -Value "http://$using:AnonymousWebSiteName"
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Microsoft\Internet Explorer\Main' -ValueName "Start Page" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "http://$using:AnonymousWebSiteName"
+
+    #Bonus : To open all the available websites accross all nodes
+    $SecondaryStartPages = "https://$using:BasicWebSiteName", "http://$using:KerberosWebSiteName", "http://$using:NTLMWebSiteName", "http://$using:DigestWebSiteName", "https://$using:ADClientCertWebSiteName", "https://$using:IISClientOneToOneCertWebSiteName", "https://$using:IISClientManyToOneCertWebSiteName", "https://$using:FormsWebSiteName"
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Microsoft\Internet Explorer\Main' -ValueName "Secondary Start Pages" -Type ([Microsoft.Win32.RegistryValueKind]::MultiString) -Value $SecondaryStartPages
     #endregion
 
     #region Edge Settings
     $GPO = New-GPO -Name "Edge Settings" | New-GPLink -Target $DefaultNamingContext
     # https://devblogs.microsoft.com/powershell-community/how-to-change-the-start-page-for-the-edge-browser/
-    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Edge' -ValueName "RestoreOnStartup" -Type DWORD -Value 4
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Edge' -ValueName "RestoreOnStartup" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 4
 
     #Bonus : To open all the available websites accross all nodes
-    $StartPages = "http://$using:AnonymousWebSiteName", "https://$using:BasicWebSiteName", "http://$using:KerberosWebSiteName", "http://$using:NTLMWebSiteName", "http://$using:DigestWebSiteName", "https://$using:ADClientCertWebSiteName", "https://$using:IISClientOneToOneCertWebSiteName", "https://$using:IISClientManyToOneCertWebSiteName", "http://$using:FormsWebSiteName"
+    $StartPages = "http://$using:AnonymousWebSiteName", "https://$using:BasicWebSiteName", "http://$using:KerberosWebSiteName", "http://$using:NTLMWebSiteName", "http://$using:DigestWebSiteName", "https://$using:ADClientCertWebSiteName", "https://$using:IISClientOneToOneCertWebSiteName", "https://$using:IISClientManyToOneCertWebSiteName", "https://$using:FormsWebSiteName"
     $i=0
     $StartPages | ForEach-Object -Process {
-        $i++
-        Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Edge\RestoreOnStartupURLs' -ValueName $i -Type String -Value "$_"
+        Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Edge\RestoreOnStartupURLs' -ValueName ($i++) -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "$_"
     }
     #endregion
 
@@ -234,8 +410,6 @@ Invoke-LabCommand -ActivityName 'DNS, DFS-R Setup & GPO Settings on DC' -Compute
     $SSLKeysFile = '%USERPROFILE%\AppData\Local\WireShark\ssl-keys.log'
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Environment' -ValueName "SSLKEYLOGFILE" -Type ([Microsoft.Win32.RegistryValueKind]::ExpandString) -Value $SSLKeysFile
     #endregion
-
-    Invoke-GPUpdate -Computer CLIENT01 -Force
 }
 
 
@@ -261,57 +435,72 @@ $FormsWebSiteSSLCert = Request-LabCertificate -Subject "CN=$FormsWebSiteName" -S
 #Copying Web site content on all IIS servers
 Copy-LabFileItem -Path $CurrentDir\contoso.com.zip -DestinationFolderPath $LocalTempFolder -ComputerName IIS01
 
-Invoke-LabCommand -ActivityName 'Client Authentication Certificate Management' -ComputerName CA01 -ScriptBlock {
-    $Filter = "(CN=$using:ClientAuthCertTemplateName)"
-    $ConfigContext = (Get-ADRootDSE).configurationNamingContext
-    $ConfigContext = "CN=Certificate Templates,CN=Public Key Services,CN=Services,$ConfigContext"
-    $DirectorySearcher = New-Object System.DirectoryServices.DirectorySearcher([ADSI]"LDAP://$ConfigContext", $Filter )
-    $Template = $DirectorySearcher.Findone().GetDirectoryEntry()
-    #Setting Autoenrollment
-    #https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-crtd/ec71fd43-61c2-407b-83c9-b52272dec8a1 : 56 = CT_FLAG_PUBLISH_TO_DS (0x00000008) + CT_FLAG_AUTO_ENROLLMENT_CHECK_USER_DS_CERTIFICATE (0x00000010) + CT_FLAG_AUTO_ENROLLMENT (0x00000020)
-    $Template.put("msPKI-Enrollment-Flag", "56")
-    #Setting Key Size to 4096
-    $Template.put("msPKI-Minimal-Key-Size", "4096")
-    $Template.SetInfo()
-}
-
-
-$AdmIISClientCertContent = Invoke-LabCommand -ActivityName '1:1 IIS and AD Client Certificate Management for Administrator' -ComputerName CLIENT01 -PassThru -ScriptBlock {
-    #Adding users to the Administrators group for remote connection via PowerShell for getting a certificate (next step)
+$AdmIISClientCertContent = Invoke-LabCommand -ActivityName '1:1 IIS and AD Client Certificate Management for Administrator' -ComputerName $ClientMachines -PassThru -ScriptBlock {
+    #Adding users to the Administrators group for remote connection via PowerShell for getting a certificate (next step). Will be removed later
     $null = Add-LocalGroupMember -Group "Administrators" -Member "$using:NetBiosDomainName\$Using:TestUser"
-    #Getting a IIS client Certificate for the client certificate (IIS 1:1 AD) websites
-    $IISClientCert = Get-Certificate -Template $using:ClientAuthCertTemplateName -Url ldap: -CertStoreLocation Cert:\CurrentUser\My
-    if ($IISClientCert) {
-        #Getting the content of the IIS client Certificate for the IIS client certificate website (needed later in the IIS Configuration)
-        [System.Convert]::ToBase64String($IISClientCert.Certificate.RawData, [System.Base64FormattingOptions]::None)
+    #Adding users to the Remote Desktop Users group for RDP 
+    $null = Add-LocalGroupMember -Group "Remote Desktop Users" -Member "$using:NetBiosDomainName\$Using:TestUser"
+    #Invoking GPUpdate to generate the Client certificate for the User
+    Start-Process -FilePath "gpupdate" -ArgumentList "/wait:-1", "/force" -Wait
+    $IISClientCert = (Get-ChildItem -Path Cert:\CurrentUser\My | Where-Object {($_.Subject -match $env:USERNAME) -and ($_.EnhancedKeyUsageList.FriendlyName -eq 'Client Authentication') })
+    if($IISClientCert)
+    {
+        [PSCustomObject] @{PSComputerName = $env:COMPUTERNAME; CertRawData = [System.Convert]::ToBase64String($IISClientCert.RawData, [System.Base64FormattingOptions]::None)}
+    }
+    else
+    {
+        $IISClientCert = Get-Certificate -Template $using:ClientAuthCertTemplateName -Url ldap: -CertStoreLocation Cert:\CurrentUser\My
+        if ($IISClientCert) {
+            #Getting the content of the IIS client Certificate for the IIS client certificate website (needed later in the IIS Configuration)
+            [PSCustomObject] @{PSComputerName = $env:COMPUTERNAME; CertRawData = [System.Convert]::ToBase64String($IISClientCert.Certificate.RawData, [System.Base64FormattingOptions]::None)}
+        }
+        else
+        {
+            Write-Error -Message "Unable to get a Client Certificate for $(whoami) on $($env:COMPUTERNAME)"
+        }
     }
 }
 
-#Prerequisites : Test User need to be promoted as local admin on CLIENT01 
-$TestUserIISClientCertContent = Invoke-LabCommand -ActivityName '1:1 IIS and AD Client Certificate Management for Test User' -ComputerName CLIENT01 -Credential $TestUserCredential -PassThru -ScriptBlock {
-    #Getting a IIS client Certificate for the client certificate (IIS 1:1 and AD) websites
-    $IISClientCert = Get-Certificate -Template $using:ClientAuthCertTemplateName -Url ldap: -CertStoreLocation Cert:\CurrentUser\My
-    if ($IISClientCert) {
-        #Getting the content of the IIS client Certificate for the IIS client certificate website (needed later in the IIS Configuration)
-        [System.Convert]::ToBase64String($IISClientCert.Certificate.RawData, [System.Base64FormattingOptions]::None)
+#Prerequisites : Test User need to be promoted as local admin on client machines 
+$TestUserIISClientCertContent = Invoke-LabCommand -ActivityName '1:1 IIS and AD Client Certificate Management for Test User' -ComputerName $ClientMachines -Credential $TestUserCredential -PassThru -ScriptBlock {
+    #Invoking GPUpdate to generate the Client certificate for the User
+    Start-Process -FilePath "gpupdate" -ArgumentList "/wait:-1", "/force" -Wait
+    $IISClientCert = (Get-ChildItem -Path Cert:\CurrentUser\My | Where-Object {($_.Subject -match $env:USERNAME) -and ($_.EnhancedKeyUsageList.FriendlyName -eq 'Client Authentication') })
+    if($IISClientCert)
+    {
+        [PSCustomObject] @{PSComputerName = $env:COMPUTERNAME; CertRawData = [System.Convert]::ToBase64String($IISClientCert.RawData, [System.Base64FormattingOptions]::None)}
+    }
+    else
+    {
+        $IISClientCert = Get-Certificate -Template $using:ClientAuthCertTemplateName -Url ldap: -CertStoreLocation Cert:\CurrentUser\My
+        if ($IISClientCert) {
+            #Getting the content of the IIS client Certificate for the IIS client certificate website (needed later in the IIS Configuration)
+            [PSCustomObject] @{PSComputerName = $env:COMPUTERNAME; CertRawData = [System.Convert]::ToBase64String($IISClientCert.Certificate.RawData, [System.Base64FormattingOptions]::None)}
+        }
+        else
+        {
+            Write-Error -Message "Unable to get a Client Certificate for $(whoami) on $($env:COMPUTERNAME)"
+        }
     }
 }
 
-#region Wireshark silent install on CLIENT01
-#Copying WireShark on CLIENT01. Silent install is not available due to npcap. cf. https://www.wireshark.org/docs/wsug_html_chunked/ChBuildInstallWinInstall.html
+#region Wireshark silent install on client machines
+#Copying WireShark on client machines. Silent install is not available due to npcap. cf. https://www.wireshark.org/docs/wsug_html_chunked/ChBuildInstallWinInstall.html
 $WiresharkWin64LatestExe = Get-LabInternetFile -Uri $WiresharkWin64LatestExeUri -Path $labSources\SoftwarePackages -PassThru
 #Install-LabSoftwarePackage -ComputerName CLIENT01 -Path $WiresharkWin64LatestExe.FullName -CommandLine "/S" -AsJob
-$LocalWiresharkWin64LatestExe = Copy-LabFileItem -Path $WiresharkWin64LatestExe.FullName -DestinationFolderPath $LocalTempFolder -ComputerName CLIENT01 -PassThru
+$LocalWiresharkWin64LatestExe = Copy-LabFileItem -Path $WiresharkWin64LatestExe.FullName -DestinationFolderPath $LocalTempFolder -ComputerName $ClientMachines -PassThru
+$LocalWiresharkWin64LatestExe = $LocalWiresharkWin64LatestExe | Select-Object -First 1
 
-#Copying NMAP on CLIENT01. Silent install is not available due to npcap. cf. https://www.wireshark.org/docs/wsug_html_chunked/ChBuildInstallWinInstall.html
+#Copying NMAP on client machines. Silent install is not available due to npcap. cf. https://www.wireshark.org/docs/wsug_html_chunked/ChBuildInstallWinInstall.html
 $NMAPExe = Get-LabInternetFile -Uri $NMAPExeUri -Path $labSources\SoftwarePackages -PassThru
-$LocalNMAPExe = Copy-LabFileItem -Path $NMAPExe.FullName -DestinationFolderPath $LocalTempFolder -ComputerName CLIENT01 -PassThru
+$LocalNMAPExe = Copy-LabFileItem -Path $NMAPExe.FullName -DestinationFolderPath $LocalTempFolder -ComputerName $ClientMachines -PassThru
+$LocalNMAPExe = $LocalNMAPExe | Select-Object -First 1
 
 $7zipExe = Get-LabInternetFile -Uri $7zipExeUri -Path $labSources\SoftwarePackages -PassThru
-Install-LabSoftwarePackage -ComputerName CLIENT01 -Path $7zipExe.FullName -CommandLine "/S"
+Install-LabSoftwarePackage -ComputerName $ClientMachines -Path $7zipExe.FullName -CommandLine "/S"
 
 #cf. https://silentinstallhq.com/wireshark-silent-install-how-to-guide/
-Invoke-LabCommand -ActivityName 'Wireshark Silent Install' -ComputerName CLIENT01 -ScriptBlock {
+Invoke-LabCommand -ActivityName 'Wireshark Silent Install' -ComputerName $ClientMachines -ScriptBlock {
     #$LocalTempFolder = $(Split-Path -Path $using:LocalNMAPExe -Parent)
     #WireShark Silent install
     Start-Process -FilePath $(Join-Path -Path $Env:ProgramFiles -ChildPath '7-Zip\7z.exe') -ArgumentList "x", "$using:LocalNMAPExe", "-o$using:LocalTempFolder", "-y" -Wait
@@ -319,8 +508,8 @@ Invoke-LabCommand -ActivityName 'Wireshark Silent Install' -ComputerName CLIENT0
     Start-Process -FilePath $using:LocalWiresharkWin64LatestExe -ArgumentList "/S" -Wait
 }
 
-#Prerequisites : Test User need to be promoted as local admin on CLIENT01 
-Invoke-LabCommand -ActivityName 'Configuration for TLS Key log file' -ComputerName CLIENT01 -Credential $TestUserCredential -ScriptBlock {
+#Prerequisites : Test User need to be promoted as local admin on client machines 
+Invoke-LabCommand -ActivityName 'Configuration for TLS Key log file' -ComputerName $ClientMachines -Credential $TestUserCredential -ScriptBlock {
     #WireShark TLS Key Log file Configuration
     $WireSharkPreferencesFile = Join-Path -Path $env:APPDATA -ChildPath 'Wireshark\preferences'
     $TLSKeyLogFile = Join-Path -Path $env:USERPROFILE -ChildPath 'AppData\Local\WireShark\ssl-keys.log'
@@ -338,6 +527,10 @@ Invoke-LabCommand -ActivityName 'Configuration for TLS Key log file' -ComputerNa
     }
 }
 #endregion
+
+Checkpoint-LabVM -SnapshotName BeforeIISSetup -All -Verbose
+#Restore-LabVMSnapshot -SnapshotName BeforeIISSetup -All -Verbose
+#Start-LabVM -All -Wait
 
 Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the IIS websites' -ComputerName IIS01 -ScriptBlock {    
     #Renaming the NIC 
@@ -403,7 +596,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #Enabling ASP.Net Impersonation (local web.config)
     Set-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST/$using:BasicWebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
     #Disabling validation for application pool in integrated mode due to ASP.Net impersonation incompatibility
-    Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:BasicWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False' -Verbose
+    Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:BasicWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False'
     #endregion
         
     #region : Kerberos website management
@@ -432,7 +625,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     Set-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST/$using:KerberosWebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
 
     #Disabling validation for application pool in integrated mode due to ASP.Net impersonation incompatibility
-    Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:KerberosWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False' -Verbose
+    Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:KerberosWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False'
     #endregion
 
     #region : NTLM website management
@@ -459,7 +652,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     Add-WebConfiguration -Filter system.webServer/security/authentication/windowsAuthentication/providers -location "$using:NTLMWebSiteName" -Value NTLM
 
     #Disabling validation for application pool in integrated mode due to ASP.Net impersonation incompatibility
-    Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:NTLMWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False' -Verbose
+    Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:NTLMWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False'
     #endregion
 
     #region : Digest website management
@@ -486,7 +679,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     Add-WebConfiguration -Filter "system.webServer/security/authentication/windowsAuthentication/providers" -location "$using:DigestWebSiteName" -Value NTLM
 
     #Disabling validation for application pool in integrated mode due to ASP.Net impersonation incompatibility
-    Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:DigestWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False' -Verbose
+    Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:DigestWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False'
     #endregion
 
     #region : AD Client Certificate website management
@@ -514,7 +707,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:ADClientCertWebSiteName" -filter "system.webServer/security/access" -name "sslFlags" -value "Ssl,SslNegotiateCert,SslRequireCert"
     
     #Removing Default Binding
-    #Get-WebBinding -Port 80 -Name "$using:ADClientCertWebSiteName" | Remove-WebBinding
+    Get-WebBinding -Port 80 -Name "$using:ADClientCertWebSiteName" | Remove-WebBinding
     #Disabling the Anonymous authentication
     Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:ADClientCertWebSiteName" -filter 'system.webServer/security/authentication/anonymousAuthentication' -name 'enabled' -value 'False'
 
@@ -524,7 +717,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #Enabling ASP.Net Impersonation (local web.config)
     Set-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST/$using:ADClientCertWebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
     #Disabling validation for application pool in integrated mode due to ASP.Net impersonation incompatibility
-    Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:ADClientCertWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False' -Verbose
+    Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:ADClientCertWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False'
     #endregion
 
     #region : IIS Client Certificate website management
@@ -555,13 +748,21 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter 'system.webServer/security/authentication/iisClientCertificateMappingAuthentication' -name 'enabled' -value 'True'
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter "system.webServer/security/authentication/iisClientCertificateMappingAuthentication" -name "oneToOneCertificateMappingsEnabled" -value "True"
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter "system.webServer/security/authentication/iisClientCertificateMappingAuthentication" -name "manyToOneCertificateMappingsEnabled" -value "False"
-    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter "system.webServer/security/authentication/iisClientCertificateMappingAuthentication/oneToOneMappings" -name "." -value @{userName = "$Using:NetBiosDomainName\$Using:Logon"; password = "$Using:ClearTextPassword"; certificate = $using:AdmIISClientCertContent }
-    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter "system.webServer/security/authentication/iisClientCertificateMappingAuthentication/oneToOneMappings" -name "." -value @{userName = "$Using:NetBiosDomainName\$Using:TestUser"; password = "$Using:ClearTextPassword"; certificate = $using:TestUserIISClientCertContent }
+    
+    #1 Certificate per user and per client computer for the Administrator
+    $using:AdmIISClientCertContent | ForEach-Object -Process {
+        Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter "system.webServer/security/authentication/iisClientCertificateMappingAuthentication/oneToOneMappings" -name "." -value @{userName = "$Using:NetBiosDomainName\$Using:Logon"; password = "$Using:ClearTextPassword"; certificate = $_.CertRawData }
+    }
+
+    #1 Certificate per user and per client computer for the test user
+    $using:TestUserIISClientCertContent | ForEach-Object -Process {
+        Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter "system.webServer/security/authentication/iisClientCertificateMappingAuthentication/oneToOneMappings" -name "." -value @{userName = "$Using:NetBiosDomainName\$Using:TestUser"; password = "$Using:ClearTextPassword"; certificate = $_.CertRawData }
+    }
 
     #Enabling ASP.Net Impersonation (local web.config)
     Set-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST/$using:IISClientOneToOneCertWebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
     #Disabling validation for application pool in integrated mode due to ASP.Net impersonation incompatibility
-    Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False' -Verbose
+    Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False'
     #endregion
 
     #region : IIS Client Certificate website management
@@ -601,7 +802,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #Enabling ASP.Net Impersonation (local web.config)
     Set-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST/$using:IISClientManyToOneCertWebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
     #Disabling validation for application pool in integrated mode due to ASP.Net impersonation incompatibility
-    Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientManyToOneCertWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False' -Verbose
+    Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientManyToOneCertWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False'
     #endregion
 
     #region : Forms website management
@@ -648,8 +849,13 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     Set-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST/$using:FormsWebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
 
     #Disabling validation for application pool in integrated mode due to ASP.Net impersonation incompatibility
-    Set-WebConfigurationProperty -PSPath "IIS:\Sites\$using:FormsWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False' -Verbose
+    Set-WebConfigurationProperty -PSPath "IIS:\Sites\$using:FormsWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False'
     #endregion
+}
+
+$AdmIISClientCertContent = Invoke-LabCommand -ActivityName 'Removing Test User from Administrators group' -ComputerName $ClientMachines -PassThru -ScriptBlock {
+    #removing test users from the Administrators group
+    Remove-LocalGroupMember -Group "Administrators" -Member "$using:NetBiosDomainName\$Using:TestUser"
 }
 
 #Waiting for background jobs
