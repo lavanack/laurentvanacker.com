@@ -194,7 +194,7 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $KerberosWebSiteNam
     Set-ItemProperty -Path $MainKey -Name "Start Page" -Value $value -Force
 
     #Bonus : To open all the available websites accross all nodes
-    $value="https://$using:BasicWebSiteName", "http://$using:KerberosWebSiteName", "http://$using:NTLMWebSiteName", "http://$using:DigestWebSiteName", "https://$using:ADClientCertWebSiteName", "https://$using:IISClientOneToOneCertWebSiteName", "https://$using:IISClientManyToOneCertWebSiteName", "http://$using:FormsWebSiteName"
+    $value="https://$using:BasicWebSiteName", "http://$using:KerberosWebSiteName", "http://$using:NTLMWebSiteName", "http://$using:DigestWebSiteName", "https://$using:ADClientCertWebSiteName", "https://$using:IISClientOneToOneCertWebSiteName", "https://$using:IISClientManyToOneCertWebSiteName", "https://$using:FormsWebSiteName"
     New-ItemProperty -Path $MainKey -PropertyType MultiString -Name "Secondary Start Pages" -Value $value -Force
 }
 #>
@@ -203,7 +203,8 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $KerberosWebSiteNam
 Invoke-LabCommand -ActivityName 'DNS, DFS-R Setup & GPO Settings on DC' -ComputerName DC01 -ScriptBlock {
     #Creating AD Users
     #User for testing authentications
-    New-ADUser -Name $Using:TestUser -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -CannotChangePassword $True -Enabled $true
+    #Selecting the option to store the password using reversible encryption. : https://techexpert.tips/iis/iis-digest-authentication/
+    New-ADUser -Name $Using:TestUser -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -CannotChangePassword $True -Enabled $true -AllowReversiblePasswordEncryption $True
     #Add-ADGroupMember -Identity "Administrators" -Members $Using:TestUser
     #Application Pool Identity
     New-ADUser -Name $Using:IISAppPoolUser -AccountPassword $Using:SecurePassword -PasswordNeverExpires $True -CannotChangePassword $True -Enabled $True
@@ -254,7 +255,7 @@ Invoke-LabCommand -ActivityName 'DNS, DFS-R Setup & GPO Settings on DC' -Compute
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Microsoft\Internet Explorer\Main' -ValueName "Start Page" -Type String -Value "http://$using:AnonymousWebSiteName"
 
     #Bonus : To open all the available websites accross all nodes
-    $SecondaryStartPages = "https://$using:BasicWebSiteName", "http://$using:KerberosWebSiteName", "http://$using:NTLMWebSiteName", "http://$using:DigestWebSiteName", "https://$using:ADClientCertWebSiteName", "https://$using:IISClientOneToOneCertWebSiteName", "https://$using:IISClientManyToOneCertWebSiteName", "http://$using:FormsWebSiteName"
+    $SecondaryStartPages = "https://$using:BasicWebSiteName", "http://$using:KerberosWebSiteName", "http://$using:NTLMWebSiteName", "http://$using:DigestWebSiteName", "https://$using:ADClientCertWebSiteName", "https://$using:IISClientOneToOneCertWebSiteName", "https://$using:IISClientManyToOneCertWebSiteName", "https://$using:FormsWebSiteName"
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Microsoft\Internet Explorer\Main' -ValueName "Secondary Start Pages" -Type MultiString -Value $SecondaryStartPages
     #endregion
 
