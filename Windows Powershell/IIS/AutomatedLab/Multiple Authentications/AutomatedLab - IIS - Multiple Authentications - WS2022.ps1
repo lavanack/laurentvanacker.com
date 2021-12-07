@@ -161,7 +161,7 @@ Add-LabMachineDefinition -Name CLIENT02 -IpAddress $CLIENT02IPv4Address
 
 #Installing servers
 Install-Lab
-Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
+Checkpoint-LabVM -SnapshotName FreshInstall -All 
 #Restore-LabVMSnapshot -SnapshotName FreshInstall -All -Verbose
 #Start-LabVM -All -Wait
 
@@ -188,6 +188,7 @@ Invoke-LabCommand -ActivityName 'SCHANNEL Hardening to support only TLS 1.2 and 
     #Following Strict Template from IISCrypto https://www.nartac.com/Products/IISCrypto
     Start-Process -FilePath "$using:LocalIISCryptoCliExe" -ArgumentList "/template strict" -Wait
 }
+
 #Restarting the IIS Server to take the SCHANNEL hardening into consideration
 Restart-LabVM -ComputerName $machines -Wait
 #endregion
@@ -197,7 +198,7 @@ Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -In
 Install-LabWindowsFeature -FeatureName Web-Server, Web-Asp-Net45, Web-Request-Monitor, Web-Basic-Auth, Web-Client-Auth, Web-Digest-Auth, Web-Cert-Auth, Web-Windows-Auth -ComputerName IIS01 -IncludeManagementTools
 #endregion
 
-#Installing and setting up DNS & DFS-R on DC for replicated folder on IIS Servers for shared configuration
+#Installing and setting up DNS, DFS-R Setup & GPO Settings on DC for replicated folder on IIS Servers for shared configuration
 Invoke-LabCommand -ActivityName 'DNS, DFS-R Setup & GPO Settings on DC' -ComputerName DC01 -ScriptBlock {
     #Creating AD Users
     #User for testing authentications
@@ -393,7 +394,7 @@ Invoke-LabCommand -ActivityName 'Configuration for TLS Key log file' -ComputerNa
 }
 #endregion
 
-Checkpoint-LabVM -SnapshotName BeforeIISSetup -All -Verbose
+Checkpoint-LabVM -SnapshotName BeforeIISSetup -All 
 #Restore-LabVMSnapshot -SnapshotName BeforeIISSetup -All -Verbose
 #Start-LabVM -All -Wait
 
@@ -727,7 +728,7 @@ $AdmIISClientCertContent = Invoke-LabCommand -ActivityName 'Removing Test User f
 Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
 
 Show-LabDeploymentSummary -Detailed
-Checkpoint-LabVM -SnapshotName 'FullInstall' -All -Verbose
+Checkpoint-LabVM -SnapshotName 'FullInstall' -All 
 
 $VerbosePreference = $PreviousVerbosePreference
 $ErrorActionPreference = $PreviousErrorActionPreference
