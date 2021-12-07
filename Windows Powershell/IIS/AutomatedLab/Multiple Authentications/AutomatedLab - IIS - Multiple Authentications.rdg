@@ -39,7 +39,7 @@
       <logonCredentials inherit="None">
         <profileName scope="Local">Custom</profileName>
         <userName>Administrator</userName>
-        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAK6RK+xUbD0ST++uEIIsNnAAAAAACAAAAAAAQZgAAAAEAACAAAAA1czCbyuABn9ojEGCzcOOr5mSry3HMZv2UzRAJmyoozAAAAAAOgAAAAAIAACAAAADjtsy9O9xBnXEFYlpp2SQr0CbeSGEbKttiABM1z8pkHyAAAAB5n9grgt1aWwFvUxFgcoNoRCk/msK5iF3D3cu6cMtDrkAAAAD0402i3/vFaFY80fuL5FPdP/F7Mr4AFihuRBwIhM+78i/dAkMpgSAIaxnsY7N8TkdYMBR0UcEoONGsKa2UdiD2</password>
+        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAK6RK+xUbD0ST++uEIIsNnAAAAAACAAAAAAAQZgAAAAEAACAAAAAyQIYo3qlTITG6W3Fu+JitHwX2HO1RUuJYoMMV752cNAAAAAAOgAAAAAIAACAAAAAzczRkbtUqDWoQg+VrvzIbx2kh75FvyqoXKWelqEnAwyAAAADdxcLfC5kDXSXjCoTm8AMC8LELxedSXY7hjX1ywuwL/kAAAAAL+deAVt97Fr0oUsmXsbmmnMa5xjocfMJSUdq7xefgh6nGjZcHXFaTm3tdozpzSxJc3fWWSlB0xSF4JKsu17nb</password>
         <domain>CONTOSO</domain>
       </logonCredentials>
       <server>
@@ -56,7 +56,7 @@
         <logonCredentials inherit="None">
           <profileName scope="Local">Custom</profileName>
           <userName>JohnDoe</userName>
-          <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAK6RK+xUbD0ST++uEIIsNnAAAAAACAAAAAAAQZgAAAAEAACAAAAAI/9RbWqGWGe+nuM1rZAG4qTkv5MsMq0DcTL0QTzxdVQAAAAAOgAAAAAIAACAAAAAbnpbZj5QUroTH4rNzslKNaPP0KeLzXNv465nyfnaakyAAAAAI8pCxQPSzE0ZkmFP5koVn1jy5BGLtXeYpFId0Ugs42EAAAAAZhIafdvHqIeR0gTD1/Hg978lHGzWHI1PFCylAQaWE7aB6OimSqFF1FgUvTKHVMxZLMt1yV5hWlZfzjPE0Hyiq</password>
+          <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAK6RK+xUbD0ST++uEIIsNnAAAAAACAAAAAAAQZgAAAAEAACAAAACwgweGkMmobEeVcHu0dmi6YclrZiT6R1j+5osS+R78ggAAAAAOgAAAAAIAACAAAADrbt64nHZFi+XZnWWZ9Z9A1t59kki/KkrcWRc29llE3CAAAABa+33MPV+6Pwp3vnwR8Iv4gJ+K+58hZ70pYy/Fb4x6vEAAAABHXEb9ZhVR5ABVv4AMXZ6zy/Q0WpXHbe5qYN+snBl/cBk7d6kG7SVWqL7j4ibfMH9GgC8mtQ+QwpwlELNRC+lt</password>
           <domain>CONTOSO</domain>
         </logonCredentials>
       </server>
@@ -67,8 +67,8 @@
         </properties>
         <logonCredentials inherit="None">
           <profileName scope="Local">Custom</profileName>
-          <userName>JohnDoe</userName>
-          <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAK6RK+xUbD0ST++uEIIsNnAAAAAACAAAAAAAQZgAAAAEAACAAAABmPKT+wfEKJD2XAtA35eaEGZxpMN4PLTXxhCq5Mx5gdwAAAAAOgAAAAAIAACAAAACUvfmEdoTyrlBAHpe/kpCN9QsPHw0tQ/FUuC5Kw69WiCAAAABhEbyBC68/AVhNBcybCnXzDd1nvVUIjvKzbE3RVz7RAkAAAAChu/6GhrVY6+bx6UQacOU8Ydc5rb3x325Kz1oDOwUlaEyiBwiWsifZ8Mm21SeukQ5Z6PQeFxGdpbmg1o48YmSn</password>
+          <userName>Administrator</userName>
+          <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAK6RK+xUbD0ST++uEIIsNnAAAAAACAAAAAAAQZgAAAAEAACAAAABWPI/pIhQyyklSYtha/mLPfQAe6u/qJviDfM94h/7XfwAAAAAOgAAAAAIAACAAAABhF+gsBElP27qYonbemksAiMXhsN46nMjkuFOMolB0kiAAAABFSicsKgrtxGkDR7TQbJbqnXSdCUuLkGsHfVElN8DFC0AAAADnka0giMNehXPpYTPok46io/ejontkmii2v3tOmjFbWxwQ7FVKVVoJ9lbge3btoiIWUO0jHAcbEF4zPDegHQAz</password>
           <domain>CONTOSO</domain>
         </logonCredentials>
       </server>
