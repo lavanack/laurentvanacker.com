@@ -259,6 +259,21 @@ Invoke-LabCommand -ActivityName 'DNS, DFS-R Setup & GPO Settings on DC' -Compute
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Microsoft\Internet Explorer\Main' -ValueName "Secondary Start Pages" -Type MultiString -Value $SecondaryStartPages
     #endregion
 
+    #region Edge Settings
+    $GPO = New-GPO -Name "Edge Settings" | New-GPLink -Target $DefaultNamingContext
+    # https://devblogs.microsoft.com/powershell-community/how-to-change-the-start-page-for-the-edge-browser/
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Edge' -ValueName "RestoreOnStartup" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 4
+
+    #Bonus : To open all the available websites accross all nodes
+    $StartPages = "http://$using:AnonymousWebSiteName", "https://$using:BasicWebSiteName", "http://$using:KerberosWebSiteName", "http://$using:NTLMWebSiteName", "http://$using:DigestWebSiteName", "https://$using:ADClientCertWebSiteName", "https://$using:IISClientOneToOneCertWebSiteName", "https://$using:IISClientManyToOneCertWebSiteName", "https://$using:FormsWebSiteName"
+    $i=0
+    $StartPages | ForEach-Object -Process {
+        Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Edge\RestoreOnStartupURLs' -ValueName ($i++) -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "$_"
+    }
+    #Hide the First-run experience and splash screen on Edge : https://docs.microsoft.com/en-us/deployedge/microsoft-edge-policies#hidefirstrunexperience
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\SOFTWARE\Microsoft\Edge' -ValueName "HideFirstRunExperience " -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
+    #endregion
+
     #region WireShark : (Pre)-Master-Secret Log Filename
     $GPO = New-GPO -Name "(Pre)-Master-Secret Log Filename" | New-GPLink -Target $DefaultNamingContext
     #For decrypting SSL traffic via network tools : https://support.f5.com/csp/article/K50557518
@@ -345,7 +360,7 @@ $LocalWiresharkWin64LatestExe = Copy-LabFileItem -Path $WiresharkWin64LatestExe.
 
 #Copying NMAP on CLIENT01. Silent install is not available due to npcap. cf. https://www.wireshark.org/docs/wsug_html_chunked/ChBuildInstallWinInstall.html
 $NMAPExe = Get-LabInternetFile -Uri $NMAPExeUri -Path $labSources\SoftwarePackages -PassThru -Force
-$LocalNMAPExe = Copy-LabFileItem -Path $NMAPExe.FullName -DestinationFolderPath $LocalTempFolder -ComputerName CLIENT01 -PassThru -Force
+$LocalNMAPExe = Copy-LabFileItem -Path $NMAPExe.FullName -DestinationFolderPath $LocalTempFolder -ComputerName CLIENT01 -PassThru
 
 $7zipExe = Get-LabInternetFile -Uri $7zipExeUri -Path $labSources\SoftwarePackages -PassThru -Force
 Install-LabSoftwarePackage -ComputerName CLIENT01 -Path $7zipExe.FullName -CommandLine "/S"
