@@ -49,9 +49,21 @@ $NetworkID = '10.0.0.0/16'
 $DC01IPv4Address = '10.0.0.1'
 $DOCKER01IPv4Address = '10.0.0.11'
 
-$IISDockerFileContent = @'
+$IISDockerFileContent = @"
 FROM mcr.microsoft.com/windows/servercore/iis
-'@
+SHELL [ "powershell" ]
+
+#setup Remote IIS management
+RUN Install-WindowsFeature Web-Mgmt-Service, Web-Asp-Net45; \
+New-ItemProperty -Path HKLM:\software\microsoft\WebManagement\Server -Name EnableRemoteManagement -Value 1 -Force; \
+Set-Service -Name wmsvc -StartupType automatic;
+
+#Add user for Remote IIS Manager Login
+#RUN net user iisadmin $ClearTextPassword /ADD; \
+#net localgroup administrators iisadmin /add;
+RUN New-LocalUser -Name IISADmin -Password `$(ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force) -AccountNeverExpires -PasswordNeverExpires | Add-LocalGroupMember -Group "Administrators"
+"@
+
 $DockerFileName = 'DockerFile'
 
 $LabName = 'IISDocker2022'
@@ -119,10 +131,26 @@ Start-LabVM -All -Wait
 #endregion
 
 #Installing and setting up DNS
-Invoke-LabCommand -ActivityName 'DNS & AD Setup on DC' -ComputerName DC01 -ScriptBlock {
+Invoke-LabCommand -ActivityName 'DNS, AD Setup & GPO Settings on DC' -ComputerName DC01 -ScriptBlock {
     #region DNS management
     #Reverse lookup zone creation
     Add-DnsServerPrimaryZone -NetworkID $using:NetworkID -ReplicationScope 'Forest' 
+
+    $DefaultNamingContext = (Get-ADRootDSE).defaultNamingContext
+    #region Edge Settings
+    $GPO = New-GPO -Name "Edge Settings" | New-GPLink -Target $DefaultNamingContext
+    # https://devblogs.microsoft.com/powershell-community/how-to-change-the-start-page-for-the-edge-browser/
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Edge' -ValueName "RestoreOnStartup" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 4
+
+    #Bonus : To open all the available websites accross all nodes
+    $StartPages = "http://DOCKER01"
+    $i=0
+    $StartPages | ForEach-Object -Process {
+        Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Edge\RestoreOnStartupURLs' -ValueName ($i++) -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "$_"
+    }
+    #Hide the First-run experience and splash screen on Edge : https://docs.microsoft.com/en-us/deployedge/microsoft-edge-policies#hidefirstrunexperience
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\SOFTWARE\Microsoft\Edge' -ValueName "HideFirstRunExperience " -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
+    #endregion
 
 }
 
@@ -134,7 +162,7 @@ New-LabCATemplate -TemplateName WebServer10Years -DisplayName 'WebServer10Years'
 #Request-LabCertificate -Subject "CN=DOCKER01.contoso.com" -TemplateName WebServer10Years -ComputerName DOCKER01 -PassThru 
 #endregion
 
-Install-LabWindowsFeature -FeatureName Containers,Hyper-V -ComputerName DOCKER01 -IncludeManagementTools
+Install-LabWindowsFeature -FeatureName Containers, Hyper-V, Web-Mgmt-Console -ComputerName DOCKER01 -IncludeManagementTools
 
 Invoke-LabCommand -ActivityName 'Docker Setup' -ComputerName DOCKER01 -ScriptBlock {
     #From https://docs.microsoft.com/en-us/virtualization/windowscontainers/quick-start/set-up-environment?tabs=Windows-Server#prerequisites
@@ -154,13 +182,28 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -V
     #docker pull mcr.microsoft.com/windows/servercore/iis
 
     $null = New-Item -Path $env:SystemDrive\Docker\IIS\$using:DockerFileName -ItemType File -Value $using:IISDockerFileContent -Force
-    Set-Location -Path $env:SystemDrive\Docker\IIS\
-    docker build -t iis-website .
-    docker run -d -p 80:80 --name my-running-site iis-website
-    #docker inspect -f "{{ .NetworkSettings.Networks.nat.IPAddress }}" my-running-site
+    $null = New-Item -Path $env:SystemDrive\Docker\IIS\Content -ItemType Directory -Force
 
+    Set-Location -Path $env:SystemDrive\Docker\IIS
+    docker build -t iis-website .
+    #Stopping all previously running containers if any
+    if ($(docker ps -a -q))
+    {
+        docker stop $(docker ps -a -q)
+    }
+    $TimeStamp = $("{0:yyyyMMddHHmmss}" -f (Get-Date))
+    $Name="MyRunningWebSite_$($TimeStamp)"
+    "<html><title>Docker Test Page</title><body>This page was generated at $(Get-Date) via Powershell.<BR>Current Time is <%=Now%><body></html> (via ASP.Net)" | Out-File -FilePath $env:SystemDrive\Docker\IIS\content\default.aspx
+    #Remove-Item -Path $env:SystemDrive\Docker\IIS\LogFiles\ -Recurse -Force -ErrorAction Ignore
+    $null = New-Item -Path $env:SystemDrive\Docker\IIS\LogFiles\$($Name) -ItemType Directory -Force
+    docker run -d -p 80:80 -v $env:SystemDrive\Docker\IIS\LogFiles\$($Name):C:\inetpub\logs\LogFiles -v $env:SystemDrive\Docker\IIS\Content:C:\inetpub\wwwroot --name $Name iis-website --rm
+    #Getting the IP v4 address of the container
+    #docker inspect -f "{{ .NetworkSettings.Networks.nat.IPAddress }}" $Name | Set-Clipboard
+    #Generating traffic : 10 web requests
+    1..10 | ForEach-Object -Process {$null = Invoke-WebRequest -uri http://localhost}
+ 
     #Pulling ASP.Net Sample image
-    docker run -d -p 81:80 --name aspnet_sample --rm -it mcr.microsoft.com/dotnet/framework/samples:aspnetapp
+    #docker run -d -p 81:80 --name aspnet_sample --rm -it mcr.microsoft.com/dotnet/framework/samples:aspnetapp
 }
 
 Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName DOCKER01 -ScriptBlock {
