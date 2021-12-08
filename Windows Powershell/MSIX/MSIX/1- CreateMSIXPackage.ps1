@@ -15,14 +15,16 @@ if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Managemen
     Restart-Computer -Force
 }
 Set-Location $CurrentDir
-#Creating a Self-signed certificate
+#10 years from now
 $ExpirationDate = (Get-Date).AddYears(10)
 $ClearTextPassword = 'P@ssw0rd'
+#Full file path for the certificate export file
 $PFXFilePath = Join-Path -Path $CurrentDir -ChildPath MSIXDigitalSignature.pfx
 $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
 #Remove any previously existing certificate
 Get-ChildItem Cert:\LocalMachine -Recurse | Where-Object -FilterScript {$_.Subject -eq "CN=Contoso Software, O=Contoso Corporation, C=US"} | Remove-Item -Verbose -Force 
 
+#If we don't already have a PFX file we can use ==> Generating a Self-signed certificate expiring in 10 years
 if (-not(Test-Path -Path $PFXFilePath))
 {
     #$cert = New-SelfSignedCertificate -Type Custom -Subject "CN=Contoso Software, O=Contoso Corporation, C=US" -KeyUsage DigitalSignature -FriendlyName "'MSIX Code Signing Certificate" -CertStoreLocation "Cert:\CurrentUser\My" -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}") -NotAfter $ExpirationDate
@@ -31,9 +33,10 @@ if (-not(Test-Path -Path $PFXFilePath))
     #Remove the newly generated certificate
     Get-ChildItem Cert:\LocalMachine -Recurse | Where-Object -FilterScript {$_.Subject -eq "CN=Contoso Software, O=Contoso Corporation, C=US"} | Remove-Item -Verbose -Force 
 }
-#Adding the Self-signed certificate in the trusted root (cheat mode :))
+#Adding the Self-signed certificate in the trusted root (cheat mode for trust it:))
 Import-PfxCertificate -FilePath $PFXFilePath -CertStoreLocation Cert:\LocalMachine\TrustedPeople -Password $SecurePassword
 
+#Getting notepad++ latest version if possible
 $HTMLResponse = Invoke-WebRequest -Uri "https://notepad-plus-plus.org/downloads/"
 if ($HTMLResponse.Content -match "Current Version (?<version>\d\.\d\.\d)")
 {
@@ -45,6 +48,7 @@ else
     #Update this line to reflect the latest release of Notepad++ 
     $NotepadPlusPlusVersion="8.1.9"
 }
+#Downloading notepad++ 
 $NotepadPlusPlusUri = "https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v$NotepadPlusPlusVersion/npp.$NotepadPlusPlusVersion.Installer.x64.exe"
 $Outfile = Join-Path -Path $CurrentDir -ChildPath $(Split-Path -Path $NotepadPlusPlusUri -Leaf)
 If (-not(Test-Path -Path $Outfile))
