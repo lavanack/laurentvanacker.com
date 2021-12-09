@@ -67,6 +67,8 @@ RUN New-LocalUser -Name IISADmin -Password `$(ConvertTo-SecureString -String $Cl
 $DockerFileName = 'DockerFile'
 
 $LabName = 'IISDocker2022'
+
+$IISWebSitePort = 80..82
 #endregion
 
 #Cleaning previously existing lab
@@ -107,7 +109,7 @@ $DOCKER01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default S
 
 #region server definitions
 #Domain controller + Certificate Authority
-Add-LabMachineDefinition -Name DC01 -Roles RootDC, CARoot -IpAddress $DC01IPv4Address
+Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress $DC01IPv4Address
 #IIS front-end server
 Add-LabMachineDefinition -Name DOCKER01 -NetworkAdapter $DOCKER01NetAdapter -MinMemory 6GB -MaxMemory 6GB -Memory 6GB -Processors 2
 #endregion
@@ -143,24 +145,17 @@ Invoke-LabCommand -ActivityName 'DNS, AD Setup & GPO Settings on DC' -ComputerNa
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Edge' -ValueName "RestoreOnStartup" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 4
 
     #Bonus : To open all the available websites accross all nodes
-    $StartPages = "http://DOCKER01"
     $i=0
-    $StartPages | ForEach-Object -Process {
-        Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Edge\RestoreOnStartupURLs' -ValueName ($i++) -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "$_"
+    $using:IISWebSitePort | ForEach-Object -Process {
+        $CurrentIISWebSiteHostPort = $_
+        $StartPage = "http://DOCKER01:$CurrentIISWebSiteHostPort"
+        Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Edge\RestoreOnStartupURLs' -ValueName ($i++) -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "$StartPage"
     }
     #Hide the First-run experience and splash screen on Edge : https://docs.microsoft.com/en-us/deployedge/microsoft-edge-policies#hidefirstrunexperience
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\SOFTWARE\Microsoft\Edge' -ValueName "HideFirstRunExperience " -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
     #endregion
 
 }
-
-#region Certification Authority : Creation and SSL Certificate Generation
-#Get the CA
-$CertificationAuthority = Get-LabIssuingCA
-#Generating a new template for 10-year SSL Web Server certificate
-New-LabCATemplate -TemplateName WebServer10Years -DisplayName 'WebServer10Years' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ValidityPeriod $WebServerCertValidityPeriod -ComputerName $CertificationAuthority -ErrorAction Stop
-#Request-LabCertificate -Subject "CN=DOCKER01.contoso.com" -TemplateName WebServer10Years -ComputerName DOCKER01 -PassThru 
-#endregion
 
 Install-LabWindowsFeature -FeatureName Containers, Hyper-V, Web-Mgmt-Console -ComputerName DOCKER01 -IncludeManagementTools
 
@@ -181,29 +176,36 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -V
     #Pulling IIS image
     #docker pull mcr.microsoft.com/windows/servercore/iis
 
-    $null = New-Item -Path $env:SystemDrive\Docker\IIS\$using:DockerFileName -ItemType File -Value $using:IISDockerFileContent -Force
-    $null = New-Item -Path $env:SystemDrive\Docker\IIS\Content -ItemType Directory -Force
-
-    Set-Location -Path $env:SystemDrive\Docker\IIS
-    docker build -t iis-website .
     #Stopping all previously running containers if any
     if ($(docker ps -a -q))
     {
         docker stop $(docker ps -a -q)
     }
-    $TimeStamp = $("{0:yyyyMMddHHmmss}" -f (Get-Date))
-    $Name="MyRunningWebSite_$($TimeStamp)"
-    "<html><title>Docker Test Page</title><body>This page was generated at $(Get-Date) via Powershell.<BR>Current Time is <%=Now%><body></html> (via ASP.Net)" | Out-File -FilePath $env:SystemDrive\Docker\IIS\content\default.aspx
-    #Remove-Item -Path $env:SystemDrive\Docker\IIS\LogFiles\ -Recurse -Force -ErrorAction Ignore
-    $null = New-Item -Path $env:SystemDrive\Docker\IIS\LogFiles\$($Name) -ItemType Directory -Force
-    docker run -d -p 80:80 -v $env:SystemDrive\Docker\IIS\LogFiles\$($Name):C:\inetpub\logs\LogFiles -v $env:SystemDrive\Docker\IIS\Content:C:\inetpub\wwwroot --name $Name iis-website --rm
-    #Getting the IP v4 address of the container
-    #docker inspect -f "{{ .NetworkSettings.Networks.nat.IPAddress }}" $Name | Set-Clipboard
-    #Generating traffic : 10 web requests
-    1..10 | ForEach-Object -Process {$null = Invoke-WebRequest -uri http://localhost}
+    #Creating an IIS container per HTTP(S) port
+    $using:IISWebSitePort | ForEach-Object {
+        $CurrentIISWebSiteHostPort = $_
+        $TimeStamp = $("{0:yyyyMMddHHmmss}" -f (Get-Date))
+        $Name="MyRunningWebSite_$($TimeStamp)"
+        $DockerIISRootFolder = "$env:SystemDrive\Docker\IIS"
+        $ContainerLocalRootFolder = Join-Path -Path $DockerIISRootFolder -ChildPath "$Name"
+        $ContainerLocalContentFolder = Join-Path -Path $ContainerLocalRootFolder -ChildPath "Content"
+        $ContainerLocalLogFolder = Join-Path -Path $ContainerLocalRootFolder -ChildPath "LogFiles"
+        $ContainerLocalDockerFile = Join-Path -Path $ContainerLocalRootFolder -ChildPath $using:DockerFileName
+        $null = New-Item -Path $ContainerLocalDockerFile -ItemType File -Value $using:IISDockerFileContent -Force
+        $null = New-Item -Path $ContainerLocalContentFolder, $ContainerLocalLogFolder -ItemType Directory -Force
+
+        Set-Location -Path $ContainerLocalRootFolder
+        docker build -t iis-website .
+        "<html><title>Docker Test Page</title><body>This page was generated at $(Get-Date) via Powershell.<BR>Current Time is <%=Now%>(via ASP.Net).<BR>Your are listening on port <b>$CurrentIISWebSiteHostPort</b></body></html>" | Out-File -FilePath $(Join-Path -Path $ContainerLocalContentFolder -ChildPath "default.aspx")
+        docker run -d -p "$($CurrentIISWebSiteHostPort):80" -v $ContainerLocalLogFolder\:C:\inetpub\logs\LogFiles -v $ContainerLocalContentFolder\:C:\inetpub\wwwroot --name $Name iis-website --rm
+        #Getting the IP v4 address of the container
+        #docker inspect -f "{{ .NetworkSettings.Networks.nat.IPAddress }}" $Name | Set-Clipboard
+        #Generating traffic : 10 web requests to have some entries in the IIS log files
+        1..10 | ForEach-Object -Process {$null = Invoke-WebRequest -uri http://localhost:$CurrentIISWebSiteHostPort}
+    }
  
     #Pulling ASP.Net Sample image
-    #docker run -d -p 81:80 --name aspnet_sample --rm -it mcr.microsoft.com/dotnet/framework/samples:aspnetapp
+    #docker run -d -p 8080:80 --name aspnet_sample --rm -it mcr.microsoft.com/dotnet/framework/samples:aspnetapp
 }
 
 Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName DOCKER01 -ScriptBlock {
