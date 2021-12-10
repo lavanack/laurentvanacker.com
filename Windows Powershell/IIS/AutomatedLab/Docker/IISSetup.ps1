@@ -1,7 +1,7 @@
 ﻿$ClearTextPassword = 'P@ssw0rd'
 $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
 
-#setup ASP.Net, Remote IIS management, FREB & Request Monitor
+#Installing ASP.Net, Remote IIS management, FREB & Request Monitor
 Install-WindowsFeature Web-Mgmt-Service, Web-Asp-Net45, Web-Http-Tracing, Web-Request-Monitor
 #Setting Web Management Service
 New-ItemProperty -Path HKLM:\software\microsoft\WebManagement\Server -Name EnableRemoteManagement -Value 1 -Force
