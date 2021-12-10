@@ -36,9 +36,6 @@ $TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}" -f (
 Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 
 #region Global variables definition
-$Now = Get-Date
-$10YearsFromNow = $Now.AddYears(10)
-$WebServerCertValidityPeriod = New-TimeSpan -Start $Now -End $10YearsFromNow
 $Logon = 'Administrator'
 $ClearTextPassword = 'P@ssw0rd'
 $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
