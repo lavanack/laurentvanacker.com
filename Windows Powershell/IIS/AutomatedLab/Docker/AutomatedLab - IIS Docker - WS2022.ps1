@@ -49,26 +49,41 @@ $NetworkID = '10.0.0.0/16'
 $DC01IPv4Address = '10.0.0.1'
 $DOCKER01IPv4Address = '10.0.0.11'
 
-$IISDockerFileContent = @"
+$IISDockerFileContentWithPowershellCommandLines = @"
 FROM mcr.microsoft.com/windows/servercore/iis
 SHELL [ "powershell" ]
 
-#setup Remote IIS management
+#setup ASP.Net and Remote IIS management
 RUN Install-WindowsFeature Web-Mgmt-Service, Web-Asp-Net45; \
 New-ItemProperty -Path HKLM:\software\microsoft\WebManagement\Server -Name EnableRemoteManagement -Value 1 -Force; \
 Set-Service -Name wmsvc -StartupType automatic;
 
 #Add user for Remote IIS Manager Login
-#RUN net user iisadmin $ClearTextPassword /ADD; \
-#net localgroup administrators iisadmin /add;
-RUN New-LocalUser -Name IISADmin -Password `$(ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force) -AccountNeverExpires -PasswordNeverExpires | Add-LocalGroupMember -Group "Administrators"
+#RUN net user IISAdmin $ClearTextPassword /ADD; \
+#net localgroup administrators IISAdmin /add;
+RUN New-LocalUser -Name IISAdmin -Password `$(ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force) -AccountNeverExpires -PasswordNeverExpires | Add-LocalGroupMember -Group "Administrators"
+"@
+
+$IISDockerFileContentCallingPowershellScript = @"
+FROM mcr.microsoft.com/windows/servercore/iis
+COPY IISSetup.ps1 C:\\
+SHELL [ "powershell" ]
+#File for a custom IIS setup
+RUN C:\\IISSetup.ps1; \
+#Removing file after setup
+Remove-Item -Path C:\\IISSetup.ps1 -Force
 "@
 
 $DockerFileName = 'DockerFile'
 
 $LabName = 'IISDocker2022'
 
+#We will create an IIS container listening for every port we specify here
 $IISWebSitePort = 80..82
+
+#If we want to customize the IIS setup we will use this Powershell script
+$IISSetupPowerShellScriptFile = Join-Path -Path $CurrentDir -ChildPath "IISSetup.ps1"
+$DockerIISRootFolder = "$env:SystemDrive\Docker\IIS"
 #endregion
 
 #Cleaning previously existing lab
@@ -171,7 +186,18 @@ Invoke-LabCommand -ActivityName 'Docker Setup' -ComputerName DOCKER01 -ScriptBlo
 Restart-LabVM -ComputerName DOCKER01 -Wait
 Checkpoint-LabVM -SnapshotName DockerSetup -All
 
-Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -Verbose -ScriptBlock {
+#If an IISSetup.ps1 file is present in the same folder than this script, we copy it on the DOCKER01 VM for a customized IIS setup, else we use a simple docker file
+If (Test-Path -Path $IISSetupPowerShellScriptFile)
+{
+    $IsIISSetupPowerShellScriptPresent = $true
+    Copy-LabFileItem -Path $IISSetupPowerShellScriptFile -DestinationFolderPath $(Join-Path -Path $DockerIISRootFolder -ChildPath "IISSetup.ps1") -ComputerName DOCKER01
+}
+else
+{
+    $IsIISSetupPowerShellScriptPresent = $false
+}
+
+Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -ScriptBlock {
     Start-Service Docker
     #Pulling IIS image
     #docker pull mcr.microsoft.com/windows/servercore/iis
@@ -186,24 +212,36 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -V
         $CurrentIISWebSiteHostPort = $_
         $TimeStamp = $("{0:yyyyMMddHHmmss}" -f (Get-Date))
         $Name="MyRunningWebSite_$($TimeStamp)"
-        $DockerIISRootFolder = "$env:SystemDrive\Docker\IIS"
-        $ContainerLocalRootFolder = Join-Path -Path $DockerIISRootFolder -ChildPath "$Name"
+        $ContainerLocalRootFolder = Join-Path -Path $using:DockerIISRootFolder -ChildPath "$Name"
         $ContainerLocalContentFolder = Join-Path -Path $ContainerLocalRootFolder -ChildPath "Content"
         $ContainerLocalLogFolder = Join-Path -Path $ContainerLocalRootFolder -ChildPath "LogFiles"
         $ContainerLocalDockerFile = Join-Path -Path $ContainerLocalRootFolder -ChildPath $using:DockerFileName
-        $null = New-Item -Path $ContainerLocalDockerFile -ItemType File -Value $using:IISDockerFileContent -Force
         $null = New-Item -Path $ContainerLocalContentFolder, $ContainerLocalLogFolder -ItemType Directory -Force
-
+        
+        #If an IISSetup.ps1 file is present in the same folder than this script, we use it on the DOCKER01 VM for a customized IIS setup, else we use a simple docker file
+        if ($using:IsIISSetupPowerShellScriptPresent)
+        {
+            #Customizing default page
+            "<html><title>Docker Test Page</title><body>This page was generated at $(Get-Date) via Powershell.<BR>Current Time is <%=Now%> (via ASP.Net).<BR>Your are listening on port <b>$CurrentIISWebSiteHostPort</b>.<BR>You are using a <b>PowerShell script</b> for setting up IIS</body></html>" | Out-File -FilePath $(Join-Path -Path $ContainerLocalContentFolder -ChildPath "default.aspx")
+            $null = New-Item -Path $ContainerLocalDockerFile -ItemType File -Value $using:IISDockerFileContentCallingPowershellScript -Force
+            Copy-Item -Path $(Join-Path -Path $using:DockerIISRootFolder -ChildPath "IISSetup.ps1") -Destination $ContainerLocalRootFolder -Force -Recurse
+        }
+        else
+        {
+            #Customizing default page
+            "<html><title>Docker Test Page</title><body>This page was generated at $(Get-Date) via Powershell.<BR>Current Time is <%=Now%> (via ASP.Net).<BR>Your are listening on port <b>$CurrentIISWebSiteHostPort</b>.<BR>You are only using a <b>Docker file</b> for setting up IIS</body></html>" | Out-File -FilePath $(Join-Path -Path $ContainerLocalContentFolder -ChildPath "default.aspx")
+            $null = New-Item -Path $ContainerLocalDockerFile -ItemType File -Value $using:IISDockerFileContentWithPowershellCommandLines -Force
+        }
+        
         Set-Location -Path $ContainerLocalRootFolder
         docker build -t iis-website .
-        "<html><title>Docker Test Page</title><body>This page was generated at $(Get-Date) via Powershell.<BR>Current Time is <%=Now%>(via ASP.Net).<BR>Your are listening on port <b>$CurrentIISWebSiteHostPort</b></body></html>" | Out-File -FilePath $(Join-Path -Path $ContainerLocalContentFolder -ChildPath "default.aspx")
         docker run -d -p "$($CurrentIISWebSiteHostPort):80" -v $ContainerLocalLogFolder\:C:\inetpub\logs\LogFiles -v $ContainerLocalContentFolder\:C:\inetpub\wwwroot --name $Name iis-website --rm
         #Getting the IP v4 address of the container
-        #docker inspect -f "{{ .NetworkSettings.Networks.nat.IPAddress }}" $Name | Set-Clipboard
+        $ContainerIPv4Address = (docker inspect -f "{{ .NetworkSettings.Networks.nat.IPAddress }}" $Name | Out-String) -replace "`n"
+        Write-Host "The internal IPv4 address for the container [$Name] is [$ContainerIPv4Address]" -ForegroundColor Yellow
         #Generating traffic : 10 web requests to have some entries in the IIS log files
         1..10 | ForEach-Object -Process {$null = Invoke-WebRequest -uri http://localhost:$CurrentIISWebSiteHostPort}
     }
- 
     #Pulling ASP.Net Sample image
     #docker run -d -p 8080:80 --name aspnet_sample --rm -it mcr.microsoft.com/dotnet/framework/samples:aspnetapp
 }
