@@ -46,6 +46,8 @@ $NetworkID = '10.0.0.0/16'
 $DC01IPv4Address = '10.0.0.1'
 $DOCKER01IPv4Address = '10.0.0.11'
 
+$IISSetupFileName = 'IISSetup.ps1'
+
 $IISDockerFileContentWithPowershellCommandLines = @"
 FROM mcr.microsoft.com/windows/servercore/iis
 SHELL [ "powershell" ]
@@ -66,9 +68,9 @@ FROM mcr.microsoft.com/windows/servercore/iis
 COPY IISSetup.ps1 C:\\
 SHELL [ "powershell" ]
 #File for a custom IIS setup
-RUN C:\\IISSetup.ps1; \
+RUN C:\$IISSetupFileName; \
 #Removing file after setup
-Remove-Item -Path C:\\IISSetup.ps1 -Force
+Remove-Item -Path C:\$IISSetupFileName -Force
 "@
 
 $DockerFileName = 'DockerFile'
@@ -79,7 +81,7 @@ $LabName = 'IISDocker2022'
 $IISWebSitePort = 80..82
 
 #If we want to customize the IIS setup we will use this Powershell script
-$IISSetupPowerShellScriptFile = Join-Path -Path $CurrentDir -ChildPath "IISSetup.ps1"
+$IISSetupPowerShellScriptFile = Join-Path -Path $CurrentDir -ChildPath $IISSetupFileName
 $DockerIISRootFolder = "$env:SystemDrive\Docker\IIS"
 #endregion
 
@@ -187,7 +189,7 @@ Checkpoint-LabVM -SnapshotName DockerSetup -All
 If (Test-Path -Path $IISSetupPowerShellScriptFile)
 {
     $IsIISSetupPowerShellScriptPresent = $true
-    Copy-LabFileItem -Path $IISSetupPowerShellScriptFile -DestinationFolderPath $(Join-Path -Path $DockerIISRootFolder -ChildPath "IISSetup.ps1") -ComputerName DOCKER01
+    Copy-LabFileItem -Path $IISSetupPowerShellScriptFile -DestinationFolderPath $DockerIISRootFolder -ComputerName DOCKER01
 }
 else
 {
@@ -202,7 +204,7 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -S
     #Stopping all previously running containers if any
     if ($(docker ps -a -q))
     {
-        docker stop $(docker ps -a -q)
+        docker stop 
     }
     #Creating an IIS container per HTTP(S) port
     $using:IISWebSitePort | ForEach-Object {
@@ -221,7 +223,7 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -S
             #Customizing default page
             "<html><title>Docker Test Page</title><body>This page was generated at $(Get-Date) via Powershell.<BR>Current Time is <%=Now%> (via ASP.Net).<BR>Your are listening on port <b>$CurrentIISWebSiteHostPort</b>.<BR>You are using a <b>PowerShell script</b> for setting up IIS</body></html>" | Out-File -FilePath $(Join-Path -Path $ContainerLocalContentFolder -ChildPath "default.aspx")
             $null = New-Item -Path $ContainerLocalDockerFile -ItemType File -Value $using:IISDockerFileContentCallingPowershellScript -Force
-            Copy-Item -Path $(Join-Path -Path $using:DockerIISRootFolder -ChildPath "IISSetup.ps1") -Destination $ContainerLocalRootFolder -Force -Recurse
+            Copy-Item -Path $(Join-Path -Path $using:DockerIISRootFolder -ChildPath $using:IISSetupFileName) -Destination $ContainerLocalRootFolder -Force -Recurse
         }
         else
         {
@@ -241,6 +243,11 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -S
     }
     #Pulling ASP.Net Sample image
     #docker run -d -p 8080:80 --name aspnet_sample --rm -it mcr.microsoft.com/dotnet/framework/samples:aspnetapp
+
+    #To list some properties with the comma as separator
+    #docker inspect -f "{{.ID}},{{.Name}},{{ .NetworkSettings.Networks.nat.IPAddress }},{{ .NetworkSettings.Ports}}" $(docker ps -a -q)       
+    #To convert docker config into PowerShell object
+    #docker inspect $(docker ps -a -q) | ConvertFrom-Json
 }
 
 Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName DOCKER01 -ScriptBlock {
