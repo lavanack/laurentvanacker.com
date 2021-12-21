@@ -99,7 +99,7 @@ Install-Lab
 $Client = (Get-LabVM | Where-Object -FilterScript { $_.Name -eq "MSIX"}).Name
 
 Copy-LabFileItem -Path $CurrentDir\MSIX -ComputerName $Client -DestinationFolderPath C:\
-Invoke-LabCommand -ActivityName "Installing required PowerShell fetaures for VHD Management" -ComputerName $Client -ScriptBlock {
+Invoke-LabCommand -ActivityName "Installing required PowerShell features for VHD Management" -ComputerName $Client -ScriptBlock {
     Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Management-PowerShell -All
 }
 

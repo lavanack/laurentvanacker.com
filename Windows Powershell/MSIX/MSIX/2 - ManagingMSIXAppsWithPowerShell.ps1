@@ -8,7 +8,11 @@ Set-Location $CurrentDir
 #Managing MSIX with PowerShell :https://docs.microsoft.com/en-us/windows/msix/desktop/powershell-msix-cmdlets
 $MSIXFilePath = Get-ChildItem -Path $CurrentDir -Filter *.msix -File
 $MSIXFilePath
+#Add-AppxPackage will publish only on user session
 Add-AppxPackage -Path $MSIXFilePath -Verbose
 Get-AppxPackage -Name "notepad*"
 Get-AppxPackage -Name "notepad*" | Remove-AppxPackage -Verbose
 Get-AppxPackage -Name "notepad*"
+
+#To Publish to all users, you should use
+Add-AppxProvisionedPackage -PackagePath $MSIXFilePath -SkipLicense -Online
