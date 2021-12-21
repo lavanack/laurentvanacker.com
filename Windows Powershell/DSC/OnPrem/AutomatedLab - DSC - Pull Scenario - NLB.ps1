@@ -134,7 +134,7 @@ Checkpoint-LabVM -SnapshotName $LabName -All -Verbose
 #Restore-LabVMSnapshot -SnapshotName $LabName -All -Verbose
 
 #Installing PowerBI Desktop on the SQL Server (or any machine in the lab)
-$PBIDesktopX64 = Get-LabInternetFile -Uri $PBIDesktopX64Uri -Path $labSources\SoftwarePackages -PassThru
+$PBIDesktopX64 = Get-LabInternetFile -Uri $PBIDesktopX64Uri -Path $labSources\SoftwarePackages -PassThru -Force
 
 Install-LabSoftwarePackage -ComputerName SQL01 -Path $PBIDesktopX64.FullName -CommandLine "-quiet -norestart LANGUAGE=en-us ACCEPT_EULA=1 INSTALLDESKTOPSHORTCUT=0" -AsJob
 #cf. https://docs.microsoft.com/en-us/archive/blogs/fieldcoding/visualize-dsc-reporting-with-powerbi#powerbi---the-interesting-part
