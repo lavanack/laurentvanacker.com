@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<RDCMan programVersion="2.7" schemaVersion="3">
+<RDCMan programVersion="2.83" schemaVersion="3">
   <file>
     <credentialsProfiles />
     <properties>
@@ -56,14 +56,14 @@
       </server>
       <server>
         <properties>
-          <displayName>PULL</displayName>
-          <name>10.0.0.11</name>
+          <displayName>MS2</displayName>
+          <name>10.0.0.102</name>
         </properties>
       </server>
       <server>
         <properties>
-          <displayName>MS2</displayName>
-          <name>10.0.0.102</name>
+          <displayName>PULL</displayName>
+          <name>10.0.0.11</name>
         </properties>
       </server>
     </group>
