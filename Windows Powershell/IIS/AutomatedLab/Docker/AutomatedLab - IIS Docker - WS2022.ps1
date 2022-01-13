@@ -205,6 +205,8 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -S
     if ($(docker ps -a -q))
     {
         docker stop 
+        #To delete all containers
+        docker rm -f $(docker ps -a -q)
     }
     #Creating an IIS container per HTTP(S) port
     $using:IISWebSitePort | ForEach-Object {
@@ -234,7 +236,7 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -S
         
         Set-Location -Path $ContainerLocalRootFolder
         docker build -t iis-website .
-        docker run -d -p "$($CurrentIISWebSiteHostPort):80" -v $ContainerLocalLogFolder\:C:\inetpub\logs\LogFiles -v $ContainerLocalContentFolder\:C:\inetpub\wwwroot --name $Name iis-website --rm
+        docker run -d -p "$($CurrentIISWebSiteHostPort):80" -v $ContainerLocalLogFolder\:C:\inetpub\logs\LogFiles -v $ContainerLocalContentFolder\:C:\inetpub\wwwroot --name $Name iis-website --restart unless-stopped #--rm
         #Getting the IP v4 address of the container
         $ContainerIPv4Address = (docker inspect -f "{{ .NetworkSettings.Networks.nat.IPAddress }}" $Name | Out-String) -replace "`n"
         Write-Host "The internal IPv4 address for the container [$Name] is [$ContainerIPv4Address]" -ForegroundColor Yellow
@@ -248,6 +250,8 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -S
     #docker inspect -f "{{.ID}},{{.Name}},{{ .NetworkSettings.Networks.nat.IPAddress }},{{ .NetworkSettings.Ports}}" $(docker ps -a -q)       
     #To convert docker config into PowerShell object
     #docker inspect $(docker ps -a -q) | ConvertFrom-Json
+    #To delete all containers
+    #docker rm -f $(docker ps -a -q)
 }
 
 Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName DOCKER01 -ScriptBlock {
