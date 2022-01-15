@@ -6,8 +6,13 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 #Timestamp URL server
 #http://timestamp.digicert.com
 
+Set-Location -Path $CurrentDir
+
+#Start-Process "https://www.microsoft.com/en-gb/p/app-installer/9nblggh4nns1?ocid=9nblggh4nns1_ORSEARCH_Bing&rtc=2&activetab=pivot:overviewtab"
+Start-Process "ms-appinstaller:?source=https://aka.ms/getwinget"
+
 #Installing MSIX Packaging Tool via the command line
-winget install Microsoft.MSIXPackagingTool
+winget install Microsoft.MSIXPackagingTool --accept-package-agreements --accept-source-agreements
 
 # Install only the PowerShell module to have VHD Management cmdlets
 if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Management-PowerShell).State -ne 'Enabled')
