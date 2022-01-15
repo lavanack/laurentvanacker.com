@@ -1,4 +1,4 @@
-# Windows PowerShell : Word
+# Windows PowerShell : Microsoft Office
 
 These are a simple demo scripts demonstrating how to interact with Microsoft Office With PowerShell.
 
