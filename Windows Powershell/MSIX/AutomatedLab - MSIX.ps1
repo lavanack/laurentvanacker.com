@@ -101,7 +101,7 @@ Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 
 $Client = (Get-LabVM | Where-Object -FilterScript { $_.Name -eq "MSIX"}).Name
 
-Copy-LabFileItem -Path $CurrentDir\MSIX -ComputerName $Client -DestinationFolderPath C:\
+Copy-LabFileItem -Path $CurrentDir\MSIX -ComputerName $Client -DestinationFolderPath C:\ -Recurse
 
 #Installing required PowerShell features for VHD Management
 Install-LabWindowsFeature -FeatureName Microsoft-Hyper-V-Management-PowerShell -ComputerName $Client -IncludeAllSubFeature

@@ -78,7 +78,7 @@ Set-Location -Path $CurrentDir
     New-PSDrive -Name Z -PSProvider FileSystem -Root "\\$storageAccountName.file.core.windows.net\$shareName" -Persist
 
     #region NTFS permissions for MSIX
-    #From https://docs.microsoft.com/en-us/azure/virtual-desktop/app-attach-file-share#next-steps
+    #From https://docs.microsoft.com/en-us/azure/virtual-desktop/app-attach-file-share#how-to-set-up-the-file-share
     #From https://blue42.net/windows/changing-ntfs-security-permissions-using-powershell/
     $existingAcl = Get-Acl Z:
     $existingAcl.Access | ForEach-Object -Process {$existingAcl.RemoveAccessRule($_)}
@@ -186,7 +186,7 @@ Set-Location -Path $CurrentDir
     # Unmount the share
     Remove-PSDrive -Name Z
 
-    #From https://docs.microsoft.com/en-us/azure/virtual-desktop/app-attach-file-share#next-steps
+    #https://docs.microsoft.com/en-us/azure/virtual-desktop/app-attach-file-share#how-to-set-up-the-file-share
     #Setting up the file share with right RBAC: MSIX Hosts & Users = "Storage File Data SMB Share Contributor" + MSIX Share Admins = Storage File Data SMB Share Elevated Contributor
     #Get the name of the custom role
     $FileShareContributorRole = Get-AzRoleDefinition "Storage File Data SMB Share Contributor"

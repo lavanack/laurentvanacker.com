@@ -54,7 +54,7 @@ if ($HTMLResponse.Content -match "Current Version (?<version>\d\.\d\.\d)")
 else
 {
     #Update this line to reflect the latest release of Notepad++ 
-    $NotepadPlusPlusVersion="8.1.9"
+    $NotepadPlusPlusVersion="8.2.1"
 }
 #Downloading notepad++ 
 $NotepadPlusPlusUri = "https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v$NotepadPlusPlusVersion/npp.$NotepadPlusPlusVersion.Installer.x64.exe"
