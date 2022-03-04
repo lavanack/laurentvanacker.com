@@ -68,6 +68,7 @@ $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList
 
 #region Define Variables needed for Virtual Machine
 $VMName 	        = "AL-$('{0:yyMMddHHmm}' -f (Get-Date))"
+$VMName 	        = "automatedlab"
 $ImagePublisherName	= "MicrosoftWindowsDesktop"
 $ImageOffer	        = "Windows-11"
 $ImageSku	        = "win11-21h2-ent"
@@ -178,7 +179,7 @@ $UpdatedJITPolicy = $ExistingJITPolicy.Where{$_.id -ne "$($VM.Id)"} # Exclude ex
 $UpdatedJITPolicy.Add($NewJitPolicy)
 	
 #! Enable Access to the VM including management Port, and Time Range in Hours
-Write-Host "Enabling Just in Time VM Access Policy for ($VMName) on port number $Port for maximum $JitPolicyTimeInHours hours..."
+Write-Host "Enabling Just in Time VM Access Policy for ($VMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
 Set-AzJitNetworkAccessPolicy -VirtualMachine $UpdatedJITPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -Kind "Basic" | Out-Null
 #endregion
 
@@ -192,7 +193,7 @@ $JitPolicy = (@{
             })
     })
 $ActivationVM = @($JitPolicy)
-Write-Host "Requesting Temporry Acces via Just in Time for ($VMName) on port number $Port for maximum $JitPolicyTimeInHours hours..."
+Write-Host "Requesting Temporry Acces via Just in Time for ($VMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
 Start-AzJitNetworkAccessPolicy -ResourceGroupName $($VM.ResourceGroupName) -Location $VM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM
 #endregion
 
@@ -213,11 +214,11 @@ New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Pro
 #Step 11: Start Azure Virtual Machine
 Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 
-#Set-AzVMCustomScriptExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -Location $Location -FileUri <fileUrl> -Run '2 - AutomatedLabSetup.ps1' -Name "Automated LabSetup"
+Set-AzVMCustomScriptExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -Location $Location -FileUri https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/AutomatedLab/AutomatedLabSetup.ps1 -Run 'AutomatedLabSetup.ps1' -Name "AutomatedLabSetup"
 #Copying the Pulic IP into the clipboard 
 #$PublicIP.IpAddress | Set-Clipboard
 
-Start-Sleep -Seconds 60
+Start-Sleep -Seconds 15
 
 #Step 11: Start RDP Session
 mstsc /v $PublicIP.IpAddress

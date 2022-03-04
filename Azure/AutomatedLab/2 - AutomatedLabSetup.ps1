@@ -13,13 +13,14 @@ function Disable-IEESC {
     Stop-Process -Name Explorer
     Write-Host "IE Enhanced Security Configuration (ESC) has been disabled." -ForegroundColor Green
 }
-Disable-IEESC
+#Disable-IEESC
 #endregion 
 
 #region Installing Hyper-V
-if (-not(Get-WindowsFeature -Name Hyper-V).Installed)
+if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All).State -ne 'Enabled')
 {
-    Install-WindowsFeature Hyper-V -IncludeManagementTools -Restart
+    Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All -All
+    Restart-Computer -Force
 }
 
 #endregion
@@ -67,4 +68,12 @@ $VSCodeExtension = [ordered]@{
     'GitLens - Git supercharged' = 'eamodio.gitlens'
 }
 Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) }  -AdditionalExtensions $($VSCodeExtension.Values -join ',')" -Verbose
+#endregion
+
+#region Junction creation to avoid to host AutomatedLab VMs on the system partition
+$SysinternalsSuiteURI = 'https://download.sysinternals.com/files/SysinternalsSuite.zip'
+$OutputFile = Join-Path -Path $CurrentDir -ChildPath $(Split-Path -Path $SysinternalsSuiteURI -Leaf)
+Invoke-WebRequest -Uri $SysinternalsSuiteURI -OutFile $OutputFile
+Expand-Archive -Path $OutputFile -DestinationPath C:\Tools
+Start-Process -FilePath C:\Tools\junction.exe -ArgumentList "$($Disk.DriveLetter)\AutomatedLab-VMs", "C:\AutomatedLab-VMs"
 #endregion
