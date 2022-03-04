@@ -44,14 +44,14 @@ $RDPPort                        = 3389
 $JitPolicyTimeInHours           = 3
 $JitPolicyName                  = "Default"
 $Location                       = "EastUs"
-$ResourceGroupName              = "AutomatedLab-rg-$Location"
-$VirtualNetworkName             = "AutomatedLab-vnet-$Location"
+$ResourceGroupName              = "msws-poshcore-vm-rg"
+$VirtualNetworkName             = "msws-poshcore-vm-vnet"
 $VirtualNetworkAddressSpace     = "10.10.0.0/16" # Format 10.10.0.0/16
 $SubnetIPRange                  = "10.10.1.0/24" # Format 10.10.1.0/24
-$SubnetName                     = "AutomatedLab-Subnet"
-$NICNetworkSecurityGroupName    = "AutomatedLab-nic-nsg-$Location"
-$subnetNetworkSecurityGroupName = "AutomatedLab-vnet-Subnet-nsg-$Location"
-$StorageAccountName             = "automatedlabsa" # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
+$SubnetName                     = "Subnet"
+$NICNetworkSecurityGroupName    = "msws-poshcore-vm-nic-nsg-$Location"
+$subnetNetworkSecurityGroupName = "msws-poshcore-vm-vnet-Subnet-nsg-$Location"
+$StorageAccountName             = "mswsposhcorevmsa" # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
 $StorageAccountSkuName          = "Standard_LRS"
 $SubscriptionName               = "Microsoft Azure Internal Consumption"
 $MyPublicIp                     = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
@@ -67,12 +67,12 @@ $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList
 #endregion
 
 #region Define Variables needed for Virtual Machine
-$VMName 	        = "AL-$('{0:yyMMddHHmm}' -f (Get-Date))"
-$VMName 	        = "automatedlab"
-$ImagePublisherName	= "MicrosoftWindowsDesktop"
-$ImageOffer	        = "Windows-11"
-$ImageSku	        = "win11-21h2-ent"
-$VMSize 	        = "Standard_D8s_v5"
+#$VMName 	        = "WS19-$('{0:yyMMddHHmm}' -f (Get-Date))"
+$VMName 	        = "WinServ2019"
+$ImagePublisherName	= "MicrosoftWindowsServer"
+$ImageOffer	        = "WindowsServer"
+$ImageSku	        = "2019-Datacenter"
+$VMSize 	        = "Standard_D8s_v3"
 $PublicIPName       = "$VMName-PIP" 
 $NICName            = "$VMName-NIC"
 $OSDiskName         = "$VMName-OSDisk"
@@ -92,7 +92,7 @@ if (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName))
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
 if ($ResourceGroup)
 {
-    #Step 0: Remove previously existing Azure Resource Group with the "AutomatedLab-rg" name
+    #Step 0: Remove previously existing Azure Resource Group with the "msws-poshcore-vm-rg" name
     $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
 }
 
@@ -179,7 +179,7 @@ $UpdatedJITPolicy = $ExistingJITPolicy.Where{$_.id -ne "$($VM.Id)"} # Exclude ex
 $UpdatedJITPolicy.Add($NewJitPolicy)
 	
 #! Enable Access to the VM including management Port, and Time Range in Hours
-Write-Host "Enabling Just in Time VM Access Policy for ($VMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
+Write-Host "Enabling Just in Time VM Access Policy for ($VMName) on port number $Port for maximum $JitPolicyTimeInHours hours..."
 Set-AzJitNetworkAccessPolicy -VirtualMachine $UpdatedJITPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -Kind "Basic" | Out-Null
 #endregion
 
@@ -193,7 +193,7 @@ $JitPolicy = (@{
             })
     })
 $ActivationVM = @($JitPolicy)
-Write-Host "Requesting Temporry Acces via Just in Time for ($VMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
+Write-Host "Requesting Temporry Acces via Just in Time for ($VMName) on port number $Port for maximum $JitPolicyTimeInHours hours..."
 Start-AzJitNetworkAccessPolicy -ResourceGroupName $($VM.ResourceGroupName) -Location $VM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM
 #endregion
 
@@ -214,7 +214,6 @@ New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Pro
 #Step 11: Start Azure Virtual Machine
 Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 
-Set-AzVMCustomScriptExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -Location $Location -FileUri https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/AutomatedLab/AutomatedLabSetup.ps1 -Run 'AutomatedLabSetup.ps1' -Name "AutomatedLabSetup"
 #Copying the Pulic IP into the clipboard 
 #$PublicIP.IpAddress | Set-Clipboard
 
