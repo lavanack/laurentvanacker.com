@@ -67,7 +67,7 @@ $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList
 #endregion
 
 #region Define Variables needed for Virtual Machine
-$VMName 	        = "AL-$('{0:yyMMddHHmm}' -f (Get-Date))"
+#$VMName 	        = "AL-$('{0:yyMMddHHmm}' -f (Get-Date))"
 $VMName 	        = "automatedlab"
 $ImagePublisherName	= "MicrosoftWindowsDesktop"
 $ImageOffer	        = "Windows-11"
@@ -218,6 +218,6 @@ Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 
 Start-Sleep -Seconds 15
 
-#Step 11: Start RDP Session
+#Step 12: Start RDP Session
 #mstsc /v $PublicIP.IpAddress
 #mstsc /v "$VMName.$Location.cloudapp.azure.com".ToLower()

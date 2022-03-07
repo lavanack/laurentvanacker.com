@@ -109,9 +109,7 @@ Configuration AutomatedLabSetupDSC {
             }
 
             TestScript = {
-                # Create and invoke a scriptblock using the $GetScript automatic variable, which contains a string representation of the GetScript.
-                $state = [scriptblock]::Create($GetScript).Invoke()
-                return ((Get-Disk -Number 1 | Get-Partition).DriveLetter -contains $using:DriveLetter)
+                return ((Get-Disk -Number 1).Partitionstyle -ne 'raw')
             }
         }
 
@@ -165,7 +163,7 @@ Configuration AutomatedLabSetupDSC {
             TestScript = {
                 # Create and invoke a scriptblock using the $GetScript automatic variable, which contains a string representation of the GetScript.
                 $state = [scriptblock]::Create($GetScript).Invoke()
-                return ((Get-InstalledModule).Name -contains 'AutomatedLab')
+                return ((Get-InstalledModule -Name 'AutomatedLab' -ErrorAction Ignore) -ne $null)
             }
         }
 
