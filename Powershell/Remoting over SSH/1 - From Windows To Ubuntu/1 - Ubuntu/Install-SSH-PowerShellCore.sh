@@ -46,4 +46,4 @@ sudo sed -i 's/^\(#\?\)\(PubkeyAuthentication\|PasswordAuthentication\|RSAAuthen
 sudo service sshd restart
 
 #starting PowerShell
-pwsh
+sudo pwsh

@@ -37,6 +37,7 @@ $VSCodeExtension = [ordered]@{
     'GitLens - Git supercharged' = 'eamodio.gitlens'
 }
 
+Import-Module -Name 'PSDscResources', 'StorageDsc', 'xHyper-V', 'xPSDesiredStateConfiguration', 'ComputerManagementDsc' -Force
 
 Configuration AutomatedLabSetupDSC {
     param(
@@ -63,32 +64,33 @@ Configuration AutomatedLabSetupDSC {
         #Alternative https://github.com/dsccommunity/ComputerManagementDsc/wiki/IEEnhancedSecurityConfiguration
         Registry DisableIESCForAdmins
         {
-			Key = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}'
+			Key       = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}'
 			ValueName = 'IsInstalled'
 			ValueData = '0'
 			ValueType = 'DWORD'
-			Ensure = 'Present'
+			Ensure    = 'Present'
 		}		
 
         Registry DisableIESCForUsers
         {
-			Key = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}'
+			Key       = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}'
 			ValueName = 'IsInstalled'
 			ValueData = '0'
 			ValueType = 'DWORD'
-			Ensure = 'Present'
+			Ensure    = 'Present'
             DependsOn = "[Registry]DisableIESCForAdmins"
 		}		
 
         WindowsOptionalFeature  HyperVAll
         {
-            Name = 'Microsoft-Hyper-V-All'
+            Name   = 'Microsoft-Hyper-V-All'
             Ensure = 'Present'
         }
 
+
         PendingReboot RebootAfterHyperVInstall
         {
-            Name = 'RebootNeededAfterHyperVInstall'
+            Name      = 'RebootNeededAfterHyperVInstall'
             DependsOn = '[WindowsOptionalFeature]HyperVAll'
         }
         
@@ -96,8 +98,8 @@ Configuration AutomatedLabSetupDSC {
         {
             GetScript = {
                 @{
-                    GetScript = $GetScript
-                    SetScript = $SetScript
+                    GetScript  = $GetScript
+                    SetScript  = $SetScript
                     TestScript = $TestScript
                 }
             }
@@ -115,43 +117,43 @@ Configuration AutomatedLabSetupDSC {
 
         WaitForDisk Disk1
         {
-            DiskId = 1
+            DiskId           = 1
             RetryIntervalSec = 60
-            RetryCount = 60
+            RetryCount       = 60
         }
 
         Disk AutomatedLabVolume
         {
-            DiskId = 1
+            DiskId      = 1
             DriveLetter = $DriveLetter
-            FSLabel = 'Data'
-            FSFormat = 'NTFS'
-            DependsOn = '[WaitForDisk]Disk1'
+            FSLabel     = 'Data'
+            FSFormat    = 'NTFS'
+            DependsOn   = '[WaitForDisk]Disk1'
         }
 
         File HyperVPath
         {
             DestinationPath = "$($DriveLetter):\Virtual Machines\Hyper-V"
-            Type = 'Directory'
-            Ensure = "Present"
-            Force = $true
-            DependsOn = '[Disk]AutomatedLabVolume'
+            Type            = 'Directory'
+            Ensure          = "Present"
+            Force           = $true
+            DependsOn       = '[Disk]AutomatedLabVolume'
         }
 
         xVMHost HyperVHostPaths
         {
-            IsSingleInstance = 'Yes'
+            IsSingleInstance    = 'Yes'
             VirtualHardDiskPath = "$($DriveLetter):\Virtual Machines\Hyper-V"
-            VirtualMachinePath = "$($DriveLetter):\Virtual Machines\Hyper-V"
-            DependsOn = '[File]HyperVPath'
+            VirtualMachinePath  = "$($DriveLetter):\Virtual Machines\Hyper-V"
+            DependsOn           = '[File]HyperVPath'
         }
 
 	    Script InstallAutomatedLabModule 
         {
             GetScript = {
                 @{
-                    GetScript = $GetScript
-                    SetScript = $SetScript
+                    GetScript  = $GetScript
+                    SetScript  = $SetScript
                     TestScript = $TestScript
                 }
             }
@@ -169,10 +171,10 @@ Configuration AutomatedLabSetupDSC {
 
         Environment DisableAutomatedLabTelemetryProcessScope
         {
-            Name = 'AUTOMATEDLAB_TELEMETRY_OPTIN'
-            Value = 'False'
-            Ensure = "Present"
-            Target = 'Process'
+            Name      = 'AUTOMATEDLAB_TELEMETRY_OPTIN'
+            Value     = 'False'
+            Ensure    = "Present"
+            Target    = 'Process'
             DependsOn = '[Script]InstallAutomatedLabModule'
         }
 
@@ -180,8 +182,8 @@ Configuration AutomatedLabSetupDSC {
         {
             GetScript = {
                 @{
-                    GetScript = $GetScript
-                    SetScript = $SetScript
+                    GetScript  = $GetScript
+                    SetScript  = $SetScript
                     TestScript = $TestScript
                 }
             }
@@ -200,8 +202,8 @@ Configuration AutomatedLabSetupDSC {
         {
             GetScript = {
                 @{
-                    GetScript = $GetScript
-                    SetScript = $SetScript
+                    GetScript  = $GetScript
+                    SetScript  = $SetScript
                     TestScript = $TestScript
                 }
             }
@@ -220,24 +222,24 @@ Configuration AutomatedLabSetupDSC {
         {
             DestinationPath = $(Join-Path -Path $env:TEMP -ChildPath 'Git-Latest.exe')
             #Uri = ((Invoke-WebRequest -Uri 'https://git-scm.com/download/win').Links | Where-Object -FilterScript { $_.InnerText -eq "64-bit Git For Windows Setup"}).href
-            Uri = 'https://github.com/git-for-windows/git/releases/download/v2.35.1.windows.2/Git-2.35.1.2-64-bit.exe'
-            UserAgent = [Microsoft.PowerShell.Commands.PSUserAgent]::InternetExplorer
-            Headers = @{'Accept-Language' = 'en-US'}
+            Uri             = 'https://github.com/git-for-windows/git/releases/download/v2.35.1.windows.2/Git-2.35.1.2-64-bit.exe'
+            UserAgent       = [Microsoft.PowerShell.Commands.PSUserAgent]::InternetExplorer
+            Headers         = @{'Accept-Language' = 'en-US'}
         }
 
         Package InstallGit
         {
-            Ensure = "Present"
-            Path = $(Join-Path -Path $env:TEMP -ChildPath 'Git-Latest.exe')
+            Ensure    = "Present"
+            Path      = $(Join-Path -Path $env:TEMP -ChildPath 'Git-Latest.exe')
             Arguments = '/SILENT /CLOSEAPPLICATIONS'
-            Name = "Git"
+            Name      = "Git"
             ProductId = ""
             DependsOn = "[xRemoteFile]DownloadGit"
         }
 
 	    Script InstallPowerShellCrossPlatform 
         {
-            GetScript = {
+            GetScript  = {
                 @{
                     GetScript = $GetScript
                     SetScript = $SetScript
@@ -245,7 +247,7 @@ Configuration AutomatedLabSetupDSC {
                 }
             }
  
-            SetScript = {
+            SetScript  = {
                 Invoke-Expression -Command "& { $(Invoke-RestMethod https://aka.ms/install-powershell.ps1) } -UseMSI -Quiet"
             }
  
@@ -257,7 +259,7 @@ Configuration AutomatedLabSetupDSC {
 
 	    Script InstallVSCode 
         {
-            GetScript = {
+            GetScript  = {
                 @{
                     GetScript = $GetScript
                     SetScript = $SetScript
@@ -265,7 +267,7 @@ Configuration AutomatedLabSetupDSC {
                 }
             }
  
-            SetScript = {
+            SetScript  = {
                 $IsLinux = $false
                 $IsMacOS = $false
                 $IsWindows = $true
@@ -283,30 +285,30 @@ Configuration AutomatedLabSetupDSC {
             TestScript = {
                 return (Test-Path -Path "C:\Program Files\Microsoft VS Code\Code.exe" -PathType Leaf)
             }
-            DependsOn = @("[Script]InstallPowerShellCrossPlatform", "[Package]InstallGit")
+            DependsOn  = @("[Script]InstallPowerShellCrossPlatform", "[Package]InstallGit")
         }    
 
 
         xRemoteFile DownloadSysinternalsSuiteZipFile
         {
             DestinationPath = $(Join-Path -Path $env:TEMP -ChildPath 'SysinternalsSuite.zip')
-            Uri = 'https://download.sysinternals.com/files/SysinternalsSuite.zip'
-            UserAgent = [Microsoft.PowerShell.Commands.PSUserAgent]::InternetExplorer
-            Headers = @{'Accept-Language' = 'en-US'}
+            Uri             = 'https://download.sysinternals.com/files/SysinternalsSuite.zip'
+            UserAgent       = [Microsoft.PowerShell.Commands.PSUserAgent]::InternetExplorer
+            Headers         = @{'Accept-Language' = 'en-US'}
             
         }
 
         Archive ExpandSysinternalsSuiteZipFile
         {
-            Path = $(Join-Path -Path $env:TEMP -ChildPath 'SysinternalsSuite.zip')
+            Path        = $(Join-Path -Path $env:TEMP -ChildPath 'SysinternalsSuite.zip')
             Destination = 'C:\Tools'
-            DependsOn = '[xRemoteFile]DownloadSysinternalsSuiteZipFile'
+            DependsOn   = '[xRemoteFile]DownloadSysinternalsSuiteZipFile'
         }
 
 
 	    Script JunctionAutomatedLab-VMs
         {
-            GetScript = {
+            GetScript  = {
                 @{
                     GetScript = $GetScript
                     SetScript = $SetScript
@@ -314,7 +316,7 @@ Configuration AutomatedLabSetupDSC {
                 }
             }
  
-            SetScript = {
+            SetScript  = {
                 $null = New-Item -Path "$($using:DriveLetter):\AutomatedLab-VMs" -ItemType Directory -Force
                 Start-Process -FilePath C:\Tools\junction.exe -ArgumentList '-accepteula', "C:\AutomatedLab-VMs", "$($using:DriveLetter):\AutomatedLab-VMs" -Wait
             }
@@ -328,6 +330,7 @@ Configuration AutomatedLabSetupDSC {
     }
 }
 
+<#
 Set-Location -Path $CurrentDir
 Try {
     Enable-PSRemoting -Force 
@@ -336,3 +339,4 @@ AutomatedLabSetupDSC
 
 Set-DscLocalConfigurationManager -Path .\AutomatedLabSetupDSC -Force -Verbose
 Start-DscConfiguration -Path .\AutomatedLabSetupDSC -Force -Wait -Verbose
+#>
