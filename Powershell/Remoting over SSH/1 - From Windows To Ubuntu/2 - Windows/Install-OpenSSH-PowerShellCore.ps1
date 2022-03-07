@@ -114,6 +114,10 @@ Start-Process -FilePath "$env:comspec" -ArgumentList "/c ssh-keygen -f $PrivateS
 #Checking the SSH connectivity
 #You will be prompted for entering the password for connecting to the Ubuntu server. It will be the two only times
 # Start-Process -FilePath "$env:comspec" -ArgumentList "/k ssh -o StrictHostKeyChecking=no $UbuntuUser@$UbuntuServer" -Wait
+#type $env:USERPROFILE\.ssh\id_rsa.pub | ssh {IP-ADDRESS-OR-FQDN} "cat >> .ssh/authorized_keys"
+#https://gist.github.com/elonmallin/2cc94c45ab57e2060498e855acefade0: ssh-keygen && cat $envuserprofile/.ssh/id_rsa.pub | ssh user@linuxserver 'cat >> .ssh/authorized_keys'
+#Start-Process -FilePath "$env:comspec" -ArgumentList "/k type $env:USERPROFILE\.ssh\id_rsa.pub | ssh -o StrictHostKeyChecking=no $UbuntuUser@$UbuntuServer `"cat >> ~/.ssh/authorized_keys && sudo service sshd restart`""
+
 Start-Process -FilePath "$env:comspec" -ArgumentList "/k scp -o StrictHostKeyChecking=no $PublicSSHRSAKey $($UbuntuUser)@$($UbuntuServer):/tmp/$($env:USERNAME)_rsa.pub" -Wait
 Start-Process -FilePath "$env:comspec" -ArgumentList "/k ssh -o StrictHostKeyChecking=no $UbuntuUser@$UbuntuServer `"cd ~ && mkdir -p .ssh && chmod 700 .ssh && cat /tmp/$($env:USERNAME)_rsa.pub >> .ssh/authorized_keys && chmod 640 .ssh/authorized_keys && sudo service sshd restart && rm /tmp/$($env:USERNAME)_rsa.pub`"" -Wait
 #endregion
