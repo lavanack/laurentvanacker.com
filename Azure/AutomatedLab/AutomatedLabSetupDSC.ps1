@@ -30,10 +30,10 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 $VSCodeExtension = [ordered]@{
-    #'PowerShell' = 'ms-vscode.powershell'
+    #'PowerShell'                = 'ms-vscode.powershell'
     #'Live Share Extension Pack' = 'ms-vsliveshare.vsliveshare-pack'
-    'Git Graph' = 'mhutchie.git-graph'
-    'Git History' = 'donjayamanne.githistory'
+    'Git Graph'                  = 'mhutchie.git-graph'
+    'Git History'                = 'donjayamanne.githistory'
     'GitLens - Git supercharged' = 'eamodio.gitlens'
 }
 
@@ -87,12 +87,13 @@ Configuration AutomatedLabSetupDSC {
             Ensure = 'Present'
         }
 
-
+        <#
         PendingReboot RebootAfterHyperVInstall
         {
             Name      = 'RebootNeededAfterHyperVInstall'
             DependsOn = '[WindowsOptionalFeature]HyperVAll'
         }
+        #>
         
 	    Script InitializeDisk 
         {
@@ -167,12 +168,12 @@ Configuration AutomatedLabSetupDSC {
             }
         }
 
-        Environment DisableAutomatedLabTelemetryProcessScope
+        Environment DisableAutomatedLabTelemetry
         {
             Name      = 'AUTOMATEDLAB_TELEMETRY_OPTIN'
             Value     = 'False'
             Ensure    = "Present"
-            Target    = 'Process'
+            Target    = 'Process', 'Machine'
             DependsOn = '[Script]InstallAutomatedLabModule'
         }
 
@@ -193,7 +194,7 @@ Configuration AutomatedLabSetupDSC {
             TestScript = {
                 return Test-LabHostRemoting
             }
-            DependsOn = '[Environment]DisableAutomatedLabTelemetryProcessScope'
+            DependsOn = '[Environment]DisableAutomatedLabTelemetry'
         }
 
         Script AutomatedLabModuleLabSourcesLocation
@@ -219,7 +220,8 @@ Configuration AutomatedLabSetupDSC {
         xRemoteFile DownloadGit
         {
             DestinationPath = $(Join-Path -Path $env:TEMP -ChildPath 'Git-Latest.exe')
-            #Uri = ((Invoke-WebRequest -Uri 'https://git-scm.com/download/win').Links | Where-Object -FilterScript { $_.InnerText -eq "64-bit Git For Windows Setup"}).href
+            #To always have the latest Git version for Windows x64
+            #Uri            = ((Invoke-WebRequest -Uri 'https://git-scm.com/download/win').Links | Where-Object -FilterScript { $_.InnerText -eq "64-bit Git For Windows Setup"}).href
             Uri             = 'https://github.com/git-for-windows/git/releases/download/v2.35.1.windows.2/Git-2.35.1.2-64-bit.exe'
             UserAgent       = [Microsoft.PowerShell.Commands.PSUserAgent]::InternetExplorer
             Headers         = @{'Accept-Language' = 'en-US'}
@@ -259,17 +261,18 @@ Configuration AutomatedLabSetupDSC {
         {
             GetScript  = {
                 @{
-                    GetScript = $GetScript
-                    SetScript = $SetScript
+                    GetScript  = $GetScript
+                    SetScript  = $SetScript
                     TestScript = $TestScript
                 }
             }
  
             SetScript  = {
-                $IsLinux = $false
-                $IsMacOS = $false
+                #Variables below are needed by the Install-VSCode.ps1 in this script DSC ressource (Not needed in a normal call)
+                $IsLinux   = $false
+                $IsMacOS   = $false
                 $IsWindows = $true
-                $pacMan = ''
+                $pacMan    = ''
                 #try is necessary because the addition extensions raised some errors for the moment :code.cmd : (node:4812) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
                 try
                 {

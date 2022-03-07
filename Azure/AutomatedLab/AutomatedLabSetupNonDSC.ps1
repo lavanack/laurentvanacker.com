@@ -1,4 +1,5 @@
 ﻿#Mode details on https://automatedlab.org/en/latest/Wiki/Basic/install/
+#This script needs to be called twice (The Hyper-V installation will reboot the server at the start of the first call)
 Clear-Host
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
