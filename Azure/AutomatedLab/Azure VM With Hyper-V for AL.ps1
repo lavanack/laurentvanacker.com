@@ -193,7 +193,7 @@ $JitPolicy = (@{
             })
     })
 $ActivationVM = @($JitPolicy)
-Write-Host "Requesting Temporry Acces via Just in Time for ($VMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
+Write-Host "Requesting Temporary Acces via Just in Time for ($VMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
 Start-AzJitNetworkAccessPolicy -ResourceGroupName $($VM.ResourceGroupName) -Location $VM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM
 #endregion
 
@@ -214,11 +214,10 @@ New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Pro
 #Step 11: Start Azure Virtual Machine
 Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 
-Set-AzVMCustomScriptExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -Location $Location -FileUri 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/AutomatedLab/AutomatedLabSetup.ps1' -Run 'AutomatedLabSetup.ps1' -Name "AutomatedLabSetup"
-#Copying the Pulic IP into the clipboard 
-#$PublicIP.IpAddress | Set-Clipboard
+#Set-AzVMCustomScriptExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -Location $Location -FileUri 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/AutomatedLab/AutomatedLabSetup.ps1' -Run 'AutomatedLabSetup.ps1' -Name "AutomatedLabSetup"
 
 Start-Sleep -Seconds 15
 
 #Step 11: Start RDP Session
-mstsc /v $PublicIP.IpAddress
+#mstsc /v $PublicIP.IpAddress
+#mstsc /v "$VMName.$Location.cloudapp.azure.com".ToLower()

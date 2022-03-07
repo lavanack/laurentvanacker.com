@@ -16,6 +16,8 @@ function Disable-IEESC {
 #Disable-IEESC
 #endregion 
 
+Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Management-PowerShell -All
+
 #region Installing Hyper-V
 if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All).State -ne 'Enabled')
 {
@@ -25,8 +27,8 @@ if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All).Stat
 
 #endregion
 #Inializing the disk and creating/formating a new volume
-#Get-Disk -Number 2 | Clear-Disk -RemoveData -Confirm:$false -PassThru | Set-Disk -IsOffline $true -Verbose
-$Disk = Get-Disk | Where-Object PartitionStyle -Eq "RAW" | Initialize-Disk -PassThru | New-Partition -AssignDriveLetter -UseMaximumSize | Format-Volume -NewFileSystemLabel Data
+#Get-Disk -Number 1 | Clear-Disk -RemoveData -Confirm:$false -PassThru | Set-Disk -IsOffline $true -Verbose
+$Disk = Get-Disk -Number 1 | Where-Object PartitionStyle -Eq "RAW" | Initialize-Disk -PassThru | New-Partition -AssignDriveLetter -UseMaximumSize | Format-Volume -NewFileSystemLabel Data
 
 $HyperVPath = "$($Disk.DriveLetter):\Virtual Machines\Hyper-V"
 $null = New-Item -Path $HyperVPath -ItemType Directory -Force
@@ -75,5 +77,5 @@ $SysinternalsSuiteURI = 'https://download.sysinternals.com/files/SysinternalsSui
 $OutputFile = Join-Path -Path $CurrentDir -ChildPath $(Split-Path -Path $SysinternalsSuiteURI -Leaf)
 Invoke-WebRequest -Uri $SysinternalsSuiteURI -OutFile $OutputFile
 Expand-Archive -Path $OutputFile -DestinationPath C:\Tools
-Start-Process -FilePath C:\Tools\junction.exe -ArgumentList "$($Disk.DriveLetter)\AutomatedLab-VMs", "C:\AutomatedLab-VMs"
+Start-Process -FilePath C:\Tools\junction.exe -ArgumentList '-accepteula', "$($Disk.DriveLetter)\AutomatedLab-VMs", "C:\AutomatedLab-VMs" -Wait
 #endregion
