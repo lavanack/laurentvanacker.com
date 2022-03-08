@@ -82,6 +82,7 @@ $OSDiskName         = "$VMName-OSDisk"
 $DataDiskName       = "$VMName-DataDisk01"
 $OSDiskSize         = "127"
 $OSDiskType         = "Premium_LRS"
+$FQDN               = "$VMName.$Location.cloudapp.azure.com".ToLower()
 #endregion
 
 # Login to your Azure subscription.
@@ -125,7 +126,7 @@ $Subnet   = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $
 #Step 6: Create Azure Public Address
 $PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $ResourceGroupName -Location $Location -AlLocationMethod Static -DomainNameLabel $VMName.ToLower()
 #Setting up the DNS Name
-#$PublicIP.DnsSettings.Fqdn = "$VMName.$Location.cloudapp.azure.com".ToLower()
+#$PublicIP.DnsSettings.Fqdn = $FQDN
 
 #Step 7: Create Network Interface Card 
 $NIC      = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -PublicIpAddressId $PublicIP.Id -NetworkSecurityGroupId $NetworkSecurityGroup.Id
@@ -227,4 +228,4 @@ Start-Sleep -Seconds 15
 
 #Step 12: Start RDP Session
 #mstsc /v $PublicIP.IpAddress
-mstsc /v "$VMName.$Location.cloudapp.azure.com".ToLower()
+mstsc /v $FQDN
