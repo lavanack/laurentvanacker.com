@@ -1,0 +1,62 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RDCMan programVersion="2.83" schemaVersion="3">
+  <file>
+    <credentialsProfiles />
+    <properties>
+      <expanded>True</expanded>
+      <name>RDCManager</name>
+    </properties>
+    <remoteDesktop inherit="None">
+      <sameSizeAsClientArea>True</sameSizeAsClientArea>
+      <fullScreen>False</fullScreen>
+      <colorDepth>24</colorDepth>
+    </remoteDesktop>
+    <localResources inherit="None">
+      <audioRedirection>Client</audioRedirection>
+      <audioRedirectionQuality>Dynamic</audioRedirectionQuality>
+      <audioCaptureRedirection>DoNotRecord</audioCaptureRedirection>
+      <keyboardHook>FullScreenClient</keyboardHook>
+      <redirectClipboard>True</redirectClipboard>
+      <redirectDrives>True</redirectDrives>
+      <redirectDrivesList>
+        <item>C:\</item>
+      </redirectDrivesList>
+      <redirectPrinters>False</redirectPrinters>
+      <redirectPorts>False</redirectPorts>
+      <redirectSmartCards>False</redirectSmartCards>
+      <redirectPnpDevices>False</redirectPnpDevices>
+    </localResources>
+    <encryptionSettings inherit="None">
+      <encryptionMethod>LogonCredentials</encryptionMethod>
+      <credentialName />
+      <credentialData />
+    </encryptionSettings>
+    <group>
+      <properties>
+        <expanded>True</expanded>
+        <name>Hyper-V (PowerShell)</name>
+      </properties>
+      <logonCredentials inherit="None">
+        <profileName scope="Local">Custom</profileName>
+        <userName>Administrator</userName>
+        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAqbuBAoNR1UmVxQ88yfuX1gAAAAACAAAAAAAQZgAAAAEAACAAAABFyLE/ihA0gmYU6b9ErX1fcwbx7OUYNsIZhyFwWZwc9QAAAAAOgAAAAAIAACAAAACCOoFaUPmjUoxoziMk0yvCDz2CTLefau2JgZt2TiB9RSAAAAA7TzeNC4MegvSXvgb1nPWIwCrWu/ewIByH0M7IYnbLVEAAAACdWf1WtQSL1KfHKWQMiSy4HjVtzCjq+pNpvxVmxFMZCROJITwwuW/8vl5jwVUDk68BOhK6qCEaTkQuA4Hkmehs</password>
+        <domain>CONTOSO</domain>
+      </logonCredentials>
+      <server>
+        <properties>
+          <displayName>IIS01</displayName>
+          <name>10.0.0.11</name>
+        </properties>
+      </server>
+      <server>
+        <properties>
+          <displayName>DC01</displayName>
+          <name>10.0.0.1</name>
+        </properties>
+      </server>
+    </group>
+  </file>
+  <connected />
+  <favorites />
+  <recentlyUsed />
+</RDCMan>
