@@ -184,7 +184,7 @@ $UpdatedJITPolicy.Add($NewJitPolicy)
 	
 #! Enable Access to the VM including management Port, and Time Range in Hours
 Write-Host "Enabling Just in Time VM Access Policy for ($VMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
-Set-AzJitNetworkAccessPolicy -VirtualMachine $UpdatedJITPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -Kind "Basic" | Out-Null
+$null = Set-AzJitNetworkAccessPolicy -VirtualMachine $UpdatedJITPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -Kind "Basic"
 #endregion
 
 #region Requesting Temporary Access : 3 hours
