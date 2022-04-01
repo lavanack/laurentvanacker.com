@@ -10,6 +10,7 @@ $DSCFileName        = "WebServerDSC.ps1"
 $DSCFilePath        = Join-Path -Path $CurrentDir -ChildPath $DSCFileName
 $VMName 	        = "WinSrv2019"
 $ConfigurationName  = "WebServerConfiguration"
+$FQDN               = "$VMName.$Location.cloudapp.azure.com".ToLower()
 
 # Publishing DSC Configuration
 Publish-AzVMDscConfiguration $DSCFilePath -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Force -Verbose
@@ -23,4 +24,5 @@ $VM | Update-AzVM -Verbose
 $PublicIP = Get-AzPublicIpAddress -ResourceGroupName $ResourceGroupName | Where-Object { $_.IpConfiguration.Id -like "*$VMName*" } | Select-Object -First 1
 
 #Browsing to the new IIS Web Site
-Start-Process "http://$($PublicIP.IpAddress)"
+#Start-Process "http://$($PublicIP.IpAddress)"
+Start-Process "http://$FQDN"

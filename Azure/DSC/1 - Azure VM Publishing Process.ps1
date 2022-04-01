@@ -68,7 +68,7 @@ $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList
 
 #region Define Variables needed for Virtual Machine
 #$VMName 	        = "WS19-$('{0:yyMMddHHmm}' -f (Get-Date))"
-$VMName 	        = "WinServ2019"
+$VMName 	        = "WinSrv2019"
 $ImagePublisherName	= "MicrosoftWindowsServer"
 $ImageOffer	        = "WindowsServer"
 $ImageSku	        = "2019-Datacenter"
@@ -79,6 +79,7 @@ $OSDiskName         = "$VMName-OSDisk"
 $DataDiskName       = "$VMName-DataDisk01"
 $OSDiskSize         = "127"
 $OSDiskType         = "Premium_LRS"
+$FQDN               = "$VMName.$Location.cloudapp.azure.com".ToLower()
 #endregion
 
 # Login to your Azure subscription.
@@ -179,7 +180,7 @@ $UpdatedJITPolicy = $ExistingJITPolicy.Where{$_.id -ne "$($VM.Id)"} # Exclude ex
 $UpdatedJITPolicy.Add($NewJitPolicy)
 	
 #! Enable Access to the VM including management Port, and Time Range in Hours
-Write-Host "Enabling Just in Time VM Access Policy for ($VMName) on port number $Port for maximum $JitPolicyTimeInHours hours..."
+Write-Host "Enabling Just in Time VM Access Policy for ($VMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
 Set-AzJitNetworkAccessPolicy -VirtualMachine $UpdatedJITPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -Kind "Basic" | Out-Null
 #endregion
 
@@ -193,7 +194,7 @@ $JitPolicy = (@{
             })
     })
 $ActivationVM = @($JitPolicy)
-Write-Host "Requesting Temporry Acces via Just in Time for ($VMName) on port number $Port for maximum $JitPolicyTimeInHours hours..."
+Write-Host "Requesting Temporry Acces via Just in Time for ($VMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
 Start-AzJitNetworkAccessPolicy -ResourceGroupName $($VM.ResourceGroupName) -Location $VM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM
 #endregion
 
@@ -220,4 +221,5 @@ Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 Start-Sleep -Seconds 15
 
 #Step 11: Start RDP Session
-mstsc /v $PublicIP.IpAddress
+#mstsc /v $PublicIP.IpAddress
+mstsc /v $FQDN
