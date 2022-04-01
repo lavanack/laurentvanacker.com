@@ -228,10 +228,10 @@ Invoke-LabCommand -ActivityName 'DNS, DFS-R Setup & GPO Settings on DC' -Compute
     Set-ADUser -Identity "$Using:IISAppPoolUser" -ServicePrincipalNames @{Add = "HTTP/$using:KerberosWebSiteName", "HTTP/$using:KerberosNetBiosName", "HTTP/IIS01.$using:FQDNDomainName", "HTTP/IIS01" }
     #endregion
 
-    #Creating a GPO at the domain level for certificate autoenrollment
     $DefaultNamingContext = (Get-ADRootDSE).defaultNamingContext
-    $GPO = New-GPO -Name "Autoenrollment Policy" | New-GPLink -Target $DefaultNamingContext
     #region User Enrollment Policy
+    #Creating a GPO at the domain level for certificate autoenrollment
+    $GPO = New-GPO -Name "Autoenrollment Policy" | New-GPLink -Target $DefaultNamingContext
     #https://www.sysadmins.lv/retired-msft-blogs/xdot509/troubleshooting-autoenrollment.aspx : 0x00000007 = Enabled, Update Certificates that user certificates templates configured, Renew expired certificates, update pending certificates, and remove revoked certificates configured
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Cryptography\AutoEnrollment' -ValueName AEPolicy -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -value 0x00000007 
     #endregion
@@ -299,6 +299,7 @@ $IISClientManyToOneCertWebSiteSSLCert = Request-LabCertificate -Subject "CN=$IIS
 $ADClientCertWebSiteSSLCert = Request-LabCertificate -Subject "CN=$ADClientCertWebSiteName" -SAN $ADClientCertNetBiosName, "$ADClientCertWebSiteName", "IIS01", "IIS01.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName IIS01 -PassThru -ErrorAction Stop
 #Getting a New SSL Web Server Certificate for the forms website
 $FormsWebSiteSSLCert = Request-LabCertificate -Subject "CN=$FormsWebSiteName" -SAN $FormsNetBiosName, "$FormsWebSiteName", "IIS01", "IIS01.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName IIS01 -PassThru -ErrorAction Stop
+#region
 
 #Copying Web site content on all IIS servers
 Copy-LabFileItem -Path $CurrentDir\contoso.com.zip -DestinationFolderPath $LocalTempFolder -ComputerName IIS01
