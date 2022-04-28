@@ -254,6 +254,8 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -S
 
     #To list some properties with the comma as separator
     #docker inspect -f "{{.ID}},{{.Name}},{{ .NetworkSettings.Networks.nat.IPAddress }},{{ .NetworkSettings.Ports}}" $(docker ps -a -q)       
+    #To list internal IPs of the running docker images (useful for IIS Remote Management):
+    #docker inspect -f "{{ .NetworkSettings.Networks.nat.IPAddress }}" $(docker ps -a -q)
     #To convert docker config into PowerShell object
     #docker inspect $(docker ps -a -q) | ConvertFrom-Json
     #To delete all containers
