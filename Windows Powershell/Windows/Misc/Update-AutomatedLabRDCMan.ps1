@@ -160,7 +160,7 @@ foreach ($CurrentXMLLabFile in $XMLLabFiles.FullName) {
             $nameTextNode = $nameElement.AppendChild($AutomatedLabRDGFileContent.CreateTextNode("$($LWAzureVMConnectionInfo.DnsName):$($LWAzureVMConnectionInfo.RdpPort)"))
         }
         else {
-            $nameTextNode = $nameElement.AppendChild($AutomatedLabRDGFileContent.CreateTextNode($CurrentMachine.Name))
+            $nameTextNode = $nameElement.AppendChild($AutomatedLabRDGFileContent.CreateTextNode("$($CurrentMachine.Name).$($Domain)"))
         }
     }
     #endregion
