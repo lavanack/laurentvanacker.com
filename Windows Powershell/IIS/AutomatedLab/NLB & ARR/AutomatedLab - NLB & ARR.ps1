@@ -178,13 +178,12 @@ Add-LabMachineDefinition -Name ARRNODE02 -NetworkAdapter $netAdapter
 #Installing servers
 Install-Lab -DelayBetweenComputers 30
 Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
-
+#Restore-LabVMSnapshot -SnapshotName 'FreshInstall' -All -Verbose
 
 #region Installing Required Windows Features
 $machines = Get-LabVM
-Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools
+Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools -AsJob
 Install-LabWindowsFeature -FeatureName FS-DFS-Replication, Web-Server, Web-Asp-Net45, Web-Request-Monitor -ComputerName IISNODE01, IISNODE02, ARRNODE01, ARRNODE02 -IncludeManagementTools
-Install-LabWindowsFeature -FeatureName FS-DFS-Replication -ComputerName DC01 -IncludeManagementTools
 Install-LabWindowsFeature -FeatureName NLB, Web-CertProvider -ComputerName ARRNODE01, ARRNODE02 -IncludeManagementTools
 Install-LabWindowsFeature -FeatureName Web-Windows-Auth -ComputerName IISNODE01, IISNODE02 -IncludeManagementTools
 #endregion
@@ -193,17 +192,16 @@ $MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePa
 Install-LabSoftwarePackage -ComputerName $machines -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob
 
 Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $ARRWebSiteName to the IE intranet zone" -ComputerName $machines -ScriptBlock {
-    #Disabling IE ESC
-    $AdminKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}'
-    $UserKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}'
-    Set-ItemProperty -Path $AdminKey -Name 'IsInstalled' -Value 0 -Force
-    Set-ItemProperty -Path $UserKey -Name 'IsInstalled' -Value 0 -Force
-    Rundll32 iesetup.dll, IEHardenLMSettings
-    Rundll32 iesetup.dll, IEHardenUser
-    Rundll32 iesetup.dll, IEHardenAdmin
-    Remove-Item -Path $AdminKey -Force
-    Remove-Item -Path $UserKey -Force
+    #region Disabling IE ESC
+    $AdminKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
+    $UserKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}"
+    Set-ItemProperty -Path $AdminKey -Name "IsInstalled" -Value 0
+    Set-ItemProperty -Path $UserKey -Name "IsInstalled" -Value 0
+    Stop-Process -Name Explorer
+    #Write-Host "IE Enhanced Security Configuration (ESC) has been disabled." -ForegroundColor Green
+    #endregion 
 
+    #region IE Settings
     $MainKey = 'HKCU:\Software\Microsoft\Internet Explorer\Main'
     Remove-ItemProperty -Path $MainKey -Name 'First Home Page' -Force -ErrorAction Ignore
     Set-ItemProperty -Path $MainKey -Name 'Default_Page_URL' -Value "http://$using:ARRWebSiteName" -Force
@@ -235,11 +233,12 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $ARRWebSiteName to 
     $name = "Secondary Start Pages"
     $value = "https://ARRNODE01.$using:FQDNDomainName", "https://ARRNODE02.$using:FQDNDomainName", "http://iisnode01.$using:FQDNDomainName", "http://iisnode02.$using:FQDNDomainName"
     New-ItemProperty -Path $path -PropertyType MultiString -Name $name -Value $value -Force
+    #endregion 
 }
 
 
 #Installing and setting up DFS-R on DC for replicated folder on ARR Servers for shared confguration
-Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -ScriptBlock {
+Invoke-LabCommand -ActivityName 'DNS Setup on DC' -ComputerName DC01 -ScriptBlock {
     New-ADUser -Name "$Using:IISAppPoolUser" -PasswordNeverExpires $True -AccountPassword $Using:SecurePassword -CannotChangePassword $True -Enabled $True
 
     #region DNS management
@@ -251,6 +250,13 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Sc
     #Install-WindowsFeature FS-DFS-Replication -includeManagementTools
     #endregion
 
+    #region Setting SPN on the Application Pool Identity
+    Set-ADUser -Identity "$Using:IISAppPoolUser" -ServicePrincipalNames @{Add="HTTP/$using:ARRWebSiteName", "HTTP/$using:ARRNetBiosName", "HTTP/IISNODE01.$using:FQDNDomainName", "HTTP/IISNODE01", "HTTP/IISNODE02.$using:FQDNDomainName", "HTTP/IISNODE02", "HTTP/ARRNODE01.$using:FQDNDomainName", "HTTP/ARRNODE01", "HTTP/ARRNODE02.$using:FQDNDomainName", "HTTP/ARRNODE02"}
+    #endregion
+}
+
+Invoke-LabCommand -ActivityName 'DFS-R Setup' -ComputerName ARRNODE01 -ScriptBlock {
+    #region DFSR
     #region ARR servers : IIS Shared Configuration
     #Removing any DFS Replication group with the same name
     Get-DfsReplicationGroup -GroupName 'ARR Shared Configuration' | Remove-DfsReplicationGroup -Force -RemoveReplicatedFolders
@@ -292,31 +298,15 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Sc
     Set-DfsrMembership -GroupName 'Central Certificate Store' -FolderName 'C:\CentralCertificateStore' -ContentPath 'C:\CentralCertificateStore' -ComputerName 'ARRNODE01' -PrimaryMember $True -Force
     Set-DfsrMembership -GroupName 'Central Certificate Store' -FolderName 'C:\CentralCertificateStore' -ContentPath 'C:\CentralCertificateStore' -ComputerName 'ARRNODE02' -Force
     #endregion
-
-    #region Setting SPN on the Application Pool Identity
-    <#
-    setspn.exe -S "HTTP/$using:ARRWebSiteName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/$using:ARRNetBiosName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/IISNODE01.$using:FQDNDomainName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/IISNODE01" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/IISNODE02.$using:FQDNDomainName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/IISNODE02" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/ARRNODE01.$using:FQDNDomainName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/ARRNODE01" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/ARRNODE02.$using:FQDNDomainName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/ARRNODE02" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    #>
-    Set-ADUser -Identity "$Using:IISAppPoolUser" -ServicePrincipalNames @{Add="HTTP/$using:ARRWebSiteName", "HTTP/$using:ARRNetBiosName", "HTTP/IISNODE01.$using:FQDNDomainName", "HTTP/IISNODE01", "HTTP/IISNODE02.$using:FQDNDomainName", "HTTP/IISNODE02", "HTTP/ARRNODE01.$using:FQDNDomainName", "HTTP/ARRNODE01", "HTTP/ARRNODE02.$using:FQDNDomainName", "HTTP/ARRNODE02"}
     #endregion
+}
+
+Invoke-LabCommand -ActivityName 'Restarting the DFSR Service' -ComputerName IISNODE01, IISNODE02, ARRNODE01, ARRNODE02 -ScriptBlock {
+    Restart-Service -Name DFSR -Force
 }
 
 #ARR servers : Renaming the NIC and setting up the metric for NLB management
 Invoke-LabCommand -ActivityName 'Renaming NICs' -ComputerName ARRNODE01, ARRNODE02 -ScriptBlock {
-
-    #Renaming the NIC and setting up the metric for NLB management
-    #Rename-NetAdapter -Name "$using:labName 0" -NewName 'Internal' -PassThru | Set-NetIPInterface -InterfaceMetric 1
-    #Rename-NetAdapter -Name "$using:labName 1" -NewName 'NLB' -PassThru | Set-NetIPInterface -InterfaceMetric 2
-
     Get-NetAdapter -Name 'Internal' | Set-NetIPInterface -InterfaceMetric 1
     Get-NetAdapter -Name 'NLB'| Set-NetIPInterface -InterfaceMetric 2
 }
@@ -341,7 +331,7 @@ $CertificationAuthority = Get-LabIssuingCA
 #Generating a new template for SSL Web Server certificate
 New-LabCATemplate -TemplateName WebServerSSL -DisplayName 'Web Server SSL' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ComputerName $CertificationAuthority -ErrorAction Stop
 #Getting a New SSL Web Server Certificate
-$WebServerSSLCert = Request-LabCertificate -Subject "CN=$ARRWebSiteName" -SAN $ARRWebSiteName, $ARRNetBiosName, "ARRNODE01", "ARRNODE01.$FQDNDomainName", "ARRNODE02", "ARRNODE02.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName ARRNODE01, ARRNODE02 -OnlineCA $CertificationAuthority.Name -PassThru -ErrorAction Stop
+$WebServerSSLCert = Request-LabCertificate -Subject "CN=$ARRWebSiteName" -SAN $ARRWebSiteName, $ARRNetBiosName, "ARRNODE01", "ARRNODE01.$FQDNDomainName", "ARRNODE02", "ARRNODE02.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName ARRNODE01 -OnlineCA $CertificationAuthority.Name -PassThru -ErrorAction Stop
 #endregion
 
 #Copying Web site content on all IIS & ARR servers
@@ -349,17 +339,7 @@ Copy-LabFileItem -Path $CurrentDir\arr.contoso.com.zip -DestinationFolderPath C:
 #Copying required IIS extensions on the ARR servers for ARR
 Copy-LabFileItem -Path $CurrentDir\Extensions.zip -DestinationFolderPath C:\Temp -ComputerName ARRNODE01, ARRNODE02
 
-Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into the future "Central Certificate Store" directory' -ComputerName ARRNODE01, ARRNODE02 -ScriptBlock {
-    #Restarting DFSR service
-    Restart-Service -Name DFSR -Force
-    Start-Sleep -Seconds 10
-
-    #Creating replicated folder for Central Certificate Store
-    New-Item -Path C:\CentralCertificateStore -ItemType Directory -Force
-
-    #Creating replicated folder for shared configuration
-    New-Item -Path C:\ARRSharedConfiguration -ItemType Directory -Force
-
+Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into the future "Central Certificate Store" directory' -ComputerName ARRNODE01 -ScriptBlock {
     $WebServerSSLCert = Get-ChildItem -Path Cert:\LocalMachine\My\ -DnsName "$using:ARRWebSiteName" -SSLServerAuthentication | Where-Object -FilterScript {
         $_.hasPrivateKey 
     }  
@@ -368,12 +348,29 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into the f
     if ($WebServerSSLCert) {
         $WebServerSSLCert | Export-PfxCertificate -FilePath $PFXFilePath -Password $Using:SecurePassword
         #Bonus : To access directly to the SSL web site hosted on IIS nodes by using the node names
-        Copy-Item $PFXFilePath "C:\CentralCertificateStore\$env:COMPUTERNAME.$using:FQDNDomainName.pfx"
-        $WebServerSSLCert | Remove-Item -Force
     }
     else {
         Write-Error -Exception "[ERROR] Unable to get or export the 'Web Server SSL' certificate for $using:ARRWebSiteName"
     }
+}
+
+Invoke-LabCommand -ActivityName 'Duplicating the Web Server Certificate into the future "Central Certificate Store" directory for SAN' -ComputerName ARRNODE01, ARRNODE02 -ScriptBlock {
+    #Restarting DFSR service
+    Restart-Service -Name DFSR -Force
+    Start-Sleep -Seconds 10
+
+    <#
+    #Creating replicated folder for Central Certificate Store
+    New-Item -Path C:\CentralCertificateStore -ItemType Directory -Force
+
+    #Creating replicated folder for shared configuration
+    New-Item -Path C:\ARRSharedConfiguration -ItemType Directory -Force
+    #>
+
+    $PFXFilePath = "C:\CentralCertificateStore\$using:ARRWebSiteName.pfx"
+
+    Copy-Item $PFXFilePath "C:\CentralCertificateStore\$env:COMPUTERNAME.$using:FQDNDomainName.pfx"
+    #$WebServerSSLCert | Remove-Item -Force
 
     #Enabling the Central Certificate Store
     Enable-WebCentralCertProvider -CertStoreLocation 'C:\CentralCertificateStore\' -UserName $Using:Logon -Password $Using:ClearTextPassword -PrivateKeyPassword $Using:ClearTextPassword
@@ -499,7 +496,7 @@ Invoke-LabCommand -ActivityName 'IIS Extensions, SNI/CSS Setup, ARR and URL Rewr
         responseMatch = 'ok'
     }
 
-    #Adding and URL Rewrite rule to redirect http traffic to HTTPS
+    #region Adding and URL Rewrite rule to redirect http traffic to HTTPS
     Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter 'system.webserver/rewrite/globalRules' -name '.' -value @{
         name           = 'HTTP to HTTPS Redirect'
         patternSyntax  = 'Regular Expressions'
@@ -513,8 +510,9 @@ Invoke-LabCommand -ActivityName 'IIS Extensions, SNI/CSS Setup, ARR and URL Rewr
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.webServer/rewrite/globalRules/rule[@name='HTTP to HTTPS Redirect']/action" -name 'type' -value 'Redirect'
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.webServer/rewrite/globalRules/rule[@name='HTTP to HTTPS Redirect']/action" -name 'url' -value 'https://{HTTP_HOST}/{R:1}'
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.webServer/rewrite/globalRules/rule[@name='HTTP to HTTPS Redirect']/action" -name 'redirectType' -value 'Permanent' 
+    #endregion
 
-    #URL Rewrite for ARR
+    #region URL Rewrite for ARR
     Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter 'system.webServer/rewrite/globalRules' -name '.' -value @{
         name           = "ARR_$($using:ARRWebSiteName)_loadbalance"
         patternSyntax  = 'Wildcard'
@@ -528,6 +526,7 @@ Invoke-LabCommand -ActivityName 'IIS Extensions, SNI/CSS Setup, ARR and URL Rewr
         input   = '{HTTP_HOST}'
         pattern = "$using:ARRWebSiteName"
     }
+    #endregion
 
     #Client Affinity: Do not enable it to see the load balacing between the two IIS Servers
     #Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "webFarms/webFarm[@name='$using:ARRWebSiteName']/applicationRequestRouting/affinity" -name "useCookie" -value "True"
@@ -640,6 +639,7 @@ Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration' -ComputerNam
 Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
 
 Show-LabDeploymentSummary -Detailed
+
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All -Verbose
 $VerbosePreference = $PreviousVerbosePreference
 $ErrorActionPreference = $PreviousErrorActionPreference
