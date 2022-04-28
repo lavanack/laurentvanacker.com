@@ -208,7 +208,7 @@ Invoke-LabCommand -ActivityName 'Adding some users to the SQL sysadmin group' -C
 #Get the CA
 $CertificationAuthority = Get-LabIssuingCA
 #Generating a new template for 10-year SSL Web Server certificate
-New-LabCATemplate -TemplateName WebServer10Years -DisplayName 'WebServer10Years' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ValidityPeriod $WebServerCertValidityPeriod -ComputerName $CertificationAuthority -ErrorAction Stop
+New-LabCATemplate -TemplateName WebServer10Years -DisplayName 'WebServer10Years' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers'-ComputerName $CertificationAuthority -ErrorAction Stop
 
 <#
 #Getting a New SSL Web Server Certificate for the basic website
