@@ -89,7 +89,7 @@ Function Get-WinEventData {
         }
     }
 }
-Get-Pro
+
 Function Get-EditOperation {
     [cmdletbinding()]
     param(
