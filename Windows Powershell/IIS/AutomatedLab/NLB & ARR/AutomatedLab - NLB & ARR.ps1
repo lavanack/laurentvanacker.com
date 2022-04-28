@@ -306,7 +306,7 @@ Invoke-LabCommand -ActivityName 'Restarting the DFSR Service' -ComputerName IISN
 }
 
 #ARR servers : Renaming the NIC and setting up the metric for NLB management
-Invoke-LabCommand -ActivityName 'Renaming NICs' -ComputerName ARRNODE01, ARRNODE02 -ScriptBlock {
+Invoke-LabCommand -ActivityName 'Setting up the metric for NLB management' -ComputerName ARRNODE01, ARRNODE02 -ScriptBlock {
     Get-NetAdapter -Name 'Internal' | Set-NetIPInterface -InterfaceMetric 1
     Get-NetAdapter -Name 'NLB'| Set-NetIPInterface -InterfaceMetric 2
 }
@@ -355,10 +355,6 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into the f
 }
 
 Invoke-LabCommand -ActivityName 'Duplicating the Web Server Certificate into the future "Central Certificate Store" directory for SAN' -ComputerName ARRNODE01, ARRNODE02 -ScriptBlock {
-    #Restarting DFSR service
-    Restart-Service -Name DFSR -Force
-    Start-Sleep -Seconds 10
-
     <#
     #Creating replicated folder for Central Certificate Store
     New-Item -Path C:\CentralCertificateStore -ItemType Directory -Force
