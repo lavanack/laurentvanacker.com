@@ -589,7 +589,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:ADClientCertWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False'
     #endregion
 
-    #region : IIS Client Certificate website management
+    #region : IIS Client Certificate website management 1:1
     #Assigning dedicated IP address
     New-NetIPAddress –IPAddress $using:IISClientOneToOneCertIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
     #Unzipping site content to dedicated folders
@@ -634,7 +634,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False'
     #endregion
 
-    #region : IIS Client Certificate website management
+    #region : IIS Client Certificate website management N:1
     #Assigning dedicated IP address
     New-NetIPAddress –IPAddress $using:IISClientManyToOneCertIPv4Address –PrefixLength 24 –InterfaceAlias "Ethernet"
     #Unzipping site content to dedicated folders
@@ -666,7 +666,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientManyToOneCertWebSiteName" -filter "system.webServer/security/authentication/iisClientCertificateMappingAuthentication/manyToOneMappings" -name "." -value @{name = "$Using:IISClientManyToOneCertUser"; description = "$Using:NetBiosDomainName\$Using:IISClientManyToOneCertUser"; userName = "$Using:NetBiosDomainName\$Using:IISClientManyToOneCertUser"; password = "$Using:ClearTextPassword" }
     #Optional : Adding rules that will give you an option to add multiple patterns for matching based on certificate properties.
     #Only client certificates coming from the CA are authorized
-    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientManyToOneCertWebSiteName" -filter "system.webServer/security/authentication/iisClientCertificateMappingAuthentication/manyToOneMappings/add[@name='$Using:Logon']/rules" -name "." -value @{certificateField = 'Issuer'; certificateSubField = 'CN'; matchCriteria = "$($using:CertificationAuthority.CaName)" }
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientManyToOneCertWebSiteName" -filter "system.webServer/security/authentication/iisClientCertificateMappingAuthentication/manyToOneMappings/add[@name='$Using:IISClientManyToOneCertUser']/rules" -name "." -value @{certificateField = 'Issuer'; certificateSubField = 'CN'; matchCriteria = "$($using:CertificationAuthority.CaName)" }
     
     #Enabling ASP.Net Impersonation (local web.config)
     Set-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST/$using:IISClientManyToOneCertWebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
