@@ -65,7 +65,7 @@ RUN New-LocalUser -Name IISAdmin -Password `$(ConvertTo-SecureString -String $Cl
 
 $IISDockerFileContentCallingPowershellScript = @"
 FROM mcr.microsoft.com/windows/servercore/iis
-COPY IISSetup.ps1 C:\\
+COPY $IISSetupFileName C:\\
 SHELL [ "powershell" ]
 #File for a custom IIS setup
 RUN C:\$IISSetupFileName; \
