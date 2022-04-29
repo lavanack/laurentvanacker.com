@@ -191,16 +191,16 @@ Install-LabWindowsFeature -FeatureName FS-DFS-Replication -ComputerName DC01 -In
 #endregion
 
 Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $NLBWebSiteName to the IE intranet zone" -ComputerName $machines -ScriptBlock {
-    #Disabling IE ESC
-    $AdminKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}'
-    $UserKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}'
-    Set-ItemProperty -Path $AdminKey -Name 'IsInstalled' -Value 0 -Force
-    Set-ItemProperty -Path $UserKey -Name 'IsInstalled' -Value 0 -Force
-    Rundll32 iesetup.dll, IEHardenLMSettings
-    Rundll32 iesetup.dll, IEHardenUser
-    Rundll32 iesetup.dll, IEHardenAdmin
-    Remove-Item -Path $AdminKey -Force
-    Remove-Item -Path $UserKey -Force
+    #region Disabling IE ESC
+    $AdminKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
+    $UserKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}"
+    Set-ItemProperty -Path $AdminKey -Name "IsInstalled" -Value 0
+    Set-ItemProperty -Path $UserKey -Name "IsInstalled" -Value 0
+    Stop-Process -Name Explorer
+    #Write-Host "IE Enhanced Security Configuration (ESC) has been disabled." -ForegroundColor Green
+    #endregion 
+
+    #region IE Settings
     $MainKey = 'HKCU:\Software\Microsoft\Internet Explorer\Main'
     Remove-ItemProperty -Path $MainKey -Name 'First Home Page' -Force -ErrorAction Ignore
     Set-ItemProperty -Path $MainKey -Name 'Default_Page_URL' -Value "http://$using:NLBWebSiteName" -Force
@@ -226,6 +226,7 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $NLBWebSiteName to 
     $name = "Secondary Start Pages"
     $value = "https://IISNODE01.$using:FQDNDomainName", "https://IISNODE02.$using:FQDNDomainName"
     New-ItemProperty -Path $path -PropertyType MultiString -Name $name -Value $value -Force
+    #endregion
 }
 
 #Installing and setting up DFS-R on DC for replicated folder on IIS Servers for shared configuration
@@ -239,6 +240,12 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Sc
     Add-DnsServerResourceRecordA -Name $using:NLBNetBiosName -ZoneName $using:FQDNDomainName -IPv4Address $using:NLBIPv4Address -CreatePtr
     #endregion
 
+    #region Setting SPN on the Application Pool Identity
+    Set-ADUser -Identity "$Using:IISAppPoolUser" -ServicePrincipalNames @{Add = "HTTP/$using:NLBWebSiteName", "HTTP/$using:NLBNetBiosName", "HTTP/IISNODE01.$using:FQDNDomainName", "HTTP/IISNODE01", "HTTP/IISNODE02.$using:FQDNDomainName", "HTTP/IISNODE02" }
+    #endregion
+}
+
+Invoke-LabCommand -ActivityName 'DFS-R Setup' -ComputerName IISNODE01 -ScriptBlock {
     #region IIS Shared Configuration
     #Removing any DFS Replication group with the same name
     Get-DfsReplicationGroup -GroupName 'IIS Shared Configuration' | Remove-DfsReplicationGroup -Force -RemoveReplicatedFolders
@@ -266,26 +273,15 @@ Invoke-LabCommand -ActivityName 'DNS & DFS-R Setup on DC' -ComputerName DC01 -Sc
     Set-DfsrMembership -GroupName 'Central Certificate Store' -FolderName 'C:\CentralCertificateStore' -ContentPath 'C:\CentralCertificateStore' -ComputerName 'IISNODE01' -PrimaryMember $True -Force
     Set-DfsrMembership -GroupName 'Central Certificate Store' -FolderName 'C:\CentralCertificateStore' -ContentPath 'C:\CentralCertificateStore' -ComputerName 'IISNODE02' -Force
     #endregion
-
-    #region Setting SPN on the Application Pool Identity
-    <#
-    setspn.exe -S "HTTP/$using:NLBWebSiteName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/$using:NLBNetBiosName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/IISNODE01.$using:FQDNDomainName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/IISNODE01" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/IISNODE02.$using:FQDNDomainName" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    setspn.exe -S "HTTP/IISNODE02" "$using:NetBiosDomainName\$Using:IISAppPoolUser"
-    #>
-    Set-ADUser -Identity "$Using:IISAppPoolUser" -ServicePrincipalNames @{Add = "HTTP/$using:NLBWebSiteName", "HTTP/$using:NLBNetBiosName", "HTTP/IISNODE01.$using:FQDNDomainName", "HTTP/IISNODE01", "HTTP/IISNODE02.$using:FQDNDomainName", "HTTP/IISNODE02" }
-    #endregion
 }
 
-#IIS front-end servers : Renaming the NIC and setting up the metric for NLB management
-Invoke-LabCommand -ActivityName 'Renaming NICs' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
-
-    #Renaming the NIC and setting up the metric for NLB management
-    Rename-NetAdapter -Name "$using:labName 0" -NewName 'Internal' -PassThru | Set-NetIPInterface -InterfaceMetric 1
-    Rename-NetAdapter -Name "$using:labName 1" -NewName 'NLB' -PassThru | Set-NetIPInterface -InterfaceMetric 2
+Invoke-LabCommand -ActivityName 'Restarting the DFSR Service' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
+    Restart-Service -Name DFSR -Force
+}
+#IIS front-end servers : Setting up the metric for NLB management
+Invoke-LabCommand -ActivityName 'Setting up the metric for NLB management' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
+    Get-NetAdapter -Name 'Internal' | Set-NetIPInterface -InterfaceMetric 1
+    Get-NetAdapter -Name 'NLB'| Set-NetIPInterface -InterfaceMetric 2
 }
 
 Invoke-LabCommand -ActivityName 'NLB Setup' -ComputerName IISNODE01 {
@@ -308,7 +304,7 @@ $CertificationAuthority = Get-LabIssuingCA
 #Generating a new template for SSL Web Server certificate
 New-LabCATemplate -TemplateName WebServerSSL -DisplayName 'Web Server SSL' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ComputerName $CertificationAuthority -ErrorAction Stop
 #Getting a New SSL Web Server Certificate
-$WebServerSSLCert = Request-LabCertificate -Subject "CN=$NLBWebSiteName" -SAN $NLBWebSiteName, $NLBNetBiosName, "IISNODE01", "IISNODE01.$FQDNDomainName", "IISNODE02", "IISNODE02.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName "IISNODE01", "IISNODE02" -OnlineCA $CertificationAuthority.Name -PassThru -ErrorAction Stop
+$WebServerSSLCert = Request-LabCertificate -Subject "CN=$NLBWebSiteName" -SAN $NLBWebSiteName, $NLBNetBiosName, "IISNODE01", "IISNODE01.$FQDNDomainName", "IISNODE02", "IISNODE02.$FQDNDomainName" -TemplateName WebServerSSL -ComputerName IISNODE01 -OnlineCA $CertificationAuthority.Name -PassThru -ErrorAction Stop
 #endregion
 
 #Copying Web site content on all IIS servers
@@ -316,30 +312,27 @@ Copy-LabFileItem -Path $CurrentDir\nlb.contoso.com.zip -DestinationFolderPath C:
 
 #Generating machine key (to standardize across all Web farm nodes)
 $MachineKey = New-MachineKey
-Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into Central Certificate Store Directory, Unzipping Web Site Content and Setting up the Website' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
-    #Restarting DFSR service
-    Restart-Service -Name DFSR -Force
-    Start-Sleep -Seconds 10
 
-    #Creating replicated folder for Central Certificate Store
-    New-Item -Path C:\CentralCertificateStore -ItemType Directory -Force
-
-    #Getting the local SSL Certificate
+Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into the future "Central Certificate Store" directory' -ComputerName IISNODE01 -ScriptBlock {
     $WebServerSSLCert = Get-ChildItem -Path Cert:\LocalMachine\My\ -DnsName "$using:NLBWebSiteName" -SSLServerAuthentication | Where-Object -FilterScript {
         $_.hasPrivateKey 
     }  
+
     $PFXFilePath = "C:\CentralCertificateStore\$using:NLBWebSiteName.pfx"
-    if ($WebServerSSLCert) {    
-        #Exporting the local SSL Certificate to a local (replicated via DFS-R) PFX file
+    if ($WebServerSSLCert) {
         $WebServerSSLCert | Export-PfxCertificate -FilePath $PFXFilePath -Password $Using:SecurePassword
         #Bonus : To access directly to the SSL web site hosted on IIS nodes by using the node names
-        Copy-Item $PFXFilePath "C:\CentralCertificateStore\$env:COMPUTERNAME.$using:FQDNDomainName.pfx"
-        #removing the local SSL Certificate
-        $WebServerSSLCert | Remove-Item -Force
     }
     else {
         Write-Error -Exception "[ERROR] Unable to get or export the 'Web Server SSL' certificate for $using:NLBWebSiteName"
     }
+}
+
+Invoke-LabCommand -ActivityName 'Duplicating the Web Server Certificate into the future "Central Certificate Store" directory for SAN, Unzipping Web Site Content and Setting up the Website' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
+    $PFXFilePath = "C:\CentralCertificateStore\$using:NLBWebSiteName.pfx"
+
+    Copy-Item $PFXFilePath "C:\CentralCertificateStore\$env:COMPUTERNAME.$using:FQDNDomainName.pfx"
+    #$WebServerSSLCert | Remove-Item -Force
 
     #Enabling the Central Certificate Store
     Enable-WebCentralCertProvider -CertStoreLocation 'C:\CentralCertificateStore\' -UserName $Using:Logon -Password $Using:ClearTextPassword -PrivateKeyPassword $Using:ClearTextPassword
