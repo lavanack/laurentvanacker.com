@@ -109,6 +109,8 @@ $VSCodeExtension = [ordered]@{
     'Git Graph' = 'mhutchie.git-graph'
     'Git History' = 'donjayamanne.githistory'
     'GitLens - Git supercharged' = 'eamodio.gitlens'
+    'Git File History' = 'pomber.git-file-history'
+    'indent-rainbow' = 'oderwat.indent-rainbow'
 }
 
 #Installing Git
