@@ -15,7 +15,7 @@
         attorneys' fees, that arise or result from the use or distribution
         of the Sample Code.
 #>
-#requires -Version 5
+#requires -Version 5 -RunAsAdministrator
 Clear-Host
 Add-Type -AssemblyName System.Security
 $CurrentScript = $MyInvocation.MyCommand.Path
