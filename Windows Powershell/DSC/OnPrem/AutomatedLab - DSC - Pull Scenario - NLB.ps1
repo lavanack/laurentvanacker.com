@@ -12,7 +12,7 @@ Import-Module -Name AutomatedLab -RequiredVersion 5.38.0
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
 $PreviousErrorActionPreference = $ErrorActionPreference
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Continue'
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
