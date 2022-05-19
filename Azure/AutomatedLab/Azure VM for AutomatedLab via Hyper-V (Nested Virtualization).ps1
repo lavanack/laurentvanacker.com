@@ -43,7 +43,7 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 $RDPPort                        = 3389
 $JitPolicyTimeInHours           = 3
 $JitPolicyName                  = "Default"
-$Location                       = "EastUs"
+$Location                       = "ukwest"
 $ResourceGroupName              = "AutomatedLab-rg-$Location"
 $VirtualNetworkName             = "AutomatedLab-vnet-$Location"
 $VirtualNetworkAddressSpace     = "10.10.0.0/16" # Format 10.10.0.0/16
@@ -138,8 +138,8 @@ $ImageSku = Get-AzVMImageSku -Location  $Location -publisher $VMImagePublisher.P
 $image = Get-AzVMImage -Location  $Location -publisher $VMImagePublisher.PublisherName -offer $VMImageOffer.Offer -sku $VMImageSku.Skus | Sort-Object -Property Version -Descending | Select-Object -First 1
 #>
 
-# Step 9: Create a virtual machine configuration file
-$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize
+# Step 9: Create a virtual machine configuration file (As a Spot Intance)
+$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1
 Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 
 # Set VM operating system parameters
@@ -161,7 +161,7 @@ $VM                 = Add-AzVMDataDisk -VM $VMConfig -Name $DataDiskName -Create
 #endregion
 
 #Step 10: Create Azure Virtual Machine
-New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig
+New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig -DisableBginfoExtension
 
 $VM = Get-AzVM -ResourceGroup $ResourceGroupName -Name $VMName
 
