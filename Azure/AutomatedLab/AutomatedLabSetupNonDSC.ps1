@@ -35,6 +35,8 @@ $HyperVPath = "$($Disk.DriveLetter):\Virtual Machines\Hyper-V"
 $null = New-Item -Path $HyperVPath -ItemType Directory -Force
 Set-VMHost -VirtualHardDiskPath $HyperVPath -VirtualMachinePath $HyperVPath
 
+$null = New-Item -Path "$env:SystemDrive:\Source Control\GitHub" -ItemType Directory -Force
+
 #region Installing and Seting up AutomatedLab
 #Installing the NuGet Provider
 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
@@ -65,11 +67,14 @@ Invoke-Expression -Command "& { $(Invoke-RestMethod https://aka.ms/install-power
 #region Installing VSCode with useful extensions : Silent Install
 $VSCodeExtension = [ordered]@{
     #"PowerShell" = "ms-vscode.powershell"
-    'Live Share Extension Pack' = 'ms-vsliveshare.vsliveshare-pack'
+    #'Live Share Extension Pack' = 'ms-vsliveshare.vsliveshare-pack'
     'Git Graph' = 'mhutchie.git-graph'
     'Git History' = 'donjayamanne.githistory'
     'GitLens - Git supercharged' = 'eamodio.gitlens'
+    'Git File History' = 'pomber.git-file-history'
+    'indent-rainbow' = 'oderwat.indent-rainbow'
 }
+
 Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) }  -AdditionalExtensions $($VSCodeExtension.Values -join ',')" -Verbose
 #endregion
 

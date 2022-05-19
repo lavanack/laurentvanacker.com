@@ -30,11 +30,13 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 $VSCodeExtension = [ordered]@{
-    #'PowerShell'                = 'ms-vscode.powershell'
+    #"PowerShell" = "ms-vscode.powershell"
     #'Live Share Extension Pack' = 'ms-vsliveshare.vsliveshare-pack'
-    'Git Graph'                  = 'mhutchie.git-graph'
-    'Git History'                = 'donjayamanne.githistory'
+    'Git Graph' = 'mhutchie.git-graph'
+    'Git History' = 'donjayamanne.githistory'
     'GitLens - Git supercharged' = 'eamodio.gitlens'
+    'Git File History' = 'pomber.git-file-history'
+    'indent-rainbow' = 'oderwat.indent-rainbow'
 }
 
 Import-Module -Name 'PSDscResources', 'StorageDsc', 'xHyper-V', 'xPSDesiredStateConfiguration', 'ComputerManagementDsc' -Force
@@ -128,6 +130,14 @@ Configuration AutomatedLabSetupDSC {
             FSLabel     = 'Data'
             FSFormat    = 'NTFS'
             DependsOn   = '[WaitForDisk]Disk1'
+        }
+
+        File GitHubFolder
+        {
+            DestinationPath = "$env:SystemDrive:\Source Control\GitHub"
+            Type            = 'Directory'
+            Ensure          = "Present"
+            Force           = $true
         }
 
         File HyperVPath
