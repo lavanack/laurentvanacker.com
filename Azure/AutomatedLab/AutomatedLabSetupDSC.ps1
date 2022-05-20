@@ -286,7 +286,7 @@ Configuration AutomatedLabSetupDSC {
                 #try is necessary because the addition extensions raised some errors for the moment :code.cmd : (node:4812) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
                 try
                 {
-                    Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) } -AdditionalExtensions $($using:VSCodeExtension.Values -join ',')" -Verbose
+                    Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) } -AdditionalExtensions $($($using:VSCodeExtension).Values -join ',')" -Verbose
                 }
                 catch
                 {

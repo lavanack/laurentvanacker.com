@@ -114,7 +114,7 @@ Install-Lab
 $Machines = Get-LabVM
 $DesktopMachines = $Machines | Where-Object -FilterScript { $_.OperatingSystem -match "Desktop|GUI"}
 
-Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $Machines -IncludeManagementTools
+Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $Machines -IncludeManagementTools -AsJob
 #endregion
 
 Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $DesktopMachines -ScriptBlock {
