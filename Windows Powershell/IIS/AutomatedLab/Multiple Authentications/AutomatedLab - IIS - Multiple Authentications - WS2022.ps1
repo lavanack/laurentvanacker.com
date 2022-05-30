@@ -113,7 +113,7 @@ $IISCryptoExeUri = 'https://www.nartac.com/Downloads/IISCrypto/IISCrypto.exe'
 #NMAP Download URI
 $NMAPExeUri = 'https://nmap.org/dist/nmap-7.12-setup.exe'
 # Code from: https://perplexity.nl/windows-powershell/installing-or-updating-7-zip-using-powershell/
-$7zipExeUri = 'https://7-zip.org/' + (Invoke-WebRequest -Uri 'https://7-zip.org/' | Select-Object -ExpandProperty Links | Where-Object { ($_.innerHTML -eq 'Download') -and ($_.href -like "a/*") -and ($_.href -like "*-x64.exe") } | Select-Object -First 1 | Select-Object -ExpandProperty href)
+$7zipExeUri = 'https://7-zip.org/' + (Invoke-WebRequest -Uri 'https://7-zip.org/' -UseBasicParsing | Select-Object -ExpandProperty Links | Where-Object { ($_.outerHTML -match 'Download') -and ($_.href -like "a/*") -and ($_.href -like "*-x64.exe") } | Select-Object -First 1 | Select-Object -ExpandProperty href)
 #endregion
 
 
