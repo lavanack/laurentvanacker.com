@@ -3,7 +3,7 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
-$ResourceGroupName  = "msws-poshcore-vm-rg"
+$ResourceGroupName  = "msws-poshcore-vm-rg-$Location"
 $Location           = "EastUs"
 $StorageAccountName = "mswsposhcorevmsa" # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
 $DSCFileName        = "WebServerDSC.ps1"
