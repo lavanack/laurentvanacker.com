@@ -44,8 +44,8 @@ $RDPPort                        = 3389
 $JitPolicyTimeInHours           = 3
 $JitPolicyName                  = "Default"
 $Location                       = "EastUs"
-$ResourceGroupName              = "msws-poshcore-vm-rg"
-$VirtualNetworkName             = "msws-poshcore-vm-vnet"
+$ResourceGroupName              = "msws-poshcore-vm-rg-$Location"
+$VirtualNetworkName             = "msws-poshcore-vm-vnet-$Location"
 $VirtualNetworkAddressSpace     = "10.10.0.0/16" # Format 10.10.0.0/16
 $SubnetIPRange                  = "10.10.1.0/24" # Format 10.10.1.0/24
 $SubnetName                     = "Subnet"
@@ -135,8 +135,8 @@ $ImageSku = Get-AzVMImageSku -Location  $Location -publisher $VMImagePublisher.P
 $image = Get-AzVMImage -Location  $Location -publisher $VMImagePublisher.PublisherName -offer $VMImageOffer.Offer -sku $VMImageSku.Skus | Sort-Object -Property Version -Descending | Select-Object -First 1
 #>
 
-# Step 9: Create a virtual machine configuration file
-$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize
+# Step 9: Create a virtual machine configuration file (As a Spot Intance)
+$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1
 Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 
 # Set VM operating system parameters
