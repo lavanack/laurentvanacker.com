@@ -44,14 +44,15 @@ $RDPPort                        = 3389
 $JitPolicyTimeInHours           = 3
 $JitPolicyName                  = "Default"
 $Location                       = "EastUs"
-$ResourceGroupName              = "msws-poshcore-vm-rg-$Location"
-$VirtualNetworkName             = "msws-poshcore-vm-vnet-$Location"
+$ResourcePrefix                 = "dscvmext"
+$ResourceGroupName              = "$ResourcePrefix-rg-$Location"
+$VirtualNetworkName             = "$ResourcePrefix-vnet"
 $VirtualNetworkAddressSpace     = "10.10.0.0/16" # Format 10.10.0.0/16
 $SubnetIPRange                  = "10.10.1.0/24" # Format 10.10.1.0/24
 $SubnetName                     = "Subnet"
-$NICNetworkSecurityGroupName    = "msws-poshcore-vm-nic-nsg-$Location"
-$subnetNetworkSecurityGroupName = "msws-poshcore-vm-vnet-Subnet-nsg-$Location"
-$StorageAccountName             = "mswsposhcorevmsa" # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
+$NICNetworkSecurityGroupName    = "$ResourcePrefix-nic-nsg"
+$subnetNetworkSecurityGroupName = "$ResourcePrefix-vnet-Subnet-nsg"
+$StorageAccountName             = "{0}sa" -f $ResourcePrefix # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
 $StorageAccountSkuName          = "Standard_LRS"
 $SubscriptionName               = "Microsoft Azure Internal Consumption"
 $MyPublicIp                     = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
@@ -68,7 +69,7 @@ $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList
 
 #region Define Variables needed for Virtual Machine
 #$VMName 	        = "WS19-$('{0:yyMMddHHmm}' -f (Get-Date))"
-$VMName 	        = "WinSrv2019"
+$VMName 	        = "{0}ws2019" -f $ResourcePrefix
 $ImagePublisherName	= "MicrosoftWindowsServer"
 $ImageOffer	        = "WindowsServer"
 $ImageSku	        = "2019-Datacenter"
@@ -96,7 +97,7 @@ if (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName))
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
 if ($ResourceGroup)
 {
-    #Step 0: Remove previously existing Azure Resource Group with the "msws-poshcore-vm-rg" name
+    #Step 0: Remove previously existing Azure Resource Group with the same name
     $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
 }
 

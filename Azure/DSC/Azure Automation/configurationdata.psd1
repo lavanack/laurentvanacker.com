@@ -1,7 +1,7 @@
 ﻿@{
     AllNodes  = @(
         @{
-            NodeName   = 'WinSrv2019'
+            NodeName   = 'dscazautws2019'
             Role       = 'WebServer'
         }
     )

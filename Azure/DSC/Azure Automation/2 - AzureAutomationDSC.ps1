@@ -9,12 +9,13 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 Install-Module -Name xWebAdministration, Az.Storage, Az.Automation -Force
 
-$Location              = "EastUs"
-$ResourceGroupName     = "msws-poshcore-vm-rg-$Location"
-$StorageAccountName    = "mswsposhcorevmsa" # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
-$VMName 	           = "WinSrv2019"
-$AutomationAccountName = "mswsposhcorevmaa"
-$ConfigurationName     = "WebServer"
+$Location                       = "EastUs"
+$ResourcePrefix                 = "dscazaut"
+$ResourceGroupName              = "$ResourcePrefix-rg-$Location"
+$StorageAccountName             = "{0}sa" -f $ResourcePrefix # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
+$VMName 	                    = "{0}ws2019" -f $ResourcePrefix
+$AutomationAccountName          = "{0}aa" -f $ResourcePrefix # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
+$ConfigurationName              = "WebServer"
 
 #region Disabling IE Enhanced Security
 $AdminKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"

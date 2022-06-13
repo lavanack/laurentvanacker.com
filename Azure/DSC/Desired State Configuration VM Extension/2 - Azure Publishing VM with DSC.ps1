@@ -3,12 +3,13 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
-$ResourceGroupName  = "msws-poshcore-vm-rg-$Location"
+$ResourcePrefix     = "dscvmext"
+$ResourceGroupName  = "$ResourcePrefix-rg-$Location"
 $Location           = "EastUs"
-$StorageAccountName = "mswsposhcorevmsa" # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
+$StorageAccountName = "{0}sa" -f $ResourcePrefix # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
 $DSCFileName        = "WebServerDSC.ps1"
 $DSCFilePath        = Join-Path -Path $CurrentDir -ChildPath $DSCFileName
-$VMName 	        = "WinSrv2019"
+$VMName 	        = "{0}ws2019" -f $ResourcePrefix
 $ConfigurationName  = "WebServerConfiguration"
 $FQDN               = "$VMName.$Location.cloudapp.azure.com".ToLower()
 
