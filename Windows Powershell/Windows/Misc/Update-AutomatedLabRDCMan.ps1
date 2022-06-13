@@ -24,7 +24,7 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 $LabsPath = Join-Path -Path $(Get-LabConfigurationItem -Name LabAppDataRoot) -ChildPath 'Labs'
 
 #region variables
-$DocumentFolder = (Resolve-Path -Path ~\Documents).Path
+$DocumentFolder = [Environment]::GetFolderPath("MyDocuments")
 $AutomatedLabRDGFilePath = Join-Path -Path $DocumentFolder -ChildPath 'AutomatedLab.rdg'
 $RDGFileContentTemplate = @'
 <?xml version="1.0" encoding="utf-8"?>
