@@ -27,9 +27,6 @@ Invoke-Expression -Command "& { $(Invoke-RestMethod https://aka.ms/install-power
 #Installing VSCode with Powershell extension
 Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) }" -Verbose
 
-Register-AzResourceProvider -ProviderNamespace Microsoft.HybridCompute
-Get-AzResourceProvider -ProviderNamespace Microsoft.HybridCompute | Where-Object RegistrationState -eq Registered
-
 Register-AzResourceProvider -ProviderNamespace Microsoft.GuestConfiguration
 Get-AzResourceProvider -ProviderNamespace Microsoft.GuestConfiguration | Where-Object RegistrationState -eq Registered
 
