@@ -11,6 +11,7 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
 $Location                  = "EastUs"
+#$resourceGroupName         = (Get-AzVM -Name $env:COMPUTERNAME).ResourceGroupName
 $ResourceGroupName         = "msws-poshcore-vm-rg-$Location"
 $StorageAccountName        = "mswsposhcorevmsa" # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
 $ConfigurationName         = "FileServerBaseline"
