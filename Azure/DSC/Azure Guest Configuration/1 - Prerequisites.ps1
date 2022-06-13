@@ -17,6 +17,7 @@ Stop-Process -Name Explorer -Force
 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 Install-Module -Name Az.Compute, Az.Resources, GuestConfiguration, PSDSCResources, Az.PolicyInsights -Force
 
+#Connection to Azure and Subscription selection
 Connect-AzAccount
 Get-AzSubscription | Out-GridView -PassThru | Select-AzSubscription
 
