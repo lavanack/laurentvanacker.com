@@ -39,7 +39,7 @@ $VSCodeExtension = [ordered]@{
     'indent-rainbow' = 'oderwat.indent-rainbow'
 }
 
-Import-Module -Name 'PSDscResources', 'StorageDsc', 'xHyper-V', 'xPSDesiredStateConfiguration', 'ComputerManagementDsc' -Force
+#Import-Module -Name 'PSDscResources', 'StorageDsc', 'xHyper-V', 'xPSDesiredStateConfiguration', 'ComputerManagementDsc' -Force
 
 Configuration AutomatedLabSetupDSC {
     param(
