@@ -10,12 +10,14 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
-$Location                  = "EastUs"
-#$resourceGroupName         = (Get-AzVM -Name $env:COMPUTERNAME).ResourceGroupName
-$ResourceGroupName         = "msws-poshcore-vm-rg-$Location"
-$StorageAccountName        = "mswsposhcorevmsa" # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
-$ConfigurationName         = "FileServerBaseline"
-$GuestConfigurationPackage = "$CurrentDir\$ConfigurationName\$ConfigurationName.zip"
+
+$Location                       = "EastUs"
+$ResourcePrefix                 = "dscazgcfg"
+#$resourceGroupName            = (Get-AzVM -Name $env:COMPUTERNAME).ResourceGroupName
+$ResourceGroupName              = "$ResourcePrefix-rg-$Location"
+$StorageAccountName             = "{0}sa" -f $ResourcePrefix # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
+$ConfigurationName              = "FileServerBaseline"
+$GuestConfigurationPackage      = "$CurrentDir\$ConfigurationName\$ConfigurationName.zip"
 
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
 $storageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName
