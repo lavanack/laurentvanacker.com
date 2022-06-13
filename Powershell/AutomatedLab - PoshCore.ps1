@@ -51,6 +51,17 @@ $NetworkID='10.0.0.0/16'
 $DC01IPv4Address = '10.0.0.1'
 $WIN10IPv4Address = '10.0.0.10'
 
+
+$VSCodeExtension = [ordered]@{
+    #"PowerShell" = "ms-vscode.powershell"
+    'Live Share Extension Pack' = 'ms-vsliveshare.vsliveshare-pack'
+    'Git Graph' = 'mhutchie.git-graph'
+    'Git History' = 'donjayamanne.githistory'
+    'GitLens - Git supercharged' = 'eamodio.gitlens'
+    'Git File History' = 'pomber.git-file-history'
+    'indent-rainbow' = 'oderwat.indent-rainbow'
+}
+
 #$VSCodeUri = "https://go.microsoft.com/fwlink/?linkid=852157"
 $LabName = 'PoShCore'
 #endregion
@@ -103,19 +114,9 @@ Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 
 $Client = (Get-LabVM | Where-Object -FilterScript { $_.Name -eq "WIN10"}).Name
 
-$VSCodeExtension = [ordered]@{
-    #"PowerShell" = "ms-vscode.powershell"
-    'Live Share Extension Pack' = 'ms-vsliveshare.vsliveshare-pack'
-    'Git Graph' = 'mhutchie.git-graph'
-    'Git History' = 'donjayamanne.githistory'
-    'GitLens - Git supercharged' = 'eamodio.gitlens'
-    'Git File History' = 'pomber.git-file-history'
-    'indent-rainbow' = 'oderwat.indent-rainbow'
-}
-
 #Installing Git
 $Git = Get-LabInternetFile -Uri $GitUri -Path $labSources\SoftwarePackages -PassThru -Force
-Install-LabSoftwarePackage -ComputerName WIN10 -Path $Git.FullName -CommandLine " /SILENT /CLOSEAPPLICATIONS"
+Install-LabSoftwarePackage -ComputerName $Client -Path $Git.FullName -CommandLine " /SILENT /CLOSEAPPLICATIONS"
 
 Invoke-LabCommand -ActivityName "Installing Powershell7+, VSCode, PowerShell extensions (and optionally additional ones) and posh-git module" -ComputerName $Client -ScriptBlock {
 	#Setting Keyboard to French
@@ -134,7 +135,8 @@ Invoke-LabCommand -ActivityName "Installing Powershell7+, VSCode, PowerShell ext
     Install-VSCode.ps1 -AdditionalExtensions $VSCodeExtension.Values
     #>
 
-    Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) }  -AdditionalExtensions $($VSCodeExtension.Values -join ',')" -Verbose
+    #Installing VSCode with Powershell extension (and optional additional ones)
+    Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) } -AdditionalExtensions $($($using:VSCodeExtension).Values -join ',')" -Verbose
 
     #Installing posh-git module
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
