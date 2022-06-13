@@ -21,7 +21,7 @@ function New-RandomPassword
     Write-Host "The password is : $RandomPassword"
     if ($ClipBoard)
     {
-        Write-Verbose "The password has beeen copied into the clipboard ..."
+        Write-Verbose "The password has been copied into the clipboard ..."
         $RandomPassword | Set-Clipboard
     }
     if ($AsSecureString)
@@ -81,6 +81,9 @@ $OSDiskSize         = "127"
 $OSDiskType         = "Premium_LRS"
 $FQDN               = "$VMName.$Location.cloudapp.azure.com".ToLower()
 #endregion
+
+#Adding the credential to the Windows Credential Manager
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c cmdkey /add:TERMSRV/$FQDN /user:`"$Username`" /pass:`"$($Credential.GetNetworkCredential().Password -replace '(\W)', '^$1')`"" -Wait
 
 # Login to your Azure subscription.
 if (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName))
@@ -215,6 +218,11 @@ New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Pro
 #endregion
 #Step 11: Start Azure Virtual Machine
 Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
+
+#region Adding the GuestConfiguration extension
+Set-AzVMExtension -Publisher 'Microsoft.GuestConfiguration' -Type 'ConfigurationforWindows' -Name 'AzurePolicyforWindows' -TypeHandlerVersion 1.0 -ResourceGroupName $ResourceGroupName -Location $Location -VMName $VMName -EnableAutomaticUpgrade $true
+$VM | Update-AzVM -Verbose
+#endregion 
 
 #Copying the Pulic IP into the clipboard 
 #$PublicIP.IpAddress | Set-Clipboard
