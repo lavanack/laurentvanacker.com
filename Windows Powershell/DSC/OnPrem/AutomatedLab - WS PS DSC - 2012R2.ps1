@@ -168,6 +168,7 @@ Invoke-LabCommand -ActivityName 'Requesting and Exporting Document Encryption Ce
 
     $null = New-Item -ItemType Directory -Path C:\PShell\Demos -ErrorAction SilentlyContinue -Force
 } 
+#endregion
 
 Copy-LabFileItem -Path C:\PoshDSC\Demos -DestinationFolder C:\PShell\ -ComputerName $Machines -Recurse
 Invoke-LabCommand -ActivityName 'Downloading prerequisites' -ComputerName PULL -ScriptBlock {
