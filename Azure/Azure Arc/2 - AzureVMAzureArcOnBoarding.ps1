@@ -14,11 +14,14 @@ Get-AzSubscription | Out-GridView -PassThru | Select-AzSubscription
 $resourceGroupName = (Get-AzVM -Name $env:COMPUTERNAME).ResourceGroupName
 $resourceGroup = Get-AzResourceGroup -Name $resourceGroupName
 
+Register-AzResourceProvider -ProviderNamespace Microsoft.HybridCompute
+Get-AzResourceProvider -ProviderNamespace Microsoft.HybridCompute | Where-Object RegistrationState -eq Registered
+
 #region Azure Arc OnBoarding
 #region Prerequisite for onboarding an Azure VM in Azure Arc
 #From https://docs.microsoft.com/en-us/azure/azure-arc/servers/plan-evaluate-on-azure-virtual-machine
 Get-Service WindowsAzureGuestAgent | Stop-Service -PassThru | Set-Service -StartupType Disabled
 New-NetFirewallRule -Name BlockAzureIMDS -DisplayName "Block access to Azure IMDS" -Enabled True -Profile Any -Direction Outbound -Action Block -RemoteAddress 169.254.169.254
-#endregion
+#az
 Connect-AzConnectedMachine -ResourceGroupName $resourceGroupName -Location $resourceGroup.Location
 #endregion
