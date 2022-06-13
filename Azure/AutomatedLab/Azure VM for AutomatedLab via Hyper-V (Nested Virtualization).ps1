@@ -218,11 +218,13 @@ New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Pro
 #Step 11: Start Azure Virtual Machine
 Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 
+#region Setting up the DSC extension
 # Publishing DSC Configuration for AutomatedLab via Hyper-V (Nested Virtualization)
 Publish-AzVMDscConfiguration $DSCFilePath -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Force -Verbose
 
 Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$DSCFileName.zip" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $ConfigurationName -Version "2.80" -Location $Location -AutoUpdate -Verbose
 $VM | Update-AzVM -Verbose
+#endregion
 
 Start-Sleep -Seconds 15
 
