@@ -103,7 +103,7 @@ if ($ResourceGroup)
 
 #Step 1: Create Azure Resource Group
 # Create Resource Groups and Storage Account for diagnostic
-New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
+New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Tag @{Topic="DSC"} -Force
 
 #Step 2: Create Azure Storage Account
 New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName
