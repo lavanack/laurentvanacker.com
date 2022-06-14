@@ -12,14 +12,15 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
 
-$Location                       = "EastUs"
-$ResourcePrefix                 = "dscazgcfg"
-#$resourceGroupName            = (Get-AzVM -Name $env:COMPUTERNAME).ResourceGroupName
-$ResourceGroupName              = "$ResourcePrefix-rg-$Location"
-$StorageAccountName             = "{0}sa" -f $ResourcePrefix # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
-$VMName 	                    = "{0}ws2019" -f $ResourcePrefix
-$ConfigurationName              = "FileServerBaseline"
-$GuestConfigurationPackage      = "$CurrentDir\$ConfigurationName.zip"
+$Location                           = "EastUs"
+$ResourcePrefix                     = "dscazgcfg"
+#$resourceGroupName                = (Get-AzVM -Name $env:COMPUTERNAME).ResourceGroupName
+$ResourceGroupName                  = "$ResourcePrefix-rg-$Location"
+$StorageAccountName                 = "{0}sa" -f $ResourcePrefix # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
+$VMName 	                        = "{0}ws2019" -f $ResourcePrefix
+$ConfigurationName                  = "FileServerBaseline2"
+$GuestConfigurationPackageName      = "$ConfigurationName.zip"
+$GuestConfigurationPackageFullName  = "$CurrentDir\$GuestConfigurationPackageName"
 
 
 #region Adding the GuestConfiguration extension
@@ -39,16 +40,19 @@ $Context = New-AzStorageContext -ConnectionString "DefaultEndpointsProtocol=http
 Install-Module -Name PSDesiredStateConfiguration -AllowClobber -Force
 & "$CurrentDir\AzureGuestDSCConfiguration.ps1"
 New-GuestConfigurationPackage -Name $ConfigurationName  -Path $CurrentDir -Configuration $CurrentDir\LocalRegistry\localhost.mof -Type AuditAndSet -Force
-Get-GuestConfigurationPackageComplianceStatus -Path $GuestConfigurationPackage
-#Start-GuestConfigurationPackageRemediation -Path $GuestConfigurationPackage -Verbose
-Get-GuestConfigurationPackageComplianceStatus -Path $GuestConfigurationPackage
+Get-GuestConfigurationPackageComplianceStatus -Path $GuestConfigurationPackageFullName
+#Start-GuestConfigurationPackageRemediation -Path $GuestConfigurationPackageFullName -Verbose
+#Get-GuestConfigurationPackageComplianceStatus -Path $GuestConfigurationPackageFullName
 
-#$ContentURI = (Publish-GuestConfigurationPackage -Path $GuestConfigurationPackage -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Force).ContentUri
-Set-AzStorageBlobContent -Container "guestconfiguration" -File $GuestConfigurationPackage -Blob "guestconfiguration" -Context $Context
-$ContentURI = New-AzStorageBlobSASToken -Context $Context -FullUri -Container guestconfiguration -Blob "guestconfiguration" -Permission rwd
+#$ContentURI = (Publish-GuestConfigurationPackage -Path $GuestConfigurationPackageFullName -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Force).ContentUri
+Set-AzStorageBlobContent -Container "guestconfiguration" -File $GuestConfigurationPackageFullName -Blob $GuestConfigurationPackageName -Context $Context -Force
+$StartTime = Get-Date
+$ExpiryTime = $StartTime.AddYears(3)
+$ContentURI = New-AzStorageBlobSASToken -Context $Context -FullUri -Container guestconfiguration -Blob $GuestConfigurationPackageName -Permission rwd -StartTime $StartTime -ExpiryTime $ExpiryTime      
 
 Remove-AzPolicyAssignment -Name "$($ConfigurationName)Assignment" -Scope $ResourceGroup.ResourceId -Verbose
-Get-AzPolicyDefinition | Where-Object { $_.Properties.DisplayName -eq $ConfigurationName } | Remove-AzPolicyDefinition -Force
+Remove-AzPolicyDefinition -Name $ConfigurationName -Force
+#Get-AzPolicyDefinition | Where-Object { $_.Properties.DisplayName -eq $ConfigurationName } | Remove-AzPolicyDefinition -Force
 
 $Guid = (New-Guid).Guid
 
@@ -62,16 +66,15 @@ New-AzPolicyDefinition -Name $ConfigurationName -Policy $Policy
 # Register the resource provider if it's not already registered
 Register-AzResourceProvider -ProviderNamespace 'Microsoft.PolicyInsights'
 
-# Get a reference to the built-in policy definition to assign
-#s$definition = Get-AzPolicyDefinition | Where-Object { $_.Properties.DisplayName -eq $ConfigurationName }
-$definition = Get-AzPolicyDefinition | Where-Object { $_.Name -eq $ConfigurationName }
+# Get a referenace to the built-in policy definition to assign
+$PolicyDefinition = Get-AzPolicyDefinition | Where-Object { $_.Name -eq $ConfigurationName }
 
 # Create the policy assignment with the built-in definition against your resource group
 $NonComplianceMessage = [Microsoft.Azure.Commands.ResourceManager.Cmdlets.Entities.Policy.NonComplianceMessage]::new()
 $NonComplianceMessage.message = "Non Compliance Message"
 $IncludeArcConnectedServers = @{'IncludeArcMachines'='true'}
-#$PolicyAssignment = New-AzPolicyAssignment -Name 'auditandset-fileserverbaseline' -DisplayName $ConfigurationName -Scope $ResourceGroup.ResourceId -PolicyDefinition $definition -Location $Location -PolicyParameterObject $IncludeArcConnectedServers -IdentityType "SystemAssigned" -NonComplianceMessage $NonComplianceMessage  
-$PolicyAssignment = New-AzPolicyAssignment -Name "$($ConfigurationName)Assignment" -DisplayName $ConfigurationName -Scope $ResourceGroup.ResourceId -PolicyDefinition $definition -Location $Location -PolicyParameterObject $IncludeArcConnectedServers -IdentityType "SystemAssigned" -NonComplianceMessage $NonComplianceMessage  
+#$PolicyAssignment = New-AzPolicyAssignment -Name 'auditandset-fileserverbaseline' -DisplayName $ConfigurationName -Scope $ResourceGroup.ResourceId -PolicyDefinition $PolicyDefinition -Location $Location -PolicyParameterObject $IncludeArcConnectedServers -IdentityType "SystemAssigned" -NonComplianceMessage $NonComplianceMessage  
+$PolicyAssignment = New-AzPolicyAssignment -Name "$($ConfigurationName)Assignment" -DisplayName "$($ConfigurationName)Assignment" -Scope $ResourceGroup.ResourceId -PolicyDefinition $PolicyDefinition -Location $Location -PolicyParameterObject $IncludeArcConnectedServers -IdentityType "SystemAssigned" -NonComplianceMessage $NonComplianceMessage  
 
 # Get the resources in your resource group that are non-compliant to the policy assignment
 Get-AzPolicyState -ResourceGroupName $ResourceGroupName -PolicyAssignmentName "$($ConfigurationName)Assignment" #-Filter 'IsCompliant eq false'
