@@ -220,11 +220,6 @@ New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Pro
 #Step 11: Start Azure Virtual Machine
 Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 
-#region Adding the GuestConfiguration extension
-Set-AzVMExtension -Publisher 'Microsoft.GuestConfiguration' -Type 'ConfigurationforWindows' -Name 'AzurePolicyforWindows' -TypeHandlerVersion 1.0 -ResourceGroupName $ResourceGroupName -Location $Location -VMName $VMName -EnableAutomaticUpgrade $true
-$VM | Update-AzVM -Verbose
-#endregion 
-
 #Copying the Pulic IP into the clipboard 
 #$PublicIP.IpAddress | Set-Clipboard
 

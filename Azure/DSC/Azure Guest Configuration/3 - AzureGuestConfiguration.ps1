@@ -16,8 +16,17 @@ $ResourcePrefix                 = "dscazgcfg"
 #$resourceGroupName            = (Get-AzVM -Name $env:COMPUTERNAME).ResourceGroupName
 $ResourceGroupName              = "$ResourcePrefix-rg-$Location"
 $StorageAccountName             = "{0}sa" -f $ResourcePrefix # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
+$VMName 	                    = "{0}ws2019" -f $ResourcePrefix
 $ConfigurationName              = "FileServerBaseline"
 $GuestConfigurationPackage      = "$CurrentDir\$ConfigurationName\$ConfigurationName.zip"
+
+
+#region Adding the GuestConfiguration extension
+$VM = Get-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
+Set-AzVMExtension -Publisher 'Microsoft.GuestConfiguration' -Type 'ConfigurationforWindows' -Name 'AzurePolicyforWindows' -TypeHandlerVersion 1.0 -ResourceGroupName $ResourceGroupName -Location $Location -VMName $VMName -EnableAutomaticUpgrade $true
+$VM | Update-AzVM -Verbose
+#endregion
+
 
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
 $storageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName

@@ -16,10 +16,11 @@ $FQDN               = "$VMName.$Location.cloudapp.azure.com".ToLower()
 # Publishing DSC Configuration
 Publish-AzVMDscConfiguration $DSCFilePath -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Force -Verbose
 
-$VM = Get-AzVM -Name $VMName
-
+#region Adding the DSC extension
+$VM = Get-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$DSCFileName.zip" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $ConfigurationName -Version "2.80" -Location $Location -AutoUpdate -Verbose
 $VM | Update-AzVM -Verbose
+#endregion 
 
 #Get the Public IP address dynamically
 $PublicIP = Get-AzPublicIpAddress -ResourceGroupName $ResourceGroupName | Where-Object { $_.IpConfiguration.Id -like "*$VMName*" } | Select-Object -First 1
