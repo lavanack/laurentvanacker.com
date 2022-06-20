@@ -45,7 +45,7 @@ $JitPolicyTimeInHours           = 3
 $JitPolicyName                  = "Default"
 $Location                       = "EastUs"
 #$ResourcePrefix                 = "dscazgcfg"
-$ResourcePrefix                 = "dscagc001"
+$ResourcePrefix                 = "dscagc018"
 $ResourceGroupName              = "$ResourcePrefix-rg-$Location"
 $VirtualNetworkName             = "$ResourcePrefix-vnet"
 $VirtualNetworkAddressSpace     = "10.10.0.0/16" # Format 10.10.0.0/16
@@ -57,6 +57,7 @@ $StorageAccountName             = "{0}sa" -f $ResourcePrefix # Name must be uniq
 $StorageAccountSkuName          = "Standard_LRS"
 $SubscriptionName               = "Microsoft Azure Internal Consumption"
 $MyPublicIp                     = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
+#Get-AzSubscription | Out-GridView -PassThru | Select-AzSubscription
 #endregion
 
 #region Defining credential(s)
@@ -141,7 +142,7 @@ $image = Get-AzVMImage -Location  $Location -publisher $VMImagePublisher.Publish
 #>
 
 # Step 9: Create a virtual machine configuration file (As a Spot Intance)
-$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize #-Priority "Spot" -MaxPrice -1
+$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1
 Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 
 # Set VM operating system parameters

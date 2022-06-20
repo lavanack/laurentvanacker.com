@@ -14,7 +14,7 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
 $Location                           = "EastUs"
 #$ResourcePrefix                    = "dscazgcfg"
-$ResourcePrefix                     = "dscagc001"
+$ResourcePrefix                     = "dscagc006"
 #$resourceGroupName                = (Get-AzVM -Name $env:COMPUTERNAME).ResourceGroupName
 $ResourceGroupName                  = "$ResourcePrefix-rg-$Location"
 $StorageAccountName                 = "{0}sa" -f $ResourcePrefix # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
@@ -27,14 +27,16 @@ $GuestConfigurationPackageFullName  = "$CurrentDir\$GuestConfigurationPackageNam
 
 #region Adding the GuestConfiguration extension
 $VM = Get-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
-Set-AzVMExtension -Publisher 'Microsoft.GuestConfiguration' -Type 'ConfigurationforWindows' -Name 'AzurePolicyforWindows' -TypeHandlerVersion 1.0 -ResourceGroupName $ResourceGroupName -Location $Location -VMName $VMName -EnableAutomaticUpgrade $true
-$VM | Update-AzVM -Verbose
+#Set-AzVMExtension -Publisher 'Microsoft.GuestConfiguration' -Type 'ConfigurationforWindows' -Name 'AzurePolicyforWindows' -TypeHandlerVersion 1.0 -ResourceGroupName $ResourceGroupName -Location $Location -VMName $VMName -EnableAutomaticUpgrade $true
+$VM | Update-AzVM -IdentityType SystemAssigned -Verbose
 #endregion
 
 
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
 
-<#
+#$PolicyIni = Get-AzPolicySetDefinition | ?  { $_.Properties.DisplayName -match "Deploy prerequisites to enable guest configuration policies on virtual machines"}
+#$PolicyIni.Properties.PolicyDefinitions
+
 # Deploy prerequisites to enable guest configuration policies on virtual machines
 $Definition = Get-AzPolicySetDefinition -Name 12794019-7a00-42cf-95c2-882eed337cc8 
 $Assignment = New-AzPolicyAssignment -Name 'deployPrerequisitesForGuestConfigurationPolicies' -DisplayName 'Deploy prerequisites to enable guest configuration policies on virtual machines' -Scope $ResourceGroup.ResourceId -PolicySetDefinition $Definition -EnforcementMode Default -IdentityType SystemAssigned -Location 'West Europe'
@@ -54,7 +56,6 @@ if ($roleDefinitionIds.Count -gt 0)
 $Definition.Properties.PolicyDefinitions | ForEach-Object {
   Start-AzPolicyRemediation -Name $_.policyDefinitionReferenceId -PolicyAssignmentId $Assignment.PolicyAssignmentId -PolicyDefinitionReferenceId $_.policyDefinitionId -ResourceGroupName $ResourceGroup.ResourceGroupName -ResourceDiscoveryMode ReEvaluateCompliance
 }
-#>
 
 
 
@@ -65,12 +66,12 @@ $StorageAccountKey = (($storageAccount | Get-AzStorageAccountKey) | Where-Object
 $Context = New-AzStorageContext -ConnectionString "DefaultEndpointsProtocol=https;AccountName=$StorageAccountName;AccountKey=$StorageAccountKey"
 
 #Install-Module -Name PSDesiredStateConfiguration -AllowClobber -Force
+<#
 & "$CurrentDir\AzureGuestDSCConfiguration.ps1"
 New-GuestConfigurationPackage -Name $ConfigurationName  -Path $CurrentDir -Configuration $CurrentDir\LocalRegistry\localhost.mof -Type AuditAndSet -Force
-<#
+#>
 & "$CurrentDir\CreateAdminUserDSCConfiguration.ps1"
 New-GuestConfigurationPackage -Name $ConfigurationName  -Path $CurrentDir -Configuration $CurrentDir\CreateAdminUser\localhost.mof -Type AuditAndSet -Force
-#>
 Get-GuestConfigurationPackageComplianceStatus -Path $GuestConfigurationPackageFullName
 #Start-GuestConfigurationPackageRemediation -Path $GuestConfigurationPackageFullName -Verbose
 #Get-GuestConfigurationPackageComplianceStatus -Path $GuestConfigurationPackageFullName

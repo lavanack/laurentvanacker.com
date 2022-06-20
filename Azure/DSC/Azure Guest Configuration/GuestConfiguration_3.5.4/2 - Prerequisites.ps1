@@ -14,8 +14,11 @@ Stop-Process -Name Explorer -Force
 #endregion
 
 #Installing the NuGet Provider
-Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-Install-Module -Name Az.Compute, Az.PolicyInsights, Az.Resources, Az.Storage, GuestConfiguration, PSDesiredStateConfiguration, PSDSCResources -Force
+Get-PackageProvider -Name Nuget -ForceBootstrap -Force
+#Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+#Install-Module -Name Az.Compute, Az.PolicyInsights, Az.Resources, Az.Storage, GuestConfiguration, PSDesiredStateConfiguration, PSDSCResources -Force
+Install-Module -Name Az.Compute, Az.PolicyInsights, Az.Resources, Az.Storage, PSDesiredStateConfiguration, PSDSCResources -Force
+Install-Module -Name GuestConfiguration -RequiredVersion 3.5.4 -Force
 
 #Connection to Azure and Subscription selection
 Connect-AzAccount
@@ -30,4 +33,8 @@ Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubuserconten
 Register-AzResourceProvider -ProviderNamespace Microsoft.GuestConfiguration
 Get-AzResourceProvider -ProviderNamespace Microsoft.GuestConfiguration | Where-Object RegistrationState -eq Registered
 
-Start-Process -FilePath "C:\Program Files\Microsoft VS Code\Code.exe" -ArgumentList "."
+#From https://docs.microsoft.com/en-us/azure/governance/policy/assign-policy-powershell
+# Register the resource provider if it's not already registered
+Register-AzResourceProvider -ProviderNamespace 'Microsoft.PolicyInsights'
+
+Start-Process -FilePath "C:\Program Files\Microsoft VS Code\Code.exe" -ArgumentList "`"$CurrentDir`""
