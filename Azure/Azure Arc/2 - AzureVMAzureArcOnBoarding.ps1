@@ -7,7 +7,8 @@ Stop-Process -Name Explorer -Force
 #endregion
 
 #Installing the NuGet Provider
-Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+#Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+Get-PackageProvider -Name Nuget -ForceBootstrap -Force
 Install-Module -Name Az.ConnectedMachine, Az.Compute, Az.Resources -Repository PSGallery -Force
 Connect-AzAccount
 Get-AzSubscription | Out-GridView -PassThru | Select-AzSubscription
