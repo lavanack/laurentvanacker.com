@@ -14,7 +14,7 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
 $Location                           = "EastUs"
 #$ResourcePrefix                    = "dscazgcfg"
-$ResourcePrefix                     = "dscagc030"
+$ResourcePrefix                     = "dscagc033"
 #$resourceGroupName                = (Get-AzVM -Name $env:COMPUTERNAME).ResourceGroupName
 $ResourceGroupName                  = "$ResourcePrefix-rg-$Location"
 $StorageAccountName                 = "{0}sa" -f $ResourcePrefix # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
@@ -23,7 +23,7 @@ $VMName 	                        = "{0}ws2019" -f $ResourcePrefix
 $ConfigurationName                  = "{0}_FileServerBaseline" -f $VMName
 $GuestConfigurationPackageName      = "$ConfigurationName.zip"
 $GuestConfigurationPackageFullName  = "$CurrentDir\$GuestConfigurationPackageName"
-$GuestConfigurationPolicyFullName   = "$CurrentDir\policies\$ConfigurationName\Policy"
+$GuestConfigurationPolicyFullName   = ".\policies"
 
 #region From PowerShell
 #region Deploy prerequisites to enable Guest Configuration policies on virtual machines
@@ -41,6 +41,7 @@ if ($roleDefinitionIds.Count -gt 0)
 {
     $roleDefinitionIds | ForEach-Object {
         $roleDefId = $_.Split("/") | Select-Object -Last 1
+        #$roleDefId = (Get-AzRoleDefinition -Name "Guest Configuration Resource Contributor").Id
         New-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $Assignment.Identity.PrincipalId -RoleDefinitionId $roleDefId
     }
 }
@@ -131,6 +132,7 @@ if ($roleDefinitionIds.Count -gt 0)
 {
     $roleDefinitionIds | ForEach-Object {
         $roleDefId = [GUID]($_.Split("/") | Select-Object -Last 1)
+        #$roleDefId = (Get-AzRoleDefinition -Name "Guest Configuration Resource Contributor").Id
         New-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $objectID -RoleDefinitionId $roleDefId
     }
 }

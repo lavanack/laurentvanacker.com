@@ -14,7 +14,7 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
 $Location                           = "EastUs"
 #$ResourcePrefix                    = "dscazgcfg"
-$ResourcePrefix                     = "dscagc038"
+$ResourcePrefix                     = "dscagc040"
 #$resourceGroupName                = (Get-AzVM -Name $env:COMPUTERNAME).ResourceGroupName
 $ResourceGroupName                  = "$ResourcePrefix-rg-$Location"
 $StorageAccountName                 = "{0}sa" -f $ResourcePrefix # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
@@ -63,12 +63,18 @@ $GuestConfigurationPackage = New-GuestConfigurationPackage -Name $ConfigurationN
 $storageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName
 # Creates a new container
 $storageAccount | New-AzStorageContainer -Name $StorageContainerName -Permission Blob
+$StorageAccountKey = (($storageAccount | Get-AzStorageAccountKey) | Where-Object -FilterScript {$_.KeyName -eq "key1"}).Value
+$Context = New-AzStorageContext -ConnectionString "DefaultEndpointsProtocol=https;AccountName=$StorageAccountName;AccountKey=$StorageAccountKey"
 
-# Publish the guest configuration package (zip) to the storage account
-$ContentURI = Publish-GuestConfigurationPackage -Path $GuestConfigurationPackage.Path -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Force | Select-Object -Expand ContentUri
+#$ContentURI = (Publish-GuestConfigurationPackage -Path $GuestConfigurationPackage.Path -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Force).ContentUri
+Set-AzStorageBlobContent -Container $StorageContainerName -File $GuestConfigurationPackage.Path -Blob $GuestConfigurationPackageName -Context $Context -Force
+#Adding a 3-year expiration time from now for the SAS Token
+$StartTime = Get-Date
+$ExpiryTime = $StartTime.AddYears(3)
+$ContentURI = New-AzStorageBlobSASToken -Context $Context -FullUri -Container $StorageContainerName -Blob $GuestConfigurationPackageName -Permission rwd -StartTime $StartTime -ExpiryTime $ExpiryTime      
 
 # Create a Policy Id
-$PolicyId = (New-Guid).Guid 
+$PolicyId = (New-Guid).Guid  
 # Define the parameters to create and publish the guest configuration policy
 $Params = @{
   "PolicyId" =  $PolicyId
@@ -77,21 +83,21 @@ $Params = @{
   "Description" =  "Make sure all Windows servers comply with $ConfigurationName"
   "Path" =  './policies'
   "Platform" =  'Windows'
-  "Version" =  '1.0.0'
+  "PolicyVersion" =  '1.0.0'
   "Mode" =  'ApplyAndAutoCorrect'
   "Verbose" = $true
 }
 # Create the guest configuration policy
 $Policy = New-GuestConfigurationPolicy @Params
-# Publish the guest configuration policy
-Publish-GuestConfigurationPolicy -Path './policies'
 
-$PolicyDefinition = Get-AzPolicyDefinition -Name $PolicyId
+$PolicyDefinition = New-AzPolicyDefinition -Name "Ensure [$ConfigurationName] is appplied" -Policy $Policy.Path
+
 $NonComplianceMessage = [Microsoft.Azure.Commands.ResourceManager.Cmdlets.Entities.Policy.NonComplianceMessage]::new()
 $NonComplianceMessage.message = "Non Compliance Message"
-$IncludeArcConnectedServers = @{'IncludeArcMachines'='true'}
+$IncludeArcConnectedServers = @{'IncludeArcMachines'='true'}# <- IncludeArcMachines is important - given you want to target Arc as well as Azure VMs
 
 $PolicyAssignment = New-AzPolicyAssignment -Name $ConfigurationName -DisplayName "Make sure all servers comply with $ConfigurationName" -Scope $ResourceGroup.ResourceId -PolicyDefinition $PolicyDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $Location -PolicyParameterObject $IncludeArcConnectedServers -NonComplianceMessage $NonComplianceMessage  
+#$PolicyAssignment = New-AzPolicyAssignment -Name "[Windows]$($ConfigurationName)" -DisplayName "[Windows]$($ConfigurationName)" -Scope $ResourceGroup.ResourceId -PolicyDefinition $PolicyDefinition -Location $Location -PolicyParameterObject $PolicyParameterObject -EnforcementMode Default -IdentityType SystemAssigned -NonComplianceMessage $NonComplianceMessage  
 
 # Grant defined roles with PowerShell
 # https://docs.microsoft.com/en-us/azure/governance/policy/how-to/remediate-resources#grant-defined-roles-with-PowerShell
