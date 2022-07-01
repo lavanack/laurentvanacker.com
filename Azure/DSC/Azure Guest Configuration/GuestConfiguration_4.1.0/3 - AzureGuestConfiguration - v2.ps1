@@ -14,7 +14,7 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
 $Location                           = "EastUs"
 #$ResourcePrefix                    = "dscazgcfg"
-$ResourcePrefix                     = "dscagc040"
+$ResourcePrefix                     = "dscagc041"
 #$resourceGroupName                = (Get-AzVM -Name $env:COMPUTERNAME).ResourceGroupName
 $ResourceGroupName                  = "$ResourcePrefix-rg-$Location"
 $StorageAccountName                 = "{0}sa" -f $ResourcePrefix # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
@@ -28,7 +28,7 @@ $GuestConfigurationPackageName      = "$ConfigurationName.zip"
 
 #region From PowerShell
 #region Deploy prerequisites to enable Guest Configuration policies on virtual machines
-$PolicyIni = Get-AzPolicySetDefinition | Where-Object -FilterScript { $_.Properties.DisplayName -match "Deploy prerequisites to enable Guest Configuration policies on virtual machines"}
+$PolicyIni = Get-AzPolicySetDefinition | Where-Object -FilterScript { $_.Properties.DisplayName -eq "Deploy prerequisites to enable Guest Configuration policies on virtual machines"}
 $PolicyIni.Properties.PolicyDefinitions
 
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName

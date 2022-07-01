@@ -27,7 +27,7 @@ $GuestConfigurationPolicyFullName   = ".\policies"
 
 #region From PowerShell
 #region Deploy prerequisites to enable Guest Configuration policies on virtual machines
-$PolicyIni = Get-AzPolicySetDefinition | Where-Object -FilterScript { $_.Properties.DisplayName -match "Deploy prerequisites to enable Guest Configuration policies on virtual machines"}
+$PolicyIni = Get-AzPolicySetDefinition | Where-Object -FilterScript { $_.Properties.DisplayName -eq "Deploy prerequisites to enable Guest Configuration policies on virtual machines"}
 $PolicyIni.Properties.PolicyDefinitions
 
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName
