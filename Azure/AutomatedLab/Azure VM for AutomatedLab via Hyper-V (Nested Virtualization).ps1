@@ -139,7 +139,7 @@ $image = Get-AzVMImage -Location  $Location -publisher $VMImagePublisher.Publish
 #>
 
 # Step 9: Create a virtual machine configuration file (As a Spot Intance)
-$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1
+$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize #-Priority "Spot" -MaxPrice -1
 Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 
 # Set VM operating system parameters
