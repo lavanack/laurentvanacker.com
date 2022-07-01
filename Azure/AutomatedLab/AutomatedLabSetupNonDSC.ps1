@@ -42,6 +42,8 @@ $null = New-Item -Path "$($env:SystemDrive)\Source Control\GitHub" -ItemType Dir
 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 
 Install-Module AutomatedLab -SkipPublisherCheck -AllowClobber -Force -Verbose
+$AzModules = "Az.Accounts", "Az.Storage", "Az.Compute", "Az.Network", "Az.Resources", "Az.Websites"
+Install-Module -Name $AzModules -Force -Verbose
 
 #  Disable (which is already the default) and in addition skip dialog
 [Environment]::SetEnvironmentVariable('AUTOMATEDLAB_TELEMETRY_OPTIN', 'false', 'Machine')

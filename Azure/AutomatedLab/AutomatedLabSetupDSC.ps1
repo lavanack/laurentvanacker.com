@@ -20,7 +20,8 @@ of the Sample Code.
 
 <#
 # For installing prerequisites
-Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+#Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+Get-PackageProvider -Name Nuget -ForceBootstrap -Force
 Install-Module -Name 'PSDscResources', 'StorageDsc', 'xHyper-V', 'xPSDesiredStateConfiguration', 'ComputerManagementDsc' -Force
 #>
 
@@ -173,8 +174,34 @@ Configuration AutomatedLabSetupDSC {
  
             TestScript = {
                 # Create and invoke a scriptblock using the $GetScript automatic variable, which contains a string representation of the GetScript.
-                $state = [scriptblock]::Create($GetScript).Invoke()
+                # $state = [scriptblock]::Create($GetScript).Invoke()
                 return ((Get-InstalledModule -Name 'AutomatedLab' -ErrorAction Ignore) -ne $null)
+            }
+        }
+
+
+	    Script InstallAzureLabModule 
+        {
+            GetScript = {
+                @{
+                    GetScript  = $GetScript
+                    SetScript  = $SetScript
+                    TestScript = $TestScript
+                }
+            }
+ 
+            SetScript = {
+                $AzModules = "Az.Accounts", "Az.Storage", "Az.Compute", "Az.Network", "Az.Resources", "Az.Websites"
+                Install-Module -Name $AzModules -Force -Verbose
+            }
+ 
+            TestScript = {
+                # Create and invoke a scriptblock using the $GetScript automatic variable, which contains a string representation of the GetScript.
+                #$state = [scriptblock]::Create($GetScript).Invoke()
+                $AzModules = "Az.Accounts", "Az.Storage", "Az.Compute", "Az.Network", "Az.Resources", "Az.Websites"
+                $InstalledModule = @((Get-InstalledModule -Name $AzModules -ErrorAction Ignore))
+                #return ((([system.linq.enumerable]::Intersect([string[]]$AzModules,[string[]](Get-InstalledModule).Name)) -as [array])).Count -eq $AzModules.Count
+                return $($InstalledModule.Count -eq $AzModules.Count)
             }
         }
 
@@ -283,14 +310,12 @@ Configuration AutomatedLabSetupDSC {
                 $IsMacOS   = $false
                 $IsWindows = $true
                 $pacMan    = ''
+                $AdditionalExtensions = $($using:VSCodeExtension).Values -join ','
                 #try is necessary because the addition extensions raised some errors for the moment :code.cmd : (node:4812) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
                 try
                 {
-                    Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) } -AdditionalExtensions $($($using:VSCodeExtension).Values -join ',')" -Verbose
-                }
-                catch
-                {
-                }
+                    Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) } -AdditionalExtensions $AdditionalExtensions" -ErrorAction Ignore -Verbose
+                } catch {}
             }
  
             TestScript = {
