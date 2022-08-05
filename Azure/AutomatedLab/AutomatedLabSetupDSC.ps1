@@ -169,7 +169,8 @@ Configuration AutomatedLabSetupDSC {
             }
  
             SetScript = {
-                Install-Module -Name AutomatedLab -SkipPublisherCheck -AllowClobber -Force
+                Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+                Install-Module -Name AutomatedLab -RequiredVersion 5.42.0 -SkipPublisherCheck -AllowClobber -Force
             }
  
             TestScript = {
@@ -259,7 +260,7 @@ Configuration AutomatedLabSetupDSC {
             DestinationPath = $(Join-Path -Path $env:TEMP -ChildPath 'Git-Latest.exe')
             #To always have the latest Git version for Windows x64
             #Uri            = ((Invoke-WebRequest -Uri 'https://git-scm.com/download/win').Links | Where-Object -FilterScript { $_.InnerText -eq "64-bit Git For Windows Setup"}).href
-            Uri             = 'https://github.com/git-for-windows/git/releases/download/v2.35.1.windows.2/Git-2.35.1.2-64-bit.exe'
+            Uri             = 'https://github.com/git-for-windows/git/releases/download/v2.37.1.windows.1/Git-2.37.1-64-bit.exe'
             UserAgent       = [Microsoft.PowerShell.Commands.PSUserAgent]::InternetExplorer
             Headers         = @{'Accept-Language' = 'en-US'}
         }

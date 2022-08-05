@@ -41,7 +41,7 @@ $null = New-Item -Path "$($env:SystemDrive)\Source Control\GitHub" -ItemType Dir
 #Installing the NuGet Provider
 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 
-Install-Module AutomatedLab -SkipPublisherCheck -AllowClobber -Force -Verbose
+Install-Module -Name AutomatedLab -RequiredVersion 5.42.0 -SkipPublisherCheck -AllowClobber -Force
 $AzModules = "Az.Accounts", "Az.Storage", "Az.Compute", "Az.Network", "Az.Resources", "Az.Websites"
 Install-Module -Name $AzModules -Force -Verbose
 
@@ -84,6 +84,6 @@ Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubuserconten
 $SysinternalsSuiteURI = 'https://download.sysinternals.com/files/SysinternalsSuite.zip'
 $OutputFile = Join-Path -Path $CurrentDir -ChildPath $(Split-Path -Path $SysinternalsSuiteURI -Leaf)
 Invoke-WebRequest -Uri $SysinternalsSuiteURI -OutFile $OutputFile
-Expand-Archive -Path $OutputFile -DestinationPath C:\Tools
+Expand-Archive -Path $OutputFile -DestinationPath C:\Tools -Force
 Start-Process -FilePath C:\Tools\junction.exe -ArgumentList '-accepteula', "$($Disk.DriveLetter)\AutomatedLab-VMs", "C:\AutomatedLab-VMs" -Wait
 #endregion
