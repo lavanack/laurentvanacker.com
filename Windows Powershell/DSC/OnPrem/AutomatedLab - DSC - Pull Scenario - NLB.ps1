@@ -367,7 +367,7 @@ Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration' -ComputerNam
 
 Invoke-LabCommand -ActivityName 'Installing Community Ressources modules' -ComputerName PULL01 -ScriptBlock {
     #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-    Install-Module -Name xWebAdministration -RequiredVersion 3.2.0
+    Install-Module -Name xWebAdministration -RequiredVersion 3.2.0 -Force
 }
 
 Invoke-LabCommand -ActivityName 'Updating Test DSC Configuration' -ComputerName PULL01 -ScriptBlock {
