@@ -187,7 +187,7 @@ Install-Lab -DelayBetweenComputers 120
 $machines = Get-LabVM
 Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools
 Install-LabWindowsFeature -FeatureName FS-DFS-Replication, Web-Server, Web-Asp-Net45, Web-Request-Monitor, Web-Windows-Auth, NLB, Web-CertProvider -ComputerName IISNODE01, IISNODE02 -IncludeManagementTools
-Install-LabWindowsFeature -FeatureName FS-DFS-Replication -ComputerName DC01 -IncludeManagementTools
+#Install-LabWindowsFeature -FeatureName FS-DFS-Replication -ComputerName DC01 -IncludeManagementTools
 #endregion
 
 Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $NLBWebSiteName to the IE intranet zone" -ComputerName $machines -ScriptBlock {
