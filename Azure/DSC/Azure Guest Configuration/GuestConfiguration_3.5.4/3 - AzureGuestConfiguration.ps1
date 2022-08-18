@@ -1,9 +1,15 @@
-﻿#requires -Version 7 -RunAsAdministrator 
+﻿#To run from the Azure VM
+#requires -Version 7 -RunAsAdministrator 
 
 <#More info on 
 - https://docs.microsoft.com/en-us/azure/governance/policy/how-to/guest-configuration-create-setup
 - https://techcommunity.microsoft.com/t5/microsoft-defender-for-cloud/7-steps-to-author-develop-and-deploy-custom-recommendations-for/ba-p/3166026
 - https://cloudbrothers.info/en/azure-persistence-azure-policy-guest-configuration/
+#>
+<#
+Get-AzPolicyRemediation | Where-Object -FilterScript { $_.Id -like '*dscagc*' } | Remove-AzPolicyRemediation -AllowStop -Verbose
+Get-AzPolicyAssignment  | Where-Object -FilterScript { $_.Id -like '*dscagc*' } | Remove-AzPolicyAssignment -Verbose
+Get-AzPolicyDefinition  | Where-Object -FilterScript { $_.Id -like '*dscagc*' } | Remove-AzPolicyDefinition -Force -Verbose
 #>
 
 Clear-Host
@@ -14,7 +20,7 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
 $Location                           = "EastUs"
 #$ResourcePrefix                    = "dscazgcfg"
-$ResourcePrefix                     = "dscagc050"
+$ResourcePrefix                     = "dscagc102"
 #$resourceGroupName                = (Get-AzVM -Name $env:COMPUTERNAME).ResourceGroupName
 $ResourceGroupName                  = "$ResourcePrefix-rg-$Location"
 $StorageAccountName                 = "{0}sa" -f $ResourcePrefix # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
@@ -89,7 +95,7 @@ Publish-GuestConfigurationPolicy -Path './policies'
 $PolicyDefinition = Get-AzPolicyDefinition -Name $PolicyId
 $NonComplianceMessage = [Microsoft.Azure.Commands.ResourceManager.Cmdlets.Entities.Policy.NonComplianceMessage]::new()
 $NonComplianceMessage.message = "Non Compliance Message"
-$IncludeArcConnectedServers = @{'IncludeArcMachines'='true'}
+$IncludeArcConnectedServers = @{'IncludeArcMachines'='True'}
 
 $PolicyAssignment = New-AzPolicyAssignment -Name $ConfigurationName -DisplayName "Make sure all servers comply with $ConfigurationName" -Scope $ResourceGroup.ResourceId -PolicyDefinition $PolicyDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $Location -PolicyParameterObject $IncludeArcConnectedServers -NonComplianceMessage $NonComplianceMessage  
 
