@@ -41,7 +41,8 @@ $null = New-Item -Path "$($env:SystemDrive)\Source Control\GitHub" -ItemType Dir
 #Installing the NuGet Provider
 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 
-Install-Module -Name AutomatedLab -RequiredVersion 5.42.0 -SkipPublisherCheck -AllowClobber -Force
+#Install-Module -Name AutomatedLab -RequiredVersion 5.42.0 -SkipPublisherCheck -AllowClobber -Force
+Install-Module -Name AutomatedLab -SkipPublisherCheck -AllowClobber -Force
 $AzModules = "Az.Accounts", "Az.Storage", "Az.Compute", "Az.Network", "Az.Resources", "Az.Websites"
 Install-Module -Name $AzModules -Force -Verbose
 

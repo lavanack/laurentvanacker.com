@@ -170,7 +170,8 @@ Configuration AutomatedLabSetupDSC {
  
             SetScript = {
                 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-                Install-Module -Name AutomatedLab -RequiredVersion 5.42.0 -SkipPublisherCheck -AllowClobber -Force
+                #Install-Module -Name AutomatedLab -RequiredVersion 5.42.0 -SkipPublisherCheck -AllowClobber -Force
+                Install-Module -Name AutomatedLab -SkipPublisherCheck -AllowClobber -Force
             }
  
             TestScript = {

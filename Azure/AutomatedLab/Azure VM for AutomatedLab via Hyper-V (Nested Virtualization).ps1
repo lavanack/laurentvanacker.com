@@ -44,6 +44,8 @@ $RDPPort                        = 3389
 $JitPolicyTimeInHours           = 3
 $JitPolicyName                  = "Default"
 $Location                       = "ukwest"
+#To list all Azure locations : (Get-AzLocation).Location | Sort-Object
+#$Location                       = "uksouth"
 $ResourceGroupName              = "AutomatedLab-rg-$Location"
 $VirtualNetworkName             = "AutomatedLab-vnet-$Location"
 $VirtualNetworkAddressSpace     = "10.10.0.0/16" # Format 10.10.0.0/16
@@ -51,7 +53,7 @@ $SubnetIPRange                  = "10.10.1.0/24" # Format 10.10.1.0/24
 $SubnetName                     = "AutomatedLab-Subnet"
 $NICNetworkSecurityGroupName    = "AutomatedLab-nic-nsg-$Location"
 $subnetNetworkSecurityGroupName = "AutomatedLab-vnet-Subnet-nsg-$Location"
-$StorageAccountName             = "automatedlabsa" # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
+$StorageAccountName             = "automatedlabsa$($Location)" # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name $StorageAccountName 
 $StorageAccountSkuName          = "Standard_LRS"
 $SubscriptionName               = "Microsoft Azure Internal Consumption"
 $MyPublicIp                     = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
@@ -132,14 +134,14 @@ $PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $Resour
 $NIC      = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -PublicIpAddressId $PublicIP.Id -NetworkSecurityGroupId $NetworkSecurityGroup.Id
 
 <# Optional : Step 8: Get Virtual Machine publisher, Image Offer, Sku and Image
-$ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq "MicrosoftWindowsServer"}
-$ImageOffer = Get-AzVMImageOffer -Location $Location -publisher $VMImagePublisher.PublisherName | Where-Object -FilterScript { $_.Offer  -eq "WindowsServer"}
-$ImageSku = Get-AzVMImageSku -Location  $Location -publisher $VMImagePublisher.PublisherName -offer $VMImageOffer.Offer | Where-Object -FilterScript { $_.Skus  -eq "2019-Datacenter"}
-$image = Get-AzVMImage -Location  $Location -publisher $VMImagePublisher.PublisherName -offer $VMImageOffer.Offer -sku $VMImageSku.Skus | Sort-Object -Property Version -Descending | Select-Object -First 1
+$ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq "MicrosoftWindowsDesktop"}
+$ImageOffer = Get-AzVMImageOffer -Location $Location -publisher $ImagePublisherName.PublisherName | Where-Object -FilterScript { $_.Offer  -eq "Windows-11"}
+$ImageSku = Get-AzVMImageSku -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer | Where-Object -FilterScript { $_.Skus  -eq "win11-21h2-pro"}
+$image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer -sku $ImageSku.Skus | Sort-Object -Property Version -Descending | Select-Object -First 1
 #>
 
 # Step 9: Create a virtual machine configuration file (As a Spot Intance)
-$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize #-Priority "Spot" -MaxPrice -1
+$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1
 Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 
 # Set VM operating system parameters
@@ -225,6 +227,8 @@ Publish-AzVMDscConfiguration $DSCFilePath -ResourceGroupName $ResourceGroupName 
 Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$DSCFileName.zip" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $ConfigurationName -Version "2.80" -Location $Location -AutoUpdate -Verbose
 $VM | Update-AzVM -Verbose
 #endregion
+<#
+#>
 
 Start-Sleep -Seconds 15
 
