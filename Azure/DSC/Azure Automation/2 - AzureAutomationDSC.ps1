@@ -1,4 +1,5 @@
 #requires -Version 5 -RunAsAdministrator 
+#To run from the Azure VM
 #More info on https://docs.microsoft.com/en-us/azure/automation/automation-dsc-overview
 Clear-Host
 $CurrentScript = $MyInvocation.MyCommand.Path
