@@ -44,20 +44,20 @@ $RDPPort                        = 3389
 $JitPolicyTimeInHours           = 3
 $JitPolicyName                  = "Default"
 $Location                       = "ukwest"
-$ResourceGroupName              = "AzArc-rg-$Location"
-$VirtualNetworkName             = "AzArc-vnet-$Location"
+#To list all Azure locations : (Get-AzLocation).Location | Sort-Object
+#$Location                       = "uksouth"
+$ResourceGroupName              = "AzureArc-rg-$Location"
+$VirtualNetworkName             = "AzureArc-vnet-$Location"
 $VirtualNetworkAddressSpace     = "10.10.0.0/16" # Format 10.10.0.0/16
 $SubnetIPRange                  = "10.10.1.0/24" # Format 10.10.1.0/24
-$SubnetName                     = "AzArc-Subnet"
-$NICNetworkSecurityGroupName    = "AzArc-nic-nsg-$Location"
-$subnetNetworkSecurityGroupName = "AzArc-vnet-Subnet-nsg-$Location"
-$StorageAccountName             = "azarcsa" # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
+$SubnetName                     = "AzureArc-Subnet"
+$NICNetworkSecurityGroupName    = "AzureArc-nic-nsg-$Location"
+$subnetNetworkSecurityGroupName = "AzureArc-vnet-Subnet-nsg-$Location"
+$StorageAccountName             = "azurearcsa$($Location)" # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name $StorageAccountName 
+$StorageAccountName             = $StorageAccountName.Substring(0, [system.math]::min(24, $StorageAccountName.Length))
 $StorageAccountSkuName          = "Standard_LRS"
-$SubscriptionName               = "Microsoft Azure Internal Consumption"
+$SubscriptionName               = "Cloud Solution Architect"
 $MyPublicIp                     = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
-$DSCFileName                    = "AzureVMAzureArcOnBoardingPreRequisitesDSC.ps1"
-$DSCFilePath                    = Join-Path -Path $CurrentDir -ChildPath $DSCFileName
-$ConfigurationName              = "AzureVMAzureArcOnBoardingPreRequisitesDSC"
 #endregion
 
 #region Defining credential(s)
@@ -70,11 +70,10 @@ $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList
 #endregion
 
 #region Define Variables needed for Virtual Machine
-#$VMName 	        = "AL-$('{0:yyMMddHHmm}' -f (Get-Date))"
-$VMName 	        = "AzArc-vm1"
+$VMName 	        = "arc-vm"
 $ImagePublisherName	= "MicrosoftWindowsDesktop"
 $ImageOffer	        = "Windows-11"
-$ImageSku	        = "win11-21h2-ent"
+$ImageSku	        = "azurearc-21h2-ent"
 $VMSize 	        = "Standard_D8s_v5"
 $PublicIPName       = "$VMName-PIP" 
 $NICName            = "$VMName-NIC"
@@ -85,6 +84,8 @@ $OSDiskType         = "Premium_LRS"
 $FQDN               = "$VMName.$Location.cloudapp.azure.com".ToLower()
 #endregion
 
+Write-Host "The FQDN is: $FQDN"
+
 # Login to your Azure subscription.
 if (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName))
 {
@@ -93,11 +94,21 @@ if (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName))
     Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
 }
 
+if ($null -eq (Get-AZVMSize -Location $Location | Where-Object -FilterScript {$_.Name -eq $VMSize}))
+{
+    Write-Error "The [$VMSize] is not available in the [$Location] location ..." -ErrorAction Stop
+}
+
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
 if ($ResourceGroup)
 {
-    #Step 0: Remove previously existing Azure Resource Group with the "AzArc-rg" name
+    #Step 0: Remove previously existing Azure Resource Group with the "AzureArc-rg" name
     $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
+}
+
+if (-not((Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable))
+{
+    Write-Error "The [$StorageAccountName] is not available ..." -ErrorAction Stop
 }
 
 #Step 1: Create Azure Resource Group
@@ -132,10 +143,10 @@ $PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $Resour
 $NIC      = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -PublicIpAddressId $PublicIP.Id #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
 
 <# Optional : Step 8: Get Virtual Machine publisher, Image Offer, Sku and Image
-$ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq "MicrosoftWindowsServer"}
-$ImageOffer = Get-AzVMImageOffer -Location $Location -publisher $VMImagePublisher.PublisherName | Where-Object -FilterScript { $_.Offer  -eq "WindowsServer"}
-$ImageSku = Get-AzVMImageSku -Location  $Location -publisher $VMImagePublisher.PublisherName -offer $VMImageOffer.Offer | Where-Object -FilterScript { $_.Skus  -eq "2019-Datacenter"}
-$image = Get-AzVMImage -Location  $Location -publisher $VMImagePublisher.PublisherName -offer $VMImageOffer.Offer -sku $VMImageSku.Skus | Sort-Object -Property Version -Descending | Select-Object -First 1
+$ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq "MicrosoftWindowsDesktop"}
+$ImageOffer = Get-AzVMImageOffer -Location $Location -publisher $ImagePublisherName.PublisherName | Where-Object -FilterScript { $_.Offer  -eq "Windows-11"}
+$ImageSku = Get-AzVMImageSku -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer | Where-Object -FilterScript { $_.Skus  -eq "azurearc-21h2-pro"}
+$image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer -sku $ImageSku.Skus | Sort-Object -Property Version -Descending | Select-Object -First 1
 #>
 
 # Step 9: Create a virtual machine configuration file (As a Spot Intance)
@@ -177,6 +188,7 @@ $NewJitPolicy = (@{
             })   
     })
 
+
 Write-Host "Get Existing JIT Policy. You can Ignore the error if not found."
 $ExistingJITPolicy = (Get-AzJitNetworkAccessPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -ErrorAction Ignore).VirtualMachines
 $UpdatedJITPolicy  = $ExistingJITPolicy.Where{$_.id -ne "$($VM.Id)"} # Exclude existing policy for $VMName
@@ -217,12 +229,6 @@ New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Pro
 #endregion
 #Step 11: Start Azure Virtual Machine
 Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
-
-# Publishing DSC Configuration for AzArc via Hyper-V (Nested Virtualization)
-Publish-AzVMDscConfiguration $DSCFilePath -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Force -Verbose
-
-Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$DSCFileName.zip" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $ConfigurationName -Version "2.80" -Location $Location -AutoUpdate -Verbose
-$VM | Update-AzVM -Verbose
 
 Start-Sleep -Seconds 15
 
