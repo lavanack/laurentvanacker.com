@@ -1,4 +1,5 @@
 ﻿#requires -Version 5 -RunAsAdministrator 
+#To run from a Domain Controller
 Clear-Host
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
@@ -11,10 +12,8 @@ Set-Location -Path $CurrentDir
     Install-Module -Name Az.Accounts, Az.Network, Az.Resources, Az.Storage -Force -Verbose
     Update-Module PowerShellGet -Force -Verbose
 
-    $response = Invoke-WebRequest -Uri https://github.com/Azure-Samples/azure-files-samples/releases
-    $LatestRelease = "https://github.com" + $($response.Links | Where-Object { $_.innerText -match $AzFilesHybridZipName} | Select-Object -First 1).href
     $OutFile = Join-Path -Path $CurrentDir -ChildPath $AzFilesHybridZipName
-    Invoke-WebRequest -Uri $LatestRelease -OutFile $OutFile
+    Start-BitsTransfer https://github.com/Azure-Samples/azure-files-samples/releases/latest/download/AzFilesHybrid.zip -destination $OutFile
     Expand-Archive -Path $OutFile -DestinationPath $CurrentDir -Force
     Set-Location -Path .\AzFilesHybrid
     .\CopyToPSPath.ps1
@@ -41,6 +40,7 @@ Set-Location -Path $CurrentDir
 #    - It is recommended not locate MSIX packages on same storage as FSLogix in production environment, 
 #    - Create a storage account and new file share like explained in Lab 05 / Exercice 1 / Task 1,2 & 3 or run the following command lines from PowerShell Core
     Connect-AzAccount
+    Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
     $AzContext = Get-AzContext
     $null=$AzContext.Account -match "\w+@(\w+).onmicrosoft.com"
     $SubscriptionId = $AzContext.Subscription.Id
