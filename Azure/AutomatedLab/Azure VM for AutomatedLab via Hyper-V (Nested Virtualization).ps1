@@ -44,16 +44,15 @@ $RDPPort                        = 3389
 $JitPolicyTimeInHours           = 3
 $JitPolicyName                  = "Default"
 $Location                       = "ukwest"
-#To list all Azure locations : (Get-AzLocation).Location | Sort-Object
-#$Location                       = "uksouth"
-$ResourceGroupName              = "AutomatedLab-rg-$Location"
-$VirtualNetworkName             = "AutomatedLab-vnet-$Location"
+$ResourcePrefix                 = "automatedlab"
+$ResourceGroupName              = "$ResourcePrefix-rg-$Location"
+$VirtualNetworkName             = "$ResourcePrefix-vnet-$Location"
 $VirtualNetworkAddressSpace     = "10.10.0.0/16" # Format 10.10.0.0/16
 $SubnetIPRange                  = "10.10.1.0/24" # Format 10.10.1.0/24
-$SubnetName                     = "AutomatedLab-Subnet"
-$NICNetworkSecurityGroupName    = "AutomatedLab-nic-nsg-$Location"
-$subnetNetworkSecurityGroupName = "AutomatedLab-vnet-Subnet-nsg-$Location"
-$StorageAccountName             = "automatedlabsa$($Location)" # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name $StorageAccountName 
+$SubnetName                     = "$ResourcePrefix-Subnet-$Location"
+$NICNetworkSecurityGroupName    = "$ResourcePrefix-nic-nsg-$Location"
+$subnetNetworkSecurityGroupName = "$ResourcePrefix-vnet-Subnet-nsg-$Location"
+$StorageAccountName             = "{0}sa{1}" -f $ResourcePrefix, $Location # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name $StorageAccountName 
 $StorageAccountName             = $StorageAccountName.Substring(0, [system.math]::min(24, $StorageAccountName.Length))
 $StorageAccountSkuName          = "Standard_LRS"
 $SubscriptionName               = "Cloud Solution Architect"
@@ -74,7 +73,8 @@ $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList
 
 #region Define Variables needed for Virtual Machine
 #$VMName 	        = "AL-$('{0:yyMMddHHmm}' -f (Get-Date))"
-$VMName 	        = "automatedlab"
+$VMName 	        = "{0}win11" -f $ResourcePrefix
+$VMName             = $VMName.Substring(0, [system.math]::min(15, $StorageAccountName.Length))
 $ImagePublisherName	= "MicrosoftWindowsDesktop"
 $ImageOffer	        = "Windows-11"
 $ImageSku	        = "win11-21h2-ent"
