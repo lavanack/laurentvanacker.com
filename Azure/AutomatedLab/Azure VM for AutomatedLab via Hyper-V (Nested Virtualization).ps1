@@ -54,8 +54,9 @@ $SubnetName                     = "AutomatedLab-Subnet"
 $NICNetworkSecurityGroupName    = "AutomatedLab-nic-nsg-$Location"
 $subnetNetworkSecurityGroupName = "AutomatedLab-vnet-Subnet-nsg-$Location"
 $StorageAccountName             = "automatedlabsa$($Location)" # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name $StorageAccountName 
+$StorageAccountName             = $StorageAccountName.Substring(0, [system.math]::min(24, $StorageAccountName.Length))
 $StorageAccountSkuName          = "Standard_LRS"
-$SubscriptionName               = "Microsoft Azure Internal Consumption"
+$SubscriptionName               = "Cloud Solution Architect"
 $MyPublicIp                     = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
 $DSCFileName                    = "AutomatedLabSetupDSC.ps1"
 $DSCFilePath                    = Join-Path -Path $CurrentDir -ChildPath $DSCFileName
@@ -87,6 +88,8 @@ $OSDiskType         = "Premium_LRS"
 $FQDN               = "$VMName.$Location.cloudapp.azure.com".ToLower()
 #endregion
 
+Write-Host "The FQDN is: $FQDN"
+
 # Login to your Azure subscription.
 if (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName))
 {
@@ -95,11 +98,21 @@ if (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName))
     Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
 }
 
+if ($null -eq (Get-AZVMSize -Location $Location | Where-Object -FilterScript {$_.Name -eq $VMSize}))
+{
+    Write-Error "The [$VMSize] is not available in the [$Location] location ..." -ErrorAction Stop
+}
+
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
 if ($ResourceGroup)
 {
     #Step 0: Remove previously existing Azure Resource Group with the "AutomatedLab-rg" name
     $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
+}
+
+if (-not((Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable))
+{
+    Write-Error "The [$StorageAccountName] is not available ..." -ErrorAction Stop
 }
 
 #Step 1: Create Azure Resource Group
@@ -131,7 +144,7 @@ $PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $Resour
 #$PublicIP.DnsSettings.Fqdn = $FQDN
 
 #Step 7: Create Network Interface Card 
-$NIC      = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -PublicIpAddressId $PublicIP.Id -NetworkSecurityGroupId $NetworkSecurityGroup.Id
+$NIC      = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -PublicIpAddressId $PublicIP.Id #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
 
 <# Optional : Step 8: Get Virtual Machine publisher, Image Offer, Sku and Image
 $ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq "MicrosoftWindowsDesktop"}
@@ -178,6 +191,7 @@ $NewJitPolicy = (@{
                 maxRequestAccessDuration   = "PT$($JitPolicyTimeInHours)H"
             })   
     })
+
 
 Write-Host "Get Existing JIT Policy. You can Ignore the error if not found."
 $ExistingJITPolicy = (Get-AzJitNetworkAccessPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -ErrorAction Ignore).VirtualMachines

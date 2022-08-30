@@ -1,4 +1,5 @@
 ﻿Clear-Host
+Get-Variable -Scope Script | Remove-Variable -Scope Script -Force -ErrorAction Ignore
 
 #region function definitions 
 #Based from https://adamtheautomator.com/powershell-random-password/
@@ -9,7 +10,7 @@ function New-RandomPassword
     (
         [int] $minLength = 12, ## characters
         [int] $maxLength = 15, ## characters
-        [int] $nonAlphaChars = 5,
+        [int] $nonAlphaChars = 3,
         [switch] $AsSecureString,
         [switch] $ClipBoard
     )
@@ -38,17 +39,28 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
-#region Defining variables for networking part
-$ResourceGroupName          = "automatedlab-rg"
-$Location                   = "FranceCentral"
-$VirtualNetworkName         = "automatedlab-vnet"
-$VirtualNetworkAddressSpace = "10.10.0.0/16" # Format 10.10.0.0/16
-$SubnetIPRange              = "10.10.1.0/24" # Format 10.10.1.0/24
-$SubnetName                 = "Subnet"
-$NetworkSecurityGroupName   = "automatedlab-nsg"
-$StorageAccountName         = "automatelabsa" # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
-$StorageAccountSkuName      = "Standard_LRS"
-$SubscriptionName           = "Microsoft Azure Internal Consumption"
+#region Defining variables 
+$RDPPort                        = 3389
+$JitPolicyTimeInHours           = 3
+$JitPolicyName                  = "Default"
+$Location                       = "ukwest"
+#To list all Azure locations : (Get-AzLocation).Location | Sort-Object
+#$Location                       = "uksouth"
+$ResourceGroupName              = "Win11-rg-$Location"
+$VirtualNetworkName             = "Win11-vnet-$Location"
+$VirtualNetworkAddressSpace     = "10.10.0.0/16" # Format 10.10.0.0/16
+$SubnetIPRange                  = "10.10.1.0/24" # Format 10.10.1.0/24
+$SubnetName                     = "Win11-Subnet"
+$NICNetworkSecurityGroupName    = "Win11-nic-nsg-$Location"
+$subnetNetworkSecurityGroupName = "Win11-vnet-Subnet-nsg-$Location"
+$StorageAccountName             = "win11sa$($Location)" # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name $StorageAccountName 
+$StorageAccountName             = $StorageAccountName.Substring(0, [system.math]::min(24, $StorageAccountName.Length))
+$StorageAccountSkuName          = "Standard_LRS"
+$SubscriptionName               = "Cloud Solution Architect"
+$MyPublicIp                     = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
+$DSCFileName                    = "Win11SetupDSC.ps1"
+$DSCFilePath                    = Join-Path -Path $CurrentDir -ChildPath $DSCFileName
+$ConfigurationName              = "Win11SetupDSC"
 #endregion
 
 #region Defining credential(s)
@@ -56,72 +68,93 @@ $Username = $env:USERNAME
 #$ClearTextPassword = 'I@m@JediLikeMyF@therB4Me'
 #$ClearTextPassword = New-RandomPassword -ClipBoard -Verbose
 #$SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
-#$SecurePassword = New-RandomPassword -ClipBoard -AsSecureString -Verbose
-$SecurePassword = Read-Host -Prompt "Enter your Password" -AsSecureString
+$SecurePassword = New-RandomPassword -ClipBoard -AsSecureString -Verbose
 $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList ($Username, $SecurePassword)
 #endregion
 
 #region Define Variables needed for Virtual Machine
-$VMName 	        = "WIN10"
+#$VMName 	        = "AL-$('{0:yyMMddHHmm}' -f (Get-Date))"
+$VMName 	        = "win11"
 $ImagePublisherName	= "MicrosoftWindowsDesktop"
-$ImageOffer	        = "Windows-10"
-$ImageSku	        = "20h2-ent"
-$VMSize 	        = "Standard_D4s_v3"
+$ImageOffer	        = "Windows-11"
+$ImageSku	        = "win11-21h2-ent"
+$VMSize 	        = "Standard_D8s_v5"
 $PublicIPName       = "$VMName-PIP" 
 $NICName            = "$VMName-NIC"
 $OSDiskName         = "$VMName-OSDisk"
-$DataDiskName       = "$VMName-DataDisk"
-$OSDiskSize         = "128"
-$DataDiskSize       = "256"
+$DataDiskName       = "$VMName-DataDisk01"
+$OSDiskSize         = "127"
 $OSDiskType         = "Premium_LRS"
-$DataDiskType       = "Premium_LRS"
+$FQDN               = "$VMName.$Location.cloudapp.azure.com".ToLower()
 #endregion
 
+Write-Host "The FQDN is: $FQDN"
+
 # Login to your Azure subscription.
-Connect-AzAccount
-#$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
-Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
+if (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName))
+{
+    Connect-AzAccount
+    #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
+    Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
+}
+
+if ($null -eq (Get-AZVMSize -Location $Location | Where-Object -FilterScript {$_.Name -eq $VMSize}))
+{
+    Write-Error "The [$VMSize] is not available in the [$Location] location ..." -ErrorAction Stop
+}
 
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
 if ($ResourceGroup)
 {
-    #Step 0: Remove previously existing Azure Resource Group with the "automatedlab-rg" name
+    #Step 0: Remove previously existing Azure Resource Group with the "Win11-rg" name
     $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
+}
+
+if (-not((Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable))
+{
+    Write-Error "The [$StorageAccountName] is not available ..." -ErrorAction Stop
 }
 
 #Step 1: Create Azure Resource Group
 # Create Resource Groups and Storage Account for diagnostic
-New-AzResourceGroup -Name $ResourceGroupName -Location $Location
+New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 
 #Step 2: Create Azure Storage Account
 New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName
 
 #Step 3: Create Azure Network Security Group
-$RDPRule              = New-AzNetworkSecurityRuleConfig -Name RDPRule -Description "Allow RDP" -Access Allow -Protocol Tcp -Direction Inbound -Priority 300 -SourceAddressPrefix Internet -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 3389
+#RDP only for my public IP address
+$RDPRule              = New-AzNetworkSecurityRuleConfig -Name RDPRule -Description "Allow RDP" -Access Allow -Protocol Tcp -Direction Inbound -Priority 300 -SourceAddressPrefix $MyPublicIp -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange $RDPPort
+#HTTP for everyone
 $HTTPRule             = New-AzNetworkSecurityRuleConfig -Name HTTPRule -Description "Allow HTTP" -Access Allow -Protocol Tcp -Direction Inbound -Priority 301 -SourceAddressPrefix Internet -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 80
-$NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NetworkSecurityGroupName -SecurityRules $RDPRule,$HTTPRule
+#$NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NICNetworkSecurityGroupName -SecurityRules $HTTPRule, $RDPRule -Force
+#Allowing only HTTP for everyone from a NSG POV
+$NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NICNetworkSecurityGroupName -SecurityRules $HTTPRule -Force
 
 #Steps 4 + 5: Create Azure Virtual network using the virtual network subnet configuration
 $vNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName -AddressPrefix $VirtualNetworkAddressSpace -Location $Location
-Add-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $vNetwork -AddressPrefix $SubnetIPRange
+
+Add-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $vNetwork -AddressPrefix $SubnetIPRange -NetworkSecurityGroupId $NetworkSecurityGroup.Id
 $vNetwork = Set-AzVirtualNetwork -VirtualNetwork $vNetwork
 $Subnet   = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $vNetwork
 
 #Step 6: Create Azure Public Address
-$PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $ResourceGroupName -Location $Location -AlLocationMethod Static 
+$PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $ResourceGroupName -Location $Location -AlLocationMethod Static -DomainNameLabel $VMName.ToLower()
+#Setting up the DNS Name
+#$PublicIP.DnsSettings.Fqdn = $FQDN
 
 #Step 7: Create Network Interface Card 
-$NIC      = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -PublicIpAddressId $PublicIP.Id -NetworkSecurityGroupId $NetworkSecurityGroup.Id
+$NIC      = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -PublicIpAddressId $PublicIP.Id #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
 
 <# Optional : Step 8: Get Virtual Machine publisher, Image Offer, Sku and Image
 $ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq "MicrosoftWindowsDesktop"}
-$ImageOffer = Get-AzVMImageOffer -Location $Location -publisher $ImagePublisherName.PublisherName | Where-Object -FilterScript { $_.Offer  -eq "windows-10-20h2-vhd-client-prod-stage"}
-$ImageSku = Get-AzVMImageSku -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer | Where-Object -FilterScript { $_.Skus  -eq "2019-Datacenter"}
-$image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $VMImageOffer.Offer -sku $VMImageSku.Skus | Sort-Object -Property Version -Descending | Select-Object -First 1
+$ImageOffer = Get-AzVMImageOffer -Location $Location -publisher $ImagePublisherName.PublisherName | Where-Object -FilterScript { $_.Offer  -eq "Windows-11"}
+$ImageSku = Get-AzVMImageSku -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer | Where-Object -FilterScript { $_.Skus  -eq "win11-21h2-pro"}
+$image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer -sku $ImageSku.Skus | Sort-Object -Property Version -Descending | Select-Object -First 1
 #>
 
-# Step 9: Create a virtual machine configuration file
-$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize
+# Step 9: Create a virtual machine configuration file (As a Spot Intance)
+$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1
 Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 
 # Set VM operating system parameters
@@ -136,19 +169,73 @@ Set-AzVMSourceImage -VM $VMConfig -PublisherName $ImagePublisherName -Offer $Ima
 # Set OsDisk configuration
 Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -CreateOption fromImage
 
-# Set DataDisk configuration
-$DataDiskConfig = New-AzDiskConfig -SkuName $DataDiskType -Location $Location -CreateOption Empty -DiskSizeGB $DataDiskSize
-$DataDisk = New-AzDisk -DiskName $DataDiskName -Disk $DataDiskConfig -ResourceGroupName $ResourceGroupName
-$VMConfig = Add-AzVMDataDisk -VM $VMConfig -Name $DataDiskName -CreateOption Attach -ManagedDiskId $DataDisk.Id -Lun 1
+#region Adding Data Disk
+$VMDataDisk01Config = New-AzDiskConfig -SkuName Standard_LRS -Location $Location -CreateOption Empty -DiskSizeGB 512
+$VMDataDisk01       = New-AzDisk -DiskName $DataDiskName -Disk $VMDataDisk01Config -ResourceGroupName $ResourceGroupName
+$VM                 = Add-AzVMDataDisk -VM $VMConfig -Name $DataDiskName -CreateOption Attach -ManagedDiskId $VMDataDisk01.Id -Lun 0
+#endregion
 
 #Step 10: Create Azure Virtual Machine
-$VM = New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig
+New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig -DisableBginfoExtension
 
+$VM = Get-AzVM -ResourceGroup $ResourceGroupName -Name $VMName
+
+#region JIT Access Management
+#region Enabling JIT Access
+$NewJitPolicy = (@{
+        id    = $VM.Id
+        ports = (@{
+                number                     = $RDPPort;
+                protocol                   = "*";
+                allowedSourceAddressPrefix =  "*";
+                maxRequestAccessDuration   = "PT$($JitPolicyTimeInHours)H"
+            })   
+    })
+
+
+Write-Host "Get Existing JIT Policy. You can Ignore the error if not found."
+$ExistingJITPolicy = (Get-AzJitNetworkAccessPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -ErrorAction Ignore).VirtualMachines
+$UpdatedJITPolicy  = $ExistingJITPolicy.Where{$_.id -ne "$($VM.Id)"} # Exclude existing policy for $VMName
+$UpdatedJITPolicy.Add($NewJitPolicy)
+	
+#! Enable Access to the VM including management Port, and Time Range in Hours
+Write-Host "Enabling Just in Time VM Access Policy for ($VMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
+$null = Set-AzJitNetworkAccessPolicy -VirtualMachine $UpdatedJITPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -Kind "Basic"
+#endregion
+
+#region Requesting Temporary Access : 3 hours
+$JitPolicy = (@{
+        id    = $VM.Id
+        ports = (@{
+                number                     = $RDPPort;
+                endTimeUtc                 = (Get-Date).AddHours(3).ToUniversalTime()
+                allowedSourceAddressPrefix = @($MyPublicIP) 
+            })
+    })
+$ActivationVM = @($JitPolicy)
+Write-Host "Requesting Temporary Acces via Just in Time for ($VMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
+Start-AzJitNetworkAccessPolicy -ResourceGroupName $($VM.ResourceGroupName) -Location $VM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM
+#endregion
+
+#endregion
+
+#region Enabling auto-shutdown at 11:00 PM in the user time zome
+$SubscriptionId              = ($VM.Id).Split('/')[2]
+$ScheduledShutdownResourceId = "/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroupName/providers/microsoft.devtestlab/schedules/shutdown-computevm-$VMName"
+$Properties                  = @{}
+$Properties.Add('status', 'Enabled')
+$Properties.Add('taskType', 'ComputeVmShutdownTask')
+$Properties.Add('dailyRecurrence', @{'time'= "2300"})
+$Properties.Add('timeZoneId', (Get-TimeZone).Id)
+$Properties.Add('targetResourceId', $VM.Id)
+New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Properties $Properties -Force
+
+#endregion
 #Step 11: Start Azure Virtual Machine
 Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 
-#Copying the Pulic IP into the clipboard 
-#$PublicIP.IpAddress | Set-Clipboard
+Start-Sleep -Seconds 15
 
-#Step 11: Start RDP Session
-mstsc /v $PublicIP.IpAddress
+#Step 12: Start RDP Session
+#mstsc /v $PublicIP.IpAddress
+mstsc /v $FQDN
