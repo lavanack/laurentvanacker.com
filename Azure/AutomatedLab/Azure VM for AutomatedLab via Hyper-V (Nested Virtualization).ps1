@@ -53,7 +53,7 @@ $SubnetName                     = "$ResourcePrefix-Subnet-$Location"
 $NICNetworkSecurityGroupName    = "$ResourcePrefix-nic-nsg-$Location"
 $subnetNetworkSecurityGroupName = "$ResourcePrefix-vnet-Subnet-nsg-$Location"
 $StorageAccountName             = "{0}sa{1}" -f $ResourcePrefix, $Location # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name $StorageAccountName 
-$StorageAccountName             = $StorageAccountName.Substring(0, [system.math]::min(24, $StorageAccountName.Length))
+$StorageAccountName             = $StorageAccountName.Substring(0, [system.math]::min(24, $StorageAccountName.Length)).ToLower()
 $StorageAccountSkuName          = "Standard_LRS"
 $SubscriptionName               = "Cloud Solution Architect"
 $MyPublicIp                     = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
@@ -74,7 +74,7 @@ $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList
 #region Define Variables needed for Virtual Machine
 #$VMName 	        = "AL-$('{0:yyMMddHHmm}' -f (Get-Date))"
 $VMName 	        = "{0}win11" -f $ResourcePrefix
-$VMName             = $VMName.Substring(0, [system.math]::min(15, $StorageAccountName.Length))
+$VMName             = $VMName.Substring(0, [system.math]::min(15, $VMName.Length))
 $ImagePublisherName	= "MicrosoftWindowsDesktop"
 $ImageOffer	        = "Windows-11"
 $ImageSku	        = "win11-21h2-ent"
