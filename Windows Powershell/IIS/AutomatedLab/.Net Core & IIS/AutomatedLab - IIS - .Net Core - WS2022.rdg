@@ -39,19 +39,19 @@
       <logonCredentials inherit="None">
         <profileName scope="Local">Custom</profileName>
         <userName>Administrator</userName>
-        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAqbuBAoNR1UmVxQ88yfuX1gAAAAACAAAAAAAQZgAAAAEAACAAAABFyLE/ihA0gmYU6b9ErX1fcwbx7OUYNsIZhyFwWZwc9QAAAAAOgAAAAAIAACAAAACCOoFaUPmjUoxoziMk0yvCDz2CTLefau2JgZt2TiB9RSAAAAA7TzeNC4MegvSXvgb1nPWIwCrWu/ewIByH0M7IYnbLVEAAAACdWf1WtQSL1KfHKWQMiSy4HjVtzCjq+pNpvxVmxFMZCROJITwwuW/8vl5jwVUDk68BOhK6qCEaTkQuA4Hkmehs</password>
+        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAqbuBAoNR1UmVxQ88yfuX1gAAAAACAAAAAAAQZgAAAAEAACAAAAA3j+iJoAJxwcsJtrsvmy71wjB4PFs/yEP3Wsk2OkWGUgAAAAAOgAAAAAIAACAAAAAH954t6YKLckskwRZMeofC6axgBcwIiBQsDNlmNhCXyiAAAADTe5bN4gDCbiIYmffbFjH0LFy5BYV1h7uli8UtLdMc8kAAAABonnclV09z2GO5T0mwXKDzigRhfH00WFCNWeO49gQHOtOwqSn3F8G2eF9QmCOZui37K5wqrWwdAS0BEbCQTM+p</password>
         <domain>CONTOSO</domain>
       </logonCredentials>
       <server>
         <properties>
-          <displayName>IIS01</displayName>
-          <name>10.0.0.11</name>
+          <displayName>DC01</displayName>
+          <name>10.0.0.1</name>
         </properties>
       </server>
       <server>
         <properties>
-          <displayName>DC01</displayName>
-          <name>10.0.0.1</name>
+          <displayName>IIS01</displayName>
+          <name>10.0.0.11</name>
         </properties>
       </server>
     </group>

@@ -39,7 +39,7 @@
       <logonCredentials inherit="None">
         <profileName scope="Local">Custom</profileName>
         <userName>Administrator</userName>
-        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAOs6IcrS64UGeAtEtFiNk9QAAAAACAAAAAAAQZgAAAAEAACAAAADX0r4B/nxCfswO5tFruNAxtagdvdy06Ihrg0ubg/jZaQAAAAAOgAAAAAIAACAAAADhR/rBUB2w7L9Nidl4fKHjVBwPp4FgPlsKgU4CJSartCAAAABv+LYChVDI7KDZeIFgY726tgWtGIVZ4+/kqN5EGBNW8kAAAAAjWOmhC17gB3+p2SJM2LvVggWkXd54JTo6du87tyvs46H6eBhjSQIihoNXHP94NNNlVvDnRzwGFSTRcU89sg6t</password>
+        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAqbuBAoNR1UmVxQ88yfuX1gAAAAACAAAAAAAQZgAAAAEAACAAAADg4mR9G+tU9NcORn+qcfwjotw19NFmQhbiYJrBK5iBZwAAAAAOgAAAAAIAACAAAADEATxXGQtlG+ugzt5OGmnXV3f7x28t7kZUsfVC54Gj/yAAAAD2iSp+rnesJ1ldlJhijDNmEOKehsKxC2enguAYIaPHr0AAAAAZGcHpyycMEo6q5kA37VALvKgw8UTpUXICfH30ORYvZEI8k9JBXZwn6Jtwaur7t3lBRjxsYucbhX2hpT/vVEYR</password>
         <domain>CONTOSO</domain>
       </logonCredentials>
       <server>

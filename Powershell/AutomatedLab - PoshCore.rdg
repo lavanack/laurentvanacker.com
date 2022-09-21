@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<RDCMan programVersion="2.8" schemaVersion="3">
+<RDCMan programVersion="2.83" schemaVersion="3">
   <file>
     <credentialsProfiles />
     <properties>
@@ -39,7 +39,7 @@
       <logonCredentials inherit="None">
         <profileName scope="Local">Custom</profileName>
         <userName>Administrator</userName>
-        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAA/g+tuX7eYke1nRm2mrxIKwAAAAACAAAAAAAQZgAAAAEAACAAAADJm2nJzhBbyD4DsOHScb3eXQ15v6p7qWqfk9ZeSsuazgAAAAAOgAAAAAIAACAAAAAjf8odTcTAFnnvldlBRtA0bqvihmFMGg2Mz6kIiYFhdSAAAADZ1vTfo3GKKo8+Sy0L2jaYV7/r3tb39hVIvDUCORa9VEAAAAA1QVciHMx3h1l0FBYHMCGE5hY7Ue5NerLFiPEK80a44q1t2tzJGMihpFWMN1gEFQNDOIjqklKqord6fkrrCGdA</password>
+        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAHriQ60rhrESEtumam+t/hgAAAAACAAAAAAAQZgAAAAEAACAAAABAbiUaRS6/XmYzHNZ9qhyBBbwyPPD0AvLKfTS9EOO3fAAAAAAOgAAAAAIAACAAAACfIlouql9EMyxbGVLec+UULK7XwCtiviDwSryEfbr8HyAAAAAdQzkDvFGksDjK0QEVo09LAe/YJKKVGgSD7Mctkyji7kAAAACr6QJqK9i6K2Uj9Rfw9BBtN68RQjxmAZ0uBWyd9NSzOnmFK/HHQDwV5BoLsYIjTeBFo51dJiYtM8hfCHKALN5d</password>
         <domain>CONTOSO</domain>
       </logonCredentials>
       <server>
