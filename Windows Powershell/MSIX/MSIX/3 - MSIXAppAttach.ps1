@@ -107,7 +107,7 @@ Set-Location -Path $CurrentDir
     # Modify the existing ACL to include the new rule
     $existingAcl.SetAccessRule($AccessRule)
 
-    #Add Modify for MSIXUsers Group for This folder, subfolders and files
+    #Add "Read And Execute" for MSIXUsers Group for This folder, subfolders and files
     $identity = "MSIXUsers"
     $colRights = [System.Security.AccessControl.FileSystemRights]::ReadAndExecute
     $InheritanceFlag = [System.Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [System.Security.AccessControl.InheritanceFlags]::ObjectInherit
@@ -118,7 +118,7 @@ Set-Location -Path $CurrentDir
     # Modify the existing ACL to include the new rule
     $existingAcl.SetAccessRule($AccessRule)
 
-    #Add Modify for MSIXHosts Group for This folder, subfolders and files
+    #Add "Read And Execute" for MSIXHosts Group for This folder, subfolders and files
     $identity = "MSIXHosts"
     $colRights = [System.Security.AccessControl.FileSystemRights]::ReadAndExecute
     $InheritanceFlag = [System.Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [System.Security.AccessControl.InheritanceFlags]::ObjectInherit
