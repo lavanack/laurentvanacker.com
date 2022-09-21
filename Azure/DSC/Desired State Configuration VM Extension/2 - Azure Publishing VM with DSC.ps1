@@ -5,11 +5,13 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
 $ResourcePrefix     = "dscvmext"
 $ResourceGroupName  = "$ResourcePrefix-rg-$Location"
-$Location           = "EastUs"
-$StorageAccountName = "{0}sa" -f $ResourcePrefix # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
+$Location           = "eastus"
+$StorageAccountName = "{0}sa{1}" -f $ResourcePrefix, $Location # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name $StorageAccountName 
+$StorageAccountName = $StorageAccountName.Substring(0, [system.math]::min(24, $StorageAccountName.Length))
 $DSCFileName        = "WebServerDSC.ps1"
 $DSCFilePath        = Join-Path -Path $CurrentDir -ChildPath $DSCFileName
 $VMName 	        = "{0}ws2019" -f $ResourcePrefix
+$VMName             = $VMName.Substring(0, [system.math]::min(15, $VMName.Length))
 $ConfigurationName  = "WebServerConfiguration"
 $FQDN               = "$VMName.$Location.cloudapp.azure.com".ToLower()
 
