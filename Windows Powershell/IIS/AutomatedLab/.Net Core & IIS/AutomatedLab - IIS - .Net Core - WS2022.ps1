@@ -51,8 +51,8 @@ $DC01IPv4Address = '10.0.0.1'
 $IIS01IPv4Address = '10.0.0.11'
 
 #$ASPNetCoreHostingBundleURI = "https://www.microsoft.com/net/permalink/dotNetCore-current-windows-runtime-bundle-installer"
-$ASPNetCoreHostingBundleURI = "https://download.visualstudio.microsoft.com/download/pr/41d7c644-140a-40b5-9eb7-071544b79c65/885b7fa698a2d1d3a79ad363613f8ff2/dotnet-hosting-6.0.3-win.exe"
-$NetSDKURI = "https://download.visualstudio.microsoft.com/download/pr/1eb43f77-61af-40b0-8a5a-6165724dca60/f12aac6d4a907b4d54f5d41317aae0f7/dotnet-sdk-6.0.201-win-x64.exe"
+$ASPNetCoreHostingBundleURI = "https://download.visualstudio.microsoft.com/download/pr/eaa3eab9-cc21-44b5-a4e4-af31ee73b9fa/d8ad75d525dec0a30b52adc990796b11/dotnet-hosting-6.0.9-win.exe"
+$NetSDKURI = "https://download.visualstudio.microsoft.com/download/pr/cebf08ce-ecf1-4439-8a0a-d81b3a4cad12/674ba293b83bdc9b1e00ddfa3ab82f10/dotnet-sdk-6.0.401-win-x64.exe"
 
 
 $LabName = 'NetCore'
@@ -180,9 +180,6 @@ Install-LabSoftwarePackage -ComputerName IIS01 -Path $NetSDK.FullName -CommandLi
 #endregion
 #endregion
 
-Checkpoint-LabVM -SnapshotName BeforeIISSetup -All
-#Restore-LabVMSnapshot -SnapshotName 'BeforeIISSetup' -All -Verbose
-
 Invoke-LabCommand -ActivityName 'Setting up the IIS website' -ComputerName IIS01 -ScriptBlock {    
     #Creating directory tree for hosting web sites
     $NetCoreWebSitePath =  "C:\WebSites\$using:NetCoreWebSiteName"
@@ -229,9 +226,6 @@ Invoke-LabCommand -ActivityName 'Setting up the IIS website' -ComputerName IIS01
     Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:NetCoreWebSiteName" -filter 'system.webServer/security/authentication/AnonymousAuthentication' -name 'enabled' -value 'True'
     #endregion
 }
-
-Checkpoint-LabVM -SnapshotName BeforeDotNetSetup -All
-#Restore-LabVMSnapshot -SnapshotName 'BeforeDotNetSetup' -All -Verbose
 
 Invoke-LabCommand -ActivityName 'Setting up the IIS website' -ComputerName IIS01 -ScriptBlock {    
     #region dotnet: Create, publish and deploy the app
