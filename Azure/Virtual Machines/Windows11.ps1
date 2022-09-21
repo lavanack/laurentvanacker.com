@@ -58,9 +58,6 @@ $StorageAccountName             = $StorageAccountName.Substring(0, [system.math]
 $StorageAccountSkuName          = "Standard_LRS"
 $SubscriptionName               = "Cloud Solution Architect"
 $MyPublicIp                     = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
-$DSCFileName                    = "Win11SetupDSC.ps1"
-$DSCFilePath                    = Join-Path -Path $CurrentDir -ChildPath $DSCFileName
-$ConfigurationName              = "Win11SetupDSC"
 #endregion
 
 #region Defining credential(s)
@@ -73,7 +70,6 @@ $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList
 #endregion
 
 #region Define Variables needed for Virtual Machine
-#$VMName 	        = "AL-$('{0:yyMMddHHmm}' -f (Get-Date))"
 $VMName 	        = "win11"
 $ImagePublisherName	= "MicrosoftWindowsDesktop"
 $ImageOffer	        = "Windows-11"
