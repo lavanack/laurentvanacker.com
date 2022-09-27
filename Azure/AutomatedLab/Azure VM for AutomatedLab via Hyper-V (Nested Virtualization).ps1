@@ -43,8 +43,8 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 $RDPPort                        = 3389
 $JitPolicyTimeInHours           = 3
 $JitPolicyName                  = "Default"
-$Location                       = "ukwest"
-$ResourcePrefix                 = "automatedlab"
+$Location                       = "eastus"
+$ResourcePrefix                 = "al"
 $ResourceGroupName              = "$ResourcePrefix-rg-$Location"
 $VirtualNetworkName             = "$ResourcePrefix-vnet-$Location"
 $VirtualNetworkAddressSpace     = "10.10.0.0/16" # Format 10.10.0.0/16
@@ -129,7 +129,7 @@ $RDPRule              = New-AzNetworkSecurityRuleConfig -Name RDPRule -Descripti
 $HTTPRule             = New-AzNetworkSecurityRuleConfig -Name HTTPRule -Description "Allow HTTP" -Access Allow -Protocol Tcp -Direction Inbound -Priority 301 -SourceAddressPrefix Internet -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 80
 #$NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NICNetworkSecurityGroupName -SecurityRules $HTTPRule, $RDPRule -Force
 #Allowing only HTTP for everyone from a NSG POV
-$NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NICNetworkSecurityGroupName -SecurityRules $HTTPRule -Force
+$NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NICNetworkSecurityGroupName -SecurityRules $HTTPRule, $RDPRule -Force
 
 #Steps 4 + 5: Create Azure Virtual network using the virtual network subnet configuration
 $vNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName -AddressPrefix $VirtualNetworkAddressSpace -Location $Location

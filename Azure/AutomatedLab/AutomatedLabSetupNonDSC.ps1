@@ -22,7 +22,7 @@ Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Management-
 #region Installing Hyper-V
 if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All).State -ne 'Enabled')
 {
-    Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All -All
+    Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All -All -NoRestart
     Restart-Computer -Force
 }
 
@@ -49,6 +49,9 @@ Install-Module -Name $AzModules -Force -Verbose
 #  Disable (which is already the default) and in addition skip dialog
 [Environment]::SetEnvironmentVariable('AUTOMATEDLAB_TELEMETRY_OPTIN', 'false', 'Machine')
 $env:AUTOMATEDLAB_TELEMETRY_OPTIN = 'false'
+
+#releasing Execution Policy
+Set-ExecutionPolicy -Scope LocalMachine -ExecutionPolicy Unrestricted -Force
 
 # Pre-configure Lab Host Remoting
 Enable-LabHostRemoting -Force

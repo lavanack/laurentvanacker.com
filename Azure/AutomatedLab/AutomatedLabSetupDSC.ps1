@@ -216,6 +216,25 @@ Configuration AutomatedLabSetupDSC {
             DependsOn = '[Script]InstallAutomatedLabModule'
         }
 
+	    Script RelaxExecutionPolicy 
+        {
+            GetScript = {
+                @{
+                    GetScript  = $GetScript
+                    SetScript  = $SetScript
+                    TestScript = $TestScript
+                }
+            }
+ 
+            SetScript = {
+                Set-ExecutionPolicy -Scope LocalMachine -ExecutionPolicy Unrestricted -Force
+            }
+ 
+            TestScript = {
+                return ((Get-ExecutionPolicy -Scope LocalMachine) -eq 'Unrestricted')
+            }
+        }
+
 	    Script EnableLabHostRemoting 
         {
             GetScript = {
@@ -233,7 +252,7 @@ Configuration AutomatedLabSetupDSC {
             TestScript = {
                 return Test-LabHostRemoting
             }
-            DependsOn = '[Environment]DisableAutomatedLabTelemetry'
+            DependsOn = '[Environment]DisableAutomatedLabTelemetry', '[Script]RelaxExecutionPolicy'
         }
 
         Script AutomatedLabModuleLabSourcesLocation
