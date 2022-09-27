@@ -8,7 +8,7 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
 
-#region From Windows PowerShells
+#region From Windows PowerShell
 #Installing Powershell 7+ : Silent Install
 Invoke-Expression -Command "& { $(Invoke-RestMethod https://aka.ms/install-powershell.ps1) } -UseMSI -Quiet"
 

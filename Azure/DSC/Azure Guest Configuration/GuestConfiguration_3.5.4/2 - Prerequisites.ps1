@@ -18,12 +18,12 @@ Stop-Process -Name Explorer -Force
 Get-PackageProvider -Name Nuget -ForceBootstrap -Force
 #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 #Install-Module -Name Az.Compute, Az.PolicyInsights, Az.Resources, Az.Storage, GuestConfiguration, PSDesiredStateConfiguration, PSDSCResources -Force
-Install-Module -Name Az.Compute, Az.PolicyInsights, Az.Resources, Az.Storage, PSDesiredStateConfiguration, PSDSCResources -Force
+Install-Module -Name Az.Accounts, Az.Compute, Az.PolicyInsights, Az.Resources, Az.Storage, PSDesiredStateConfiguration, PSDSCResources -Force
 Install-Module -Name GuestConfiguration -RequiredVersion 3.5.4 -Force
 
 #Connection to Azure and Subscription selection
 Connect-AzAccount
-Get-AzSubscription | Out-GridView -PassThru | Select-AzSubscription
+Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
 
 #Installing Powershell 7+ : Silent Install
 Invoke-Expression -Command "& { $(Invoke-RestMethod https://aka.ms/install-powershell.ps1) } -UseMSI -Quiet"

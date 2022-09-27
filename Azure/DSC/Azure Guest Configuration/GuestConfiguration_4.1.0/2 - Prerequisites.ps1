@@ -1,4 +1,5 @@
-﻿#requires -Version 5 -RunAsAdministrator 
+﻿#To run from the Azure VM
+#requires -Version 5 -RunAsAdministrator 
 #More info on https://docs.microsoft.com/en-us/azure/governance/policy/how-to/guest-configuration-create-setup
 Clear-Host
 $CurrentScript = $MyInvocation.MyCommand.Path
@@ -16,21 +17,36 @@ Stop-Process -Name Explorer -Force
 #Installing the NuGet Provider
 Get-PackageProvider -Name Nuget -ForceBootstrap -Force
 #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-Install-Module -Name Az.Compute, Az.PolicyInsights, Az.Resources, Az.Storage, GuestConfiguration, PSDesiredStateConfiguration, PSDSCResources -Force
+#Install-Module -Name Az.Compute, Az.PolicyInsights, Az.Resources, Az.Storage, GuestConfiguration, PSDesiredStateConfiguration, PSDSCResources -Force
+Install-Module -Name Az.Accounts, Az.Compute, Az.PolicyInsights, Az.Resources, Az.Storage, PSDesiredStateConfiguration, PSDSCResources -Force
+Install-Module -Name GuestConfiguration -Force
 
 #Connection to Azure and Subscription selection
 Connect-AzAccount
-Get-AzSubscription | Out-GridView -PassThru | Select-AzSubscription
+Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
 
 #Installing Powershell 7+ : Silent Install
 Invoke-Expression -Command "& { $(Invoke-RestMethod https://aka.ms/install-powershell.ps1) } -UseMSI -Quiet"
 
-#Installing VSCode with Powershell extension
-Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) }" -Verbose
+#region Installing VSCode with useful extensions : Silent Install
+$VSCodeExtension = [ordered]@{
+    #"PowerShell" = "ms-vscode.powershell"
+    #'Live Share Extension Pack' = 'ms-vsliveshare.vsliveshare-pack'
+    #'Git Graph' = 'mhutchie.git-graph'
+    #'Git History' = 'donjayamanne.githistory'
+    #'GitLens - Git supercharged' = 'eamodio.gitlens'
+    #'Git File History' = 'pomber.git-file-history'
+    'indent-rainbow' = 'oderwat.indent-rainbow'
+    'Azure Policy' = 'AzurePolicy.azurepolicyextension'
+}
+Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) } -AdditionalExtensions $($VSCodeExtension.Values -join ',')" -Verbose
+#endregion
 
 Register-AzResourceProvider -ProviderNamespace Microsoft.GuestConfiguration
+Get-AzResourceProvider -ProviderNamespace Microsoft.GuestConfiguration | Where-Object RegistrationState -eq Registered
+
 #From https://docs.microsoft.com/en-us/azure/governance/policy/assign-policy-powershell
 # Register the resource provider if it's not already registered
-Register-AzResourceProvider -ProviderNamespace Microsoft.PolicyInsights
+Register-AzResourceProvider -ProviderNamespace 'Microsoft.PolicyInsights'
 
 Start-Process -FilePath "C:\Program Files\Microsoft VS Code\Code.exe" -ArgumentList "`"$CurrentDir`""

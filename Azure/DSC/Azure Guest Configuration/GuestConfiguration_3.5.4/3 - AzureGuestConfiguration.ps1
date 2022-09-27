@@ -7,38 +7,35 @@
 - https://cloudbrothers.info/en/azure-persistence-azure-policy-guest-configuration/
 #>
 <#
-Get-AzPolicyRemediation | Where-Object -FilterScript { $_.Id -like '*dscagc*' } | Remove-AzPolicyRemediation -AllowStop -Verbose
-Get-AzPolicyAssignment  | Where-Object -FilterScript { $_.Id -like '*dscagc*' } | Remove-AzPolicyAssignment -Verbose
-Get-AzPolicyDefinition  | Where-Object -FilterScript { $_.Id -like '*dscagc*' } | Remove-AzPolicyDefinition -Force -Verbose
+#Cleaning up previous tests 
+Get-AzResourceGroup -Name dscagc* | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyRemediation | Remove-AzPolicyRemediation -AllowStop -AsJob -Verbose | Wait-Job
+Get-AzResourceGroup -Name dscagc* | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyAssignment  | Where-Object -FilterScript { $_.ResourceGroupName -like '*dscagc*' } | Remove-AzPolicyAssignment -Verbose #-Whatif
+Get-AzPolicyDefinition | Where-Object -filterScript {$_.Properties.metadata.category -eq "Guest Configuration" -and $_.Properties.DisplayName -like "*CreateAdminUserDSCConfiguration*"} | Remove-AzPolicyDefinition -Verbose -Force #-WhatIf
 #>
+
 
 Clear-Host
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
-
 $Location                           = "EastUs"
-#$ResourcePrefix                    = "dscazgcfg"
-$ResourcePrefix                     = "dscagc102"
-#$resourceGroupName                = (Get-AzVM -Name $env:COMPUTERNAME).ResourceGroupName
-$ResourceGroupName                  = "$ResourcePrefix-rg-$Location"
-$StorageAccountName                 = "{0}sa" -f $ResourcePrefix # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
+#$ResourcePrefix                     = "dscazgcfg"
+$resourceGroupName                  = (Get-AzVM -Name $env:COMPUTERNAME).ResourceGroupName
+#$ResourceGroupName                  = "$ResourcePrefix-rg-$Location"
+#$StorageAccountName                 = "{0}sa{1}" -f $ResourcePrefix, $Location # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name $StorageAccountName 
+#$StorageAccountName                 = $StorageAccountName.Substring(0, [system.math]::min(24, $StorageAccountName.Length)).ToLower()
+$StorageAccountName                 = (Get-AzStorageAccount -ResourceGroupName $resourceGroupName).StorageAccountName
 $StorageContainerName               = "guestconfiguration"
-$VMName 	                        = "{0}ws2019" -f $ResourcePrefix
-#$ConfigurationName                  = "FileServerBaseline_{0:yyyyMMddHHmmss}" -f (Get-Date)
-#$ConfigurationName                  = "CreateAdminUserDSCConfiguration"
-$ConfigurationName                  = "{0}_{1:yyyyMMddHHmmss}" -f $VMName, (Get-Date)
+$ConfigurationName                  = "CreateAdminUserDSCConfiguration"
 $GuestConfigurationPackageName      = "$ConfigurationName.zip"
 #$GuestConfigurationPackageFullName  = "$CurrentDir\$ConfigurationName\$GuestConfigurationPackageName"
 
 #region From PowerShell
 #region Deploy prerequisites to enable Guest Configuration policies on virtual machines
-$PolicyIni = Get-AzPolicySetDefinition | Where-Object -FilterScript { $_.Properties.DisplayName -eq "Deploy prerequisites to enable Guest Configuration policies on virtual machines"}
-$PolicyIni.Properties.PolicyDefinitions
 
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName
-$PolicyDefinition = Get-AzPolicySetDefinition -Name $PolicyIni.ResourceName #12794019-7a00-42cf-95c2-882eed337cc8 
+$PolicyDefinition = Get-AzPolicySetDefinition | Where-Object -FilterScript { $_.Properties.DisplayName -eq "Deploy prerequisites to enable Guest Configuration policies on virtual machines"}
 $PolicyAssignment = New-AzPolicyAssignment -Name 'deployPrerequisitesForGuestConfigurationPolicies' -DisplayName 'Deploy prerequisites to enable Guest Configuration policies on virtual machines' -Scope $ResourceGroup.ResourceId -PolicySetDefinition $PolicyDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $Location
 
 # Grant defined roles with PowerShell
@@ -54,14 +51,15 @@ if ($roleDefinitionIds.Count -gt 0)
 
 # Start remediation for every policy definition
 $PolicyDefinition.Properties.PolicyDefinitions | ForEach-Object -Process {
-  Start-AzPolicyRemediation -Name $_.policyDefinitionReferenceId -PolicyAssignmentId $PolicyAssignment.PolicyAssignmentId -PolicyDefinitionReferenceId $_.policyDefinitionId -ResourceGroupName $ResourceGroup.ResourceGroupName -ResourceDiscoveryMode ReEvaluateCompliance
+	Write-Host -Object "Creating remediation for Policy $($_.policyDefinitionReferenceId)"
+    Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignment.PolicyAssignmentId -PolicyDefinitionReferenceId $_.policyDefinitionReferenceId -Name $_.policyDefinitionReferenceId -ResourceGroupName $ResourceGroup.ResourceGroupName -ResourceDiscoveryMode ReEvaluateCompliance
 }
 
 Start-AzPolicyComplianceScan -ResourceGroupName $ResourceGroupName
 #endregion
 
 #region Our Guest Policy
-& "$PSScriptRoot\CreateAdminUserDSCConfiguration.ps1"
+& "$PSScriptRoot\$ConfigurationName.ps1"
 
 # Create a guest configuration package for Azure Policy GCS
 $GuestConfigurationPackage = New-GuestConfigurationPackage -Name $ConfigurationName -Configuration './CreateAdminUser/localhost.mof' -Type AuditAndSet -Force
@@ -79,8 +77,8 @@ $PolicyId = (New-Guid).Guid
 $Params = @{
   "PolicyId" =  $PolicyId
   "ContentUri" =  $ContentURI
-  "DisplayName" =  $ConfigurationName
-  "Description" =  "Make sure all Windows servers comply with $ConfigurationName"
+  "DisplayName" = "[Windows] Make sure all Windows servers comply with $ConfigurationName DSC Configuration"
+  "Description" = "[Windows] Make sure all Windows servers comply with $ConfigurationName DSC Configuration"
   "Path" =  './policies'
   "Platform" =  'Windows'
   "Version" =  '1.0.0'
@@ -97,7 +95,7 @@ $NonComplianceMessage = [Microsoft.Azure.Commands.ResourceManager.Cmdlets.Entiti
 $NonComplianceMessage.message = "Non Compliance Message"
 $IncludeArcConnectedServers = @{'IncludeArcMachines'='True'}
 
-$PolicyAssignment = New-AzPolicyAssignment -Name $ConfigurationName -DisplayName "Make sure all servers comply with $ConfigurationName" -Scope $ResourceGroup.ResourceId -PolicyDefinition $PolicyDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $Location -PolicyParameterObject $IncludeArcConnectedServers -NonComplianceMessage $NonComplianceMessage  
+$PolicyAssignment = New-AzPolicyAssignment -Name $ConfigurationName -DisplayName "[Windows] Make sure all servers comply with $ConfigurationName DSC Configuration" -Scope $ResourceGroup.ResourceId -PolicyDefinition $PolicyDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $Location -PolicyParameterObject $IncludeArcConnectedServers -NonComplianceMessage $NonComplianceMessage  
 
 # Grant defined roles with PowerShell
 # https://docs.microsoft.com/en-us/azure/governance/policy/how-to/remediate-resources#grant-defined-roles-with-PowerShell
@@ -112,6 +110,7 @@ if ($roleDefinitionIds.Count -gt 0)
 }
 
 $PolicyAssignmentName = ($PolicyAssignment.PolicyAssignmentId -split '/')[-1]
+Write-Host -Object "Creating remediation for Policy '$($PolicyDefinition.Properties.DisplayName)'"
 $job = Start-AzPolicyRemediation -AsJob -Name $PolicyAssignmentName -PolicyAssignmentId $PolicyAssignment.PolicyAssignmentId -ResourceGroupName $ResourceGroup.ResourceGroupName -ResourceDiscoveryMode ReEvaluateCompliance
 $job | Wait-Job | Receive-Job -Keep
 

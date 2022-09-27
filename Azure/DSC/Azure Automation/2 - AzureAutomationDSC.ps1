@@ -10,11 +10,13 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 Install-Module -Name xWebAdministration, Az.Storage, Az.Automation -Force
 
-$Location                       = "EastUs"
+$Location                       = "eastus"
 $ResourcePrefix                 = "dscazaut"
 $ResourceGroupName              = "$ResourcePrefix-rg-$Location"
-$StorageAccountName             = "{0}sa" -f $ResourcePrefix # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
+$StorageAccountName             = "{0}sa{1}" -f $ResourcePrefix, $Location # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name $StorageAccountName 
+$StorageAccountName             = $StorageAccountName.Substring(0, [system.math]::min(24, $StorageAccountName.Length)).ToLower()
 $VMName 	                    = "{0}ws2019" -f $ResourcePrefix
+$VMName                         = $VMName.Substring(0, [system.math]::min(15, $VMName.Length))
 $AutomationAccountName          = "{0}aa" -f $ResourcePrefix # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name ""
 $ConfigurationName              = "WebServer"
 
@@ -28,7 +30,7 @@ Stop-Process -Name Explorer -Force
 
 #region Logging to Azure and selecting the subscription
 Connect-AzAccount
-Get-AzSubscription | Out-GridView -PassThru | Select-AzSubscription
+Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
 #endregion
 
 $modulePath = [string[]](Get-InstalledModule -Name xWebAdministration).InstalledLocation | Split-Path -Parent
@@ -88,7 +90,7 @@ Set-DscLocalConfigurationManager -Path ./DscMetaConfigs -Force
 #Register-AzAutomationDscNode -AzureVMName $env:COMPUTERNAME -ResourceGroupName $ResourceGroupName  -AutomationAccountName $AutomationAccountName -NodeConfigurationName $ConfigurationName.$env:COMPUTERNAME -ConfigurationMode ApplyAndAutocorrect
 $node = Get-AzAutomationDscNode -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName | Set-AzAutomationDscNode -NodeConfigurationName "$ConfigurationName.$env:COMPUTERNAME" -Force
 
-Start-Sleep -Second 5
+Start-Sleep -Second 15
 Update-DscConfiguration -Wait -Verbose
 #endregion
 
