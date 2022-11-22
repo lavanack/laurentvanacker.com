@@ -30,20 +30,14 @@ Clear-Host
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
-$VSCodeExtension = [ordered]@{
-    #"PowerShell" = "ms-vscode.powershell"
-    #'Live Share Extension Pack' = 'ms-vsliveshare.vsliveshare-pack'
-    'Git Graph' = 'mhutchie.git-graph'
-    'Git History' = 'donjayamanne.githistory'
-    'GitLens - Git supercharged' = 'eamodio.gitlens'
-    'Git File History' = 'pomber.git-file-history'
-    'indent-rainbow' = 'oderwat.indent-rainbow'
-}
 
 #Import-Module -Name 'PSDscResources', 'StorageDsc', 'xHyper-V', 'xPSDesiredStateConfiguration', 'ComputerManagementDsc' -Force
 
 Configuration AutomatedLabSetupDSC {
     param(
+        [Parameter(Mandatory = $true)]
+        [PSCredential]
+        $Credential,
         [ValidateScript({$_ -match "^[E-Z]$"})]
         [string] $DriveLetter = 'F'
     )
@@ -179,6 +173,7 @@ Configuration AutomatedLabSetupDSC {
                 # $state = [scriptblock]::Create($GetScript).Invoke()
                 return ((Get-InstalledModule -Name 'AutomatedLab' -ErrorAction Ignore) -ne $null)
             }
+            #PsDscRunAsCredential = $Credential
         }
 
 
@@ -275,12 +270,31 @@ Configuration AutomatedLabSetupDSC {
             DependsOn = '[Script]EnableLabHostRemoting'
         }
         
+        xRemoteFile DownloadStorageExplorer
+        {
+            DestinationPath = $(Join-Path -Path $env:TEMP -ChildPath 'StorageExplorer.exe')
+            #To always have the latest Git version for Windows x64
+            Uri             = 'https://go.microsoft.com/fwlink/?LinkId=708343&clcid=0x409'
+            UserAgent       = [Microsoft.PowerShell.Commands.PSUserAgent]::InternetExplorer
+            Headers         = @{'Accept-Language' = 'en-US'}
+        }
+
+        Package InstallStorageExplorer
+        {
+            Ensure    = "Present"
+            Path      = $(Join-Path -Path $env:TEMP -ChildPath 'StorageExplorer.exe')
+            Arguments = '/SILENT /CLOSEAPPLICATIONS /ALLUSERS'
+            Name      = "Microsoft Azure Storage Explorer"
+            ProductId = ""
+            DependsOn = "[xRemoteFile]DownloadStorageExplorer"
+        }
+
         xRemoteFile DownloadGit
         {
             DestinationPath = $(Join-Path -Path $env:TEMP -ChildPath 'Git-Latest.exe')
             #To always have the latest Git version for Windows x64
             #Uri            = ((Invoke-WebRequest -Uri 'https://git-scm.com/download/win').Links | Where-Object -FilterScript { $_.InnerText -eq "64-bit Git For Windows Setup"}).href
-            Uri             = 'https://github.com/git-for-windows/git/releases/download/v2.37.1.windows.1/Git-2.37.1-64-bit.exe'
+            Uri             = 'https://github.com/git-for-windows/git/releases/download/v2.38.1.windows.1/Git-2.38.1-64-bit.exe'
             UserAgent       = [Microsoft.PowerShell.Commands.PSUserAgent]::InternetExplorer
             Headers         = @{'Accept-Language' = 'en-US'}
         }
@@ -293,6 +307,24 @@ Configuration AutomatedLabSetupDSC {
             Name      = "Git"
             ProductId = ""
             DependsOn = "[xRemoteFile]DownloadGit"
+        }
+
+        xRemoteFile DownloadAzCopy
+        {
+            DestinationPath = $(Join-Path -Path $env:TEMP -ChildPath 'azcopy_windows_amd64_latest.zip')
+            #To always have the latest Git version for Windows x64
+            #Uri            = ((Invoke-WebRequest -Uri 'https://git-scm.com/download/win').Links | Where-Object -FilterScript { $_.InnerText -eq "64-bit Git For Windows Setup"}).href
+            Uri             = 'https://aka.ms/downloadazcopy-v10-windows'
+            UserAgent       = [Microsoft.PowerShell.Commands.PSUserAgent]::InternetExplorer
+            Headers         = @{'Accept-Language' = 'en-US'}
+        }
+
+        Archive ExpandAzCopyZipFile
+        {
+            Path        = $(Join-Path -Path $env:TEMP -ChildPath 'azcopy_windows_amd64_latest.zip')
+            Destination = 'C:\Tools'
+            DependsOn   = '[xRemoteFile]DownloadAzCopy'
+            Force       = $true
         }
 
 	    Script InstallPowerShellCrossPlatform 
@@ -331,11 +363,23 @@ Configuration AutomatedLabSetupDSC {
                 $IsMacOS   = $false
                 $IsWindows = $true
                 $pacMan    = ''
-                $AdditionalExtensions = $($using:VSCodeExtension).Values -join ','
+                $VSCodeExtension = [ordered]@{
+                    "PowerShell" = 'ms-vscode.powershell'
+                    #'Live Share Extension Pack' = 'ms-vsliveshare.vsliveshare-pack'
+                    'Git Graph' = 'mhutchie.git-graph'
+                    'Git History' = 'donjayamanne.githistory'
+                    'GitLens - Git supercharged' = 'eamodio.gitlens'
+                    'Git File History' = 'pomber.git-file-history'
+                    'indent-rainbow' = 'oderwat.indent-rainbow'
+                }
+                $AdditionalExtensions = $VSCodeExtension.Values -join ','
+                Write-Verbose "`$AdditionalExtensions : $AdditionalExtensions"
                 #try is necessary because the addition extensions raised some errors for the moment :code.cmd : (node:4812) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
                 try
                 {
-                    Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) } -AdditionalExtensions $AdditionalExtensions" -ErrorAction Ignore -Verbose
+                    $AdditionalExtensions | Out-File C:\Install-VSCode.log
+                    Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) } -AdditionalExtensions $AdditionalExtensions" -ErrorAction Ignore -Verbose *>&1 | Out-File C:\Install-VSCode.log -Append
+                    #Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) } -AdditionalExtensions 'ms-vscode.powershell', 'mhutchie.git-graph', 'donjayamanne.githistory', 'eamodio.gitlens', 'pomber.git-file-history', 'oderwat.indent-rainbow'" -ErrorAction Ignore -Verbose *>&1 | Out-File C:\Install-VSCode.log -Append
                 } catch {}
             }
  
@@ -343,6 +387,7 @@ Configuration AutomatedLabSetupDSC {
                 return (Test-Path -Path "C:\Program Files\Microsoft VS Code\Code.exe" -PathType Leaf)
             }
             DependsOn  = @("[Script]InstallPowerShellCrossPlatform", "[Package]InstallGit")
+            PsDscRunAsCredential = $Credential
         }    
 
 
@@ -360,8 +405,8 @@ Configuration AutomatedLabSetupDSC {
             Path        = $(Join-Path -Path $env:TEMP -ChildPath 'SysinternalsSuite.zip')
             Destination = 'C:\Tools'
             DependsOn   = '[xRemoteFile]DownloadSysinternalsSuiteZipFile'
+            Force       = $true
         }
-
 
 	    Script JunctionAutomatedLab-VMs
         {
@@ -388,11 +433,12 @@ Configuration AutomatedLabSetupDSC {
 }
 
 <#
+Clear-Host
 Set-Location -Path $CurrentDir
 Try {
     Enable-PSRemoting -Force 
 } catch {}
-AutomatedLabSetupDSC 
+AutomatedLabSetupDSC -Credential $(Get-Credential -Message "User Credential") -ConfigurationData $CurrentDir\ConfigurationData.psd1
 
 Set-DscLocalConfigurationManager -Path .\AutomatedLabSetupDSC -Force -Verbose
 Start-DscConfiguration -Path .\AutomatedLabSetupDSC -Force -Wait -Verbose

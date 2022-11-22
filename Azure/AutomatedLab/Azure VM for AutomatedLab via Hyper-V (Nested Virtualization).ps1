@@ -43,7 +43,7 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 $RDPPort                        = 3389
 $JitPolicyTimeInHours           = 3
 $JitPolicyName                  = "Default"
-$Location                       = "eastus"
+$Location                       = "westus3"
 $ResourcePrefix                 = "al"
 $ResourceGroupName              = "$ResourcePrefix-rg-$Location"
 $VirtualNetworkName             = "$ResourcePrefix-vnet-$Location"
@@ -73,12 +73,12 @@ $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList
 
 #region Define Variables needed for Virtual Machine
 #$VMName 	        = "AL-$('{0:yyMMddHHmm}' -f (Get-Date))"
-$VMName 	        = "{0}win11" -f $ResourcePrefix
+$VMName 	        = "{0}win1122h2" -f $ResourcePrefix
 $VMName             = $VMName.Substring(0, [system.math]::min(15, $VMName.Length))
 $ImagePublisherName	= "MicrosoftWindowsDesktop"
 $ImageOffer	        = "Windows-11"
-$ImageSku	        = "win11-21h2-ent"
-$VMSize 	        = "Standard_D8s_v5"
+$ImageSku	        = "win11-22h2-ent"
+$VMSize 	        = "Standard_D16s_v5"
 $PublicIPName       = "$VMName-PIP" 
 $NICName            = "$VMName-NIC"
 $OSDiskName         = "$VMName-OSDisk"
@@ -238,11 +238,17 @@ Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 # Publishing DSC Configuration for AutomatedLab via Hyper-V (Nested Virtualization)
 Publish-AzVMDscConfiguration $DSCFilePath -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Force -Verbose
 
-Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$DSCFileName.zip" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $ConfigurationName -Version "2.80" -Location $Location -AutoUpdate -Verbose
+#Specifying the user credentials to use for some DSC resources.
+$configurationArguments = @{ Credential = $Credential }
+try
+{
+    Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$DSCFileName.zip" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $ConfigurationName -ConfigurationArgument $configurationArguments -Version "2.80" -Location $Location -AutoUpdate -Verbose #-ErrorAction Ignore
+} catch {}
 $VM | Update-AzVM -Verbose
 #endregion
 <#
 #>
+
 
 Start-Sleep -Seconds 15
 

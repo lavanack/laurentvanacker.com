@@ -59,7 +59,21 @@ Enable-LabHostRemoting -Force
 New-LabSourcesFolder -DriveLetter $Disk.DriveLetter
 #endregion
 
-#region  Installing Git
+#region Installing AzCopy
+$AzCopyURI = 'https://aka.ms/downloadazcopy-v10-windows'
+$OutputFile = Join-Path -Path $CurrentDir -ChildPath 'azcopy_windows_amd64_latest.zip'
+Invoke-WebRequest -Uri $AzCopyURI -OutFile $OutputFile
+Expand-Archive -Path $OutputFile -DestinationPath C:\Tools -Force
+#endregion
+
+#region Installing StorageExplorer
+$StorageExplorerURI = 'https://go.microsoft.com/fwlink/?LinkId=708343&clcid=0x409'
+$OutputFile = Join-Path -Path $CurrentDir -ChildPath 'StorageExplorer.exe'
+Invoke-WebRequest -Uri $StorageExplorerURI -OutFile $OutputFile
+Start-Process -FilePath $OutputFile -ArgumentList "/SILENT", "/CLOSEAPPLICATIONS", "/ALLUSERS" -Wait
+#endregion
+
+#region Installing Git
 $GitURI = ((Invoke-WebRequest -Uri 'https://git-scm.com/download/win').Links | Where-Object -FilterScript { $_.InnerText -eq "64-bit Git For Windows Setup"}).href
 $OutputFile = Join-Path -Path $CurrentDir -ChildPath $(Split-Path -Path $GitURI -Leaf)
 Invoke-WebRequest -Uri $GitURI -OutFile $OutputFile
@@ -72,7 +86,7 @@ Invoke-Expression -Command "& { $(Invoke-RestMethod https://aka.ms/install-power
 
 #region Installing VSCode with useful extensions : Silent Install
 $VSCodeExtension = [ordered]@{
-    #"PowerShell" = "ms-vscode.powershell"
+    "PowerShell" = "ms-vscode.powershell"
     #'Live Share Extension Pack' = 'ms-vsliveshare.vsliveshare-pack'
     'Git Graph' = 'mhutchie.git-graph'
     'Git History' = 'donjayamanne.githistory'
