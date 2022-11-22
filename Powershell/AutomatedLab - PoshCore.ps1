@@ -29,7 +29,7 @@ Import-Module AutomatedLab
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
 $PreviousErrorActionPreference = $ErrorActionPreference
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Continue'
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
@@ -105,7 +105,7 @@ Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress $DC01IPv4Address
 $netAdapter = @()
 $netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $WIN10IPv4Address
 $netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp
-Add-LabMachineDefinition -Name WIN10 -NetworkAdapter $netAdapter -OperatingSystem 'Windows 10 Enterprise'
+Add-LabMachineDefinition -Name WIN10 -NetworkAdapter $netAdapter -OperatingSystem 'Windows 10 Enterprise LTSC'
 #endregion
 
 #Installing servers
