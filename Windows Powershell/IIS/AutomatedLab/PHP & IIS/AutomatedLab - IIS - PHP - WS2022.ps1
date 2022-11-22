@@ -23,6 +23,7 @@ trap {
     $ErrorActionPreference = $PreviousErrorActionPreference
     [console]::beep(3000, 750)
     Send-ALNotification -Activity 'Lab started' -Message ('Lab deployment failed !') -Provider (Get-LabConfigurationItem -Name Notifications.SubscribedProviders)
+    break
 } 
 Clear-Host
 $PreviousVerbosePreference = $VerbosePreference
