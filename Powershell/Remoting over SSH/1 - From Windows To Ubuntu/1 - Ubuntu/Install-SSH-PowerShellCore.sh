@@ -34,7 +34,8 @@ sudo ufw allow ssh
 
 #Easy install : https://www.thomasmaurer.ch/2019/07/how-to-install-and-update-powershell-7
 #-includeide : Installs VSCode and VSCode PowerShell extension (only relevant to machines with a desktop environment)
-wget https://aka.ms/install-powershell.sh; sudo bash install-powershell.sh -includeide; rm install-powershell.sh
+#wget https://aka.ms/install-powershell.sh; sudo bash install-powershell.sh -includeide; rm install-powershell.sh
+wget -O - https://aka.ms/install-powershell.sh | sudo bash
 
 #To allow inbound connection from another machine via PowerShell Remoting via SSH tunneling
 #Changing the SSH config (via RegEx) to meet our needs

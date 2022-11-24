@@ -44,6 +44,7 @@ $NetBiosDomainName = 'CONTOSO'
 $FQDNDomainName = 'contoso.com'
 
 #$GitURI = 'https://github.com/git-for-windows/git/releases/download/v2.33.1.windows.1/Git-2.33.1-64-bit.exe'
+$MSEdgeEntUri = 'http://go.microsoft.com/fwlink/?LinkID=2093437'
 $GitURI = ((Invoke-WebRequest -Uri 'https://git-scm.com/download/win').Links | Where-Object -FilterScript { $_.InnerText -eq "64-bit Git For Windows Setup"}).href
 
 $NetworkID='10.0.0.0/16' 
@@ -105,18 +106,22 @@ Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress $DC01IPv4Address
 $netAdapter = @()
 $netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $WIN10IPv4Address
 $netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp
-Add-LabMachineDefinition -Name WIN10 -NetworkAdapter $netAdapter -OperatingSystem 'Windows 10 Enterprise LTSC'
+Add-LabMachineDefinition -Name WIN10 -NetworkAdapter $netAdapter -OperatingSystem 'Windows 10 Enterprise'
 #endregion
 
 #Installing servers
 Install-Lab 
 Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 
+$Job = @()
 $Client = (Get-LabVM | Where-Object -FilterScript { $_.Name -eq "WIN10"}).Name
 
 #Installing Git
 $Git = Get-LabInternetFile -Uri $GitUri -Path $labSources\SoftwarePackages -PassThru -Force
-Install-LabSoftwarePackage -ComputerName $Client -Path $Git.FullName -CommandLine " /SILENT /CLOSEAPPLICATIONS"
+$Job += Install-LabSoftwarePackage -ComputerName $Client -Path $Git.FullName -CommandLine " /SILENT /CLOSEAPPLICATIONS" -AsJob -PassThru
+
+$MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru -Force
+$Job += Install-LabSoftwarePackage -ComputerName $Client -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob -PassThru
 
 Invoke-LabCommand -ActivityName "Installing Powershell7+, VSCode, PowerShell extensions (and optionally additional ones) and posh-git module" -ComputerName $Client -ScriptBlock {
 	#Setting Keyboard to French
@@ -136,13 +141,15 @@ Invoke-LabCommand -ActivityName "Installing Powershell7+, VSCode, PowerShell ext
     #>
 
     #Installing VSCode with Powershell extension (and optional additional ones)
-    Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) } -AdditionalExtensions $($($using:VSCodeExtension).Values -join ',')" -Verbose
+    Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) } -AdditionalExtensions $($VSCodeExtension.Values -join ',')" -Verbose
 
     #Installing posh-git module
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
     Install-Module posh-git -force
     #Enable-GitColors
 } -Variable (Get-Variable -Name VSCodeExtension) -Verbose
+
+$Job | Wait-Job | Out-Null
 
 Show-LabDeploymentSummary -Detailed
 Restart-LabVM $Client -Wait
