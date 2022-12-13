@@ -96,7 +96,7 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:Network'       = $LabName
     'Add-LabMachineDefinition:DomainName'    = $FQDNDomainName
     'Add-LabMachineDefinition:Memory'        = 2GB
-    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Datacenter (Desktop Experience)'
+    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2022 Datacenter (Desktop Experience)'
     'Add-LabMachineDefinition:Processors'    = 2
 }
 
