@@ -457,8 +457,8 @@ Configuration CreateClusterWithTwoNodes {
             DependsOn = '[WindowsFeature]AddRSATClustering', '[ADObjectPermissionEntry]SetCNOCreateChildRightOnsOU', '[ADObjectPermissionEntry]SetCNOReadPropertyandGenericExecuteRightsOnsOU'
         }
 
-        #Waiting all nodes be up and running before validating the cluster.
-        WaitForAll SecondaryReplica
+        #Waiting all secondary replica nodes be up and running before validating the cluster.
+        WaitForAll JoinAdditionalServerNodeToCluster
         {
             ResourceName      = '[Cluster]JoinNodeToCluster'
             NodeName          = $AllNodes.Where{$_.Role -eq 'SecondaryReplica' }.NodeName
@@ -498,7 +498,7 @@ Configuration CreateClusterWithTwoNodes {
                 return (($Output -replace ".*=") | Where-Object -FilterScript {($_ -eq 'Validated')}).Count -eq ($using:AllNodes.NodeName | Where-Object -FilterScript {$_ -ne '*'}).Count
             }
             PsDscRunAsCredential = $ActiveDirectoryAdministratorCredential
-            DependsOn = '[WaitForAll]SecondaryReplica'
+            DependsOn = '[WaitForAll]JoinAdditionalServerNodeToCluster'
         }
         #endregion        
 
@@ -588,6 +588,28 @@ Configuration CreateClusterWithTwoNodes {
             RetryIntervalSec  = 30
             RetryCount        = 30
         }        
+
+        Script SetClusterOwnerNode {
+            GetScript  = {
+                $Result = Get-ClusterResource | Get-ClusterOwnerNode | Out-String
+                @{
+                    GetScript  = $GetScript
+                    SetScript  = $SetScript
+                    TestScript = $TestScript
+                    Result     = $Result
+                }
+            }
+     
+            SetScript  = {
+                Get-ClusterResource | Set-ClusterOwnerNode -Owners ($using:AllNodes).NodeName
+            }
+     
+            TestScript = {
+                return ((Get-ClusterResource | Get-ClusterOwnerNode | Where-Object -FilterScript {$_.OwnerNodes.Count -lt ($using:AllNodes).Count}) -eq $null)
+            }
+            PsDscRunAsCredential = $ActiveDirectoryAdministratorCredential
+            DependsOn            = '[SqlSetup]InstallAG', '[WaitForAll]WaitForAddReplica'#, '[SqlAGListener]AvailabilityGroupListener'
+        }
 
         #Adding a Sample database
         SqlDatabase CreateSampleDatabase

@@ -120,24 +120,6 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:Processors'      = $LabMachineDefinitionProcessors
 }
 
-$SQLNODE01NetAdapter = @()
-$SQLNODE01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $SQLNODE01IPv4Address -InterfaceName Corp -Ipv4Gateway $Ipv4Gateway
-$SQLNODE01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -UseDhcp -InterfaceName Internal
-#Adding an Internet Connection (Required for the SQL Setup via AutomatedLab)
-#$SQLNODE01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp -InterfaceName Internet
-
-$SQLNODE02NetAdapter = @()
-$SQLNODE02NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $SQLNODE02IPv4Address -InterfaceName Corp -Ipv4Gateway $Ipv4Gateway
-$SQLNODE02NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -UseDhcp -InterfaceName Internal
-#Adding an Internet Connection (Required for the SQL Setup via AutomatedLab)
-#$SQLNODE02NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp -InterfaceName Internet
-
-$SQLNODE03NetAdapter = @()
-$SQLNODE03NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $SQLNODE03IPv4Address -InterfaceName Corp -Ipv4Gateway $Ipv4Gateway
-$SQLNODE03NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -UseDhcp -InterfaceName Internal
-#Adding an Internet Connection (Required for the SQL Setup via AutomatedLab)
-#$SQLNODE03NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp -InterfaceName Internet
-
 $FS01NetAdapter = @()
 $FS01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $FS01IPv4Address -InterfaceName Corp
 #Adding an Internet Connection
@@ -148,13 +130,13 @@ $FS01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switc
 Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress $DC01IPv4Address -Memory 1GB -MaxMemory 1GB -Processors 1
 #SQL Servers
 Add-LabDiskDefinition -Name DataSQLNODE01 -DiskSizeInGb 10 -Label "SQL" -DriveLetter D
-Add-LabMachineDefinition -Name SQLNODE01 -NetworkAdapter $SQLNODE01NetAdapter -Disk DataSQLNODE01
+Add-LabMachineDefinition -Name SQLNODE01 -IpAddress $SQLNODE01IPv4Address -Disk DataSQLNODE01
 
 Add-LabDiskDefinition -Name DataSQLNODE02 -DiskSizeInGb 10 -Label "SQL" -DriveLetter D
-Add-LabMachineDefinition -Name SQLNODE02 -NetworkAdapter $SQLNODE02NetAdapter -Disk DataSQLNODE02
+Add-LabMachineDefinition -Name SQLNODE02 -IpAddress $SQLNODE02IPv4Address -Disk DataSQLNODE02
 
 Add-LabDiskDefinition -Name DataSQLNODE03 -DiskSizeInGb 10 -Label "SQL" -DriveLetter D
-Add-LabMachineDefinition -Name SQLNODE03 -NetworkAdapter $SQLNODE03NetAdapter -Disk DataSQLNODE03
+Add-LabMachineDefinition -Name SQLNODE03 -IpAddress $SQLNODE03IPv4Address -Disk DataSQLNODE03
 
 #File Server
 Add-LabDiskDefinition -Name LunDriveFS01 -DiskSizeInGb 10 -Label "LunDrive" -DriveLetter D
@@ -164,19 +146,19 @@ Add-LabMachineDefinition -Name FS01 -Roles FileServer -NetworkAdapter $FS01NetAd
 
 #Installing servers
 Install-Lab -Verbose
-$machines = Get-LabVM -All
-Restart-LabVM -ComputerName $machines -Wait -Verbose
+$AllLabVMs = Get-LabVM -All
+Restart-LabVM -ComputerName $AllLabVMs -Wait -Verbose
 
 #Taking a snapshot/checkpoint
 Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 #Restore-LabVMSnapshot -SnapshotName 'FreshInstall' -All -Verbose
 
 #region Installing Required Windows Features
-$SQLServerNodes = $machines | Where-Object -FilterScript { $_.Name -match "^SQLNode"}
-$Job += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools -AsJob -PassThru
+$SQLServerNodes = $AllLabVMs | Where-Object -FilterScript { $_.Name -match "^SQLNode"}
+$Job += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $AllLabVMs -IncludeManagementTools -AsJob -PassThru
 #endregion
 
-Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $machines -ScriptBlock {
+Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $AllLabVMs -ScriptBlock {
     #Disabling IE ESC
     $AdminKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
     $UserKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}"
@@ -262,7 +244,7 @@ $WindowsServer2019StandardMountedVolume = Mount-LabIsoImage -IsoPath $WindowsSer
 
 #region Installing Edge on all machines
 $MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru -Force
-$Job += Install-LabSoftwarePackage -ComputerName $machines -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob -PassThru
+$Job += Install-LabSoftwarePackage -ComputerName $AllLabVMs -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob -PassThru
 #endregion
 
 
@@ -455,6 +437,9 @@ Invoke-LabCommand -ActivityName 'Setting up iSCSI' -ComputerName $SQLServerNodes
     Get-IscsiTarget | Connect-IscsiTarget -IsPersistent $true
 }
 
+#Unmouting the ISOs
+Dismount-LabIsoImage -ComputerName $AllLabVMs -Verbose
+
 Invoke-LabCommand -ActivityName 'Taking the disk online and initialize it' -ComputerName SQLNODE01 -ScriptBlock {
     #Last drive letter in the alphabetical order
     $DriveLetter = (Get-PSDrive -PSProvider FileSystem | Sort-Object -Property Name -Descending | Select-Object -Property Name -First 1).Name
@@ -476,20 +461,11 @@ Invoke-LabCommand -ActivityName 'Taking the disk online and initialize it' -Comp
 Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "AG") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
 Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "FCI") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
 
-#Unmouting the ISOs
-Dismount-LabIsoImage -ComputerName (Get-LabVM -All) -Verbose
-
-<#
-Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName $machines -ScriptBlock {
+Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName $AllLabVMs -ScriptBlock {
     Stop-Service WUAUSERV -PassThru | Set-Service -StartupType Disabled
 } 
-#>
 
 $Job | Wait-Job | Out-Null
-
-#Removing the Internet Connection on the SQL Server(s) (Required only for the SQL Setup via AutomatedLab)
-$SQLServerNodes | Get-VM | Remove-VMNetworkAdapter -Name 'Default Switch' -ErrorAction SilentlyContinue
-#Get-LabVM -All | Where-Object -FilterScript {'Default Switch' -in $_.Network } | Get-VM | Remove-VMNetworkAdapter -Name 'Default Switch'
 
 <#
 Invoke-LabCommand -ActivityName 'Clearing "Microsoft-Windows-Dsc/Operational" eventlog' -ComputerName $SQLServerNodes -ScriptBlock {
@@ -504,6 +480,18 @@ Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All
 Invoke-LabCommand -ActivityName "Removing $Labname folder" -ComputerName $SQLServerNodes -ScriptBlock { Remove-Item -Path $using:WorkSpace -Recurse -Force} -Verbose
 Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "AG") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
 Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "FCI") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
+#>
+
+<#
+Invoke-LabCommand -ActivityName 'Setting up AG Cluster' -ComputerName SQLNode01 -ScriptBlock {
+    & "$($using:Workspace)\AG\CreateClusterWithTwoNodes.ps1"
+} -AsJob
+#>
+
+<#
+Invoke-LabCommand -ActivityName 'Setting up FCI Cluster' -ComputerName SQLNode01 -ScriptBlock {
+    & "$($using:Workspace)\FCI\CreateClusterWithThreeNodes.ps1"
+} -AsJob
 #>
 $VerbosePreference = $PreviousVerbosePreference
 $ErrorActionPreference = $PreviousErrorActionPreference

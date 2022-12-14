@@ -26,7 +26,7 @@
             FailoverClusterGroupName = 'GROUPNAME'
             FailoverClusterNetworkName = 'NETWORKNAME'
             FailoverClusterIPAddress = '10.0.0.102'
-            Drive = 'G:'
+            Drive = 'E:'
             SQLTCPPort = 1433
             #endregion
         },

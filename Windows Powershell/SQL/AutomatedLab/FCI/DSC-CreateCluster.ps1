@@ -255,11 +255,7 @@ Configuration CreateClusterWithTwoNodes {
             }
      
             SetScript  = {
-                $ClusterAvailableDisk = Get-ClusterAvailableDisk -Cluster ($using:Node).ClusterName
-                if ($ClusterAvailableDisk)
-                {
-                    $ClusterAvailableDisk[0] | Add-ClusterDisk
-                }
+                Get-Volume | Where-Object -FilterScript { $_.DriveLetter -eq ($using:Node).Drive.Substring(0,1) } | Get-Partition | Get-Disk | Get-ClusterAvailableDisk -Cluster ($using:Node).ClusterName | Add-ClusterDisk
                 #Renaming the disk in the cluster configuration
                 #(Get-ClusterResource -Cluster ($using:Node).ClusterName | Where-Object -FilterScript {$_.ResourceType -eq 'Physical Disk'}).Name = $Node.FailoverClusterGroupName
             }
@@ -274,7 +270,7 @@ Configuration CreateClusterWithTwoNodes {
         }
 
         #Waiting all nodes be up and running before validating the cluster.
-        WaitForAll AdditionalServerNode
+        WaitForAll JoinAdditionalServerNodeToCluster
         {
             ResourceName      = '[Cluster]JoinNodeToCluster'
             NodeName          = $AllNodes.Where{$_.Role -eq 'AdditionalServerNode' }.NodeName
@@ -313,7 +309,7 @@ Configuration CreateClusterWithTwoNodes {
                 return (($Output -replace ".*=") | Where-Object -FilterScript {($_ -eq 'Validated')}).Count -eq ($using:AllNodes.NodeName | Where-Object -FilterScript {$_ -ne '*'}).Count
             }
             PsDscRunAsCredential = $ActiveDirectoryAdministratorCredential
-            DependsOn = '[WaitForAll]AdditionalServerNode'
+            DependsOn = '[WaitForAll]JoinAdditionalServerNodeToCluster'
         }
         
         #Installing SQL server in Failover Cluster Mode : First Node
@@ -377,6 +373,36 @@ Configuration CreateClusterWithTwoNodes {
             DependsOn                    = '[Script]TestCluster', '[Script]AddClusterDisk'
         }
 
+        WaitForAll SqlSetupAddNode
+        {
+            ResourceName      = '[SqlSetup]AddNode'
+            NodeName          = $AllNodes.Where{$_.Role -eq 'AdditionalServerNode' }.NodeName
+            RetryIntervalSec  = 30
+            RetryCount        = 60
+        }        
+
+        Script SetClusterOwnerNode {
+            GetScript  = {
+                $Result = Get-ClusterResource | Get-ClusterOwnerNode | Out-String
+                @{
+                    GetScript  = $GetScript
+                    SetScript  = $SetScript
+                    TestScript = $TestScript
+                    Result     = $Result
+                }
+            }
+     
+            SetScript  = {
+                Get-ClusterResource | Set-ClusterOwnerNode -Owners ($using:AllNodes).NodeName
+            }
+     
+            TestScript = {
+                return ((Get-ClusterResource | Get-ClusterOwnerNode | Where-Object -FilterScript {$_.OwnerNodes.Count -lt ($using:AllNodes).Count}) -eq $null)
+            }
+            PsDscRunAsCredential = $ActiveDirectoryAdministratorCredential
+            DependsOn            = '[WaitForAll]SqlSetupAddNode'
+        }
+                
         #region SQL Server Service Management
         if ($Node.InstanceName -eq "MSSQLServer")
         {
