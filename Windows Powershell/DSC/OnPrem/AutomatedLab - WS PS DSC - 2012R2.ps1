@@ -16,6 +16,7 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 #requires -Version 5 -Modules AutomatedLab -RunAsAdministrator 
+
 trap {
     Write-Host "Stopping Transcript ..."
     Stop-Transcript
@@ -23,12 +24,17 @@ trap {
     $ErrorActionPreference = $PreviousErrorActionPreference
     [console]::beep(3000, 750)
     Send-ALNotification -Activity 'Lab started' -Message ('Lab deployment failed !') -Provider (Get-LabConfigurationItem -Name Notifications.SubscribedProviders)
-} 
+    break
+}
+
+Import-Module -Name AutomatedLab -Verbose
+try {while (Stop-Transcript) {}} catch {}
 Clear-Host
+
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
 $PreviousErrorActionPreference = $ErrorActionPreference
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'SilentlyContinue'
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
@@ -66,9 +72,7 @@ if ($LabName -in (Get-Lab -List)) {
 New-LabDefinition -Name $LabName -DefaultVirtualizationEngine HyperV
 
 #make the network definition
-Add-LabVirtualNetworkDefinition -Name $LabName -HyperVProperties @{
-    SwitchType = 'Internal'
-} -AddressSpace $NetworkID
+Add-LabVirtualNetworkDefinition -Name $LabName -HyperVProperties @{ SwitchType = 'Internal' } -AddressSpace $NetworkID
 Add-LabVirtualNetworkDefinition -Name 'Default Switch' -HyperVProperties @{ SwitchType = 'External'; AdapterName = 'Wi-Fi' }
 
 
@@ -85,15 +89,15 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:MinMemory'       = 1GB
     'Add-LabMachineDefinition:MaxMemory'       = 2GB
     'Add-LabMachineDefinition:Memory'          = 2GB
-    #'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Datacenter (Desktop Experience)'
-    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2012 R2 Datacenter (Server with a GUI)'
-    #'Add-LabMachineDefinition:Processors'      = 4
+    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Datacenter (Desktop Experience)'
+    #'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2012 R2 Datacenter (Server with a GUI)'
+    'Add-LabMachineDefinition:Processors'      = 2
 }
 
 $PULLNetAdapter = @()
-$PULLNetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $PULLIPv4Address
+$PULLNetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $PULLIPv4Address -InterfaceName Corp
 #Adding an Internet Connection on the DC (Required for PowerShell Gallery)
-$PULLNetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp
+$PULLNetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp -InterfaceName Internet
 
 #region server definitions
 #Domain controller + Certificate Authority
@@ -103,11 +107,11 @@ Add-LabMachineDefinition -Name PULL -NetworkAdapter $PULLNetAdapter -Memory 4GB 
 #Member server
 Add-LabMachineDefinition -Name MS1 -IpAddress $MS1IPv4Address
 #Member server
-Add-LabMachineDefinition -Name MS2 -IpAddress $MS2IPv4Address #-OperatingSystem 'Windows Server 2019 Datacenter'
+Add-LabMachineDefinition -Name MS2 -IpAddress $MS2IPv4Address 
 #endregion
 
 #Installing servers
-Install-Lab
+Install-Lab -Verbose
 #Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 
 #region Installing Required Windows Features
@@ -128,6 +132,9 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $DesktopMachine
     Rundll32 iesetup.dll, IEHardenAdmin
     Remove-Item -Path $AdminKey -Force
     Remove-Item -Path $UserKey -Force
+
+    #Changing the default Open action for .ps1 file to open in Powershell ISE
+    Set-ItemProperty -Path Microsoft.PowerShell.Core\Registry::HKEY_CLASSES_ROOT\Microsoft.PowerShellScript.1\Shell\Open\Command -Name "(Default)" -Value "`"$env:windir\System32\WindowsPowerShell\v1.0\powershell_ise.exe`" `"%1`""  -Force
 
     #Renaming the main NIC adapter to Corp
     Rename-NetAdapter -Name "$using:labName 0" -NewName 'Corp' -PassThru -ErrorAction SilentlyContinue
