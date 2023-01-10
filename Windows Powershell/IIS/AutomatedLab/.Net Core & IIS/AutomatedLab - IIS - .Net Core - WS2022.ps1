@@ -23,8 +23,12 @@ trap {
     $ErrorActionPreference = $PreviousErrorActionPreference
     [console]::beep(3000, 750)
     Send-ALNotification -Activity 'Lab started' -Message ('Lab deployment failed !') -Provider (Get-LabConfigurationItem -Name Notifications.SubscribedProviders)
+    break
 } 
+Import-Module -Name AutomatedLab -Verbose
+try {while (Stop-Transcript) {}} catch {}
 Clear-Host
+
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
 $PreviousErrorActionPreference = $ErrorActionPreference
@@ -102,12 +106,15 @@ Install-Lab
 Checkpoint-LabVM -SnapshotName FreshInstall -All
 #Restore-LabVMSnapshot -SnapshotName 'FreshInstall' -All -Verbose
 
-$machines = Get-LabVM
+$AllLabVMs = Get-LabVM -All
 #region Installing Required Windows Features
-Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools -AsJob
+
+$Job = @()
+$Job += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $AllLabVMs -IncludeManagementTools -AsJob
+
 #endregion
 
-Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $machines -ScriptBlock {
+Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $AllLabVMs -ScriptBlock {
     #Disabling IE ESC
     $AdminKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
     $UserKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}"
@@ -227,7 +234,10 @@ Invoke-LabCommand -ActivityName 'Setting up the IIS website' -ComputerName IIS01
     #endregion
 }
 
-Invoke-LabCommand -ActivityName 'Setting up the IIS website' -ComputerName IIS01 -ScriptBlock {    
+#Checkpoint-LabVM -SnapshotName BeforeNetCoreWebSite -All
+Start-Sleep -Seconds 60
+
+Invoke-LabCommand -ActivityName 'Setting up the ASP.Net Core website' -ComputerName IIS01 -ScriptBlock {    
     #region dotnet: Create, publish and deploy the app
     #cf. https://docs.microsoft.com/en-us/aspnet/core/getting-started/?view=aspnetcore-6.0&tabs=windows#create-a-web-app-project
     #cf. https://docs.microsoft.com/en-us/aspnet/core/tutorials/publish-to-iis?view=aspnetcore-6.0&tabs=netcore-cli#publish-and-deploy-the-app
@@ -240,14 +250,14 @@ Invoke-LabCommand -ActivityName 'Setting up the IIS website' -ComputerName IIS01
     $Source = (Get-ChildItem -Path '.\bin\Release\' -Recurse -Filter 'publish' -Directory).FullName
     Copy-Item -Path "$Source\*" -Destination $NetCoreWebSitePath -Recurse -Force
     #endregion
-}
+} -Verbose
 
 Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName IIS01 -ScriptBlock {
     Stop-Service WUAUSERV -PassThru | Set-Service -StartupType Disabled
 } 
 
 #Waiting for background jobs
-Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
+$Job | Wait-Job | Out-Null
 
 Show-LabDeploymentSummary -Detailed
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All

@@ -60,6 +60,8 @@ $PULLIPv4Address = '10.0.0.11'
 $MS1IPv4Address = '10.0.0.101'
 $MS2IPv4Address = '10.0.0.102'
 
+$MSEdgeEntUri = 'http://go.microsoft.com/fwlink/?LinkID=2093437'
+
 $LabName = 'PSDSCWS'
 #endregion
 
@@ -115,10 +117,14 @@ Install-Lab -Verbose
 #Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 
 #region Installing Required Windows Features
-$Machines = Get-LabVM
-$DesktopMachines = $Machines | Where-Object -FilterScript { $_.OperatingSystem -match "Desktop|GUI"}
+$AllLabVMs = Get-LabVM
+$DesktopMachines = $AllLabVMs | Where-Object -FilterScript { $_.OperatingSystem -match "Desktop|GUI"}
+$Job = @()
 
-Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $Machines -IncludeManagementTools -AsJob
+$Job += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $AllLabVMs -IncludeManagementTools -AsJob -PassThru
+$MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru -Force
+$Job += Install-LabSoftwarePackage -ComputerName $AllLabVMs -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob -PassThru
+
 #endregion
 
 Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $DesktopMachines -ScriptBlock {
@@ -166,7 +172,7 @@ $DCDocumentEncryptionCert = Request-LabCertificate -Subject "CN=dc.$FQDNDomainNa
 $MS1DocumentEncryptionCert = Request-LabCertificate -Subject "CN=ms1.$FQDNDomainName" -SAN "ms1", "ms1.$FQDNDomainName" -TemplateName DocumentEncryption5Years -ComputerName MS1 -PassThru -ErrorAction Stop
 $MS2DocumentEncryptionCert = Request-LabCertificate -Subject "CN=ms2.$FQDNDomainName" -SAN "ms2", "ms2.$FQDNDomainName" -TemplateName DocumentEncryption5Years -ComputerName MS2 -PassThru -ErrorAction Stop
 
-Invoke-LabCommand -ActivityName 'Requesting and Exporting Document Encryption Certificate & Disabling Windows Update service' -ComputerName $Machines -ScriptBlock {
+Invoke-LabCommand -ActivityName 'Requesting and Exporting Document Encryption Certificate & Disabling Windows Update service' -ComputerName $AllLabVMs -ScriptBlock {
     Stop-Service WUAUSERV -PassThru | Set-Service -StartupType Disabled
     
     $DocumentEncryption5YearsCert = Get-ChildItem Cert:\LocalMachine\My -DocumentEncryptionCert | Select-Object -Last 1    
@@ -177,10 +183,11 @@ Invoke-LabCommand -ActivityName 'Requesting and Exporting Document Encryption Ce
 } 
 #endregion
 
-Copy-LabFileItem -Path C:\PoshDSC\Demos -DestinationFolder C:\PShell\ -ComputerName $Machines -Recurse
-Invoke-LabCommand -ActivityName 'Downloading prerequisites' -ComputerName PULL -ScriptBlock {
+Copy-LabFileItem -Path C:\PoshDSC\Demos -DestinationFolder C:\PShell\ -ComputerName $AllLabVMs -Recurse
+
+$Job += Invoke-LabCommand -ActivityName 'Downloading prerequisites' -ComputerName PULL -ScriptBlock {
     & "C:\PShell\Demos\Install-xModule.ps1" 
-} -AsJob
+} -AsJob -PassThru
 
 Invoke-LabCommand -ActivityName 'Generating CSV file for listing certificate data' -ComputerName PULL -ScriptBlock {
     $PublicKeysFolder = "C:\PublicKeys"
@@ -204,7 +211,7 @@ Invoke-LabCommand -ActivityName 'Generating CSV file for listing certificate dat
     $CSVData | Export-Csv -Path $CSVFile -NoTypeInformation -Encoding UTF8
 } 
 
-Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
+$Job | Wait-Job | Out-Null
 
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 
