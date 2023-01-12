@@ -33,6 +33,7 @@ trap {
     $ErrorActionPreference = $PreviousErrorActionPreference
     [console]::beep(3000, 750)
     Send-ALNotification -Activity 'Lab started' -Message ('Lab deployment failed !') -Provider (Get-LabConfigurationItem -Name Notifications.SubscribedProviders)
+    break
 } 
 Clear-Host
 Import-Module AutomatedLab
@@ -40,7 +41,7 @@ $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
 #$VerbosePreference = 'Continue'
 $PreviousErrorActionPreference = $ErrorActionPreference
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Continue'
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
@@ -131,21 +132,21 @@ $PSDefaultParameterValues = @{
 }
 
 $IIS01NetAdapter = @()
-$IIS01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $IIS01IPv4Address
-$IIS01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp
+$IIS01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $IIS01IPv4Address -InterfaceName Corp
+$IIS01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp -InterfaceName Internet
 
 $SQL01NetAdapter = @()
-$SQL01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $SQL01IPv4Address
+$SQL01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $SQL01IPv4Address -InterfaceName Corp
 #Adding an Internet Connection on the DC (Required for the SQL Setup via AutomatedLab)
-$SQL01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp
+$SQL01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp -InterfaceName Internet
 
 $SCOM01NetAdapter = @()
-$SCOM01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $SCOM01IPv4Address
+$SCOM01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $SCOM01IPv4Address -InterfaceName Corp
 #Adding an Internet Connection on the DC (Required for the SQL Setup via AutomatedLab)
-$SCOM01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp
+$SCOM01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp -InterfaceName Internet
 
 $SQLServer2019Role = Get-LabMachineRoleDefinition -Role SQLServer2019 -Properties @{ Features = 'SQL,Tools' }
-Add-LabIsoImageDefinition -Name SQLServer2019 -Path $labSources\ISOs\en_sql_server_2019_standard_x64_dvd_cdcd4b9f.iso
+Add-LabIsoImageDefinition -Name SQLServer2019 -Path $labSources\ISOs\en_sql_server_2019_enterprise_x64_dvd_5e1ecc6b.iso
 
 #region server definitions
 #Root Domain controller
@@ -170,11 +171,12 @@ Install-LabSoftwarePackage -ComputerName SQL01 -Path $SQLServer2019LatestCU.Full
 #Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
 
 #region Installing Required Windows Features
-$machines = Get-LabVM
-Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools -AsJob
+$AllLabVMs = Get-LabVM
+$Job = @()
+$Job += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $AllLabVMs -IncludeManagementTools -AsJob -PassThru
 #endregion
 
-Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $machines -ScriptBlock {
+Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $AllLabVMs -ScriptBlock {
      #Disabling IE ESC
      $AdminKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}'
      $UserKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}'
@@ -341,7 +343,7 @@ Invoke-LabCommand -ActivityName 'Configuring Report Server on SQL Server' -Compu
 
     function Get-ConfigSet()
     {
-	    return Get-WmiObject –namespace "root\Microsoft\SqlServer\ReportServer\RS_SSRS\v15\Admin" -class MSReportServer_ConfigurationSetting -ComputerName localhost
+	    return Get-WmiObject -namespace "root\Microsoft\SqlServer\ReportServer\RS_SSRS\v15\Admin" -class MSReportServer_ConfigurationSetting -ComputerName localhost
     }
 
     # Allow importing of sqlps module
@@ -409,7 +411,7 @@ Invoke-LabCommand -ActivityName 'Configuring Report Server on SQL Server' -Compu
 	    $configset.ListReportServersInDatabase()
 	    $configset.ListReservedUrls();
 
-	    $inst = Get-WmiObject –namespace "root\Microsoft\SqlServer\ReportServer\RS_SSRS\v15" -class MSReportServer_Instance -ComputerName localhost
+	    $inst = Get-WmiObject -namespace "root\Microsoft\SqlServer\ReportServer\RS_SSRS\v15" -class MSReportServer_Instance -ComputerName localhost
 
 	    $inst.GetReportServerUrls()
     }
@@ -506,6 +508,7 @@ Invoke-LabCommand -ActivityName 'Windows Udpate via the PSWindowsUpdate PowerShe
     While ((Get-ScheduledTask -TaskName PSWindowsUpdate).State -eq 'Running') { Start-Sleep -Seconds 60}
 }
 
+$Job | Wait-Job | Out-Null
 Checkpoint-LabVM -SnapshotName 'Windows Update' -All
 
 Show-LabDeploymentSummary -Detailed
