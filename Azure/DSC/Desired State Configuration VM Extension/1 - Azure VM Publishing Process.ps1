@@ -239,3 +239,10 @@ Start-Sleep -Seconds 15
 #Step 12: Start RDP Session
 #mstsc /v $PublicIP.IpAddress
 mstsc /v $FQDN
+
+<#
+#DSC Configuration 
+& "$CurrentDir\2 - Azure Publishing VM with DSC.ps1"
+#Adding a certificate via a Vault.
+& "$CurrentDir\Optional - KeyVault for HTTPS.ps1"
+#>
