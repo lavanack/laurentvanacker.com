@@ -51,7 +51,7 @@ $GitURI = ((Invoke-WebRequest -Uri 'https://git-scm.com/download/win').Links | W
 $NetworkID='10.0.0.0/16' 
 
 $DC01IPv4Address = '10.0.0.1'
-$WIN10IPv4Address = '10.0.0.10'
+$WIN11IPv4Address = '10.0.0.10'
 
 
 $VSCodeExtension = [ordered]@{
@@ -94,20 +94,20 @@ Set-LabInstallationCredential -Username $Logon -Password $ClearTextPassword
 
 #defining default parameter values, as these ones are the same for all the machines
 $PSDefaultParameterValues = @{
-    'Add-LabMachineDefinition:Network'       = $LabName
-    'Add-LabMachineDefinition:DomainName'    = $FQDNDomainName
-    'Add-LabMachineDefinition:Memory'        = 2GB
+    'Add-LabMachineDefinition:Network'         = $LabName
+    'Add-LabMachineDefinition:DomainName'      = $FQDNDomainName
+    'Add-LabMachineDefinition:Memory'          = 2GB
     'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2022 Datacenter (Desktop Experience)'
-    'Add-LabMachineDefinition:Processors'    = 2
+    'Add-LabMachineDefinition:Processors'      = 2
 }
 
 #Domain controller
 Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress $DC01IPv4Address
 #region Client machine : 2 NICS for  (1 for server communications and 1 for Internet)
 $netAdapter = @()
-$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $WIN10IPv4Address
+$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $WIN11IPv4Address
 $netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp
-Add-LabMachineDefinition -Name WIN10 -NetworkAdapter $netAdapter -OperatingSystem 'Windows 10 Enterprise'
+Add-LabMachineDefinition -Name WIN11 -NetworkAdapter $netAdapter -OperatingSystem 'Windows 11 Enterprise'
 #endregion
 
 #Installing servers
@@ -115,7 +115,7 @@ Install-Lab
 Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 
 $Job = @()
-$Client = (Get-LabVM | Where-Object -FilterScript { $_.Name -eq "WIN10"}).Name
+$Client = (Get-LabVM | Where-Object -FilterScript { $_.Name -eq "WIN11"}).Name
 
 #Installing Git
 $Git = Get-LabInternetFile -Uri $GitUri -Path $labSources\SoftwarePackages -PassThru -Force
