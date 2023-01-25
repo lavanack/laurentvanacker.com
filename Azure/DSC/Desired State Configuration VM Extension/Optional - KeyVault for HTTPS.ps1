@@ -4,8 +4,8 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
 $ResourcePrefix     = "dscvmext"
-$ResourceGroupName  = "$ResourcePrefix-rg-$Location"
 $Location           = "eastus"
+$ResourceGroupName  = "$ResourcePrefix-rg-$Location"
 $VMName 	        = "{0}ws2019" -f $ResourcePrefix
 $VMName             = $VMName.Substring(0, [system.math]::min(15, $VMName.Length))
 $FQDN               = "$VMName.$Location.cloudapp.azure.com".ToLower()
@@ -47,4 +47,4 @@ $VM | Update-AzVM -Verbose
 $PublicIP = Get-AzPublicIpAddress -ResourceGroupName $ResourceGroupName | Where-Object { $_.IpConfiguration.Id -like "*$VMName*" } | Select-Object -First 1
 
 #Browsing to the IIS Web Site via HTTPS
-Start-Process "https://$FQDN"
+#Start-Process "https://$FQDN"

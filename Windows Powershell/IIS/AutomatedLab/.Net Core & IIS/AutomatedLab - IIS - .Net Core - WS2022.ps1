@@ -185,6 +185,8 @@ Install-LabSoftwarePackage -ComputerName IIS01 -Path $ASPNetCoreHostingBundle.Fu
 $NetSDK = Get-LabInternetFile -Uri $NetSDKURI -Path $labSources\SoftwarePackages -PassThru -Force
 Install-LabSoftwarePackage -ComputerName IIS01 -Path $NetSDK.FullName -CommandLine "/install /passive /norestart"
 #endregion
+
+Restart-LabVM -ComputerName IIS01 -Wait
 #endregion
 
 Invoke-LabCommand -ActivityName 'Setting up the IIS website' -ComputerName IIS01 -ScriptBlock {    
@@ -235,7 +237,6 @@ Invoke-LabCommand -ActivityName 'Setting up the IIS website' -ComputerName IIS01
 }
 
 #Checkpoint-LabVM -SnapshotName BeforeNetCoreWebSite -All
-Start-Sleep -Seconds 60
 
 Invoke-LabCommand -ActivityName 'Setting up the ASP.Net Core website' -ComputerName IIS01 -ScriptBlock {    
     #region dotnet: Create, publish and deploy the app
@@ -244,9 +245,9 @@ Invoke-LabCommand -ActivityName 'Setting up the ASP.Net Core website' -ComputerN
     $NetCoreWebSitePath =  "C:\WebSites\$using:NetCoreWebSiteName"
     $null = New-Item -Path C:\Temp -ItemType Directory -Force
     Set-Location -Path C:\Temp
-    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dotnet new webapp -o aspnetcoreapp --force" -Wait
-    Set-Location -Path aspnetcoreapp
-    Start-Process -FilePath "$env:comspec" -ArgumentList "/c dotnet publish --configuration Release --verbosity detailed --force" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "dotnet new webapp -o C:\Temp\aspnetcoreapp --force" -Wait
+    Set-Location -Path C:\Temp\aspnetcoreapp
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "dotnet publish --configuration Release --verbosity detailed --force" -Wait
     $Source = (Get-ChildItem -Path '.\bin\Release\' -Recurse -Filter 'publish' -Directory).FullName
     Copy-Item -Path "$Source\*" -Destination $NetCoreWebSitePath -Recurse -Force
     #endregion

@@ -36,7 +36,8 @@ trap {
     break
 } 
 Clear-Host
-Import-Module AutomatedLab
+Import-Module -Name AutomatedLab
+try {while (Stop-Transcript) {}} catch {}
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
 #$VerbosePreference = 'Continue'

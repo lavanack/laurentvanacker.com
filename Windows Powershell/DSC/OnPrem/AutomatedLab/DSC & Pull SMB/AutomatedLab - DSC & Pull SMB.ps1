@@ -111,11 +111,12 @@ Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 #Restore-LabVMSnapshot -SnapshotName 'FreshInstall' -All -Verbose
 
 #region Installing Required Windows Features
-$Machines = Get-LabVM
-$DesktopMachines = $Machines | Where-Object -FilterScript { $_.OperatingSystem -match "Desktop"}
-$TargetNodes = $Machines | Where-Object -FilterScript { $_.Name -match "^TARGETNODE"}
+$AllLabVMs = Get-LabVM
+$Job = @()
+$DesktopMachines = $AllLabVMs | Where-Object -FilterScript { $_.OperatingSystem -match "Desktop"}
+$TargetNodes = $AllLabVMs | Where-Object -FilterScript { $_.Name -match "^TARGETNODE"}
 
-Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $Machines -IncludeManagementTools -AsJob
+$Job += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $AllLabVMs -IncludeManagementTools -AsJob -PassThru
 #endregion
 
 Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $DesktopMachines -ScriptBlock {
@@ -185,7 +186,7 @@ $DCDocumentEncryptionCert = Request-LabCertificate -Subject "CN=dc.$FQDNDomainNa
 $TARGETNODE01DocumentEncryptionCert = Request-LabCertificate -Subject "CN=TARGETNODE01.$FQDNDomainName" -SAN "TARGETNODE01", "TARGETNODE01.$FQDNDomainName" -TemplateName DocumentEncryption5Years -ComputerName TARGETNODE01 -PassThru -ErrorAction Stop
 $TARGETNODE02DocumentEncryptionCert = Request-LabCertificate -Subject "CN=TARGETNODE02.$FQDNDomainName" -SAN "TARGETNODE02", "TARGETNODE02.$FQDNDomainName" -TemplateName DocumentEncryption5Years -ComputerName TARGETNODE02 -PassThru -ErrorAction Stop
 
-Invoke-LabCommand -ActivityName 'Requesting and Exporting Document Encryption Certificate & Disabling Windows Update service' -ComputerName $Machines -ScriptBlock {
+Invoke-LabCommand -ActivityName 'Requesting and Exporting Document Encryption Certificate & Disabling Windows Update service' -ComputerName $AllLabVMs -ScriptBlock {
     Stop-Service WUAUSERV -PassThru | Set-Service -StartupType Disabled
     
     $DocumentEncryption5YearsCert = Get-ChildItem Cert:\LocalMachine\My -DocumentEncryptionCert | Select-Object -Last 1    
@@ -193,7 +194,7 @@ Invoke-LabCommand -ActivityName 'Requesting and Exporting Document Encryption Ce
     Export-Certificate -Cert $DocumentEncryption5YearsCert -FilePath "\\pull\c$\PublicKeys\$env:COMPUTERNAME.cer" -Force
 } 
 
-Copy-LabFileItem -Path C:\PoshDSC\Demos -DestinationFolder C:\PShell\ -ComputerName $Machines -Recurse
+Copy-LabFileItem -Path C:\PoshDSC\Demos -DestinationFolder C:\PShell\ -ComputerName $AllLabVMs -Recurse
 Invoke-LabCommand -ActivityName 'Downloading prerequisites' -ComputerName PULL -ScriptBlock {
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
     Install-Module -Name ComputerManagementDsc, AccessControlDsc, xWebAdministration -Force -Verbose
@@ -413,7 +414,7 @@ Invoke-LabCommand -ActivityName 'Setting up LCM on the target Nodes' -ComputerNa
     Update-DscConfiguration -Wait -Verbose
 }
 
-Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
+$Job | Wait-Job | Out-Null
 
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 
