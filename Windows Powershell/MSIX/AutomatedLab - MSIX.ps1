@@ -23,9 +23,11 @@ trap {
     $ErrorActionPreference = $PreviousErrorActionPreference
     [console]::beep(3000, 750)
     Send-ALNotification -Activity 'Lab started' -Message ('Lab deployment failed !') -Provider (Get-LabConfigurationItem -Name Notifications.SubscribedProviders)
+    break
 } 
 Clear-Host
-Import-Module AutomatedLab
+Import-Module -Name AutomatedLab
+try {while (Stop-Transcript) {}} catch {}
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
 $PreviousErrorActionPreference = $ErrorActionPreference
@@ -78,28 +80,28 @@ Set-LabInstallationCredential -Username $Logon -Password $ClearTextPassword
 
 #defining default parameter values, as these ones are the same for all the machines
 $PSDefaultParameterValues = @{
-    'Add-LabMachineDefinition:Network'       = $LabName
-    'Add-LabMachineDefinition:DomainName'    = $FQDNDomainName
-    'Add-LabMachineDefinition:Memory'        = 2GB
-    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Datacenter (Desktop Experience)'
-    'Add-LabMachineDefinition:Processors'    = 2
+    'Add-LabMachineDefinition:Network'         = $LabName
+    'Add-LabMachineDefinition:DomainName'      = $FQDNDomainName
+    'Add-LabMachineDefinition:Memory'          = 2GB
+    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2022 Datacenter (Desktop Experience)'
+    'Add-LabMachineDefinition:Processors'      = 2
 }
 
 #Domain controller
 Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress $DC01IPv4Address
 #region Client machine : 2 NICS for  (1 for server communications and 1 for Internet)
 $netAdapter = @()
-$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $MSIXIPv4Address
-$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp
-Add-LabMachineDefinition -Name MSIX -NetworkAdapter $netAdapter -OperatingSystem 'Windows 10 Enterprise'
+$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $MSIXIPv4Address -InterfaceName Corp
+$netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp -InterfaceName Internet
+Add-LabMachineDefinition -Name MSIX -NetworkAdapter $netAdapter -OperatingSystem 'Windows 11 Enterprise' -Memory 4GB
 #endregion
 
 #Installing servers
-Install-Lab 
+Install-Lab -Verbose
 Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 #Restore-LabVMSnapshot -SnapshotName 'FreshInstall' -All -Verbose
 
-$Client = (Get-LabVM | Where-Object -FilterScript { $_.Name -eq "MSIX"}).Name
+$Client = (Get-LabVM -All | Where-Object -FilterScript { $_.Name -eq "MSIX"}).Name
 
 Copy-LabFileItem -Path $CurrentDir\MSIX -ComputerName $Client -DestinationFolderPath C:\ -Recurse
 
@@ -111,6 +113,20 @@ Invoke-LabCommand -ActivityName "Installing required PowerShell features for VHD
     if ($Result.RestartNeeded) {
         Restart-Computer -Force
     }
+}
+#>
+
+<#
+Invoke-LabCommand -ActivityName "Installing winget and 'MSIX Packaging Tool'" -ComputerName $Client -ScriptBlock {
+    Set-WinUserLanguageList -LanguageList fr-fr -Force
+    #region Installing winget via the WingetTools Powershell module
+    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+    Install-Module -Name WingetTools -Force -Verbose
+    Install-WinGet -Preview -PassThru -Verbose
+    #endregion
+
+    $CommandLine = 'winget install "MSIX Packaging Tool" --source msstore --accept-source-agreements --accept-package-agreements'
+    Start-Process -FilePath $env:ComSpec -ArgumentList "/c", $CommandLine -Wait
 }
 #>
 

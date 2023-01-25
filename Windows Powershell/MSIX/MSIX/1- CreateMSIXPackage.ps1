@@ -8,11 +8,16 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
 Set-Location -Path $CurrentDir
 
-#Start-Process "https://www.microsoft.com/en-gb/p/app-installer/9nblggh4nns1?ocid=9nblggh4nns1_ORSEARCH_Bing&rtc=2&activetab=pivot:overviewtab"
-Start-Process "ms-appinstaller:?source=https://aka.ms/getwinget"
 
-#Installing MSIX Packaging Tool via the command line
-winget install Microsoft.MSIXPackagingTool --accept-package-agreements --accept-source-agreements
+Set-WinUserLanguageList -LanguageList fr-fr -Force
+#region Installing winget via the WingetTools Powershell module
+Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+Install-Module -Name WingetTools -Force -Verbose
+Install-WinGet -Preview -PassThru -Verbose
+#endregion
+
+$CommandLine = 'winget install "MSIX Packaging Tool" --source msstore --accept-source-agreements --accept-package-agreements'
+Start-Process -FilePath $env:ComSpec -ArgumentList "/c", $CommandLine -Wait
 
 # Install only the PowerShell module to have VHD Management cmdlets
 if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Management-PowerShell).State -ne 'Enabled')
@@ -41,8 +46,6 @@ if (-not(Test-Path -Path $PFXFilePath))
     #Remove the newly generated certificate
     Get-ChildItem Cert:\LocalMachine -Recurse | Where-Object -FilterScript {$_.Subject -eq "CN=Contoso Software, O=Contoso Corporation, C=US"} | Remove-Item -Verbose -Force 
 }
-#Adding the Self-signed certificate in the trusted root (cheat mode for trust it:))
-Import-PfxCertificate -FilePath $PFXFilePath -CertStoreLocation Cert:\LocalMachine\TrustedPeople -Password $SecurePassword
 
 #Getting notepad++ latest version if possible
 $HTMLResponse = Invoke-WebRequest -Uri "https://notepad-plus-plus.org/downloads/"
@@ -54,7 +57,7 @@ if ($HTMLResponse.Content -match "Current Version (?<version>\d\.\d\.\d)")
 else
 {
     #Update this line to reflect the latest release of Notepad++ 
-    $NotepadPlusPlusVersion="8.2.1"
+    $NotepadPlusPlusVersion="8.4.8"
 }
 #Downloading notepad++ 
 $NotepadPlusPlusUri = "https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v$NotepadPlusPlusVersion/npp.$NotepadPlusPlusVersion.Installer.x64.exe"

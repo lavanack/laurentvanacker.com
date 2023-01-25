@@ -9,7 +9,7 @@ Set-Location -Path $CurrentDir
 
 #region Azure File Share Setup
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Verbose
-    Install-Module -Name Az.Accounts, Az.Network, Az.Resources, Az.Storage -Force -Verbose
+    Install-Module -Name Az, Az.Accounts, Az.Network, Az.Resources, Az.Storage -Force -Verbose
     Update-Module PowerShellGet -Force -Verbose
 
     $OutFile = Join-Path -Path $CurrentDir -ChildPath $AzFilesHybridZipName
