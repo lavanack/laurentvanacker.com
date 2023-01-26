@@ -48,8 +48,8 @@
             "source": {
                 "type": "PlatformImage",
                     "publisher": "MicrosoftWindowsDesktop",
-                    "offer": "windows-11",
-                    "sku": "21h2-ent",
+                    "offer": "Windows-11",
+                    "sku": "win11-22h2-ent",
                     "version": "latest"
             },
             "customize": [
