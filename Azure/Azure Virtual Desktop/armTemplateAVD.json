@@ -111,7 +111,7 @@
                     "galleryImageId": "/subscriptions/<subscriptionID>/resourceGroups/<rgName>/providers/Microsoft.Compute/galleries/<sharedImageGalName>/images/<imageDefName>/versions/<version>",
                     "runOutputName": "<runOutputName>",
                     "artifactTags": {
-                        "source": "avd11",
+                        "source": "avd-win11",
                         "baseosimg": "windows11"
                     },
                     "replicationRegions": [
