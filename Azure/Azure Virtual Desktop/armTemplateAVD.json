@@ -108,7 +108,7 @@
             [
                 {   
                     "type": "SharedImage",
-                    "galleryImageId": "/subscriptions/<subscriptionID>/resourceGroups/<rgName>/providers/Microsoft.Compute/galleries/<sharedImageGalName>/images/<imageDefName>",
+                    "galleryImageId": "/subscriptions/<subscriptionID>/resourceGroups/<rgName>/providers/Microsoft.Compute/galleries/<sharedImageGalName>/images/<imageDefName>/versions/1.0.0",
                     "runOutputName": "<runOutputName>",
                     "artifactTags": {
                         "source": "avd11",
