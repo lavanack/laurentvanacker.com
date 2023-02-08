@@ -85,7 +85,7 @@ $SystemCLRTypesForSQLServer2014x64URI = 'https://download.microsoft.com/download
 $SQLServer2019ReportingServicesURI = 'https://download.microsoft.com/download/1/a/a/1aaa9177-3578-4931-b8f3-373b24f63342/SQLServerReportingServices.exe'
 $SCOMNETAPMManagementPackURI = 'https://download.microsoft.com/download/C/C/2/CC264378-4ADE-4FC3-A6BB-7257CF7D6640/Package/Microsoft.SystemCenter.ApplicationInsights.msi'
 
-#Latest SQL CU : CU12 when this script was released in August 2021
+#Latest SQL CU : CU18 when this script was released in January 2023
 #$SQLServer2019LatestCUURI = 'https://download.microsoft.com/download/6/e/7/6e72dddf-dfa4-4889-bc3d-e5d3a0fd11ce/SQLServer2019-KB5004524-x64.exe'
 #To find dynamically the Latest SQL CU
 $SQLServer2019LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=100809 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "click here to download manually"}).href
