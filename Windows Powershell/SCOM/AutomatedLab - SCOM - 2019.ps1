@@ -496,6 +496,7 @@ Get-VM -Name 'SQL01' | Remove-VMNetworkAdapter -Name 'Default Switch' -ErrorActi
 Get-LabVM -All | Stop-VM -Passthru -Force | Set-VMProcessor -Count 1
 Start-LabVm -All -ProgressIndicator 1 -Wait
 
+$Job | Wait-Job | Out-Null
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 
 Invoke-LabCommand -ActivityName 'Windows Udpate via the PSWindowsUpdate PowerShell Module' -ComputerName SCOM01 -ScriptBlock {
@@ -509,7 +510,6 @@ Invoke-LabCommand -ActivityName 'Windows Udpate via the PSWindowsUpdate PowerShe
     While ((Get-ScheduledTask -TaskName PSWindowsUpdate).State -eq 'Running') { Start-Sleep -Seconds 60}
 }
 
-$Job | Wait-Job | Out-Null
 Checkpoint-LabVM -SnapshotName 'Windows Update' -All
 
 Show-LabDeploymentSummary -Detailed
