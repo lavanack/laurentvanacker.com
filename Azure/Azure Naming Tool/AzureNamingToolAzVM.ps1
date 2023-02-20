@@ -261,7 +261,7 @@ New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Pro
 #endregion
 #Step 11: Start Azure Virtual Machine
 Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
-<#
+
 #region Installing the Azure Naming Tool via a PowerShell Script
 #Getting storage account
 $ContainerName = "scripts"
@@ -284,14 +284,13 @@ Set-AzStorageBlobContent -Context $StorageContext -File $PowershellScriptFullNam
 
 Set-AzVMCustomScriptExtension -StorageAccountName $StorageAccountName -ContainerName $ContainerName -FileName $PowershellScriptName -Run $PowershellScriptName -StorageAccountKey $StorageAccountKey -Name $PowershellScriptName -VMName $VMName -ResourceGroupName $ResourceGroupName -Location $Location
 #endregion
-#>
 #endregion
 
-$FQDN | Set-ClipBoard
 Write-Verbose "The FQDN has beeen copied into the clipboard (Use Win+V) ..."
 
 Start-Sleep -Seconds 15
 
 #Step 12: Start RDP Session
 #mstsc /v $PublicIP.IpAddress
+Start-Process -FilePath "http://$FQDN"
 mstsc /v $FQDN
