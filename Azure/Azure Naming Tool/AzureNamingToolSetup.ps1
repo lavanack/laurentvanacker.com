@@ -16,9 +16,12 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 #region Global variables
-$ASPNetCoreHostingBundleURI = "https://download.visualstudio.microsoft.com/download/pr/321a2352-a7aa-492a-bd0d-491a963de7cc/6d17be7b07b8bc22db898db0ff37a5cc/dotnet-hosting-6.0.14-win.exe"
-$NetSDKURI = "https://download.visualstudio.microsoft.com/download/pr/4a725ea4-cd2c-4383-9b63-263156d5f042/d973777b32563272b85617105a06d272/dotnet-sdk-6.0.406-win-x64.exe"
-$AzNamingToolURI = "https://codeload.github.com/microsoft/CloudAdoptionFramework/zip/refs/heads/master"
+#$ASPNetCoreHostingBundleURI = (Invoke-WebRequest https://dotnet.microsoft.com/permalink/dotnetcore-current-windows-runtime-bundle-installer).links.href | Where-Object -FilterScript { $_ -match "\.exe$"} | Select-Object -Unique
+#$ASPNetCoreHostingBundleURI = "https://download.visualstudio.microsoft.com/download/pr/321a2352-a7aa-492a-bd0d-491a963de7cc/6d17be7b07b8bc22db898db0ff37a5cc/dotnet-hosting-6.0.14-win.exe"
+#$NetSDKURI = "https://download.visualstudio.microsoft.com/download/pr/4a725ea4-cd2c-4383-9b63-263156d5f042/d973777b32563272b85617105a06d272/dotnet-sdk-6.0.406-win-x64.exe"
+#$AzNamingToolURI = "https://codeload.github.com/microsoft/CloudAdoptionFramework/zip/refs/heads/master"
+$ASPNetCoreHostingBundleURI = "https://aka.ms/dotnet/6.0/dotnet-hosting-win.exe"
+$NetSDKURI = "https://aka.ms/dotnet/6.0/dotnet-sdk-win-x64.exe"
 $AzNamingToolURI = "https://github.com/microsoft/CloudAdoptionFramework/archive/refs/heads/master.zip"
 $ASPNetCoreHostingBundleFile = Join-Path -Path $env:TEMP -ChildPath $(Split-Path -Path $ASPNetCoreHostingBundleURI -Leaf)
 $NetSDKFile = Join-Path -Path $env:TEMP -ChildPath $(Split-Path -Path $NetSDKURI -Leaf)
