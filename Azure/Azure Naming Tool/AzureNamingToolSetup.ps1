@@ -23,9 +23,9 @@ of the Sample Code.
 $ASPNetCoreHostingBundleURI = "https://aka.ms/dotnet/6.0/dotnet-hosting-win.exe"
 $NetSDKURI = "https://aka.ms/dotnet/6.0/dotnet-sdk-win-x64.exe"
 $AzNamingToolURI = "https://github.com/microsoft/CloudAdoptionFramework/archive/refs/heads/master.zip"
-$ASPNetCoreHostingBundleFile = Join-Path -Path $env:TEMP -ChildPath $(Split-Path -Path $ASPNetCoreHostingBundleURI -Leaf)
-$NetSDKFile = Join-Path -Path $env:TEMP -ChildPath $(Split-Path -Path $NetSDKURI -Leaf)
-$AzNamingToolFile = Join-Path -Path $env:TEMP -ChildPath $(Split-Path -Path $AzNamingToolURI -Leaf)
+$ASPNetCoreHostingBundleFile = Join-Path -Path $env:SystemDrive -ChildPath $(Split-Path -Path $ASPNetCoreHostingBundleURI -Leaf)
+$NetSDKFile = Join-Path -Path $env:SystemDrive -ChildPath $(Split-Path -Path $NetSDKURI -Leaf)
+$AzNamingToolFile = Join-Path -Path $env:SystemDrive -ChildPath $(Split-Path -Path $AzNamingToolURI -Leaf)
 $AzureNamingToolWebSiteName = 'AzureNamingTool'
 #endregion
 
@@ -94,12 +94,12 @@ Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$Azure
 #Downloading Azure Naming Tool Zip file from GitHub
 Invoke-WebRequest -Uri $AzNamingToolURI -OutFile $AzNamingToolFile
 #Expanding the downloaded Zip file
-Expand-Archive -Path $AzNamingToolFile -DestinationPath "$env:TEMP\" -Force
+Expand-Archive -Path $AzNamingToolFile -DestinationPath "$env:SystemDrive\" -Force
 
 #region dotnet: Create, publish and deploy the app
 #cf. https://docs.microsoft.com/en-us/aspnet/core/getting-started/?view=aspnetcore-6.0&tabs=windows#create-a-web-app-project
 #cf. https://docs.microsoft.com/en-us/aspnet/core/tutorials/publish-to-iis?view=aspnetcore-6.0&tabs=netcore-cli#publish-and-deploy-the-app
-Set-Location -Path "$env:TEMP\CloudAdoptionFramework-master\ready\AzNamingTool"
+Set-Location -Path "$env:SystemDrive\CloudAdoptionFramework-master\ready\AzNamingTool"
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "dotnet build --verbosity detailed" -Wait
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "dotnet publish --configuration Release --verbosity detailed --force" -Wait
 $Source = (Get-ChildItem -Path '.\bin\Release\' -Recurse -Filter 'publish' -Directory).FullName

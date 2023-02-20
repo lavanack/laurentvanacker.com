@@ -256,7 +256,7 @@ Invoke-LabCommand -ActivityName 'Setting up the Azure Naming Tool website' -Comp
     Set-Location -Path "$env:SystemDrive\CloudAdoptionFramework-master\ready\AzNamingTool"
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "dotnet build --verbosity detailed" -Wait
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "dotnet publish --configuration Release --verbosity detailed --force" -Wait
-    $Source = (Get-ChildItem -Path "$env:SystemDrive\CloudAdoptionFramework-master\ready\AzNamingTool\bin\Release\" -Recurse -Filter 'publish' -Directory).FullName
+    $Source = (Get-ChildItem -Path '.\bin\Release\' -Recurse -Filter 'publish' -Directory).FullName
     Copy-Item -Path "$Source\*" -Destination $AzureNamingToolWebSitePath -Recurse -Force
     #endregion
 } -Verbose
