@@ -176,8 +176,15 @@ Configuration CreateClusterWithTwoNodes {
             Ensure = 'Present'
         }
         #endregion
-        
+
         #Setting Up The Server For High Performance
+        PowerPlan SetPlanHighPerformance
+        {
+            IsSingleInstance = 'Yes'
+            Name             = 'High performance'
+        }
+
+        <#
         Script HighPerformance {
             GetScript  = {
                 $ActiveScheme = [string]($(powercfg -getactivescheme).split()[3])
@@ -191,7 +198,7 @@ Configuration CreateClusterWithTwoNodes {
      
             SetScript  = {
                 $HighPerformanceScheme = (powercfg -l | Where-Object -FilterScript {$_ -match "High Performance"} | Select-Object -First 1).split()[3]
-                Start-Process -FilePath $env:ComSpec -ArgumentList "/c", "powercfg -setactive $HighPerf" -Wait
+                Start-Process -FilePath $env:ComSpec -ArgumentList "/c", "powercfg -setactive $HighPerformanceScheme" -Wait
             }
      
             TestScript = {
@@ -201,6 +208,7 @@ Configuration CreateClusterWithTwoNodes {
                 return ($state.Result -eq $HighPerformanceScheme)
             }
         }
+        #>
 
         #region LCM Setup
         LocalConfigurationManager     
