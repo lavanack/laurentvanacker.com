@@ -62,6 +62,16 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
 #region Defining variables 
+$SubscriptionName               = "Cloud Solution Architect"
+# Login to your Azure subscription.
+While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName))
+{
+    Connect-AzAccount
+    Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
+    #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
+    #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
+}
+
 $AzureVMNameMaxLength           = 15
 $RDPPort                        = 3389
 $JitPolicyTimeInHours           = 3
@@ -88,7 +98,6 @@ $SubnetName                     = "$VMName-Subnet-$Location"
 $NICNetworkSecurityGroupName    = "$VMName-nic-nsg-$Location"
 $subnetNetworkSecurityGroupName = "$VMName-vnet-Subnet-nsg-$Location"
 $StorageAccountSkuName          = "Standard_LRS"
-$SubscriptionName               = "Cloud Solution Architect"
 $MyPublicIp                     = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
 $ContainerName                  = "scripts"
 $PowershellScriptName           = "AzureNamingToolSetup.ps1"
@@ -119,15 +128,6 @@ $FQDN               = "$VMName.$Location.cloudapp.azure.com".ToLower()
 #endregion
 
 Write-Host "The FQDN is: $FQDN"
-
-# Login to your Azure subscription.
-While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName))
-{
-    Connect-AzAccount
-    Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
-    #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
-    #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
-}
 
 if ($null -eq (Get-AZVMSize -Location $Location | Where-Object -FilterScript {$_.Name -eq $VMSize}))
 {
