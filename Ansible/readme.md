@@ -16,7 +16,7 @@ Table of content:
 
 ## Prerequisites 
 
-  * An [AutomatedLab](https://automatedlab.org) environment 
+  * An [AutomatedLab](https://automatedlab.org) environment (with ISO for 'Windows Server 2022 Datacenter (Desktop Experience)' and  [Red Hat Enterprise Linux 8.6](https://access.redhat.com/downloads/content/479/ver=/rhel---8/8.6/x86_64/product-software))
   * A trial subscription for Ansible Automation Platform: https://www.redhat.com/en/technologies/management/ansible/trial
 
 ## Setup
