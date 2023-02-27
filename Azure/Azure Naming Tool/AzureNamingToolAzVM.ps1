@@ -90,9 +90,9 @@ $subnetNetworkSecurityGroupName = "$VMName-vnet-Subnet-nsg-$Location"
 $StorageAccountSkuName          = "Standard_LRS"
 $SubscriptionName               = "Cloud Solution Architect"
 $MyPublicIp                     = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
-$DSCFileName                    = "AutomatedLabSetupDSC.ps1"
-$DSCFilePath                    = Join-Path -Path $CurrentDir -ChildPath $DSCFileName
-$ConfigurationName              = "AutomatedLabSetupDSC"
+$ContainerName                  = "scripts"
+$PowershellScriptName           = "AzureNamingToolSetup.ps1"
+$PowershellScriptFullName       = $(Join-Path -Path $CurrentDir -ChildPath $PowershellScriptName)
 #endregion
 
 #region Defining credential(s)
@@ -151,8 +151,10 @@ New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroup
 #Step 3: Create Azure Network Security Group
 #RDP only for my public IP address
 $RDPRule              = New-AzNetworkSecurityRuleConfig -Name RDPRule -Description "Allow RDP" -Access Allow -Protocol Tcp -Direction Inbound -Priority 300 -SourceAddressPrefix $MyPublicIp -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange $RDPPort
+#HTTP only for my public IP address
+$HTTPRule             = New-AzNetworkSecurityRuleConfig -Name HTTPRule -Description "Allow HTTP" -Access Allow -Protocol Tcp -Direction Inbound -Priority 301 -SourceAddressPrefix $MyPublicIp -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 80
 #HTTP for everyone
-$HTTPRule             = New-AzNetworkSecurityRuleConfig -Name HTTPRule -Description "Allow HTTP" -Access Allow -Protocol Tcp -Direction Inbound -Priority 301 -SourceAddressPrefix Internet -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 80
+#$HTTPRule             = New-AzNetworkSecurityRuleConfig -Name HTTPRule -Description "Allow HTTP" -Access Allow -Protocol Tcp -Direction Inbound -Priority 301 -SourceAddressPrefix Internet -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 80
 #$NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NICNetworkSecurityGroupName -SecurityRules $HTTPRule, $RDPRule -Force
 #Allowing only HTTP for everyone from a NSG POV
 $NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NICNetworkSecurityGroupName -SecurityRules $HTTPRule, $RDPRule -Force
@@ -264,9 +266,6 @@ Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 
 #region Installing the Azure Naming Tool via a PowerShell Script
 #Getting storage account
-$ContainerName = "scripts"
-$PowershellScriptName = "AzureNamingToolSetup.ps1"
-$PowershellScriptFullName = $(Join-Path -Path $CurrentDir -ChildPath $PowershellScriptName)
 $StorageAccountKey = ((Get-AzStorageAccountKey -ResourceGroupName $ResourceGroupName -Name $StorageAccountName)[0].Value)
 
 $StorageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName 
@@ -284,9 +283,6 @@ Set-AzStorageBlobContent -Context $StorageContext -File $PowershellScriptFullNam
 
 Set-AzVMCustomScriptExtension -StorageAccountName $StorageAccountName -ContainerName $ContainerName -FileName $PowershellScriptName -Run $PowershellScriptName -StorageAccountKey $StorageAccountKey -Name $PowershellScriptName -VMName $VMName -ResourceGroupName $ResourceGroupName -Location $Location
 #endregion
-#endregion
-
-Write-Verbose "The FQDN has beeen copied into the clipboard (Use Win+V) ..."
 
 Start-Sleep -Seconds 15
 
