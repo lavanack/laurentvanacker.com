@@ -34,8 +34,8 @@ All Windows Servers are running 'Windows Server 2022 Datacenter (Desktop Experie
 ## Server Details
 * DC01: Domain Controller for the contoso.com domain
 * GIT01: This local Git Server will host the content of the [IISSetup](./AutomatedLab/IISSetup/) folder as a git repository. The PowerShell script(s) inside this folder allow(s) you to install an IIS server with some **best practices**
-* IIS01: Used to install IIS either from the local Git repository (hosted on GIT01) 
-* WS01: Used for to install IIS or running a demo PowerShell script from this [GitHub](https://github.com/lavanack/laurentvanacker.com). <>
+* IIS01: Used to install IIS from the local Git repository (hosted on GIT01) 
+* WS01: Used for to install IIS or running a demo PowerShell script from this [GitHub](https://github.com/lavanack/laurentvanacker.com).
 * RHEL01: Hosts the [Ansible Automation Platform](https://www.redhat.com/en/technologies/management/ansible/trial) with some populated Credentials, Inventories, Server Groups, Projects, Job Templates
 
 ## Ansible Automation Platform Details
@@ -58,15 +58,14 @@ All Windows Servers are running 'Windows Server 2022 Datacenter (Desktop Experie
 
   ![](docs/windowsservergroup.jpg)
 ### Projects
-  * LAN HTTP Git - Project: Points to the local git repository hosted on GIT01 (the alias git.contoso.com can be used)
+  * IIS Setup Playbook - Project: local playbook for a custom IIS setupLAN HTTP Git - Project: Points to the local git repository hosted on GIT01 (the alias git.contoso.com can be used)
   * Laurent's Github - Project: Points to this [GitHub](https://github.com/lavanack/laurentvanacker.com)
-  * IIS Setup Playbook - Project: local playbook for a custom IIS setup
+* 
   
   ![](docs/projects.jpg)
 ### Job Templates
+  * From LAN HTTP Git: IIS Setup - Template: will deploy the [./AutomatedLab/iissetup.yml](./AutomatedLab/iissetup.yml) which will install IIS from the local Git repository (used by the playbook below)
   * From Laurent's Github: IIS Setup Sample - Template: Will deploy the [./Samples/Windows/enable-iis.yml playbook](./Samples/Windows/enable-iis.yml) which will install IIS from this [GitHub](https://github.com/lavanack/laurentvanacker.com)
   * From Laurent's Github: PowerShell Sample - Template: Will run the [./Samples/Windows/run-powershell.yml plabook](./Samples/Windows/run-powershell.yml) which will create a new timestamped file via PowerShell from this [GitHub](https://github.com/lavanack/laurentvanacker.com)
-  * From LAN HTTP Git: IIS Setup - Template: will deploy the [./AutomatedLab/iissetup.yml](./AutomatedLab/iissetup.yml) which will install IIS from the local Git repository (used by the playbook below)
-
   ![](docs/templates.jpg)
 
