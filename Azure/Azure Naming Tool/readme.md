@@ -31,6 +31,7 @@ After completion the website will automatically be open via your default browser
 * The WM will be deployed on the westus3 region for cost saving purpose (You can use the non Microsoft https://azureprice.net/ web site to compare cost in different regions) . You can change  that if you want (around line 69 in the [AzureNamingToolAzVM.ps1](AzureNamingToolAzVM.ps1) script)
 * The VM name (and associated Storage account name) is randomly generated with the template antXXXXXXXXXXXX where X is a digit to avoid duplicate names (an availability test is done around line 72 in the [AzureNamingToolAzVM.ps1](AzureNamingToolAzVM.ps1) script)
 * A DNS Name is set under the form < VMName >.< Location >.cloudapp.azure.com (for instance ant314159265359.westus3.cloudapp.azure.com) and used for the browser connection (the pblic IP is not directly used)
+* A daily scheduled shutdown at 11:00 PM (in your local timezone) is set for the VM (no automatic start is set)
 * The RDP and HTTP connections are only accessible from the IP where you run the script (done via a query to http://ifconfig.me/ip) via a [Network Security Group](https://learn.microsoft.com/en-us/azure/virtual-network/network-security-group-how-it-works). If you want to give access to people from different IP you has to customize the RDP and HTTP rules of the NSG or use the JIT access policy (next point).
 
 ![](docs/nsg.jpg)
