@@ -64,8 +64,9 @@ All Windows Servers are running 'Windows Server 2022 Datacenter (Desktop Experie
   
   ![](docs/projects.jpg)
 ### Job Templates
-  * From LAN HTTP Git: IIS Setup - Template: will deploy the [./AutomatedLab/iissetup.yml](./AutomatedLab/iissetup.yml) which will install IIS from the local Git repository (used by the playbook below)
-  * From Laurent's Github: IIS Setup Sample - Template: Will deploy the [./Samples/Windows/enable-iis.yml playbook](./Samples/Windows/enable-iis.yml) which will install IIS from this [GitHub](https://github.com/lavanack/laurentvanacker.com)
-  * From Laurent's Github: PowerShell Sample - Template: Will run the [./Samples/Windows/run-powershell.yml plabook](./Samples/Windows/run-powershell.yml) which will create a new timestamped file via PowerShell from this [GitHub](https://github.com/lavanack/laurentvanacker.com)
+  * From LAN HTTP Git: IIS Setup - Template: will deploy [iissetup.yml](./AutomatedLab/iissetup.yml) which will install IIS from the local Git repository (used by the playbook below)
+  * From Laurent's Github: IIS Setup Sample - Template: Will deploy [enable-iis.yml](./Samples/Windows/enable-iis.yml) which will install IIS from this [GitHub](https://github.com/lavanack/laurentvanacker.com)
+  * From Laurent's Github: PowerShell Sample - Template: Will run [run-powershell.yml](./Samples/Windows/run-powershell.yml) which will create a new timestamped file via PowerShell from this [GitHub](https://github.com/lavanack/laurentvanacker.com)
+  
   ![](docs/templates.jpg)
 
