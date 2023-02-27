@@ -1,0 +1,16 @@
+---
+ - hosts: all
+   tasks:
+   - name: Create Source directory structure
+     win_file:
+       path: "C:\\SourceControl\\Git" 
+       state: directory
+
+   - name: Clone the LAN HTTP Git Repository
+     win_command: >
+       "C:\Program Files\Git\git-bash.exe" 
+       --cd=C:\SourceControl\Git 
+       -c 'git clone http://git:Password1234!@git.contoso.com/IIS.git'
+
+   - name: Run powershell - Install IIS
+     win_shell: '& "C:\\SourceControl\\Git\\IIS\\IISSetup\\IISSetup.ps1"'
