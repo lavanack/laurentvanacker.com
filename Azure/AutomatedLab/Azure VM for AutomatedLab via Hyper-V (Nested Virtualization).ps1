@@ -1,4 +1,26 @@
-﻿Clear-Host
+﻿<#
+This Sample Code is provided for the purpose of illustration only
+and is not intended to be used in a production environment.  THIS
+SAMPLE CODE AND ANY RELATED INFORMATION ARE PROVIDED "AS IS" WITHOUT
+WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT
+LIMITED TO THE IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS
+FOR A PARTICULAR PURPOSE.  We grant You a nonexclusive, royalty-free
+right to use and modify the Sample Code and to reproduce and distribute
+the object code form of the Sample Code, provided that You agree:
+(i) to not use Our name, logo, or trademarks to market Your software
+product in which the Sample Code is embedded; (ii) to include a valid
+copyright notice on Your software product in which the Sample Code is
+embedded; and (iii) to indemnify, hold harmless, and defend Us and
+Our suppliers from and against any claims or lawsuits, including
+attorneys' fees, that arise or result from the use or distribution
+of the Sample Code.
+#>
+[CmdletBinding()]
+param
+(
+)
+
+Clear-Host
 Get-Variable -Scope Script | Remove-Variable -Scope Script -Force -ErrorAction Ignore
 
 #region function definitions 
@@ -21,7 +43,7 @@ function New-RandomPassword
     Write-Host "The password is : $RandomPassword"
     if ($ClipBoard)
     {
-        Write-Verbose "The password has beeen copied into the clipboard ..."
+        Write-Verbose "The password has beeen copied into the clipboard (Use Win+V) ..."
         $RandomPassword | Set-Clipboard
     }
     if ($AsSecureString)
@@ -40,20 +62,31 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
 #region Defining variables 
+$AzureVMNameMaxLength           = 15
 $RDPPort                        = 3389
 $JitPolicyTimeInHours           = 3
 $JitPolicyName                  = "Default"
 $Location                       = "westus3"
 $ResourcePrefix                 = "al"
-$ResourceGroupName              = "$ResourcePrefix-rg-$Location"
-$VirtualNetworkName             = "$ResourcePrefix-vnet-$Location"
+$DigitNumber                    = $AzureVMNameMaxLength - $ResourcePrefix.Length
+Do 
+{
+    $VMName = "{0}{1:D$DigitNumber}" -f $ResourcePrefix, $(Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)-1)))
+    $VMName = $VMName.Substring(0, [system.math]::min(15, $VMName.Length))
+
+    #$StorageAccountName             = "{0}sa{1}" -f $VMName, $Location # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name $StorageAccountName 
+    $StorageAccountName             = "{0}sa" -f $VMName # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name $StorageAccountName 
+    $StorageAccountName             = $StorageAccountName.Substring(0, [system.math]::min(24, $StorageAccountName.Length)).ToLower()
+
+} While ((-not(Test-AzDnsAvailability -DomainNameLabel $VMName -Location $Location)) -or ((-not(Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable)))
+
+$ResourceGroupName              = "$VMName-rg-$Location"
+$VirtualNetworkName             = "$VMName-vnet-$Location"
 $VirtualNetworkAddressSpace     = "10.10.0.0/16" # Format 10.10.0.0/16
 $SubnetIPRange                  = "10.10.1.0/24" # Format 10.10.1.0/24
-$SubnetName                     = "$ResourcePrefix-Subnet-$Location"
-$NICNetworkSecurityGroupName    = "$ResourcePrefix-nic-nsg-$Location"
-$subnetNetworkSecurityGroupName = "$ResourcePrefix-vnet-Subnet-nsg-$Location"
-$StorageAccountName             = "{0}sa{1}" -f $ResourcePrefix, $Location # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name $StorageAccountName 
-$StorageAccountName             = $StorageAccountName.Substring(0, [system.math]::min(24, $StorageAccountName.Length)).ToLower()
+$SubnetName                     = "$VMName-Subnet-$Location"
+$NICNetworkSecurityGroupName    = "$VMName-nic-nsg-$Location"
+$subnetNetworkSecurityGroupName = "$VMName-vnet-Subnet-nsg-$Location"
 $StorageAccountSkuName          = "Standard_LRS"
 $SubscriptionName               = "Cloud Solution Architect"
 $MyPublicIp                     = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
@@ -72,9 +105,6 @@ $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList
 #endregion
 
 #region Define Variables needed for Virtual Machine
-#$VMName 	        = "AL-$('{0:yyMMddHHmm}' -f (Get-Date))"
-$VMName 	        = "{0}win1122h2" -f $ResourcePrefix
-$VMName             = $VMName.Substring(0, [system.math]::min(15, $VMName.Length))
 $ImagePublisherName	= "MicrosoftWindowsDesktop"
 $ImageOffer	        = "Windows-11"
 $ImageSku	        = "win11-22h2-ent"
@@ -91,11 +121,12 @@ $FQDN               = "$VMName.$Location.cloudapp.azure.com".ToLower()
 Write-Host "The FQDN is: $FQDN"
 
 # Login to your Azure subscription.
-if (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName))
+While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName))
 {
     Connect-AzAccount
+    Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
     #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
-    Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
+    #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
 }
 
 if ($null -eq (Get-AZVMSize -Location $Location | Where-Object -FilterScript {$_.Name -eq $VMSize}))
@@ -108,11 +139,6 @@ if ($ResourceGroup)
 {
     #Step 0: Remove previously existing Azure Resource Group with the "AutomatedLab-rg" name
     $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
-}
-
-if (-not((Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable))
-{
-    Write-Error "The [$StorageAccountName] is not available ..." -ErrorAction Stop
 }
 
 #Step 1: Create Azure Resource Group
@@ -246,9 +272,6 @@ try
 } catch {}
 $VM | Update-AzVM -Verbose
 #endregion
-<#
-#>
-
 
 Start-Sleep -Seconds 15
 
