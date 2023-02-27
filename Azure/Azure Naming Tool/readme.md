@@ -1,6 +1,4 @@
 # Azure Naming Tool
-[AutomatedLab](https://automatedlab.org) ([GitHub](https://github.com/AutomatedLab/AutomatedLab)) is a project that allows to set up lab and test environments on **Hyper-V** or **[Azure](https://portal.azure.com/)** with multiple products
-
 
 Table of content:
 - [Azure Naming Tool](#azure-naming-tool)
@@ -47,6 +45,7 @@ The final step is to immediately set your Azure Naming Tool Admin Password. (Be 
 
 ## AutomatedLab version
 
+[AutomatedLab](https://automatedlab.org) ([GitHub](https://github.com/AutomatedLab/AutomatedLab)) is a project that allows to set up lab and test environments on **Hyper-V** or **[Azure](https://portal.azure.com/)** with multiple products
 ### Prerequisites 
 
 Run the [AutomatedLab - Azure Naming Tool - IIS - WS2022.ps1.ps1](./AutomatedLab%20-%20Azure%20Naming%20Tool%20-%20IIS%20-%20WS2022.ps1) script (PowerShell 5.1 needed) wait for completion (~30 minutes).
