@@ -54,6 +54,6 @@ After completion you'll have:
 * a Domain Controller for the contoso.com domain: DC01
 * an IIS server for hosting the azurenamingtool.contoso.com website: IIS01
 
-All Windows Servers are running 'Windows Server 2022 Datacenter (Desktop Experience)'. Credentials will be displayed at the end of the deployment process. Just connect via RDP to the server you want and open an Edge browser. The https://azurenamingtool.contoso.com will automatically be loaded (Thanks to GPO settings). (There is no authentication mechanism except the anonymous one.). The final step is to set your Azure Naming Tool Admin Password 
+All Windows Servers are running 'Windows Server 2022 Datacenter (Desktop Experience)'. Credentials will be displayed at the end of the deployment process. Just connect via RDP to the server you want (DC01 or IIS01) and open an Edge browser. The https://azurenamingtool.contoso.com will automatically be loaded (Thanks to GPO settings). (There is no authentication mechanism except the anonymous one.). The final step is to set your Azure Naming Tool Admin Password 
 
 ![](docs/iis.jpg)
