@@ -30,9 +30,9 @@ After completion the website will automatically be open via your default browser
 **Notes:**
 * The Azure VM will run the latest version of 'Windows Server 2022 Datacenter (Desktop Experience)' Generation 2 in a [Standard_D4s_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/dv5-dsv5-series) Azure VM
 * The Azure VM will be a [Spot Instance](https://learn.microsoft.com/en-us/azure/virtual-machines/spot-vms) with a 'Deallocate' [eviction policy](https://learn.microsoft.com/en-us/azure/architecture/guide/spot/spot-eviction#eviction-policy) based on capacity (not price) to save money. You can disable that if you want (around line 185 in the [AzureNamingToolAzVM.ps1](AzureNamingToolAzVM.ps1) script)
-* The WM will be deployed on the westus3 region for cost saving purpose (You can use the non Microsoft https://azureprice.net/ to compare cost in different regions) . You can change  that if you want (around line 69 in the [AzureNamingToolAzVM.ps1](AzureNamingToolAzVM.ps1) script)
+* The WM will be deployed on the westus3 region for cost saving purpose (You can use the non Microsoft https://azureprice.net/ web site to compare cost in different regions) . You can change  that if you want (around line 69 in the [AzureNamingToolAzVM.ps1](AzureNamingToolAzVM.ps1) script)
 * The VM name (and associated Storage account name) is randomly generated with the template antXXXXXXXXXXXX where X is a digit to avoid duplicate names (an availability test is done around line 72 in the [AzureNamingToolAzVM.ps1](AzureNamingToolAzVM.ps1) script)
-* A DNS Name is set under the form < VMName >.< Location >.cloudapp.azure.com (for instance ant314159265359.westus.cloudapp.azure.com) and used for the browser connection (the pblic IP is not directly used)
+* A DNS Name is set under the form < VMName >.< Location >.cloudapp.azure.com (for instance ant314159265359.westus3.cloudapp.azure.com) and used for the browser connection (the pblic IP is not directly used)
 * The RDP and HTTP connections are only accessible from the IP where you run the script (done via a query to http://ifconfig.me/ip) via a [Network Security Group](https://learn.microsoft.com/en-us/azure/virtual-network/network-security-group-how-it-works). If you want to give access to people from different IP you has to customize the RDP and HTTP rules of the NSG or use the JIT access policy (next point).
 
 ![](docs/nsg.jpg)
@@ -41,7 +41,7 @@ After completion the website will automatically be open via your default browser
 
 * The password (for RDP connection) is randomy generated and displayed at the beginning and copied into your clipboard. The account name used is the same you are currently using (cf. the Username environment variable - so almost different for everyone)
 
-The final step is to immediately set your Azure Naming Tool Admin Password. (Be careful if you are behind a proxy because everyone using the sae proxy wil be able to reach the website and set this password before you if you don't do it quicky) 
+The final step is to immediately set your Azure Naming Tool Admin Password. (Be careful if you are behind a proxy because everyone using the same proxy wil be able to reach the website and set this password before you if you don't do it quicky) 
 
 ![](docs/iis.jpg)
 
@@ -54,6 +54,6 @@ After completion you'll have:
 * a Domain Controller for the contoso.com domain: DC01
 * an IIS server for hosting the azurenamingtool.contoso.com website: IIS01
 
-All Windows Servers are running 'Windows Server 2022 Datacenter (Desktop Experience)', credentials will be displayed a the end of the deployment process. Just connect via RDP to the server you want and open an Edge browser. The https://azurenamingtool.contoso.com will automatically be loaded (Thanks to GPO settings). (There is no authentication mechanism except the anonymous one.). The final step is to set your Azure Naming Tool Admin Password 
+All Windows Servers are running 'Windows Server 2022 Datacenter (Desktop Experience)'. Credentials will be displayed a the end of the deployment process. Just connect via RDP to the server you want and open an Edge browser. The https://azurenamingtool.contoso.com will automatically be loaded (Thanks to GPO settings). (There is no authentication mechanism except the anonymous one.). The final step is to set your Azure Naming Tool Admin Password 
 
 ![](docs/iis.jpg)
