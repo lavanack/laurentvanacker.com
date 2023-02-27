@@ -290,3 +290,5 @@ Start-Sleep -Seconds 15
 #mstsc /v $PublicIP.IpAddress
 Start-Process -FilePath "http://$FQDN"
 mstsc /v $FQDN
+
+Write-Host -Object "Your RDP credentials (login/password) are $Username/$($Credential.GetNetworkCredential().Password)" -ForegroundColor Green

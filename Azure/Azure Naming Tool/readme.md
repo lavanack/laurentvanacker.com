@@ -39,7 +39,7 @@ After completion the website will automatically be open via your default browser
 * A just-in-time access policy (3-hour long) is also set for RDP access.
 ![](docs/jit.jpg)
 
-* The password (for RDP connection) is randomy generated and displayed at the beginning and copied into your clipboard. The account name used is the same you are currently using (cf. the Username environment variable - so almost different for everyone)
+* The password (for RDP connection) is randomy generated and displayed at the beginning and copied into your clipboard. The account name used is the same you are currently using (cf. the Username environment variable - so almost different for everyone). In addition these credentials will also be displayed at the end of the deployment process (in green)
 
 The final step is to immediately set your Azure Naming Tool Admin Password. (Be careful if you are behind a proxy because everyone using the same proxy wil be able to reach the website and set this password before you if you don't do it quicky) 
 
@@ -54,6 +54,6 @@ After completion you'll have:
 * a Domain Controller for the contoso.com domain: DC01
 * an IIS server for hosting the azurenamingtool.contoso.com website: IIS01
 
-All Windows Servers are running 'Windows Server 2022 Datacenter (Desktop Experience)'. Credentials will be displayed a the end of the deployment process. Just connect via RDP to the server you want and open an Edge browser. The https://azurenamingtool.contoso.com will automatically be loaded (Thanks to GPO settings). (There is no authentication mechanism except the anonymous one.). The final step is to set your Azure Naming Tool Admin Password 
+All Windows Servers are running 'Windows Server 2022 Datacenter (Desktop Experience)'. Credentials will be displayed at the end of the deployment process. Just connect via RDP to the server you want and open an Edge browser. The https://azurenamingtool.contoso.com will automatically be loaded (Thanks to GPO settings). (There is no authentication mechanism except the anonymous one.). The final step is to set your Azure Naming Tool Admin Password 
 
 ![](docs/iis.jpg)
