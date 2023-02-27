@@ -62,6 +62,16 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
 #region Defining variables 
+$SubscriptionName               = "Cloud Solution Architect"
+# Login to your Azure subscription.
+While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName))
+{
+    Connect-AzAccount
+    Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
+    #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
+    #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
+}
+
 $AzureVMNameMaxLength           = 15
 $RDPPort                        = 3389
 $JitPolicyTimeInHours           = 3
@@ -88,7 +98,6 @@ $SubnetName                     = "$VMName-Subnet-$Location"
 $NICNetworkSecurityGroupName    = "$VMName-nic-nsg-$Location"
 $subnetNetworkSecurityGroupName = "$VMName-vnet-Subnet-nsg-$Location"
 $StorageAccountSkuName          = "Standard_LRS"
-$SubscriptionName               = "Cloud Solution Architect"
 $MyPublicIp                     = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
 $DSCFileName                    = "AutomatedLabSetupDSC.ps1"
 $DSCFilePath                    = Join-Path -Path $CurrentDir -ChildPath $DSCFileName
@@ -120,15 +129,6 @@ $FQDN               = "$VMName.$Location.cloudapp.azure.com".ToLower()
 
 Write-Host "The FQDN is: $FQDN"
 
-# Login to your Azure subscription.
-While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName))
-{
-    Connect-AzAccount
-    Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
-    #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
-    #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
-}
-
 if ($null -eq (Get-AZVMSize -Location $Location | Where-Object -FilterScript {$_.Name -eq $VMSize}))
 {
     Write-Error "The [$VMSize] is not available in the [$Location] location ..." -ErrorAction Stop
@@ -151,8 +151,10 @@ New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroup
 #Step 3: Create Azure Network Security Group
 #RDP only for my public IP address
 $RDPRule              = New-AzNetworkSecurityRuleConfig -Name RDPRule -Description "Allow RDP" -Access Allow -Protocol Tcp -Direction Inbound -Priority 300 -SourceAddressPrefix $MyPublicIp -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange $RDPPort
+#HTTP only for my public IP address
+$HTTPRule             = New-AzNetworkSecurityRuleConfig -Name HTTPRule -Description "Allow HTTP" -Access Allow -Protocol Tcp -Direction Inbound -Priority 301 -SourceAddressPrefix $MyPublicIp -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 80
 #HTTP for everyone
-$HTTPRule             = New-AzNetworkSecurityRuleConfig -Name HTTPRule -Description "Allow HTTP" -Access Allow -Protocol Tcp -Direction Inbound -Priority 301 -SourceAddressPrefix Internet -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 80
+#$HTTPRule             = New-AzNetworkSecurityRuleConfig -Name HTTPRule -Description "Allow HTTP" -Access Allow -Protocol Tcp -Direction Inbound -Priority 301 -SourceAddressPrefix Internet -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 80
 #$NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NICNetworkSecurityGroupName -SecurityRules $HTTPRule, $RDPRule -Force
 #Allowing only HTTP for everyone from a NSG POV
 $NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NICNetworkSecurityGroupName -SecurityRules $HTTPRule, $RDPRule -Force
@@ -278,3 +280,4 @@ Start-Sleep -Seconds 15
 #Step 12: Start RDP Session
 #mstsc /v $PublicIP.IpAddress
 mstsc /v $FQDN
+Write-Host -Object "Your RDP credentials (login/password) are $Username/$($Credential.GetNetworkCredential().Password)" -ForegroundColor Green
