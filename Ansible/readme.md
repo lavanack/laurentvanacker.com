@@ -24,7 +24,7 @@ Table of content:
 
 Run the [Ansible Tower.ps1](./AutomatedLab/AutomatedLab%20-%20Ansible%20Tower.ps1) script (PowerShell 5.1 needed) and enter your credentials for your  trial subscription for Ansible Automation Platform when needed and wait for completion (~2 hours).
 After completion you'll have:
-* a Domain controller: DC01
+* a Domain Controller: DC01
 * a local Git server ([IIS](https://www.iis.net) is used as hosting platform): GIT01
 * an IIS server for testing purpose: IIS01
 * a Windows Server for testing purpose: WS01
@@ -33,17 +33,17 @@ After completion you'll have:
 All Windows Servers are running 'Windows Server 2022 Datacenter (Desktop Experience)', credentials will be displayed a the end of the deployment process and a browser Windows will open to https://rhel01.
 
 ## Server Details
-* DC01: Domain troller for the contoso.com domain
+* DC01: Domain Controller for the contoso.com domain
 * GIT01: This local Git Server will host the content of the [IISSetup](./AutomatedLab/IISSetup/) folder as a git repository. The PowerShell script(s) inside this folder allow(s) you to install an IIS server with some **best practices**
-* IIS01: could be used to install the IIS setup script either for GIT01 of via the [Ansible Automation Platform](https://www.redhat.com/en/technologies/management/ansible/trial) hosted on  RHEL01
+* IIS01: could be used to install IIS either from a local playbook (via a local Git repository - hosted on GIT01) or this [GitHub](https://github.com/lavanack/laurentvanacker.com). Every setup relies on [Ansible Automation Platform](https://www.redhat.com/en/technologies/management/ansible/trial) hosted on RHEL01
 * WS01: could be used for all other testing purposes
-* RHEL01: Hosts the [Ansible Automation Platform](https://www.redhat.com/en/technologies/management/ansible/trial) with some populated Credentials, Inventories, Server Groups, Projects, Job Templates , Job Templates Credentials and Playbooks  
+* RHEL01: Hosts the [Ansible Automation Platform](https://www.redhat.com/en/technologies/management/ansible/trial) with some populated Credentials, Inventories, Server Groups, Projects, Job Templates (+Job Templates Credentials) and Playbooks  
 
 ## Ansible Automation Platform Details
 
 ### Credentials
-  * Windows Credentials: for connecting to all Windows Servers
-  * GIT credentials: for connecting to the local git repository (hosted on to GIT01) 
+  * Windows Administrator - Credential: for connecting to all Windows Servers
+  * Local Git - Credential: for connecting to the local git repository (hosted on to GIT01) 
 ### Inventories
   * Windows Servers - Inventory: for listing all Windows Servers
   * Linux Servers - Inventory: for listing all Linux Servers
