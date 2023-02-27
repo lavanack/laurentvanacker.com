@@ -26,6 +26,7 @@ Run the [AzureNamingToolAzVM.ps1](AzureNamingToolAzVM.ps1) script (PowerShell 5.
 After completion the website will automatically be open via your default browser. 
 
 **Notes:**
+* 
 * The Azure VM will run the latest version of 'Windows Server 2022 Datacenter (Desktop Experience)' Generation 2 in a [Standard_D4s_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/dv5-dsv5-series) Azure VM
 * The Azure VM will be a [Spot Instance](https://learn.microsoft.com/en-us/azure/virtual-machines/spot-vms) with a 'Deallocate' [eviction policy](https://learn.microsoft.com/en-us/azure/architecture/guide/spot/spot-eviction#eviction-policy) based on capacity (not price) to save money. You can disable that if you want (around line 185 in the [AzureNamingToolAzVM.ps1](AzureNamingToolAzVM.ps1) script)
 * The WM will be deployed on the westus3 region for cost saving purpose (You can use the non Microsoft https://azureprice.net/ web site to compare cost in different regions) . You can change  that if you want (around line 69 in the [AzureNamingToolAzVM.ps1](AzureNamingToolAzVM.ps1) script)
