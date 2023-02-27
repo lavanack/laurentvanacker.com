@@ -14,7 +14,7 @@ Table of content:
 ## Context
 
 [Azure Naming Tool ](https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool) (part of the Microsoft [CloudAdoptionFramework](https://github.com/microsoft/CloudAdoptionFramework)) was developed using a naming pattern based on [Microsoft's best practices](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/naming-and-tagging). Once an administrator has defined the organizational components, users can use the tool to generate a name for the desired Azure resource.
-I proposed here two versions for deploying this tool: via [AutomatedLab](#automatedlab-version) and directly inside an [Azure](#azure-version) VM ([Run as a Stand-Alone Site](https://github.com/microsoft/CloudAdoptionFramework/blob/master/ready/AzNamingTool/INSTALLATION.md#run-as-a-stand-alone-site) inside IIS in both cases) 
+I proposed here two versions for deploying this tool: via [AutomatedLab](#automatedlab-version) and directly inside an [Azure](#azure-version) VM ([Run as a Stand-Alone Site](https://github.com/microsoft/CloudAdoptionFramework/blob/master/ready/AzNamingTool/INSTALLATION.md#run-as-a-stand-alone-site) inside IIS in both cases with only anonymous authentication - you can change that if your want) 
 
 ## Azure Version
 
@@ -25,7 +25,7 @@ I proposed here two versions for deploying this tool: via [AutomatedLab](#automa
 ### Setup
 
 Run the [AzureNamingToolAzVM.ps1](AzureNamingToolAzVM.ps1) script (PowerShell 5.1 needed) wait for completion (~10 minutes).
-After completion the website will automatically be open via your default browser. Be careful because there is no authentication mechanism except the anonymous.
+After completion the website will automatically be open via your default browser. 
 
 **Notes:**
 * The Azure VM will run the latest version of 'Windows Server 2022 Datacenter (Desktop Experience)' Generation 2 in a [Standard_D4s_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/dv5-dsv5-series) Azure VM
