@@ -1,4 +1,26 @@
-﻿Clear-Host
+﻿<#
+This Sample Code is provided for the purpose of illustration only
+and is not intended to be used in a production environment.  THIS
+SAMPLE CODE AND ANY RELATED INFORMATION ARE PROVIDED "AS IS" WITHOUT
+WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT
+LIMITED TO THE IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS
+FOR A PARTICULAR PURPOSE.  We grant You a nonexclusive, royalty-free
+right to use and modify the Sample Code and to reproduce and distribute
+the object code form of the Sample Code, provided that You agree:
+(i) to not use Our name, logo, or trademarks to market Your software
+product in which the Sample Code is embedded; (ii) to include a valid
+copyright notice on Your software product in which the Sample Code is
+embedded; and (iii) to indemnify, hold harmless, and defend Us and
+Our suppliers from and against any claims or lawsuits, including
+attorneys' fees, that arise or result from the use or distribution
+of the Sample Code.
+#>
+[CmdletBinding()]
+param
+(
+)
+
+Clear-Host
 Get-Variable -Scope Script | Remove-Variable -Scope Script -Force -ErrorAction Ignore
 
 #region function definitions 
@@ -21,7 +43,7 @@ function New-RandomPassword
     Write-Host "The password is : $RandomPassword"
     if ($ClipBoard)
     {
-        Write-Verbose "The password has beeen copied into the clipboard ..."
+        Write-Verbose "The password has beeen copied into the clipboard (Use Win+V) ..."
         $RandomPassword | Set-Clipboard
     }
     if ($AsSecureString)
@@ -40,24 +62,46 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
 #region Defining variables 
+$SubscriptionName               = "Cloud Solution Architect"
+# Login to your Azure subscription.
+While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName))
+{
+    Connect-AzAccount
+    Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
+    #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
+    #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
+}
+
+$AzureVMNameMaxLength           = 15
 $RDPPort                        = 3389
 $JitPolicyTimeInHours           = 3
 $JitPolicyName                  = "Default"
-$Location                       = "ukwest"
-#To list all Azure locations : (Get-AzLocation).Location | Sort-Object
-#$Location                       = "uksouth"
-$ResourceGroupName              = "AzureArc-rg-$Location"
-$VirtualNetworkName             = "AzureArc-vnet-$Location"
+$Location                       = "westus3"
+$ResourcePrefix                 = "azarc"
+$DigitNumber                    = $AzureVMNameMaxLength - $ResourcePrefix.Length
+Do 
+{
+    $VMName = "{0}{1:D$DigitNumber}" -f $ResourcePrefix, $(Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)-1)))
+    $VMName = $VMName.Substring(0, [system.math]::min(15, $VMName.Length))
+
+    #$StorageAccountName             = "{0}sa{1}" -f $VMName, $Location # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name $StorageAccountName 
+    $StorageAccountName             = "{0}sa" -f $VMName # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name $StorageAccountName 
+    $StorageAccountName             = $StorageAccountName.Substring(0, [system.math]::min(24, $StorageAccountName.Length)).ToLower()
+
+} While ((-not(Test-AzDnsAvailability -DomainNameLabel $VMName -Location $Location)) -or ((-not(Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable)))
+
+$ResourceGroupName              = "$VMName-rg-$Location"
+$VirtualNetworkName             = "$VMName-vnet-$Location"
 $VirtualNetworkAddressSpace     = "10.10.0.0/16" # Format 10.10.0.0/16
 $SubnetIPRange                  = "10.10.1.0/24" # Format 10.10.1.0/24
-$SubnetName                     = "AzureArc-Subnet"
-$NICNetworkSecurityGroupName    = "AzureArc-nic-nsg-$Location"
-$subnetNetworkSecurityGroupName = "AzureArc-vnet-Subnet-nsg-$Location"
-$StorageAccountName             = "azurearcsa$($Location)" # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name $StorageAccountName 
-$StorageAccountName             = $StorageAccountName.Substring(0, [system.math]::min(24, $StorageAccountName.Length))
+$SubnetName                     = "$VMName-Subnet-$Location"
+$NICNetworkSecurityGroupName    = "$VMName-nic-nsg-$Location"
+$subnetNetworkSecurityGroupName = "$VMName-vnet-Subnet-nsg-$Location"
 $StorageAccountSkuName          = "Standard_LRS"
-$SubscriptionName               = "Cloud Solution Architect"
 $MyPublicIp                     = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
+$ContainerName                  = "scripts"
+$PowershellScriptName           = "AzureVMAzureArcOnBoardingPreRequisites.ps1"
+$PowershellScriptFullName       = $(Join-Path -Path $CurrentDir -ChildPath $PowershellScriptName)
 #endregion
 
 #region Defining credential(s)
@@ -70,29 +114,20 @@ $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList
 #endregion
 
 #region Define Variables needed for Virtual Machine
-$VMName 	        = "arc-vm"
-$ImagePublisherName	= "MicrosoftWindowsDesktop"
-$ImageOffer	        = "Windows-11"
-$ImageSku	        = "azurearc-21h2-ent"
-$VMSize 	        = "Standard_D8s_v5"
+$ImagePublisherName	= "MicrosoftWindowsServer"
+$ImageOffer	        = "WindowsServer"
+$ImageSku	        = "2022-datacenter-g2"
+$VMSize 	        = "Standard_D4s_v5"
 $PublicIPName       = "$VMName-PIP" 
 $NICName            = "$VMName-NIC"
 $OSDiskName         = "$VMName-OSDisk"
-$DataDiskName       = "$VMName-DataDisk01"
+#$DataDiskName       = "$VMName-DataDisk01"
 $OSDiskSize         = "127"
 $OSDiskType         = "Premium_LRS"
 $FQDN               = "$VMName.$Location.cloudapp.azure.com".ToLower()
 #endregion
 
 Write-Host "The FQDN is: $FQDN"
-
-# Login to your Azure subscription.
-if (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName))
-{
-    Connect-AzAccount
-    #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
-    Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
-}
 
 if ($null -eq (Get-AZVMSize -Location $Location | Where-Object -FilterScript {$_.Name -eq $VMSize}))
 {
@@ -102,13 +137,8 @@ if ($null -eq (Get-AZVMSize -Location $Location | Where-Object -FilterScript {$_
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
 if ($ResourceGroup)
 {
-    #Step 0: Remove previously existing Azure Resource Group with the "AzureArc-rg" name
+    #Step 0: Remove previously existing Azure Resource Group with the "AutomatedLab-rg" name
     $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
-}
-
-if (-not((Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable))
-{
-    Write-Error "The [$StorageAccountName] is not available ..." -ErrorAction Stop
 }
 
 #Step 1: Create Azure Resource Group
@@ -121,11 +151,13 @@ New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroup
 #Step 3: Create Azure Network Security Group
 #RDP only for my public IP address
 $RDPRule              = New-AzNetworkSecurityRuleConfig -Name RDPRule -Description "Allow RDP" -Access Allow -Protocol Tcp -Direction Inbound -Priority 300 -SourceAddressPrefix $MyPublicIp -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange $RDPPort
+#HTTP only for my public IP address
+$HTTPRule             = New-AzNetworkSecurityRuleConfig -Name HTTPRule -Description "Allow HTTP" -Access Allow -Protocol Tcp -Direction Inbound -Priority 301 -SourceAddressPrefix $MyPublicIp -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 80
 #HTTP for everyone
-$HTTPRule             = New-AzNetworkSecurityRuleConfig -Name HTTPRule -Description "Allow HTTP" -Access Allow -Protocol Tcp -Direction Inbound -Priority 301 -SourceAddressPrefix Internet -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 80
+#$HTTPRule             = New-AzNetworkSecurityRuleConfig -Name HTTPRule -Description "Allow HTTP" -Access Allow -Protocol Tcp -Direction Inbound -Priority 301 -SourceAddressPrefix Internet -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 80
 #$NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NICNetworkSecurityGroupName -SecurityRules $HTTPRule, $RDPRule -Force
 #Allowing only HTTP for everyone from a NSG POV
-$NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NICNetworkSecurityGroupName -SecurityRules $HTTPRule -Force
+$NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NICNetworkSecurityGroupName -SecurityRules $HTTPRule, $RDPRule -Force
 
 #Steps 4 + 5: Create Azure Virtual network using the virtual network subnet configuration
 $vNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName -AddressPrefix $VirtualNetworkAddressSpace -Location $Location
@@ -145,7 +177,7 @@ $NIC      = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGr
 <# Optional : Step 8: Get Virtual Machine publisher, Image Offer, Sku and Image
 $ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq "MicrosoftWindowsDesktop"}
 $ImageOffer = Get-AzVMImageOffer -Location $Location -publisher $ImagePublisherName.PublisherName | Where-Object -FilterScript { $_.Offer  -eq "Windows-11"}
-$ImageSku = Get-AzVMImageSku -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer | Where-Object -FilterScript { $_.Skus  -eq "azurearc-21h2-pro"}
+$ImageSku = Get-AzVMImageSku -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer | Where-Object -FilterScript { $_.Skus  -eq "win11-21h2-pro"}
 $image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer -sku $ImageSku.Skus | Sort-Object -Property Version -Descending | Select-Object -First 1
 #>
 
@@ -166,9 +198,11 @@ Set-AzVMSourceImage -VM $VMConfig -PublisherName $ImagePublisherName -Offer $Ima
 Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -CreateOption fromImage
 
 #region Adding Data Disk
+<#
 $VMDataDisk01Config = New-AzDiskConfig -SkuName Standard_LRS -Location $Location -CreateOption Empty -DiskSizeGB 512
 $VMDataDisk01       = New-AzDisk -DiskName $DataDiskName -Disk $VMDataDisk01Config -ResourceGroupName $ResourceGroupName
 $VM                 = Add-AzVMDataDisk -VM $VMConfig -Name $DataDiskName -CreateOption Attach -ManagedDiskId $VMDataDisk01.Id -Lun 0
+#>
 #endregion
 
 #Step 10: Create Azure Virtual Machine
@@ -230,8 +264,43 @@ New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Pro
 #Step 11: Start Azure Virtual Machine
 Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 
+#region Installing the Azure Naming Tool via a PowerShell Script
+#Getting storage account
+$StorageAccountKey = ((Get-AzStorageAccountKey -ResourceGroupName $ResourceGroupName -Name $StorageAccountName)[0].Value)
+
+$StorageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName 
+
+#Getting context for blob upload
+$StorageContext = $StorageAccount.Context
+
+#Performing blob upload
+if(-not(Get-AzStorageContainer -Name $ContainerName -Context $StorageContext -ErrorAction SilentlyContinue)) {
+    New-AzStorageContainer -Name $ContainerName -Context $StorageContext
+}
+
+#Uploading script
+Set-AzStorageBlobContent -Context $StorageContext -File $PowershellScriptFullName -Container $ContainerName -Blob $PowershellScriptName -BlobType Block -Force
+
+Set-AzVMCustomScriptExtension -StorageAccountName $StorageAccountName -ContainerName $ContainerName -FileName $PowershellScriptName -Run $PowershellScriptName -StorageAccountKey $StorageAccountKey -Name $PowershellScriptName -VMName $VMName -ResourceGroupName $ResourceGroupName -Location $Location
+#endregion
+
+#Installing the NuGet Provider
+Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+Install-Module -Name Az.ConnectedMachine, Az.Compute, Az.Resources -Repository PSGallery -Force
+#Registering the Microsoft.HybridCompute provider
+Register-AzResourceProvider -ProviderNamespace Microsoft.HybridCompute
+#Waiting the registration completes
+While ((Get-AzResourceProvider -ProviderNamespace Microsoft.HybridCompute | Where-Object RegistrationState -ne Registered))
+{
+    Start-Sleep -Seconds 30
+}
+
+#Connect the VM to Azure ARC
+Connect-AzConnectedMachine -ResourceGroupName $ResourceGroupName -Name $VMName -Location $Location
+
 Start-Sleep -Seconds 15
 
 #Step 12: Start RDP Session
-#mstsc /v $PublicIP.IpAddress
 mstsc /v $FQDN
+
+Write-Host -Object "Your RDP credentials (login/password) are $Username/$($Credential.GetNetworkCredential().Password)" -ForegroundColor Green
