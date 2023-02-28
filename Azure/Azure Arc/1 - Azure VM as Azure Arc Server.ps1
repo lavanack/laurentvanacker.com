@@ -280,10 +280,11 @@ if(-not(Get-AzStorageContainer -Name $ContainerName -Context $StorageContext -Er
 
 #Uploading script
 Set-AzStorageBlobContent -Context $StorageContext -File $PowershellScriptFullName -Container $ContainerName -Blob $PowershellScriptName -BlobType Block -Force
-
-Set-AzVMCustomScriptExtension -StorageAccountName $StorageAccountName -ContainerName $ContainerName -FileName $PowershellScriptName -Run $PowershellScriptName -StorageAccountKey $StorageAccountKey -Name $PowershellScriptName -VMName $VMName -ResourceGroupName $ResourceGroupName -Location $Location
+Set-AzVMCustomScriptExtension -StorageAccountName $StorageAccountName -ContainerName $ContainerName -FileName $PowershellScriptName -Run $PowershellScriptName -StorageAccountKey $StorageAccountKey -Name $PowershellScriptName -VMName $VMName -ResourceGroupName $ResourceGroupName -Location $Location -Verbose
 #endregion
 
+
+#region Azure Arc
 #Installing the NuGet Provider
 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 Install-Module -Name Az.ConnectedMachine, Az.Compute, Az.Resources -Repository PSGallery -Force
@@ -297,6 +298,7 @@ While ((Get-AzResourceProvider -ProviderNamespace Microsoft.HybridCompute | Wher
 
 #Connect the VM to Azure ARC
 Connect-AzConnectedMachine -ResourceGroupName $ResourceGroupName -Name $VMName -Location $Location
+#endregion
 
 Start-Sleep -Seconds 15
 
