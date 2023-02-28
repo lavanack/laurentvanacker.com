@@ -1,6 +1,6 @@
 # Azure Arc
 
-The [1 - Azure VM as Azure Arc Server.ps1](1%20-%20Azure%20VM%20as%20Azure%20Arc%20Server.ps1) script create an Azure VM seen as an Azure Arc Server. 
+The [1 - Azure VM as Azure Arc Server.ps1](1%20-%20Azure%20VM%20as%20Azure%20Arc%20Server.ps1) script creates an Azure VM seen as an Azure Arc Server. 
 
 **Notes:**
 * 
