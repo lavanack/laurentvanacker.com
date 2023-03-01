@@ -153,7 +153,7 @@ New-AzGalleryImageDefinition -GalleryName $cgGalleryName -ResourceGroupName $ima
 #region Download and configure the template
 #$templateUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/14_Building_Images_WVD/armTemplateWVD.json"
 #$templateFilePath = "armTemplateWVD.json"
-$templateUrl="https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/armTemplateAVD.json"
+$templateUrl="https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVD.json"
 $templateFilePath = Join-Path -Path $CurrentDir -ChildPath $(Split-Path $templateUrl -Leaf)
 #Generate a unique file name 
 $templateFilePath = $templateFilePath -replace ".json$", "_$timeInt.json"
