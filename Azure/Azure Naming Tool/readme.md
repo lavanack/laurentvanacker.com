@@ -40,7 +40,8 @@ After completion the website will automatically be open via your default browser
 ![](docs/jit.jpg)
 
 * The password (for RDP connection) is randomly generated and displayed at the beginning and copied into your clipboard. The account name used is the same you are currently using (cf. the Username environment variable - so almost different for everyone). In addition these credentials will also be displayed at the end of the deployment process (in green).
-
+* A RDP session will be automatically opened at the end of the deployment process (just enter the displayed credentials). 
+  
 The final step is to immediately set your Azure Naming Tool Admin Password. (Be careful if you are behind a proxy because everyone using the same proxy wil be able to reach the website and set this password before you if you don't do it quicky).
 
 ![](docs/iis.jpg)

@@ -306,3 +306,5 @@ Start-Sleep -Seconds 15
 mstsc /v $FQDN
 
 Write-Host -Object "Your RDP credentials (login/password) are $Username/$($Credential.GetNetworkCredential().Password)" -ForegroundColor Green
+
+Start-Process -FilePath "https://portal.azure.com/#blade/HubsExtension/BrowseResource/resourceType/Microsoft.HybridCompute%2Fmachines"
