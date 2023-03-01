@@ -300,6 +300,9 @@ While ((Get-AzResourceProvider -ProviderNamespace Microsoft.HybridCompute | Wher
 Connect-AzConnectedMachine -ResourceGroupName $ResourceGroupName -Name $VMName -Location $Location
 #endregion
 
+# Adding Credentials to the Credential Manager (and escaping the password)
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDN /user:$Username /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
+
 Start-Sleep -Seconds 15
 
 #Step 12: Start RDP Session

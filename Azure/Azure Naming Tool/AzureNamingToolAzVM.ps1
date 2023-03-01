@@ -281,8 +281,11 @@ if(-not(Get-AzStorageContainer -Name $ContainerName -Context $StorageContext -Er
 #Uploading script
 Set-AzStorageBlobContent -Context $StorageContext -File $PowershellScriptFullName -Container $ContainerName -Blob $PowershellScriptName -BlobType Block -Force
 
-Set-AzVMCustomScriptExtension -StorageAccountName $StorageAccountName -ContainerName $ContainerName -FileName $PowershellScriptName -Run $PowershellScriptName -StorageAccountKey $StorageAccountKey -Name $PowershellScriptName -VMName $VMName -ResourceGroupName $ResourceGroupName -Location $Location
+#Set-AzVMCustomScriptExtension -StorageAccountName $StorageAccountName -ContainerName $ContainerName -FileName $PowershellScriptName -Run $PowershellScriptName -StorageAccountKey $StorageAccountKey -Name $PowershellScriptName -VMName $VMName -ResourceGroupName $ResourceGroupName -Location $Location
 #endregion
+
+# Adding Credentials to the Credential Manager (and escaping the password)
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDN /user:$Username /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
 
 Start-Sleep -Seconds 15
 
