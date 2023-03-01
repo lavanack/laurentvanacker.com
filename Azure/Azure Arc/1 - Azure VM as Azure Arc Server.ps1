@@ -15,6 +15,8 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
+#requires -Version 5 -Modules Az.ConnectedMachine, Az.Compute, Az.Account, Az.Network, Az.Storage, Az.Resources
+
 [CmdletBinding()]
 param
 (
@@ -285,16 +287,14 @@ Set-AzVMCustomScriptExtension -StorageAccountName $StorageAccountName -Container
 
 
 #region Azure Arc
-#Installing the NuGet Provider
-Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-Install-Module -Name Az.ConnectedMachine, Az.Compute, Az.Resources -Repository PSGallery -Force
 #Registering the Microsoft.HybridCompute provider
 Register-AzResourceProvider -ProviderNamespace Microsoft.HybridCompute
-#Waiting the registration completes
-While ((Get-AzResourceProvider -ProviderNamespace Microsoft.HybridCompute | Where-Object RegistrationState -ne Registered))
+#Important: Wait until RegistrationState is set to Registered. 
+While (Get-AzResourceProvider -ProviderNamespace Microsoft.HybridCompute | Where-Object -FilterScript {$_.RegistrationState -ne 'Registered'})
 {
-    Start-Sleep -Seconds 30
+    Start-Sleep -Seconds 10
 }
+
 
 #Connect the VM to Azure ARC
 Connect-AzConnectedMachine -ResourceGroupName $ResourceGroupName -Name $VMName -Location $Location

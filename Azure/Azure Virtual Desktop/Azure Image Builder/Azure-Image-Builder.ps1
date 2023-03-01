@@ -41,7 +41,7 @@ Register-AzResourceProvider -ProviderNamespace Microsoft.KeyVault
 Register-AzResourceProvider -ProviderNamespace Microsoft.ManagedIdentity
 
 #Important: Wait until RegistrationState is set to Registered. 
-While (Get-AzResourceProvider -ProviderNamespace Microsoft.VirtualMachineImages, Microsoft.Storage, Microsoft.Compute, Microsoft.KeyVault, Microsoft.ManagedIdentity | Where-Object -FilterScript {$_. RegistrationState -ne 'Registered' })
+While (Get-AzResourceProvider -ProviderNamespace Microsoft.VirtualMachineImages, Microsoft.Storage, Microsoft.Compute, Microsoft.KeyVault, Microsoft.ManagedIdentity | Where-Object -FilterScript {$_.RegistrationState -ne 'Registered'})
 {
     Start-Sleep -Seconds 10
 }

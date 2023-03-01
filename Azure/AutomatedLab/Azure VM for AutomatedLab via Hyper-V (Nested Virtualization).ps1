@@ -15,6 +15,8 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
+#requires -Version 5 -Modules Az.Compute, Az.Account, Az.Network, Az.Storage, Az.Resources
+
 [CmdletBinding()]
 param
 (
