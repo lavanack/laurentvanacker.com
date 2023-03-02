@@ -21,6 +21,6 @@ Table of content:
 Run the [AutomatedLab - MSIX.ps1](AutomatedLab%20-%20MSIX.ps1) script (PowerShell 5.1 needed) wait for completion (~30 minutes).
 After completion you'll have:
 * a Domain Controller for the contoso.com domain: DC01.
-* a Windows server for creating a MSIX package via the 'MSIX Packaging Tool': MSIX.
+* a Windows server for creating a MSIX package via the installed 'MSIX Packaging Tool': MSIX.
 
 All Windows Servers are running 'Windows Server 2022 Datacenter (Desktop Experience)'. Credentials will be displayed at the end of the deployment process. Just connect via RDP to the MSIX server. 
