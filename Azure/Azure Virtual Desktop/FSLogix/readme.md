@@ -1,5 +1,12 @@
 # FSLogix
 
+
+Table of content:
+- [FSLogix](#fslogix)
+  - [Context](#context)
+  - [Prerequisites](#prerequisites)
+
+## Context
 [FSLogix]([image.pngimage.png](https://learn.microsoft.com/en-us/fslogix/)) enhances and enables user profiles in Windows remote computing environments. FSLogix may also be used to create more portable computing sessions when using physical devices.
 
 FSLogix includes:
@@ -11,21 +18,13 @@ FSLogix includes:
 
 See [FSLogix](https://docs.microsoft.com/en-us/fslogix/overview) for more information.
 
-
-Table of content:
-- [FSLogix](#fslogix)
-  - [Prerequisites](#prerequisites)
-  - [Context](#context)
-
+I use the [New-FSLogixAzFileShare.ps1](New-FSLogixAzFileShare.ps1) script to create a new Azure File Share for FSLogix. This script has to be run from the deployed Domain Controller.
 
 ## Prerequisites 
 
   *   An [Azure](https://portal.azure.com) Subscription
   *   A deployed [Azure Active Directory Hybrid Lab](https://github.com/PeterR-msft/M365AVDWS/tree/master/AAD-Hybrid-Lab) environment
 
-
-## Context
-I use the [New-FSLogixAzFileShare.ps1](New-FSLogixAzFileShare.ps1) script to create a new Azure File Share for FSLogix. This script has to be run from the deployed Domain Controller.
 
 **Notes:**
 * Some variables needs to be adjusted to reflect your environment (around line 41)

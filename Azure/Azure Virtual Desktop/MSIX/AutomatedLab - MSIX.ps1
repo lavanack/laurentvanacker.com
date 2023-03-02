@@ -45,7 +45,6 @@ $ClearTextPassword = 'P@ssw0rd'
 $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
 $NetBiosDomainName = 'CONTOSO'
 $FQDNDomainName = 'contoso.com'
-
 $NetworkID='10.0.0.0/16' 
 
 $DC01IPv4Address = '10.0.0.1'
@@ -102,9 +101,6 @@ Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 #Restore-LabVMSnapshot -SnapshotName 'FreshInstall' -All -Verbose
 
 $Client = (Get-LabVM -All | Where-Object -FilterScript { $_.Name -eq "MSIX"}).Name
-
-Copy-LabFileItem -Path $CurrentDir\MSIX -ComputerName $Client -DestinationFolderPath C:\ -Recurse
-
 #Installing required PowerShell features for VHD Management
 Install-LabWindowsFeature -FeatureName Microsoft-Hyper-V-Management-PowerShell -ComputerName $Client -IncludeAllSubFeature
 <#
@@ -116,7 +112,9 @@ Invoke-LabCommand -ActivityName "Installing required PowerShell features for VHD
 }
 #>
 
-<#
+Copy-LabFileItem -Path $CurrentDir\MSIX -ComputerName $Client -DestinationFolderPath C:\ -Recurse
+Restart-LabVM $Client -Wait
+
 Invoke-LabCommand -ActivityName "Installing winget and 'MSIX Packaging Tool'" -ComputerName $Client -ScriptBlock {
     Set-WinUserLanguageList -LanguageList fr-fr -Force
     #region Installing winget via the WingetTools Powershell module
@@ -128,12 +126,8 @@ Invoke-LabCommand -ActivityName "Installing winget and 'MSIX Packaging Tool'" -C
     $CommandLine = 'winget install "MSIX Packaging Tool" --source msstore --accept-source-agreements --accept-package-agreements'
     Start-Process -FilePath $env:ComSpec -ArgumentList "/c", $CommandLine -Wait
 }
-#>
 
-#Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 Show-LabDeploymentSummary -Detailed
-Restart-LabVM $Client -Wait
-
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All -Verbose
 $VerbosePreference = $PreviousVerbosePreference
 $ErrorActionPreference = $PreviousErrorActionPreference

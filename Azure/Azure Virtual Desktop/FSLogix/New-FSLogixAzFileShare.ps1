@@ -41,6 +41,9 @@ Set-Location -Path $CurrentDir
 $AVDOUName = "AVD"
 $UserOUName = "OrgUsers"
 $AVDUsers="AVD Users"
+#Replace with your own AVD resource group
+$resourceGroupName = "AVD-ADDS-RG"
+
 $FSLogixContributor="FSLogix Contributor"
 $FSLogixElevatedContributor="FSLogix Elevated Contributor"
 $FSLogixReader="FSLogix Reader"
@@ -67,8 +70,6 @@ Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
 $AzContext = Get-AzContext
 $null=$AzContext.Account.Id -match "\w+@(\w+).onmicrosoft.com"
 $SubscriptionId = $AzContext.Subscription.Id
-#Replace with your own AVD resource group
-$resourceGroupName = "AVD-ADDS-RG"
 #$storageAccountName = 'avd'+$Matches[1].ToLower()
 $storageAccountName = 'fslogix'+$Matches[1].ToLower()
     
