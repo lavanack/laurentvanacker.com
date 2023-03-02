@@ -4,25 +4,24 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
 $ResourcePrefix     = "dscvmext"
-$Location           = "eastus"
-$ResourceGroupName  = "$ResourcePrefix-rg-$Location"
-$VMName 	        = "{0}ws2019" -f $ResourcePrefix
-$VMName             = $VMName.Substring(0, [system.math]::min(15, $VMName.Length))
+$VM = Get-AzVM -Name $ResourcePrefix* 
+$Location           = $VM.Location
+$ResourceGroupName  = $VM.ResourceGroupName
+$VMName 	        = $VM.Name
 $FQDN               = "$VMName.$Location.cloudapp.azure.com".ToLower()
-$KeyVaultName       = "{0}keyvault{1:D5}" -f $ResourcePrefix, $(Get-Random -Minimum 1 -Maximum 100000)
+$KeyVaultName       = "{0}keyvault" -f $VMName
 $CertificateName    = "mycert"
 #$UserPrincipalName  = (Get-AzContext).Account.Id
 #From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/tutorial-secure-web-server
 
 #region Adding the DSC extension
-$VM = Get-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 
 #Create an Azure Key Vault
 $Vault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $location -EnabledForDeployment
 #$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -UserPrincipalName $UserPrincipalName -PermissionsToSecrets Get,List,Set -PassThru
 
 #Generate a certificate and store in Key Vault
-$Policy = New-AzKeyVaultCertificatePolicy -SubjectName "CN=www.contoso.com" -SecretContentType "application/x-pkcs12" -IssuerName Self -ValidityInMonths 12
+$Policy = New-AzKeyVaultCertificatePolicy -SubjectName "CN=$FQDN" -SecretContentType "application/x-pkcs12" -IssuerName Self -ValidityInMonths 12
 Add-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $CertificateName -CertificatePolicy $Policy
 
 While (-not((Get-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $CertificateName).SecretId)) 
@@ -44,7 +43,9 @@ $VM | Update-AzVM -Verbose
 #Configure IIS manually to set the HTTPS binding
 
 #Get the Public IP address dynamically
-$PublicIP = Get-AzPublicIpAddress -ResourceGroupName $ResourceGroupName | Where-Object { $_.IpConfiguration.Id -like "*$VMName*" } | Select-Object -First 1
+#$PublicIP = Get-AzPublicIpAddress -ResourceGroupName $ResourceGroupName | Where-Object { $_.IpConfiguration.Id -like "*$VMName*" } | Select-Object -First 1
 
 #Browsing to the IIS Web Site via HTTPS
 #Start-Process "https://$FQDN"
+
+mstsc /v $FQDN
