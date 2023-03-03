@@ -42,11 +42,12 @@ $VSCodeExtension = [ordered]@{
 Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) } -AdditionalExtensions $($VSCodeExtension.Values -join ',')" -Verbose
 #endregion
 
-Register-AzResourceProvider -ProviderNamespace Microsoft.GuestConfiguration
-Get-AzResourceProvider -ProviderNamespace Microsoft.GuestConfiguration | Where-Object RegistrationState -eq Registered
-
 #From https://docs.microsoft.com/en-us/azure/governance/policy/assign-policy-powershell
-# Register the resource provider if it's not already registered
-Register-AzResourceProvider -ProviderNamespace 'Microsoft.PolicyInsights'
+Register-AzResourceProvider -ProviderNamespace Microsoft.GuestConfiguration, Microsoft.PolicyInsights
+#Important: Wait until RegistrationState is set to Registered. 
+While (Get-AzResourceProvider -ProviderNamespace Microsoft.GuestConfiguration, Microsoft.PolicyInsights | Where-Object -FilterScript {$_.RegistrationState -ne 'Registered'})
+{
+    Start-Sleep -Seconds 10
+}
 
 Start-Process -FilePath "C:\Program Files\Microsoft VS Code\Code.exe" -ArgumentList "`"$CurrentDir`""

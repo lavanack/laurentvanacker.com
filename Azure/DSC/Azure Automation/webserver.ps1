@@ -1,4 +1,4 @@
-﻿configuration WebServer
+﻿Configuration WebServer
 {
     Import-DscResource -ModuleName PSDesiredStateConfiguration
     Import-DscResource -ModuleName xWebAdministration

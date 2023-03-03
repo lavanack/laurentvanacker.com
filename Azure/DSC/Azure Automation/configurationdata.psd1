@@ -1,7 +1,7 @@
 ﻿@{
     AllNodes  = @(
         @{
-            NodeName   = 'dscazautws2019'
+            NodeName   = 'localhost'
             Role       = 'WebServer'
         }
     )

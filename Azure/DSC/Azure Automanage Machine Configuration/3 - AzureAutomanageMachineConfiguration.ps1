@@ -19,13 +19,12 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
-$Location                           = "EastUs"
-#$ResourcePrefix                     = "dscazgcfg"
-$resourceGroupName                  = (Get-AzVM -Name $env:COMPUTERNAME).ResourceGroupName
-#$ResourceGroupName                  = "$ResourcePrefix-rg-$Location"
-#$StorageAccountName                 = "{0}sa{1}" -f $ResourcePrefix, $Location # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name $StorageAccountName 
-#$StorageAccountName                 = $StorageAccountName.Substring(0, [system.math]::min(24, $StorageAccountName.Length)).ToLower()
-$StorageAccountName                 = (Get-AzStorageAccount -ResourceGroupName $resourceGroupName).StorageAccountName
+$VMName 	                        = $env:COMPUTERNAME
+$AzVM                               = Get-AzVM -Name $VMName 
+$Location                           = $AzVM.Location
+$ResourceGroupName                  = $AzVM.ResourceGroupName
+$StorageAccount                     = Get-AzStorageAccount -ResourceGroupName $resourceGroupName
+$StorageAccountName                 = $StorageAccount.StorageAccountName
 $StorageContainerName               = "guestconfiguration"
 $ConfigurationName                  = "CreateAdminUserDSCConfiguration"
 $GuestConfigurationPackageName      = "$ConfigurationName.zip"
@@ -65,7 +64,6 @@ Start-AzPolicyComplianceScan -ResourceGroupName $ResourceGroupName
 # Create a guest configuration package for Azure Policy GCS
 $GuestConfigurationPackage = New-GuestConfigurationPackage -Name $ConfigurationName -Configuration './CreateAdminUser/localhost.mof' -Type AuditAndSet -Force
 
-$storageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName
 # Creates a new container
 $storageAccount | New-AzStorageContainer -Name $StorageContainerName -Permission Blob
 $StorageAccountKey = (($storageAccount | Get-AzStorageAccountKey) | Where-Object -FilterScript {$_.KeyName -eq "key1"}).Value
