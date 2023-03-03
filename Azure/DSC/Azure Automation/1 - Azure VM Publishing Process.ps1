@@ -230,9 +230,8 @@ Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 
 Start-Sleep -Seconds 15
 
-#Adding the credential to the Windows Credential Manager
-#Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /add:TERMSRV/$FQDN /user:`"$Username`" /pass:`"$($Credential.GetNetworkCredential().Password -replace '(\W)', '^$1')`"" -Wait
-
+# Adding Credentials to the Credential Manager (and escaping the password)
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDN /user:$Username /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
 
 #Step 12: Start RDP Session
 #mstsc /v $PublicIP.IpAddress
