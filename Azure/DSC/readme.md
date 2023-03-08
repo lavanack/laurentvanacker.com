@@ -6,3 +6,7 @@ There are multiple ways to use DSC in Azure. This document will cover the differ
 * [Azure Automation State Configuration](https://learn.microsoft.com/en-us/azure/automation/automation-dsc-onboarding)
 * [Azure Automanage Machine Configuration](https://learn.microsoft.com/en-us/azure/governance/machine-configuration/)
 
+Go through the dedicated folders for each of these options.
+* [Azure Desired State Configuration](./Azure%20Desired%20State%20Configuration/)
+* [Azure Automation State Configuration](./Azure%20Automation%20State%20Configuration/)
+* [Azure Automanage Machine Configuration](./Azure%20Automanage%20Machine%20Configuration/)
