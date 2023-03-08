@@ -27,4 +27,4 @@ Run the [1 - AzureVMWithDSCExtension.ps1](./1%20-%20AzureVMWithDSCExtension.ps1)
 ![](docs/jit.jpg)
 
 * The password (for RDP connection) is randomly generated and displayed at the beginning and copied into your clipboard. The account name used is the same you are currently using (cf. the Username environment variable - so almost different for everyone). In addition these credentials will also be displayed at the end of the deployment process (in green) and added in the Credential Manager for an automatic connection in the upcoming RDP session (next point).
-* A RDP session will be automatically opened at the end of the deployment process and the browser will be opened on the [Azure Arc Server page](https://portal.azure.com/#blade/HubsExtension/BrowseResource/resourceType/Microsoft.HybridCompute%2Fmachines). 
+* A RDP session will be automatically opened at the end of the deployment process and the browser will be opened to the IIS website
