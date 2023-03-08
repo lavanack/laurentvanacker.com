@@ -1,18 +1,19 @@
-# Azure Automation State Configuration
+# Azure Automage Machine Configuration
 
-The [1 - AzureVMWithAzureAutomation.ps1](./1%20-%20AzureVMWithAzureAutomation.ps1) script creates an Azure VM. After, you'll have to run the [2 - AzureAutomationDSC.ps1](./2%20-%20AzureAutomationDSC.ps1) script from the newly created Azure VM to create 2 IIS websites (listening on the TCP/81 and TCP/82 ports).
+The [1 - AzureVMWithAzureAutomanageMachineConfiguration](1%20-%20AzureVMWithAzureAutomanageMachineConfiguration.ps1) script creates an Azure VM. After, you'll have to run the [2 - Prerequisites.ps1](2%20-%20Prerequisites.ps1) and [3 - AzureAutomanageMachineConfiguration.ps1](3%20-%20AzureAutomanageMachineConfiguration.ps1) scripts from the newly created Azure VM to create an rogue Administrator account.
 
-![](docs/dscazautiis.jpg)
-
+![](docs/rogueadmin.jpg)
 ### Prerequisites 
 
   * An [Azure](https://portal.azure.com) Subscription
 
 ### Setup
 
-* Run the [1 - AzureVMWithAzureAutomation.ps1](./1%20-%20AzureVMWithAzureAutomation.ps1) script (PowerShell 5.1 needed) wait for completion (~10 minutes).
-* Copy the current folder (Azure Automation State Configuration) on the Azure VM (wherever you want).
-* Run the [2 - AzureAutomationDSC.ps1](./2%20-%20AzureAutomationDSC.ps1) script from the Azure VM. This script will use the [WebServer.ps1](WebServer.ps1) DSC configuration and the [configurationdata.psd1](configurationdata.psd1) Configuration Data file to create the 2 IIS websites.
+* Run the [1 - AzureVMWithAzureAutomanageMachineConfiguration](1%20-%20AzureVMWithAzureAutomanageMachineConfiguration.ps1) script (PowerShell 5.1 needed) wait for completion (~10 minutes).
+* Copy the current folder (Azure Automanage Machine Configuration)  on the Azure VM (wherever you want).
+* Run the [2 - Prerequisites.ps1](2%20-%20Prerequisites.ps1) script from the Azure VM to install some prerequisites (Powershell modules, [PowerShell 7+](https://github.com/PowerShell/powershell/releases), [Visual Studio Code](https://code.visualstudio.com/), ...).  The script ends by opening **Visual Studio Code** in the current directory
+* After run the [3 - AzureAutomanageMachineConfiguration.ps1](3%20-%20AzureAutomanageMachineConfiguration.ps1) from the opened **Visual Studio Code** instance (inside the Azure VM). This script will start by applying the [Deploy prerequisites to enable Guest Configuration policies on virtual machines](https://github.com/Azure/azure-policy/blob/master/built-in-policies/policySetDefinitions/Guest%20Configuration/GuestConfiguration_Prerequisites.json) initiative and will deploy your Desired State Configuration (Rogue Administrator creation) just after.
+
 
 
 **Notes:**
@@ -20,8 +21,8 @@ The [1 - AzureVMWithAzureAutomation.ps1](./1%20-%20AzureVMWithAzureAutomation.ps
 * The Azure VM will run the latest version of 'Windows Server 2022 Datacenter (Desktop Experience)' Generation 2 in a [Standard_D4s_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/dv5-dsv5-series) Azure VM.
 * The Azure VM will be a [Spot Instance](https://learn.microsoft.com/en-us/azure/virtual-machines/spot-vms) with a 'Deallocate' [eviction policy](https://learn.microsoft.com/en-us/azure/architecture/guide/spot/spot-eviction#eviction-policy) based on capacity (not price) to save money. You can disable that if you want (around line 185 in the [[1 - AzureVMWithAzureAutomation.ps1](./1%20-%20AzureVMWithAzureAutomation.ps1) script).
 * The WM will be deployed on the westus3 region for cost saving purpose (You can use the non Microsoft https://azureprice.net/ web site to compare cost in different regions) . You can change  that if you want (around line 79 in the [[1 - AzureVMWithAzureAutomation.ps1](./1%20-%20AzureVMWithAzureAutomation.ps1) script).
-* The VM name (and associated Storage account name) is randomly generated with the template dscazautXXXXXXX where X is a digit to avoid duplicate names (an availability test is done around line 82 in the [[1 - AzureVMWithAzureAutomation.ps1](./1%20-%20AzureVMWithAzureAutomation.ps1) script).
-* A DNS Name is set under the form \<VMName\>.\<Location\>.cloudapp.azure.com (for instance dscazaut31415926.westus3.cloudapp.azure.com) and used for the browser connection (the pblic IP is not directly used).
+* The VM name (and associated Storage account name) is randomly generated with the template dscazamcXXXXXXX where X is a digit to avoid duplicate names (an availability test is done around line 82 in the [[1 - AzureVMWithAzureAutomation.ps1](./1%20-%20AzureVMWithAzureAutomation.ps1) script).
+* A DNS Name is set under the form \<VMName\>.\<Location\>.cloudapp.azure.com (for instance dscazamc31415926.westus3.cloudapp.azure.com) and used for the browser connection (the pblic IP is not directly used).
 * A daily scheduled shutdown at 11:00 PM (in your local timezone) is set for the VM (no automatic start is set).
 * The RDP connection is only accessible from the IP where you run the script (done via a query to http://ifconfig.me/ip) via a [Network Security Group](https://learn.microsoft.com/en-us/azure/virtual-network/network-security-group-how-it-works). If you want to give access to people from different IP you has to customize the RDP rule of the NSG or use the JIT access policy (next point).
 ![](docs/nsg.jpg)

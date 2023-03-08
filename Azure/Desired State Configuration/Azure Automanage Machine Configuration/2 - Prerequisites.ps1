@@ -43,7 +43,8 @@ Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubuserconten
 #endregion
 
 #From https://docs.microsoft.com/en-us/azure/governance/policy/assign-policy-powershell
-Register-AzResourceProvider -ProviderNamespace Microsoft.GuestConfiguration, Microsoft.PolicyInsights
+Register-AzResourceProvider -ProviderNamespace Microsoft.GuestConfiguration
+Register-AzResourceProvider -ProviderNamespace Microsoft.PolicyInsights
 #Important: Wait until RegistrationState is set to Registered. 
 While (Get-AzResourceProvider -ProviderNamespace Microsoft.GuestConfiguration, Microsoft.PolicyInsights | Where-Object -FilterScript {$_.RegistrationState -ne 'Registered'})
 {

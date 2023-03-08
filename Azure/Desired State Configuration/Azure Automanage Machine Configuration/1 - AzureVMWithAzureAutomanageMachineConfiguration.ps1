@@ -15,7 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources, xWebAdministration, Az.Automation
+#requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources
 
 [CmdletBinding()]
 param
@@ -78,7 +78,7 @@ $AzureVMNameMaxLength           = 15
 $RDPPort                        = 3389
 $JitPolicyTimeInHours           = 3
 $JitPolicyName                  = "Default"
-$Location                       = "eastus"
+$Location                       = "westus3"
 $ResourcePrefix                 = "dscazamc"
 $DigitNumber                    = $AzureVMNameMaxLength - $ResourcePrefix.Length
 Do 
