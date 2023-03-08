@@ -11,7 +11,7 @@ The [1 - AzureVMWithAzureAutomation.ps1](./1%20-%20AzureVMWithAzureAutomation.ps
 ### Setup
 
 * Run the [1 - AzureVMWithAzureAutomation.ps1](./1%20-%20AzureVMWithAzureAutomation.ps1) script (PowerShell 5.1 needed) wait for completion (~10 minutes).
-* Copy the current folder (Azure Automation State Configuration - wherever you want) on the Azure VM.
+* Copy the current folder (Azure Automation State Configuration) on the Azure VM (wherever you want).
 * Run the [2 - AzureAutomationDSC.ps1](./2%20-%20AzureAutomationDSC.ps1) script. This script will use the [WebServer.ps1](WebServer.ps1) DSC configuration and the [configurationdata.psd1](configurationdata.psd1) Configuration Data file to create the 2 IIS websites.
 
 
