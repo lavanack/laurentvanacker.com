@@ -1,4 +1,4 @@
-# Azure and DSC
+# Azure and Desired State Configuration (DSC)
 
 There are multiple ways to use DSC in Azure. This document will cover the different ways to use DSC in Azure.
 
