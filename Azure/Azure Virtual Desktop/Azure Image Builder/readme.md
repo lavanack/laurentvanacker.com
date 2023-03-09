@@ -1,6 +1,6 @@
 # Azure Image Builder
 
-The [Azure-Image-Builder.ps1](Azure-Image-Builder.ps1) script creates an [Azure Compute Gallery](https://learn.microsoft.com/en-us/azure/virtual-machines/azure-compute-gallery) with 2 image definitions as shwon below:
+The [Azure-Image-Builder.ps1](Azure-Image-Builder.ps1) script creates an [Azure Compute Gallery](https://learn.microsoft.com/en-us/azure/virtual-machines/azure-compute-gallery) with 2 image definitions as shown below:
 
 ![](docs/acg.jpg)
 
