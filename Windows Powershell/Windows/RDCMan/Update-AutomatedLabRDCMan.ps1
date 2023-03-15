@@ -167,7 +167,14 @@ Function Update-AutomatedLabRDCMan
                 $nameTextNode = $nameElement.AppendChild($AutomatedLabRDGFileContent.CreateTextNode("$($LWAzureVMConnectionInfo.DnsName):$($LWAzureVMConnectionInfo.RdpPort)"))
             }
             else {
-                $nameTextNode = $nameElement.AppendChild($AutomatedLabRDGFileContent.CreateTextNode("$($CurrentMachine.Name).$($Domain)"))
+                if ([System.Convert]::ToBoolean($CurrentMachine.IsDomainJoined))
+                {
+                    $nameTextNode = $nameElement.AppendChild($AutomatedLabRDGFileContent.CreateTextNode("$($CurrentMachine.Name).$($CurrentMachine.DomainName)"))
+                }
+                else
+                {
+                    $nameTextNode = $nameElement.AppendChild($AutomatedLabRDGFileContent.CreateTextNode($($CurrentMachine.Name)))
+                }
             }
         }
         #endregion

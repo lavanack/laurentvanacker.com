@@ -247,7 +247,7 @@ $ImgCustomParams = @{
    PowerShellCustomizer = $true  
    Name = 'InstallVSCode'  
    RunElevated = $true  
-   ScriptUri = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Install-VSCode.ps1'
+   ScriptUri = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/Install-VSCode.ps1'
   }
 
 $Customizer = New-AzImageBuilderTemplateCustomizerObject @ImgCustomParams 
