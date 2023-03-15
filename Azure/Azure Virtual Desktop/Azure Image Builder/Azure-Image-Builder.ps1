@@ -26,12 +26,17 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 
-# Connect to Azure with a browser sign in token
-Connect-AzAccount
-
-#Select the right subscription
-Get-AzSubscription | Out-GridView -OutputMode Single 
-
+#region Defining variables 
+$SubscriptionName = "Cloud Solution Architect"
+# Login to your Azure subscription.
+While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName))
+{
+    Connect-AzAccount
+    Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
+    #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
+    #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
+}
+#endregion
 
 #To use Azure Image Builder, you have to register for the providers and to ensure that RegistrationState will be set to Registered.
 Register-AzResourceProvider -ProviderNamespace Microsoft.VirtualMachineImages
@@ -229,7 +234,7 @@ $srcPlatform = New-AzImageBuilderTemplateSourceObject @SrcObjParams
 $disObjParams = @{
   SharedImageDistributor = $true
   GalleryImageId = "/subscriptions/$subscriptionID/resourceGroups/$imageResourceGroup/providers/Microsoft.Compute/galleries/$cgGalleryName/images/$imageDefName02/versions/$version"
-  ArtifactTag = @{source='avd-win11';baseosimg='windows11'}
+  ArtifactTag = @{source='avd-win11'; baseosimg='windows11'}
  
   # 1. Uncomment following line for a single region deployment.
   ReplicationRegion = $location
@@ -290,6 +295,8 @@ $getStatus02 | Remove-AzImageBuilderTemplate
 #endregion
 
 #endregion
+
+New-AzResourceLock -LockLevel CanNotDelete -LockNotes "$imageResourceGroup - CanNotDelete" -LockName "$imageResourceGroup - CanNotDelete" -ResourceGroupName $imageResourceGroup -Force
 
 #region Clean up your resources
 <#
