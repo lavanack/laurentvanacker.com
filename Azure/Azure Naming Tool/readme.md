@@ -8,6 +8,7 @@ Table of content:
     - [Setup](#setup)
   - [AutomatedLab version](#automatedlab-version)
     - [Prerequisites](#prerequisites-1)
+  - [Api Test](#api-test)
 
 ## Context
 
@@ -59,3 +60,6 @@ After completion you'll have:
 All Windows Servers are running 'Windows Server 2022 Datacenter (Desktop Experience)'. Credentials will be displayed at the end of the deployment process. Just connect via RDP to the server you want (DC01 or IIS01) and open an Edge browser. The https://azurenamingtool.contoso.com will automatically be loaded (Thanks to GPO settings). (There is no authentication mechanism except the anonymous one.). The final step is to set your Azure Naming Tool Admin Password.
 
 ![](docs/iis.jpg)
+
+## Api Test
+The script [AzureNamingToolAPI.ps1](AzureNamingToolAPI.ps1) is a sample script for testing the API of the Azure Naming Tool. Among the things the script does, it will generate random names for all kind of Azure resources based on the [Azure Naming Tool ](https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool) configuration.
