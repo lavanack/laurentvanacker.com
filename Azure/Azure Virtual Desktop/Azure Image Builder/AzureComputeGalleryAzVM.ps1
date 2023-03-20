@@ -205,7 +205,7 @@ $galleryImage = Get-AzGalleryImageDefinition -ResourceGroupName $imageResourceGr
 #$AzVMSourceImage = $galleryImage.id | Select-Object -First 1
 #We choose randomly and image
 $AzVMSourceImageId = $galleryImage.id | Get-Random
-$AzVMSourceImageId
+Write-Host "Source Image: $AzVMSourceImageId" -ForegroundColor Yellow
 Set-AzVMSourceImage -VM $VMConfig -Id $AzVMSourceImageId
 #endregion
 
