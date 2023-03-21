@@ -21,7 +21,9 @@ of the Sample Code.
 param
 (
 	[parameter(Mandatory = $false)]
-	[switch]$Transcript
+	[switch]$Transcript,
+	[parameter(Mandatory = $false)]
+	[switch]$Export
 )
 
 Clear-Host
@@ -47,7 +49,7 @@ $AZNamingToolURI = "ReplaceWithYourOwnURL"
 
 #region ImportExport: Export
 $Headers = @{ APIKey = $APIKey}
-$Configuration = Invoke-RestMethod -Method GET -Header $Headers -Uri $AZNamingToolURI/api/ImportExport/ExportConfiguration?includeAdmin=true
+$Configuration = Invoke-RestMethod -Method GET -Header $Headers -ContentType "application/json" -Uri $AZNamingToolURI/api/ImportExport/ExportConfiguration?includeAdmin=true
 $Configuration | ConvertTo-Json -Depth 100 | Set-Content -Path "$CurrentDir\globalconfig_$Timestamp.json"
 #endregion
 
@@ -60,6 +62,7 @@ $ResetSiteConfiguration
 #endregion
 #>
 
+#region GET some data
 #region Admin: GET Admin Log
 $Headers = @{ APIKey = $APIKey}
 $GeneratedNamesLog = Invoke-RestMethod -Method GET -Header $Headers -ContentType "application/json" -Uri $AZNamingToolURI/api/Admin/GetGeneratedNamesLog
@@ -74,72 +77,80 @@ $CustomComponents
 
 #region ResourceTypes: GET ResourceTypes
 $Headers = @{ APIKey = $APIKey}
-$ResourceTypes = Invoke-RestMethod -Method GET -Header $Headers -Uri $AZNamingToolURI/api/ResourceTypes
+$ResourceTypes = Invoke-RestMethod -Method GET -Header $Headers -ContentType "application/json" -Uri $AZNamingToolURI/api/ResourceTypes
 $ResourceTypes
 #endregion
 
 #region ResourceOrgs: GET ResourceOrgs
 $Headers = @{ APIKey = $APIKey}
-$ResourceOrgs = Invoke-RestMethod -Method GET -Header $Headers -Uri $AZNamingToolURI/api/ResourceOrgs
+$ResourceOrgs = Invoke-RestMethod -Method GET -Header $Headers -ContentType "application/json" -Uri $AZNamingToolURI/api/ResourceOrgs
 $ResourceOrgs
 #endregion
 
 #region ResourceProjAppSvc: GET ResourceProjAppSvcs
 $Headers = @{ APIKey = $APIKey}
-$ResourceProjAppSvcs = Invoke-RestMethod -Method GET -Header $Headers -Uri $AZNamingToolURI/api/ResourceProjAppSvcs
+$ResourceProjAppSvcs = Invoke-RestMethod -Method GET -Header $Headers -ContentType "application/json" -Uri $AZNamingToolURI/api/ResourceProjAppSvcs
 $ResourceProjAppSvcs
 #endregion
 
 #region ResourceEnvironments: GET ResourceEnvironments
 $Headers = @{ APIKey = $APIKey}
-$ResourceEnvironments = Invoke-RestMethod -Method GET -Header $Headers -Uri $AZNamingToolURI/api/ResourceEnvironments
+$ResourceEnvironments = Invoke-RestMethod -Method GET -Header $Headers -ContentType "application/json" -Uri $AZNamingToolURI/api/ResourceEnvironments
 $ResourceEnvironments
 #endregion
 
 #region ResourceEnvironments: GET ResourceLocation
 $Headers = @{ APIKey = $APIKey}
-$ResourceLocations = Invoke-RestMethod -Method GET -Header $Headers -Uri $AZNamingToolURI/api/ResourceLocations
+$ResourceLocations = Invoke-RestMethod -Method GET -Header $Headers -ContentType "application/json" -Uri $AZNamingToolURI/api/ResourceLocations
 $ResourceLocations
 #endregion
 
 #region ResourceEnvironments: GET ResourceFunctions
 $Headers = @{ APIKey = $APIKey}
-$ResourceFunctions = Invoke-RestMethod -Method GET -Header $Headers -Uri $AZNamingToolURI/api/ResourceFunctions
+$ResourceFunctions = Invoke-RestMethod -Method GET -Header $Headers -ContentType "application/json" -Uri $AZNamingToolURI/api/ResourceFunctions
 $ResourceFunctions
 #endregion
 
 #region ResourceEnvironments: GET ResourceUnitDepts
 $Headers = @{ APIKey = $APIKey}
-$ResourceUnitDepts = Invoke-RestMethod -Method GET -Header $Headers -Uri $AZNamingToolURI/api/ResourceUnitDepts
+$ResourceUnitDepts = Invoke-RestMethod -Method GET -Header $Headers -ContentType "application/json" -Uri $AZNamingToolURI/api/ResourceUnitDepts
 $ResourceUnitDepts
+#endregion
 #endregion
 
 #region ResourceNamingRequests: POST RequestName
 #region Random Request Name for every resource type
 $CurrentResourceIndex = 0
-$ResourceTypes | ForEach-Object -Process {
-    $CurrentResource = $_.resource
+$Data = $ResourceTypes | ForEach-Object -Process {
     $CurrentResourceIndex++
+    $CurrentResourceType = $_
+    if ($CurrentResourceType.property)
+    {
+        $CurrentResource = '{0} - {1} ({2})' -f $CurrentResourceType.resource, $CurrentResourceType.property, $CurrentResourceType.shortName    
+    }
+    else
+    {
+        $CurrentResource = '{0} ({1})' -f $CurrentResourceType.resource, $CurrentResourceType.shortName
+    }
     Write-Verbose "Processing '$CurrentResource' ..."
     Write-Progress -Activity "[$($CurrentResourceIndex)/$($ResourceTypes.Count)] Processing '$CurrentResource'" -Status "Percent : $('{0:N0}' -f $($CurrentResourceIndex/($ResourceTypes.Count) * 100)) %" -PercentComplete ($CurrentResourceIndex / $ResourceTypes.Count * 100)
     $Headers = @{ APIKey = $APIKey }
     $Body = [ordered]@{ 
-        "resourceType" = $_.shortName
-        "resourceId" = $_.Id
-        "resourceOrg" = $ResourceOrgs.shortName | Get-Random 
-        "resourceUnitDept" = $ResourceUnitDepts.shortName | Get-Random
-        "resourceProjAppSvc" = $ResourceProjAppSvcs.shortName | Get-Random 
-        "resourceFunction" = $ResourceFunctions.shortName | Get-Random 
+        "resourceType"        = $CurrentResourceType.shortName
+        "resourceId"          = $CurrentResourceType.Id
+        "resourceOrg"         = $ResourceOrgs.shortName | Get-Random 
+        "resourceUnitDept"    = $ResourceUnitDepts.shortName | Get-Random
+        "resourceProjAppSvc"  = $ResourceProjAppSvcs.shortName | Get-Random 
+        "resourceFunction"    = $ResourceFunctions.shortName | Get-Random 
         "resourceEnvironment" = $ResourceEnvironments.shortName | Get-Random 
-        "resourceLocation" = $ResourceLocations.shortName | Get-Random 
-        "resourceInstance" = '{0:D3}' -f $(Get-Random -Minimum 0 -Maximum 999)
+        "resourceLocation"    = $ResourceLocations.shortName | Get-Random 
+        "resourceInstance"    = '{0:D3}' -f $(Get-Random -Minimum 0 -Maximum 999)
 <#
         "customComponents" = @{
             "region" = Get-Random $CustomComponents.shortName
         }
 #>
     }
-    $Body | Format-Table
     try
     {
         $Response = Invoke-RestMethod -Method POST -Headers $Headers -Body $($Body | ConvertTo-Json) -ContentType "application/json" -Uri $AZNamingToolURI/api/ResourceNamingRequests/RequestName -ErrorVariable ResponseError
@@ -156,16 +167,40 @@ $ResourceTypes | ForEach-Object -Process {
     }
     finally 
     {
-        $Response | Format-List
+        $CurrentData = [PSCustomObject]@{ 
+            "resource"            = $CurrentResource
+            "resourceType"        = $Body.resourceType
+            "resourceId"          = $Body.resourceId
+            "resourceOrg"         = $Body.resourceOrg
+            "resourceUnitDept"    = $Body.resourceUnitDept
+            "resourceProjAppSvc"  = $Body.resourceProjAppSvc
+            "resourceFunction"    = $Body.resourceFunction
+            "resourceEnvironment" = $Body.resourceEnvironment
+            "resourceLocation"    = $Body.resourceLocation
+            "resourceInstance"    = $Body.resourceInstance
+            "resourceName"        = $Response.resourceName
+            "success"             = $Response.success
+            "message"             = $Response.message -replace '\r|\n', ""
+        }
+        $CurrentData
     }
 }
 Write-Progress -Activity 'Completed !' -Status 'Completed !' -Completed
 
 #endregion
 #endregion
+$Data 
 
 if ($Transcript)
 {
     Stop-Transcript
     & $TranscriptFile
+}
+
+if ($Export)
+{
+    $CSVFile = $CurrentScript -replace ".ps1$", "_$Timestamp.csv"
+    $Data | Export-Csv -Path $CSVFile -NoTypeInformation
+    Write-Verbose "Data have been exported to '$CSVFile' ..."
+    & $CSVFile
 }
