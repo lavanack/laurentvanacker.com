@@ -62,4 +62,4 @@ All Windows Servers are running 'Windows Server 2022 Datacenter (Desktop Experie
 ![](docs/iis.jpg)
 
 ## Api Test
-The script [AzureNamingToolAPI.ps1](AzureNamingToolAPI.ps1) is a sample script for testing the API of the Azure Naming Tool. Among the things the script does, it will generate random names for all kind of Azure resources based on the [Azure Naming Tool ](https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool) configuration.
+The script [AzureNamingToolAPI.ps1](AzureNamingToolAPI.ps1) is a sample script for testing the API of the Azure Naming Tool. Among the things the script does, it will generate random names for all kind of Azure resources based on the [Azure Naming Tool ](https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool) configuration. You can optionnaly call it with the -Transcript switch to see the generated transcript and -Export switch to export all generated resource names into a CSV file. 
