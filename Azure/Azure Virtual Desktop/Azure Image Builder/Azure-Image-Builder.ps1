@@ -58,11 +58,15 @@ Import-Module Az.Accounts
 # Step 2: get existing context
 $currentAzContext = Get-AzContext
 
+#Timestamp
+$timeInt=(Get-Date -UFormat "%s").Split(".")[0]
+
 # Destination image resource group
-$imageResourceGroup="AVD-AZIMG-RG"
+$imageResourceGroup="AVD-AZIMG-$timeInt-RG"
 
 # Location (see possible locations in the main docs)
 $location="eastus"
+$replicationRegions="eastus2"
 
 # Your subscription. This command gets your current subscription
 $subscriptionID=$currentAzContext.Subscription.Id
@@ -93,7 +97,6 @@ New-AzResourceGroup -Name $imageResourceGroup -Location $location -Force
 
 #region Permissions, user identity, and role
 # setup role def names, these need to be unique
-$timeInt=(Get-Date -UFormat "%s").Split(".")[0]
 $imageRoleDefName="Azure Image Builder Image Def"+$timeInt
 $identityName="aibIdentity"+$timeInt
 
@@ -146,10 +149,10 @@ $ApplicationId = (Get-AzureADServicePrincipal -SearchString "Azure Virtual Machi
 #endregion
 
 #region Create an Azure Compute Gallery
-$cgGalleryName= "AVD_ACG"
+$cgGalleryName= "AVD_ACG_$timeInt"
 
 # Create the gallery
-New-AzGallery -GalleryName $cgGalleryName -ResourceGroupName $imageResourceGroup  -Location $location
+New-AzGallery -GalleryName $cgGalleryName -ResourceGroupName $imageResourceGroup -Location $location
 
 #region Template #1 via a customized JSON file
 # Create the gallery definition
@@ -172,7 +175,7 @@ Invoke-WebRequest -Uri $templateUrl -OutFile $templateFilePath -UseBasicParsing
 
 ((Get-Content -path $templateFilePath -Raw) -replace '<imageDefName>',$imageDefName01) | Set-Content -Path $templateFilePath
 ((Get-Content -path $templateFilePath -Raw) -replace '<sharedImageGalName>',$cgGalleryName) | Set-Content -Path $templateFilePath
-((Get-Content -path $templateFilePath -Raw) -replace '<region1>',$location) | Set-Content -Path $templateFilePath
+((Get-Content -path $templateFilePath -Raw) -replace '<region1>',$replicationRegions) | Set-Content -Path $templateFilePath
 ((Get-Content -path $templateFilePath -Raw) -replace '<imgBuilderId>',$identityNameResourceId) | Set-Content -Path $templateFilePath
 ((Get-Content -path $templateFilePath -Raw) -replace '<version>',$version) | Set-Content -Path $templateFilePath
 #endregion
@@ -237,10 +240,10 @@ $disObjParams = @{
   ArtifactTag = @{source='avd-win11'; baseosimg='windows11'}
  
   # 1. Uncomment following line for a single region deployment.
-  ReplicationRegion = $location
+  #ReplicationRegion = $location
  
-  # 2. Uncomment following line if the custom image should be replicated to another region.
-  #ReplicationRegion = $location,'EastUS'
+  # 2. Uncomment following line if the custom image should be replicated to another region(s).
+  ReplicationRegion = @($location)+@($replicationRegions)
  
   RunOutputName = $runOutputName02
   ExcludeFromLatest = $false
