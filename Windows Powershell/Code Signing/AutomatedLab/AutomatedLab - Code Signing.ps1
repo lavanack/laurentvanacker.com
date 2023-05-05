@@ -23,7 +23,7 @@ Clear-Host
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
 $PreviousErrorActionPreference = $ErrorActionPreference
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Continue'
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
@@ -41,7 +41,6 @@ $ClientUser = "ClientUser"
 $DevUserCred = New-Object PSCredential -ArgumentList "$NetBiosDomainName\$DevUser", $SecurePassword   
 $ClientUserCred = New-Object PSCredential -ArgumentList "$NetBiosDomainName\$ClientUser", $SecurePassword   
 $PowerShellCodeSigningTemplateName = "PowerShellCodeSigning"
-$TimestampServer = "http://timestamp.verisign.com/scripts/timstamp.dll"
 
 
 $NetworkID = '10.0.0.0/16' 
@@ -84,7 +83,7 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:MinMemory'       = 1GB
     'Add-LabMachineDefinition:MaxMemory'       = 2GB
     'Add-LabMachineDefinition:Memory'          = 2GB
-    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Datacenter (Desktop Experience)'
+    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2022 Datacenter (Desktop Experience)'
     'Add-LabMachineDefinition:Processors'      = $LabMachineDefinitionProcessors
 }
 
@@ -99,9 +98,9 @@ Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress $DC01IPv4Address
 #Certificate Authority
 Add-LabMachineDefinition -Name CA01 -Roles CARoot -IpAddress $CAIPv4Address
 #Dev machine
-Add-LabMachineDefinition -Name DEV01 -NetworkAdapter $DEV01NetAdapter -OperatingSystem 'Windows 10 Enterprise'
+Add-LabMachineDefinition -Name DEV01 -NetworkAdapter $DEV01NetAdapter -OperatingSystem 'Windows 11 Enterprise'
 #Client Machine 
-Add-LabMachineDefinition -Name CLIENT01 -IpAddress $CLIENT01IPv4Address -OperatingSystem 'Windows 10 Enterprise'
+Add-LabMachineDefinition -Name CLIENT01 -IpAddress $CLIENT01IPv4Address -OperatingSystem 'Windows 11 Enterprise'
 #endregion
 
 #Installing servers
