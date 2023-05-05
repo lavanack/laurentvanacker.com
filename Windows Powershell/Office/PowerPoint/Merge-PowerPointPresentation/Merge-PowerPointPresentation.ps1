@@ -119,5 +119,5 @@ Get-ChildItem -Path $CurrentDir -Filter "Sample*.pptx" -File | Sort-Object -Prop
 
 
 #Example 2 : Processing a list of some PowerPoint presentations specified by their absolute path
-#$Presentations = "$CurrentDir\0.pptx", "$CurrentDir\1.pptx", "$CurrentDir\2.pptx", "$CurrentDir\3.pptx", "$CurrentDir\4.pptx", "$CurrentDir\5.pptx", "$CurrentDir\6.pptx", "$CurrentDir\7.pptx", "$CurrentDir\8.pptx", "$CurrentDir\9.pptx"
-#Merge-PowerPointPresentation -Source $Presentations -Destination $CurrentDir\all.pptx -Verbose
+$Presentations = "$CurrentDir\Sample_0.pptx", "$CurrentDir\Sample_1.pptx", "$CurrentDir\Sample_2.pptx", "$CurrentDir\Sample_3.pptx", "$CurrentDir\Sample_4.pptx", "$CurrentDir\Sample_5.pptx", "$CurrentDir\Sample_6.pptx", "$CurrentDir\Sample_7.pptx", "$CurrentDir\Sample_8.pptx", "$CurrentDir\Sample_9.pptx"
+Merge-PowerPointPresentation -Source $Presentations -Destination $CurrentDir\all.pptx -Verbose
