@@ -210,6 +210,12 @@ $Body = [ordered]@{
 
 $Response = Invoke-RestMethod -Method POST -Headers $Headers -Body $($Body | ConvertTo-Json)  -ContentType "application/json" -Uri $AZOpenAIURI
 $Response
+
+"Generated text:"
+$Response.choices.text
+
+"Token cost"
+$Response.usage
 #endregion
 
 Write-Host "Sleeping 1 minute due to rate limit of the free tier ..."
@@ -218,11 +224,12 @@ Start-Sleep -Seconds 60
 #region Sample #2
 #From https://alexholmeset.blog/2023/02/09/getting-started-with-azure-openai-and-powershell/
 Get-AzureOpenAIToken -APIKey $APIKey
-$Request = Get-Completion -DeploymentName $DeploymentName -ResourceName $ResourceName -Maxtokens 100 -Prompt $Prompt
+$Response = Get-Completion -DeploymentName $DeploymentName -ResourceName $ResourceName -Maxtokens 100 -Prompt $Prompt
+$Response
 
 "Generated text:"
-$Request.choices.text
+$Response.choices.text
 
 "Token cost"
-$Request.usage
+$Response.usage
 #endregion
