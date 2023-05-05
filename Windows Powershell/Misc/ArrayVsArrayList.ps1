@@ -21,7 +21,7 @@ $CurrentDir=Split-Path $MyInvocation.MyCommand.Path
 $OutputCSVFile = Join-Path -Path $CurrentDir -ChildPath $("ArrayVsArrayList.csv")
 
 $Results = New-Object -TypeName 'System.Collections.ArrayList';
-$Limit = 1000
+$Limit = 100000
 for($index=0; $index -le $Limit; $index+=100)
 {
     Write-Progress -Activity "Processing $Index" -Status "Progress: $($index/$Limit*100) %" -PercentComplete ($index/$Limit*100)
