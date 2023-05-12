@@ -87,7 +87,7 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:Network'         = $LabName
     'Add-LabMachineDefinition:DomainName'      = $FQDNDomainName
     'Add-LabMachineDefinition:MinMemory'       = 1GB
-    'Add-LabMachineDefinition:MaxMemory'       = 2GB
+    'Add-LabMachineDefinition:MaxMemory'       = 3GB
     'Add-LabMachineDefinition:Memory'          = 2GB
     'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2022 Datacenter (Desktop Experience)'
     #'Add-LabMachineDefinition:Processors'      = 4
@@ -189,8 +189,10 @@ $WAC01WebServerSSLCert = Request-LabCertificate -Subject "CN=WAC01.$FQDNDomainNa
 
 #region Downloading and Installing Windows Admin Center Installer for hosting the web app
 $WACDownload = Get-LabInternetFile -Uri $WACDownloadURI -Path $labSources\SoftwarePackages -FileName WindowsAdminCenter.msi -PassThru -Force
-#$Job += Install-LabSoftwarePackage -ComputerName WAC01 -Path $WACDownload.FullName -CommandLine "/qn /L*V 'C:\WindowsAdminCenter-Install.log' ENABLE_CHK_REDIRECT_PORT_80=1 SME_AUTO_UPDATE=1 SME_PORT=443 SSL_CERTIFICATE_OPTION=generate" -AsJob -PassThru
-$Job += Install-LabSoftwarePackage -ComputerName WAC01 -Path $WACDownload.FullName -CommandLine "/qn ENABLE_CHK_REDIRECT_PORT_80=1 SME_AUTO_UPDATE=1 SME_PORT=443 SME_THUMBPRINT=$($WAC01WebServerSSLCert.Thumbprint) SSL_CERTIFICATE_OPTION=installed" -Verbose -AsJob -PassThru 
+#Self-Signed Certificate
+#$Job += Install-LabSoftwarePackage -ComputerName WAC01 -Path $WACDownload.FullName -CommandLine "/qn /L*V C:\WindowsAdminCenter-Install.log ENABLE_CHK_REDIRECT_PORT_80=1 SME_AUTO_UPDATE=1 SME_PORT=443 SSL_CERTIFICATE_OPTION=generate MS_UPDATE_OPT_IN='yes' SET_TRUSTED_HOSTS=''" -AsJob -PassThru
+#Internal PKI Certificate, Redirection HTTP/80=>443, Enabling autoupdate, No trusted Hosts 
+$Job += Install-LabSoftwarePackage -ComputerName WAC01 -Path $WACDownload.FullName -CommandLine "/qn /L*V $env:SystemDrive\WindowsAdminCenter-Install.log ENABLE_CHK_REDIRECT_PORT_80=1 SME_AUTO_UPDATE=1 SME_PORT=443 SME_THUMBPRINT=$($WAC01WebServerSSLCert.Thumbprint) SSL_CERTIFICATE_OPTION=installed MS_UPDATE_OPT_IN='yes' SET_TRUSTED_HOSTS=''" -Verbose -AsJob -PassThru 
 #endregion 
 
 #Waiting for background jobs
@@ -217,8 +219,8 @@ Invoke-LabCommand -ActivityName 'Adding WAC Connections' -ComputerName WAC01 -Sc
         [PSCustomObject] @{
             Name    = $_.FQDN
             Type    = "msft.sme.connection-type.server"
-            Tags    = ""
-            GroupID = ""
+            Tags    = "contoso|hyperv|WS2022"
+            GroupID = "global"
         }
     }
     $WACConnection | Export-Csv $WACConnectionCSVFile -NoTypeInformation
@@ -245,7 +247,7 @@ Invoke-LabCommand -ActivityName 'Updating & Installing WAC Extensions' -Computer
     $InstalledExtensions | ForEach-Object -Process { Update-Extension -GatewayEndpoint $WACURI -ExtensionId $_.id -Verbose}
 
     #Installing all MSFT WAC entensions
-    $ExtensionsToInstall = (Get-Extension $WACURI | Where-Object -FilterScript { $_.id -match "^msft"}).id
+    $ExtensionsToInstall = (Get-Extension $WACURI | Where-Object -FilterScript { $_.id -match "^msft|^microsoft"}).id
     $ExtensionsToInstall |  ForEach-Object -Process { Install-Extension -GatewayEndpoint $WACURI -ExtensionId $_ -Verbose}
 }
 
