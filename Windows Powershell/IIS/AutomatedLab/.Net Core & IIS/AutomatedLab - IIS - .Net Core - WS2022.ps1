@@ -58,7 +58,6 @@ $IIS01IPv4Address = '10.0.0.11'
 $ASPNetCoreHostingBundleURI = "https://download.visualstudio.microsoft.com/download/pr/eaa3eab9-cc21-44b5-a4e4-af31ee73b9fa/d8ad75d525dec0a30b52adc990796b11/dotnet-hosting-6.0.9-win.exe"
 $NetSDKURI = "https://download.visualstudio.microsoft.com/download/pr/cebf08ce-ecf1-4439-8a0a-d81b3a4cad12/674ba293b83bdc9b1e00ddfa3ab82f10/dotnet-sdk-6.0.401-win-x64.exe"
 
-
 $LabName = 'NetCore'
 #endregion
 
@@ -110,7 +109,7 @@ $AllLabVMs = Get-LabVM -All
 #region Installing Required Windows Features
 
 $Job = @()
-$Job += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $AllLabVMs -IncludeManagementTools -AsJob
+$Job += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $AllLabVMs -IncludeManagementTools -AsJob -PassThru
 
 #endregion
 
