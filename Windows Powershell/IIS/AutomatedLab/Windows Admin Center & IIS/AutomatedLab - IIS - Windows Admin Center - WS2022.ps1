@@ -192,7 +192,7 @@ $WACDownload = Get-LabInternetFile -Uri $WACDownloadURI -Path $labSources\Softwa
 #Self-Signed Certificate
 #$Job += Install-LabSoftwarePackage -ComputerName WAC01 -Path $WACDownload.FullName -CommandLine "/qn /L*V C:\WindowsAdminCenter-Install.log ENABLE_CHK_REDIRECT_PORT_80=1 SME_AUTO_UPDATE=1 SME_PORT=443 SSL_CERTIFICATE_OPTION=generate MS_UPDATE_OPT_IN='yes' SET_TRUSTED_HOSTS=''" -AsJob -PassThru
 #Internal PKI Certificate, Redirection HTTP/80=>443, Enabling autoupdate, No trusted Hosts 
-$Job += Install-LabSoftwarePackage -ComputerName WAC01 -Path $WACDownload.FullName -CommandLine "/qn /L*V $env:SystemDrive\WindowsAdminCenter-Install.log ENABLE_CHK_REDIRECT_PORT_80=1 SME_AUTO_UPDATE=1 SME_PORT=443 SME_THUMBPRINT=$($WAC01WebServerSSLCert.Thumbprint) SSL_CERTIFICATE_OPTION=installed MS_UPDATE_OPT_IN='yes' SET_TRUSTED_HOSTS=''" -Verbose -AsJob -PassThru 
+$Job += Install-LabSoftwarePackage -ComputerName WAC01 -Path $WACDownload.FullName -CommandLine "/qn /L*V $env:SystemDrive\WindowsAdminCenter-Install.log ENABLE_CHK_REDIRECT_PORT_80=1 SME_AUTO_UPDATE=1 SME_PORT=443 SME_THUMBPRINT=$($WAC01WebServerSSLCert.Thumbprint) SSL_CERTIFICATE_OPTION=installed MS_UPDATE_OPT_IN='yes' SET_TRUSTED_HOSTS=`"`"" -Verbose -AsJob -PassThru 
 #endregion 
 
 #Waiting for background jobs
