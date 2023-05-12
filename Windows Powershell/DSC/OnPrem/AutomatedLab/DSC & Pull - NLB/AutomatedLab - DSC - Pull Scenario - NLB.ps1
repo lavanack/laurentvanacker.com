@@ -8,7 +8,7 @@ trap {
     Send-ALNotification -Activity 'Lab started' -Message ('Lab deployment failed !') -Provider (Get-LabConfigurationItem -Name Notifications.SubscribedProviders)
 } 
 Clear-Host
-Import-Module -Name AutomatedLab -RequiredVersion 5.38.0
+Import-Module -Name AutomatedLab #-RequiredVersion 5.38.0
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
 $PreviousErrorActionPreference = $ErrorActionPreference
@@ -100,7 +100,7 @@ Add-LabMachineDefinition -Name ROUTER01 -Roles Routing -NetworkAdapter $netAdapt
 
 #SQL Server
 $role = Get-LabMachineRoleDefinition -Role SQLServer2019
-Add-LabIsoImageDefinition -Name SQLServer2019 -Path $labSources\ISOs\en_sql_server_2019_standard_x64_dvd_cdcd4b9f.iso
+Add-LabIsoImageDefinition -Name SQLServer2019 -Path $labSources\ISOs\en_sql_server_2019_enterprise_x64_dvd_5e1ecc6b.iso
 Add-LabMachineDefinition -Name SQL01 -Roles $role -IpAddress $SQL01IPv4Address -Processors 4 -Memory 4GB -MinMemory 2GB -MaxMemory 4GB
 
 #DSC Pull Servers
@@ -367,7 +367,7 @@ Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration' -ComputerNam
 
 Invoke-LabCommand -ActivityName 'Installing Community Ressources modules' -ComputerName PULL01 -ScriptBlock {
     #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-    Install-Module -Name xWebAdministration -RequiredVersion 3.2.0 -Force
+    Install-Module -Name xWebAdministration -Force #-RequiredVersion 3.2.0 
 }
 
 Invoke-LabCommand -ActivityName 'Updating Test DSC Configuration' -ComputerName PULL01 -ScriptBlock {
