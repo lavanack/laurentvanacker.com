@@ -237,16 +237,16 @@ Invoke-LabCommand -ActivityName 'Updating & Installing WAC Extensions' -Computer
 
     <#
     #FROM https://www.altf4-formation.fr/windows-admin-center-installer-des-extensions-en-powershell
-    $ExtensionsToInstall = 'msft.iis.iis-management', 'msft.sme.active-directory'
+    $MSFTExtensionsToInstall = 'msft.iis.iis-management', 'msft.sme.active-directory'
     #>
 
     #Updating Installed Extensions
-    $InstalledExtensions = Get-Extension $WACURI | Where-Object -FilterScript { $_.status -eq 'Installed' } 
-    $InstalledExtensions | ForEach-Object -Process { Update-Extension -GatewayEndpoint $WACURI -ExtensionId $_.id -Verbose}
+    $InstalledExtensions = Get-Extension -GatewayEndpoint $WACURI | Where-Object -FilterScript { $_.status -eq 'Installed' } 
+    $InstalledExtensions | ForEach-Object -Process { Write-Host "Updating $($_.title) [$($_.id)]"; Update-Extension -GatewayEndpoint $WACURI -ExtensionId $_.id -Verbose}
 
-    #Installing all MSFT WAC entensions
-    $ExtensionsToInstall = (Get-Extension $WACURI | Where-Object -FilterScript { $_.id -match "^msft|^microsoft" }).id
-    $ExtensionsToInstall |  ForEach-Object -Process { Install-Extension -GatewayEndpoint $WACURI -ExtensionId $_ -Verbose}
+    #Installing all MSFT WAC entensions (not already installed)
+    $MSFTExtensionsToInstall = Get-Extension -GatewayEndpoint $WACURI | Where-Object -FilterScript { $_.id -match "^msft|^microsoft" }
+    $MSFTExtensionsToInstall | Where-Object -FilterScript {$_.id -notin $InstalledExtensions.id} | ForEach-Object -Process { Write-Host "Installing $($_.title) [$($_.id)]"; Install-Extension -GatewayEndpoint $WACURI -ExtensionId $_.id -Verbose}
 }
 
 #Waiting for background jobs
