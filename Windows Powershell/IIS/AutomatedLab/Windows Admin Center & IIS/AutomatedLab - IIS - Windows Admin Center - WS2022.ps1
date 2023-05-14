@@ -217,14 +217,14 @@ Invoke-LabCommand -ActivityName 'Adding WAC Connections' -ComputerName WAC01 -Sc
         [PSCustomObject] @{
             Name    = $_.FQDN
             Type    = "msft.sme.connection-type.server"
-            Tags    = "contoso|hyperv|iis|WS2022"
+            Tags    = @($FQDNDomainName ,"HyperV","IIS","WS2022") -join ('|')
             GroupID = "global"
         }
     }
     $WACConnection | Export-Csv $WACConnectionCSVFile -NoTypeInformation
     Import-Connection $WACURI -fileName $WACConnectionCSVFile
     Remove-Item -Path $WACConnectionCSVFile -Force
-} -Variable (Get-Variable -Name IISServers)   
+} -Variable (Get-Variable -Name IISServers, FQDNDomainName)   
 
 Invoke-LabCommand -ActivityName 'Updating & Installing WAC Extensions' -ComputerName WAC01 -ScriptBlock {
     # WAC URI
@@ -241,11 +241,11 @@ Invoke-LabCommand -ActivityName 'Updating & Installing WAC Extensions' -Computer
     #>
 
     #Updating Installed Extensions
-    $InstalledExtensions = Get-Extension $WACURI | Where-Object {$_.status -eq 'Installed' } 
+    $InstalledExtensions = Get-Extension $WACURI | Where-Object -FilterScript { $_.status -eq 'Installed' } 
     $InstalledExtensions | ForEach-Object -Process { Update-Extension -GatewayEndpoint $WACURI -ExtensionId $_.id -Verbose}
 
     #Installing all MSFT WAC entensions
-    $ExtensionsToInstall = (Get-Extension $WACURI | Where-Object -FilterScript { $_.id -match "^msft|^microsoft"}).id
+    $ExtensionsToInstall = (Get-Extension $WACURI | Where-Object -FilterScript { $_.id -match "^msft|^microsoft" }).id
     $ExtensionsToInstall |  ForEach-Object -Process { Install-Extension -GatewayEndpoint $WACURI -ExtensionId $_ -Verbose}
 }
 
