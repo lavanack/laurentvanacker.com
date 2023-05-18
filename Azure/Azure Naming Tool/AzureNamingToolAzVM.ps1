@@ -75,6 +75,7 @@ While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName))
     #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
 }
 
+$StorageAccountNameMaxLength    = 24
 $AzureVMNameMaxLength           = 15
 $RDPPort                        = 3389
 $JitPolicyTimeInHours           = 3
@@ -84,12 +85,13 @@ $ResourcePrefix                 = "ant"
 $DigitNumber                    = $AzureVMNameMaxLength - $ResourcePrefix.Length
 Do 
 {
+    #Generating a unique random VM name by using the max length allowed and ending with a random number
     $VMName = "{0}{1:D$DigitNumber}" -f $ResourcePrefix, $(Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)-1)))
     $VMName = $VMName.Substring(0, [system.math]::min(15, $VMName.Length))
 
     #$StorageAccountName             = "{0}sa{1}" -f $VMName, $Location # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name $StorageAccountName 
     $StorageAccountName             = "{0}sa" -f $VMName # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name $StorageAccountName 
-    $StorageAccountName             = $StorageAccountName.Substring(0, [system.math]::min(24, $StorageAccountName.Length)).ToLower()
+    $StorageAccountName             = $StorageAccountName.Substring(0, [system.math]::min($StorageAccountNameMaxLength, $StorageAccountName.Length)).ToLower()
 
 } While ((-not(Test-AzDnsAvailability -DomainNameLabel $VMName -Location $Location)) -or ((-not(Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable)))
 
