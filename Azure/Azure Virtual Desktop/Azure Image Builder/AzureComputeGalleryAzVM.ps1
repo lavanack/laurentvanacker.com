@@ -199,7 +199,9 @@ Set-AzVMBootDiagnostic -Enable -ResourceGroupName $ResourceGroupName -VM $VMConf
 # The line below replaces Step #8 : Set virtual machine source image
 #Set-AzVMSourceImage -VM $VMConfig -PublisherName $ImagePublisherName -Offer $ImageOffer -Skus $ImageSku -Version 'latest'
 #region Using an Image for the Azure Compute Gallery
-$cgGalleryName= "AVD_ACG"
+#$cgGalleryName= "AVD_ACG"
+#Using the latest ACG based on the naming convention
+$cgGalleryName= (Get-AzGallery -Name "AVD_ACG*" | Sort-Object -Property Name -Descending | Select-Object -First 1).Name
 $imageResourceGroup = "AVD-AZIMG-RG"
 $galleryImage = Get-AzGalleryImageDefinition -ResourceGroupName $imageResourceGroup -GalleryName $cgGalleryName
 #$AzVMSourceImage = $galleryImage.id | Select-Object -First 1

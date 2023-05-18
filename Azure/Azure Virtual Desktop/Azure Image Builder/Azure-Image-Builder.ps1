@@ -85,7 +85,8 @@ $imageTemplateName02 = $imageDefName02 + "-template"
 $runOutputName01="cgOutput01"
 $runOutputName02="cgOutput02"
 
-$Version = "1.0.0"
+#$Version = "1.0.0"
+$Version = Get-Date -UFormat "%Y.%m.%d"
 
 # Create resource group
 if (Get-AzResourceGroup -Name $imageResourceGroup -Location $location -ErrorAction Ignore)
@@ -300,6 +301,7 @@ $getStatus02 | Remove-AzImageBuilderTemplate
 
 #endregion
 
+#Adding a delete lock (for preventing accidental deletion)
 New-AzResourceLock -LockLevel CanNotDelete -LockNotes "$imageResourceGroup - CanNotDelete" -LockName "$imageResourceGroup - CanNotDelete" -ResourceGroupName $imageResourceGroup -Force
 
 #region Clean up your resources

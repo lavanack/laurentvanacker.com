@@ -13,7 +13,7 @@ if ($AzureCredentials.Matches)
         }
         else
         {
-            Write-Warning -Message "$VMName Azure VM doesn't exist"
+            Write-Warning -Message "$VMName Azure VM doesn't exist. The related credentials will be removed from the Windows Credential Manager"
             Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /delete:$DNSName" -Wait
         }
     }
