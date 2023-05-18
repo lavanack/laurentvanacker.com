@@ -168,11 +168,12 @@ Checkpoint-LabVM -SnapshotName FreshInstall -All
 $machines = Get-LabVM
 $ClientMachines = Get-LabVM -Filter {$_.Name -match "^CLIENT"}
 
+$Job = @()
 #region Installing Microsoft Edge
 #Updating MS Edge on all machines (because even the latest OS build ISO doesn't necessary contain the latest MSEdge version)
 #-Force is used to be sure to download the latest MS Edge version 
 $MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru -Force
-Install-LabSoftwarePackage -ComputerName $machines -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob
+$Job += Install-LabSoftwarePackage -ComputerName $machines -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob -PassThru
 #endregion
 
 #region SCHANNEL Hardening
@@ -189,13 +190,17 @@ Invoke-LabCommand -ActivityName 'SCHANNEL Hardening to support only TLS 1.2 and 
     Start-Process -FilePath "$using:LocalIISCryptoCliExe" -ArgumentList "/template strict" -Wait
 }
 
+#Waiting for background jobs
+$Job | Wait-Job | Out-Null
+
 #Restarting the IIS Server to take the SCHANNEL hardening into consideration
 Restart-LabVM -ComputerName $machines -Wait
 #endregion
 
+
 #region Installing Required Windows Features
-Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools -AsJob
-Install-LabWindowsFeature -FeatureName Web-Server, Web-Asp-Net45, Web-Request-Monitor, Web-Basic-Auth, Web-Client-Auth, Web-Digest-Auth, Web-Cert-Auth, Web-Windows-Auth -ComputerName IIS01 -IncludeManagementTools
+$Job += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools -AsJob -PassThru
+$Job += Install-LabWindowsFeature -FeatureName Web-Server, Web-Asp-Net45, Web-Request-Monitor, Web-Basic-Auth, Web-Client-Auth, Web-Digest-Auth, Web-Cert-Auth, Web-Windows-Auth -ComputerName IIS01 -IncludeManagementTools
 #endregion
 
 #Installing and setting up DNS, DFS-R Setup & GPO Settings on DC for replicated folder on IIS Servers for shared configuration
@@ -356,7 +361,7 @@ $TestUserIISClientCertContent = Invoke-LabCommand -ActivityName '1:1 IIS and AD 
 #region Wireshark silent install on client machines
 #Copying WireShark on client machines. Silent install is not available due to npcap. cf. https://www.wireshark.org/docs/wsug_html_chunked/ChBuildInstallWinInstall.html
 $WiresharkWin64LatestExe = Get-LabInternetFile -Uri $WiresharkWin64LatestExeUri -Path $labSources\SoftwarePackages -PassThru -Force
-#Install-LabSoftwarePackage -ComputerName CLIENT01 -Path $WiresharkWin64LatestExe.FullName -CommandLine "/S" -AsJob
+#$Job = Install-LabSoftwarePackage -ComputerName CLIENT01 -Path $WiresharkWin64LatestExe.FullName -CommandLine "/S" -AsJob -PassThru
 $LocalWiresharkWin64LatestExe = Copy-LabFileItem -Path $WiresharkWin64LatestExe.FullName -DestinationFolderPath $LocalTempFolder -ComputerName $ClientMachines -PassThru
 $LocalWiresharkWin64LatestExe = $LocalWiresharkWin64LatestExe | Select-Object -First 1
 
@@ -396,6 +401,9 @@ Invoke-LabCommand -ActivityName 'Configuration for TLS Key log file' -ComputerNa
     }
 }
 #endregion
+
+#Waiting for background jobs
+$Job | Wait-Job | Out-Null
 
 Checkpoint-LabVM -SnapshotName BeforeIISSetup -All 
 #Restore-LabVMSnapshot -SnapshotName BeforeIISSetup -All -Verbose
@@ -728,7 +736,7 @@ $AdmIISClientCertContent = Invoke-LabCommand -ActivityName 'Removing Test User f
 }
 
 #Waiting for background jobs
-Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
+$Job | Wait-Job | Out-Null
 
 Show-LabDeploymentSummary -Detailed
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All 
