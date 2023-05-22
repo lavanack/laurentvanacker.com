@@ -137,11 +137,16 @@
               "id": "[resourceid('Microsoft.Network/networkInterfaces', variables('adNicName'))]"
             }
           ]
-        }
+        },
+        "billingProfile": {
+          "maxPrice": "[if(equals(parameters('vmSpot'),bool('true')),'-1',json('null'))]"
+        },
+        "priority": "[if(equals(parameters('vmSpot'),bool('true')),'Spot',json('null'))]",
+        "evictionPolicy": "[if(equals(parameters('vmSpot'),bool('true')),'Deallocate',json('null'))]"
       }
     }
   ],
   "outputs": {
-    
+
   }
 }

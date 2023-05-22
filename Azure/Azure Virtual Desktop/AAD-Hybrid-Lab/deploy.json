@@ -113,13 +113,13 @@
         "description": "Select a VM SKU (please ensure the SKU is available in your selected region)."
       }
     },
-	"vmSpot": {
-	  "type": "bool",
-	  "defaultValue": true,
-	  "metadata": {
-		  "description": "Create Azure Spot VMs?"
-	  }
-	},
+    "vmSpot": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Create Azure Spot VMs?"
+      }
+    },
     "virtualNetworkAddressRange": {
       "type": "string",
       "metadata": {
