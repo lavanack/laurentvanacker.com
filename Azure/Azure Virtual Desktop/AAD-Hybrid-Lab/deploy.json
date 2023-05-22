@@ -4,7 +4,7 @@
   "parameters": {
     "assetLocation": {
       "type": "string",
-      "defaultValue": "https://raw.githubusercontent.com/PeterR-msft/M365AVDWS/master/AAD-Hybrid-Lab/",
+      "defaultValue": "https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab/",
       "metadata": {
         "description": "This is the location in which all the linked templates are stored."
       }
@@ -97,6 +97,9 @@
         "description": "Enter the password that will be applied to each user account to be created in AD."
       }
     },
+                      "vmSpot": {
+                          "type": "bool"
+                      },
     "vmSize": {
       "type": "string",
       "defaultValue": "Standard_D2s_v4",
@@ -113,6 +116,13 @@
         "description": "Select a VM SKU (please ensure the SKU is available in your selected region)."
       }
     },
+	"vmSpot": {
+	  "type": "bool",
+	  "defaultValue": true,
+	  "metadata": {
+		  "description": "Create Azure Spot VMs?"
+	  }
+	},
     "virtualNetworkAddressRange": {
       "type": "string",
       "metadata": {
@@ -198,6 +208,9 @@
           "virtualNetworkName": {
             "value": "[variables('virtualNetworkName')]"
           },
+		"vmSpot": {
+		  "value": "[parameters('vmSpot')]"
+		},
           "subnets": {
             "value": "[ variables('subnets') ]"
           },
