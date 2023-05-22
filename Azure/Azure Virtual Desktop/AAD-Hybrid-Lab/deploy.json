@@ -109,13 +109,13 @@
         "Standard_D4_v4",
         "Standard_D4s_v4"
       ],
+	},
 	"vmSpot": {
 	  "type": "bool",
 	  "defaultValue": true,
 	  "metadata": {
 		  "description": "Create Azure Spot VMs?"
 	  }
-	},
     "metadata": {
         "description": "Select a VM SKU (please ensure the SKU is available in your selected region)."
       }
