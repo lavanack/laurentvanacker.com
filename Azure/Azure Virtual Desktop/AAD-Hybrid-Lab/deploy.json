@@ -4,7 +4,7 @@
   "parameters": {
     "assetLocation": {
       "type": "string",
-	   "defaultValue": "https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab/",
+      "defaultValue": "https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab/",
       "metadata": {
         "description": "This is the location in which all the linked templates are stored."
       }
@@ -109,17 +109,17 @@
         "Standard_D4_v4",
         "Standard_D4s_v4"
       ],
-	},
+      "metadata": {
+        "description": "Select a VM SKU (please ensure the SKU is available in your selected region)."
+      }
+    },
 	"vmSpot": {
 	  "type": "bool",
 	  "defaultValue": true,
 	  "metadata": {
 		  "description": "Create Azure Spot VMs?"
 	  }
-    "metadata": {
-        "description": "Select a VM SKU (please ensure the SKU is available in your selected region)."
-      }
-    },
+	},
     "virtualNetworkAddressRange": {
       "type": "string",
       "metadata": {
@@ -253,6 +253,9 @@
           },
           "vmSize": {
             "value": "[parameters('vmSize')]"
+          },
+          "vmSpot": {
+            "value": "[parameters('vmSpot')]"
           },
           "deploymentNumber": {
             "value": "[parameters('deploymentNumber')]"
