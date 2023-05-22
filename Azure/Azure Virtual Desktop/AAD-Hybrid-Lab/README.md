@@ -1,1 +1,1 @@
-<a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FPeterR-msft%2FM365AVDWS%2Fmaster%2FAAD-Hybrid-Lab%2Fdeploy.json" target="_blank"><img src="http://azuredeploy.net/deploybutton.png"/></a>
+<a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Flavanack%2Flaurentvanacker.com%2Fmaster%2FAzure%2FAzure%20Virtual%20Desktop%2FAAD-Hybrid-Lab%2Fdeploy.json" target="_blank"><img src="http://azuredeploy.net/deploybutton.png"/></a>
