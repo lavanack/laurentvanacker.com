@@ -133,10 +133,10 @@
             }
           ]
         },
-        "priority": "Spot",
-        "evictionPolicy": "Deallocate",
+        "priority": "string",
+        "evictionPolicy": "string",
         "billingProfile": {
-            "maxPrice": -1
+            "maxPrice": "[json('decimal-as-string')]"
         }
       }
     }
