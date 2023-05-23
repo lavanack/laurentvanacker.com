@@ -4,7 +4,7 @@
   "parameters": {
     "assetLocation": {
       "type": "string",
-      "defaultValue": "https://raw.githubusercontent.com/PeterR-msft/M365AVDWS/master/AAD-Hybrid-Lab/",
+      "defaultValue": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab/",
       "metadata": {
         "description": "This is the location in which all the linked templates are stored."
       }
@@ -111,6 +111,13 @@
       ],
       "metadata": {
         "description": "Select a VM SKU (please ensure the SKU is available in your selected region)."
+      }
+    },
+    "vmSpot": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Create Azure Spot VMs?"
       }
     },
     "virtualNetworkAddressRange": {
@@ -246,6 +253,9 @@
           },
           "vmSize": {
             "value": "[parameters('vmSize')]"
+          },
+          "vmSpot": {
+            "value": "[parameters('vmSpot')]"
           },
           "deploymentNumber": {
             "value": "[parameters('deploymentNumber')]"
