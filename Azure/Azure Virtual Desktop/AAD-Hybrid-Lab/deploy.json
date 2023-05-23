@@ -251,6 +251,9 @@
           "virtualNetworkName": {
             "value": "[variables('virtualNetworkName')]"
           },
+          "vmSpot": {
+            "value": "[parameters('vmSpot')]"
+          },
           "vmSize": {
             "value": "[parameters('vmSize')]"
           },
