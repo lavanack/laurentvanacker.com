@@ -2,17 +2,15 @@
   "$schema": "http://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-    "deploymentNumber": {
+    "adNSGName": {
       "type": "string",
-      "defaultValue": "1",
       "metadata": {
-        "description": "When deploying the stack N times, define the instance - this will be appended to some resource names to avoid collisions."
+        "description": "Name of the Network Security Group"
       }
     },
     "subnets": { "type": "array" }
   },
   "variables": {
-    "adNSGName": "[concat('INT-AD', parameters('deploymentNumber'))]",
     "adsubnetrange": "[parameters('subnets')[0].properties.addressPrefix]",
     "location": "[resourceGroup().location]"
   },
@@ -20,7 +18,7 @@
     {
       "apiVersion": "2019-12-01",
       "type": "Microsoft.Network/networkSecurityGroups",
-      "name": "[variables('adNSGName')]",
+      "name": "[parameters('adNSGName')]",
       "location": "[variables('location')]",
       "tags": {
         "displayName": "adNSG"

@@ -9,30 +9,39 @@
         "description": "This is the location in which all the linked templates are stored."
       }
     },
+    "adVMName": {
+      "type": "string",
+      "defaultValue": "vmavdaddsprdeu001",
+      "metadata": {
+        "description": "Name of the Domain Controller"
+      }
+    },
+    "adNSGName": {
+      "type": "string",
+      "defaultValue": "nsg-avd-adds-prd-eu-001",
+      "metadata": {
+        "description": "Name of the Network Security Group"
+      }
+    },
+    "virtualNetworkName": {
+      "type": "string",
+      "defaultValue": "vnet-avd-adds-prd-eu-001",
+      "metadata": {
+        "description": "Name of the Virtual Network"
+      }
+    },
+    "adSubnetName": {
+      "type": "string",
+      "defaultValue": "vnets-avd-adds-prd-eu-001",
+      "metadata": {
+        "description": "Name of the AD Subnet"
+      }
+    },
     "adminUsername": {
       "type": "string",
       "defaultValue": "ADAdmin",
       "metadata": {
         "description": "Username to set for the local User. Cannot be \"Administrator\", \"root\" and possibly other such common account names. "
-      }
-    },
-    "deploymentNumber": {
-      "type": "string",
-      "defaultValue": "1",
-      "allowedValues": [
-        "0",
-        "1",
-        "2",
-        "3",
-        "4",
-        "5",
-        "6",
-        "7",
-        "8",
-        "9"
-      ],
-      "metadata": {
-        "description": "When deploying the stack N times simultaneously, define the instance - this will be appended to some resource names to avoid collisions."
       }
     },
     "adminPassword": {
@@ -143,14 +152,8 @@
     }
   },
   "variables": {
-    "networkInterfaceName": "NIC",
-    "addcVMNameSuffix": "dc",
     "location": "[resourceGroup().location]",
-    "companyNamePrefix": "[split(parameters('adDomainName'),'.')[0]]",
-    "adVMName": "[toupper(concat(variables('companyNamePrefix'), variables('addcVMNameSuffix')))]",
-    "adNSGName": "[concat('INT-AD', parameters('deploymentNumber'))]",
-    "virtualNetworkName": "[concat(variables('companyNamePrefix'), parameters('deploymentNumber'), '-vnet')]",
-    "adSubnetName": "[concat('adSubnet', parameters('deploymentNumber'))]",
+    "networkInterfaceName": "[concat('nic',toupper(parameters('adVMName')))]",
     "adTemplateURI": "[concat(parameters('assetLocation'),'Templates/adDeploy.json')]",
     "nsgTemplateURI": "[concat(parameters('assetLocation'),'Templates/NSGs.json')]",
     "vnetTemplateURI": "[concat(parameters('assetLocation'),'Templates/deployVNet.json')]",
@@ -159,11 +162,11 @@
     "adDSCConfigurationFunction": "adDSCConfiguration.ps1\\DomainController",
     "subnets": [
       {
-        "name": "[variables('adSubnetName')]",
+        "name": "[parameters('adSubnetName')]",
         "properties": {
           "addressprefix": "[parameters('adSubnetAddressRange')]",
           "networkSecurityGroup": {
-            "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('adNSGName'))]"
+            "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('adNSGName'))]"
           }
         }
       }
@@ -182,9 +185,6 @@
         "parameters": {
           "subnets": {
             "value": "[ variables('subnets') ]"
-          },
-          "deploymentNumber": {
-            "value": "[parameters('deploymentNumber')]"
           }
         }
       }
@@ -203,7 +203,7 @@
         },
         "parameters": {
           "virtualNetworkName": {
-            "value": "[variables('virtualNetworkName')]"
+            "value": "[parameters('virtualNetworkName')]"
           },
           "subnets": {
             "value": "[ variables('subnets') ]"
@@ -237,10 +237,10 @@
             "value": "[parameters('adminUsername')]"
           },
           "adSubnetName": {
-            "value": "[variables('adSubnetName')]"
+            "value": "[parameters('adSubnetName')]"
           },
           "adVMName": {
-            "value": "[variables('adVMName')]"
+            "value": "[parameters('adVMName')]"
           },
           "location": {
             "value": "[variables('location')]"
@@ -249,22 +249,19 @@
             "value": "[variables('NetworkInterfaceName')]"
           },
           "virtualNetworkName": {
-            "value": "[variables('virtualNetworkName')]"
+            "value": "[parameters('virtualNetworkName')]"
           },
           "vmSpot": {
             "value": "[parameters('vmSpot')]"
           },
           "vmSize": {
             "value": "[parameters('vmSize')]"
-          },
-          "deploymentNumber": {
-            "value": "[parameters('deploymentNumber')]"
           }
         }
       }
     },
     {
-      "name": "[concat(variables('adVMName'),'/Microsoft.Powershell.DSC')]",
+      "name": "[concat(parameters('adVMName'),'/Microsoft.Powershell.DSC')]",
       "type": "Microsoft.Compute/virtualMachines/extensions",
       "location": "[variables('location')]",
       "apiVersion": "2019-07-01",
@@ -330,7 +327,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2019-10-01",
       "dependsOn": [
-        "[concat('Microsoft.Compute/virtualMachines/', variables('adVMName'),'/extensions/Microsoft.Powershell.DSC')]"
+        "[concat('Microsoft.Compute/virtualMachines/', parameters('adVMName'),'/extensions/Microsoft.Powershell.DSC')]"
       ],
       "properties": {
         "mode": "Incremental",
@@ -339,7 +336,7 @@
         },
         "parameters": {
           "virtualNetworkName": {
-            "value": "[variables('virtualNetworkName')]"
+            "value": "[parameters('virtualNetworkName')]"
           },
           "virtualNetworkAddressRange": {
             "value": "[parameters('virtualNetworkAddressRange')]"
