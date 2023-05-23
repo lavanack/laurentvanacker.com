@@ -153,7 +153,7 @@
   },
   "variables": {
     "location": "[resourceGroup().location]",
-    "networkInterfaceName": "[concat('nic',toupper(parameters('adVMName')))]",
+    "networkInterfaceName": "[concat('nic',tolower(parameters('adVMName')))]",
     "adTemplateURI": "[concat(parameters('assetLocation'),'Templates/adDeploy.json')]",
     "nsgTemplateURI": "[concat(parameters('assetLocation'),'Templates/NSGs.json')]",
     "vnetTemplateURI": "[concat(parameters('assetLocation'),'Templates/deployVNet.json')]",
