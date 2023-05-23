@@ -41,11 +41,6 @@
       "type": "string",
       "defaultValue": "vnet"
     },
-    "vmSpot": {
-      "type": "bool",
-      "defaultValue": true,
-      "metadata": { "description": "Create Azure Spot VMs?" }
-    },
     "vmSize": {
       "type": "string",
       "defaultValue": "Standard_D2s_v4",
@@ -56,7 +51,7 @@
     "adSubnetID": "[concat(variables('vnetID'),'/subnets/', parameters('adSubnetName'))]",
     "imageOffer": "WindowsServer",
     "imagePublisher": "MicrosoftWindowsServer",
-    "imageSKU": "2022-datacenter-g2",
+    "imageSKU": "2019-Datacenter",
     "vnetID": "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
     "adPubIPName": "[concat('adPubIP', parameters('deploymentNumber'))]",
     "adNicName": "[concat('ad-',parameters('NetworkInterfaceName'), parameters('deploymentNumber'))]"
@@ -137,16 +132,11 @@
               "id": "[resourceid('Microsoft.Network/networkInterfaces', variables('adNicName'))]"
             }
           ]
-        },
-        "billingProfile": {
-          "maxPrice": "[if(equals(parameters('vmSpot'),bool('true')),'-1',json('null'))]"
-        },
-        "priority": "[if(equals(parameters('vmSpot'),bool('true')),'Spot',json('null'))]",
-        "evictionPolicy": "[if(equals(parameters('vmSpot'),bool('true')),'Deallocate',json('null'))]"
+        }
       }
     }
   ],
   "outputs": {
-
+    
   }
 }
