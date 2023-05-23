@@ -54,7 +54,7 @@
     "imagePublisher": "MicrosoftWindowsServer",
     "imageSKU": "2019-Datacenter",
     "vnetID": "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
-    "adPubIPName": "[concat('adPubIP', parameters('adVMName'))]",
+    "adPubIPName": "[concat('pip-',tolower(parameters('adVMName')))]",
     "adNicName": "[parameters('NetworkInterfaceName')]"
   },
   "resources": [
