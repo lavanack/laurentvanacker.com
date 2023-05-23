@@ -11,28 +11,28 @@
     },
     "adVMName": {
       "type": "string",
-      "defaultValue": "vmavdaddsprdeu001",
+      "defaultValue": "vmavdaddseu001",
       "metadata": {
         "description": "Name of the Domain Controller"
       }
     },
     "adNSGName": {
       "type": "string",
-      "defaultValue": "nsg-avd-adds-prd-eu-001",
+      "defaultValue": "nsg-avd-adds-eu-001",
       "metadata": {
         "description": "Name of the Network Security Group"
       }
     },
     "virtualNetworkName": {
       "type": "string",
-      "defaultValue": "vnet-avd-adds-prd-eu-001",
+      "defaultValue": "vnet-avd-adds-eu-001",
       "metadata": {
         "description": "Name of the Virtual Network"
       }
     },
     "adSubnetName": {
       "type": "string",
-      "defaultValue": "vnets-avd-adds-prd-eu-001",
+      "defaultValue": "vnets-avd-adds-eu-001",
       "metadata": {
         "description": "Name of the AD Subnet"
       }
