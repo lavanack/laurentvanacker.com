@@ -49,6 +49,7 @@
     }
   },
   "variables": {
+    "location": "[resourceGroup().location]",
     "adSubnetID": "[concat(variables('vnetID'),'/subnets/', parameters('adSubnetName'))]",
     "imageOffer": "WindowsServer",
     "imagePublisher": "MicrosoftWindowsServer",
@@ -64,7 +65,11 @@
       "location": "[parameters('location')]",
       "apiVersion": "2019-12-01",
       "properties": {
-        "publicIPAllocationMethod": "Dynamic"
+        "publicIPAllocationMethod": "Dynamic",
+        "dnsSettings": {
+            "domainNameLabel": "[tolower(parameters('adVMName'))]",
+            "fqdn": "[concat(tolower(parameters('adVMName')),'.',variables('location'),'.cloudapp.azure.com')]"
+        }
       }
     },
     {
