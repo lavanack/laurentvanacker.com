@@ -183,6 +183,9 @@
           "uri": "[variables('nsgTemplateURI')]"
         },
         "parameters": {
+          "adNSGName": {
+            "value": "[ parameters('adNSGName') ]"
+          },
           "subnets": {
             "value": "[ variables('subnets') ]"
           }
