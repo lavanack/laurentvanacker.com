@@ -21,8 +21,8 @@
     },
     "adVMName": {
       "type": "string",
-	    "metadata": { "description": "Name of the Domain Controller" }
-	  },
+      "metadata": { "description": "Name of the Domain Controller" }
+    },
     "location": {
       "type": "string",
       "metadata": { "Description": "The region to deploy the resources into" }
@@ -32,7 +32,7 @@
       "metadata": { "description": "This is the prefix name of the Network interfaces" }
     },
     "virtualNetworkName": {
-      "type": "string",
+      "type": "string"
     },
     "vmSpot": {
       "type": "bool",
@@ -46,7 +46,6 @@
     }
   },
   "variables": {
-    "location": "[resourceGroup().location]",
     "adSubnetID": "[concat(variables('vnetID'),'/subnets/', parameters('adSubnetName'))]",
     "imageOffer": "WindowsServer",
     "imagePublisher": "MicrosoftWindowsServer",
@@ -64,9 +63,26 @@
       "properties": {
         "publicIPAllocationMethod": "Dynamic",
         "dnsSettings": {
-            "domainNameLabel": "[tolower(parameters('adVMName'))]",
-            "fqdn": "[concat(tolower(parameters('adVMName')),'.',variables('location'),'.cloudapp.azure.com')]"
+          "domainNameLabel": "[tolower(parameters('adVMName'))]",
+          "fqdn": "[concat(tolower(parameters('adVMName')),'.',parameters('location'),'.cloudapp.azure.com')]"
         }
+      }
+    },
+    {
+      "apiVersion": "2015-06-15",
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "name": "[concat(parameters('adVMName'),'/BGInfo')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[concat('Microsoft.Compute/virtualMachines/', parameters('adVMName'))]"
+      ],
+      "properties": {
+        "publisher": "Microsoft.Compute",
+        "type": "BGInfo",
+        "typeHandlerVersion": "2.1",
+        "autoupgradeMinorVersion": true,
+        "settings": {},
+        "protectedSettings": null
       }
     },
     {
@@ -141,6 +157,6 @@
     }
   ],
   "outputs": {
-    
+
   }
 }
