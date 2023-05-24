@@ -50,7 +50,7 @@
     "adSubnetID": "[concat(variables('vnetID'),'/subnets/', parameters('adSubnetName'))]",
     "imageOffer": "WindowsServer",
     "imagePublisher": "MicrosoftWindowsServer",
-    "imageSKU": "2019-Datacenter",
+    "imageSKU": "2022-Datacenter-g2",
     "vnetID": "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
     "adPubIPName": "[concat('pip-',tolower(parameters('adVMName')))]",
     "adNicName": "[parameters('NetworkInterfaceName')]"
