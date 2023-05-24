@@ -21,7 +21,6 @@
     },
     "adVMName": {
       "type": "string",
-      "defaultValue": "AZAD", 
 	    "metadata": { "description": "Name of the Domain Controller" }
 	  },
     "location": {
@@ -30,12 +29,10 @@
     },
     "NetworkInterfaceName": {
       "type": "string",
-      "defaultValue": "NIC",
       "metadata": { "description": "This is the prefix name of the Network interfaces" }
     },
     "virtualNetworkName": {
       "type": "string",
-      "defaultValue": "vnet"
     },
     "vmSpot": {
       "type": "bool",
