@@ -86,7 +86,7 @@ $DigitNumber                    = $AzureVMNameMaxLength - $ResourcePrefix.Length
 Do 
 {
     #Generating a unique random VM name by using the max length allowed and ending with a random number
-    $VMName = "{0}{1:D$DigitNumber}" -f $ResourcePrefix, $(Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)-1)))
+    $VMName = "{0}{1:D$DigitNumber}" -f $ResourcePrefix, $(Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber))))
     $VMName = $VMName.Substring(0, [system.math]::min(15, $VMName.Length))
 
     #$StorageAccountName             = "{0}sa{1}" -f $VMName, $Location # Name must be unique. Name availability can be check using PowerShell command Get-AzStorageAccountNameAvailability -Name $StorageAccountName 
@@ -101,7 +101,6 @@ $VirtualNetworkAddressSpace     = "10.10.0.0/16" # Format 10.10.0.0/16
 $SubnetIPRange                  = "10.10.1.0/24" # Format 10.10.1.0/24
 $SubnetName                     = "$VMName-Subnet-$Location"
 $NICNetworkSecurityGroupName    = "$VMName-nic-nsg-$Location"
-$subnetNetworkSecurityGroupName = "$VMName-vnet-Subnet-nsg-$Location"
 $StorageAccountSkuName          = "Standard_LRS"
 $MyPublicIp                     = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
 $ContainerName                  = "scripts"
