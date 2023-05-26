@@ -39,7 +39,7 @@ $PolicyAssignment = New-AzPolicyAssignment -Name 'deployPrerequisitesForGuestCon
 
 # Grant defined roles with PowerShell
 $roleDefinitionIds = $PolicyDefinition.Properties.PolicyDefinitions | ForEach-Object -Process {  Get-AzPolicyDefinition -Id $_.policyDefinitionId | Select-Object @{n="roleDefinitionIds";e={$_.Properties.policyRule.then.details.roleDefinitionIds}} } | Select-Object -ExpandProperty roleDefinitionIds -Unique
-Start-Sleep 15
+Start-Sleep -Seconds 30
 if ($roleDefinitionIds.Count -gt 0)
 {
     $roleDefinitionIds | ForEach-Object {
@@ -112,7 +112,7 @@ $PolicyAssignment = New-AzPolicyAssignment -Name $ConfigurationName -DisplayName
 # Grant defined roles with PowerShell
 # https://docs.microsoft.com/en-us/azure/governance/policy/how-to/remediate-resources#grant-defined-roles-with-PowerShell
 $roleDefinitionIds = $PolicyDefinition.Properties.policyRule.then.details.roleDefinitionIds
-Start-Sleep 15
+Start-Sleep -Seconds 30
 if ($roleDefinitionIds.Count -gt 0)
 {
     $roleDefinitionIds | ForEach-Object {
