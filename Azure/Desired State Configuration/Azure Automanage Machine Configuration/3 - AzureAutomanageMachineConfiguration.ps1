@@ -44,15 +44,21 @@ if ($roleDefinitionIds.Count -gt 0)
 {
     $roleDefinitionIds | ForEach-Object {
         $roleDefId = $_.Split("/") | Select-Object -Last 1
-        New-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $roleDefId
+        if (-not(Get-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $roleDefId))
+        {
+            New-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $roleDefId
+        }
     }
 }
 
+$job = @() 
 # Start remediation for every policy definition
 $PolicyDefinition.Properties.PolicyDefinitions | ForEach-Object -Process {
 	Write-Host -Object "Creating remediation for Policy $($_.policyDefinitionReferenceId)"
-    Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignment.PolicyAssignmentId -PolicyDefinitionReferenceId $_.policyDefinitionReferenceId -Name $_.policyDefinitionReferenceId -ResourceGroupName $ResourceGroup.ResourceGroupName -ResourceDiscoveryMode ReEvaluateCompliance
+    $job += Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignment.PolicyAssignmentId -PolicyDefinitionReferenceId $_.policyDefinitionReferenceId -Name $_.policyDefinitionReferenceId -ResourceGroupName $ResourceGroup.ResourceGroupName -ResourceDiscoveryMode ReEvaluateCompliance -AsJob
 }
+$remediation = $job | Wait-Job | Receive-Job #-Keep
+$remediation
 
 Start-AzPolicyComplianceScan -ResourceGroupName $ResourceGroupName
 #endregion
@@ -65,7 +71,10 @@ Start-AzPolicyComplianceScan -ResourceGroupName $ResourceGroupName
 $GuestConfigurationPackage = New-GuestConfigurationPackage -Name $ConfigurationName -Configuration './CreateAdminUser/localhost.mof' -Type AuditAndSet -Force
 
 # Creates a new container
-$storageAccount | New-AzStorageContainer -Name $StorageContainerName -Permission Blob
+if (-not($storageAccount | Get-AzStorageContainer -Name $StorageContainerName -ErrorAction Ignore))
+{
+    $storageAccount | New-AzStorageContainer -Name $StorageContainerName -Permission Blob
+}
 $StorageAccountKey = (($storageAccount | Get-AzStorageAccountKey) | Where-Object -FilterScript {$_.KeyName -eq "key1"}).Value
 $Context = New-AzStorageContext -ConnectionString "DefaultEndpointsProtocol=https;AccountName=$StorageAccountName;AccountKey=$StorageAccountKey"
 
@@ -81,8 +90,8 @@ $PolicyId = (New-Guid).Guid
 $Params = @{
   "PolicyId" =  $PolicyId
   "ContentUri" =  $ContentURI
-  "DisplayName" = "[Windows] Make sure all Windows servers comply with $ConfigurationName DSC Configuration"
-  "Description" = "[Windows] Make sure all Windows servers comply with $ConfigurationName DSC Configuration"
+  "DisplayName" = "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $ConfigurationName DSC Config."
+  "Description" = "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $ConfigurationName DSC Config."
   "Path" =  './policies'
   "Platform" =  'Windows'
   "PolicyVersion" =  '1.0.0'
@@ -92,13 +101,13 @@ $Params = @{
 # Create the guest configuration policy
 $Policy = New-GuestConfigurationPolicy @Params
 
-$PolicyDefinition = New-AzPolicyDefinition -Name "[Windows] $ConfigurationName" -Policy $Policy.Path
+$PolicyDefinition = New-AzPolicyDefinition -Name "[Win]$ResourceGroupName-$ConfigurationName" -Policy $Policy.Path
 
 $NonComplianceMessage = [Microsoft.Azure.Commands.ResourceManager.Cmdlets.Entities.Policy.NonComplianceMessage]::new()
 $NonComplianceMessage.message = "Non Compliance Message"
 $IncludeArcConnectedServers = @{'IncludeArcMachines'='true'}# <- IncludeArcMachines is important - given you want to target Arc as well as Azure VMs
 
-$PolicyAssignment = New-AzPolicyAssignment -Name $ConfigurationName -DisplayName "[Windows] Make sure all Windows servers comply with $ConfigurationName DSC Configuration" -Scope $ResourceGroup.ResourceId -PolicyDefinition $PolicyDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $Location -PolicyParameterObject $IncludeArcConnectedServers -NonComplianceMessage $NonComplianceMessage  
+$PolicyAssignment = New-AzPolicyAssignment -Name $ConfigurationName -DisplayName "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $ConfigurationName DSC Config." -Scope $ResourceGroup.ResourceId -PolicyDefinition $PolicyDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $Location -PolicyParameterObject $IncludeArcConnectedServers -NonComplianceMessage $NonComplianceMessage  
 
 # Grant defined roles with PowerShell
 # https://docs.microsoft.com/en-us/azure/governance/policy/how-to/remediate-resources#grant-defined-roles-with-PowerShell
@@ -108,14 +117,18 @@ if ($roleDefinitionIds.Count -gt 0)
 {
     $roleDefinitionIds | ForEach-Object {
         $roleDefId = $_.Split("/") | Select-Object -Last 1
-        New-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $roleDefId
+        if (-not(Get-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $roleDefId))
+        {
+            New-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $roleDefId
+        }
     }
 }
 
 $PolicyAssignmentName = ($PolicyAssignment.PolicyAssignmentId -split '/')[-1]
 Write-Host -Object "Creating remediation for Policy '$($PolicyDefinition.Properties.DisplayName)'"
-$job = Start-AzPolicyRemediation -AsJob -Name $PolicyAssignmentName -PolicyAssignmentId $PolicyAssignment.PolicyAssignmentId -ResourceGroupName $ResourceGroup.ResourceGroupName -ResourceDiscoveryMode ReEvaluateCompliance
-$job | Wait-Job | Receive-Job -Keep
+$job = Start-AzPolicyRemediation -Name $PolicyAssignmentName -PolicyAssignmentId $PolicyAssignment.PolicyAssignmentId -ResourceGroupName $ResourceGroup.ResourceGroupName -ResourceDiscoveryMode ReEvaluateCompliance -AsJob
+$remediation = $job | Wait-Job | Receive-Job #-Keep
+$remediation
 
 #If you want to force an update on the compliance result you can use the following cmdlet instead of waiting for the next trigger : https://docs.microsoft.com/en-us/azure/governance/policy/how-to/get-compliance-data#evaluation-triggers.
 Start-AzPolicyComplianceScan -ResourceGroupName $ResourceGroupName -Verbose

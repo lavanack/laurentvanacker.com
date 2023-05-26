@@ -1,4 +1,6 @@
 ﻿#requires -Version 5 -RunAsAdministrator 
+#  It is recommended not locate MSIX packages on same storage as FSLogix in production environment, 
+    
 #To run from a Domain Controller
 Clear-Host
 $CurrentScript = $MyInvocation.MyCommand.Path
@@ -7,6 +9,20 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 $AzFilesHybridZipName = 'AzFilesHybrid.zip'
 Set-Location -Path $CurrentDir
 
+Connect-AzAccount
+Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
+$AzContext = Get-AzContext
+
+if (($AzContext.Account.Id -match "\w+@(?<DomainName>\w+).onmicrosoft.com") -or ((Get-AzTenant -TenantId $AzContext.Tenant.Id).Domains[0]  -match "(?<DomainName>\w+).onmicrosoft.com"))
+{
+    $SubscriptionId = $AzContext.Subscription.Id
+    #$storageAccountName = 'avd'+$Matches[1].ToLower()
+    $storageAccountName = 'msix'+$Matches['DomainName'].ToLower()
+}
+else
+{
+    throw "unable to get the domain in <domain>.onmicrosoft.com"
+}
 $resourceGroupName = "rg-ad-westeu-01"
 
 #region Azure File Share Setup
@@ -39,23 +55,6 @@ Add-ADGroupMember -Identity MSIXUsers -Members $(Get-ADUser -Filter "UserPrincip
 #Run a sync with Azure AD
 Import-Module -Name "C:\Program Files\Microsoft Azure AD Sync\Bin\ADSync";Start-ADSyncSyncCycle -PolicyType Delta
 
-#    - It is recommended not locate MSIX packages on same storage as FSLogix in production environment, 
-#    - Create a storage account and new file share like explained in Lab 05 / Exercice 1 / Task 1,2 & 3 or run the following command lines from PowerShell Core
-Connect-AzAccount
-Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
-$AzContext = Get-AzContext
-
-if (($AzContext.Account.Id -match "\w+@(\w+).onmicrosoft.com") -or ((Get-AzTenant -TenantId $AzContext.Tenant.Id).Domains[0]  -match "(\w+).onmicrosoft.com"))
-{
-    $SubscriptionId = $AzContext.Subscription.Id
-    #$storageAccountName = 'avd'+$Matches[1].ToLower()
-    $storageAccountName = 'msix'+$Matches[1].ToLower()
-}
-else
-{
-    throw "unable to get the domain in <domain>.onmicrosoft.com"
-}
-    
 $region = "WestEurope"
 $shareName = "msix"  
 $SkuName = "Standard_ZRS"

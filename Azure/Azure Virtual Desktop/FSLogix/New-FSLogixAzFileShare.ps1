@@ -17,20 +17,37 @@ of the Sample Code.
 #>
 #requires -Version 5 -RunAsAdministrator 
 
+# It is recommended not locate FSLogix on same storage as MSIX packages in production environment, 
+
 #To run from a Domain Controller
 Clear-Host
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
-$ilesHybridZipName = 'AzFilesHybrid.zip'
+$AzFilesHybridZipName = 'AzFilesHybrid.zip'
 Set-Location -Path $CurrentDir
+
+Connect-AzAccount
+Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
+$AzContext = Get-AzContext
+
+if (($AzContext.Account.Id -match "\w+@(?<DomainName>\w+).onmicrosoft.com") -or ((Get-AzTenant -TenantId $AzContext.Tenant.Id).Domains[0]  -match "(?<DomainName>\w+).onmicrosoft.com"))
+{
+    $SubscriptionId = $AzContext.Subscription.Id
+    #$storageAccountName = 'avd'+$Matches[1].ToLower()
+    $storageAccountName = 'fslogix'+$Matches['DomainName'].ToLower()
+}
+else
+{
+    throw "unable to get the domain in <domain>.onmicrosoft.com"
+}
 
 #region Azure File Share Setup
 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Verbose
 Install-Module -Name Az.Accounts, Az.Network, Az.Resources, Az.Storage, PowerShellGet -Force -Verbose
 #Update-Module PowerShellGet -Force -Verbose -ErrorAction SilentlyContinue
 
-$OutFile = Join-Path -Path $CurrentDir -ChildPath $ilesHybridZipName
+$OutFile = Join-Path -Path $CurrentDir -ChildPath $AzFilesHybridZipName
 Start-BitsTransfer https://github.com/Azure-Samples/azure-files-samples/releases/latest/download/AzFilesHybrid.zip -destination $OutFile
 Expand-Archive -Path $OutFile -DestinationPath $CurrentDir\AzFilesHybrid -Force
 Set-Location -Path .\AzFilesHybrid
@@ -63,15 +80,6 @@ $ADGroup = New-ADGroup -Name $FSLogixReader -SamAccountName $FSLogixReader -Grou
 #Run a sync with Azure AD
 Start-Service -Name ADSync -Verbose
 Import-Module -Name "C:\Program Files\Microsoft Azure AD Sync\Bin\ADSync";Start-ADSyncSyncCycle -PolicyType Delta
-
-#    - It is recommended not locate FSLogix on same storage as MSIX packages in production environment, 
-Connect-AzAccount
-Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
-$AzContext = Get-AzContext
-$null=$AzContext.Account.Id -match "\w+@(\w+).onmicrosoft.com"
-$SubscriptionId = $AzContext.Subscription.Id
-#$storageAccountName = 'avd'+$Matches[1].ToLower()
-$storageAccountName = 'fslogix'+$Matches[1].ToLower()
     
 $region = "EastUS"
 $shareName = "profiles", "odfc" 
