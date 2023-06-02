@@ -123,6 +123,7 @@ $GroupXMLGPOFileContent = @"
 	</Group>
 </Groups>
 "@
+        $null = New-Item -Path $GroupXMLGPOFilePath -ItemType File -Force
         #Set-Content -Path $GroupXMLGPOFilePath -Value $GroupXMLGPOFileContent -Encoding UTF8
         $GroupXMLGPOFileContent | Out-File $GroupXMLGPOFilePath -Encoding utf8
         #endregion
@@ -630,8 +631,6 @@ $GroupXMLGPOFileContent = @"
             }
             #endregion
 
-            $RegistrationInfoExpirationTime = (Get-Date).AddDays(1)
-            $RegistrationInfoToken = New-AzWvdRegistrationInfo -ResourceGroupName $CurrentPooledHostPoolResourceGroupName -HostPoolName $CurrentPooledHostPool.Name -ExpirationTime $RegistrationInfoExpirationTime -ErrorAction SilentlyContinue
             #region Host Pool Setup
             $parameters = @{
                 Name                  = $CurrentPooledHostPool.Name
@@ -644,12 +643,13 @@ $GroupXMLGPOFileContent = @"
                 StartVMOnConnect      = $true
                 # From https://learn.microsoft.com/en-us/windows-server/remote/remote-desktop-services/clients/rdp-files?context=%2Fazure%2Fvirtual-desktop%2Fcontext%2Fcontext#device-redirection
                 # No RDP redirection for COM ports, Local Drives and printers.
-                RegistrationInfoToken = $RegistrationInfoToken
                 CustomRdpProperty     = "redirectcomports:i:0;redirectlocation:i:0;redirectprinters:i:0;drivestoredirect:s:;usbdevicestoredirect:s:"
                 Verbose               = $true
             }
 
             $CurrentAzWvdHostPool = New-AzWvdHostPool @parameters
+            $RegistrationInfoExpirationTime = (Get-Date).AddDays(1)
+            $RegistrationInfoToken = New-AzWvdRegistrationInfo -ResourceGroupName $CurrentPooledHostPoolResourceGroupName -HostPoolName $CurrentPooledHostPool.Name -ExpirationTime $RegistrationInfoExpirationTime -Verbose -ErrorAction SilentlyContinue
             #endregion
 
             #region Application Group Setup
