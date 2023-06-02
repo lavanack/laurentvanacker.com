@@ -84,49 +84,6 @@ function New-AzWvdPooledHostPoolSetup {
         #From https://learn.microsoft.com/en-us/azure/virtual-desktop/set-up-customize-master-image#disable-storage-sense
         Set-GPRegistryValue -Name $FSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy' -ValueName "01" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 0
 
-        #region GPO "Local Users and Groups" Management via groups.xml
-        #From https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-gppref/37722b69-41dd-4813-8bcd-7a1b4d44a13d
-        #$GroupXMLGPOFilePath = "\\" + $((Get-ADDomain).DNSRoot) + "\SYSVOL\" + $((Get-ADDomain).DNSRoot) + "\Policies\{" + $FSLogixGPO.GpoId + "}\Machine\Preferences\Groups\Groups.xml"
-        $GroupXMLGPOFilePath = "\\{0}\SYSVOL\{0}\Policies\{{{1}}}\Machine\Preferences\Groups\Groups.xml" -f ($(Get-ADDomain).DNSRoot), $($FSLogixGPO.Id)
-        $Changed = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-        $ADGroupToExcludeFromFSLogix = @('Domain Admins', 'Enterprise Admins')
-        $MembersLines = foreach ($CurrentADGroupToExcludeFromFSLogix in $ADGroupToExcludeFromFSLogix)
-        {
-            $CurrentADGroupToExcludeFromFSLogixSID = (Get-ADGroup -Filter "Name -eq '$CurrentADGroupToExcludeFromFSLogix'").SID.Value
-            "<Member name=""$((Get-ADDomain).NetBIOSName)\$CurrentADGroupToExcludeFromFSLogix"" action=""ADD"" sid=""$CurrentADGroupToExcludeFromFSLogixSID""/>"
-        }
-        $MembersLines = $MembersLines -join "`r`n$("`t"*4)"
-
-        #From https://jans.cloud/2019/08/microsoft-fslogix-profile-container/
-$GroupXMLGPOFileContent = @"
-<?xml version="1.0" encoding="UTF-8"?>
-<Groups clsid="{3125E937-EB16-4b4c-9934-544FC6D24D26}">
-	<Group clsid="{6D4A79E4-529C-4481-ABD0-F5BD7EA93BA7}" uid="{$((New-Guid).Guid)}" changed="$Changed" image="2" name="FSLogix Profile Exclude List">
-		<Properties groupName="FSLogix Profile Exclude List" groupSid="" removeAccounts="0" deleteAllGroups="0" deleteAllUsers="0" description="" newName="" action="U">
-			<Members>
-				$MembersLines
-			</Members>
-		</Properties>
-	</Group>
-	<Group clsid="{6D4A79E4-529C-4481-ABD0-F5BD7EA93BA7}" uid="{$((New-Guid).Guid)}" changed="$Changed" image="2" name="FSLogix Profile Include List">
-		<Properties groupName="FSLogix Profile Include List" removeAccounts="0" deleteAllGroups="0" deleteAllUsers="0" description="" newName="" action="U"/>
-	</Group>
-	<Group clsid="{6D4A79E4-529C-4481-ABD0-F5BD7EA93BA7}" uid="{$((New-Guid).Guid)}" changed="$Changed" image="2" name="FSLogix ODFC Include List">
-		<Properties groupName="FSLogix ODFC Include List" removeAccounts="0" deleteAllGroups="0" deleteAllUsers="0" description="" newName="" action="U"/>
-	</Group>
-	<Group clsid="{6D4A79E4-529C-4481-ABD0-F5BD7EA93BA7}" uid="{$((New-Guid).Guid)}" changed="$Changed" image="2" name="FSLogix ODFC Exclude List">
-		<Properties groupName="FSLogix ODFC Exclude List" groupSid="" removeAccounts="0" deleteAllGroups="0" deleteAllUsers="0" description="" newName="" action="U">
-			<Members>
-				$MembersLines
-			</Members>
-		</Properties>
-	</Group>
-</Groups>
-"@
-        $null = New-Item -Path $GroupXMLGPOFilePath -ItemType File -Force
-        #Set-Content -Path $GroupXMLGPOFilePath -Value $GroupXMLGPOFileContent -Encoding UTF8
-        $GroupXMLGPOFileContent | Out-File $GroupXMLGPOFilePath -Encoding utf8
-        #endregion
         <#
         #region Microsoft Defender Endpoint A/V General Exclusions
         #From https://learn.microsoft.com/en-us/fslogix/overview-prerequisites#configure-antivirus-file-and-folder-exclusions
@@ -269,6 +226,50 @@ $GroupXMLGPOFileContent = @"
             Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "ShareFolderVHDXMetaData" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHDX.metadata"
             #endregion
 
+            #region GPO "Local Users and Groups" Management via groups.xml
+            #From https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-gppref/37722b69-41dd-4813-8bcd-7a1b4d44a13d
+            #$GroupXMLGPOFilePath = "\\" + $((Get-ADDomain).DNSRoot) + "\SYSVOL\" + $((Get-ADDomain).DNSRoot) + "\Policies\{" + $FSLogixGPO.GpoId + "}\Machine\Preferences\Groups\Groups.xml"
+            $GroupXMLGPOFilePath = "\\{0}\SYSVOL\{0}\Policies\{{{1}}}\Machine\Preferences\Groups\Groups.xml" -f ($(Get-ADDomain).DNSRoot), $($CurrentPooledHostPoolFSLogixGPO.Id)
+            $Changed = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+            $ADGroupToExcludeFromFSLogix = @('Domain Admins', 'Enterprise Admins')
+            $MembersLines = foreach ($CurrentADGroupToExcludeFromFSLogix in $ADGroupToExcludeFromFSLogix)
+            {
+                $CurrentADGroupToExcludeFromFSLogixSID = (Get-ADGroup -Filter "Name -eq '$CurrentADGroupToExcludeFromFSLogix'").SID.Value
+                "<Member name=""$((Get-ADDomain).NetBIOSName)\$CurrentADGroupToExcludeFromFSLogix"" action=""ADD"" sid=""$CurrentADGroupToExcludeFromFSLogixSID""/>"
+            }
+            $MembersLines = $MembersLines -join "`r`n$("`t"*4)"
+
+            #From https://jans.cloud/2019/08/microsoft-fslogix-profile-container/
+$GroupXMLGPOFileContent = @"
+<?xml version="1.0" encoding="UTF-8"?>
+<Groups clsid="{3125E937-EB16-4b4c-9934-544FC6D24D26}">
+	<Group clsid="{6D4A79E4-529C-4481-ABD0-F5BD7EA93BA7}" uid="{$((New-Guid).Guid)}" changed="$Changed" image="2" name="FSLogix Profile Exclude List">
+		<Properties groupName="FSLogix Profile Exclude List" groupSid="" removeAccounts="0" deleteAllGroups="0" deleteAllUsers="0" description="Members of this group are on the exclude list for dynamic profiles" newName="" action="U">
+			<Members>
+				$MembersLines
+			</Members>
+		</Properties>
+	</Group>
+	<Group clsid="{6D4A79E4-529C-4481-ABD0-F5BD7EA93BA7}" uid="{$((New-Guid).Guid)}" changed="$Changed" image="2" name="FSLogix Profile Include List">
+		<Properties groupName="FSLogix Profile Include List" removeAccounts="0" deleteAllGroups="0" deleteAllUsers="0" description="Members of this group are on the include list for dynamic profiles" newName="" action="U"/>
+	</Group>
+	<Group clsid="{6D4A79E4-529C-4481-ABD0-F5BD7EA93BA7}" uid="{$((New-Guid).Guid)}" changed="$Changed" image="2" name="FSLogix ODFC Include List">
+		<Properties groupName="FSLogix ODFC Include List" removeAccounts="0" deleteAllGroups="0" deleteAllUsers="0" description="Members of this group are on the include list for Outlook Data Folder Containers" newName="" action="U"/>
+	</Group>
+	<Group clsid="{6D4A79E4-529C-4481-ABD0-F5BD7EA93BA7}" uid="{$((New-Guid).Guid)}" changed="$Changed" image="2" name="FSLogix ODFC Exclude List">
+		<Properties groupName="FSLogix ODFC Exclude List" groupSid="" removeAccounts="0" deleteAllGroups="0" deleteAllUsers="0" description="Members of this group are on the exclude list for Outlook Data Folder Containers" newName="" action="U">
+			<Members>
+				$MembersLines
+			</Members>
+		</Properties>
+	</Group>
+</Groups>
+"@
+            $null = New-Item -Path $GroupXMLGPOFilePath -ItemType File -Force
+            Set-Content -Path $GroupXMLGPOFilePath -Value $GroupXMLGPOFileContent -Encoding UTF8
+            $GroupXMLGPOFileContent | Out-File $GroupXMLGPOFilePath -Encoding utf8
+            #endregion
+        
             #endregion 
 
             #region Dedicated Resource Group Management (1 per HostPool)
