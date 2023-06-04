@@ -67,6 +67,7 @@ function New-AzWvdPooledHostPoolSetup {
         Set-GPRegistryValue -Name $FSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\FSLogix\Profiles' -ValueName "ReAttachIntervalSeconds" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 15
         Set-GPRegistryValue -Name $FSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\FSLogix\Profiles' -ValueName "ReAttachRetryCount" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 3
         Set-GPRegistryValue -Name $FSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\FSLogix\Profiles' -ValueName "SizeInMBs" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 30000
+        Set-GPRegistryValue -Name $FSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\FSLogix\Profiles' -ValueName "ProfileType" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0
 
         Set-GPRegistryValue -Name $FSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\FSLogix\Profiles' -ValueName "PreventLoginWithFailure" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
         Set-GPRegistryValue -Name $FSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\FSLogix\Profiles' -ValueName "PreventLoginWithTempProfile" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
@@ -228,46 +229,37 @@ function New-AzWvdPooledHostPoolSetup {
 
             #region GPO "Local Users and Groups" Management via groups.xml
             #From https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-gppref/37722b69-41dd-4813-8bcd-7a1b4d44a13d
-            #$GroupXMLGPOFilePath = "\\" + $((Get-ADDomain).DNSRoot) + "\SYSVOL\" + $((Get-ADDomain).DNSRoot) + "\Policies\{" + $FSLogixGPO.GpoId + "}\Machine\Preferences\Groups\Groups.xml"
+            #From https://jans.cloud/2019/08/microsoft-fslogix-profile-container/
             $GroupXMLGPOFilePath = "\\{0}\SYSVOL\{0}\Policies\{{{1}}}\Machine\Preferences\Groups\Groups.xml" -f ($(Get-ADDomain).DNSRoot), $($CurrentPooledHostPoolFSLogixGPO.Id)
             $Changed = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
             $ADGroupToExcludeFromFSLogix = @('Domain Admins', 'Enterprise Admins')
-            $MembersLines = foreach ($CurrentADGroupToExcludeFromFSLogix in $ADGroupToExcludeFromFSLogix)
+            $Members = foreach ($CurrentADGroupToExcludeFromFSLogix in $ADGroupToExcludeFromFSLogix)
             {
                 $CurrentADGroupToExcludeFromFSLogixSID = (Get-ADGroup -Filter "Name -eq '$CurrentADGroupToExcludeFromFSLogix'").SID.Value
-                "<Member name=""$((Get-ADDomain).NetBIOSName)\$CurrentADGroupToExcludeFromFSLogix"" action=""ADD"" sid=""$CurrentADGroupToExcludeFromFSLogixSID""/>"
+                if (-not([string]::IsNullOrEmpty($CurrentADGroupToExcludeFromFSLogixSID)))
+                {
+                    "<Member name=""$((Get-ADDomain).NetBIOSName)\$CurrentADGroupToExcludeFromFSLogix"" action=""ADD"" sid=""$CurrentADGroupToExcludeFromFSLogixSID""/>"
+                }
             }
-            $MembersLines = $MembersLines -join "`r`n$("`t"*4)"
+            $Members = $Members -join ""
 
-            #From https://jans.cloud/2019/08/microsoft-fslogix-profile-container/
-$GroupXMLGPOFileContent = @"
+            $GroupXMLGPOFileContent = @"
 <?xml version="1.0" encoding="UTF-8"?>
 <Groups clsid="{3125E937-EB16-4b4c-9934-544FC6D24D26}">
-	<Group clsid="{6D4A79E4-529C-4481-ABD0-F5BD7EA93BA7}" uid="{$((New-Guid).Guid)}" changed="$Changed" image="2" name="FSLogix Profile Exclude List">
-		<Properties groupName="FSLogix Profile Exclude List" groupSid="" removeAccounts="0" deleteAllGroups="0" deleteAllUsers="0" description="Members of this group are on the exclude list for dynamic profiles" newName="" action="U">
-			<Members>
-				$MembersLines
-			</Members>
-		</Properties>
-	</Group>
-	<Group clsid="{6D4A79E4-529C-4481-ABD0-F5BD7EA93BA7}" uid="{$((New-Guid).Guid)}" changed="$Changed" image="2" name="FSLogix Profile Include List">
-		<Properties groupName="FSLogix Profile Include List" removeAccounts="0" deleteAllGroups="0" deleteAllUsers="0" description="Members of this group are on the include list for dynamic profiles" newName="" action="U"/>
-	</Group>
-	<Group clsid="{6D4A79E4-529C-4481-ABD0-F5BD7EA93BA7}" uid="{$((New-Guid).Guid)}" changed="$Changed" image="2" name="FSLogix ODFC Include List">
-		<Properties groupName="FSLogix ODFC Include List" removeAccounts="0" deleteAllGroups="0" deleteAllUsers="0" description="Members of this group are on the include list for Outlook Data Folder Containers" newName="" action="U"/>
-	</Group>
-	<Group clsid="{6D4A79E4-529C-4481-ABD0-F5BD7EA93BA7}" uid="{$((New-Guid).Guid)}" changed="$Changed" image="2" name="FSLogix ODFC Exclude List">
-		<Properties groupName="FSLogix ODFC Exclude List" groupSid="" removeAccounts="0" deleteAllGroups="0" deleteAllUsers="0" description="Members of this group are on the exclude list for Outlook Data Folder Containers" newName="" action="U">
-			<Members>
-				$MembersLines
-			</Members>
-		</Properties>
-	</Group>
+	<Group clsid="{6D4A79E4-529C-4481-ABD0-F5BD7EA93BA7}" name="FSLogix ODFC Exclude List" image="2" changed="$Changed" uid="{$((New-Guid).Guid.ToUpper())}"><Properties action="U" newName="" description="Members of this group are on the exclude list for Outlook Data Folder Containers" deleteAllUsers="0" deleteAllGroups="0" removeAccounts="0" groupSid="" groupName="FSLogix ODFC Exclude List"><Members>$Members</Members></Properties></Group>
+	<Group clsid="{6D4A79E4-529C-4481-ABD0-F5BD7EA93BA7}" name="FSLogix ODFC Include List" image="2" changed="$Changed" uid="{$((New-Guid).Guid.ToUpper())}"><Properties action="U" newName="" description="Members of this group are on the include list for Outlook Data Folder Containers" deleteAllUsers="0" deleteAllGroups="0" removeAccounts="0" groupName="FSLogix ODFC Include List"/></Group>
+	<Group clsid="{6D4A79E4-529C-4481-ABD0-F5BD7EA93BA7}" name="FSLogix Profile Exclude List" image="2" changed="$Changed" uid="{$((New-Guid).Guid.ToUpper())}"><Properties action="U" newName="" description="Members of this group are on the exclude list for dynamic profiles" deleteAllUsers="0" deleteAllGroups="0" removeAccounts="0" groupSid="" groupName="FSLogix Profile Exclude List"><Members>$Members</Members></Properties></Group>
+	<Group clsid="{6D4A79E4-529C-4481-ABD0-F5BD7EA93BA7}" name="FSLogix Profile Include List" image="2" changed="$Changed" uid="{$((New-Guid).Guid.ToUpper())}"><Properties action="U" newName="" description="Members of this group are on the include list for dynamic profiles" deleteAllUsers="0" deleteAllGroups="0" removeAccounts="0" groupName="FSLogix Profile Include List"/></Group>
 </Groups>
 "@
-            $null = New-Item -Path $GroupXMLGPOFilePath -ItemType File -Force
+            
+            $null = New-Item -Path $GroupXMLGPOFilePath -ItemType File -Value $GroupXMLGPOFileContent -Force
+            <#
             Set-Content -Path $GroupXMLGPOFilePath -Value $GroupXMLGPOFileContent -Encoding UTF8
             $GroupXMLGPOFileContent | Out-File $GroupXMLGPOFilePath -Encoding utf8
+            #>
+            #Forcing a GPUpdate for the previously existing hostpools VM if any
+            (Get-ADComputer -Filter 'DNSHostName -like "*"' -SearchBase $CurrentPooledHostPoolOU).Name | Invoke-GPUpdate -Force -Verbose
             #endregion
         
             #endregion 
@@ -395,7 +387,7 @@ $GroupXMLGPOFileContent = @"
                 $AccessRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule -ArgumentList ($identity, $colRights, $InheritanceFlag, $PropagationFlag, $objType)
                 # Modify the existing ACL to include the new rule
                 $existingAcl.SetAccessRule($AccessRule)
-                $existingAcl | Set-Acl -Path Z:
+                $existingAcl | Set-Acl -Path Z:\redirections.xml
                 #endregion
 
                 # Unmount the share
@@ -729,8 +721,8 @@ if (-not([String]::IsNullOrEmpty($MissingModules)))
 if (-not(Get-AzContext))
 {
     Connect-AzAccount
+    Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
 }
-Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
 #endregion
 #>
 
