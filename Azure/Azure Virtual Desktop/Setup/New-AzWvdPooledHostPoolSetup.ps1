@@ -374,7 +374,7 @@ function New-AzWvdPooledHostPoolSetup {
 
                 #region redirection.xml file management
                 #Creating the redirection.xml file
-                New-Item -Path Z: -Name "redirections.xml" -ItemType "file" -Value $RedirectionsXMLFileContent
+                New-Item -Path Z: -Name "redirections.xml" -ItemType "file" -Value $RedirectionsXMLFileContent -Force
                 $existingAcl = Get-Acl Z:\redirections.xml
                 #Add Read for "Users" Group for This folder only
                 #$identity = "Users"
