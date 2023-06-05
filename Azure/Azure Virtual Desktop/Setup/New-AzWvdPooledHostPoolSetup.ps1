@@ -645,7 +645,7 @@ function New-AzWvdPooledHostPoolSetup {
             $RegistrationInfoToken = New-AzWvdRegistrationInfo -ResourceGroupName $CurrentPooledHostPoolResourceGroupName -HostPoolName $CurrentPooledHostPool.Name -ExpirationTime $RegistrationInfoExpirationTime -Verbose -ErrorAction SilentlyContinue
             #endregion
 
-            #region Application Group Setup
+            #region Desktop Application Group Setup
             $parameters = @{
                 Name                 = "{0}-DAG" -f $CurrentPooledHostPool.Name
                 ResourceGroupName    = $CurrentPooledHostPoolResourceGroupName
@@ -654,7 +654,8 @@ function New-AzWvdPooledHostPoolSetup {
                 ApplicationGroupType = 'Desktop'
             }
 
-            $CurrentAzWvdApplicationGroup = New-AzWvdApplicationGroup @parameters
+            $CurrentAzWvdDesktopApplicationGroup = New-AzWvdApplicationGroup @parameters
+
             #region Assign groups to an application group
             # Get the object ID of the user group you want to assign to the application group
             $userGroupId = (Get-AzADGroup -DisplayName $CurrentPooledHostPoolUsersADGroupName).Id
@@ -662,7 +663,7 @@ function New-AzWvdPooledHostPoolSetup {
             # Assign users to the application group
             $parameters = @{
                 ObjectId           = $userGroupId
-                ResourceName       = $CurrentAzWvdApplicationGroup.Name
+                ResourceName       = $CurrentAzWvdDesktopApplicationGroup.Name
                 ResourceGroupName  = $CurrentPooledHostPoolResourceGroupName
                 RoleDefinitionName = 'Desktop Virtualization User'
                 ResourceType       = 'Microsoft.DesktopVirtualization/applicationGroups'
@@ -673,11 +674,53 @@ function New-AzWvdPooledHostPoolSetup {
 
             #endregion
 
+            #region Remote Application Group Setup
+            $parameters = @{
+                Name                 = "{0}-RAG" -f $CurrentPooledHostPool.Name
+                ResourceGroupName    = $CurrentPooledHostPoolResourceGroupName
+                Location             = $CurrentPooledHostPool.Location
+                HostPoolArmPath      = $CurrentAzWvdHostPool.Id
+                ApplicationGroupType = 'Remote'
+            }
+
+            $CurrentAzRemoteApplicationGroup = New-AzWvdApplicationGroup @parameters
+
+            <#
+            #region Adding Some Remote Apps
+            $RemoteApps = "Edge","Excel"
+            $FilteredAzWvdStartMenuItem = (Get-AzWvdStartMenuItem -ApplicationGroupName $CurrentAzRemoteApplicationGroup.Name -ResourceGroupName $CurrentPooledHostPoolResourceGroupName | Where-Object -FilterScript {$_.Name -match $($RemoteApps -join '|')} | Select-Object -Property *)
+
+            foreach($CurrentFilteredAppAlias in $FilteredAzWvdStartMenuItem)
+            {
+                #$Name = $CurrentFilteredAppAlias.Name -replace "(.*)/"
+                $Name = $CurrentFilteredAppAlias.Name -replace "$($CurrentAzRemoteApplicationGroup.Name)/"
+                New-AzWvdApplication -AppAlias $CurrentFilteredAppAlias.appAlias -GroupName $CurrentAzRemoteApplicationGroup.Name -Name $Name -ResourceGroupName $CurrentPooledHostPoolResourceGroupName -CommandLineSetting DoNotAllow
+            }
+            #endregion
+            #>
+
+            #region Assign groups to an application group
+            # Get the object ID of the user group you want to assign to the application group
+            $userGroupId = (Get-AzADGroup -DisplayName $CurrentPooledHostPoolUsersADGroupName).Id
+
+            # Assign users to the application group
+            $parameters = @{
+                ObjectId           = $userGroupId
+                ResourceName       = $CurrentAzRemoteApplicationGroup.Name
+                ResourceGroupName  = $CurrentPooledHostPoolResourceGroupName
+                RoleDefinitionName = 'Desktop Virtualization User'
+                ResourceType       = 'Microsoft.DesktopVirtualization/applicationGroups'
+            }
+
+            New-AzRoleAssignment @parameters
+            #endregion 
+
+            #endregion
             #region Workspace Setup
             $parameters = @{
                 Name                      = "WS-{0}" -f $CurrentPooledHostPool.Name
                 ResourceGroupName         = $CurrentPooledHostPoolResourceGroupName
-                ApplicationGroupReference = $CurrentAzWvdApplicationGroup.Id
+                ApplicationGroupReference = $CurrentAzRemoteApplicationGroup.Id
                 Location                  = $CurrentPooledHostPool.Location
             }
 
@@ -759,7 +802,7 @@ Get-ADOrganizationalUnit -Filter * | Where-Object -FilterScript {$_.Name -in $($
 Get-GPO -All | Where-Object -FilterScript {($_.DisplayName -match $($PooledHostPools.Name -join "|")) -or ($_.DisplayName -in 'PooledDesktops - FSLogix Global Settings')} | Remove-GPO -Verbose #-WhatIf
 #endregion
 #region Azure Cleanup
-$RG = Get-AzResourceGroup | Where-Object -FilterScript {($_.ResourceGroupName -match $($PooledHostPools.Name -join "|"))}
+$RG = (Get-AzWvdHostPool | Where-Object -FilterScript {$_.Name -in $($PooledHostPools.Name)}) | ForEach-Object { Get-AzResourceGroup $_.Id.split('/')[4]}
 $RG | Remove-AzResourceGroup -WhatIf
 $RG | Remove-AzResourceLock -LockName DenyDelete -Force -ErrorAction Ignore
 
