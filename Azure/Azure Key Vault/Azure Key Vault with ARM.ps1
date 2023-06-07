@@ -120,6 +120,7 @@ $SecurePasswordFromKeyVault = Get-AzKeyVaultSecret -VaultName "$KeyVaultName" -N
 $TimeStampedVMARMTemplateParameterFile = $VMARMTemplateParameterFile -replace ".json$", "_$("{0:yyyyMMddHHmmss}" -f (Get-Date)).json"
 $TimeStampedVMARMTemplateParameterFile 
 (Get-Content -Path $VMARMTemplateParameterFile -Encoding UTF8) -replace "<adminUsername>", $env:USERNAME`
+                                                               -replace "<vmName>", "simple-vm2"`
                                                                -replace "<KeyVaultResourceGroupName>", $ResourceGroupName`
                                                                -replace "<SubscriptionID>", (Get-AzSubscription).Id`
                                                                -replace "<KeyVaultName>", $KeyVaultName`
@@ -127,6 +128,7 @@ $TimeStampedVMARMTemplateParameterFile
                                                                | Set-Content -Path $TimeStampedVMARMTemplateParameterFile -Encoding UTF8
 #From https://learn.microsoft.com/en-us/azure/azure-resource-manager/templates/key-vault-parameter?tabs=azure-powershell#reference-secrets-with-static-id
 #From https://learn.microsoft.com/en-us/azure/azure-resource-manager/templates/template-tutorial-use-key-vault
+#New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateUri $VMARMTemplateUri -TemplateParameterFile $TimeStampedVMARMTemplateParameterFile -Verbose
 New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $VMARMTemplateFile -TemplateParameterFile $TimeStampedVMARMTemplateParameterFile -Verbose
 Remove-Item -Path $TimeStampedVMARMTemplateParameterFile -Force
 #endregion 
