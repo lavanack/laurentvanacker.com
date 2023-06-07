@@ -33,6 +33,8 @@ function New-AzWvdPooledHostPoolSetup {
     begin {
         #region AVD OU Management
         $DefaultNamingContext = (Get-ADRootDSE).defaultNamingContext
+
+
         $AVDRootOU = Get-ADOrganizationalUnit -Filter 'Name -eq "AVD"' -SearchBase $DefaultNamingContext
         if (-not($AVDRootOU)) {
             $AVDRootOU = New-ADOrganizationalUnit -Name "AVD" -Path $DefaultNamingContext -ProtectedFromAccidentalDeletion $true -PassThru
@@ -48,6 +50,17 @@ function New-AzWvdPooledHostPoolSetup {
         if (-not($PooledDesktopsOU)) {
             $PooledDesktopsOU = New-ADOrganizationalUnit -Name "PooledDesktops" -Path $AVDRootOU.DistinguishedName -ProtectedFromAccidentalDeletion $false -PassThru
         }
+
+        #region These Starter GPO include policy settings to configure the firewall rules required for GPO operations
+        if (-not(Get-GPO -Name "Group Policy Reporting Firewall Ports" -ErrorAction Ignore))
+        {
+            Get-GPStarterGPO -Name "Group Policy Reporting Firewall Ports" | New-GPO -Name "Group Policy Reporting Firewall Ports" | New-GPLink -Target $AVDRootOU.DistinguishedName -LinkEnabled Yes -ErrorAction Ignore
+        }
+        if (-not(Get-GPO -Name "Group Policy Remote Update Firewall Ports" -ErrorAction Ignore))
+        {
+            Get-GPStarterGPO -Name "Group Policy Remote Update Firewall Ports" | New-GPO -Name "Group Policy Remote Update Firewall Ports" | New-GPLink -Target $AVDRootOU.DistinguishedName -LinkEnabled Yes -ErrorAction Ignore
+        }
+        #endregion
         #endregion
 
         #region FSLogix GPO Management
@@ -85,6 +98,10 @@ function New-AzWvdPooledHostPoolSetup {
         #From https://learn.microsoft.com/en-us/azure/virtual-desktop/set-up-customize-master-image#disable-storage-sense
         Set-GPRegistryValue -Name $FSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy' -ValueName "01" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 0
 
+        #region GPO Debug log file
+        #From https://blog.piservices.fr/post/2017/12/21/active-directory-debug-avance-de-l-application-des-gpos
+        Set-GPRegistryValue -Name $FSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Diagnostics' -ValueName "GPSvcDebugLevel" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 0x30002
+        #endregion
         <#
         #region Microsoft Defender Endpoint A/V General Exclusions
         #From https://learn.microsoft.com/en-us/fslogix/overview-prerequisites#configure-antivirus-file-and-folder-exclusions
@@ -231,8 +248,10 @@ function New-AzWvdPooledHostPoolSetup {
             #From https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-gppref/37722b69-41dd-4813-8bcd-7a1b4d44a13d
             #From https://jans.cloud/2019/08/microsoft-fslogix-profile-container/
             $GroupXMLGPOFilePath = "\\{0}\SYSVOL\{0}\Policies\{{{1}}}\Machine\Preferences\Groups\Groups.xml" -f ($(Get-ADDomain).DNSRoot), $($CurrentPooledHostPoolFSLogixGPO.Id)
-            $Changed = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-            $ADGroupToExcludeFromFSLogix = @('Domain Admins', 'Enterprise Admins')
+            #Generating an UTC time stamp
+            $Changed = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")
+            #$ADGroupToExcludeFromFSLogix = @('Domain Admins', 'Enterprise Admins')
+            $ADGroupToExcludeFromFSLogix = @('Domain Admins')
             $Members = foreach ($CurrentADGroupToExcludeFromFSLogix in $ADGroupToExcludeFromFSLogix)
             {
                 $CurrentADGroupToExcludeFromFSLogixSID = (Get-ADGroup -Filter "Name -eq '$CurrentADGroupToExcludeFromFSLogix'").SID.Value
@@ -248,20 +267,50 @@ function New-AzWvdPooledHostPoolSetup {
 <Groups clsid="{3125E937-EB16-4b4c-9934-544FC6D24D26}">
 	<Group clsid="{6D4A79E4-529C-4481-ABD0-F5BD7EA93BA7}" name="FSLogix ODFC Exclude List" image="2" changed="$Changed" uid="{$((New-Guid).Guid.ToUpper())}"><Properties action="U" newName="" description="Members of this group are on the exclude list for Outlook Data Folder Containers" deleteAllUsers="0" deleteAllGroups="0" removeAccounts="0" groupSid="" groupName="FSLogix ODFC Exclude List"><Members>$Members</Members></Properties></Group>
 	<Group clsid="{6D4A79E4-529C-4481-ABD0-F5BD7EA93BA7}" name="FSLogix ODFC Include List" image="2" changed="$Changed" uid="{$((New-Guid).Guid.ToUpper())}"><Properties action="U" newName="" description="Members of this group are on the include list for Outlook Data Folder Containers" deleteAllUsers="0" deleteAllGroups="0" removeAccounts="0" groupName="FSLogix ODFC Include List"/></Group>
-	<Group clsid="{6D4A79E4-529C-4481-ABD0-F5BD7EA93BA7}" name="FSLogix Profile Exclude List" image="2" changed="$Changed" uid="{$((New-Guid).Guid.ToUpper())}"><Properties action="U" newName="" description="Members of this group are on the exclude list for dynamic profiles" deleteAllUsers="0" deleteAllGroups="0" removeAccounts="0" groupSid="" groupName="FSLogix Profile Exclude List"><Members>$Members</Members></Properties></Group>
+	<Group clsid="{6D4A79E4-529C-4481-ABD0-F5BD7EA93BA7}" name="FSLogix Profile Exclude List" image="2" changed="$Changed" uid="{$((New-Guid).Guid.ToUpper())}" userContext="0" removePolicy="0"><Properties action="U" newName="" description="Members of this group are on the exclude list for dynamic profiles" deleteAllUsers="0" deleteAllGroups="0" removeAccounts="0" groupSid="" groupName="FSLogix Profile Exclude List"><Members>$Members</Members></Properties></Group>
 	<Group clsid="{6D4A79E4-529C-4481-ABD0-F5BD7EA93BA7}" name="FSLogix Profile Include List" image="2" changed="$Changed" uid="{$((New-Guid).Guid.ToUpper())}"><Properties action="U" newName="" description="Members of this group are on the include list for dynamic profiles" deleteAllUsers="0" deleteAllGroups="0" removeAccounts="0" groupName="FSLogix Profile Include List"/></Group>
 </Groups>
+
 "@
+
             
             $null = New-Item -Path $GroupXMLGPOFilePath -ItemType File -Value $GroupXMLGPOFileContent -Force
             <#
             Set-Content -Path $GroupXMLGPOFilePath -Value $GroupXMLGPOFileContent -Encoding UTF8
             $GroupXMLGPOFileContent | Out-File $GroupXMLGPOFilePath -Encoding utf8
             #>
-            #Forcing a GPUpdate for the previously existing hostpools VM if any
-            (Get-ADComputer -Filter 'DNSHostName -like "*"' -SearchBase $CurrentPooledHostPoolOU).Name | Invoke-GPUpdate -Force -Verbose
             #endregion
         
+            #region GPT.INI Management
+            $GPTINIGPOFilePath = "\\{0}\SYSVOL\{0}\Policies\{{{1}}}\GPT.INI" -f ($(Get-ADDomain).DNSRoot), $($CurrentPooledHostPoolFSLogixGPO.Id)
+            Write-Verbose -Message "Processing [$GPTINIGPOFilePath]"
+            $result =  Select-string -Pattern "(Version)=(\d+)" -AllMatches -Path $GPTINIGPOFilePath
+            #Getting current version
+            [int]$VersionNumber = $result.Matches.Groups[-1].Value
+            Write-Verbose -Message "Version Number: $VersionNumber"
+            #Increasing current version
+            $VersionNumber+=2
+            Write-Verbose -Message "New Version Number: $VersionNumber"
+            #Updating file
+            (Get-Content $GPTINIGPOFilePath -Encoding UTF8) -replace "(Version)=(\d+)", "`$1=$VersionNumber" | Set-Content $GPTINIGPOFilePath -Encoding UTF8
+            Write-Verbose -Message $(Get-Content $GPTINIGPOFilePath -Encoding UTF8 | Out-String)
+            #endregion 
+
+            #region gPCmachineExtensionNames Management
+            #From https://www.infrastructureheroes.org/microsoft-infrastructure/microsoft-windows/guid-list-of-group-policy-client-extensions/
+            #[{00000000-0000-0000-0000-000000000000}{79F92669-4224-476C-9C5C-6EFB4D87DF4A}][{17D89FEC-5C44-4972-B12D-241CAEF74509}{79F92669-4224-476C-9C5C-6EFB4D87DF4A}]
+            #[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F72-3407-48AE-BA88-E8213C6761F1}]
+            $gPCmachineExtensionNamesToAdd = "[{00000000-0000-0000-0000-000000000000}{79F92669-4224-476C-9C5C-6EFB4D87DF4A}][{17D89FEC-5C44-4972-B12D-241CAEF74509}{79F92669-4224-476C-9C5C-6EFB4D87DF4A}]"
+            $RegExPattern = $gPCmachineExtensionNamesToAdd -replace "(\W)" , '\$1'
+            $GPOADObject = Get-ADObject -LDAPFilter "CN={$($CurrentPooledHostPoolFSLogixGPO.Id.Guid)}" -Properties gPCmachineExtensionNames
+            #if (-not($GPOADObject.gPCmachineExtensionNames.StartsWith($gPCmachineExtensionNamesToAdd)))
+            if ($GPOADObject.gPCmachineExtensionNames -notmatch $RegExPattern)
+            {
+                $GPOADObject | Set-ADObject -Replace @{gPCmachineExtensionNames=$($gPCmachineExtensionNamesToAdd + $GPOADObject.gPCmachineExtensionNames)}
+                Get-ADObject -LDAPFilter "CN={$($CurrentPooledHostPoolFSLogixGPO.Id.Guid)}" -Properties gPCmachineExtensionNames
+            }
+            #endregion
+            
             #endregion 
 
             #region Dedicated Resource Group Management (1 per HostPool)
@@ -680,7 +729,7 @@ function New-AzWvdPooledHostPoolSetup {
                 ResourceGroupName    = $CurrentPooledHostPoolResourceGroupName
                 Location             = $CurrentPooledHostPool.Location
                 HostPoolArmPath      = $CurrentAzWvdHostPool.Id
-                ApplicationGroupType = 'Remote'
+                ApplicationGroupType = 'RemoteApp'
             }
 
             $CurrentAzRemoteApplicationGroup = New-AzWvdApplicationGroup @parameters
@@ -797,12 +846,16 @@ $PooledHostPools = 1..3 | ForEach-Object -Process {
 
 <#
 #region Cleanup of the previously existing resources
+#region DNS Cleanup
+(Get-ADOrganizationalUnit -Filter * | Where-Object -FilterScript {$_.Name -in $($PooledHostPools.Name)}).DistinguishedName | ForEach-Object -Process {(Get-ADComputer -Filter 'DNSHostName -like "*"' -SearchBase $_).Name } | ForEach-Object -Process { try {Remove-DnsServerResourceRecord -ZoneName $((Get-ADDomain).DNSRoot) -RRType "A" -Name "$_" -Force -Verbose -ErrorAction Ignore} catch {} }
+#endregion
 #region AD OU/GPO Cleanup
 Get-ADOrganizationalUnit -Filter * | Where-Object -FilterScript {$_.Name -in $($PooledHostPools.Name) -or $_.Name -in 'AVD', 'PooledDesktops', 'PersonalDesktops'} | Set-ADOrganizationalUnit -ProtectedFromAccidentalDeletion $false -PassThru -ErrorAction Ignore | Remove-ADOrganizationalUnit -Recursive -Confirm:$false -Verbose #-WhatIf
-Get-GPO -All | Where-Object -FilterScript {($_.DisplayName -match $($PooledHostPools.Name -join "|")) -or ($_.DisplayName -in 'PooledDesktops - FSLogix Global Settings')} | Remove-GPO -Verbose #-WhatIf
+Get-GPO -All | Where-Object -FilterScript {($_.DisplayName -match $($PooledHostPools.Name -join "|")) -or ($_.DisplayName -in 'PooledDesktops - FSLogix Global Settings', 'Group Policy Reporting Firewall Ports', 'Group Policy Remote Update Firewall Ports')} | Remove-GPO -Verbose #-WhatIf
 #endregion
 #region Azure Cleanup
-$RG = (Get-AzWvdHostPool | Where-Object -FilterScript {$_.Name -in $($PooledHostPools.Name)}) | ForEach-Object { Get-AzResourceGroup $_.Id.split('/')[4]}
+$HP = (Get-AzWvdHostPool | Where-Object -FilterScript {$_.Name -in $($PooledHostPools.Name)})
+$RG = $HP | ForEach-Object { Get-AzResourceGroup $_.Id.split('/')[4]}
 $RG | Remove-AzResourceGroup -WhatIf
 $RG | Remove-AzResourceLock -LockName DenyDelete -Force -ErrorAction Ignore
 
@@ -824,5 +877,8 @@ if (-not(Get-ADSyncConnectorRunStatus))
 New-AzWvdPooledHostPoolSetup -PooledHostPool $PooledHostPools -Verbose
 #Or pipeline processing call
 #$PooledHostPools | New-AzWvdPooledHostPoolSetup 
+#(Get-ADComputer -Filter 'DNSHostName -like "*"').Name | Invoke-GPUpdate -Force -Verbose
+Invoke-Command -ComputerName $((Get-ADComputer -Filter 'DNSHostName -like "*"').Name) -ScriptBlock { gpupdate /force /wait:-1 /target:computer} 
+Invoke-Command -ComputerName $((Get-ADComputer -Filter 'DNSHostName -like "*"').Name) -ScriptBlock { Get-LocalGroupMember -Group "FSLogix Profile Exclude List" -ErrorAction Ignore}
 #endregion
 #endregion
