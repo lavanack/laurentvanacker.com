@@ -3,13 +3,11 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
-$Random             = Get-Random -Minimum 0 -Maximum 100
+$Random             = Get-Random -Minimum 0 -Maximum 1000
 $Location           = "eastus"
-$ResourceGroupName  = "rg-keyvault-demo-eu-{0:D3}" -f $Random
-$KeyVaultName       = "kv-keyvault-demo-eu-{0:D3}" -f $Random
-$ClearTextPassword  = "P@ssw0rd"
+$ResourceGroupName  = "rg-keyvault-posh-eu-{0:D3}" -f $Random
+$KeyVaultName       = "kv-keyvault-posh-eu-{0:D3}" -f $Random
 #$UserPrincipalName  = (Get-AzContext).Account.Id
-#From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/tutorial-secure-web-server
 
 #region function definitions 
 #Based from https://adamtheautomator.com/powershell-random-password/
@@ -58,15 +56,16 @@ New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 
 #region KeyVault Management
 #Create an Azure Key Vault
+#From https://learn.microsoft.com/en-us/powershell/module/az.keyvault/new-azkeyvault?view=azps-10.0.0#-enabledfordeployment
 $Vault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $location -EnabledForDeployment
-#$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -UserPrincipalName $UserPrincipalName -PermissionsToSecrets Get,List,Set -PassThru
+#As the owner of the key vault, you automatically have access to create secrets. If you need to let another user create secrets, use:
+#$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -UserPrincipalName $UserPrincipalName -PermissionsToSecrets Get,Delete,List,Set -PassThru
 
 #From https://learn.microsoft.com/en-us/azure/key-vault/secrets/quick-create-powershell
 #Adding a secret to Key Vault
-#$SecurePassword = ConvertTo-SecureString $ClearTextPassword -AsPlainText -Force
 $SecurePassword = New-RandomPassword -AsSecureString -Verbose
-
-$secret = Set-AzKeyVaultSecret -VaultName $KeyVaultName -Name "ExamplePassword" -SecretValue $SecurePassword
-$secret = Get-AzKeyVaultSecret -VaultName "$KeyVaultName" -Name "ExamplePassword" -AsPlainText
-Write-Host -Object "ExamplePassword: $secret"
+$secretName = "ExamplePassword"
+$secret = Set-AzKeyVaultSecret -VaultName $KeyVaultName -Name $secretName -SecretValue $SecurePassword
+$secret = Get-AzKeyVaultSecret -VaultName "$KeyVaultName" -Name $secretName -AsPlainText
+Write-Host -Object "Clear Text Password retrieved from key vault: $ClearTextPassword"
 #endregion 
