@@ -3,49 +3,70 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
-$ResourcePrefix     = "dscvmext"
-$VM = Get-AzVM -Name $ResourcePrefix* 
-$Location           = $VM.Location
-$ResourceGroupName  = $VM.ResourceGroupName
-$VMName 	        = $VM.Name
-$FQDN               = "$VMName.$Location.cloudapp.azure.com".ToLower()
-$KeyVaultName       = "{0}keyvault" -f $VMName
-$CertificateName    = "mycert"
+$Random             = Get-Random -Minimum 0 -Maximum 100
+$Location           = "eastus"
+$ResourceGroupName  = "rg-keyvault-demo-eu-{0:D3}" -f $Random
+$KeyVaultName       = "kv-keyvault-demo-eu-{0:D3}" -f $Random
+$ClearTextPassword  = "P@ssw0rd"
 #$UserPrincipalName  = (Get-AzContext).Account.Id
 #From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/tutorial-secure-web-server
 
-#region KeyVault Management
+#region function definitions 
+#Based from https://adamtheautomator.com/powershell-random-password/
+function New-RandomPassword {
+    [CmdletBinding(PositionalBinding=$false)]
+    param
+    (
+        [int] $minLength = 12, ## characters
+        [int] $maxLength = 15, ## characters
+        [int] $nonAlphaChars = 3,
+        [switch] $AsSecureString,
+        [switch] $ClipBoard
+    )
 
+    Add-Type -AssemblyName 'System.Web'
+    $length = Get-Random -Minimum $minLength -Maximum $maxLength
+    $RandomPassword = [System.Web.Security.Membership]::GeneratePassword($length, $nonAlphaChars)
+    Write-Verbose "The password is : $RandomPassword"
+    if ($ClipBoard)
+    {
+        Write-Verbose "The password has beeen copied into the clipboard (Use Win+V) ..."
+        $RandomPassword | Set-Clipboard
+    }
+    if ($AsSecureString)
+    {
+        ConvertTo-SecureString -String $RandomPassword -AsPlainText -Force
+    }
+    else
+    {
+        $RandomPassword
+    }
+}
+#endregion
+
+#region Resource Group Management
+$ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
+if ($ResourceGroup)
+{
+    #Remove previously existing Azure Resource Group with the "AutomatedLab-rg" name
+    $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
+}
+# Create Resource Groups and Storage Account for diagnostic
+New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
+#endregion
+
+
+#region KeyVault Management
 #Create an Azure Key Vault
 $Vault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $location -EnabledForDeployment
 #$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -UserPrincipalName $UserPrincipalName -PermissionsToSecrets Get,List,Set -PassThru
 
-#Generate a certificate and store in Key Vault
-$Policy = New-AzKeyVaultCertificatePolicy -SubjectName "CN=$FQDN" -SecretContentType "application/x-pkcs12" -IssuerName Self -ValidityInMonths 12
-Add-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $CertificateName -CertificatePolicy $Policy
+#From https://learn.microsoft.com/en-us/azure/key-vault/secrets/quick-create-powershell
+#Adding a secret to Key Vault
+#$SecurePassword = ConvertTo-SecureString $ClearTextPassword -AsPlainText -Force
+$SecurePassword = New-RandomPassword -AsSecureString -Verbose
 
-While (-not((Get-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $CertificateName).SecretId)) 
-{
-    Write-Host "Sleeping 30 seconds ..."
-    Start-Sleep 30
-}
-
-#Add a certificate to VM from Key Vault
-#$CertUrl=(Get-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $CertificateName).SecretId
-#$VaultId=(Get-AzKeyVault -ResourceGroupName $ResourceGroupName -VaultName $KeyVaultName).ResourceId
-
-$CertUrl=(Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name $CertificateName).id
-$VaultId=$Vault.ResourceId
-$VM = Add-AzVMSecret -VM $VM -SourceVaultId $VaultId -CertificateStore "My" -CertificateUrl $CertUrl
-$VM | Update-AzVM -Verbose
+$secret = Set-AzKeyVaultSecret -VaultName $KeyVaultName -Name "ExamplePassword" -SecretValue $SecurePassword
+$secret = Get-AzKeyVaultSecret -VaultName "$KeyVaultName" -Name "ExamplePassword" -AsPlainText
+Write-Host -Object "ExamplePassword: $secret"
 #endregion 
-
-#Configure IIS manually to set the HTTPS binding
-
-#Get the Public IP address dynamically
-#$PublicIP = Get-AzPublicIpAddress -ResourceGroupName $ResourceGroupName | Where-Object { $_.IpConfiguration.Id -like "*$VMName*" } | Select-Object -First 1
-
-#Browsing to the IIS Web Site via HTTPS
-#Start-Process "https://$FQDN"
-
-mstsc /v $FQDN
