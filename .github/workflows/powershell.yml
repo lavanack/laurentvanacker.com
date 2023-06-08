@@ -31,6 +31,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: PSSecretScanner
+        uses: bjompen/PSSecretScanner@v2.0.1
+
       - name: Run PSScriptAnalyzer
         uses: microsoft/psscriptanalyzer-action@6b2948b1944407914a58661c49941824d149734f
         with:
