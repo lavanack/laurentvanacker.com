@@ -66,6 +66,6 @@ $Vault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupNa
 $SecurePassword = New-RandomPassword -AsSecureString -Verbose
 $secretName = "ExamplePassword"
 $secret = Set-AzKeyVaultSecret -VaultName $KeyVaultName -Name $secretName -SecretValue $SecurePassword
-$secret = Get-AzKeyVaultSecret -VaultName "$KeyVaultName" -Name $secretName -AsPlainText
+$ClearTextPassword = Get-AzKeyVaultSecret -VaultName "$KeyVaultName" -Name $secretName -AsPlainText
 Write-Host -Object "Clear Text Password retrieved from key vault: $ClearTextPassword"
 #endregion 
