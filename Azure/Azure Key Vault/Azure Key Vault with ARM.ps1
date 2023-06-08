@@ -84,7 +84,6 @@ try {
 }
 Write-Output $ClearTextPassword
 #>
-
 Write-Host -Object "Clear Text Password retrieved from key vault: $ClearTextPassword"
 
 #region ARM Template Management
@@ -107,7 +106,7 @@ New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFil
 $SecurePasswordFromKeyVault = Get-AzKeyVaultSecret -VaultName "$KeyVaultName" -Name $secretName
 $VMARMTemplateParameterObject = @{
     adminUsername = $env:USERNAME
-    #Getting the password as securestring directly from the KeyVault
+    #Getting the password as securestring directly from the KeyVault (Be aware reverse engineering is possible to get clear text value from this code - cf. code commented as (painful) alterative some lines above)
     adminPassword = $SecurePasswordFromKeyVault.SecretValue
     #We are using the defaut values for the others parameters (cf. ARM template)
 }

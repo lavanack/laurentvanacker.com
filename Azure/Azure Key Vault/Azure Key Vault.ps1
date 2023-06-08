@@ -67,5 +67,16 @@ $SecurePassword = New-RandomPassword -AsSecureString -Verbose
 $secretName = "ExamplePassword"
 $secret = Set-AzKeyVaultSecret -VaultName $KeyVaultName -Name $secretName -SecretValue $SecurePassword
 $ClearTextPassword = Get-AzKeyVaultSecret -VaultName "$KeyVaultName" -Name $secretName -AsPlainText
+<#
+#(Painful) Alternative to the above command. Using -AsPlainText is easier ;) 
+$secret = Get-AzKeyVaultSecret -VaultName $keyVaultName -Name $secretName
+$ssPtr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secret.SecretValue)
+try {
+   $ClearTextPassword = [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR($ssPtr)
+} finally {
+   [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ssPtr)
+}
+Write-Output $ClearTextPassword
+#>
 Write-Host -Object "Clear Text Password retrieved from key vault: $ClearTextPassword"
 #endregion 
