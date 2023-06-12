@@ -129,6 +129,7 @@ Do {
     # wait for role creation
     Start-Sleep -Seconds 30
 } While (-not(Get-AzRoleDefinition -Name $imageRoleDefName))
+Start-Sleep -Seconds 30
 
 # Grant the role definition to the VM Image Builder service principal
 New-AzRoleAssignment -ObjectId $identityNamePrincipalId -RoleDefinitionName $imageRoleDefName -Scope "/subscriptions/$subscriptionID/resourceGroups/$imageResourceGroup"
@@ -156,6 +157,7 @@ $cgGalleryName= "AVD_ACG_$timeInt"
 New-AzGallery -GalleryName $cgGalleryName -ResourceGroupName $imageResourceGroup -Location $location
 
 #region Template #1 via a customized JSON file
+#Based on https://github.com/Azure/azvmimagebuilder/tree/main/solutions/14_Building_Images_WVD
 # Create the gallery definition
 New-AzGalleryImageDefinition -GalleryName $cgGalleryName -ResourceGroupName $imageResourceGroup -Location $location -Name $imageDefName01 -OsState generalized -OsType Windows -Publisher 'Contoso' -Offer 'Windows' -Sku 'avd-win11' -HyperVGeneration V2
 
@@ -256,7 +258,7 @@ $ImgCustomParams = @{
    PowerShellCustomizer = $true  
    Name = 'InstallVSCode'  
    RunElevated = $true  
-   #runAsSystem = $true  
+   runAsSystem = $true  
    ScriptUri = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/Install-VSCode.ps1'
   }
 
