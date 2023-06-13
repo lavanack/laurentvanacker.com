@@ -3,6 +3,7 @@ $AzureCredentials = cmdkey /list | Select-string -Pattern "=(TERMSRV/)?((.*)\.(.
 if ($AzureCredentials.Matches)
 {
     $AzureCredentials.Matches | ForEach-Object -Process { 
+        $TERMSRV = $($_.Groups[1].Value)
         $DNSName = $_.Groups[2].Value
         $VMName = $_.Groups[3].Value
         $Location = $_.Groups[4].Value
@@ -14,7 +15,7 @@ if ($AzureCredentials.Matches)
         else
         {
             Write-Warning -Message "$VMName Azure VM doesn't exist. The related credentials will be removed from the Windows Credential Manager"
-            Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /delete:$DNSName" -Wait
+            Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /delete:$TERMSRV$DNSName" -Wait
         }
     }
 }
