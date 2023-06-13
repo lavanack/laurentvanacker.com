@@ -2,6 +2,7 @@
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
+$Error.Clear()
 
 $Random                     = Get-Random -Minimum 0 -Maximum 1000
 $Location                   = "eastus"
