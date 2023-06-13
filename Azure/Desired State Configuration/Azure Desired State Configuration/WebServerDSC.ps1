@@ -10,6 +10,13 @@ Configuration WebServerConfiguration
 
     Node $ComputerName
     {                
+        #Changing some default LCM Settings
+        LocalConfigurationManager
+        {
+            RebootNodeIfNeeded = $true
+            ConfigurationMode  = 'ApplyAndAutoCorrect'
+        }
+    
         WindowsFeature WebServer
         {
             Name   = "Web-Server"
