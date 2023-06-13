@@ -62,7 +62,7 @@ $currentAzContext = Get-AzContext
 $timeInt=(Get-Date -UFormat "%s").Split(".")[0]
 
 # Destination image resource group
-$imageResourceGroup="AVD-AZIMG-$timeInt-RG"
+$imageResourceGroup="rg-avd-azimg-$timeInt"
 
 # Location (see possible locations in the main docs)
 $location="eastus"
@@ -75,11 +75,11 @@ $subscriptionID=$currentAzContext.Subscription.Id
 #Fully Customized image
 $imageDefName01      = "avd-win11-22h2-ent-fslogix-teams-vscode"
 #$imageTemplateName01 = "avd-win11-22h2-ent-fslogix-teams-vscode-template"
-$imageTemplateName01 = $imageDefName01 + "-template"
+$imageTemplateName01 = $imageDefName01 + "-template-" + $timeInt
 #Market place image + customization(s)
 $imageDefName02      = "avd-win11-22h2-avd-m365-vscode"
 #$imageTemplateName02 = "avd-win11-22h2-avd-m365-vscode-template"
-$imageTemplateName02 = $imageDefName02 + "-template"
+$imageTemplateName02 = $imageDefName02 + "-template-" + $timeInt
 
 # Distribution properties object name (runOutput). Gives you the properties of the managed image on completion
 $runOutputName01="cgOutput01"
@@ -98,8 +98,8 @@ New-AzResourceGroup -Name $imageResourceGroup -Location $location -Force
 
 #region Permissions, user identity, and role
 # setup role def names, these need to be unique
-$imageRoleDefName="Azure Image Builder Image Def"+$timeInt
-$identityName="aibIdentity"+$timeInt
+$imageRoleDefName="Azure Image Builder Image Def - "+$timeInt
+$identityName="aibIdentity-"+$timeInt
 
 # Create the identity
 New-AzUserAssignedIdentity -ResourceGroupName $imageResourceGroup -Name $identityName -Location $location
@@ -151,7 +151,7 @@ $ApplicationId = (Get-AzureADServicePrincipal -SearchString "Azure Virtual Machi
 #endregion
 
 #region Create an Azure Compute Gallery
-$cgGalleryName= "AVD_ACG_$timeInt"
+$cgGalleryName= "acg_avd_$timeInt"
 
 # Create the gallery
 New-AzGallery -GalleryName $cgGalleryName -ResourceGroupName $imageResourceGroup -Location $location
@@ -206,7 +206,7 @@ $getStatus01.LastRunStatusMessage
 $getStatus01.LastRunStatusRunSubState
 #endregion
 
-$getStatus01 | Remove-AzImageBuilderTemplate
+$getStatus01 | Remove-AzImageBuilderTemplate #-AsJob
 Remove-Item -Path $aibRoleImageCreationPath, $templateFilePath -Force
 #endregion
 #endregion
@@ -273,6 +273,8 @@ $ImgTemplateParams = @{
   Customize = $Customizer
   Location = $location
   UserAssignedIdentityId = $identityNameResourceId
+  VMProfileVmsize = "Standard_D4s_v3"
+  VMProfileOsdiskSizeGb = 127
 }
 New-AzImageBuilderTemplate @ImgTemplateParams
 
@@ -296,15 +298,14 @@ $getStatus02 | Format-List -Property *
 $getStatus02.LastRunStatusRunState 
 $getStatus02.LastRunStatusMessage
 $getStatus02.LastRunStatusRunSubState
-
-$getStatus02 | Remove-AzImageBuilderTemplate
-#endregion
 #endregion
 
+$getStatus02 | Remove-AzImageBuilderTemplate #-AsJob
+#endregion
 #endregion
 
 #Adding a delete lock (for preventing accidental deletion)
-New-AzResourceLock -LockLevel CanNotDelete -LockNotes "$imageResourceGroup - CanNotDelete" -LockName "$imageResourceGroup - CanNotDelete" -ResourceGroupName $imageResourceGroup -Force
+#New-AzResourceLock -LockLevel CanNotDelete -LockNotes "$imageResourceGroup - CanNotDelete" -LockName "$imageResourceGroup - CanNotDelete" -ResourceGroupName $imageResourceGroup -Force
 
 #region Clean up your resources
 <#
@@ -316,6 +317,6 @@ Remove-AzRoleDefinition -Name "$identityNamePrincipalId" -Force -Scope "/subscri
 ## Delete the identity
 Remove-AzUserAssignedIdentity -ResourceGroupName $imageResourceGroup -Name $identityName -Force
 
-Remove-AzResourceGroup $imageResourceGroup -Force #-AsJob
+Remove-AzResourceGroup $imageResourceGroup -Force -AsJob
 #>
 #endregion
