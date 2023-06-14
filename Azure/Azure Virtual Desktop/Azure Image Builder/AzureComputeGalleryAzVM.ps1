@@ -25,9 +25,8 @@ param
 
 #region function definitions 
 #Based from https://adamtheautomator.com/powershell-random-password/
-function New-RandomPassword
-{
-    [CmdletBinding(PositionalBinding=$false)]
+function New-RandomPassword {
+    [CmdletBinding(PositionalBinding = $false)]
     param
     (
         [int] $minLength = 12, ## characters
@@ -41,17 +40,14 @@ function New-RandomPassword
     $length = Get-Random -Minimum $minLength -Maximum $maxLength
     $RandomPassword = [System.Web.Security.Membership]::GeneratePassword($length, $nonAlphaChars)
     Write-Host "The password is : $RandomPassword"
-    if ($ClipBoard)
-    {
+    if ($ClipBoard) {
         Write-Verbose "The password has beeen copied into the clipboard (Use Win+V) ..."
         $RandomPassword | Set-Clipboard
     }
-    if ($AsSecureString)
-    {
+    if ($AsSecureString) {
         ConvertTo-SecureString -String $RandomPassword -AsPlainText -Force
     }
-    else
-    {
+    else {
         $RandomPassword
     }
 }
@@ -101,8 +97,7 @@ $DigitNumber = 4
 $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
 
 
-Do 
-{
+Do {
     $StorageAccountName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $StorageAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
     $VMName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $VirtualMachinePrefix, $Project, $Role, $LocationShortName, $Instance                       
 } While ((-not(Test-AzDnsAvailability -DomainNameLabel $VMName -Location $Location)) -or ((-not(Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable)))
@@ -119,8 +114,8 @@ $NetworkSecurityGroupName = $NetworkSecurityGroupName.ToLower()
 $VirtualNetworkName = $VirtualNetworkName.ToLower()
 $SubnetName = $SubnetName.ToLower()
 $ResourceGroupName = $ResourceGroupName.ToLower()
-$VirtualNetworkAddressSpace     = "10.10.0.0/16" # Format 10.10.0.0/16
-$SubnetIPRange                  = "10.10.1.0/24" # Format 10.10.1.0/24                         
+$VirtualNetworkAddressSpace = "10.10.0.0/16" # Format 10.10.0.0/16
+$SubnetIPRange = "10.10.1.0/24" # Format 10.10.1.0/24                         
 $FQDN = "$VMName.$Location.cloudapp.azure.com".ToLower()
 
 
@@ -207,7 +202,7 @@ $VirtualNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Na
 Add-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork -AddressPrefix $SubnetIPRange -NetworkSecurityGroupId $NetworkSecurityGroup.Id
 
 $VirtualNetwork = Set-AzVirtualNetwork -VirtualNetwork $VirtualNetwork
-$Subnet   = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork
+$Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork
 
 
 #Step 6: Create Azure Public Address
