@@ -18,8 +18,6 @@ of the Sample Code.
 ##requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources -RunAsAdministrator 
 #requires -Version 5 -RunAsAdministrator 
 
-#iterate from 1 to 10
-
 #region Function definition
 function New-AAD-Hybrid-Lab {
     [CmdletBinding()]
@@ -94,25 +92,25 @@ function New-AAD-Hybrid-Lab {
     $JitPolicyName = "Default"
     $LocationShortName = $shortNameHT[$Location].shortName
     #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
-    $RGPrefix = "rg"
-    $SAPrefix = "sa"
-    $VMPrefix = "vm"
-    $NSGPrefix = "nsg"
-    $VNETPrefix = "vnet"
+    $ResourceGroupPrefix = "rg"
+    $StorageAccountPrefix = "sa"
+    $VirtualMachinePrefix = "vm"
+    $NetworkSecurityGroupPrefix = "nsg"
+    $VirtualNetworkPrefix = "vnet"
     $SubnetPrefix = "vnets"
                          
-    $StorageAccountName = '{0}{1}{2}{3}{4:D3}' -f $SAPrefix, $Project, $Role, $LocationShortName, $Instance                       
-    $VMName = '{0}{1}{2}{3}{4:D3}' -f $VMPrefix, $Project, $Role, $LocationShortName, $Instance                       
-    $NSGName = '{0}-{1}-{2}-{3}-{4:D3}' -f $NSGPrefix, $Project, $Role, $LocationShortName, $Instance                       
-    $VNETName = '{0}-{1}-{2}-{3}-{4:D3}' -f $VNETPrefix, $Project, $Role, $LocationShortName, $Instance                       
+    $StorageAccountName = '{0}{1}{2}{3}{4:D3}' -f $StorageAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
+    $VMName = '{0}{1}{2}{3}{4:D3}' -f $VirtualMachinePrefix, $Project, $Role, $LocationShortName, $Instance                       
+    $NetworkSecurityGroupName = '{0}-{1}-{2}-{3}-{4:D3}' -f $NetworkSecurityGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
+    $VirtualNetworkName = '{0}-{1}-{2}-{3}-{4:D3}' -f $VirtualNetworkPrefix, $Project, $Role, $LocationShortName, $Instance                       
     $SubnetName = '{0}-{1}-{2}-{3}-{4:D3}' -f $SubnetPrefix, $Project, $Role, $LocationShortName, $Instance                       
-    $ResourceGroupName = '{0}-{1}-{2}-{3}-{4:D3}' -f $RGPrefix, $Project, $Role, $LocationShortName, $Instance                       
+    $ResourceGroupName = '{0}-{1}-{2}-{3}-{4:D3}' -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
 
 
     $StorageAccountName = $StorageAccountName.ToLower()
     $VMName = $VMName.ToLower()
-    $NSGName = $NSGName.ToLower()
-    $VNETName = $VNETName.ToLower()
+    $NetworkSecurityGroupName = $NetworkSecurityGroupName.ToLower()
+    $VirtualNetworkName = $VirtualNetworkName.ToLower()
     $SubnetName = $SubnetName.ToLower()
     $ResourceGroupName = $ResourceGroupName.ToLower()
                          
@@ -158,8 +156,8 @@ function New-AAD-Hybrid-Lab {
     }
 
     Write-Verbose "`$VMName: $VMName"
-    Write-Verbose "`$NSGName: $NSGName"         
-    Write-Verbose "`$VNETName: $VNETName"         
+    Write-Verbose "`$NetworkSecurityGroupName: $NetworkSecurityGroupName"         
+    Write-Verbose "`$VirtualNetworkName: $VirtualNetworkName"         
     Write-Verbose "`$SubnetName: $SubnetName"       
     Write-Verbose "`$ResourceGroupName: $ResourceGroupName"
     Write-Verbose "`$PublicIPName: $PublicIPName"
@@ -245,10 +243,10 @@ function New-AAD-Hybrid-Lab {
         #>
     )
 
-    $NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NSGName -SecurityRules $SecurityRules -Force
+    $NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NetworkSecurityGroupName -SecurityRules $SecurityRules -Force
 
     #Steps 4 + 5: Create Azure Virtual network using the virtual network subnet configuration
-    $vNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VNETName  -AddressPrefix $VNetAddressRange -Location $Location
+    $vNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName  -AddressPrefix $VNetAddressRange -Location $Location
 
     Add-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $vNetwork -AddressPrefix $ADSubnetAddressRange -NetworkSecurityGroupId $NetworkSecurityGroup.Id
     $vNetwork = Set-AzVirtualNetwork -VirtualNetwork $vNetwork
