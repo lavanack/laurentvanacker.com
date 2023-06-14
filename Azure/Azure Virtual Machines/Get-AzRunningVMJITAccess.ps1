@@ -32,7 +32,7 @@ $AzJitNetworkAccessPolicy = foreach ($VM in $RunningVM)
         Write-Warning -Message "Just in Time for is not enabled for $($VM.Name)"
     }
 }
-#Diplaying the overall result
+#Displaying the overall result
 $AzJitNetworkAccessPolicy | Format-List * -Force
 #endregion
 
