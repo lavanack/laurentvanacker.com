@@ -3,10 +3,12 @@
 Configuration WebServerConfiguration
 {    
 	Param ( 
-		[String[]]$ComputerName = "localhost"
+		[String[]]$ComputerName = "localhost",
+		[String]$CertificateThumbprint = $null
 	)
 
 	Import-DscResource -ModuleName PSDesiredStateConfiguration
+    Import-DscResource -ModuleName WebAdministrationDsc
 
     Node $ComputerName
     {                
@@ -40,12 +42,28 @@ Configuration WebServerConfiguration
 		File IISDefaultPage
         {
             DestinationPath = "C:\inetpub\wwwroot\iisstart.htm"
-            Contents = "<HTML><HEAD><TITLE>Installed via Azure DSC</TITLE></HEAD><BODY><H1>If you are seeing this page, It means DSC Rocks !!!</H1></BODY></HTML>"
+            Contents = "<HTML><HEAD><TITLE>Installed via Azure DSC Extension</TITLE></HEAD><BODY><H1>If you are seeing this page, It means Azure DSC Extension Rocks !!!</H1></BODY></HTML>"
             Ensure = "Present"
             Type = "File" 
             Force = $True
             DependsOn = '[WindowsFeature]WebServer'
         }
-
+        if (-not([string]::IsNullOrEmpty($CertificateThumbprint)))
+        {
+            WebSite DefaultWebSite
+            {
+                Name         = 'Default Web Site'
+                DependsOn    = '[WindowsFeature]WebServer'
+                BindingInfo     = @(
+                    DSC_WebBindingInformation
+                    {
+                        Protocol              = 'HTTPS'
+                        Port                  = 443
+                        CertificateThumbprint = $CertificateThumbprint
+                        CertificateStoreName  = 'MY'
+                    }
+                )                              
+            }
+        }
     }
 }
