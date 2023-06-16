@@ -3,16 +3,16 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
-$Random             = Get-Random -Minimum 0 -Maximum 1000
-$Location           = "eastus"
-$ResourceGroupName  = "rg-keyvault-posh-eu-{0:D3}" -f $Random
-$KeyVaultName       = "kv-keyvault-posh-eu-{0:D3}" -f $Random
+$Random = Get-Random -Minimum 0 -Maximum 1000
+$Location = "eastus"
+$ResourceGroupName = "rg-keyvault-posh-eu-{0:D3}" -f $Random
+$KeyVaultName = "kv-keyvault-posh-eu-{0:D3}" -f $Random
 #$UserPrincipalName  = (Get-AzContext).Account.Id
 
 #region function definitions 
 #Based from https://adamtheautomator.com/powershell-random-password/
 function New-RandomPassword {
-    [CmdletBinding(PositionalBinding=$false)]
+    [CmdletBinding(PositionalBinding = $false)]
     param
     (
         [int] $minLength = 12, ## characters
@@ -26,17 +26,14 @@ function New-RandomPassword {
     $length = Get-Random -Minimum $minLength -Maximum $maxLength
     $RandomPassword = [System.Web.Security.Membership]::GeneratePassword($length, $nonAlphaChars)
     Write-Verbose "The password is : $RandomPassword"
-    if ($ClipBoard)
-    {
+    if ($ClipBoard) {
         Write-Verbose "The password has beeen copied into the clipboard (Use Win+V) ..."
         $RandomPassword | Set-Clipboard
     }
-    if ($AsSecureString)
-    {
+    if ($AsSecureString) {
         ConvertTo-SecureString -String $RandomPassword -AsPlainText -Force
     }
-    else
-    {
+    else {
         $RandomPassword
     }
 }
@@ -44,8 +41,7 @@ function New-RandomPassword {
 
 #region Resource Group Management
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
-if ($ResourceGroup)
-{
+if ($ResourceGroup) {
     #Remove previously existing Azure Resource Group with the "AutomatedLab-rg" name
     $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
 }
