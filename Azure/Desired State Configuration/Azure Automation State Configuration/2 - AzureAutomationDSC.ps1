@@ -8,7 +8,7 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
 #Installing the NuGet Provider
 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-Install-Module -Name xWebAdministration, Az.Compute, Az.Storage, Az.Automation -Force
+Install-Module -Name WebAdministrationDsc, Az.Compute, Az.Storage, Az.Automation -Force
 
 #Disable-WindowsOptionalFeature -FeatureName Internet-Explorer-Optional-amd64 –Online -NoRestart
 #region Disabling IE Enhanced Security
@@ -37,7 +37,7 @@ $ConfigurationName              = "WebServer"
 $ConfigurationDataFileName      = "configurationdata.psd1"
 $ConfigurationDataFilePath      = Join-Path -Path $CurrentDir -ChildPath $ConfigurationDataFileName
 
-$modulePath = [string[]](Get-InstalledModule -Name xWebAdministration).InstalledLocation | Split-Path -Parent
+$modulePath = [string[]](Get-InstalledModule -Name WebAdministrationDsc).InstalledLocation | Split-Path -Parent
 
 $AutomationAccount = Get-AzAutomationAccount -Name $AutomationAccountName -ResourceGroupName $ResourceGroupName -ErrorAction SilentlyContinue
 if (-not($AutomationAccount))

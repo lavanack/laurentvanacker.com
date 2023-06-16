@@ -1,7 +1,7 @@
 ﻿Configuration WebServer
 {
     Import-DscResource -ModuleName PSDesiredStateConfiguration
-    Import-DscResource -ModuleName xWebAdministration
+    Import-DscResource -ModuleName WebAdministrationDsc
 
     node $AllNodes.Where( { $_.Role -eq 'WebServer' }).NodeName
     {
@@ -23,13 +23,14 @@
         # Create web sites
         foreach ($site in $nodeConfig.WebSites)
         {
-            xWebSite $site.Name
+            WebSite $site.Name
             {
                 Name         = $site.Name
                 PhysicalPath = $site.PhysicalPath
+                State        = 'Started'
                 DependsOn    = $dependencies
                 BindingInfo     = @(
-                    MSFT_xWebBindingInformation
+                    DSC_WebBindingInformation
                     {
                         Protocol              = 'HTTP'
                         Port                  = $site.Port
