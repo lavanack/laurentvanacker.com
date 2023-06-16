@@ -4,20 +4,20 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 $Error.Clear()
 
-$Random                     = Get-Random -Minimum 0 -Maximum 1000
-$Location                   = "eastus"
-$ResourceGroupName          = "rg-keyvault-arm-eu-{0:D3}" -f $Random
-$KeyVaultName               = "kv-keyvault-arm-eu-{0:D3}" -f $Random
-$SQLServerARMTemplate       = Join-Path -Path $CurrentDir -ChildPath "SQLServerARMTemplate.json"
-$VMARMTemplateUri           = "https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/quickstarts/microsoft.compute/vm-simple-windows/azuredeploy.json"
+$Random = Get-Random -Minimum 0 -Maximum 1000
+$Location = "eastus"
+$ResourceGroupName = "rg-keyvault-arm-eu-{0:D3}" -f $Random
+$KeyVaultName = "kv-keyvault-arm-eu-{0:D3}" -f $Random
+$SQLServerARMTemplate = Join-Path -Path $CurrentDir -ChildPath "SQLServerARMTemplate.json"
+$VMARMTemplateUri = "https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/quickstarts/microsoft.compute/vm-simple-windows/azuredeploy.json"
 $VMARMTemplateParameterFile = Join-Path -Path $CurrentDir -ChildPath "VMARMTemplate.parameters.json"
-$VMARMTemplateFile          = Join-Path -Path $CurrentDir -ChildPath "VMARMTemplate.json"
+$VMARMTemplateFile = Join-Path -Path $CurrentDir -ChildPath "VMARMTemplate.json"
 #$UserPrincipalName          = (Get-AzContext).Account.Id
 
 #region function definitions 
 #Based from https://adamtheautomator.com/powershell-random-password/
 function New-RandomPassword {
-    [CmdletBinding(PositionalBinding=$false)]
+    [CmdletBinding(PositionalBinding = $false)]
     param
     (
         [int] $minLength = 12, ## characters
@@ -31,17 +31,14 @@ function New-RandomPassword {
     $length = Get-Random -Minimum $minLength -Maximum $maxLength
     $RandomPassword = [System.Web.Security.Membership]::GeneratePassword($length, $nonAlphaChars)
     Write-Verbose "The password is : $RandomPassword"
-    if ($ClipBoard)
-    {
+    if ($ClipBoard) {
         Write-Verbose "The password has beeen copied into the clipboard (Use Win+V) ..."
         $RandomPassword | Set-Clipboard
     }
-    if ($AsSecureString)
-    {
+    if ($AsSecureString) {
         ConvertTo-SecureString -String $RandomPassword -AsPlainText -Force
     }
-    else
-    {
+    else {
         $RandomPassword
     }
 }
@@ -49,8 +46,7 @@ function New-RandomPassword {
 
 #region Resource Group Management
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
-if ($ResourceGroup)
-{
+if ($ResourceGroup) {
     #Remove previously existing Azure Resource Group with the "AutomatedLab-rg" name
     $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
 }
@@ -90,8 +86,8 @@ Write-Host -Object "Clear Text Password retrieved from key vault: $ClearTextPass
 #region ARM Template Management
 #region SQL Server Deployment
 $SQLServerARMTemplateParameterObject = @{
-    vaultName = $KeyVaultName
-    secretName = $secretName
+    vaultName              = $KeyVaultName
+    secretName             = $secretName
     vaultResourceGroupName = $ResourceGroupName
     <#
     #The following parameters have default values (cf. ARM template)
@@ -120,12 +116,12 @@ $SecurePasswordFromKeyVault = Get-AzKeyVaultSecret -VaultName "$KeyVaultName" -N
 $TimeStampedVMARMTemplateParameterFile = $VMARMTemplateParameterFile -replace ".json$", "_$("{0:yyyyMMddHHmmss}" -f (Get-Date)).json"
 $TimeStampedVMARMTemplateParameterFile 
 (Get-Content -Path $VMARMTemplateParameterFile -Encoding UTF8) -replace "<adminUsername>", $env:USERNAME`
-                                                               -replace "<vmName>", "simple-vm2"`
-                                                               -replace "<KeyVaultResourceGroupName>", $ResourceGroupName`
-                                                               -replace "<SubscriptionID>", (Get-AzSubscription).Id`
-                                                               -replace "<KeyVaultName>", $KeyVaultName`
-                                                               -replace "<secretName>", $secretName`
-                                                               | Set-Content -Path $TimeStampedVMARMTemplateParameterFile -Encoding UTF8
+    -replace "<vmName>", "simple-vm2"`
+    -replace "<KeyVaultResourceGroupName>", $ResourceGroupName`
+    -replace "<SubscriptionID>", (Get-AzSubscription).Id`
+    -replace "<KeyVaultName>", $KeyVaultName`
+    -replace "<secretName>", $secretName`
+| Set-Content -Path $TimeStampedVMARMTemplateParameterFile -Encoding UTF8
 #From https://learn.microsoft.com/en-us/azure/azure-resource-manager/templates/key-vault-parameter?tabs=azure-powershell#reference-secrets-with-static-id
 #From https://learn.microsoft.com/en-us/azure/azure-resource-manager/templates/template-tutorial-use-key-vault
 #New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateUri $VMARMTemplateUri -TemplateParameterFile $TimeStampedVMARMTemplateParameterFile -Verbose

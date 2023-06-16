@@ -95,13 +95,12 @@ $Project = "dsc"
 $Role = "ext"
 $DigitNumber = 4
 $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
-$CertificateName = "mycert"
 
 Do {
     $StorageAccountName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $StorageAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
     $VMName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $VirtualMachinePrefix, $Project, $Role, $LocationShortName, $Instance                       
 } While ((-not(Test-AzDnsAvailability -DomainNameLabel $VMName -Location $Location)) -or ((-not(Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable)))
-                         
+
 $NetworkSecurityGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $NetworkSecurityGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $VirtualNetworkName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $VirtualNetworkPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $SubnetName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $SubnetPrefix, $Project, $Role, $LocationShortName, $Instance                       
@@ -182,13 +181,7 @@ New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroup
 
 #Step 3: Create Azure Network Security Group
 #RDP only for my public IP address
-$CommonParameters = @{
-    'SourceAddressPrefix' = 'VirtualNetwork'
-    'SourcePortRange' = '*'
-    'DestinationAddressPrefix' = $ADSubnetAddressRange
-    'Access' = 'Allow'
-    'Direction' = 'Inbound' 
-}
+
 $SecurityRules = @(
     #region Inbound
     #RDP only for my public IP address
@@ -257,12 +250,12 @@ $VM = Get-AzVM -ResourceGroup $ResourceGroupName -Name $VMName
 #region JIT Access Management
 #region Enabling JIT Access
 $NewJitPolicy = (@{
-        id = $VM.Id
+        id    = $VM.Id
         ports = (@{
-                number = $RDPPort;
-                protocol = "*";
+                number                     = $RDPPort;
+                protocol                   = "*";
                 allowedSourceAddressPrefix = "*";
-                maxRequestAccessDuration = "PT$($JitPolicyTimeInHours)H"
+                maxRequestAccessDuration   = "PT$($JitPolicyTimeInHours)H"
             })   
     })
 
@@ -279,10 +272,10 @@ $null = Set-AzJitNetworkAccessPolicy -VirtualMachine $UpdatedJITPolicy -Resource
 
 #region Requesting Temporary Access : 3 hours
 $JitPolicy = (@{
-        id = $VM.Id
+        id    = $VM.Id
         ports = (@{
-                number = $RDPPort;
-                endTimeUtc = (Get-Date).AddHours(3).ToUniversalTime()
+                number                     = $RDPPort;
+                endTimeUtc                 = (Get-Date).AddHours(3).ToUniversalTime()
                 allowedSourceAddressPrefix = @($MyPublicIP) 
             })
     })
@@ -313,10 +306,10 @@ Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 # Publishing DSC Configuration for AutomatedLab via Hyper-V (Nested Virtualization)
 Publish-AzVMDscConfiguration $DSCFilePath -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Force -Verbose
 
-try
-{
+try {
     Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$DSCFileName.zip" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $ConfigurationName -Version "2.80" -Location $Location -AutoUpdate -Verbose #-ErrorAction Ignore
-} catch {}
+}
+catch {}
 $VM | Update-AzVM -Verbose
 #endregion
 

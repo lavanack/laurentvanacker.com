@@ -184,13 +184,6 @@ New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroup
 
 #Step 3: Create Azure Network Security Group
 #RDP only for my public IP address
-$CommonParameters = @{
-    'SourceAddressPrefix' = 'VirtualNetwork'
-    'SourcePortRange' = '*'
-    'DestinationAddressPrefix' = $ADSubnetAddressRange
-    'Access' = 'Allow'
-    'Direction' = 'Inbound' 
-}
 $SecurityRules = @(
     #region Inbound
     #RDP only for my public IP address
@@ -259,12 +252,12 @@ $VM = Get-AzVM -ResourceGroup $ResourceGroupName -Name $VMName
 #region JIT Access Management
 #region Enabling JIT Access
 $NewJitPolicy = (@{
-        id = $VM.Id
+        id    = $VM.Id
         ports = (@{
-                number = $RDPPort;
-                protocol = "*";
+                number                     = $RDPPort;
+                protocol                   = "*";
                 allowedSourceAddressPrefix = "*";
-                maxRequestAccessDuration = "PT$($JitPolicyTimeInHours)H"
+                maxRequestAccessDuration   = "PT$($JitPolicyTimeInHours)H"
             })   
     })
 
@@ -281,10 +274,10 @@ $null = Set-AzJitNetworkAccessPolicy -VirtualMachine $UpdatedJITPolicy -Resource
 
 #region Requesting Temporary Access : 3 hours
 $JitPolicy = (@{
-        id = $VM.Id
+        id    = $VM.Id
         ports = (@{
-                number = $RDPPort;
-                endTimeUtc = (Get-Date).AddHours(3).ToUniversalTime()
+                number                     = $RDPPort;
+                endTimeUtc                 = (Get-Date).AddHours(3).ToUniversalTime()
                 allowedSourceAddressPrefix = @($MyPublicIP) 
             })
     })
@@ -342,10 +335,10 @@ $VM | Update-AzVM -Verbose
 # Publishing DSC Configuration for AutomatedLab via Hyper-V (Nested Virtualization)
 Publish-AzVMDscConfiguration $DSCFilePath -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Force -Verbose
 
-try
-{
-    Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$DSCFileName.zip" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $ConfigurationName -ConfigurationArgument @{CertificateThumbprint=$CertificateThumbprint}  -Version "2.80" -Location $Location -AutoUpdate -Verbose #-ErrorAction Ignore
-} catch {}
+try {
+    Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$DSCFileName.zip" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $ConfigurationName -ConfigurationArgument @{CertificateThumbprint = $CertificateThumbprint }  -Version "2.80" -Location $Location -AutoUpdate -Verbose #-ErrorAction Ignore
+}
+catch {}
 $VM | Update-AzVM -Verbose
 #endregion
 
