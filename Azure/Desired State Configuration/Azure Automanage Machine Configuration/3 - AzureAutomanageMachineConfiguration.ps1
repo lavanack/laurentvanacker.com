@@ -19,33 +19,31 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
-$VMName 	                        = $env:COMPUTERNAME
-$AzVM                               = Get-AzVM -Name $VMName 
-$Location                           = $AzVM.Location
-$ResourceGroupName                  = $AzVM.ResourceGroupName
-$StorageAccount                     = Get-AzStorageAccount -ResourceGroupName $resourceGroupName
-$StorageAccountName                 = $StorageAccount.StorageAccountName
-$StorageContainerName               = "guestconfiguration"
-$ConfigurationName                  = "CreateAdminUserDSCConfiguration"
-$GuestConfigurationPackageName      = "$ConfigurationName.zip"
+$VMName = $env:COMPUTERNAME
+$AzVM = Get-AzVM -Name $VMName 
+$Location = $AzVM.Location
+$ResourceGroupName = $AzVM.ResourceGroupName
+$StorageAccount = Get-AzStorageAccount -ResourceGroupName $resourceGroupName
+$StorageAccountName = $StorageAccount.StorageAccountName
+$StorageContainerName = "guestconfiguration"
+$ConfigurationName = "CreateAdminUserDSCConfiguration"
+$GuestConfigurationPackageName = "$ConfigurationName.zip"
 #$GuestConfigurationPackageFullName  = "$CurrentDir\$ConfigurationName\$GuestConfigurationPackageName"
 
 #region From PowerShell
 #region Deploy prerequisites to enable Guest Configuration policies on virtual machines
 
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName
-$PolicyDefinition = Get-AzPolicySetDefinition | Where-Object -FilterScript { $_.Properties.DisplayName -eq "Deploy prerequisites to enable Guest Configuration policies on virtual machines"}
+$PolicyDefinition = Get-AzPolicySetDefinition | Where-Object -FilterScript { $_.Properties.DisplayName -eq "Deploy prerequisites to enable Guest Configuration policies on virtual machines" }
 $PolicyAssignment = New-AzPolicyAssignment -Name 'deployPrerequisitesForGuestConfigurationPolicies' -DisplayName 'Deploy prerequisites to enable Guest Configuration policies on virtual machines' -Scope $ResourceGroup.ResourceId -PolicySetDefinition $PolicyDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $Location
 
 # Grant defined roles with PowerShell
-$roleDefinitionIds = $PolicyDefinition.Properties.PolicyDefinitions | ForEach-Object -Process {  Get-AzPolicyDefinition -Id $_.policyDefinitionId | Select-Object @{n="roleDefinitionIds";e={$_.Properties.policyRule.then.details.roleDefinitionIds}} } | Select-Object -ExpandProperty roleDefinitionIds -Unique
+$roleDefinitionIds = $PolicyDefinition.Properties.PolicyDefinitions | ForEach-Object -Process { Get-AzPolicyDefinition -Id $_.policyDefinitionId | Select-Object @{n = "roleDefinitionIds"; e = { $_.Properties.policyRule.then.details.roleDefinitionIds } } } | Select-Object -ExpandProperty roleDefinitionIds -Unique
 Start-Sleep -Seconds 30
-if ($roleDefinitionIds.Count -gt 0)
-{
+if ($roleDefinitionIds.Count -gt 0) {
     $roleDefinitionIds | ForEach-Object {
         $roleDefId = $_.Split("/") | Select-Object -Last 1
-        if (-not(Get-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $roleDefId))
-        {
+        if (-not(Get-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $roleDefId)) {
             New-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $roleDefId
         }
     }
@@ -54,7 +52,7 @@ if ($roleDefinitionIds.Count -gt 0)
 $job = @() 
 # Start remediation for every policy definition
 $PolicyDefinition.Properties.PolicyDefinitions | ForEach-Object -Process {
-	Write-Host -Object "Creating remediation for Policy $($_.policyDefinitionReferenceId)"
+    Write-Host -Object "Creating remediation for Policy $($_.policyDefinitionReferenceId)"
     $job += Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignment.PolicyAssignmentId -PolicyDefinitionReferenceId $_.policyDefinitionReferenceId -Name $_.policyDefinitionReferenceId -ResourceGroupName $ResourceGroup.ResourceGroupName -ResourceDiscoveryMode ReEvaluateCompliance -AsJob
 }
 $remediation = $job | Wait-Job | Receive-Job #-Keep
@@ -69,13 +67,14 @@ Start-AzPolicyComplianceScan -ResourceGroupName $ResourceGroupName
 
 # Create a guest configuration package for Azure Policy GCS
 $GuestConfigurationPackage = New-GuestConfigurationPackage -Name $ConfigurationName -Configuration './CreateAdminUser/localhost.mof' -Type AuditAndSet -Force
+#Set-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -AllowBlobPublicAccess $true
+
 
 # Creates a new container
-if (-not($storageAccount | Get-AzStorageContainer -Name $StorageContainerName -ErrorAction Ignore))
-{
+if (-not($storageAccount | Get-AzStorageContainer -Name $StorageContainerName -ErrorAction Ignore)) {
     $storageAccount | New-AzStorageContainer -Name $StorageContainerName -Permission Blob
 }
-$StorageAccountKey = (($storageAccount | Get-AzStorageAccountKey) | Where-Object -FilterScript {$_.KeyName -eq "key1"}).Value
+$StorageAccountKey = (($storageAccount | Get-AzStorageAccountKey) | Where-Object -FilterScript { $_.KeyName -eq "key1" }).Value
 $Context = New-AzStorageContext -ConnectionString "DefaultEndpointsProtocol=https;AccountName=$StorageAccountName;AccountKey=$StorageAccountKey"
 
 Set-AzStorageBlobContent -Container $StorageContainerName -File $GuestConfigurationPackage.Path -Blob $GuestConfigurationPackageName -Context $Context -Force
@@ -88,15 +87,15 @@ $ContentURI = New-AzStorageBlobSASToken -Context $Context -FullUri -Container $S
 $PolicyId = (New-Guid).Guid  
 # Define the parameters to create and publish the guest configuration policy
 $Params = @{
-  "PolicyId" =  $PolicyId
-  "ContentUri" =  $ContentURI
-  "DisplayName" = "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $ConfigurationName DSC Config."
-  "Description" = "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $ConfigurationName DSC Config."
-  "Path" =  './policies'
-  "Platform" =  'Windows'
-  "PolicyVersion" =  '1.0.0'
-  "Mode" =  'ApplyAndAutoCorrect'
-  "Verbose" = $true
+    "PolicyId"      = $PolicyId
+    "ContentUri"    = $ContentURI
+    "DisplayName"   = "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $ConfigurationName DSC Config."
+    "Description"   = "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $ConfigurationName DSC Config."
+    "Path"          = './policies'
+    "Platform"      = 'Windows'
+    "PolicyVersion" = '1.0.0'
+    "Mode"          = 'ApplyAndAutoCorrect'
+    "Verbose"       = $true
 }
 # Create the guest configuration policy
 $Policy = New-GuestConfigurationPolicy @Params
@@ -105,7 +104,7 @@ $PolicyDefinition = New-AzPolicyDefinition -Name "[Win]$ResourceGroupName-$Confi
 
 $NonComplianceMessage = [Microsoft.Azure.Commands.ResourceManager.Cmdlets.Entities.Policy.NonComplianceMessage]::new()
 $NonComplianceMessage.message = "Non Compliance Message"
-$IncludeArcConnectedServers = @{'IncludeArcMachines'='true'}# <- IncludeArcMachines is important - given you want to target Arc as well as Azure VMs
+$IncludeArcConnectedServers = @{'IncludeArcMachines' = 'true' }# <- IncludeArcMachines is important - given you want to target Arc as well as Azure VMs
 
 $PolicyAssignment = New-AzPolicyAssignment -Name $ConfigurationName -DisplayName "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $ConfigurationName DSC Config." -Scope $ResourceGroup.ResourceId -PolicyDefinition $PolicyDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $Location -PolicyParameterObject $IncludeArcConnectedServers -NonComplianceMessage $NonComplianceMessage  
 
@@ -113,12 +112,10 @@ $PolicyAssignment = New-AzPolicyAssignment -Name $ConfigurationName -DisplayName
 # https://docs.microsoft.com/en-us/azure/governance/policy/how-to/remediate-resources#grant-defined-roles-with-PowerShell
 $roleDefinitionIds = $PolicyDefinition.Properties.policyRule.then.details.roleDefinitionIds
 Start-Sleep -Seconds 30
-if ($roleDefinitionIds.Count -gt 0)
-{
+if ($roleDefinitionIds.Count -gt 0) {
     $roleDefinitionIds | ForEach-Object {
         $roleDefId = $_.Split("/") | Select-Object -Last 1
-        if (-not(Get-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $roleDefId))
-        {
+        if (-not(Get-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $roleDefId)) {
             New-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $roleDefId
         }
     }

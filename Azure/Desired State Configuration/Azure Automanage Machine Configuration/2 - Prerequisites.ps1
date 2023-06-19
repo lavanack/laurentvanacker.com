@@ -37,18 +37,21 @@ $VSCodeExtension = [ordered]@{
     #'GitLens - Git supercharged' = 'eamodio.gitlens'
     #'Git File History' = 'pomber.git-file-history'
     'indent-rainbow' = 'oderwat.indent-rainbow'
-    'Azure Policy' = 'AzurePolicy.azurepolicyextension'
+    'Azure Policy'   = 'AzurePolicy.azurepolicyextension'
 }
-Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) } -AdditionalExtensions $($VSCodeExtension.Values -join ',')" -Verbose
+
+while (-not(Test-Path -Path "$env:ProgramFiles\Microsoft VS Code\Code.exe" -PathType Leaf)) {
+    Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) } -AdditionalExtensions $($VSCodeExtension.Values -join ',')" -Verbose
+} 
+
 #endregion
 
 #From https://docs.microsoft.com/en-us/azure/governance/policy/assign-policy-powershell
 Register-AzResourceProvider -ProviderNamespace Microsoft.GuestConfiguration
 Register-AzResourceProvider -ProviderNamespace Microsoft.PolicyInsights
 #Important: Wait until RegistrationState is set to Registered. 
-While (Get-AzResourceProvider -ProviderNamespace Microsoft.GuestConfiguration, Microsoft.PolicyInsights | Where-Object -FilterScript {$_.RegistrationState -ne 'Registered'})
-{
+While (Get-AzResourceProvider -ProviderNamespace Microsoft.GuestConfiguration, Microsoft.PolicyInsights | Where-Object -FilterScript { $_.RegistrationState -ne 'Registered' }) {
     Start-Sleep -Seconds 10
 }
 
-Start-Process -FilePath "C:\Program Files\Microsoft VS Code\Code.exe" -ArgumentList "`"$CurrentDir`""
+Start-Process -FilePath "$env:ProgramFiles\Microsoft VS Code\Code.exe" -ArgumentList "`"$CurrentDir`""
