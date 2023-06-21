@@ -370,9 +370,9 @@ function New-AAD-Hybrid-Lab {
         #Getting only the .ps1 file
         $DSCConfigurationFile = (Get-ChildItem -Path $DestinationFolder -Filter *.ps1 -File | Select-Object -First 1).Fullname
         #Getting only the module folders
-        $ModuleFolders = (Get-ChildItem -Path $DestinationFolder -Directory).FullName
+        #$ModuleFolders = (Get-ChildItem -Path $DestinationFolder -Directory).FullName
         #Copying the module folders locally to avoid an error when using the Publish-AzVMDscConfiguration cmdlet
-        Copy-Item -Path $ModuleFolders -Destination $env:ProgramFiles\WindowsPowerShell\Modules -Recurse -Force -Verbose
+        #Copy-Item -Path $ModuleFolders -Destination $env:ProgramFiles\WindowsPowerShell\Modules -Recurse -Force -Verbose
         $DSCConfigurationZipFileURI = Publish-AzVMDscConfiguration $DSCConfigurationFile -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Force -Verbose
         try {
             Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$(Split-Path -Path $DSCConfigurationZipFileURI -Leaf)" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $DSCConfigurationName -ConfigurationArgument $DSCConfigurationArguments -Version "2.80" -Location $Location -AutoUpdate -Verbose #-ErrorAction Ignore
