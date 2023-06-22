@@ -7,7 +7,8 @@ This is lab is based on the the one available on [https://aka.ms/m365avdws](http
 * More choices for the Azure resources names (based on a small naming convention - cf. [https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool](https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool))
 * A DNS entry for reaching the Domain Controller (Azure VM) (\<VMName\>.\<location\>.cloudapp.azure.com).
 * Adding the BGInfo extension
-* The DSC Configuration has been optimized to use the latest version of the DSC modules (xActiveDirectory --> ActiveDirectoryDSC, xNetworking --> NetworkingDSC and xComputerManagement --> ComputerManagementDSC) and the Script DSC resources used return the right boolean value (instead of hard-coded $false value) 
+* The DSC Configuration has been optimized to use the latest version of the DSC modules (xActiveDirectory --> ActiveDirectoryDSC, xNetworking --> NetworkingDSC and xComputerManagement --> ComputerManagementDSC) and the Script DSC resources used return the right boolean value (instead of hard-coded $false value)
+* Added an (empty) AVD Organizational Unit (for my needs)  
 
 ## Quick Start
 
