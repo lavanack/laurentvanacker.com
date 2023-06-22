@@ -861,7 +861,8 @@ Get-GPO -All | Where-Object -FilterScript {($_.DisplayName -match $($PooledHostP
 $HP = (Get-AzWvdHostPool | Where-Object -FilterScript {$_.Name -in $($PooledHostPools.Name)})
 $RG = $HP | ForEach-Object { Get-AzResourceGroup $_.Id.split('/')[4]}
 $RG | Remove-AzResourceGroup -WhatIf
-$RG | Remove-AzResourceLock -LockName DenyDelete -Force -ErrorAction Ignore
+#$RG | Remove-AzResourceLock -LockName DenyDelete -Force -ErrorAction Ignore
+$RG | Get-AzResourceLock | Where-Object {$_.Properties.level -eq "CanNotDelete"} | Remove-AzResourceLock -Force -ErrorAction Ignore
 
 #$Jobs = $RG | Remove-AzResourceGroup -Force -AsJob -Verbose
 $Jobs | Wait-Job
