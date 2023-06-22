@@ -13,7 +13,7 @@ Table of content:
 ## Context
 
 [Azure Naming Tool ](https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool) (part of the Microsoft [CloudAdoptionFramework](https://github.com/microsoft/CloudAdoptionFramework)) was developed using a naming pattern based on [Microsoft's best practices](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/naming-and-tagging). Once an administrator has defined the organizational components, users can use the tool to generate a name for the desired Azure resource.
-I proposed here two versions for deploying this tool: via [AutomatedLab](#automatedlab-version) and directly inside an [Azure](#azure-version) VM ([Run as a Stand-Alone Site](https://github.com/microsoft/CloudAdoptionFramework/blob/master/ready/AzNamingTool/INSTALLATION.md#run-as-a-stand-alone-site) inside IIS in both cases with only anonymous authentication - you can change that if your want) 
+I proposed here two versions for deploying this tool: via [AutomatedLab](#automatedlab-version) and directly inside an [Azure](#azure-version) VM ([Run as a Stand-Alone Site](https://github.com/microsoft/CloudAdoptionFramework/blob/master/ready/AzNamingTool/INSTALLATION.md#run-as-a-stand-alone-site) inside IIS in both cases with only anonymous authentication - you can change that if you want) 
 
 ## Azure Version
 
