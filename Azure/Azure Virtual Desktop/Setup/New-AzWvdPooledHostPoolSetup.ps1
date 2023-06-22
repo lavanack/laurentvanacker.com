@@ -50,16 +50,23 @@ function New-AzWvdPooledHostPoolSetup {
         if (-not($PooledDesktopsOU)) {
             $PooledDesktopsOU = New-ADOrganizationalUnit -Name "PooledDesktops" -Path $AVDRootOU.DistinguishedName -ProtectedFromAccidentalDeletion $false -PassThru
         }
-
-        #region These Starter GPO include policy settings to configure the firewall rules required for GPO operations
-        if (-not(Get-GPO -Name "Group Policy Reporting Firewall Ports" -ErrorAction Ignore))
-        {
+        #region Starter GPOs Management
+        try {
+            $null = Get-GPStarterGPO -Name "Group Policy Reporting Firewall Ports"
+            $null = Get-GPStarterGPO -Name "Group Policy Reporting Firewall Ports"
+        }
+        catch {
+            Write-Warning "The required starter GPOs are not installed. Please click on the 'Create Starter GPOs Folder' under Group Policy Management / Forest / Domains / $((Get-ADDomain).DNSRoot) / Starter GPOs "
+            Start-Process -FilePath $env:ComSpec -ArgumentList "/c", "gpmc.msc" -Wait
+        }
+        #region These Starter GPOs include policy settings to configure the firewall rules required for GPO operations
+        if (-not(Get-GPO -Name "Group Policy Reporting Firewall Ports" -ErrorAction Ignore)) {
             Get-GPStarterGPO -Name "Group Policy Reporting Firewall Ports" | New-GPO -Name "Group Policy Reporting Firewall Ports" | New-GPLink -Target $AVDRootOU.DistinguishedName -LinkEnabled Yes -ErrorAction Ignore
         }
-        if (-not(Get-GPO -Name "Group Policy Remote Update Firewall Ports" -ErrorAction Ignore))
-        {
+        if (-not(Get-GPO -Name "Group Policy Remote Update Firewall Ports" -ErrorAction Ignore)) {
             Get-GPStarterGPO -Name "Group Policy Remote Update Firewall Ports" | New-GPO -Name "Group Policy Remote Update Firewall Ports" | New-GPLink -Target $AVDRootOU.DistinguishedName -LinkEnabled Yes -ErrorAction Ignore
         }
+        #endregion
         #endregion
         #endregion
 
@@ -195,10 +202,12 @@ function New-AzWvdPooledHostPoolSetup {
             #endregion
 
             #region Run a sync with Azure AD
-            Start-Service -Name ADSync -Verbose
-            Import-Module -Name "C:\Program Files\Microsoft Azure AD Sync\Bin\ADSync"
-            if (-not(Get-ADSyncConnectorRunStatus)) {
-                Start-ADSyncSyncCycle -PolicyType Delta
+            if (Get-Service -Name ADSync -ErrorAction Ignore) {
+                Start-Service -Name ADSync -Verbose
+                Import-Module -Name "C:\Program Files\Microsoft Azure AD Sync\Bin\ADSync"
+                if (-not(Get-ADSyncConnectorRunStatus)) {
+                    Start-ADSyncSyncCycle -PolicyType Delta
+                }
             }
             #endregion 
             #endregion
@@ -252,11 +261,9 @@ function New-AzWvdPooledHostPoolSetup {
             $Changed = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")
             #$ADGroupToExcludeFromFSLogix = @('Domain Admins', 'Enterprise Admins')
             $ADGroupToExcludeFromFSLogix = @('Domain Admins')
-            $Members = foreach ($CurrentADGroupToExcludeFromFSLogix in $ADGroupToExcludeFromFSLogix)
-            {
+            $Members = foreach ($CurrentADGroupToExcludeFromFSLogix in $ADGroupToExcludeFromFSLogix) {
                 $CurrentADGroupToExcludeFromFSLogixSID = (Get-ADGroup -Filter "Name -eq '$CurrentADGroupToExcludeFromFSLogix'").SID.Value
-                if (-not([string]::IsNullOrEmpty($CurrentADGroupToExcludeFromFSLogixSID)))
-                {
+                if (-not([string]::IsNullOrEmpty($CurrentADGroupToExcludeFromFSLogixSID))) {
                     "<Member name=""$((Get-ADDomain).NetBIOSName)\$CurrentADGroupToExcludeFromFSLogix"" action=""ADD"" sid=""$CurrentADGroupToExcludeFromFSLogixSID""/>"
                 }
             }
@@ -284,12 +291,12 @@ function New-AzWvdPooledHostPoolSetup {
             #region GPT.INI Management
             $GPTINIGPOFilePath = "\\{0}\SYSVOL\{0}\Policies\{{{1}}}\GPT.INI" -f ($(Get-ADDomain).DNSRoot), $($CurrentPooledHostPoolFSLogixGPO.Id)
             Write-Verbose -Message "Processing [$GPTINIGPOFilePath]"
-            $result =  Select-string -Pattern "(Version)=(\d+)" -AllMatches -Path $GPTINIGPOFilePath
+            $result = Select-string -Pattern "(Version)=(\d+)" -AllMatches -Path $GPTINIGPOFilePath
             #Getting current version
             [int]$VersionNumber = $result.Matches.Groups[-1].Value
             Write-Verbose -Message "Version Number: $VersionNumber"
             #Increasing current version
-            $VersionNumber+=2
+            $VersionNumber += 2
             Write-Verbose -Message "New Version Number: $VersionNumber"
             #Updating file
             (Get-Content $GPTINIGPOFilePath -Encoding UTF8) -replace "(Version)=(\d+)", "`$1=$VersionNumber" | Set-Content $GPTINIGPOFilePath -Encoding UTF8
@@ -304,9 +311,8 @@ function New-AzWvdPooledHostPoolSetup {
             $RegExPattern = $gPCmachineExtensionNamesToAdd -replace "(\W)" , '\$1'
             $GPOADObject = Get-ADObject -LDAPFilter "CN={$($CurrentPooledHostPoolFSLogixGPO.Id.Guid)}" -Properties gPCmachineExtensionNames
             #if (-not($GPOADObject.gPCmachineExtensionNames.StartsWith($gPCmachineExtensionNamesToAdd)))
-            if ($GPOADObject.gPCmachineExtensionNames -notmatch $RegExPattern)
-            {
-                $GPOADObject | Set-ADObject -Replace @{gPCmachineExtensionNames=$($gPCmachineExtensionNamesToAdd + $GPOADObject.gPCmachineExtensionNames)}
+            if ($GPOADObject.gPCmachineExtensionNames -notmatch $RegExPattern) {
+                $GPOADObject | Set-ADObject -Replace @{gPCmachineExtensionNames = $($gPCmachineExtensionNamesToAdd + $GPOADObject.gPCmachineExtensionNames) }
                 Get-ADObject -LDAPFilter "CN={$($CurrentPooledHostPoolFSLogixGPO.Id.Guid)}" -Properties gPCmachineExtensionNames
             }
             #endregion
@@ -513,10 +519,12 @@ function New-AzWvdPooledHostPoolSetup {
             #endregion
 
             #region Run a sync with Azure AD
-            Start-Service -Name ADSync -Verbose
-            Import-Module -Name "C:\Program Files\Microsoft Azure AD Sync\Bin\ADSync"
-            if (-not(Get-ADSyncConnectorRunStatus)) {
-                Start-ADSyncSyncCycle -PolicyType Delta
+            if (Get-Service -Name ADSync -ErrorAction Ignore) {
+                Start-Service -Name ADSync -Verbose
+                Import-Module -Name "C:\Program Files\Microsoft Azure AD Sync\Bin\ADSync"
+                if (-not(Get-ADSyncConnectorRunStatus)) {
+                    Start-ADSyncSyncCycle -PolicyType Delta
+                }
             }
             #endregion 
             #endregion
@@ -796,22 +804,18 @@ Set-Location -Path $CurrentDir
 Get-PackageProvider -Name NuGet -Force -Verbose
 $RequiredModules = 'Az.Accounts', 'Az.DesktopVirtualization', 'Az.Network', 'Az.Resources', 'Az.Storage', 'PowerShellGet'
 $InstalledModule = Get-InstalledModule -Name $RequiredModules -ErrorAction Ignore
-if (-not([String]::IsNullOrEmpty($InstalledModule)))
-{
-    $MissingModules  = (Compare-Object -ReferenceObject $RequiredModules -DifferenceObject (Get-InstalledModule -Name $RequiredModules -ErrorAction Ignore).Name).InputObject
+if (-not([String]::IsNullOrEmpty($InstalledModule))) {
+    $MissingModules = (Compare-Object -ReferenceObject $RequiredModules -DifferenceObject (Get-InstalledModule -Name $RequiredModules -ErrorAction Ignore).Name).InputObject
 }
-else
-{
-    $MissingModules  = $RequiredModules
+else {
+    $MissingModules = $RequiredModules
 }
-if (-not([String]::IsNullOrEmpty($MissingModules)))
-{
+if (-not([String]::IsNullOrEmpty($MissingModules))) {
     Install-Module -Name $MissingModules -Force -Verbose
 }
 
 #region Azure Connection
-if (-not(Get-AzContext))
-{
+if (-not(Get-AzContext)) {
     Connect-AzAccount
     Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
 }
@@ -864,11 +868,13 @@ $Jobs | Wait-Job
 $Jobs | Remove-Job
 #endregion
 #region Run a sync with Azure AD
-Start-Service -Name ADSync -Verbose
-Import-Module -Name "C:\Program Files\Microsoft Azure AD Sync\Bin\ADSync"
-if (-not(Get-ADSyncConnectorRunStatus))
+if (Get-Service -Name ADSync -ErrorAction Ignore)
 {
-    Start-ADSyncSyncCycle -PolicyType Delta
+    Start-Service -Name ADSync -Verbose
+    Import-Module -Name "C:\Program Files\Microsoft Azure AD Sync\Bin\ADSync"
+    if (-not(Get-ADSyncConnectorRunStatus)) {
+        Start-ADSyncSyncCycle -PolicyType Delta
+    }
 }
 #endregion 
 #endregion 
@@ -878,7 +884,7 @@ New-AzWvdPooledHostPoolSetup -PooledHostPool $PooledHostPools -Verbose
 #Or pipeline processing call
 #$PooledHostPools | New-AzWvdPooledHostPoolSetup 
 #(Get-ADComputer -Filter 'DNSHostName -like "*"').Name | Invoke-GPUpdate -Force -Verbose
-Invoke-Command -ComputerName $((Get-ADComputer -Filter 'DNSHostName -like "*"').Name) -ScriptBlock { gpupdate /force /wait:-1 /target:computer} 
-Invoke-Command -ComputerName $((Get-ADComputer -Filter 'DNSHostName -like "*"').Name) -ScriptBlock { Get-LocalGroupMember -Group "FSLogix Profile Exclude List" -ErrorAction Ignore}
+Invoke-Command -ComputerName $((Get-ADComputer -Filter 'DNSHostName -like "*"').Name) -ScriptBlock { gpupdate /force /wait:-1 /target:computer } 
+Invoke-Command -ComputerName $((Get-ADComputer -Filter 'DNSHostName -like "*"').Name) -ScriptBlock { Get-LocalGroupMember -Group "FSLogix Profile Exclude List" -ErrorAction Ignore }
 #endregion
 #endregion
