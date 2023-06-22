@@ -49,9 +49,12 @@ Function Get-RDCManCredential
                     $domainName = $currentLogonCredential.Domain
                     $SecurePasswordStr = $currentLogonCredential.password
                     $SecurePassword = [System.Convert]::FromBase64String($SecurePasswordStr)
-                    $PasswordBytes = [Security.Cryptography.ProtectedData]::Unprotect($SecurePassword, $null, [Security.Cryptography.DataProtectionScope]::LocalMachine)
-                    $ClearTextPassword = [System.Text.Encoding]::Unicode.GetString($PasswordBytes)
-                    [PSCustomObject]@{FullName=$CurrentFullName; ServerName=$serverName; DomainName=$domainName; UserName=$userName; Password=$ClearTextPassword}
+                    if (-not([string]::IsNullOrEmpty($SecurePassword)))
+                    {
+                        $PasswordBytes = [Security.Cryptography.ProtectedData]::Unprotect($SecurePassword, $null, [Security.Cryptography.DataProtectionScope]::LocalMachine)
+                        $ClearTextPassword = [System.Text.Encoding]::Unicode.GetString($PasswordBytes)
+                        [PSCustomObject]@{FullName=$CurrentFullName; ServerName=$serverName; DomainName=$domainName; UserName=$userName; Password=$ClearTextPassword}
+                    }
                 }
             }
         }
