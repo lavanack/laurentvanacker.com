@@ -18,11 +18,15 @@ of the Sample Code.
 #requires -Version 5
 
 function Remove-Credential{
-    [CmdletBinding(SupportsShouldProcess = $true)]
+    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact='High')]
     Param
     (
     )
-
+    if (-not(Get-AzContext))
+    {
+        Write-Verbose -Message "No account connection to Azure detected ..."
+        Connect-AzAccount
+    }
     Clear-Host
     $AzureCredentials = cmdkey /list | Select-string -Pattern "=(TERMSRV/)?((.*)\.(.*)\.cloudapp\.azure\.com)" -AllMatches
     if ($AzureCredentials.Matches)
@@ -48,4 +52,4 @@ function Remove-Credential{
     }
 }
 
-Remove-Credential -Verbose #-WhatIf
+Remove-Credential -Verbose #-Confirm:$false #-WhatIf
