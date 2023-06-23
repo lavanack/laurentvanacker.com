@@ -17,7 +17,7 @@ of the Sample Code.
 #>
 #requires -Version 5
 
-function Remove-Credential {
+function Remove-Credential{
     [CmdletBinding(SupportsShouldProcess = $true)]
     Param
     (
@@ -25,18 +25,21 @@ function Remove-Credential {
 
     Clear-Host
     $AzureCredentials = cmdkey /list | Select-string -Pattern "=(TERMSRV/)?((.*)\.(.*)\.cloudapp\.azure\.com)" -AllMatches
-    if ($AzureCredentials.Matches) {
+    if ($AzureCredentials.Matches)
+    {
         $AzureCredentials.Matches | ForEach-Object -Process { 
             $TERMSRV = $($_.Groups[1].Value)
             $DNSName = $_.Groups[2].Value
             $VMName = $_.Groups[3].Value
             $Location = $_.Groups[4].Value
             $AzVM = Get-AzVM -Name $VMName 
-            if (($AzVM) -and ($AzVM.Location -eq $Location)) {
+            if (($AzVM) -and ($AzVM.Location -eq $Location))
+            {
                 Write-Verbose -Message "$VMName ($DNSName) Azure VM exists"
             }
-            else {
-                If ($pscmdlet.ShouldProcess($DNSName, 'Removing Credential from the Windows Credential Manager')) {
+            else
+            {
+				If ($pscmdlet.ShouldProcess($DNSName, 'Removing Credential from the Windows Credential Manager')) {
                     Write-Warning -Message "$VMName ($DNSName) Azure VM doesn't exist. The related credentials will be removed from the Windows Credential Manager"
                     Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /delete:$TERMSRV$DNSName" -Wait
                 }
@@ -45,4 +48,4 @@ function Remove-Credential {
     }
 }
 
-Remove-Credential #-Verbose #-WhatIf
+Remove-Credential -Verbose #-WhatIf
