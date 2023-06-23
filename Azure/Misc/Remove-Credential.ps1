@@ -35,7 +35,7 @@ function Remove-Credential{
             $AzVM = Get-AzVM -Name $VMName 
             if (($AzVM) -and ($AzVM.Location -eq $Location))
             {
-                Write-Verbose -Message "$VMName ($DNSName) Azure VM exists"
+                Write-Verbose -Message "$VMName ($DNSName) Azure VM exists. The related credentials will stay into the Windows Credential Manager"
             }
             else
             {
