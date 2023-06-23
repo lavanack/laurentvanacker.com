@@ -190,7 +190,9 @@ Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 Set-AzVMOperatingSystem -VM $VMConfig -Windows -ComputerName $VMName -Credential $Credential
 
 # Set boot diagnostic storage account
-Set-AzVMBootDiagnostic -Enable -ResourceGroupName $ResourceGroupName -VM $VMConfig -StorageAccountName $StorageAccountName    
+#Set-AzVMBootDiagnostic -Enable -ResourceGroupName $ResourceGroupName -VM $VMConfig -StorageAccountName $StorageAccountName    
+# Set boot diagnostic to managed storage account
+Set-AzVMBootDiagnostic -VM $VMConfig -Enable 
 
 # The line below replaces Step #8 : Set virtual machine source image
 Set-AzVMSourceImage -VM $VMConfig -PublisherName $ImagePublisherName -Offer $ImageOffer -Skus $ImageSku -Version 'latest'
