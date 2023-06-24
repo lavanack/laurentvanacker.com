@@ -17,7 +17,7 @@ of the Sample Code.
 #>
 #requires -Version 5
 
-function Remove-Credential{
+function Remove-AzVMStaleCredential{
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact='High')]
     Param
     (
@@ -52,4 +52,4 @@ function Remove-Credential{
     }
 }
 
-Remove-Credential -Verbose #-Confirm:$false #-WhatIf
+Remove-AzVMStaleCredential -Verbose -Confirm:$false #-WhatIf
