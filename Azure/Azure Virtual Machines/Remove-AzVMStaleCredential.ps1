@@ -26,6 +26,7 @@ function Remove-AzVMStaleCredential{
     {
         Write-Verbose -Message "No account connection to Azure detected ..."
         Connect-AzAccount
+        Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
     }
     Clear-Host
     $AzureCredentials = cmdkey /list | Select-string -Pattern "=(TERMSRV/)?((.*)\.(.*)\.cloudapp\.azure\.com)" -AllMatches
