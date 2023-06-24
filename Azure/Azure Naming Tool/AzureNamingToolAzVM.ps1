@@ -133,10 +133,6 @@ if ($ResourceGroup) {
     $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
 }
 $MyPublicIp = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
-$DSCFileName = "WebServerDSC.ps1"
-$DSCFilePath = Join-Path -Path $CurrentDir -ChildPath $DSCFileName
-$ConfigurationName = "WebServerConfiguration"
-
 
 #region Define Variables needed for Virtual Machine
 $ImagePublisherName = "MicrosoftWindowsServer"
