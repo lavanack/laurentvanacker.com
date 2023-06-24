@@ -42,8 +42,6 @@ Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 #region Global variables definition
 $Logon = 'Administrator'
 $ClearTextPassword = 'P@ssw0rd'
-$SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
-$NetBiosDomainName = 'CONTOSO'
 $FQDNDomainName = 'contoso.com'
 
 $AzureNamingToolNetBiosName = 'azurenamingtool'
@@ -189,7 +187,7 @@ Install-LabSoftwarePackage -ComputerName IIS01 -Path $ASPNetCoreHostingBundle.Fu
 
 #region Downloading and Installing .Net SDK for creating the web app
 $NetSDK = Get-LabInternetFile -Uri $NetSDKURI -Path $labSources\SoftwarePackages -PassThru -Force
-$Result = Install-LabSoftwarePackage -ComputerName IIS01 -Path $NetSDK.FullName -CommandLine "/install /passive /norestart" -PassThru
+$null = Install-LabSoftwarePackage -ComputerName IIS01 -Path $NetSDK.FullName -CommandLine "/install /passive /norestart" -PassThru
 #endregion
 
 Restart-LabVM -ComputerName IIS01 -Wait
