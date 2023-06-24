@@ -94,7 +94,8 @@ $VirtualNetworkPrefix = "vnet"
 $SubnetPrefix = "vnets"
 $Project = "kv"
 $Role = "https"
-$DigitNumber = 4
+#$DigitNumber = 4
+$DigitNumber = $AzureVMNameMaxLength-($VirtualMachinePrefix+$Project+$Role+$LocationShortName).Length
 $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
 $CertificateName = "mycert"
 

@@ -93,7 +93,8 @@ $VirtualNetworkPrefix = "vnet"
 $SubnetPrefix = "vnets"
 $Project = "dsc"
 $Role = "ext"
-$DigitNumber = 4
+#$DigitNumber = 4
+$DigitNumber = $AzureVMNameMaxLength-($VirtualMachinePrefix+$Project+$Role+$LocationShortName).Length
 $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
 
 Do {
