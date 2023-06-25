@@ -93,7 +93,7 @@ $NetworkSecurityGroupPrefix = "nsg"
 $VirtualNetworkPrefix = "vnet"
 $SubnetPrefix = "vnets"
 $Project = "kv"
-$Role = "https"
+$Role = "cert"
 #$DigitNumber = 4
 $DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role + $LocationShortName).Length
 $CertificateName = "mycert"
@@ -193,6 +193,8 @@ $SecurityRules = @(
     New-AzNetworkSecurityRuleConfig -Name HTTPRule -Description "Allow HTTP" -Access Allow -Protocol Tcp -Direction Inbound -Priority 301 -SourceAddressPrefix $MyPublicIp -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 80
     #HTTPS only for my public IP address
     New-AzNetworkSecurityRuleConfig -Name HTTPSRule -Description "Allow HTTPS" -Access Allow -Protocol Tcp -Direction Inbound -Priority 302 -SourceAddressPrefix $MyPublicIp -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 443
+    #WinRM only for my public IP address
+    New-AzNetworkSecurityRuleConfig -Name WinRMRule -Description "Allow WinRM" -Access Allow -Protocol Tcp -Direction Inbound -Priority 303 -SourceAddressPrefix $MyPublicIp -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 5985, 5986
     #endregion
 )
 
@@ -221,13 +223,42 @@ $ImageSku = Get-AzVMImageSku -Location  $Location -publisher $ImagePublisherName
 $image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer -sku $ImageSku.Skus | Sort-Object -Property Version -Descending | Select-Object -First 1
 #>
 
+#region Setting up the Key Vault for HTTPS and WinRM
+
+#Create an Azure Key Vault
+$Vault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $location -EnabledForDeployment -EnabledForTemplateDeployment
+#As the owner of the key vault, you automatically have access to create secrets. If you need to let another user create secrets, use:
+#$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -UserPrincipalName $UserPrincipalName -PermissionsToSecrets Get,Delete,List,Set -PassThru
+
+#Generate a certificate and store in Key Vault
+$Policy = New-AzKeyVaultCertificatePolicy -SubjectName "CN=$FQDN" -SecretContentType "application/x-pkcs12" -IssuerName Self -ValidityInMonths 12
+Add-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $CertificateName -CertificatePolicy $Policy
+
+While (-not((Get-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $CertificateName).SecretId)) {
+    Write-Host "Sleeping 30 seconds ..."
+    Start-Sleep 30
+}
+
+#Add a certificate to VM from Key Vault
+$CertificateThumbprint = (Get-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $CertificateName).Certificate.Thumbprint
+$CertUrl = (Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name $CertificateName).id
+#endregion 
+
 # Step 9: Create a virtual machine configuration file (As a Spot Intance)
 $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1
 
 Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 
 # Set VM operating system parameters
-Set-AzVMOperatingSystem -VM $VMConfig -Windows -ComputerName $VMName -Credential $Credential
+Set-AzVMOperatingSystem -VM $VMConfig -Windows -ComputerName $VMName -Credential $Credential -WinRMHttp -WinRMHttps -ProvisionVMAgent -WinRMCertificateUrl $CertUrl
+
+#region Referencing your self-signed certificates URL while creating a VM
+#From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/connect-winrm
+$VaultId = $Vault.ResourceId
+$CertificateStore = "My"
+$VMConfig = Add-AzVMSecret -VM $VMConfig -SourceVaultId $VaultId -CertificateStore $CertificateStore -CertificateUrl $CertUrl
+#$VMConfig | Update-AzVM -Verbose
+#endregion 
 
 # Set boot diagnostic storage account
 #Set-AzVMBootDiagnostic -Enable -ResourceGroupName $ResourceGroupName -VM $VMConfig -StorageAccountName $StorageAccountName    
@@ -306,33 +337,6 @@ New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Pro
 #Step 11: Start Azure Virtual Machine
 Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 
-#region Setting up the Key Vault for HTTPS
-
-#Create an Azure Key Vault
-$Vault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $location -EnabledForDeployment
-#As the owner of the key vault, you automatically have access to create secrets. If you need to let another user create secrets, use:
-#$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -UserPrincipalName $UserPrincipalName -PermissionsToSecrets Get,Delete,List,Set -PassThru
-
-#Generate a certificate and store in Key Vault
-$Policy = New-AzKeyVaultCertificatePolicy -SubjectName "CN=$FQDN" -SecretContentType "application/x-pkcs12" -IssuerName Self -ValidityInMonths 12
-Add-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $CertificateName -CertificatePolicy $Policy
-
-While (-not((Get-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $CertificateName).SecretId)) {
-    Write-Host "Sleeping 30 seconds ..."
-    Start-Sleep 30
-}
-
-#Add a certificate to VM from Key Vault
-#$CertUrl=(Get-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $CertificateName).SecretId
-#$VaultId=(Get-AzKeyVault -ResourceGroupName $ResourceGroupName -VaultName $KeyVaultName).ResourceId
-
-$CertificateThumbprint = (Get-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $CertificateName).Certificate.Thumbprint
-$CertUrl = (Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name $CertificateName).id
-$VaultId = $Vault.ResourceId
-$VM = Add-AzVMSecret -VM $VM -SourceVaultId $VaultId -CertificateStore "My" -CertificateUrl $CertUrl
-$VM | Update-AzVM -Verbose
-#endregion 
-
 #region Setting up the DSC extension
 
 # Publishing DSC Configuration for AutomatedLab via Hyper-V (Nested Virtualization)
@@ -356,3 +360,6 @@ Start-Sleep -Seconds 15
 Start-Process -FilePath "https://$FQDN"
 mstsc /v $FQDN
 Write-Host -Object "Your RDP credentials (login/password) are $($Credential.UserName)/$($Credential.GetNetworkCredential().Password)" -ForegroundColor Green
+
+#Step 14: Start WinRM Session
+Enter-PSSession -ConnectionUri "https://$($FQDN):5986" -Credential $Credential -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck) -Authentication Negotiate
