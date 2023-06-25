@@ -81,7 +81,7 @@ $AzureVMNameMaxLength = 15
 $RDPPort = 3389
 $JitPolicyTimeInHours = 3
 $JitPolicyName = "Default"
-$Location = "eastus"
+$Location = "westus3"
 $VMSize = "Standard_D4s_v5"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
@@ -344,6 +344,7 @@ Start-Sleep -Seconds 15
 mstsc /v $FQDN
 Write-Host -Object "Your RDP credentials (login/password) are $($Credential.UserName)/$($Credential.GetNetworkCredential().Password)" -ForegroundColor Green
 
+#region Remote (via PowerShell Remoting/WinRM) Azure Arc OnBoarding
 #Step 14: Start WinRM Session
 $Session = New-PSSession -ConnectionUri "https://$($FQDN):5986" -Credential $Credential -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck) -Authentication Negotiate
 #Enter-PSSession -Session $Session
@@ -354,5 +355,5 @@ $ScriptBlock = {
 }
 Invoke-Command -Session $Session -ScriptBlock $ScriptBlock -Verbose
 Connect-AzConnectedMachine -ResourceGroupName $ResourceGroupName -Location $Location -PSSession $Session
-
 $Session | Remove-PSSession 
+#endregion
