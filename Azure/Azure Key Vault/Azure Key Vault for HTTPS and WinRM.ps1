@@ -362,4 +362,5 @@ mstsc /v $FQDN
 Write-Host -Object "Your RDP credentials (login/password) are $($Credential.UserName)/$($Credential.GetNetworkCredential().Password)" -ForegroundColor Green
 
 #Step 14: Start WinRM Session
-Enter-PSSession -ConnectionUri "https://$($FQDN):5986" -Credential $Credential -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck) -Authentication Negotiate
+#Enter-PSSession -ConnectionUri "https://$($FQDN):5986" -Credential $Credential -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck) -Authentication Negotiate
+Invoke-Command -ConnectionUri "https://$($FQDN):5986" -Credential $Credential -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck) -Authentication Negotiate -ScriptBlock { "Hello from a remote Powershell Session from $($using:FQDN)" }
