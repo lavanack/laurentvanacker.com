@@ -81,7 +81,7 @@ $AzureVMNameMaxLength = 15
 $RDPPort = 3389
 $JitPolicyTimeInHours = 3
 $JitPolicyName = "Default"
-$Location = "eastus"
+$Location = "westus3"
 $VMSize = "Standard_D4s_v5"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
