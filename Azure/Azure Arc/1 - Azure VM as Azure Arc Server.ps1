@@ -357,3 +357,6 @@ Invoke-Command -Session $Session -ScriptBlock $ScriptBlock -Verbose
 Connect-AzConnectedMachine -ResourceGroupName $ResourceGroupName -Location $Location -PSSession $Session
 $Session | Remove-PSSession 
 #endregion
+
+#Opening the dedicated Azure portal page
+Start-Process -FilePath "https://portal.azure.com/#blade/HubsExtension/BrowseResource/resourceType/Microsoft.HybridCompute%2Fmachines"
