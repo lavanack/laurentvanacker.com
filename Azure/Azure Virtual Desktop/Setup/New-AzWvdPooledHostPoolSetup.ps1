@@ -15,17 +15,61 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-##requires -Version 5 -Modules Az.Accounts, Az.DesktopVirtualization, Az.Network, Az.Resources, Az.Storage, PowerShellGet -RunAsAdministrator 
+##requires -Version 5 -Modules Az.Accounts, Az.DesktopVirtualization, Az.Network, Az.KeyVault, Az.Resources, Az.Storage, PowerShellGet -RunAsAdministrator 
 #requires -Version 5 -RunAsAdministrator 
 
 #It is recommended not locate FSLogix on same storage as MSIX packages in production environment, 
 #To run from a Domain Controller
 
 #region Function definitions
+function Get-AzKeyVaultNameAvailability {
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+        [alias('Name')]
+        [string]$VaultName
+    )
+    #region Azure Context
+    # Log in first with Connect-AzAccount if not using Cloud Shell
+
+    $azContext = Get-AzContext
+    $SubcriptionID = $azContext.Subscription.Id
+    $azProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile
+    $profileClient = New-Object -TypeName Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient -ArgumentList ($azProfile)
+    $token = $profileClient.AcquireAccessToken($azContext.Subscription.TenantId)
+    $authHeader = @{
+        'Content-Type'  = 'application/json'
+        'Authorization' = 'Bearer ' + $token.AccessToken
+    }
+    #endregion
+    $Body = [ordered]@{ 
+        "name" = $VaultName
+        "type" = "Microsoft.KeyVault/vaults"
+    }
+
+    $URI = "https://management.azure.com/subscriptions/$SubcriptionID/providers/Microsoft.KeyVault/checkNameAvailability?api-version=2022-07-01"
+    try {
+        # Invoke the REST API
+        $Response = Invoke-RestMethod -Method POST -Headers $authHeader -Body $($Body | ConvertTo-Json) -ContentType "application/json" -Uri $URI -ErrorVariable ResponseError
+    }
+    catch [System.Net.WebException] {   
+        # Dig into the exception to get the Response details.
+        # Note that value__ is not a typo.
+        Write-Warning -Message "StatusCode: $($_.Exception.Response.StatusCode.value__ )"
+        Write-Warning -Message "StatusDescription: $($_.Exception.Response.StatusDescription)"
+        $respStream = $_.Exception.Response.GetResponseStream()
+        $reader = New-Object System.IO.StreamReader($respStream)
+        $Response = $reader.ReadToEnd() | ConvertFrom-Json
+        Write-Warning -Message $Response.message
+    }
+    finally {
+    }
+    return $Response
+}
+
 function New-AzWvdPooledHostPoolSetup {
     [CmdletBinding()]
     Param(
-        #The Word Document to convert
         [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
         [alias('Name')]
         [object[]]$PooledHostPool
@@ -137,6 +181,7 @@ function New-AzWvdPooledHostPoolSetup {
 
         $SKUName = "Standard_ZRS"
         $CurrentPooledHostPoolStorageAccountNameMaxLength = 24
+        $CurrentPooledHostPoolKeyVaultNameMaxLength = 24
 
         #From https://www.youtube.com/watch?v=lvBiLj7oAG4&t=2s
         $RedirectionsXMLFileContent = @'
@@ -176,6 +221,7 @@ function New-AzWvdPooledHostPoolSetup {
             #endregion
 
             #region FSLogix
+
             #region FSLogix AD Management
 
             #region Dedicated HostPool AD group
@@ -491,7 +537,11 @@ function New-AzWvdPooledHostPoolSetup {
             #endregion
             #endregion
 
+            #endregion
+
             #region MSIX
+
+            #region MSIX AD Management
             #region Dedicated HostPool AD group
 
             #region Dedicated HostPool AD FSLogix groups
@@ -527,10 +577,10 @@ function New-AzWvdPooledHostPoolSetup {
                 }
             }
             #endregion 
-            #endregion
+            #endregion 
 
-            #region FSLogix Storage Account Management
-            #region FSLogix Storage Account Name Setup
+            #region MSIX Storage Account Management
+            #region MSIX Storage Account Name Setup
             $CurrentPooledHostPoolStorageAccountName = "msix{0}" -f $($CurrentPooledHostPool.Name -replace "\W")
             $CurrentPooledHostPoolStorageAccountName = $CurrentPooledHostPoolStorageAccountName.Substring(0, [system.math]::min($CurrentPooledHostPoolStorageAccountNameMaxLength, $CurrentPooledHostPoolStorageAccountName.Length)).ToLower()
             #endregion 
@@ -681,6 +731,34 @@ function New-AzWvdPooledHostPoolSetup {
             }
             #endregion
 
+            #endregion
+
+            #region Key Vault
+            #region Key Vault Name Setup
+            $CurrentPooledHostPoolKeyVaultName = "kv{0}" -f $($CurrentPooledHostPool.Name -replace "\W")
+            $CurrentPooledHostPoolKeyVaultName = $CurrentPooledHostPoolKeyVaultName.Substring(0, [system.math]::min($CurrentPooledHostPoolKeyVaultNameMaxLength, $CurrentPooledHostPoolKeyVaultName.Length)).ToLower()
+            #endregion 
+
+            #region Dedicated Resource Group Management (1 per HostPool)
+            $CurrentPooledHostPoolResourceGroupName = "rg-avd-$($CurrentPooledHostPool.Name.ToLower())"
+
+            $CurrentPooledHostPoolResourceGroup = Get-AzResourceGroup -Name $CurrentPooledHostPoolResourceGroupName -Location $CurrentPooledHostPool.Location -ErrorAction Ignore
+            if (-not($CurrentPooledHostPoolResourceGroup)) {
+                $CurrentPooledHostPoolResourceGroup = New-AzResourceGroup -Name $CurrentPooledHostPoolResourceGroupName -Location $CurrentPooledHostPool.Location -Force
+            }
+            #endregion
+
+            #region Dedicated Key Vault Setup
+            $CurrentPooledHostPoolKeyVault = Get-AzKeyVault -VaultName $CurrentPooledHostPoolKeyVaultName -ErrorAction Ignore
+            if (-not($CurrentPooledHostPoolKeyVault)) {
+                if (-not(Get-AzKeyVaultNameAvailability -Name $CurrentPooledHostPoolKeyVaultName).NameAvailable) {
+                    Write-Error "The storage account name '$CurrentPooledHostPoolKeyVaultName' is not available !" -ErrorAction Stop
+                }
+                $CurrentPooledHostPoolKeyVault = New-AzKeyVault -ResourceGroupName $CurrentPooledHostPoolResourceGroupName -VaultName $CurrentPooledHostPoolKeyVaultName -Location $CurrentPooledHostPool.Location -EnabledForDiskEncryption
+            }
+            #endregion
+            #endregion
+
             #region Host Pool Setup
             $parameters = @{
                 Name                  = $CurrentPooledHostPool.Name
@@ -773,6 +851,7 @@ function New-AzWvdPooledHostPoolSetup {
             #endregion 
 
             #endregion
+
             #region Workspace Setup
             $parameters = @{
                 Name                      = "WS-{0}" -f $CurrentPooledHostPool.Name
@@ -802,7 +881,7 @@ Set-Location -Path $CurrentDir
 #For installing required modules if needed
 #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Verbose
 Get-PackageProvider -Name NuGet -Force -Verbose
-$RequiredModules = 'Az.Accounts', 'Az.DesktopVirtualization', 'Az.Network', 'Az.Resources', 'Az.Storage', 'PowerShellGet'
+$RequiredModules = 'Az.Accounts', 'Az.DesktopVirtualization', 'Az.Network', 'Az.KeyVault', 'Az.Resources', 'Az.Storage', 'PowerShellGet'
 $InstalledModule = Get-InstalledModule -Name $RequiredModules -ErrorAction Ignore
 if (-not([String]::IsNullOrEmpty($InstalledModule))) {
     $MissingModules = (Compare-Object -ReferenceObject $RequiredModules -DifferenceObject (Get-InstalledModule -Name $RequiredModules -ErrorAction Ignore).Name).InputObject
@@ -861,8 +940,7 @@ Get-GPO -All | Where-Object -FilterScript {($_.DisplayName -match $($PooledHostP
 $HP = (Get-AzWvdHostPool | Where-Object -FilterScript {$_.Name -in $($PooledHostPools.Name)})
 $RG = $HP | ForEach-Object { Get-AzResourceGroup $_.Id.split('/')[4]}
 $RG | Remove-AzResourceGroup -WhatIf
-#$RG | Remove-AzResourceLock -LockName DenyDelete -Force -ErrorAction Ignore
-$RG | Get-AzResourceLock | Where-Object {$_.Properties.level -eq "CanNotDelete"} | Remove-AzResourceLock -Force -ErrorAction Ignore
+$RG | Remove-AzResourceLock -LockName DenyDelete -Force -ErrorAction Ignore
 
 #$Jobs = $RG | Remove-AzResourceGroup -Force -AsJob -Verbose
 $Jobs | Wait-Job
