@@ -322,7 +322,7 @@ Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQD
 
 Start-Sleep -Seconds 15
 
-#Step 13: Start RDP Session
+#Step 12: Start RDP Session
 #mstsc /v $PublicIP.IpAddress
 Start-Process -FilePath "http://$FQDN"
 mstsc /v $FQDN
