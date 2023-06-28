@@ -67,7 +67,8 @@ Expand-Archive -Path $OutputFile -DestinationPath C:\Tools -Force
 #endregion
 
 #region Installing StorageExplorer
-$StorageExplorerURI = 'https://go.microsoft.com/fwlink/?LinkId=708343&clcid=0x409'
+#$StorageExplorerURI = 'https://go.microsoft.com/fwlink/?LinkId=708343&clcid=0x409'
+$StorageExplorerURI = 'https://download.microsoft.com/download/A/E/3/AE32C485-B62B-4437-92F7-8B6B2C48CB40/StorageExplorer-windows-x64.exe'
 $OutputFile = Join-Path -Path $CurrentDir -ChildPath 'StorageExplorer.exe'
 Invoke-WebRequest -Uri $StorageExplorerURI -OutFile $OutputFile
 Start-Process -FilePath $OutputFile -ArgumentList "/SILENT", "/CLOSEAPPLICATIONS", "/ALLUSERS" -Wait
@@ -107,12 +108,12 @@ New-Item -Path "$($Disk.DriveLetter):\AutomatedLab-VMs" -ItemType Directory -For
 Start-Process -FilePath C:\Tools\junction.exe -ArgumentList '-accepteula', "C:\AutomatedLab-VMs", "$($Disk.DriveLetter):\AutomatedLab-VMs" -Wait
 #endregion
 
+<#
 #region Customizing Taksbar 
 #There is an invisible char (BOM) insite the double quotes. Do not remove It
-#Invoke-Expression -Command "& { $((Invoke-RestMethod https://raw.githubusercontent.com/Ccmexec/PowerShell/master/Customize%20TaskBar%20and%20Start%20Windows%2011/CustomizeTaskbar.ps1) -replace "﻿") } -MoveStartLeft -RemoveWidgets -RemoveChat -RemoveSearch -RunForExistingUsers" -Verbose
+Invoke-Expression -Command "& { $((Invoke-RestMethod https://raw.githubusercontent.com/Ccmexec/PowerShell/master/Customize%20TaskBar%20and%20Start%20Windows%2011/CustomizeTaskbar.ps1) -replace "﻿") } -MoveStartLeft -RemoveWidgets -RemoveChat -RemoveSearch -RunForExistingUsers" -Verbose
 #endregion
 
-<#
 #region Cloning my GitHub repository
 Set-Location -Path $SourceControlGitHub
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git clone https://github.com/lavanack/laurentvanacker.com.git" -Wait

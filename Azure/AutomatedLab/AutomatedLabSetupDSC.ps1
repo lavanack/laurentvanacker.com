@@ -16,13 +16,14 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules PSDscResources, StorageDsc, xHyper-V, xPSDesiredStateConfiguration, ComputerManagementDsc -RunAsAdministrator 
+#requires -Version 5 -Modules PSDscResources, StorageDsc, HyperVDsc, xPSDesiredStateConfiguration, ComputerManagementDsc -RunAsAdministrator 
 
 <#
 # For installing prerequisites
 #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 Get-PackageProvider -Name Nuget -ForceBootstrap -Force
-Install-Module -Name 'PSDscResources', 'StorageDsc', 'xHyper-V', 'xPSDesiredStateConfiguration', 'ComputerManagementDsc' -Force
+Install-Module -Name 'PSDscResources', 'StorageDsc', 'xPSDesiredStateConfiguration', 'ComputerManagementDsc' -Force -Verbose 
+Install-Module -Name HyperVDsc -AllowPrerelease -Force -Verbose 
 #>
 
 
@@ -31,7 +32,7 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
-#Import-Module -Name 'PSDscResources', 'StorageDsc', 'xHyper-V', 'xPSDesiredStateConfiguration', 'ComputerManagementDsc' -Force
+#Import-Module -Name 'PSDscResources', 'StorageDsc', 'HyperVDsc', 'xPSDesiredStateConfiguration', 'ComputerManagementDsc' -Force
 
 Configuration AutomatedLabSetupDSC {
     param(
@@ -45,7 +46,7 @@ Configuration AutomatedLabSetupDSC {
     #Import-DscResource -ModuleName 'PSDesiredStateConfiguration'
     Import-DSCResource -ModuleName 'PSDscResources'
     Import-DSCResource -ModuleName 'StorageDsc'
-    Import-DSCResource -ModuleName 'xHyper-V'
+    Import-DSCResource -ModuleName 'HyperVDsc'
     Import-DscResource -ModuleName 'xPSDesiredStateConfiguration'
     Import-DscResource -ModuleName 'ComputerManagementDsc'
 
@@ -127,6 +128,14 @@ Configuration AutomatedLabSetupDSC {
             DependsOn   = '[WaitForDisk]Disk1'
         }
 
+        File TempFolder
+        {
+            DestinationPath = "$($env:SystemDrive)\Temp"
+            Type            = 'Directory'
+            Ensure          = "Present"
+            Force           = $true
+        }
+
         File GitHubFolder
         {
             DestinationPath = "$($env:SystemDrive)\Source Control\GitHub"
@@ -144,7 +153,7 @@ Configuration AutomatedLabSetupDSC {
             DependsOn       = '[Disk]AutomatedLabVolume'
         }
 
-        xVMHost HyperVHostPaths
+        VMHost HyperVHostPaths
         {
             IsSingleInstance    = 'Yes'
             VirtualHardDiskPath = "$($DriveLetter):\Virtual Machines\Hyper-V"
@@ -206,7 +215,8 @@ Configuration AutomatedLabSetupDSC {
             Name      = 'AUTOMATEDLAB_TELEMETRY_OPTIN'
             Value     = 'False'
             Ensure    = "Present"
-            Target    = 'Process', 'Machine'
+            #Target    = 'Process', 'Machine'
+            Target    = 'Machine'
             DependsOn = '[Script]InstallAutomatedLabModule'
         }
 
@@ -271,37 +281,42 @@ Configuration AutomatedLabSetupDSC {
         
         xRemoteFile DownloadStorageExplorer
         {
-            DestinationPath = $(Join-Path -Path $env:TEMP -ChildPath 'StorageExplorer.exe')
+            DestinationPath = "$env:SystemDrive\Temp\StorageExplorer.exe"
             #To always have the latest Git version for Windows x64
-            Uri             = 'https://go.microsoft.com/fwlink/?LinkId=708343&clcid=0x409'
+            #Uri             = 'https://go.microsoft.com/fwlink/?LinkId=708343&clcid=0x409'
+            Uri             = 'https://download.microsoft.com/download/A/E/3/AE32C485-B62B-4437-92F7-8B6B2C48CB40/StorageExplorer-windows-x64.exe'
             UserAgent       = [Microsoft.PowerShell.Commands.PSUserAgent]::InternetExplorer
             Headers         = @{'Accept-Language' = 'en-US'}
+            MatchSource     = $false
+            DependsOn       = '[File]TempFolder'
         }
 
         Package InstallStorageExplorer
         {
             Ensure    = "Present"
-            Path      = $(Join-Path -Path $env:TEMP -ChildPath 'StorageExplorer.exe')
+            Path      = "$env:SystemDrive\Temp\StorageExplorer.exe"
             Arguments = '/SILENT /CLOSEAPPLICATIONS /ALLUSERS'
-            Name      = "Microsoft Azure Storage Explorer"
+            Name      = "Microsoft Azure Storage Explorer version 1.30.0"
             ProductId = ""
             DependsOn = "[xRemoteFile]DownloadStorageExplorer"
         }
 
         xRemoteFile DownloadGit
         {
-            DestinationPath = $(Join-Path -Path $env:TEMP -ChildPath 'Git-Latest.exe')
+            DestinationPath = "$env:SystemDrive\Temp\Git-Latest.exe"
             #To always have the latest Git version for Windows x64
             #Uri            = ((Invoke-WebRequest -Uri 'https://git-scm.com/download/win').Links | Where-Object -FilterScript { $_.InnerText -eq "64-bit Git For Windows Setup"}).href
-            Uri             = 'https://github.com/git-for-windows/git/releases/download/v2.38.1.windows.1/Git-2.38.1-64-bit.exe'
+            Uri             = 'https://github.com/git-for-windows/git/releases/download/v2.41.0.windows.1/Git-2.41.0-64-bit.exe'
             UserAgent       = [Microsoft.PowerShell.Commands.PSUserAgent]::InternetExplorer
             Headers         = @{'Accept-Language' = 'en-US'}
+            MatchSource     = $false
+            DependsOn       = '[File]TempFolder'
         }
 
         Package InstallGit
         {
             Ensure    = "Present"
-            Path      = $(Join-Path -Path $env:TEMP -ChildPath 'Git-Latest.exe')
+            Path      = "$env:SystemDrive\Temp\Git-Latest.exe"
             Arguments = '/SILENT /CLOSEAPPLICATIONS'
             Name      = "Git"
             ProductId = ""
@@ -310,17 +325,19 @@ Configuration AutomatedLabSetupDSC {
 
         xRemoteFile DownloadAzCopy
         {
-            DestinationPath = $(Join-Path -Path $env:TEMP -ChildPath 'azcopy_windows_amd64_latest.zip')
+            DestinationPath = "$env:SystemDrive\Temp\azcopy_windows_amd64_latest.zip"
             #To always have the latest Git version for Windows x64
             #Uri            = ((Invoke-WebRequest -Uri 'https://git-scm.com/download/win').Links | Where-Object -FilterScript { $_.InnerText -eq "64-bit Git For Windows Setup"}).href
             Uri             = 'https://aka.ms/downloadazcopy-v10-windows'
             UserAgent       = [Microsoft.PowerShell.Commands.PSUserAgent]::InternetExplorer
             Headers         = @{'Accept-Language' = 'en-US'}
+            MatchSource     = $false
+            DependsOn       = '[File]TempFolder'
         }
 
         Archive ExpandAzCopyZipFile
         {
-            Path        = $(Join-Path -Path $env:TEMP -ChildPath 'azcopy_windows_amd64_latest.zip')
+            Path        = "$env:SystemDrive\Temp\azcopy_windows_amd64_latest.zip"
             Destination = 'C:\Tools'
             DependsOn   = '[xRemoteFile]DownloadAzCopy'
             Force       = $true
@@ -392,16 +409,17 @@ Configuration AutomatedLabSetupDSC {
 
         xRemoteFile DownloadSysinternalsSuiteZipFile
         {
-            DestinationPath = $(Join-Path -Path $env:TEMP -ChildPath 'SysinternalsSuite.zip')
+            DestinationPath = "$env:SystemDrive\Temp\SysinternalsSuite.zip"
             Uri             = 'https://download.sysinternals.com/files/SysinternalsSuite.zip'
             UserAgent       = [Microsoft.PowerShell.Commands.PSUserAgent]::InternetExplorer
             Headers         = @{'Accept-Language' = 'en-US'}
-            
+            MatchSource     = $false
+            DependsOn       = '[File]TempFolder'            
         }
 
         Archive ExpandSysinternalsSuiteZipFile
         {
-            Path        = $(Join-Path -Path $env:TEMP -ChildPath 'SysinternalsSuite.zip')
+            Path        = "$env:SystemDrive\Temp\SysinternalsSuite.zip"
             Destination = 'C:\Tools'
             DependsOn   = '[xRemoteFile]DownloadSysinternalsSuiteZipFile'
             Force       = $true
@@ -441,4 +459,6 @@ AutomatedLabSetupDSC -Credential $(Get-Credential -Message "User Credential") -C
 
 Set-DscLocalConfigurationManager -Path .\AutomatedLabSetupDSC -Force -Verbose
 Start-DscConfiguration -Path .\AutomatedLabSetupDSC -Force -Wait -Verbose
+(Test-DscConfiguration -Detailed).ResourcesNotInDesiredState.ResourceId
+Start-DscConfiguration -UseExisting -Force -Wait -Verbose
 #>
