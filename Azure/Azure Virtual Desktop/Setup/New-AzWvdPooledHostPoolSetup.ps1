@@ -38,8 +38,8 @@ function Get-AzKeyVaultNameAvailability {
     $profileClient = New-Object -TypeName Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient -ArgumentList ($azProfile)
     $token = $profileClient.AcquireAccessToken($azContext.Subscription.TenantId)
     $authHeader = @{
-        'Content-Type'  = 'application/json'
-        'Authorization' = 'Bearer ' + $token.AccessToken
+        'Content-Type'='application/json'
+        'Authorization'='Bearer ' + $token.AccessToken
     }
     #endregion
     $Body = [ordered]@{ 
@@ -48,7 +48,8 @@ function Get-AzKeyVaultNameAvailability {
     }
 
     $URI = "https://management.azure.com/subscriptions/$SubcriptionID/providers/Microsoft.KeyVault/checkNameAvailability?api-version=2022-07-01"
-    try {
+    try
+    {
         # Invoke the REST API
         $Response = Invoke-RestMethod -Method POST -Headers $authHeader -Body $($Body | ConvertTo-Json) -ContentType "application/json" -Uri $URI -ErrorVariable ResponseError
     }
@@ -62,7 +63,8 @@ function Get-AzKeyVaultNameAvailability {
         $Response = $reader.ReadToEnd() | ConvertFrom-Json
         Write-Warning -Message $Response.message
     }
-    finally {
+    finally 
+    {
     }
     return $Response
 }
@@ -86,6 +88,39 @@ function New-AzWvdPooledHostPoolSetup {
         #Blocking Inheritance
         $AVDRootOU | Set-GPInheritance -IsBlocked Yes
 
+        #region AVD GPO Management
+        $AVDGPO = Get-GPO -Name "AVD - Global Settings" -ErrorAction Ignore
+        if (-not($AVDGPO)) {
+            $AVDGPO = New-GPO -Name "AVD - Global Settings" -ErrorAction Ignore
+        }
+        $AVDGPO | New-GPLink -Target $AVDRootOU.DistinguishedName -LinkEnabled Yes -ErrorAction Ignore
+
+        #region Network Settings
+        #From https://learn.microsoft.com/en-us/training/modules/configure-user-experience-settings/4-configure-user-settings-through-group-policies
+        Set-GPRegistryValue -Name $AVDGPO.DisplayName -Key 'HKLM\Software\Policies\Microsoft\Windows\BITS' -ValueName "DisableBranchCache" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 1
+        Set-GPRegistryValue -Name $AVDGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\PeerDist\Service' -ValueName "Enable" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 0
+        Set-GPRegistryValue -Name $AVDGPO.DisplayName -Key 'HKLM\Software\Policies\Microsoft\Windows\HotspotAuthentication' -ValueName "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 0
+        Set-GPRegistryValue -Name $AVDGPO.DisplayName -Key 'HKLM\Software\policies\Microsoft\Peernet' -ValueName "Disabled" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 1
+        Set-GPRegistryValue -Name $AVDGPO.DisplayName -Key 'HKLM\Software\Policies\Microsoft\Windows\NetCache' -ValueName "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 0
+        #endregion
+
+        #region Session Time Settings
+        #From https://learn.microsoft.com/en-us/training/modules/configure-user-experience-settings/6-configure-session-timeout-properties
+        #From https://admx.help/?Category=Windows_10_2016&Policy=Microsoft.Policies.TerminalServer::TS_SESSIONS_Idle_Limit_1
+        Set-GPRegistryValue -Name $AVDGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' -ValueName "MaxIdleTime" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 900000
+        #From https://admx.help/?Category=Windows_10_2016&Policy=Microsoft.Policies.TerminalServer::TS_SESSIONS_Disconnected_Timeout_1
+        Set-GPRegistryValue -Name $AVDGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' -ValueName "MaxDisconnectionTime" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 900000
+        #From https://admx.help/?Category=Windows_10_2016&Policy=Microsoft.Policies.TerminalServer::TS_SESSIONS_Limits_2
+        Set-GPRegistryValue -Name $AVDGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' -ValueName "MaxConnectionTime" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 0
+        #From https://admx.help/?Category=Windows_10_2016&Policy=Microsoft.Policies.TerminalServer::TS_Session_End_On_Limit_2
+        Set-GPRegistryValue -Name $AVDGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' -ValueName "fResetBroken" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 0
+        #endregion
+
+        #region Enabling and using the new performance counters
+        #From https://learn.microsoft.com/en-us/training/modules/install-configure-apps-session-host/10-troubleshoot-application-issues-user-input-delay
+        Set-GPRegistryValue -Name $AVDGPO.DisplayName -Key 'HKLM\System\CurrentControlSet\Control\Terminal Server' -ValueName "EnableLagCounter" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 1
+        #endregion 
+
         $PersonalDesktopsOU = Get-ADOrganizationalUnit -Filter 'Name -eq "PersonalDesktops"' -SearchBase $AVDRootOU.DistinguishedName
         if (-not($PersonalDesktopsOU)) {
             $PersonalDesktopsOU = New-ADOrganizationalUnit -Name "PersonalDesktops" -Path $AVDRootOU.DistinguishedName -ProtectedFromAccidentalDeletion $false -PassThru
@@ -95,19 +130,23 @@ function New-AzWvdPooledHostPoolSetup {
             $PooledDesktopsOU = New-ADOrganizationalUnit -Name "PooledDesktops" -Path $AVDRootOU.DistinguishedName -ProtectedFromAccidentalDeletion $false -PassThru
         }
         #region Starter GPOs Management
-        try {
+        try
+        {
             $null = Get-GPStarterGPO -Name "Group Policy Reporting Firewall Ports"
             $null = Get-GPStarterGPO -Name "Group Policy Reporting Firewall Ports"
         }
-        catch {
+        catch 
+        {
             Write-Warning "The required starter GPOs are not installed. Please click on the 'Create Starter GPOs Folder' under Group Policy Management / Forest / Domains / $((Get-ADDomain).DNSRoot) / Starter GPOs "
             Start-Process -FilePath $env:ComSpec -ArgumentList "/c", "gpmc.msc" -Wait
         }
         #region These Starter GPOs include policy settings to configure the firewall rules required for GPO operations
-        if (-not(Get-GPO -Name "Group Policy Reporting Firewall Ports" -ErrorAction Ignore)) {
+        if (-not(Get-GPO -Name "Group Policy Reporting Firewall Ports" -ErrorAction Ignore))
+        {
             Get-GPStarterGPO -Name "Group Policy Reporting Firewall Ports" | New-GPO -Name "Group Policy Reporting Firewall Ports" | New-GPLink -Target $AVDRootOU.DistinguishedName -LinkEnabled Yes -ErrorAction Ignore
         }
-        if (-not(Get-GPO -Name "Group Policy Remote Update Firewall Ports" -ErrorAction Ignore)) {
+        if (-not(Get-GPO -Name "Group Policy Remote Update Firewall Ports" -ErrorAction Ignore))
+        {
             Get-GPStarterGPO -Name "Group Policy Remote Update Firewall Ports" | New-GPO -Name "Group Policy Remote Update Firewall Ports" | New-GPLink -Target $AVDRootOU.DistinguishedName -LinkEnabled Yes -ErrorAction Ignore
         }
         #endregion
@@ -138,10 +177,6 @@ function New-AzWvdPooledHostPoolSetup {
         Set-GPRegistryValue -Name $FSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\FSLogix\Profiles' -ValueName "VolumeType" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "VHDX"
         Set-GPRegistryValue -Name $FSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\FSLogix\Profiles' -ValueName "LogFileKeepingPeriod" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 10
         Set-GPRegistryValue -Name $FSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\FSLogix\Profiles' -ValueName "IsDynamic" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
-        #From https://admx.help/?Category=Windows_10_2016&Policy=Microsoft.Policies.TerminalServer::TS_SESSIONS_Idle_Limit_1
-        Set-GPRegistryValue -Name $FSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' -ValueName "MaxIdleTime" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 900000
-        #From https://admx.help/?Category=Windows_10_2016&Policy=Microsoft.Policies.TerminalServer::TS_SESSIONS_Disconnected_Timeout_1
-        Set-GPRegistryValue -Name $FSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' -ValueName "MaxDisconnectionTime" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 900000
         #From https://learn.microsoft.com/en-us/azure/virtual-desktop/set-up-customize-master-image#disable-automatic-updates
         Set-GPRegistryValue -Name $FSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' -ValueName "NoAutoUpdate" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 1
         #From https://learn.microsoft.com/en-us/azure/virtual-desktop/set-up-customize-master-image#set-up-time-zone-redirection
@@ -248,7 +283,8 @@ function New-AzWvdPooledHostPoolSetup {
             #endregion
 
             #region Run a sync with Azure AD
-            if (Get-Service -Name ADSync -ErrorAction Ignore) {
+            if (Get-Service -Name ADSync -ErrorAction Ignore)
+            {
                 Start-Service -Name ADSync -Verbose
                 Import-Module -Name "C:\Program Files\Microsoft Azure AD Sync\Bin\ADSync"
                 if (-not(Get-ADSyncConnectorRunStatus)) {
@@ -289,14 +325,15 @@ function New-AzWvdPooledHostPoolSetup {
 
             #region Microsoft Defender Endpoint A/V Exclusions for this HostPool 
             #From https://learn.microsoft.com/en-us/fslogix/overview-prerequisites#configure-antivirus-file-and-folder-exclusions
-            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "ShareFolderVHD" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHD"
-            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "ShareFolderVHDLock" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHD.lock"
-            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "ShareFolderVHDMeta" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHD.meta"
-            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "ShareFolderVHDMetaData" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHD.metadata"
-            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "ShareFolderVHDX" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHDX"
-            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "ShareFolderVHDXLock" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHDX.lock"
-            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "ShareFolderVHDXMeta" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHDX.meta"
-            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "ShareFolderVHDXMetaData" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHDX.metadata"
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHD" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHD"
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDLock" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHD.lock"
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDMeta" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHD.meta"
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDMetaData" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHD.metadata"
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDX" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHDX"
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDXLock" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHDX.lock"
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDXMeta" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHDX.meta"
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDXMetaData" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHDX.metadata"
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderCIM" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.CIM"
             #endregion
 
             #region GPO "Local Users and Groups" Management via groups.xml
@@ -307,9 +344,11 @@ function New-AzWvdPooledHostPoolSetup {
             $Changed = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")
             #$ADGroupToExcludeFromFSLogix = @('Domain Admins', 'Enterprise Admins')
             $ADGroupToExcludeFromFSLogix = @('Domain Admins')
-            $Members = foreach ($CurrentADGroupToExcludeFromFSLogix in $ADGroupToExcludeFromFSLogix) {
+            $Members = foreach ($CurrentADGroupToExcludeFromFSLogix in $ADGroupToExcludeFromFSLogix)
+            {
                 $CurrentADGroupToExcludeFromFSLogixSID = (Get-ADGroup -Filter "Name -eq '$CurrentADGroupToExcludeFromFSLogix'").SID.Value
-                if (-not([string]::IsNullOrEmpty($CurrentADGroupToExcludeFromFSLogixSID))) {
+                if (-not([string]::IsNullOrEmpty($CurrentADGroupToExcludeFromFSLogixSID)))
+                {
                     "<Member name=""$((Get-ADDomain).NetBIOSName)\$CurrentADGroupToExcludeFromFSLogix"" action=""ADD"" sid=""$CurrentADGroupToExcludeFromFSLogixSID""/>"
                 }
             }
@@ -337,12 +376,12 @@ function New-AzWvdPooledHostPoolSetup {
             #region GPT.INI Management
             $GPTINIGPOFilePath = "\\{0}\SYSVOL\{0}\Policies\{{{1}}}\GPT.INI" -f ($(Get-ADDomain).DNSRoot), $($CurrentPooledHostPoolFSLogixGPO.Id)
             Write-Verbose -Message "Processing [$GPTINIGPOFilePath]"
-            $result = Select-string -Pattern "(Version)=(\d+)" -AllMatches -Path $GPTINIGPOFilePath
+            $result =  Select-string -Pattern "(Version)=(\d+)" -AllMatches -Path $GPTINIGPOFilePath
             #Getting current version
             [int]$VersionNumber = $result.Matches.Groups[-1].Value
             Write-Verbose -Message "Version Number: $VersionNumber"
             #Increasing current version
-            $VersionNumber += 2
+            $VersionNumber+=2
             Write-Verbose -Message "New Version Number: $VersionNumber"
             #Updating file
             (Get-Content $GPTINIGPOFilePath -Encoding UTF8) -replace "(Version)=(\d+)", "`$1=$VersionNumber" | Set-Content $GPTINIGPOFilePath -Encoding UTF8
@@ -357,8 +396,9 @@ function New-AzWvdPooledHostPoolSetup {
             $RegExPattern = $gPCmachineExtensionNamesToAdd -replace "(\W)" , '\$1'
             $GPOADObject = Get-ADObject -LDAPFilter "CN={$($CurrentPooledHostPoolFSLogixGPO.Id.Guid)}" -Properties gPCmachineExtensionNames
             #if (-not($GPOADObject.gPCmachineExtensionNames.StartsWith($gPCmachineExtensionNamesToAdd)))
-            if ($GPOADObject.gPCmachineExtensionNames -notmatch $RegExPattern) {
-                $GPOADObject | Set-ADObject -Replace @{gPCmachineExtensionNames = $($gPCmachineExtensionNamesToAdd + $GPOADObject.gPCmachineExtensionNames) }
+            if ($GPOADObject.gPCmachineExtensionNames -notmatch $RegExPattern)
+            {
+                $GPOADObject | Set-ADObject -Replace @{gPCmachineExtensionNames=$($gPCmachineExtensionNamesToAdd + $GPOADObject.gPCmachineExtensionNames)}
                 Get-ADObject -LDAPFilter "CN={$($CurrentPooledHostPoolFSLogixGPO.Id.Guid)}" -Properties gPCmachineExtensionNames
             }
             #endregion
@@ -569,7 +609,8 @@ function New-AzWvdPooledHostPoolSetup {
             #endregion
 
             #region Run a sync with Azure AD
-            if (Get-Service -Name ADSync -ErrorAction Ignore) {
+            if (Get-Service -Name ADSync -ErrorAction Ignore)
+            {
                 Start-Service -Name ADSync -Verbose
                 Import-Module -Name "C:\Program Files\Microsoft Azure AD Sync\Bin\ADSync"
                 if (-not(Get-ADSyncConnectorRunStatus)) {
@@ -584,6 +625,30 @@ function New-AzWvdPooledHostPoolSetup {
             $CurrentPooledHostPoolStorageAccountName = "msix{0}" -f $($CurrentPooledHostPool.Name -replace "\W")
             $CurrentPooledHostPoolStorageAccountName = $CurrentPooledHostPoolStorageAccountName.Substring(0, [system.math]::min($CurrentPooledHostPoolStorageAccountNameMaxLength, $CurrentPooledHostPoolStorageAccountName.Length)).ToLower()
             #endregion 
+
+            #region Microsoft Defender Endpoint A/V General Exclusions
+            #From https://learn.microsoft.com/en-us/fslogix/overview-prerequisites#configure-antivirus-file-and-folder-exclusions
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions' -ValueName "Exclusions_Paths" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 1
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "TempFolderVHD" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "%TEMP%\*\*.VHD"
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "TempFolderVHDX" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "%TEMP%\*\*.VHDX"
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "WindirTempFolderVHD" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "%Windir%\TEMP\*\*.VHD"
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "WindirTempFolderVHDX" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "%Windir%\TEMP\*\*.VHDX"
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixCache" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "%ProgramData%\FSLogix\Cache\*"
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixProxy" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "%ProgramData%\FSLogix\Proxy\*"
+            #endregion 
+
+            #region Microsoft Defender Endpoint A/V Exclusions for this HostPool 
+            #From https://learn.microsoft.com/en-us/fslogix/overview-prerequisites#configure-antivirus-file-and-folder-exclusions
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHD" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHD"
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDLock" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHD.lock"
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDMeta" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHD.meta"
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDMetaData" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHD.metadata"
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDX" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHDX"
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDXLock" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHDX.lock"
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDXMeta" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHDX.meta"
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDXMetaData" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHDX.metadata"
+            Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderCIM" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.CIM"
+            #endregion
 
             #region Dedicated Resource Group Management (1 per HostPool)
             $CurrentPooledHostPoolResourceGroupName = "rg-avd-$($CurrentPooledHostPool.Name.ToLower())"
@@ -752,7 +817,7 @@ function New-AzWvdPooledHostPoolSetup {
             $CurrentPooledHostPoolKeyVault = Get-AzKeyVault -VaultName $CurrentPooledHostPoolKeyVaultName -ErrorAction Ignore
             if (-not($CurrentPooledHostPoolKeyVault)) {
                 if (-not(Get-AzKeyVaultNameAvailability -Name $CurrentPooledHostPoolKeyVaultName).NameAvailable) {
-                    Write-Error "The storage account name '$CurrentPooledHostPoolKeyVaultName' is not available !" -ErrorAction Stop
+                    Write-Error "The key vault name '$CurrentPooledHostPoolKeyVaultName' is not available !" -ErrorAction Stop
                 }
                 $CurrentPooledHostPoolKeyVault = New-AzKeyVault -ResourceGroupName $CurrentPooledHostPoolResourceGroupName -VaultName $CurrentPooledHostPoolKeyVaultName -Location $CurrentPooledHostPool.Location -EnabledForDiskEncryption
             }
@@ -883,18 +948,22 @@ Set-Location -Path $CurrentDir
 Get-PackageProvider -Name NuGet -Force -Verbose
 $RequiredModules = 'Az.Accounts', 'Az.DesktopVirtualization', 'Az.Network', 'Az.KeyVault', 'Az.Resources', 'Az.Storage', 'PowerShellGet'
 $InstalledModule = Get-InstalledModule -Name $RequiredModules -ErrorAction Ignore
-if (-not([String]::IsNullOrEmpty($InstalledModule))) {
-    $MissingModules = (Compare-Object -ReferenceObject $RequiredModules -DifferenceObject (Get-InstalledModule -Name $RequiredModules -ErrorAction Ignore).Name).InputObject
+if (-not([String]::IsNullOrEmpty($InstalledModule)))
+{
+    $MissingModules  = (Compare-Object -ReferenceObject $RequiredModules -DifferenceObject (Get-InstalledModule -Name $RequiredModules -ErrorAction Ignore).Name).InputObject
 }
-else {
-    $MissingModules = $RequiredModules
+else
+{
+    $MissingModules  = $RequiredModules
 }
-if (-not([String]::IsNullOrEmpty($MissingModules))) {
+if (-not([String]::IsNullOrEmpty($MissingModules)))
+{
     Install-Module -Name $MissingModules -Force -Verbose
 }
 
 #region Azure Connection
-if (-not(Get-AzContext)) {
+if (-not(Get-AzContext))
+{
     Connect-AzAccount
     Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
 }
@@ -934,7 +1003,7 @@ $PooledHostPools = 1..3 | ForEach-Object -Process {
 #endregion
 #region AD OU/GPO Cleanup
 Get-ADOrganizationalUnit -Filter * | Where-Object -FilterScript {$_.Name -in $($PooledHostPools.Name) -or $_.Name -in 'AVD', 'PooledDesktops', 'PersonalDesktops'} | Set-ADOrganizationalUnit -ProtectedFromAccidentalDeletion $false -PassThru -ErrorAction Ignore | Remove-ADOrganizationalUnit -Recursive -Confirm:$false -Verbose #-WhatIf
-Get-GPO -All | Where-Object -FilterScript {($_.DisplayName -match $($PooledHostPools.Name -join "|")) -or ($_.DisplayName -in 'PooledDesktops - FSLogix Global Settings', 'Group Policy Reporting Firewall Ports', 'Group Policy Remote Update Firewall Ports')} | Remove-GPO -Verbose #-WhatIf
+Get-GPO -All | Where-Object -FilterScript {($_.DisplayName -match $($PooledHostPools.Name -join "|")) -or ($_.DisplayName -in 'AVD - Global Settings', 'PooledDesktops - FSLogix Global Settings', 'Group Policy Reporting Firewall Ports', 'Group Policy Remote Update Firewall Ports')} | Remove-GPO -Verbose #-WhatIf
 #endregion
 #region Azure Cleanup
 $HP = (Get-AzWvdHostPool | Where-Object -FilterScript {$_.Name -in $($PooledHostPools.Name)})
@@ -945,6 +1014,11 @@ $RG | Remove-AzResourceLock -LockName DenyDelete -Force -ErrorAction Ignore
 #$Jobs = $RG | Remove-AzResourceGroup -Force -AsJob -Verbose
 $Jobs | Wait-Job
 $Jobs | Remove-Job
+
+#region
+#Key vault in removed state
+Get-AzKeyVault -InRemovedState | Where-Object -FilterScript {($_.VaultName -match $($PooledHostPools.Name -join "|"))} | Remove-AzKeyVault -InRemovedState -Force -Verbose
+#endregion
 #endregion
 #region Run a sync with Azure AD
 if (Get-Service -Name ADSync -ErrorAction Ignore)
@@ -963,7 +1037,7 @@ New-AzWvdPooledHostPoolSetup -PooledHostPool $PooledHostPools -Verbose
 #Or pipeline processing call
 #$PooledHostPools | New-AzWvdPooledHostPoolSetup 
 #(Get-ADComputer -Filter 'DNSHostName -like "*"').Name | Invoke-GPUpdate -Force -Verbose
-Invoke-Command -ComputerName $((Get-ADComputer -Filter 'DNSHostName -like "*"').Name) -ScriptBlock { gpupdate /force /wait:-1 /target:computer } 
-Invoke-Command -ComputerName $((Get-ADComputer -Filter 'DNSHostName -like "*"').Name) -ScriptBlock { Get-LocalGroupMember -Group "FSLogix Profile Exclude List" -ErrorAction Ignore }
+Invoke-Command -ComputerName $((Get-ADComputer -Filter 'DNSHostName -like "*"').Name) -ScriptBlock { gpupdate /force /wait:-1 /target:computer} 
+Invoke-Command -ComputerName $((Get-ADComputer -Filter 'DNSHostName -like "*"').Name) -ScriptBlock { Get-LocalGroupMember -Group "FSLogix Profile Exclude List" -ErrorAction Ignore}
 #endregion
 #endregion
