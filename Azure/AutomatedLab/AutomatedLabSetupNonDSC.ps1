@@ -35,7 +35,7 @@ $HyperVPath = "$($Disk.DriveLetter):\Virtual Machines\Hyper-V"
 $null = New-Item -Path $HyperVPath -ItemType Directory -Force
 Set-VMHost -VirtualHardDiskPath $HyperVPath -VirtualMachinePath $HyperVPath
 
-$null = New-Item -Path "$($env:SystemDrive)\Source Control\GitHub" -ItemType Directory -Force
+$SourceControlGitHub = New-Item -Path "$($env:SystemDrive)\Source Control\GitHub" -ItemType Directory -Force
 
 #region Installing and Seting up AutomatedLab
 #Installing the NuGet Provider
@@ -103,5 +103,18 @@ $SysinternalsSuiteURI = 'https://download.sysinternals.com/files/SysinternalsSui
 $OutputFile = Join-Path -Path $CurrentDir -ChildPath $(Split-Path -Path $SysinternalsSuiteURI -Leaf)
 Invoke-WebRequest -Uri $SysinternalsSuiteURI -OutFile $OutputFile
 Expand-Archive -Path $OutputFile -DestinationPath C:\Tools -Force
-Start-Process -FilePath C:\Tools\junction.exe -ArgumentList '-accepteula', "$($Disk.DriveLetter)\AutomatedLab-VMs", "C:\AutomatedLab-VMs" -Wait
+New-Item -Path "$($Disk.DriveLetter):\AutomatedLab-VMs" -ItemType Directory -Force
+Start-Process -FilePath C:\Tools\junction.exe -ArgumentList '-accepteula', "C:\AutomatedLab-VMs", "$($Disk.DriveLetter):\AutomatedLab-VMs" -Wait
 #endregion
+
+#region Customizing Taksbar 
+#There is an invisible char (BOM) insite the double quotes. Do not remove It
+#Invoke-Expression -Command "& { $((Invoke-RestMethod https://raw.githubusercontent.com/Ccmexec/PowerShell/master/Customize%20TaskBar%20and%20Start%20Windows%2011/CustomizeTaskbar.ps1) -replace "﻿") } -MoveStartLeft -RemoveWidgets -RemoveChat -RemoveSearch -RunForExistingUsers" -Verbose
+#endregion
+
+<#
+#region Cloning my GitHub repository
+Set-Location -Path $SourceControlGitHub
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git clone https://github.com/lavanack/laurentvanacker.com.git" -Wait
+#endregion 
+#>
