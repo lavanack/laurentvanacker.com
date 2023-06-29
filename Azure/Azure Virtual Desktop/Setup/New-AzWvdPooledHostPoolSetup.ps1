@@ -424,6 +424,10 @@ function New-AzWvdPooledHostPoolSetup {
             }
             #endregion
 
+            #region Scale session hosts using Azure Automation
+            #TODO : https://learn.microsoft.com/en-us/training/modules/automate-azure-virtual-desktop-management-tasks/1-introduction
+            #endregion
+
             #region Dedicated Storage Account Setup
             $CurrentPooledHostPoolStorageAccount = Get-AzStorageAccount -Name $CurrentPooledHostPoolStorageAccountName -ResourceGroupName $CurrentPooledHostPoolResourceGroupName -ErrorAction Ignore
             if (-not($CurrentPooledHostPoolStorageAccount)) {
@@ -1048,7 +1052,7 @@ $Jobs | Wait-Job
 $Jobs | Remove-Job
 
 #region
-#Key vault in removed state
+#Removing Dedicated HostPool Key vault in removed state
 $Jobs = Get-AzKeyVault -InRemovedState | Where-Object -FilterScript {($_.VaultName -match $($(($PooledHostPools.Name -replace "\W").ToLower()) -join "|"))} | Remove-AzKeyVault -InRemovedState -AsJob -Force -Verbose 
 $Jobs | Wait-Job
 $Jobs | Remove-Job
