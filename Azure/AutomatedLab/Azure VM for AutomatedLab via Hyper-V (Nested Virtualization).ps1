@@ -82,7 +82,7 @@ $RDPPort = 3389
 $JitPolicyTimeInHours = 3
 $JitPolicyName = "Default"
 $Location = "westus3"
-$VMSize = "Standard_D32s_v5"
+$VMSize = "Standard_D16s_v5"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
 $ResourceGroupPrefix = "rg"
@@ -94,7 +94,7 @@ $SubnetPrefix = "vnets"
 $Project = "al"
 $Role = "hypv"
 #$DigitNumber = 4
-$DigitNumber = $AzureVMNameMaxLength-($VirtualMachinePrefix+$Project+$Role+$LocationShortName).Length
+$DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role + $LocationShortName).Length
 
 Do {
     $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
