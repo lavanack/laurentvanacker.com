@@ -205,7 +205,7 @@ $NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceG
 
 #Steps 4 + 5: Create Azure Virtual network using the virtual network subnet configuration
 $VirtualNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName  -AddressPrefix $VirtualNetworkAddressSpace -Location $Location
-Add-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork -AddressPrefix $SubnetIPRange -NetworkSecurityGroupId $NetworkSecurityGroup.Id
+Add-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork -AddressPrefix $SubnetIPRange -NetworkSecurityGroupId $NetworkSecurityGroup.Id -ServiceEndpoint Microsoft.KeyVault
 
 $VirtualNetwork = Set-AzVirtualNetwork -VirtualNetwork $VirtualNetwork
 $Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork
@@ -229,13 +229,16 @@ $image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.Publi
 #region Setting up the Key Vault for HTTPS and WinRM
 
 #Create an Azure Key Vault
-$Vault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $location -EnabledForDeployment -EnabledForTemplateDeployment
+#Allowing public access from the virtual network and my Public IP address
+$NetworkRuleSet = New-AzKeyVaultNetworkRuleSetObject -DefaultAction Deny -Bypass AzureServices -IpAddressRange $MyPublicIp -VirtualNetworkResourceId $Subnet.Id
+$Vault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $location -NetworkRuleSet $NetworkRuleSet -EnabledForDeployment -EnabledForTemplateDeployment
 #As the owner of the key vault, you automatically have access to create secrets. If you need to let another user create secrets, use:
 #$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -UserPrincipalName $UserPrincipalName -PermissionsToSecrets Get,Delete,List,Set -PassThru
 
 #Generate a certificate and store in Key Vault
 $Policy = New-AzKeyVaultCertificatePolicy -SubjectName "CN=$FQDN" -SecretContentType "application/x-pkcs12" -IssuerName Self -ValidityInMonths 12
 Add-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $CertificateName -CertificatePolicy $Policy
+
 
 While (-not((Get-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $CertificateName).SecretId)) {
     Write-Host "Sleeping 30 seconds ..."
@@ -374,7 +377,7 @@ $VM | Update-AzVM -Verbose
 #endregion
 
 #Key Vault - Disabling Public Access
-Update-AzKeyVault -VaultName $KeyVaultName -ResourceGroupName $ResourceGroupName -PublicNetworkAccess "Disabled"  
+#Update-AzKeyVault -VaultName $KeyVaultName -ResourceGroupName $ResourceGroupName -PublicNetworkAccess "Disabled"  
 
 # Adding Credentials to the Credential Manager (and escaping the password)
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDN /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
