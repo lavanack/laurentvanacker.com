@@ -235,6 +235,16 @@ function New-AzWvdPooledHostPoolSetup {
 </FrxProfileFolderRedirection>
 '@
         #endregion 
+
+        #region Assigning the Desktop Virtualization Power On Contributor
+        #From https://learn.microsoft.com/en-us/azure/virtual-desktop/start-virtual-machine-connect?tabs=azure-portal#assign-the-desktop-virtualization-power-on-contributor-role-with-the-azure-portal
+        $objId = (Get-AzADServicePrincipal -AppId "9cdead84-a844-4324-93f2-b2e6bb768d07").Id
+        $SubscriptionId = (Get-AzContext).Subscription.Id
+        $Scope="/subscriptions/$SubscriptionId"
+        if (-not(Get-AzRoleAssignment -RoleDefinitionName "Desktop Virtualization Power On Contributor" -Scope $Scope)) {
+            New-AzRoleAssignment -RoleDefinitionName "Desktop Virtualization Power On Contributor" -ObjectId $objId -Scope $Scope
+        }
+        #endregion
     }
     process {
         Foreach ($CurrentPooledHostPool in $PooledHostPool) {
@@ -535,19 +545,30 @@ function New-AzWvdPooledHostPoolSetup {
                 Remove-PSDrive -Name Z
                 #endregion
 
+                #region Run a sync with Azure AD
+                if (Get-Service -Name ADSync -ErrorAction Ignore)
+                {
+                    Start-Service -Name ADSync -Verbose
+                    Import-Module -Name "C:\Program Files\Microsoft Azure AD Sync\Bin\ADSync"
+                    if (-not(Get-ADSyncConnectorRunStatus)) {
+                        Start-ADSyncSyncCycle -PolicyType Delta
+                    }
+                }
+                #endregion 
+
                 #region RBAC Management
                 #Constrain the scope to the target file share
                 $AzContext = Get-AzContext
                 $SubscriptionId = $AzContext.Subscription.Id
-                $scope = "/subscriptions/$SubscriptionId/resourceGroups/$CurrentPooledHostPoolResourceGroupName/providers/Microsoft.Storage/storageAccounts/$CurrentPooledHostPoolStorageAccountName/fileServices/default/fileshares/$CurrentPooledHostPoolShareName"
+                $Scope = "/subscriptions/$SubscriptionId/resourceGroups/$CurrentPooledHostPoolResourceGroupName/providers/Microsoft.Storage/storageAccounts/$CurrentPooledHostPoolStorageAccountName/fileServices/default/fileshares/$CurrentPooledHostPoolShareName"
 
                 #region Setting up the file share with right RBAC: FSLogix Contributor = "Storage File Data SMB Share Elevated Contributor"
                 #Get the name of the custom role
                 $FileShareContributorRole = Get-AzRoleDefinition "Storage File Data SMB Share Contributor"
                 #Assign the custom role to the target identity with the specified scope.
                 $AzADGroup = Get-AzADGroup -SearchString $CurrentPooledHostPoolFSLogixContributorADGroupName
-                if (-not(Get-AzRoleAssignment -RoleDefinitionName $FileShareContributorRole.Name)) {
-                    New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $scope
+                if (-not(Get-AzRoleAssignment -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope)) {
+                    New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope
                 }
                 #endregion
 
@@ -556,8 +577,8 @@ function New-AzWvdPooledHostPoolSetup {
                 $FileShareContributorRole = Get-AzRoleDefinition "Storage File Data SMB Share Elevated Contributor"
                 #Assign the custom role to the target identity with the specified scope.
                 $AzADGroup = Get-AzADGroup -SearchString $CurrentPooledHostPoolFSLogixElevatedContributorADGroupName
-                if (-not(Get-AzRoleAssignment -RoleDefinitionName $FileShareContributorRole.Name)) {
-                    New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $scope
+                if (-not(Get-AzRoleAssignment -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope)) {
+                    New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope
                 }
                 #endregion
 
@@ -566,8 +587,8 @@ function New-AzWvdPooledHostPoolSetup {
                 $FileShareContributorRole = Get-AzRoleDefinition "Storage File Data SMB Share Reader"
                 #Assign the custom role to the target identity with the specified scope.
                 $AzADGroup = Get-AzADGroup -SearchString $CurrentPooledHostPoolFSLogixReaderADGroupName
-                if (-not(Get-AzRoleAssignment -RoleDefinitionName $FileShareContributorRole.Name)) {
-                    New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $scope
+                if (-not(Get-AzRoleAssignment -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope)) {
+                    New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope
                 }
                 #endregion
 
@@ -764,7 +785,7 @@ function New-AzWvdPooledHostPoolSetup {
                 #Constrain the scope to the target file share
                 $AzContext = Get-AzContext
                 $SubscriptionId = $AzContext.Subscription.Id
-                $scope = "/subscriptions/$SubscriptionId/resourceGroups/$CurrentPooledHostPoolResourceGroupName/providers/Microsoft.Storage/storageAccounts/$CurrentPooledHostPoolStorageAccountName/fileServices/default/fileshares/$CurrentPooledHostPoolShareName"
+                $Scope = "/subscriptions/$SubscriptionId/resourceGroups/$CurrentPooledHostPoolResourceGroupName/providers/Microsoft.Storage/storageAccounts/$CurrentPooledHostPoolStorageAccountName/fileServices/default/fileshares/$CurrentPooledHostPoolShareName"
 
                 #region Setting up the file share with right RBAC: MSIX Hosts & MSIX Users = "Storage File Data SMB Share Contributor" + MSIX Share Admins = Storage File Data SMB Share Elevated Contributor
                 #https://docs.microsoft.com/en-us/azure/virtual-desktop/app-attach-file-share#how-to-set-up-the-file-share
@@ -772,13 +793,13 @@ function New-AzWvdPooledHostPoolSetup {
                 $FileShareContributorRole = Get-AzRoleDefinition "Storage File Data SMB Share Contributor"
                 #Assign the custom role to the target identity with the specified scope.
                 $AzADGroup = Get-AzADGroup -SearchString $CurrentPooledHostPoolMSIXHostsADGroupName
-                if (-not(Get-AzRoleAssignment -RoleDefinitionName $FileShareContributorRole.Name)) {
-                    New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $scope
+                if (-not(Get-AzRoleAssignment -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope)) {
+                    New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope
                 }
                 #Assign the custom role to the target identity with the specified scope.
                 $AzADGroup = Get-AzADGroup -SearchString $CurrentPooledHostPoolMSIXUsersADGroupName
-                if (-not(Get-AzRoleAssignment -RoleDefinitionName $FileShareContributorRole.Name)) {
-                    New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $scope
+                if (-not(Get-AzRoleAssignment -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope)) {
+                    New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope
                 }
                 #endregion
 
@@ -787,8 +808,8 @@ function New-AzWvdPooledHostPoolSetup {
                 $FileShareContributorRole = Get-AzRoleDefinition "Storage File Data SMB Share Elevated Contributor"
                 #Assign the custom role to the target identity with the specified scope.
                 $AzADGroup = Get-AzADGroup -SearchString $CurrentPooledHostPoolMSIXShareAdminsADGroupName
-                if (-not(Get-AzRoleAssignment -RoleDefinitionName $FileShareContributorRole.Name)) {
-                    New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $scope
+                if (-not(Get-AzRoleAssignment -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope)) {
+                    New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope
                 }
                 #endregion
 
@@ -961,6 +982,17 @@ if (-not([String]::IsNullOrEmpty($MissingModules)))
     Install-Module -Name $MissingModules -Force -Verbose
 }
 
+#region Azure Provider Registration
+#To use Azure Virtual Desktop, you have to register for the providers and to ensure that RegistrationState will be set to Registered.
+Register-AzResourceProvider -ProviderNamespace Microsoft.DesktopVirtualization
+
+#Important: Wait until RegistrationState is set to Registered. 
+While (Get-AzResourceProvider -ProviderNamespace Microsoft.DesktopVirtualization | Where-Object -FilterScript {$_.RegistrationState -ne 'Registered'})
+{
+    Start-Sleep -Seconds 10
+}
+#endregion
+
 #region Azure Connection
 if (-not(Get-AzContext))
 {
@@ -1011,13 +1043,15 @@ $RG = $HP | ForEach-Object { Get-AzResourceGroup $_.Id.split('/')[4]}
 $RG | Remove-AzResourceGroup -WhatIf
 $RG | Remove-AzResourceLock -LockName DenyDelete -Force -ErrorAction Ignore
 
-#$Jobs = $RG | Remove-AzResourceGroup -Force -AsJob -Verbose
+$Jobs = $RG | Remove-AzResourceGroup -Force -AsJob -Verbose
 $Jobs | Wait-Job
 $Jobs | Remove-Job
 
 #region
 #Key vault in removed state
-Get-AzKeyVault -InRemovedState | Where-Object -FilterScript {($_.VaultName -match $($PooledHostPools.Name -join "|"))} | Remove-AzKeyVault -InRemovedState -Force -Verbose
+$Jobs = Get-AzKeyVault -InRemovedState | Where-Object -FilterScript {($_.VaultName -match $($(($PooledHostPools.Name -replace "\W").ToLower()) -join "|"))} | Remove-AzKeyVault -InRemovedState -AsJob -Force -Verbose 
+$Jobs | Wait-Job
+$Jobs | Remove-Job
 #endregion
 #endregion
 #region Run a sync with Azure AD
