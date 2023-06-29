@@ -37,7 +37,7 @@ trap {
 } 
 Clear-Host
 Import-Module -Name AutomatedLab
-try {while (Stop-Transcript) {}} catch {}
+try { while (Stop-Transcript) {} } catch {}
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
 #$VerbosePreference = 'Continue'
@@ -79,7 +79,7 @@ $SCOMSetupLocalFolder = "C:\System Center Operations Manager 2019"
 #$SCOMWSManagementPackURI = 'https://download.microsoft.com/download/f/7/b/f7b960c9-7392-4c5a-bab4-efbb8a66ec2a/SC%20Management%20Pack%20for%20Windows%20Server%20Operating%20System.msi'
 $SCOMWS2016andWS2019ManagementPackURI = 'https://download.microsoft.com/download/D/8/E/D8EB49E9-744E-4F83-B62C-CBBA2B72927C/Microsoft%20System%20Center%20MP%20for%20WS%202016%20and%20above.msi'
 #More details on http://mpwiki.viacode.com/default.aspx?g=posts&t=218560
-$SCOMIISManagementPackURI = 'https://download.microsoft.com/download/4/9/A/49A9DD6B-3ECC-46DD-9115-9DB60C052DA7/Microsoft%20System%20Center%20MP%20for%20IIS%202016%20and%201709%20Plus.msi'
+$SCOMIIS10ManagementPackURI = 'https://download.microsoft.com/download/4/9/A/49A9DD6B-3ECC-46DD-9115-9DB60C052DA7/Microsoft%20System%20Center%20MP%20for%20IIS%202016%20and%201709%20Plus.msi'
 $ReportViewer2015RuntimeURI = 'https://download.microsoft.com/download/A/1/2/A129F694-233C-4C7C-860F-F73139CF2E01/ENU/x86/ReportViewer.msi'
 $SystemCLRTypesForSQLServer2014x64URI = 'https://download.microsoft.com/download/1/3/0/13089488-91FC-4E22-AD68-5BE58BD5C014/ENU/x64/SQLSysClrTypes.msi'
 $SQLServer2019ReportingServicesURI = 'https://download.microsoft.com/download/1/a/a/1aaa9177-3578-4931-b8f3-373b24f63342/SQLServerReportingServices.exe'
@@ -88,7 +88,7 @@ $SCOMNETAPMManagementPackURI = 'https://download.microsoft.com/download/C/C/2/CC
 #Latest SQL CU : CU18 when this script was released in January 2023
 #$SQLServer2019LatestCUURI = 'https://download.microsoft.com/download/6/e/7/6e72dddf-dfa4-4889-bc3d-e5d3a0fd11ce/SQLServer2019-KB5004524-x64.exe'
 #To find dynamically the Latest SQL CU
-$SQLServer2019LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=100809 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "click here to download manually"}).href
+$SQLServer2019LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=100809 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "click here to download manually" }).href
 
 $NetworkID = '10.0.0.0/16' 
 $DC01IPv4Address = '10.0.0.1'
@@ -102,7 +102,7 @@ $LabName = 'SCOM2019'
 Start-Service -Name ShellHWDetection
 #Cleaning previously existing lab
 if ($LabName -in (Get-Lab -List)) {
-     Remove-Lab -Name $LabName -Confirm:$false -ErrorAction SilentlyContinue
+    Remove-Lab -Name $LabName -Confirm:$false -ErrorAction SilentlyContinue
 }
 
 #create an empty lab template and define where the lab XML files and the VMs will be stored
@@ -110,7 +110,7 @@ New-LabDefinition -Name $LabName -DefaultVirtualizationEngine HyperV
 
 #make the network definition
 Add-LabVirtualNetworkDefinition -Name $LabName -HyperVProperties @{
-     SwitchType = 'Internal'
+    SwitchType = 'Internal'
 } -AddressSpace $NetworkID
 Add-LabVirtualNetworkDefinition -Name 'Default Switch' -HyperVProperties @{ SwitchType = 'External'; AdapterName = 'Wi-Fi' }
 
@@ -123,13 +123,13 @@ Set-LabInstallationCredential -Username $Logon -Password $ClearTextPassword
 
 #defining default parameter values, as these ones are the same for all the machines
 $PSDefaultParameterValues = @{
-     'Add-LabMachineDefinition:Network'         = $LabName
-     'Add-LabMachineDefinition:DomainName'      = $FQDNDomainName
-     'Add-LabMachineDefinition:MinMemory'       = 1GB
-     'Add-LabMachineDefinition:MaxMemory'       = 2GB
-     'Add-LabMachineDefinition:Memory'          = 2GB
-     'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Datacenter (Desktop Experience)'
-     #'Add-LabMachineDefinition:Processors'     = 4
+    'Add-LabMachineDefinition:Network'         = $LabName
+    'Add-LabMachineDefinition:DomainName'      = $FQDNDomainName
+    'Add-LabMachineDefinition:MinMemory'       = 1GB
+    'Add-LabMachineDefinition:MaxMemory'       = 2GB
+    'Add-LabMachineDefinition:Memory'          = 2GB
+    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Datacenter (Desktop Experience)'
+    #'Add-LabMachineDefinition:Processors'     = 4
 }
 
 $IIS01NetAdapter = @()
@@ -161,7 +161,7 @@ Add-LabMachineDefinition -Name IIS01 -NetworkAdapter $IIS01NetAdapter
 #endregion
 
 #Installing servers
-Install-Lab
+Install-Lab -verbose
 Restart-LabVM -ComputerName SQL01 -Wait -ProgressIndicator 10
 Checkpoint-LabVM -SnapshotName FreshInstall -All
 
@@ -178,23 +178,23 @@ $Job += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $AllL
 #endregion
 
 Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $AllLabVMs -ScriptBlock {
-     #Disabling IE ESC
-     $AdminKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}'
-     $UserKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}'
-     Set-ItemProperty -Path $AdminKey -Name 'IsInstalled' -Value 0 -Force
-     Set-ItemProperty -Path $UserKey -Name 'IsInstalled' -Value 0 -Force
-     Rundll32 iesetup.dll, IEHardenLMSettings
-     Rundll32 iesetup.dll, IEHardenUser
-     Rundll32 iesetup.dll, IEHardenAdmin
-     Remove-Item -Path $AdminKey -Force
-     Remove-Item -Path $UserKey -Force
-     #Setting the Keyboard to French
-     #Set-WinUserLanguageList -LanguageList "fr-FR" -Force
+    #Disabling IE ESC
+    $AdminKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}'
+    $UserKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}'
+    Set-ItemProperty -Path $AdminKey -Name 'IsInstalled' -Value 0 -Force
+    Set-ItemProperty -Path $UserKey -Name 'IsInstalled' -Value 0 -Force
+    Rundll32 iesetup.dll, IEHardenLMSettings
+    Rundll32 iesetup.dll, IEHardenUser
+    Rundll32 iesetup.dll, IEHardenAdmin
+    Remove-Item -Path $AdminKey -Force
+    Remove-Item -Path $UserKey -Force
+    #Setting the Keyboard to French
+    #Set-WinUserLanguageList -LanguageList "fr-FR" -Force
 
-     #Renaming the main NIC adapter to Corp
-     Rename-NetAdapter -Name "$using:labName 0" -NewName 'Corp' -PassThru -ErrorAction SilentlyContinue
-     Rename-NetAdapter -Name "Ethernet" -NewName 'Corp' -PassThru -ErrorAction SilentlyContinue
-     Rename-NetAdapter -Name "Default Switch 0" -NewName 'Internet' -PassThru -ErrorAction SilentlyContinue
+    #Renaming the main NIC adapter to Corp
+    Rename-NetAdapter -Name "$using:labName 0" -NewName 'Corp' -PassThru -ErrorAction SilentlyContinue
+    Rename-NetAdapter -Name "Ethernet" -NewName 'Corp' -PassThru -ErrorAction SilentlyContinue
+    Rename-NetAdapter -Name "Default Switch 0" -NewName 'Internet' -PassThru -ErrorAction SilentlyContinue
 }
 
 #Installing and setting up DNS
@@ -204,7 +204,7 @@ Invoke-LabCommand -ActivityName 'DNS & AD Setup on DC' -ComputerName DC01 -Scrip
     #Reverse lookup zone creation
     Add-DnsServerPrimaryZone -NetworkID $using:NetworkID -ReplicationScope 'Forest' 
 
-    $ADDistinguishedName=(Get-ADDomain).DistinguishedName
+    $ADDistinguishedName = (Get-ADDomain).DistinguishedName
 
     #Creating AD OU
     $ADOrganizationalUnit = New-ADOrganizationalUnit -Name $using:OUName -Path $ADDistinguishedName -Passthru
@@ -216,7 +216,7 @@ Invoke-LabCommand -ActivityName 'DNS & AD Setup on DC' -ComputerName DC01 -Scrip
     New-ADUser -Name $using:SCOMDataWareHouseWriter -SamAccountName $using:SCOMDataWareHouseWriter -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -Enabled $true -Path $ADOrganizationalUnit.DistinguishedName
     New-ADUser -Name $using:SCOMServerAction -SamAccountName $using:SCOMServerAction -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -Enabled $true -Path $ADOrganizationalUnit.DistinguishedName
     New-ADGroup -Name $using:SCOMAdmins -GroupScope Global -GroupCategory Security -Path $ADOrganizationalUnit.DistinguishedName
-    Add-ADGroupMember $using:SCOMAdmins $using:SCOMAccessAccount,$using:SCOMDataWareHouseReader,$using:SCOMDataWareHouseWriter,$using:SCOMServerAction
+    Add-ADGroupMember $using:SCOMAdmins $using:SCOMAccessAccount, $using:SCOMDataWareHouseReader, $using:SCOMDataWareHouseWriter, $using:SCOMServerAction
     #SQL Server service accounts (SQLSSRS is a service reporting services account)
     New-ADUser -Name $using:SQLSVC -SamAccountName $using:SQLSVC -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -Enabled $true -Path $ADOrganizationalUnit.DistinguishedName
     New-ADUser -Name $using:SQLSSRS -SamAccountName $using:SQLSSRS -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -Enabled $true -Path $ADOrganizationalUnit.DistinguishedName
@@ -294,19 +294,19 @@ Invoke-LabCommand -ActivityName 'Installing the Operations Manager Management se
     Write-Verbose "The Web Console prerequisites have been installed"
 
     #Extracting setup files
-    $ArgumentList= @(
-        '/dir="'+$using:SCOMSetupLocalFolder+'"',
+    $ArgumentList = @(
+        '/dir="' + $using:SCOMSetupLocalFolder + '"',
         '/silent'
     )
     Start-Process -FilePath "$($using:Drive.DriveLetter)\SCOM_2019.exe" -ArgumentList $ArgumentList -Wait
 
     #Setting up SCOM
-    $ArgumentList= @(
-    "/install /components:OMServer,OMConsole,OMWebConsole /ManagementGroupName:$using:SCOMMgmtGroup /SqlServerInstance:SQL01 /SqlInstancePort:1433", 
-    "/DatabaseName:OperationsManager /DWSqlServerInstance:SQL01 /DWDatabaseName:OperationsManagerDW /ActionAccountUser:$using:NetBiosDomainName\$using:SCOMServerAction",
-    "/ActionAccountPassword:$using:ClearTextPassword /DASAccountUser:$using:NetBiosDomainName\$using:SCOMAccessAccount /DASAccountPassword:$using:ClearTextPassword /DataReaderUser:$using:NetBiosDomainName\$using:SCOMDataWareHouseReader", 
-    "/DataReaderPassword:$using:ClearTextPassword /DataWriterUser:$using:NetBiosDomainName\$using:SCOMDataWareHouseWriter /DataWriterPassword:$using:ClearTextPassword /WebSiteName:""Default Web Site""", 
-    '/WebConsoleAuthorizationMode:Mixed /EnableErrorReporting:Always /SendCEIPReports:1 /UseMicrosoftUpdate:1 /AcceptEndUserLicenseAgreement:1 /silent'
+    $ArgumentList = @(
+        "/install /components:OMServer,OMConsole,OMWebConsole /ManagementGroupName:$using:SCOMMgmtGroup /SqlServerInstance:SQL01 /SqlInstancePort:1433", 
+        "/DatabaseName:OperationsManager /DWSqlServerInstance:SQL01 /DWDatabaseName:OperationsManagerDW /ActionAccountUser:$using:NetBiosDomainName\$using:SCOMServerAction",
+        "/ActionAccountPassword:$using:ClearTextPassword /DASAccountUser:$using:NetBiosDomainName\$using:SCOMAccessAccount /DASAccountPassword:$using:ClearTextPassword /DataReaderUser:$using:NetBiosDomainName\$using:SCOMDataWareHouseReader", 
+        "/DataReaderPassword:$using:ClearTextPassword /DataWriterUser:$using:NetBiosDomainName\$using:SCOMDataWareHouseWriter /DataWriterPassword:$using:ClearTextPassword /WebSiteName:""Default Web Site""", 
+        '/WebConsoleAuthorizationMode:Mixed /EnableErrorReporting:Always /SendCEIPReports:1 /UseMicrosoftUpdate:1 /AcceptEndUserLicenseAgreement:1 /silent'
     )
     #Note: The installation status can also be checked in the SCOM installation log: OpsMgrSetupWizard.log which is found at: %LocalAppData%\SCOM\LOGS
     Start-Process -FilePath "$using:SCOMSetupLocalFolder\Setup.exe" -ArgumentList $ArgumentList -Wait
@@ -314,8 +314,7 @@ Invoke-LabCommand -ActivityName 'Installing the Operations Manager Management se
     
     Write-Verbose "The SCOM has been installed. Don't forget to license SCOM"
 
-    if ($using:SCOMLicense -match "^\w{5}-\w{5}-\w{5}-\w{5}-\w{5}$")
-    {
+    if ($using:SCOMLicense -match "^\w{5}-\w{5}-\w{5}-\w{5}-\w{5}$") {
         #Importing the OperationsManager module by specifying the full folder path
         Import-Module "${env:ProgramFiles}\Microsoft System Center\Operations Manager\Powershell\OperationsManager"
         $Cred = New-Object System.Management.Automation.PSCredential ($(whoami), $using:SecurePassword)
@@ -342,9 +341,8 @@ Invoke-LabCommand -ActivityName 'Configuring Report Server on SQL Server' -Compu
     #From (with modifications) https://blog.aelterman.com/2018/01/03/complete-automated-configuration-of-sql-server-2017-reporting-services/
     #From https://gist.github.com/SvenAelterman/f2fd058bf3a8aa6f37ac69e5d5dd2511
 
-    function Get-ConfigSet()
-    {
-	    return Get-WmiObject -namespace "root\Microsoft\SqlServer\ReportServer\RS_SSRS\v15\Admin" -class MSReportServer_ConfigurationSetting -ComputerName localhost
+    function Get-ConfigSet() {
+        return Get-WmiObject -namespace "root\Microsoft\SqlServer\ReportServer\RS_SSRS\v15\Admin" -class MSReportServer_ConfigurationSetting -ComputerName localhost
     }
 
     # Allow importing of sqlps module
@@ -355,66 +353,63 @@ Invoke-LabCommand -ActivityName 'Configuring Report Server on SQL Server' -Compu
 
     $configset
 
-    If (! $configset.IsInitialized)
-    {
-	    # Get the ReportServer and ReportServerTempDB creation script
-	    [string]$dbscript = $configset.GenerateDatabaseCreationScript("ReportServer", 1033, $false).Script
+    If (! $configset.IsInitialized) {
+        # Get the ReportServer and ReportServerTempDB creation script
+        [string]$dbscript = $configset.GenerateDatabaseCreationScript("ReportServer", 1033, $false).Script
 
-	    # Import the SQL Server PowerShell module
-	    #Import-Module sqlps -DisableNameChecking | Out-Null
+        # Import the SQL Server PowerShell module
+        #Import-Module sqlps -DisableNameChecking | Out-Null
 
-	    # Establish a connection to the database server (localhost)
-	    $conn = New-Object Microsoft.SqlServer.Management.Common.ServerConnection -ArgumentList $env:ComputerName
-	    $conn.ApplicationName = "SSRS Configuration Script"
-	    $conn.StatementTimeout = 0
-	    $conn.Connect()
-	    $smo = New-Object Microsoft.SqlServer.Management.Smo.Server -ArgumentList $conn
+        # Establish a connection to the database server (localhost)
+        $conn = New-Object Microsoft.SqlServer.Management.Common.ServerConnection -ArgumentList $env:ComputerName
+        $conn.ApplicationName = "SSRS Configuration Script"
+        $conn.StatementTimeout = 0
+        $conn.Connect()
+        $smo = New-Object Microsoft.SqlServer.Management.Smo.Server -ArgumentList $conn
 
-	    # Create the ReportServer and ReportServerTempDB databases
-	    $db = $smo.Databases["master"]
-	    $db.ExecuteNonQuery($dbscript)
+        # Create the ReportServer and ReportServerTempDB databases
+        $db = $smo.Databases["master"]
+        $db.ExecuteNonQuery($dbscript)
 
-	    # Set permissions for the databases
-	    $dbscript = $configset.GenerateDatabaseRightsScript($configset.WindowsServiceIdentityConfigured, "ReportServer", $false, $true).Script
-	    $db.ExecuteNonQuery($dbscript)
+        # Set permissions for the databases
+        $dbscript = $configset.GenerateDatabaseRightsScript($configset.WindowsServiceIdentityConfigured, "ReportServer", $false, $true).Script
+        $db.ExecuteNonQuery($dbscript)
 
-	    # Set the database connection info
-	    $configset.SetDatabaseConnection("(local)", "ReportServer", 2, "", "")
+        # Set the database connection info
+        $configset.SetDatabaseConnection("(local)", "ReportServer", 2, "", "")
 
-	    $configset.SetVirtualDirectory("ReportServerWebService", "ReportServer", 1033)
-	    $configset.ReserveURL("ReportServerWebService", "http://+:80", 1033)
+        $configset.SetVirtualDirectory("ReportServerWebService", "ReportServer", 1033)
+        $configset.ReserveURL("ReportServerWebService", "http://+:80", 1033)
 
-	    # For SSRS 2016-2017 only, older versions have a different name
-	    $configset.SetVirtualDirectory("ReportServerWebApp", "Reports", 1033)
-	    $configset.ReserveURL("ReportServerWebApp", "http://+:80", 1033)
-        try
-        {
-	        $configset.InitializeReportServer($configset.InstallationID)
+        # For SSRS 2016-2017 only, older versions have a different name
+        $configset.SetVirtualDirectory("ReportServerWebApp", "Reports", 1033)
+        $configset.ReserveURL("ReportServerWebApp", "http://+:80", 1033)
+        try {
+            $configset.InitializeReportServer($configset.InstallationID)
         }
-        catch
-        {
+        catch {
             throw (New-Object System.Exception("Failed to Initialize Report Server $($_.Exception.Message)", $_.Exception))
         }
 
-	    # Re-start services?
-	    $configset.SetServiceState($false, $false, $false)
-	    Restart-Service $configset.ServiceName
-	    $configset.SetServiceState($true, $true, $true)
+        # Re-start services?
+        $configset.SetServiceState($false, $false, $false)
+        Restart-Service $configset.ServiceName
+        $configset.SetServiceState($true, $true, $true)
 
-	    # Update the current configuration
-	    $configset = Get-ConfigSet
+        # Update the current configuration
+        $configset = Get-ConfigSet
 
-	    # Output to screen
-	    $configset.IsReportManagerEnabled
-	    $configset.IsInitialized
-	    $configset.IsWebServiceEnabled
-	    $configset.IsWindowsServiceEnabled
-	    $configset.ListReportServersInDatabase()
-	    $configset.ListReservedUrls();
+        # Output to screen
+        $configset.IsReportManagerEnabled
+        $configset.IsInitialized
+        $configset.IsWebServiceEnabled
+        $configset.IsWindowsServiceEnabled
+        $configset.ListReportServersInDatabase()
+        $configset.ListReservedUrls();
 
-	    $inst = Get-WmiObject -namespace "root\Microsoft\SqlServer\ReportServer\RS_SSRS\v15" -class MSReportServer_Instance -ComputerName localhost
+        $inst = Get-WmiObject -namespace "root\Microsoft\SqlServer\ReportServer\RS_SSRS\v15" -class MSReportServer_Instance -ComputerName localhost
 
-	    $inst.GetReportServerUrls()
+        $inst.GetReportServerUrls()
     }
 
 }
@@ -422,17 +417,17 @@ Invoke-LabCommand -ActivityName 'Configuring Report Server on SQL Server' -Compu
 $Drive = Mount-LabIsoImage -ComputerName SQL01 -IsoPath $SCOMISOPath -PassThru
 Invoke-LabCommand -ActivityName 'Installing the Operations Manager Reporting on the SQL Server' -ComputerName SQL01 -ScriptBlock {
     #Extracting setup files
-    $ArgumentList= @(
-        '/dir="'+$using:SCOMSetupLocalFolder+'"',
+    $ArgumentList = @(
+        '/dir="' + $using:SCOMSetupLocalFolder + '"',
         '/silent'
     )
     Start-Process -FilePath "$($using:Drive.DriveLetter)\SCOM_2019.exe" -ArgumentList $ArgumentList -Wait
 
     #Setting up SCOM
-    $ArgumentList= @(
-    "/install /components:OMReporting /ManagementServer:SCOM01 /SRSInstance:SQL01\SSRS", 
-    "/DataReaderUser:$using:NetBiosDomainName\$using:SCOMDataWareHouseReader /DataReaderPassword:$using:ClearTextPassword" , 
-    "/SendODRReports:1 /UseMicrosoftUpdate:1 /AcceptEndUserLicenseAgreement:1 /silent"
+    $ArgumentList = @(
+        "/install /components:OMReporting /ManagementServer:SCOM01 /SRSInstance:SQL01\SSRS", 
+        "/DataReaderUser:$using:NetBiosDomainName\$using:SCOMDataWareHouseReader /DataReaderPassword:$using:ClearTextPassword" , 
+        "/SendODRReports:1 /UseMicrosoftUpdate:1 /AcceptEndUserLicenseAgreement:1 /silent"
     )
     #Note: The installation status can also be checked in the SCOM installation log: OpsMgrSetupWizard.log which is found at: %LocalAppData%\SCOM\LOGS
     Start-Process -FilePath "$using:SCOMSetupLocalFolder\Setup.exe" -ArgumentList $ArgumentList -Wait
@@ -442,15 +437,15 @@ Dismount-LabIsoImage -ComputerName SQL01
 
 
 Invoke-LabCommand -ActivityName 'Cleanup on SQL Server' -ComputerName SQL01 -ScriptBlock {
-     Remove-Item -Path "C:\vcredist_x*.*" -Force
-     Remove-Item -Path "C:\SSMS-Setup-ENU.exe" -Force
-     #Disabling the Internet Connection on the DC (Required only for the SQL Setup via AutomatedLab)
-     Get-NetAdapter -Name Internet | Disable-NetAdapter -Confirm:$false
+    Remove-Item -Path "C:\vcredist_x*.*" -Force
+    Remove-Item -Path "C:\SSMS-Setup-ENU.exe" -Force
+    #Disabling the Internet Connection on the DC (Required only for the SQL Setup via AutomatedLab)
+    Get-NetAdapter -Name Internet | Disable-NetAdapter -Confirm:$false
 }
 
 
 #Downloading the SCOM IIS and dependent Management Packs
-$SCOMIISManagementPack = Get-LabInternetFile -Uri $SCOMIISManagementPackURI -Path $labSources\SoftwarePackages -PassThru -Force
+$SCOMIIS10ManagementPack = Get-LabInternetFile -Uri $SCOMIIS10ManagementPackURI -Path $labSources\SoftwarePackages -PassThru -Force
 #$SCOMWSManagementPack = Get-LabInternetFile -Uri $SCOMWSManagementPackURI -Path $labSources\SoftwarePackages -PassThru -Force
 $SCOMWS2016andWS2019ManagementPack = Get-LabInternetFile -Uri $SCOMWS2016andWS2019ManagementPackURI -Path $labSources\SoftwarePackages -PassThru -Force
 $SCOMNETAPMManagementPack = Get-LabInternetFile -Uri $SCOMNETAPMManagementPackURI -Path $labSources\SoftwarePackages -PassThru -Force
@@ -458,7 +453,7 @@ $SCOMNETAPMManagementPack = Get-LabInternetFile -Uri $SCOMNETAPMManagementPackUR
 #Installing the SCOM IIS and Dependent Management Packs
 #Install-LabSoftwarePackage -ComputerName SCOM01 -Path $SCOMWSManagementPack.FullName -CommandLine "-quiet"
 Install-LabSoftwarePackage -ComputerName SCOM01 -Path $SCOMWS2016andWS2019ManagementPack.FullName -CommandLine "-quiet"
-Install-LabSoftwarePackage -ComputerName SCOM01 -Path $SCOMIISManagementPack.FullName -CommandLine "-quiet"
+Install-LabSoftwarePackage -ComputerName SCOM01 -Path $SCOMIIS10ManagementPack.FullName -CommandLine "-quiet"
 Install-LabSoftwarePackage -ComputerName SCOM01 -Path $SCOMNETAPMManagementPack.FullName -CommandLine "-quiet"
 #Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
 
@@ -474,20 +469,20 @@ Invoke-LabCommand -ActivityName 'Installing Management Packs' -ComputerName SCOM
     #Getting Installed Management Packs
     $SystemCenterManagementPacks = Get-ChildItem -Path "${env:ProgramFiles(x86)}\System Center Management Packs\" -File -Filter *.mp? -Recurse
     #Installing Windows Server Management Packs prior IIS
-    $SystemCenterManagementPacks | Where-Object -FilterScript {$_.BaseName -eq 'Microsoft.Windows.Server.Library'} | Import-SCOMManagementPack
-    $SystemCenterManagementPacks | Where-Object -FilterScript {$_.BaseName -eq 'Microsoft.Windows.Server.2016.Discovery'} | Import-SCOMManagementPack
+    $SystemCenterManagementPacks | Where-Object -FilterScript { $_.BaseName -eq 'Microsoft.Windows.Server.Library' } | Import-SCOMManagementPack
+    $SystemCenterManagementPacks | Where-Object -FilterScript { $_.BaseName -eq 'Microsoft.Windows.Server.2016.Discovery' } | Import-SCOMManagementPack
     #Installing the Reports and Monitoring Management Pack
-    $SystemCenterManagementPacks | Where-Object -FilterScript {$_.BaseName -eq 'Microsoft.Windows.Server.Reports'} | Import-SCOMManagementPack
-    $SystemCenterManagementPacks | Where-Object -FilterScript {$_.BaseName -eq 'Microsoft.Windows.Server.2016.Monitoring'} | Import-SCOMManagementPack
+    $SystemCenterManagementPacks | Where-Object -FilterScript { $_.BaseName -eq 'Microsoft.Windows.Server.Reports' } | Import-SCOMManagementPack
+    $SystemCenterManagementPacks | Where-Object -FilterScript { $_.BaseName -eq 'Microsoft.Windows.Server.2016.Monitoring' } | Import-SCOMManagementPack
     #Installing IIS Management Pack.
-    $SystemCenterManagementPacks | Where-Object -FilterScript {$_.BaseName -eq 'Microsoft.Windows.InternetInformationServices.CommonLibrary'} | Import-SCOMManagementPack
-    $SystemCenterManagementPacks | Where-Object -FilterScript {$_.BaseName -eq 'Microsoft.Windows.InternetInformationServices.2016' } | Import-SCOMManagementPack
+    $SystemCenterManagementPacks | Where-Object -FilterScript { $_.BaseName -eq 'Microsoft.Windows.InternetInformationServices.CommonLibrary' } | Import-SCOMManagementPack
+    $SystemCenterManagementPacks | Where-Object -FilterScript { $_.BaseName -eq 'Microsoft.Windows.InternetInformationServices.2016' } | Import-SCOMManagementPack
     #Installing ApplicationInsights ManagementPack.
-    $SystemCenterManagementPacks | Where-Object -FilterScript {$_.BaseName -eq 'Microsoft.SystemCenter.ApplicationInsights'} | Import-SCOMManagementPack
+    $SystemCenterManagementPacks | Where-Object -FilterScript { $_.BaseName -eq 'Microsoft.SystemCenter.ApplicationInsights' } | Import-SCOMManagementPack
 
     $SCOMAgent = Install-SCOMAgent -PrimaryManagementServer $(Get-SCOMManagementServer) -DNSHostName IIS01.contoso.com -PassThru
     Get-SCOMPendingManagement | Approve-SCOMPendingManagement
- }
+}
 
 #Removing the Internet Connection on the SQL Server (Required only for the SQL Setup via AutomatedLab)
 Get-VM -Name 'SQL01' | Remove-VMNetworkAdapter -Name 'Default Switch' -ErrorAction SilentlyContinue
@@ -507,7 +502,7 @@ Invoke-LabCommand -ActivityName 'Windows Udpate via the PSWindowsUpdate PowerShe
     #Get-WindowsUpdate -Install -AcceptAll -AutoReboot
     Invoke-WUJob -ComputerName localhost -Script { Import-Module PSWindowsUpdate ; Get-WindowsUpdate -Install -AcceptAll -AutoReboot -Verbose | Out-File "C:\PSWindowsUpdate_$('{0:yyyyMMddHHmmss}' -f (Get-Date)).log" -Append } -Confirm:$false -Verbose -RunNow
     #Start-ScheduledTask -TaskName PSWindowsUpdate -Verbose
-    While ((Get-ScheduledTask -TaskName PSWindowsUpdate).State -eq 'Running') { Start-Sleep -Seconds 60}
+    While ((Get-ScheduledTask -TaskName PSWindowsUpdate).State -eq 'Running') { Start-Sleep -Seconds 60 }
 }
 
 Checkpoint-LabVM -SnapshotName 'Windows Update' -All
