@@ -151,7 +151,7 @@ $OSDiskName = '{0}_OSDisk' -f $VMName
 #$DataDiskName = "$VMName-DataDisk01"
 $OSDiskSize = "127"
 $StorageAccountSkuName = "Standard_LRS"
-$OSDiskType = "Standard_LRS"
+$OSDiskType = "Premium_LRS"
 
 Write-Verbose "`$VMName: $VMName"
 Write-Verbose "`$NetworkSecurityGroupName: $NetworkSecurityGroupName"         
@@ -273,7 +273,7 @@ Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -Storag
 
 #region Adding Data Disk
 <#
-$VMDataDisk01Config = New-AzDiskConfig -SkuName Standard_LRS -Location $Location -CreateOption Empty -DiskSizeGB 512
+$VMDataDisk01Config = New-AzDiskConfig -SkuName $OSDiskType -Location $Location -CreateOption Empty -DiskSizeGB 512
 $VMDataDisk01 = New-AzDisk -DiskName $DataDiskName -Disk $VMDataDisk01Config -ResourceGroupName $ResourceGroupName
 $VM = Add-AzVMDataDisk -VM $VMConfig -Name $DataDiskName -CreateOption Attach -ManagedDiskId $VMDataDisk01.Id -Lun 0
 #>
