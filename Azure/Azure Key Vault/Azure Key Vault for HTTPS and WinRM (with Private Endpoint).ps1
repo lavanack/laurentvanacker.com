@@ -205,11 +205,10 @@ $NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceG
 
 #Steps 4 + 5: Create Azure Virtual network using the virtual network subnet configuration
 $VirtualNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName  -AddressPrefix $VirtualNetworkAddressSpace -Location $Location
-Add-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork -AddressPrefix $SubnetIPRange -NetworkSecurityGroupId $NetworkSecurityGroup.Id -ServiceEndpoint Microsoft.KeyVault
+Add-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork -AddressPrefix $SubnetIPRange -NetworkSecurityGroupId $NetworkSecurityGroup.Id
 
 $VirtualNetwork = Set-AzVirtualNetwork -VirtualNetwork $VirtualNetwork
 $Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork
-
 
 #Step 6: Create Azure Public Address
 $PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $ResourceGroupName -Location $Location -AlLocationMethod Static -DomainNameLabel $VMName.ToLower()
@@ -229,9 +228,7 @@ $image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.Publi
 #region Setting up the Key Vault for HTTPS and WinRM
 
 #Create an Azure Key Vault
-#Allowing public access from the virtual network and my Public IP address
-$NetworkRuleSet = New-AzKeyVaultNetworkRuleSetObject -DefaultAction Deny -Bypass AzureServices -IpAddressRange $MyPublicIp -VirtualNetworkResourceId $Subnet.Id
-$Vault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $location -NetworkRuleSet $NetworkRuleSet -EnabledForDeployment -EnabledForTemplateDeployment
+$KeyVault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $location -EnabledForDeployment -EnabledForTemplateDeployment
 #As the owner of the key vault, you automatically have access to create secrets. If you need to let another user create secrets, use:
 #$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -UserPrincipalName $UserPrincipalName -PermissionsToSecrets Get,Delete,List,Set -PassThru
 
@@ -251,8 +248,10 @@ $CertUrl = (Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name $CertificateName
 
 #region Private Endpoint Setup
 #From https://learn.microsoft.com/en-us/azure/private-link/create-private-endpoint-powershell?tabs=dynamic-ip#create-a-private-endpoint
+#From https://www.jorgebernhardt.com/private-endpoint-azure-key-vault-powershell/
 ## Create the private endpoint connection. ## 
-$PrivateLinkServiceConnection = New-AzPrivateLinkServiceConnection -Name $PrivateEndpointName -PrivateLinkServiceId $Vault.ResourceId -GroupId 'vault'
+$GroupId = (Get-AzPrivateLinkResource -PrivateLinkResourceId $KeyVault.ResourceId).GroupId
+$PrivateLinkServiceConnection = New-AzPrivateLinkServiceConnection -Name $PrivateEndpointName -PrivateLinkServiceId $KeyVault.ResourceId -GroupId $GroupId
 $PrivateEndpoint = New-AzPrivateEndpoint -Name $PrivateEndpointName -ResourceGroupName $ResourceGroupName -Location $Location -Subnet $Subnet -PrivateLinkServiceConnection $PrivateLinkServiceConnection -CustomNetworkInterfaceName $("{0}-nic" -f $PrivateEndpointName)
 
 ## Create the private DNS zone. ##
@@ -261,10 +260,10 @@ $PrivateDnsZone = New-AzPrivateDnsZone -ResourceGroupName $ResourceGroupName -Na
 
 ## Create a DNS network link. ##
 $PrivateDnsVirtualNetworkLinkName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $PrivateDnsVirtualNetworkLinkPrefix, $Project, $Role, $LocationShortName, $Instance                       
-$PrivateDnsVirtualNetworkLink = New-AzPrivateDnsVirtualNetworkLink -ResourceGroupName $ResourceGroupName -Name $PrivateDnsVirtualNetworkLinkName  -ZoneName $PrivateDnsZoneName -VirtualNetworkId $VirtualNetwork.Id
+$PrivateDnsVirtualNetworkLink = New-AzPrivateDnsVirtualNetworkLink -ResourceGroupName $ResourceGroupName -Name $PrivateDnsVirtualNetworkLinkName  -ZoneName $PrivateDnsZone.Name -VirtualNetworkId $VirtualNetwork.Id
 
 ## Configure the DNS zone. ##
-$PrivateDnsZoneConfig = New-AzPrivateDnsZoneConfig -Name $PrivateDnsZoneName -PrivateDnsZoneId $PrivateDnsZone.ResourceId
+$PrivateDnsZoneConfig = New-AzPrivateDnsZoneConfig -Name $PrivateDnsZone.Name -PrivateDnsZoneId $PrivateDnsZone.ResourceId
 
 ## Create the DNS zone group. ##
 $PrivateDnsZoneGroup = New-AzPrivateDnsZoneGroup -ResourceGroupName $ResourceGroupName -PrivateEndpointName $PrivateEndpointName -Name 'default' -PrivateDnsZoneConfig $PrivateDnsZoneConfig
@@ -281,7 +280,7 @@ Set-AzVMOperatingSystem -VM $VMConfig -Windows -ComputerName $VMName -Credential
 
 #region Referencing your self-signed certificates URL while creating a VM
 #From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/connect-winrm
-$VaultId = $Vault.ResourceId
+$VaultId = $KeyVault.ResourceId
 $CertificateStore = "My"
 $VMConfig = Add-AzVMSecret -VM $VMConfig -SourceVaultId $VaultId -CertificateStore $CertificateStore -CertificateUrl $CertUrl
 #$VMConfig | Update-AzVM -Verbose
@@ -377,7 +376,7 @@ $VM | Update-AzVM -Verbose
 #endregion
 
 #Key Vault - Disabling Public Access
-#Update-AzKeyVault -VaultName $KeyVaultName -ResourceGroupName $ResourceGroupName -PublicNetworkAccess "Disabled"  
+Update-AzKeyVault -VaultName $KeyVaultName -ResourceGroupName $ResourceGroupName -PublicNetworkAccess "Disabled"  
 
 # Adding Credentials to the Credential Manager (and escaping the password)
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDN /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
