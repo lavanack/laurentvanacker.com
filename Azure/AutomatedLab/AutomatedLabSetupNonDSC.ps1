@@ -35,7 +35,7 @@ $HyperVPath = "$($Disk.DriveLetter):\Virtual Machines\Hyper-V"
 $null = New-Item -Path $HyperVPath -ItemType Directory -Force
 Set-VMHost -VirtualHardDiskPath $HyperVPath -VirtualMachinePath $HyperVPath
 
-$SourceControlGitHub = New-Item -Path "$($env:SystemDrive)\Source Control\GitHub" -ItemType Directory -Force
+$SourceControlGitHub = New-Item -Path "$($Disk.DriveLetter):\Source Control\GitHub" -ItemType Directory -Force
 
 #region Installing and Seting up AutomatedLab
 #Installing the NuGet Provider

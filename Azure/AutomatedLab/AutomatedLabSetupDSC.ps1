@@ -138,7 +138,7 @@ Configuration AutomatedLabSetupDSC {
 
         File GitHubFolder
         {
-            DestinationPath = "$($env:SystemDrive)\Source Control\GitHub"
+            DestinationPath = "$($DriveLetter):\Source Control\GitHub"
             Type            = 'Directory'
             Ensure          = "Present"
             Force           = $true
