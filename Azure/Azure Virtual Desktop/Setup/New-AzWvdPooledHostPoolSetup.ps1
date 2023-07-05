@@ -301,6 +301,8 @@ function New-AzWvdPooledHostPoolSetup {
                     Start-ADSyncSyncCycle -PolicyType Delta
                 }
             }
+            Write-Verbose -Message "Sleeping 30 seconds ..."
+            Start-Sleep -Seconds 30
             #endregion 
             #endregion
 
@@ -570,7 +572,13 @@ function New-AzWvdPooledHostPoolSetup {
                 #Get the name of the custom role
                 $FileShareContributorRole = Get-AzRoleDefinition "Storage File Data SMB Share Contributor"
                 #Assign the custom role to the target identity with the specified scope.
-                $AzADGroup = Get-AzADGroup -SearchString $CurrentPooledHostPoolFSLogixContributorADGroupName
+                Do 
+                {
+                    $AzADGroup = $null
+                    $AzADGroup = Get-AzADGroup -SearchString $CurrentPooledHostPoolFSLogixContributorADGroupName
+                    Write-Verbose -Message "Sleeping 10 seconds ..."
+                    Start-Sleep -Seconds 10
+                } While (-not($AzADGroup.Id))
                 if (-not(Get-AzRoleAssignment -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope)) {
                     New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope
                 }
@@ -580,7 +588,14 @@ function New-AzWvdPooledHostPoolSetup {
                 #Get the name of the custom role
                 $FileShareContributorRole = Get-AzRoleDefinition "Storage File Data SMB Share Elevated Contributor"
                 #Assign the custom role to the target identity with the specified scope.
-                $AzADGroup = Get-AzADGroup -SearchString $CurrentPooledHostPoolFSLogixElevatedContributorADGroupName
+                Do 
+                {
+                    $AzADGroup = $null
+                    $AzADGroup = Get-AzADGroup -SearchString $CurrentPooledHostPoolFSLogixElevatedContributorADGroupName
+                    Write-Verbose -Message "Sleeping 10 seconds ..."
+                    Start-Sleep -Seconds 10
+                } While (-not($AzADGroup.Id))
+
                 if (-not(Get-AzRoleAssignment -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope)) {
                     New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope
                 }
@@ -590,7 +605,13 @@ function New-AzWvdPooledHostPoolSetup {
                 #Get the name of the custom role
                 $FileShareContributorRole = Get-AzRoleDefinition "Storage File Data SMB Share Reader"
                 #Assign the custom role to the target identity with the specified scope.
-                $AzADGroup = Get-AzADGroup -SearchString $CurrentPooledHostPoolFSLogixReaderADGroupName
+                Do 
+                {
+                    $AzADGroup = $null
+                    $AzADGroup = Get-AzADGroup -SearchString $CurrentPooledHostPoolFSLogixReaderADGroupName
+                    Write-Verbose -Message "Sleeping 10 seconds ..."
+                    Start-Sleep -Seconds 10
+                } While (-not($AzADGroup.Id))
                 if (-not(Get-AzRoleAssignment -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope)) {
                     New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope
                 }
@@ -616,7 +637,7 @@ function New-AzWvdPooledHostPoolSetup {
             if (-not($CurrentPooledHostPoolMSIXHostsADGroup)) {
                 $CurrentPooledHostPoolMSIXHostsADGroup = New-ADGroup -Name $CurrentPooledHostPoolMSIXHostsADGroupName -SamAccountName $CurrentPooledHostPoolMSIXHostsADGroupName -GroupCategory Security -GroupScope Global -DisplayName $CurrentPooledHostPoolMSIXHostsADGroupName -Path $CurrentPooledHostPoolOU.DistinguishedName -PassThru
             }
-            $CurrentPooledHostPoolMSIXHostsADGroup | Add-ADGroupMember -Members $CurrentPooledHostPoolUsersADGroupName
+            #$CurrentPooledHostPoolMSIXHostsADGroup | Add-ADGroupMember -Members $CurrentPooledHostPoolUsersADGroupName
 
             $CurrentPooledHostPoolMSIXShareAdminsADGroupName = "$($CurrentPooledHostPool.Name) - $MSIXShareAdmins"
             $CurrentPooledHostPoolMSIXShareAdminsADGroup = Get-ADGroup -Filter "Name -eq '$CurrentPooledHostPoolMSIXShareAdminsADGroupName' -and GroupCategory -eq 'Security' -and GroupScope -eq 'Global'" -SearchBase $CurrentPooledHostPoolOU.DistinguishedName
@@ -796,12 +817,24 @@ function New-AzWvdPooledHostPoolSetup {
                 #Get the name of the custom role
                 $FileShareContributorRole = Get-AzRoleDefinition "Storage File Data SMB Share Contributor"
                 #Assign the custom role to the target identity with the specified scope.
-                $AzADGroup = Get-AzADGroup -SearchString $CurrentPooledHostPoolMSIXHostsADGroupName
+                Do 
+                {
+                    $AzADGroup = $null
+                    $AzADGroup = Get-AzADGroup -SearchString $CurrentPooledHostPoolMSIXHostsADGroupName
+                    Write-Verbose -Message "Sleeping 10 seconds ..."
+                    Start-Sleep -Seconds 10
+                } While (-not($AzADGroup.Id))
                 if (-not(Get-AzRoleAssignment -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope)) {
                     New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope
                 }
                 #Assign the custom role to the target identity with the specified scope.
-                $AzADGroup = Get-AzADGroup -SearchString $CurrentPooledHostPoolMSIXUsersADGroupName
+                Do 
+                {
+                    $AzADGroup = $null
+                    $AzADGroup = Get-AzADGroup -SearchString $CurrentPooledHostPoolMSIXUsersADGroupName
+                    Write-Verbose -Message "Sleeping 10 seconds ..."
+                    Start-Sleep -Seconds 10
+                } While (-not($AzADGroup.Id))
                 if (-not(Get-AzRoleAssignment -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope)) {
                     New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope
                 }
@@ -811,7 +844,13 @@ function New-AzWvdPooledHostPoolSetup {
                 #Get the name of the custom role
                 $FileShareContributorRole = Get-AzRoleDefinition "Storage File Data SMB Share Elevated Contributor"
                 #Assign the custom role to the target identity with the specified scope.
-                $AzADGroup = Get-AzADGroup -SearchString $CurrentPooledHostPoolMSIXShareAdminsADGroupName
+                Do 
+                {
+                    $AzADGroup = $null
+                    $AzADGroup = Get-AzADGroup -SearchString $CurrentPooledHostPoolMSIXShareAdminsADGroupName
+                    Write-Verbose -Message "Sleeping 10 seconds ..."
+                    Start-Sleep -Seconds 10
+                } While (-not($AzADGroup.Id))
                 if (-not(Get-AzRoleAssignment -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope)) {
                     New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope
                 }
@@ -879,16 +918,22 @@ function New-AzWvdPooledHostPoolSetup {
                 ApplicationGroupType = 'Desktop'
             }
 
-            $CurrentAzWvdDesktopApplicationGroup = New-AzWvdApplicationGroup @parameters
+            $CurrentAzDesktopApplicationGroup = New-AzWvdApplicationGroup @parameters
 
             #region Assign groups to an application group
             # Get the object ID of the user group you want to assign to the application group
-            $userGroupId = (Get-AzADGroup -DisplayName $CurrentPooledHostPoolUsersADGroupName).Id
+            Do 
+            {
+                $AzADGroup = $null
+                $AzADGroup = Get-AzADGroup -DisplayName $CurrentPooledHostPoolUsersADGroupName
+                Write-Verbose -Message "Sleeping 10 seconds ..."
+                Start-Sleep -Seconds 10
+            } While (-not($AzADGroup.Id))
 
             # Assign users to the application group
             $parameters = @{
-                ObjectId           = $userGroupId
-                ResourceName       = $CurrentAzWvdDesktopApplicationGroup.Name
+                ObjectId           = $AzADGroup.Id
+                ResourceName       = $CurrentAzDesktopApplicationGroup.Name
                 ResourceGroupName  = $CurrentPooledHostPoolResourceGroupName
                 RoleDefinitionName = 'Desktop Virtualization User'
                 ResourceType       = 'Microsoft.DesktopVirtualization/applicationGroups'
@@ -926,11 +971,17 @@ function New-AzWvdPooledHostPoolSetup {
 
             #region Assign groups to an application group
             # Get the object ID of the user group you want to assign to the application group
-            $userGroupId = (Get-AzADGroup -DisplayName $CurrentPooledHostPoolUsersADGroupName).Id
+            Do 
+            {
+                $AzADGroup = $null
+                $AzADGroup = Get-AzADGroup -DisplayName $CurrentPooledHostPoolUsersADGroupName
+                Write-Verbose -Message "Sleeping 10 seconds ..."
+                Start-Sleep -Seconds 10
+            } While (-not($AzADGroup.Id))
 
             # Assign users to the application group
             $parameters = @{
-                ObjectId           = $userGroupId
+                ObjectId           = $AzADGroup.Id
                 ResourceName       = $CurrentAzRemoteApplicationGroup.Name
                 ResourceGroupName  = $CurrentPooledHostPoolResourceGroupName
                 RoleDefinitionName = 'Desktop Virtualization User'
@@ -944,9 +995,9 @@ function New-AzWvdPooledHostPoolSetup {
 
             #region Workspace Setup
             $parameters = @{
-                Name                      = "WS-{0}" -f $CurrentPooledHostPool.Name
+                Name                      = "ws-{0}" -f $CurrentPooledHostPool.Name
                 ResourceGroupName         = $CurrentPooledHostPoolResourceGroupName
-                ApplicationGroupReference = $CurrentAzRemoteApplicationGroup.Id
+                ApplicationGroupReference = $CurrentAzRemoteApplicationGroup.Id, $CurrentAzDesktopApplicationGroup.Id
                 Location                  = $CurrentPooledHostPool.Location
             }
 
@@ -993,6 +1044,7 @@ Register-AzResourceProvider -ProviderNamespace Microsoft.DesktopVirtualization
 #Important: Wait until RegistrationState is set to Registered. 
 While (Get-AzResourceProvider -ProviderNamespace Microsoft.DesktopVirtualization | Where-Object -FilterScript {$_.RegistrationState -ne 'Registered'})
 {
+    Write-Verbose -Message "Sleeping 10 seconds ..."
     Start-Sleep -Seconds 10
 }
 #endregion
@@ -1021,14 +1073,14 @@ if (-not(Test-Path -Path $env:SystemRoot\policyDefinitions\en-US\fslogix.adml -P
 #region function calls
 <#
 $PooledHostPools = @(
-    [PSCustomObject]@{Name="HP-Pool-HelpDesk-001"; Location="EastUS"; MaxSessionLimit=5}
-    [PSCustomObject]@{Name="HP-Pool-HelpDesk-002"; Location="EastUS"; MaxSessionLimit=5}
-    [PSCustomObject]@{Name="HP-Pool-HelpDesk-003"; Location="EastUS"; MaxSessionLimit=5}
+    [PSCustomObject]@{Name="hp-ad-helpdesk-eu-001"; Location="EastUS"; MaxSessionLimit=5}
+    [PSCustomObject]@{Name="hp-ad-helpdesk-eu-002"; Location="EastUS"; MaxSessionLimit=5}
+    [PSCustomObject]@{Name="hp-ad-helpdesk-eu-003"; Location="EastUS"; MaxSessionLimit=5}
 )
 #>
 
 $PooledHostPools = 1..3 | ForEach-Object -Process {
-    [PSCustomObject]@{Name = $("HP-Pool-HelpDesk-{0:D3}" -f $_); Location = "EastUS"; MaxSessionLimit = 5 }
+    [PSCustomObject]@{Name = $("hp-ad-helpdesk-eu-{0:D3}" -f $_); Location = "EastUS"; MaxSessionLimit = 5 }
 }
 #Uncomment the following block to remove all previously existing resources
 
@@ -1045,7 +1097,7 @@ Get-GPO -All | Where-Object -FilterScript {($_.DisplayName -match $($PooledHostP
 $HP = (Get-AzWvdHostPool | Where-Object -FilterScript {$_.Name -in $($PooledHostPools.Name)})
 $RG = $HP | ForEach-Object { Get-AzResourceGroup $_.Id.split('/')[4]}
 $RG | Remove-AzResourceGroup -WhatIf
-$RG | Remove-AzResourceLock -LockName DenyDelete -Force -ErrorAction Ignore
+$RG | Foreach-Object -Process {Get-AzResourceLock -ResourceGroupName $_.ResourceGroupName -AtScope | Where-Object -FilterScript {$_.Properties.level -eq 'CanNotDelete'}} | Remove-AzResourceLock -Force -Verbose -ErrorAction Ignore
 
 $Jobs = $RG | Remove-AzResourceGroup -Force -AsJob -Verbose
 $Jobs | Wait-Job
