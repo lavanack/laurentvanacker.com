@@ -15,7 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources, Az.PrivateDns
+#requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources, Az.KeyVault
 
 
 [CmdletBinding()]
@@ -90,7 +90,6 @@ $KeyVaultPrefix = "kv"
 $ResourceGroupPrefix = "rg"
 $StorageAccountPrefix = "sa"
 $VirtualMachinePrefix = "vm"
-$PrivateEndpointPrefix = "pep"
 $PrivateDnsVirtualNetworkLinkPrefix = "pdvnl" 
 $NetworkSecurityGroupPrefix = "nsg"
 $VirtualNetworkPrefix = "vnet"
@@ -112,7 +111,6 @@ $VirtualNetworkName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $VirtualNetworkPref
 $SubnetName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $SubnetPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $KeyVaultName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $KeyVaultPrefix, $Project, $Role, $LocationShortName, $Instance                       
-$PrivateEndpointName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $PrivateEndpointPrefix, $Project, $Role, $LocationShortName, $Instance                       
 
 $StorageAccountName = $StorageAccountName.ToLower()
 $VMName = $VMName.ToLower()

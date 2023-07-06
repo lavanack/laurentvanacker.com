@@ -15,7 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources, Az.PrivateDns
+#requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources, Az.PrivateDns, Az.KeyVault
 
 [CmdletBinding()]
 param
@@ -111,7 +111,7 @@ $VirtualNetworkName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $VirtualNetworkPref
 $SubnetName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $SubnetPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $KeyVaultName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $KeyVaultPrefix, $Project, $Role, $LocationShortName, $Instance                       
-$PrivateEndpointName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $PrivateEndpointPrefix, $Project, $Role, $LocationShortName, $Instance                       
+$KeyVaultPrivateEndpointName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $PrivateEndpointPrefix, $Project, $Role, $LocationShortName, $Instance                       
 
 $StorageAccountName = $StorageAccountName.ToLower()
 $VMName = $VMName.ToLower()
@@ -251,22 +251,22 @@ $CertUrl = (Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name $CertificateName
 #From https://www.jorgebernhardt.com/private-endpoint-azure-key-vault-powershell/
 ## Create the private endpoint connection. ## 
 $GroupId = (Get-AzPrivateLinkResource -PrivateLinkResourceId $KeyVault.ResourceId).GroupId
-$PrivateLinkServiceConnection = New-AzPrivateLinkServiceConnection -Name $PrivateEndpointName -PrivateLinkServiceId $KeyVault.ResourceId -GroupId $GroupId
-$PrivateEndpoint = New-AzPrivateEndpoint -Name $PrivateEndpointName -ResourceGroupName $ResourceGroupName -Location $Location -Subnet $Subnet -PrivateLinkServiceConnection $PrivateLinkServiceConnection -CustomNetworkInterfaceName $("{0}-nic" -f $PrivateEndpointName)
+$KeyVaultPrivateLinkServiceConnection = New-AzPrivateLinkServiceConnection -Name $KeyVaultPrivateEndpointName -PrivateLinkServiceId $KeyVault.ResourceId -GroupId $GroupId
+$KeyVaultPrivateEndpoint = New-AzPrivateEndpoint -Name $KeyVaultPrivateEndpointName -ResourceGroupName $ResourceGroupName -Location $Location -Subnet $Subnet -PrivateLinkServiceConnection $KeyVaultPrivateLinkServiceConnection -CustomNetworkInterfaceName $("{0}-nic" -f $KeyVaultPrivateEndpointName)
 
 ## Create the private DNS zone. ##
-$PrivateDnsZoneName = 'privatelink.vaultcore.azure.net'
-$PrivateDnsZone = New-AzPrivateDnsZone -ResourceGroupName $ResourceGroupName -Name $PrivateDnsZoneName
+$KeyVaultPrivateDnsZoneName = 'privatelink.vaultcore.azure.net'
+$KeyVaultPrivateDnsZone = New-AzPrivateDnsZone -ResourceGroupName $ResourceGroupName -Name $KeyVaultPrivateDnsZoneName
 
 ## Create a DNS network link. ##
-$PrivateDnsVirtualNetworkLinkName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $PrivateDnsVirtualNetworkLinkPrefix, $Project, $Role, $LocationShortName, $Instance                       
-$PrivateDnsVirtualNetworkLink = New-AzPrivateDnsVirtualNetworkLink -ResourceGroupName $ResourceGroupName -Name $PrivateDnsVirtualNetworkLinkName  -ZoneName $PrivateDnsZone.Name -VirtualNetworkId $VirtualNetwork.Id
+$KeyVaultPrivateDnsVirtualNetworkLinkName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $KeyVaultPrivateDnsVirtualNetworkLinkPrefix, $Project, $Role, $LocationShortName, $Instance                       
+$KeyVaultPrivateDnsVirtualNetworkLink = New-AzPrivateDnsVirtualNetworkLink -ResourceGroupName $ResourceGroupName -Name $KeyVaultPrivateDnsVirtualNetworkLinkName  -ZoneName $KeyVaultPrivateDnsZone.Name -VirtualNetworkId $VirtualNetwork.Id
 
 ## Configure the DNS zone. ##
-$PrivateDnsZoneConfig = New-AzPrivateDnsZoneConfig -Name $PrivateDnsZone.Name -PrivateDnsZoneId $PrivateDnsZone.ResourceId
+$KeyVaultPrivateDnsZoneConfig = New-AzPrivateDnsZoneConfig -Name $KeyVaultPrivateDnsZone.Name -PrivateDnsZoneId $KeyVaultPrivateDnsZone.ResourceId
 
 ## Create the DNS zone group. ##
-$PrivateDnsZoneGroup = New-AzPrivateDnsZoneGroup -ResourceGroupName $ResourceGroupName -PrivateEndpointName $PrivateEndpointName -Name 'default' -PrivateDnsZoneConfig $PrivateDnsZoneConfig
+$KeyVaultPrivateDnsZoneGroup = New-AzPrivateDnsZoneGroup -ResourceGroupName $ResourceGroupName -PrivateEndpointName $KeyVaultPrivateEndpointName -Name 'default' -PrivateDnsZoneConfig $KeyVaultPrivateDnsZoneConfig
 #endregion
 #endregion 
 
