@@ -237,7 +237,7 @@ Set-AzVMSourceImage -VM $VMConfig -PublisherName $ImagePublisherName -Offer $Ima
 
 #region Setting up the Key Vault for Disk Encryption
 #Create an Azure Key Vault
-$KeyVault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $Location -EnabledForDiskEncryption -EnablePurgeProtection
+$KeyVault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $Location -EnabledForDiskEncryption #-EnablePurgeProtection
 #From https://learn.microsoft.com/en-us/powershell/module/az.keyvault/add-azkeyvaultcertificate?view=azps-10.0.0#examples
 $Policy = New-AzKeyVaultCertificatePolicy -SecretContentType "application/x-pkcs12" -SubjectName "CN=$FQDN" -IssuerName "Self" -ValidityInMonths 12 -ReuseKeyOnRenewal
 Add-AzKeyVaultCertificate -VaultName $KeyVaultName  -Name "$VMName" -CertificatePolicy $Policy

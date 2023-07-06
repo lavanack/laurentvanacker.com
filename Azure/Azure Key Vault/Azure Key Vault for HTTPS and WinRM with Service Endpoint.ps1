@@ -238,7 +238,7 @@ $image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.Publi
 #From https://learn.microsoft.com/en-us/azure/virtual-network/tutorial-restrict-network-access-to-resources-powershell
 #Allowing public access from the virtual network and my Public IP address
 $NetworkRuleSet = New-AzKeyVaultNetworkRuleSetObject -DefaultAction Deny -Bypass AzureServices -IpAddressRange $MyPublicIp -VirtualNetworkResourceId $Subnet.Id
-$KeyVault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $location -NetworkRuleSet $NetworkRuleSet -EnabledForDeployment -EnabledForTemplateDeployment
+$KeyVault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $location -NetworkRuleSet $NetworkRuleSet -EnabledForDeployment -EnabledForTemplateDeployment #-EnablePurgeProtection
 #endregion
 #As the owner of the key vault, you automatically have access to create secrets. If you need to let another user create secrets, use:
 #$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -UserPrincipalName $UserPrincipalName -PermissionsToSecrets Get,Delete,List,Set -PassThru

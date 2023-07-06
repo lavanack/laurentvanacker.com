@@ -58,7 +58,7 @@ New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 #region KeyVault Management
 #Create an Azure Key Vault
 #https://learn.microsoft.com/en-us/powershell/module/az.keyvault/new-azkeyvault?view=azps-10.0.0#-enabledfortemplatedeployment
-$Vault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $location -EnabledForTemplateDeployment 
+$Vault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $location -EnabledForTemplateDeployment #-EnablePurgeProtection 
 #As the owner of the key vault, you automatically have access to create secrets. If you need to let another user create secrets, use:
 #$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -UserPrincipalName $UserPrincipalName -PermissionsToSecrets Get,Delete,List,Set -PassThru
 

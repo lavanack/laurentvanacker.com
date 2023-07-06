@@ -226,7 +226,7 @@ $image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.Publi
 #region Setting up the Key Vault for HTTPS and WinRM
 
 #Create an Azure Key Vault
-$Vault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $location -EnabledForDeployment -EnabledForTemplateDeployment
+$Vault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $location -EnabledForDeployment -EnabledForTemplateDeployment #-EnablePurgeProtection
 #As the owner of the key vault, you automatically have access to create secrets. If you need to let another user create secrets, use:
 #$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -UserPrincipalName $UserPrincipalName -PermissionsToSecrets Get,Delete,List,Set -PassThru
 

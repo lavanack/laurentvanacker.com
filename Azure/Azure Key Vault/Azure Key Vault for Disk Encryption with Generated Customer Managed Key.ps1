@@ -240,7 +240,7 @@ Set-AzVMSourceImage -VM $VMConfig -PublisherName $ImagePublisherName -Offer $Ima
 
 #region Setting up the Key Vault for Disk Encryption
 #Create an Azure Key Vault
-$KeyVault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $Location -EnabledForDiskEncryption -EnablePurgeProtection
+$KeyVault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $Location -EnabledForDiskEncryption #-EnablePurgeProtection
 #FROM https://learn.microsoft.com/en-us/azure/virtual-machines/windows/disks-enable-customer-managed-keys-powershell#set-up-an-azure-key-vault-and-diskencryptionset-optionally-with-automatic-key-rotation
 $key = Add-AzKeyVaultKey -VaultName $keyVaultName -Name $DiskEncryptionKeyName -Destination $DiskEncryptionKeyDestination
 $DiskEncryptionSetConfig = New-AzDiskEncryptionSetConfig -Location $Location -SourceVaultId $keyVault.ResourceId -KeyUrl $key.Key.Kid -IdentityType SystemAssigned -RotationToLatestKeyVersionEnabled $true
