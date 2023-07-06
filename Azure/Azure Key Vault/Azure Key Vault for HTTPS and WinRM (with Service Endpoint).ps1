@@ -96,7 +96,7 @@ $NetworkSecurityGroupPrefix = "nsg"
 $VirtualNetworkPrefix = "vnet"
 $SubnetPrefix = "vnets"
 $Project = "kv"
-$Role = "cert"
+$Role = "sep"
 #$DigitNumber = 4
 $DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role + $LocationShortName).Length
 $CertificateName = "mycert"
@@ -200,10 +200,11 @@ $SecurityRules = @(
     #WinRM only for my public IP address
     New-AzNetworkSecurityRuleConfig -Name WinRMRule -Description "Allow WinRM" -Access Allow -Protocol Tcp -Direction Inbound -Priority 303 -SourceAddressPrefix $MyPublicIp -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 5985, 5986
 
+    <#
     #Restrict network access for a subnet
     New-AzNetworkSecurityRuleConfig -Name Allow-KeyVault-All -Access Allow -DestinationAddressPrefix AzureKeyVault -DestinationPortRange * -Direction Outbound -Priority 100 -Protocol * -SourceAddressPrefix VirtualNetwork -SourcePortRange *
     New-AzNetworkSecurityRuleConfig -Name Deny-Internet-All -Access Deny -DestinationAddressPrefix Internet -DestinationPortRange * -Direction Outbound -Priority 110 -Protocol * -SourceAddressPrefix VirtualNetwork -SourcePortRange *
-
+    #>
     #endregion
 )
 
