@@ -1,0 +1,69 @@
+﻿Import-Module PSDesiredStateConfiguration
+
+Configuration WebServerConfiguration
+{    
+	Param ( 
+		[String[]]$ComputerName = "localhost",
+		[String]$CertificateThumbprint = $null
+	)
+
+	Import-DscResource -ModuleName PSDesiredStateConfiguration
+    Import-DscResource -ModuleName WebAdministrationDsc
+
+    Node $ComputerName
+    {                
+        #Changing some default LCM Settings
+        LocalConfigurationManager
+        {
+            RebootNodeIfNeeded = $true
+            ConfigurationMode  = 'ApplyAndAutoCorrect'
+        }
+    
+        WindowsFeature WebServer
+        {
+            Name   = "Web-Server"
+            Ensure = "Present"
+        }
+
+        WindowsFeature AspNet45
+        {
+            Name      = "Web-Asp-Net45"
+            Ensure    = "Present"
+            DependsOn = '[WindowsFeature]WebServer'
+        }
+
+        WindowsFeature ManagementTools
+        {
+            Name      = "Web-Mgmt-Tools"
+            Ensure    = "Present"
+            DependsOn = '[WindowsFeature]WebServer'
+        }
+
+		File IISDefaultPage
+        {
+            DestinationPath = "C:\inetpub\wwwroot\iisstart.htm"
+            Contents = "<HTML><HEAD><TITLE>Installed via Azure DSC Extension</TITLE></HEAD><BODY><H1>If you are seeing this page, It means Azure DSC Extension Rocks !!!</H1></BODY></HTML>"
+            Ensure = "Present"
+            Type = "File" 
+            Force = $True
+            DependsOn = '[WindowsFeature]WebServer'
+        }
+        if (-not([string]::IsNullOrEmpty($CertificateThumbprint)))
+        {
+            WebSite DefaultWebSite
+            {
+                Name         = 'Default Web Site'
+                DependsOn    = '[WindowsFeature]WebServer'
+                BindingInfo     = @(
+                    DSC_WebBindingInformation
+                    {
+                        Protocol              = 'HTTPS'
+                        Port                  = 443
+                        CertificateThumbprint = $CertificateThumbprint
+                        CertificateStoreName  = 'MY'
+                    }
+                )                              
+            }
+        }
+    }
+}
