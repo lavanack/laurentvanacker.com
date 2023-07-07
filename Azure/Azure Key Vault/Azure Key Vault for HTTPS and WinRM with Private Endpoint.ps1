@@ -98,7 +98,6 @@ $Project = "kv"
 $Role = "pep"
 #$DigitNumber = 4
 $DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role + $LocationShortName).Length
-$CertificateName = "mycert"
 
 Do {
     $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
@@ -234,17 +233,17 @@ $KeyVault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGrou
 
 #Generate a certificate and store in Key Vault
 $Policy = New-AzKeyVaultCertificatePolicy -SubjectName "CN=$FQDN" -SecretContentType "application/x-pkcs12" -IssuerName Self -ValidityInMonths 12
-Add-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $CertificateName -CertificatePolicy $Policy
+Add-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $VMName -CertificatePolicy $Policy
 
 
-While (-not((Get-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $CertificateName).SecretId)) {
+While (-not((Get-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $VMName).SecretId)) {
     Write-Host "Sleeping 30 seconds ..."
     Start-Sleep 30
 }
 
 #Add a certificate to VM from Key Vault
-$CertificateThumbprint = (Get-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $CertificateName).Certificate.Thumbprint
-$CertUrl = (Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name $CertificateName).id
+$CertificateThumbprint = (Get-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $VMName).Certificate.Thumbprint
+$CertUrl = (Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name $VMName).id
 
 #region Private Endpoint Setup
 #From https://learn.microsoft.com/en-us/azure/private-link/create-private-endpoint-powershell?tabs=dynamic-ip#create-a-private-endpoint
