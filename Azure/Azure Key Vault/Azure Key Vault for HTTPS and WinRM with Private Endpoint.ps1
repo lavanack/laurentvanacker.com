@@ -364,7 +364,7 @@ Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 
 #region Setting up the DSC extension
 
-# Publishing DSC Configuration for AutomatedLab via Hyper-V (Nested Virtualization)
+# Publishing DSC Configuration 
 Publish-AzVMDscConfiguration $DSCFilePath -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Force -Verbose
 
 try {
