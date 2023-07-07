@@ -15,7 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources, Az.KeyVault
+#requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources, Az.KeyVault, Az.OperationalInsights
 
 
 [CmdletBinding()]
@@ -63,6 +63,7 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
 #region Defining variables 
+$UserPrincipalName  = (Get-AzContext).Account.Id
 $SubscriptionName = "Cloud Solution Architect"
 #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
 $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
@@ -94,11 +95,12 @@ $PrivateDnsVirtualNetworkLinkPrefix = "pdvnl"
 $NetworkSecurityGroupPrefix = "nsg"
 $VirtualNetworkPrefix = "vnet"
 $SubnetPrefix = "vnets"
+$LogAnalyticsWorkSpacePrefix = "opiw"
+
 $Project = "kv"
 $Role = "sep"
 #$DigitNumber = 4
 $DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role + $LocationShortName).Length
-$CertificateName = "mycert"
 
 Do {
     $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
@@ -111,6 +113,7 @@ $VirtualNetworkName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $VirtualNetworkPref
 $SubnetName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $SubnetPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $KeyVaultName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $KeyVaultPrefix, $Project, $Role, $LocationShortName, $Instance                       
+$LogAnalyticsWorkSpaceName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $LogAnalyticsWorkSpacePrefix, $Project, $Role, $LocationShortName, $Instance                       
 
 $StorageAccountName = $StorageAccountName.ToLower()
 $VMName = $VMName.ToLower()
@@ -183,7 +186,7 @@ elseif ($null -eq (Get-AZVMSize -Location $Location | Where-Object -FilterScript
 New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 
 #Step 2: Create Azure Storage Account
-New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName
+$StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName
 
 #Step 3: Create Azure Network Security Group
 #RDP only for my public IP address
@@ -236,7 +239,7 @@ $image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.Publi
 #Create an Azure Key Vault
 #region Service Endpoint Setup
 #From https://learn.microsoft.com/en-us/azure/virtual-network/tutorial-restrict-network-access-to-resources-powershell
-#Allowing public access from the virtual network and my Public IP address
+#Allowing access from the virtual network, Azure services and my public IP address so it can access Azure key Vault
 $NetworkRuleSet = New-AzKeyVaultNetworkRuleSetObject -DefaultAction Deny -Bypass AzureServices -IpAddressRange $MyPublicIp -VirtualNetworkResourceId $Subnet.Id
 $KeyVault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $location -NetworkRuleSet $NetworkRuleSet -EnabledForDeployment -EnabledForTemplateDeployment #-EnablePurgeProtection
 #endregion
@@ -245,23 +248,29 @@ $KeyVault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGrou
 
 #Generate a certificate and store in Key Vault
 $Policy = New-AzKeyVaultCertificatePolicy -SubjectName "CN=$FQDN" -SecretContentType "application/x-pkcs12" -IssuerName Self -ValidityInMonths 12
-Add-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $CertificateName -CertificatePolicy $Policy
+Add-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $VMName -CertificatePolicy $Policy
 
 
-While (-not((Get-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $CertificateName).SecretId)) {
+While (-not((Get-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $VMName).SecretId)) {
     Write-Host "Sleeping 30 seconds ..."
     Start-Sleep 30
 }
 
 #Add a certificate to VM from Key Vault
-$CertificateThumbprint = (Get-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $CertificateName).Certificate.Thumbprint
-$CertUrl = (Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name $CertificateName).id
-
+$CertificateThumbprint = (Get-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $VMName).Certificate.Thumbprint
+$CertUrl = (Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name $VMName).id
 
 #endregion 
 
+#region Log Analytics WorkSpace
+# Creating the workspace
+$LogAnalyticsWorkSpace = New-AzOperationalInsightsWorkspace -Location $Location -Name $LogAnalyticsWorkSpaceName -Sku PerGB2018 -ResourceGroupName $ResourceGroupName -Force
+# Enabling access logging for KV
+Set-AzDiagnosticSetting -Name $VMName -ResourceId $KeyVault.ResourceId -WorkspaceId $LogAnalyticsWorkSpace.ResourceId -Enabled $true -Category "AuditEvent"
+#endregion
+
 # Step 9: Create a virtual machine configuration file (As a Spot Intance)
-$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1
+$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1 -IdentityType SystemAssigned
 
 Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 
@@ -296,9 +305,13 @@ $VM = Add-AzVMDataDisk -VM $VMConfig -Name $DataDiskName -Caching 'ReadWrite' -C
 #endregion
 
 #Step 10: Create Azure Virtual Machine
-New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig #-DisableBginfoExtension
+$VM = New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig #-DisableBginfoExtension
 
 $VM = Get-AzVM -ResourceGroup $ResourceGroupName -Name $VMName
+#Assign privilege to VM in serviceEndpoint so it can access Azure key Vault. We do that by using VM’s System managed identity.
+#From https://ystatit.medium.com/azure-key-vault-with-azure-service-endpoints-and-private-link-part-1-bcc84b4c5fbc
+$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -ObjectId $VM.Identity.PrincipalId -PermissionsToSecrets all -PermissionsToKeys all -PermissionsToCertificates all -PassThru
+
 #region JIT Access Management
 #region Enabling JIT Access
 $NewJitPolicy = (@{
