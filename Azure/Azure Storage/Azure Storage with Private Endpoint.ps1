@@ -346,7 +346,7 @@ $VM | Update-AzVM -Verbose
 #Storage Account - Disabling Public Access
 #From https://www.jorgebernhardt.com/azure-storage-public-access/
 #From https://learn.microsoft.com/en-us/azure/storage/common/storage-network-security?tabs=azure-powershell#change-the-default-network-access-rule
-#Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Disabled
+Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Disabled
 #(Get-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $resourceGroupName ).AllowBlobPublicAccess
 
 # Adding Credentials to the Credential Manager (and escaping the password)
