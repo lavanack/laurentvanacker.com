@@ -254,6 +254,10 @@ $VM = Add-AzVMDataDisk -VM $VMConfig -Name $DataDiskName -Caching 'ReadWrite' -C
 New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig #-DisableBginfoExtension
 
 $VM = Get-AzVM -ResourceGroup $ResourceGroupName -Name $VMName
+#Assign privilege to VM so it can access Azure key Vault. We do that by using VM’s System managed identity.
+#From https://ystatit.medium.com/azure-key-vault-with-azure-service-endpoints-and-private-link-part-1-bcc84b4c5fbc
+$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -ObjectId $VM.Identity.PrincipalId -PermissionsToSecrets all -PermissionsToKeys all -PermissionsToCertificates all -PassThru
+
 #region JIT Access Management
 #region Enabling JIT Access
 $NewJitPolicy = (@{
@@ -316,6 +320,7 @@ Publish-AzVMDscConfiguration $DSCFilePath -ResourceGroupName $ResourceGroupName 
 #region Private Endpoint Setup
 #From https://learn.microsoft.com/en-us/azure/private-link/create-private-endpoint-powershell?tabs=dynamic-ip#create-a-private-endpoint
 #From https://www.jorgebernhardt.com/private-endpoint-azure-key-vault-powershell/
+#From https://ystatit.medium.com/azure-key-vault-with-azure-service-endpoints-and-private-link-part-1-bcc84b4c5fbc
 ## Create the private endpoint connection. ## 
 $GroupId = (Get-AzPrivateLinkResource -PrivateLinkResourceId $StorageAccount.Id).GroupId | Where-Object -FilterScript { $_ -match "blob" }
 $StorageAccountPrivateLinkServiceConnection = New-AzPrivateLinkServiceConnection -Name $StorageAccountPrivateEndpointName -PrivateLinkServiceId $StorageAccount.Id -GroupId $GroupId

@@ -180,7 +180,7 @@ elseif ($null -eq (Get-AZVMSize -Location $Location | Where-Object -FilterScript
 New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 
 #Step 2: Create Azure Storage Account
-New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName
+$StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName
 
 #Step 3: Create Azure Network Security Group
 #RDP only for my public IP address
@@ -244,7 +244,7 @@ $CertUrl = (Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name $VMName).id
 #endregion 
 
 # Step 9: Create a virtual machine configuration file (As a Spot Intance)
-$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1
+$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1 -IdentityType SystemAssigned
 
 Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 
@@ -282,6 +282,10 @@ $VM = Add-AzVMDataDisk -VM $VMConfig -Name $DataDiskName -CreateOption Attach -M
 New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig #-DisableBginfoExtension
 
 $VM = Get-AzVM -ResourceGroup $ResourceGroupName -Name $VMName
+#Assign privilege to VM so it can access Azure key Vault. We do that by using VM’s System managed identity.
+#From https://ystatit.medium.com/azure-key-vault-with-azure-service-endpoints-and-private-link-part-1-bcc84b4c5fbc
+$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -ObjectId $VM.Identity.PrincipalId -PermissionsToSecrets all -PermissionsToKeys all -PermissionsToCertificates all -PassThru
+
 #region JIT Access Management
 #region Enabling JIT Access
 $NewJitPolicy = (@{

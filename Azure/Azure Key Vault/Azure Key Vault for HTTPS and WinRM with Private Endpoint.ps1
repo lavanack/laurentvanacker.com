@@ -183,7 +183,7 @@ elseif ($null -eq (Get-AZVMSize -Location $Location | Where-Object -FilterScript
 New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 
 #Step 2: Create Azure Storage Account
-New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName
+$StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName
 
 #Step 3: Create Azure Network Security Group
 #RDP only for my public IP address
@@ -248,6 +248,7 @@ $CertUrl = (Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name $VMName).id
 #region Private Endpoint Setup
 #From https://learn.microsoft.com/en-us/azure/private-link/create-private-endpoint-powershell?tabs=dynamic-ip#create-a-private-endpoint
 #From https://www.jorgebernhardt.com/private-endpoint-azure-key-vault-powershell/
+#From https://ystatit.medium.com/azure-key-vault-with-azure-service-endpoints-and-private-link-part-1-bcc84b4c5fbc
 ## Create the private endpoint connection. ## 
 $GroupId = (Get-AzPrivateLinkResource -PrivateLinkResourceId $KeyVault.ResourceId).GroupId
 $KeyVaultPrivateLinkServiceConnection = New-AzPrivateLinkServiceConnection -Name $KeyVaultPrivateEndpointName -PrivateLinkServiceId $KeyVault.ResourceId -GroupId $GroupId
@@ -270,7 +271,7 @@ $KeyVaultPrivateDnsZoneGroup = New-AzPrivateDnsZoneGroup -ResourceGroupName $Res
 #endregion 
 
 # Step 9: Create a virtual machine configuration file (As a Spot Intance)
-$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1
+$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1 -IdentityType SystemAssigned
 
 Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 
@@ -308,6 +309,10 @@ $VM = Add-AzVMDataDisk -VM $VMConfig -Name $DataDiskName -Caching 'ReadWrite' -C
 New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig #-DisableBginfoExtension
 
 $VM = Get-AzVM -ResourceGroup $ResourceGroupName -Name $VMName
+#Assign privilege to VM so it can access Azure key Vault. We do that by using VM’s System managed identity.
+#From https://ystatit.medium.com/azure-key-vault-with-azure-service-endpoints-and-private-link-part-1-bcc84b4c5fbc
+$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -ObjectId $VM.Identity.PrincipalId -PermissionsToSecrets all -PermissionsToKeys all -PermissionsToCertificates all -PassThru
+
 #region JIT Access Management
 #region Enabling JIT Access
 $NewJitPolicy = (@{
