@@ -161,11 +161,11 @@ $WusToEusPCMapping = Get-AzRecoveryServicesAsrProtectionContainerMapping -Protec
 
 
 #Create Cache storage account for replication logs in the primary region
-$EastUSCacheStorageAccount = New-AzStorageAccount -Name "a2acachestorage$Random" -ResourceGroupName "A2AdemoRG" -Location 'East US' -SkuName Standard_LRS -Kind Storage
+$EastUSCacheStorageAccount = New-AzStorageAccount -Name "a2acachestorage$Random" -ResourceGroupName "A2AdemoRG" -Location 'East US' -SkuName Standard_LRS -Kind Storage -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true
 
 
 #Create Target storage account in the recovery region. In this case a Standard Storage account
-$WestUSTargetStorageAccount = New-AzStorageAccount -Name "a2atargetstorage$Random" -ResourceGroupName "a2ademorecoveryrg" -Location 'West US 2' -SkuName Standard_LRS -Kind Storage
+$WestUSTargetStorageAccount = New-AzStorageAccount -Name "a2atargetstorage$Random" -ResourceGroupName "a2ademorecoveryrg" -Location 'West US 2' -SkuName Standard_LRS -Kind Storage -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true
 
 
 #Create a Recovery Network in the recovery region
@@ -315,7 +315,7 @@ Get-AzRecoveryServicesAsrJob -Job $CommitFailoverJOb
 
 
 #Create Cache storage account for replication logs in the primary region
-$WestUSCacheStorageAccount = New-AzStorageAccount -Name "a2acachestoragewestus$Random" -ResourceGroupName "A2AdemoRG" -Location 'West US' -SkuName Standard_LRS -Kind Storage
+$WestUSCacheStorageAccount = New-AzStorageAccount -Name "a2acachestoragewestus$Random" -ResourceGroupName "A2AdemoRG" -Location 'West US' -SkuName Standard_LRS -Kind Storage -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true
 
 
 #Use the recovery protection container, new cache storage account in West US and the source region VM resource group

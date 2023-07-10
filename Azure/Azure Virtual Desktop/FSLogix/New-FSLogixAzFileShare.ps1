@@ -88,7 +88,7 @@ $SkuName = "Standard_ZRS"
 Get-ADComputer -Filter "Name -like '$storageAccountName*'" | Remove-ADComputer -Confirm:$false
     
 #Creating a dedicated storage account for FSLogix
-$storageaccount = New-AzStorageAccount -ResourceGroupName $resourceGroupName -AccountName $storageAccountName -Location $region -SkuName $SkuName
+$storageaccount = New-AzStorageAccount -ResourceGroupName $resourceGroupName -AccountName $storageAccountName -Location $region -SkuName $SkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true
 
 #Registering the target storage account with your active directory environment under the target
 Import-Module AzFilesHybrid

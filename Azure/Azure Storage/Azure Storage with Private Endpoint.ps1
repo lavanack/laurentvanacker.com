@@ -182,7 +182,7 @@ elseif ($null -eq (Get-AZVMSize -Location $Location | Where-Object -FilterScript
 $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 
 #Step 2: Create Azure Storage Account
-$StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName
+$StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true
 
 #Step 3: Create Azure Network Security Group
 #RDP only for my public IP address
