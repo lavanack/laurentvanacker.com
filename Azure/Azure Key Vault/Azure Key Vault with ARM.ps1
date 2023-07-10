@@ -51,7 +51,7 @@ if ($ResourceGroup) {
     $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
 }
 # Create Resource Groups and Storage Account for diagnostic
-New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
+$ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 #endregion
 
 
