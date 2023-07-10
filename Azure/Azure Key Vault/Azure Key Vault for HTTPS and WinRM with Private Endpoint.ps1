@@ -276,7 +276,7 @@ $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -Max
 Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 
 # Set VM operating system parameters
-Set-AzVMOperatingSystem -VM $VMConfig -Windows -ComputerName $VMName -Credential $Credential -ProvisionVMAgent -WinRMHttp -WinRMHttps -ProvisionVMAgent -WinRMCertificateUrl $CertUrl
+Set-AzVMOperatingSystem -VM $VMConfig -Windows -ComputerName $VMName -Credential $Credential -ProvisionVMAgent -WinRMHttp -WinRMHttps -WinRMCertificateUrl $CertUrl
 
 #region Referencing your self-signed certificates URL while creating a VM
 #From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/connect-winrm
