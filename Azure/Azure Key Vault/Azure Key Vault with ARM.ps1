@@ -50,7 +50,7 @@ if ($ResourceGroup) {
     #Remove previously existing Azure Resource Group with the "AutomatedLab-rg" name
     $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
 }
-# Create Resource Groups and Storage Account for diagnostic
+# Create Resource Groups
 $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 #endregion
 

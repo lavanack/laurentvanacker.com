@@ -174,7 +174,7 @@ function New-AAD-Hybrid-BCDR-Lab {
     }
 
     #Step 1: Create Azure Resource Group
-    # Create Resource Groups and Storage Account for diagnostic
+    # Create Resource Groups
     $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 
     #Step 2: Create Azure Storage Account
