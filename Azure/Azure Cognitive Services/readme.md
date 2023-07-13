@@ -20,7 +20,7 @@ The script will return
 - The [detected face(s)](https://learn.microsoft.com/en-us/azure/cognitive-services/computer-vision/concept-detecting-faces) (if applicable)
 
 ## Some examples
-Judge by yourself ;)
+Judge by yourself with 3 examples ;)
 - ![Alt text](docs/20230713030502_902-1920x1080.jpg)
 - ![Alt text](docs/20230713030513_604-1920x1080.jpg)
 - ![Alt text](docs/20230713030520_266-1920x1080.jpg)
