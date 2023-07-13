@@ -170,7 +170,7 @@ for($i=0; $i -lt $TestNumber;  $i++)
         Rename-Item -Path $CurrentPicture -NewName $NewName
         $CurrentPicture = $NewName
     }
-    Write-Host -Object "Processing '$CurrentPicture' ..."
+    Write-Host -Object "`r`nProcessing '$CurrentPicture' ..." -ForegroundColor Cyan
 
     #Displaying the current picture by using the default registered application (depends of the user settings)"
     & $CurrentPicture
