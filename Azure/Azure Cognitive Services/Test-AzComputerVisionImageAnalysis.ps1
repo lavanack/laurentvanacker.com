@@ -108,7 +108,7 @@ $CognitiveServicesNameMaxLength = 15
 $CognitiveServicesPrefix = "cg"
 $ResourceGroupPrefix = "rg"
 $Project = "cg"
-$Role = "demo"
+$Role = "cpvia"
 #$DigitNumber = 4
 $DigitNumber = $CognitiveServicesNameMaxLength - ($CognitiveServicesPrefix + $Project + $Role + $LocationShortName).Length
 
