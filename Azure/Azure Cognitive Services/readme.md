@@ -21,7 +21,7 @@ The script will return
 
 ## Some examples
 Judge by yourself with 3 examples ;)
-- ![Alt text](docs/20230713030502_902-1920x1080.jpg)
-- ![Alt text](docs/20230713030513_604-1920x1080.jpg)
-- ![Alt text](docs/20230713030520_266-1920x1080.jpg)
-- ![Alt text](docs/results.jpg)
+![Alt text](docs/20230713034125_1018-1920x1080.jpg)
+![Alt text](docs/20230713034134_877-1920x1080.jpg)
+![Alt text](docs/20230713034141_151-1920x1080.jpg)
+![Alt text](docs/results.jpg)
