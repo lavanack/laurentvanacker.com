@@ -3,9 +3,13 @@
 Table of content:
 
 - [Azure Cognitives Services](#azure-cognitives-services)
+- [Preliminary Remarks](#preliminary-remarks)
 - [Computer Vision](#computer-vision)
   - [Some examples](#some-examples)
 - [Face Recognization](#face-recognization)
+
+# Preliminary Remarks
+All scripts are standalone scripts and will create and use their own related Free (F0 SKU) Cognitive Services resources. You can only have F0 SKU (per resource type) per subscription.
 
 # Computer Vision
 
