@@ -135,10 +135,12 @@ function Get-FilteredIISWinEvent {
 
             if ($Filter) {
                 $EventId = [int[]]$Filter.Keys
-                Get-WinEvent -FilterHashtable $FilterHashtable -ErrorAction SilentlyContinue | Where-Object -FilterScript { $_.Id -in $EventId } | Select-Object -Property @{Name = "ComputerName"; Expression = { $env:COMPUTERNAME } }, @{Name = "EventLog"; Expression = { $CurrentEventLog } }, TimeCreated, Id, @{Name = "Reason"; Expression = { $Filter["$($_.Id)"].SymbolicName } }, LevelDisplayName, Message
+                $WinEvent = Get-WinEvent -FilterHashtable $FilterHashtable -ErrorAction SilentlyContinue | Where-Object -FilterScript { $_.Id -in $EventId } | Select-Object -Property @{Name = "ComputerName"; Expression = { $env:COMPUTERNAME } }, @{Name = "EventLog"; Expression = { $CurrentEventLog } }, TimeCreated, Id, @{Name = "Reason"; Expression = { $Filter["$($_.Id)"].SymbolicName } }, LevelDisplayName, Message
+                $WinEvent | Select-Object -Property @{Name='DateCreated'; Expression={$_.TimeCreated.Date}}, @{Name='TimeCreated'; Expression={$_.TimeCreated.ToString("HH:mm:ss")}}, @{Name='DateTimeCreated'; Expression={$_.TimeCreated}}, * -ExcludeProperty TimeCreated
             }
             else {
-                Get-WinEvent -FilterHashtable $FilterHashtable -ErrorAction SilentlyContinue | Select-Object -Property @{Name = "ComputerName"; Expression = { $env:COMPUTERNAME } }, @{Name = "EventLog"; Expression = { $CurrentEventLog } }, TimeCreated, Id, LevelDisplayName, Message
+                $WinEvent = Get-WinEvent -FilterHashtable $FilterHashtable -ErrorAction SilentlyContinue | Select-Object -Property @{Name = "ComputerName"; Expression = { $env:COMPUTERNAME } }, @{Name = "EventLog"; Expression = { $CurrentEventLog } }, TimeCreated, Id, LevelDisplayName, Message
+                $WinEvent
             }
         }
     }
