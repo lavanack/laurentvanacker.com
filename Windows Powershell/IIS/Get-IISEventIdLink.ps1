@@ -15,158 +15,169 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#Requires -version 5 #-RunAsAdministrator
+#Requires -version 5 -RunAsAdministrator
 
-function Get-IISEventIdLink
-{
+#region Function definitions
+function Get-IISEventIdLink {
     [CmdletBinding()]
     Param (
-        [Parameter(Mandatory=$False)]
+        [Parameter(Mandatory = $False)]
         [Object]$Root,
-        [Parameter(Mandatory=$False)]
+        [Parameter(Mandatory = $False)]
         [string]$FolderURI,
         #Just for progress bar
-        [Parameter(Mandatory=$False)]
+        [Parameter(Mandatory = $False)]
         [int]$Depth = 0,
         #Just to display navigation accross the level
-        [Parameter(Mandatory=$False)]
+        [Parameter(Mandatory = $False)]
         [string]$Path = ""
     )
     #For progress bar
     $Index = 0
     #Result
-    $IISEventIdLink = @()
     #We use the embedded images to categorize the severity
-    $Severity=@{"images/dd300121.green%28ws.10%29.jpg"="Information";"images/dd299897.yellow%28ws.10%29.jpg"="Warning";"images/ee406008.red%28ws.10%29.jpg"="Error";}
-    if (-not($Root))
-    {
+    $Severity = @{"images/dd300121.green(ws.10).jpg" = "Information"; "images/dd299897.yellow(ws.10).jpg" = "Warning"; "images/ee406008.red(ws.10).jpg" = "Error"; }
+    if (-not($Root)) {
         $URI = "https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2008-R2-and-2008/toc.json"
         $FolderURI = $URI.Substring(0, $URI.LastIndexOf("/"))
 
         #Testing if Internet is reachable ...
-        if (Test-NetConnection -ComputerName www.microsoft.com -CommonTCPPort HTTP  -InformationLevel Quiet)
-        {
+        if (Test-NetConnection -ComputerName www.microsoft.com -CommonTCPPort HTTP  -InformationLevel Quiet) {
             #Get JSON Content
-            $WindowsServer = Invoke-WebRequest $URI -ContentType  'charset=utf-8' | ConvertFrom-Json
+            $WindowsServer = Invoke-RestMethod -Uri $URI 
             #Get IIS 7.5 location in the the JSON Data
-            $Root=$WindowsServer.items.children[6].children[0].children[2].children[15]
+            $Root = $WindowsServer.items.children[6].children[0].children[2].children[15]
             #Main function doing the job by recursive call
         }
-        else
-        {
+        else {
             Write-Error "[ERROR] Unable to connect to Internet ..." -ErrorAction Stop
         }
     }
 
     $CurrentSection = $Root.toc_title
     #For first call the Path is useless
-    if ([string]::IsNullOrEmpty($Path))
-    {
+    if ([string]::IsNullOrEmpty($Path)) {
         $Path = $Root.toc_title
     }
     Write-Host "Processing : $Path"
     #Recursive processing by browsing the children
-    foreach ($CurrentChild in $Root.Children)
-    {
+    $IISEventIdLink = foreach ($CurrentChild in $Root.Children) {
         $Index++
         $CurrentURI = $FolderURI + "/" + $CurrentChild.href
-        Write-Progress -Id $Depth -Activity "[$($Index)/$($Root.Children.Count)] Processing $($CurrentChild.toc_title) ..." -status "$([Math]::Round($Index/$Root.Children.Count * 100)) % - $CurrentURI"  -PercentComplete ($Index/$Root.Children.Count * 100)
-        if ($CurrentChild.toc_title -match ("\s+(?<EventID>\d+)"))
-        {
+        Write-Progress -Id $Depth -Activity "[$($Index)/$($Root.Children.Count)] Processing $($CurrentChild.toc_title) ..." -status "$([Math]::Round($Index/$Root.Children.Count * 100)) % - $CurrentURI"  -PercentComplete ($Index / $Root.Children.Count * 100)
+        if ($CurrentChild.toc_title -match ("\s+(?<EventID>\d+)")) {
             $CurrentEventID = $Matches["EventID"]
             Write-Verbose "`$CurrentEventID : $CurrentEventID"
-            $CurrentResponse = Invoke-WebRequest $CurrentURI -ContentType 'application/json; charset=utf-8'
-
-            #Getting relevant information
-            $CurrentProduct = ($CurrentResponse.AllElements.InnerText -match "^Product:(.+)$") -split ":" | Select-Object -Skip 1 -First 1
-            $CurrentEventID = ($CurrentResponse.AllElements.InnerText -match "^ID:(.+)$") -split ":" | Select-Object -Skip 1 -First 1
-            $CurrentSource = $CurrentResponse.AllElements.InnerText -match "^Source:(.+)$" -split ":" | Select-Object -Skip 1 -First 1
+            $CurrentResponse = Invoke-WebRequest $CurrentURI -UseBasicParsing
+            $MyMatches = [regex]::Matches($CurrentResponse, "<td>(?<data>[^<].*)</td>")
+            $Data = ($MyMatches.Groups.Captures | Where-Object -FilterScript { $_.Name -eq 'data' }).Value
+            $CurrentProduct = $Data[0]
+            $CurrentEventID = $Data[1]
+            $CurrentSource = $Data[2]
+            $CurrentVersion = $Data[3]
+            $CurrentSymbolicName = $Data[4]
             #Event Id 2003 : Has a newline in the message content so -replace "`r`n" is just for this case
-            $CurrentMessage = ($CurrentResponse.AllElements.InnerText -match "^Message:(.+)") -split ":" -replace "`r`n" | Select-Object -Skip 1 -First 1
-            $CurrentVersion = ($CurrentResponse.AllElements.InnerText -match "^Version:(.+)$") -split ":"| Select-Object -Skip 1 -First 1
-            $CurrentSymbolicName = ($CurrentResponse.AllElements.InnerText -match "^Symbolic Name:(.+)$") -split ":" | Select-Object -Skip 1 -First 1
-            $CurrentDescription = ($CurrentResponse.ParsedHtml.body.getElementsByTagName("p") | Select-Object -Property innerText -First 1 -Skip 4).innerText
-            $Image = ($CurrentResponse.Images | Where-Object -FilterScript { $_.Src }).Src.Trim() | Select-Object -First 1
-            if ($Image)
-            {
+            $CurrentMessage = $Data[5] -replace "`r`n"
+            #Getting relevant information
+            $MyMatches = $([regex]::Matches($CurrentResponse, "<p>(?<data>.*)</p>"))
+            $CurrentDescription = ($MyMatches[2].Groups.Captures | Where-Object -FilterScript { $_.Name -eq 'data' }).Value
+
+            $MyMatches = $([regex]::Matches($CurrentResponse, '<img.*src="(?<src>\S*)".*/>'))
+            $Image = ($MyMatches.Groups.Captures | Where-Object -FilterScript { $_.Name -eq 'src' }).Value
+
+            if ($Image) {
                 $CurrentSeverity = $Severity[$Image]
                 Write-Verbose "`$CurrentSeverity : $CurrentSeverity"
             }
-            else
-            {
+            else {
                 $CurrentSeverity = $null
             }
-            $CurrentLink = New-Object -TypeName psobject -Property @{Section=$CurrentSection; Product=$CurrentProduct; ID=$CurrentEventID; Source = $currentSource; SymbolicName = $CurrentSymbolicName; Message = $currentMessage; Description = $CurrentDescription; Severity = $CurrentSeverity; Version = $CurrentVersion; URI=$CurrentURI}
+            $CurrentLink = [PSCustomObject] @{Section = $CurrentSection; Product = $CurrentProduct; ID = $CurrentEventID; Source = $currentSource; SymbolicName = $CurrentSymbolicName; Message = $currentMessage; Description = $CurrentDescription; Severity = $CurrentSeverity; Version = $CurrentVersion; URI = $CurrentURI }
             Write-Verbose "`$CurrentLink : $CurrentLink)"
-            $IISEventIdLink += $CurrentLink
+            $CurrentLink
         }
-        else
-        {
+        else {
             Write-Verbose "Recursive call from $($CurrentChild.toc_title)"
-            $IISEventIdLink += Get-IISEventIdLink -Root $CurrentChild -Depth ($Depth+1) -FolderURI $FolderURI -Path "$Path / $($CurrentChild.toc_title)"
+            Get-IISEventIdLink -Root $CurrentChild -Depth ($Depth + 1) -FolderURI $FolderURI -Path "$Path / $($CurrentChild.toc_title)"
         }
     }
     Write-Progress -Id $Depth -Activity 'Completed !' -Status 'Completed !' -Completed
     return $IISEventIdLink
 }
 
-function Get-FilteredIISWinEvent
-{
-    [CmdletBinding()]
+function Get-FilteredIISWinEvent {
+    [CmdletBinding(PositionalBinding = $false)]
     param(
-        [hashtable]$Filter
+        [Parameter(Mandatory = $false, ValueFromPipeline = $false, ValueFromPipelineByPropertyName = $false)]
+        [hashtable]$Filter,
+        [Parameter(Mandatory = $false, ValueFromPipeline = $false, ValueFromPipelineByPropertyName = $false)]
+        [datetime]$StartTime,
+        [Parameter(Mandatory = $false, ValueFromPipeline = $false, ValueFromPipelineByPropertyName = $false)]
+        [datetime]$EndTime
     )
-    $FilteredIISWinEvent = @()
-    $IISProviderName = Get-WinEvent -ListProvider *iis*, *was* -ErrorAction SilentlyContinue | Where-Object -FilterScript { ($_.LogLinks.DisplayName -in @("Application", "System", "Security")) } | Select-Object -Property Name,  @{Name="EventLog";Expression={$_.LogLinks.DisplayName}} | Group-Object -Property EventLog -AsHashTable -AsString
-    foreach ($CurrentEventLog in $IISProviderName.Keys)
-    {
+    
+    $IISProviderName = Get-WinEvent -ListProvider *iis*, *was* -ErrorAction SilentlyContinue | Where-Object -FilterScript { ($_.LogLinks.DisplayName -in @("Application", "System", "Security")) } | Select-Object -Property Name, @{Name = "EventLog"; Expression = { $_.LogLinks.DisplayName } } | Group-Object -Property EventLog -AsHashTable -AsString
+
+    $FilteredIISWinEvent = foreach ($CurrentEventLog in $IISProviderName.Keys) {
         Write-Verbose "`$CurrentEventLog : $CurrentEventLog"
-        $CurrentProviderNames=$IISProviderName[$CurrentEventLog].Name
-        foreach ($CurrentProviderName in $CurrentProviderNames)
-        {
+        $CurrentProviderNames = $IISProviderName[$CurrentEventLog].Name
+        foreach ($CurrentProviderName in $CurrentProviderNames) {
             Write-Verbose "`t`CurrentProviderName : $CurrentProviderName"
-            if ($Filter)
-            {
-                $EventId = [int[]]$Filter.Keys
-                $FilteredIISWinEvent += Get-WinEvent -FilterHashtable @{ Logname=$CurrentEventLog; ProviderName=$CurrentProviderName} -ErrorAction SilentlyContinue | Where-Object -FilterScript { $_.Id -in $EventId} | Select-Object -Property @{Name="ComputerName"; Expression={$env:COMPUTERNAME}}, @{Name="EventLog"; Expression={$CurrentEventLog}}, TimeCreated, Id, @{Name="Reason"; Expression={$Filter["$($_.Id)"].SymbolicName}}, LevelDisplayName, Message
+            $FilterHashtable = @{ LogName = $CurrentEventLog; ProviderName = $CurrentProviderName }
+            if ($StartTime) {
+                $FilterHashtable.Add('StartTime', $StartTime)
+                Write-Verbose -Message "`$StartTime: $StartTime"
             }
-            else
-            {
-                $FilteredIISWinEvent += Get-WinEvent -FilterHashtable @{ Logname=$CurrentEventLog; ProviderName=$CurrentProviderName} -ErrorAction SilentlyContinue | Select-Object -Property @{Name="ComputerName"; Expression={$env:COMPUTERNAME}}, @{Name="EventLog"; Expression={$CurrentEventLog}}, TimeCreated, Id, LevelDisplayName, Message
+            if ($EndTime) {
+                $FilterHashtable.Add('EndTime', $EndTime)
+                Write-Verbose -Message "`$EndTime: $EndTime"
             }
 
+            if ($Filter) {
+                $EventId = [int[]]$Filter.Keys
+                Get-WinEvent -FilterHashtable $FilterHashtable -ErrorAction SilentlyContinue | Where-Object -FilterScript { $_.Id -in $EventId } | Select-Object -Property @{Name = "ComputerName"; Expression = { $env:COMPUTERNAME } }, @{Name = "EventLog"; Expression = { $CurrentEventLog } }, TimeCreated, Id, @{Name = "Reason"; Expression = { $Filter["$($_.Id)"].SymbolicName } }, LevelDisplayName, Message
+            }
+            else {
+                Get-WinEvent -FilterHashtable $FilterHashtable -ErrorAction SilentlyContinue | Select-Object -Property @{Name = "ComputerName"; Expression = { $env:COMPUTERNAME } }, @{Name = "EventLog"; Expression = { $CurrentEventLog } }, TimeCreated, Id, LevelDisplayName, Message
+            }
         }
     }
     return $FilteredIISWinEvent
 }
+#endregion
 
 Clear-Host
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
-#TOC URI : JSON content
+Set-Location -Path $CurrentDir
 
 #CSV for exporting data
 $IISEventIdLinkCSVFilePath = Join-Path -Path $CurrentDir -ChildPath "IISEventIdLink.csv"
 $FilteredIISWinEventCSVFilePath = Join-Path -Path $CurrentDir -ChildPath "$($env:COMPUTERNAME)_FilteredIISWinEvent.csv"
 
-if (-not(Test-Path -Path $IISEventIdLinkCSVFilePath))
-{
+if (-not(Test-Path -Path $IISEventIdLinkCSVFilePath)) {
     $IISEventIdLink = Get-IISEventIdLink -Verbose
-    Write-Host "[INFO] Event ID Link Data have been exported to $IISEventIdLinkFilePath"
+    Write-Host "[INFO] Event ID Link Data have been exported to $IISEventIdLinkCSVFilePath"
     $IISEventIdLink | Export-Csv -Path $IISEventIdLinkCSVFilePath -NoTypeInformation -Encoding UTF8
 }
 
-if (Test-Path -Path $IISEventIdLinkCSVFilePath)
-{
+if (Test-Path -Path $IISEventIdLinkCSVFilePath) {
+    $YesterdayUTC = [System.DateTime]::UtcNow.AddDays(-1)
+    $YesterdayUTCInLocalTime = ([System.DateTime]::new($YesterdayUTC.Year, $YesterdayUTC.Month, $YesterdayUTC.Day, 0, 0, 0, [System.DateTimeKind]::Utc)).ToLocalTime()
+    $StartTime = $YesterdayUTCInLocalTime
+    $EndTime = $StartTime.AddDays(1).AddSeconds(-1)
+    $YesterDayTimeStamp = "{0:yyMMdd}" -f $StartTime
+    $FilteredIISWinEventCSVFilePath = Join-Path -Path $CurrentDir -ChildPath "$($env:COMPUTERNAME)_FilteredIISWinEvent_$YesterDayTimeStamp.csv"
+
     $IISEventIdLink = Import-Csv -Path $IISEventIdLinkCSVFilePath -Encoding UTF8
     #Looking or local IIS-related event IDs ("Warning" or "Error" only)
-    $WarningOrErrorIISEventIdLinkHT = $IISEventIdLink | Where-Object -FilterScript { $_.Severity -in "Warning", "Error"} | Group-Object -Property ID -AsHashTable -AsString
-    $FilteredIISWinEvent = Get-FilteredIISWinEvent -Filter $WarningOrErrorIISEventIdLinkHT -Verbose
+    $WarningOrErrorIISEventIdLinkHT = $IISEventIdLink | Where-Object -FilterScript { $_.Severity -in "Warning", "Error" } | Group-Object -Property ID -AsHashTable -AsString
+    $FilteredIISWinEvent = Get-FilteredIISWinEvent -Filter $WarningOrErrorIISEventIdLinkHT -StartTime $StartTime -EndTime $EndTime -Verbose
     Write-Host "[INFO] Filtered IIS Win Events have been exported to $FilteredIISWinEventCSVFilePath"
     $FilteredIISWinEvent | Export-Csv -Path $FilteredIISWinEventCSVFilePath -NoTypeInformation -Encoding UTF8
 }
-Else
-{
+Else {
     Write-Error "[ERROR] No '$IISEventIdLinkCSVFilePath' file found ..."
 }
+
