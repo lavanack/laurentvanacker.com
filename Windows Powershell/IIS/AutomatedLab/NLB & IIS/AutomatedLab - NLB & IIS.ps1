@@ -129,7 +129,7 @@ $NLBNetBiosName = 'nlb'
 $NLBWebSiteName = "$NLBNetBiosName.$FQDNDomainName"
 $NLBIPv4Address = '10.0.0.101'
 
-
+$MSEdgeEntUri = "http://go.microsoft.com/fwlink/?LinkID=2093437"
 $LabName = 'NLBIISLab'
 #endregion
 
@@ -184,11 +184,15 @@ Install-Lab -DelayBetweenComputers 120
 #Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 
 #region Installing Required Windows Features
-$machines = Get-LabVM
-Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools
+$machines = Get-LabVM -All
+$Job = @()
+$Job += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools -AsJob
 Install-LabWindowsFeature -FeatureName FS-DFS-Replication, Web-Server, Web-Asp-Net45, Web-Request-Monitor, Web-Windows-Auth, NLB, Web-CertProvider -ComputerName IISNODE01, IISNODE02 -IncludeManagementTools
 #Install-LabWindowsFeature -FeatureName FS-DFS-Replication -ComputerName DC01 -IncludeManagementTools
 #endregion
+
+$MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru -Force
+$Job += Install-LabSoftwarePackage -ComputerName $machines -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob
 
 Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $NLBWebSiteName to the IE intranet zone" -ComputerName $machines -ScriptBlock {
     #region Disabling IE ESC
@@ -331,7 +335,7 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into the f
 Invoke-LabCommand -ActivityName 'Duplicating the Web Server Certificate into the future "Central Certificate Store" directory for SAN, Unzipping Web Site Content and Setting up the Website' -ComputerName IISNODE01, IISNODE02 -ScriptBlock {
     $PFXFilePath = "C:\CentralCertificateStore\$using:NLBWebSiteName.pfx"
 
-    Copy-Item $PFXFilePath "C:\CentralCertificateStore\$env:COMPUTERNAME.$using:FQDNDomainName.pfx"
+    Copy-Item $PFXFilePath "C:\CentralCertificateStore\$env:COMPUTERNAME.$using:FQDNDomainName.pfx" -Force
     #$WebServerSSLCert | Remove-Item -Force
 
     #Enabling the Central Certificate Store
@@ -429,6 +433,9 @@ Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration' -ComputerNam
     Enable-IISSharedConfig -PhysicalPath C:\IISSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
     
 }
+
+#Waiting for background jobs
+$Job | Wait-Job | Out-Null
 
 Show-LabDeploymentSummary -Detailed
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All -Verbose

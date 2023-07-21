@@ -46,10 +46,6 @@ $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText
 $NetBiosDomainName = 'CONTOSO'
 $FQDNDomainName = 'contoso.com'
 
-$NetCoreNetBiosName = 'netcore'
-$NetCoreWebSiteName = "$NetCoreNetBiosName.$FQDNDomainName"
-$NetCoreIPv4Address = '10.0.0.101'
-
 $NetworkID = '10.0.0.0/16' 
 $DC01IPv4Address = '10.0.0.1'
 $IIS01IPv4Address = '10.0.0.11'
@@ -150,8 +146,6 @@ Invoke-LabCommand -ActivityName 'DNS, AD Setup & GPO Settings on DC' -ComputerNa
     #region DNS management
     #Reverse lookup zone creation
     Add-DnsServerPrimaryZone -NetworkID $using:NetworkID -ReplicationScope 'Forest' 
-    #DNS Host entries for the websites 
-    Add-DnsServerResourceRecordA -Name "$using:NetCoreNetBiosName" -ZoneName "$using:FQDNDomainName" -IPv4Address "$using:NetCoreIPv4Address" -CreatePtr
     #endregion
 
     $DefaultNamingContext = (Get-ADRootDSE).defaultNamingContext
@@ -215,10 +209,10 @@ Invoke-LabCommand -ActivityName 'Adding WAC Connections' -ComputerName WAC01 -Sc
 
     $WACConnection = $IISServers | ForEach-Object {
         [PSCustomObject] @{
-            Name    = $_.FQDN
-            Type    = "msft.sme.connection-type.server"
-            Tags    = @($FQDNDomainName ,"HyperV","IIS","WS2022") -join ('|')
-            GroupID = "global"
+            name    = $_.FQDN
+            type    = "msft.sme.connection-type.server"
+            tags    = @($FQDNDomainName ,"HyperV","IIS","WS2022") -join ('|')
+            groupId = "global"
         }
     }
     $WACConnection | Export-Csv $WACConnectionCSVFile -NoTypeInformation

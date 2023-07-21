@@ -136,11 +136,11 @@ function Get-FilteredIISWinEvent {
             if ($Filter) {
                 $EventId = [int[]]$Filter.Keys
                 $WinEvent = Get-WinEvent -FilterHashtable $FilterHashtable -ErrorAction SilentlyContinue | Where-Object -FilterScript { $_.Id -in $EventId } | Select-Object -Property @{Name = "ComputerName"; Expression = { $env:COMPUTERNAME } }, @{Name = "EventLog"; Expression = { $CurrentEventLog } }, TimeCreated, Id, @{Name = "Reason"; Expression = { $Filter["$($_.Id)"].SymbolicName } }, LevelDisplayName, Message
-                $WinEvent | Select-Object -Property @{Name='DateCreated'; Expression={$_.TimeCreated.Date}}, @{Name='TimeCreated'; Expression={$_.TimeCreated.ToString("HH:mm:ss")}}, @{Name='DateTimeCreated'; Expression={$_.TimeCreated}}, * -ExcludeProperty TimeCreated
+                $WinEvent | Select-Object -Property @{Name='DateCreated'; Expression={$($_.TimeCreated.ToString() -split(" ", 2))[0]}}, @{Name='TimeCreated'; Expression={$($_.TimeCreated.ToString() -split(" ", 2))[1]}}, @{Name='DateTimeCreated'; Expression={$_.TimeCreated}}, * -ExcludeProperty TimeCreated
             }
             else {
                 $WinEvent = Get-WinEvent -FilterHashtable $FilterHashtable -ErrorAction SilentlyContinue | Select-Object -Property @{Name = "ComputerName"; Expression = { $env:COMPUTERNAME } }, @{Name = "EventLog"; Expression = { $CurrentEventLog } }, TimeCreated, Id, LevelDisplayName, Message
-                $WinEvent
+                $WinEvent | Select-Object -Property @{Name='DateCreated'; Expression={$($_.TimeCreated.ToString() -split(" ", 2))[0]}}, @{Name='TimeCreated'; Expression={$($_.TimeCreated.ToString() -split(" ", 2))[1]}}, @{Name='DateTimeCreated'; Expression={$_.TimeCreated}}, * -ExcludeProperty TimeCreated
             }
         }
     }
@@ -156,7 +156,7 @@ Set-Location -Path $CurrentDir
 
 #CSV for exporting data
 $IISEventIdLinkCSVFilePath = Join-Path -Path $CurrentDir -ChildPath "IISEventIdLink.csv"
-$FilteredIISWinEventCSVFilePath = Join-Path -Path $CurrentDir -ChildPath "$($env:COMPUTERNAME)_FilteredIISWinEvent.csv"
+#$FilteredIISWinEventCSVFilePath = Join-Path -Path $CurrentDir -ChildPath "$($env:COMPUTERNAME)_FilteredIISWinEvent.csv"
 
 if (-not(Test-Path -Path $IISEventIdLinkCSVFilePath)) {
     $IISEventIdLink = Get-IISEventIdLink -Verbose
@@ -182,4 +182,3 @@ if (Test-Path -Path $IISEventIdLinkCSVFilePath) {
 Else {
     Write-Error "[ERROR] No '$IISEventIdLinkCSVFilePath' file found ..."
 }
-

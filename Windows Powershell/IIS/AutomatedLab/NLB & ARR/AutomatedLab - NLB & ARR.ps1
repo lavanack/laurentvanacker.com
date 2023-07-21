@@ -28,7 +28,7 @@ Clear-Host
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
 $PreviousErrorActionPreference = $ErrorActionPreference
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Continue'
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
@@ -181,15 +181,16 @@ Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 #Restore-LabVMSnapshot -SnapshotName 'FreshInstall' -All -Verbose
 
 #region Installing Required Windows Features
-$machines = Get-LabVM
-Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools -AsJob
+$machines = Get-LabVM -All
+$Job = @()
+$Job += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools -AsJob
 Install-LabWindowsFeature -FeatureName FS-DFS-Replication, Web-Server, Web-Asp-Net45, Web-Request-Monitor -ComputerName IISNODE01, IISNODE02, ARRNODE01, ARRNODE02 -IncludeManagementTools
 Install-LabWindowsFeature -FeatureName NLB, Web-CertProvider -ComputerName ARRNODE01, ARRNODE02 -IncludeManagementTools
 Install-LabWindowsFeature -FeatureName Web-Windows-Auth -ComputerName IISNODE01, IISNODE02 -IncludeManagementTools
 #endregion
 
 $MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru -Force
-Install-LabSoftwarePackage -ComputerName $machines -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob
+$Job += Install-LabSoftwarePackage -ComputerName $machines -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob
 
 Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $ARRWebSiteName to the IE intranet zone" -ComputerName $machines -ScriptBlock {
     #region Disabling IE ESC
@@ -354,7 +355,7 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate into the f
     }
 }
 
-Invoke-LabCommand -ActivityName 'Duplicating the Web Server Certificate into the future "Central Certificate Store" directory for SAN' -ComputerName ARRNODE01, ARRNODE02 -ScriptBlock {
+$Job += Invoke-LabCommand -ActivityName 'Duplicating the Web Server Certificate into the future "Central Certificate Store" directory for SAN' -ComputerName ARRNODE01, ARRNODE02 -ScriptBlock {
     <#
     #Creating replicated folder for Central Certificate Store
     New-Item -Path C:\CentralCertificateStore -ItemType Directory -Force
@@ -365,12 +366,13 @@ Invoke-LabCommand -ActivityName 'Duplicating the Web Server Certificate into the
 
     $PFXFilePath = "C:\CentralCertificateStore\$using:ARRWebSiteName.pfx"
 
-    Copy-Item $PFXFilePath "C:\CentralCertificateStore\$env:COMPUTERNAME.$using:FQDNDomainName.pfx"
+    Copy-Item $PFXFilePath "C:\CentralCertificateStore\$env:COMPUTERNAME.$using:FQDNDomainName.pfx" -Force
+    Start-Sleep -Seconds 5
     #$WebServerSSLCert | Remove-Item -Force
 
     #Enabling the Central Certificate Store
     Enable-WebCentralCertProvider -CertStoreLocation 'C:\CentralCertificateStore\' -UserName $Using:Logon -Password $Using:ClearTextPassword -PrivateKeyPassword $Using:ClearTextPassword
-}
+} -AsJob
 
 #Installing IIS and ASP.Net on all servers excepts DC
 Invoke-LabCommand -ActivityName 'IIS Setup' -ComputerName IISNODE01, IISNODE02, ARRNODE01, ARRNODE02 -ScriptBlock {
@@ -632,7 +634,7 @@ Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration' -ComputerNam
 }
 
 #Waiting for background jobs
-Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
+$Job | Wait-Job | Out-Null
 
 Show-LabDeploymentSummary -Detailed
 
