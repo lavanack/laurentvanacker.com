@@ -45,13 +45,13 @@ function Get-AzCognitiveServicesNameAvailability {
     $Body = [ordered]@{ 
         "subdomainName" = $CognitiveServicesName
         "type" = "Microsoft.CognitiveServices/accounts"
-    }
+    } | ConvertTo-Json
 
     $URI = "https://management.azure.com/subscriptions/$SubcriptionID/providers/Microsoft.CognitiveServices/checkDomainAvailability?api-version=2023-05-01"
     try
     {
         # Invoke the REST API
-        $Response = Invoke-RestMethod -Method POST -Headers $authHeader -Body $($Body | ConvertTo-Json) -ContentType "application/json" -Uri $URI -ErrorVariable ResponseError
+        $Response = Invoke-RestMethod -Method POST -Headers $authHeader -Body $Body -ContentType "application/json" -Uri $URI -ErrorVariable ResponseError
     }
     catch [System.Net.WebException] {   
         # Dig into the exception to get the Response details.
@@ -62,9 +62,6 @@ function Get-AzCognitiveServicesNameAvailability {
         $reader = New-Object System.IO.StreamReader($respStream)
         $Response = $reader.ReadToEnd() | ConvertFrom-Json
         Write-Warning -Message $Response.message
-    }
-    finally 
-    {
     }
     return $Response
 }
@@ -108,7 +105,7 @@ $CognitiveServicesNameMaxLength = 15
 $CognitiveServicesPrefix = "cg"
 $ResourceGroupPrefix = "rg"
 $Project = "cg"
-$Role = "cpvfr"
+$Role = "faceapi"
 #$DigitNumber = 4
 $DigitNumber = $CognitiveServicesNameMaxLength - ($CognitiveServicesPrefix + $Project + $Role + $LocationShortName).Length
 
@@ -151,16 +148,16 @@ Start-Sleep -Seconds 60
 $CognitiveServicesAccountKey = (Get-AzCognitiveServicesAccountKey -ResourceGroupName $resourceGroupName -Name $cognitiveServicesName).Key2
 $CognitiveServicesAccountEndPoint = (Get-AzCognitiveServicesAccount -ResourceGroupName $resourceGroupName -Name $cognitiveServicesName).Endpoint
 
-$Pictures = (Get-ChildItem -Path $CurrentDir -Filter "*.jpg" -File).FullName
+#region Face - Detect
+$Pictures = (Get-ChildItem -Path $CurrentDir -Filter "*.jpg" -File -Recurse).FullName
+$detectUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/detect?returnFaceId=true&returnFaceLandmarks=true&returnFaceAttributes=headPose,glasses,occlusion,accessories,blur,exposure,noise,qualityForRecognition&returnFaceLandmarks=true&recognitionModel=recognition_04&returnRecognitionModel=true&detectionModel=detection_01"
 
-foreach($CurrentPicture in $Pictures)
-{
+foreach($CurrentPicture in $Pictures) {
     Write-Host -Object "`r`nProcessing '$CurrentPicture' ..." -ForegroundColor Cyan
 
     # Detect face in the photo using the Computer Vision API
     #FROM https://eastus.dev.cognitive.microsoft.com/docs/services/563879b61984550e40cbbe8d/operations/563879b61984550f30395236
     #$detectUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/detect?returnFaceId=true&returnFaceLandmarks=true&returnFaceAttributes=headPose,glasses&recognitionModel=recognition_04&returnRecognitionModel=true"
-    $detectUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/detect?returnFaceId=true&returnFaceLandmarks=true&returnFaceAttributes=headPose,glasses,occlusion,accessories,blur,exposure,noise,qualityForRecognition&returnFaceLandmarks=true&recognitionModel=recognition_04&returnRecognitionModel=true&detectionModel=detection_01"
     $CurrentPictureData = [System.IO.File]::ReadAllBytes($CurrentPicture)
     $CurrentPictureBase64 = [System.Convert]::ToBase64String($CurrentPictureData)
 
@@ -184,12 +181,10 @@ foreach($CurrentPicture in $Pictures)
         $Response = $reader.ReadToEnd() | ConvertFrom-Json
         if (-not([string]::IsNullOrEmpty($Response.message)))
         {
-            Write-Warning -Message $Response.message
+            Write-Error -Message $Response.message -ErrorAction Stop
         }
-    }
-    finally 
-    {
     }
     $Response | Format-List -Property * -Force
     $Response |ConvertTo-Json
 }
+#endregion
