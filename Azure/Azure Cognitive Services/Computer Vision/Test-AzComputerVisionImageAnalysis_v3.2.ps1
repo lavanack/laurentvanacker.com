@@ -159,7 +159,7 @@ $TestNumber = 3
 
 for($i=0; $i -lt $TestNumber;  $i++)
 {
-    $TimeStamp = Get-Date -Format "yyyyMMddhhmmss"
+    $TimeStamp = Get-Date -Format "yyyyMMddHHmmss"
     $CurrentPicture = Join-Path -Path $CurrentDir -ChildPath $('{0}.jpg' -f $TimeStamp)
     $Response = Invoke-WebRequest -Uri "https://picsum.photos/1920/1080" -OutFile $CurrentPicture -PassThru
     $OriginalFileName = $null
