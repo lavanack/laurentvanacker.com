@@ -129,14 +129,15 @@ Add-LabMachineDefinition -Name DOCKER01 -NetworkAdapter $DOCKER01NetAdapter -Min
 #endregion
 
 #Installing servers
-Install-Lab
+Install-Lab -Verbose
 Checkpoint-LabVM -SnapshotName FreshInstall -All
 #Restore-LabVMSnapshot -SnapshotName 'FreshInstall' -All -Verbose
 
 
 #region Installing Required Windows Features
 $machines = Get-LabVM
-Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools -AsJob
+$Jobs = @()
+$Job += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools -AsJob
 #endregion
 
 #region Enabling Nested Virtualization on DOCKER01
@@ -177,18 +178,25 @@ Invoke-LabCommand -ActivityName 'DNS, AD Setup & GPO Settings on DC' -ComputerNa
     #endregion
 }
 
-Install-LabWindowsFeature -FeatureName Containers, Hyper-V, Web-Mgmt-Console -ComputerName DOCKER01 -IncludeManagementTools
+#Install-LabWindowsFeature -FeatureName Containers, Hyper-V, Web-Mgmt-Console -ComputerName DOCKER01 -IncludeManagementTools
+Install-LabWindowsFeature -FeatureName Web-Mgmt-Console -ComputerName DOCKER01 -IncludeManagementTools
 
-Invoke-LabCommand -ActivityName 'Docker Setup' -ComputerName DOCKER01 -ScriptBlock {
-    #From https://docs.microsoft.com/en-us/virtualization/windowscontainers/quick-start/set-up-environment?tabs=Windows-Server#prerequisites
-    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-    #Open an elevated PowerShell session and install the Docker-Microsoft PackageManagement Provider from the PowerShell Gallery.
-    Install-Module -Name DockerMsftProvider -Repository PSGallery -Force
-    #Use the PackageManagement PowerShell module to install the latest version of Docker.
-    Install-Package -Name Docker -ProviderName DockerMsftProvider -Force
-    #After the installation completes, restart the computer.
+#Checkpoint-LabVM -SnapshotName BeforeDockerSetup -All
+#Restore-LabVMSnapshot -SnapshotName BeforeDockerSetup -All -Verbose
+
+1..2 | Foreach-Object -Process {
+    #We have to run twice : 1 run form the HyperV and containers setup (reboot required) and 1 run for the docker setup
+    Invoke-LabCommand -ActivityName 'Docker Setup' -ComputerName DOCKER01 -ScriptBlock {
+        #From https://learn.microsoft.com/en-us/virtualization/windowscontainers/quick-start/set-up-environment?tabs=dockerce#windows-server-1
+        #Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/microsoft/Windows-Containers/Main/helpful_tools/Install-DockerCE/install-docker-ce.ps1) } -HyperV -NoRestart -Verbose"
+        Set-Location -Path $env:Temp
+        Invoke-WebRequest -UseBasicParsing "https://raw.githubusercontent.com/microsoft/Windows-Containers/Main/helpful_tools/Install-DockerCE/install-docker-ce.ps1" -OutFile install-docker-ce.ps1
+        #.\install-docker-ce.ps1 -HyperV -Force -Verbose
+        .\install-docker-ce.ps1 -NoRestart -HyperV
+    } -Verbose
+    Restart-LabVM -ComputerName DOCKER01 -Wait
 }
-Restart-LabVM -ComputerName DOCKER01 -Wait
+
 Checkpoint-LabVM -SnapshotName DockerSetup -All
 
 #If an IISSetup.ps1 file is present in the same folder than this script, we copy it on the DOCKER01 VM for a customized IIS setup, else we use a simple docker file
@@ -242,6 +250,7 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -S
         
         Set-Location -Path $ContainerLocalRootFolder
         docker build -t iis-website .
+        #Mapping the remote IIS log files directory locally for every container for easier management
         docker run -d -p "$($CurrentIISWebSiteHostPort):80" -v $ContainerLocalLogFolder\:C:\inetpub\logs\LogFiles -v $ContainerLocalContentFolder\:C:\inetpub\wwwroot --name $Name iis-website --restart unless-stopped #--rm
         #Getting the IP v4 address of the container
         $ContainerIPv4Address = (docker inspect -f "{{ .NetworkSettings.Networks.nat.IPAddress }}" $Name | Out-String) -replace "`n"
@@ -260,14 +269,14 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -S
     #docker inspect $(docker ps -a -q) | ConvertFrom-Json
     #To delete all containers
     #docker rm -f $(docker ps -a -q)
-}
+} -Verbose
 
 Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName DOCKER01 -ScriptBlock {
     Stop-Service WUAUSERV -PassThru | Set-Service -StartupType Disabled
 } 
 
 #Waiting for background jobs
-Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
+$Jobs | Wait-Job | Out-Null
 
 Show-LabDeploymentSummary -Detailed
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
