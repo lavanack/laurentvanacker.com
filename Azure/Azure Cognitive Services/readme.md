@@ -35,4 +35,4 @@ Judge by yourself with 3 examples ;)
 
 # Face Recognization
 
-Tou se the features Identification and Verification you have to apply for access at [[https://aka.ms/facerecognition](https://aka.ms/facerecognition)
+Tou se the features Identification and Verification you have to apply for access at [https://aka.ms/facerecognition](https://aka.ms/facerecognition)
