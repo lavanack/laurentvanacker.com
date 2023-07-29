@@ -9,7 +9,7 @@ Table of content:
 - [Face Recognization](#face-recognization)
 
 # Preliminary Remarks
-All scripts are standalone scripts and will create and use their own related Free (F0 SKU) Cognitive Services resources. You can only have F0 SKU (per resource type) per subscription.
+All scripts are standalone scripts and will create and use their own related Free Cognitive Services resources.
 
 # Computer Vision
 
