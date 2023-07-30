@@ -9,7 +9,7 @@ Table of content:
 - [Face Recognization](#face-recognization)
 
 # Preliminary Remarks
-All scripts are standalone scripts and will create and use their own related Free Cognitive Services resources.
+All scripts are standalone scripts and will create and use their own related Cognitive Services resources (Free if possible).
 
 # Computer Vision
 
