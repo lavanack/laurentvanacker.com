@@ -66,9 +66,6 @@ function Get-AzCognitiveServicesNameAvailability {
         $Response = $reader.ReadToEnd() | ConvertFrom-Json
         Write-Error -Message $Response.message -ErrorAction Stop
     }
-    finally 
-    {
-    }
     return $Response
 }
 
@@ -173,7 +170,7 @@ catch [System.Management.Automation.PSInvalidOperationException] {
     exit
 }
 
-$cognitiveServices
+#$cognitiveServices
 #endregion
 
 # Get the key and CognitiveServicesAccountEndPoint for the Cognitive Services resource
@@ -225,7 +222,7 @@ $headers = @{
 
 
 $IdentifyDetectedFaces = foreach($CurrentPicture in $Pictures) {
-    Write-Host -Object "`r`nDetecting '$CurrentPicture' ..." -ForegroundColor Cyan
+    Write-Host -Object "`r`nDetecting face in '$CurrentPicture' ..." -ForegroundColor Cyan
 
     # Detect face in the photo using the Face API
     #$detectUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/detect?returnFaceId=true&returnFaceLandmarks=true&returnFaceAttributes=headPose,glasses&recognitionModel=recognition_04&returnRecognitionModel=true"
@@ -236,10 +233,15 @@ $IdentifyDetectedFaces = foreach($CurrentPicture in $Pictures) {
     {
         # Invoke the REST API
         $Response = Invoke-RestMethod -Uri $detectUrl -Method Post -Headers $headers -InFile $CurrentPicture
+        #Adding the FilePath property to keep track of the picture path
         $Response | Select-Object -Property *, @{Name='FilePath'; Expression={$CurrentPicture}}
         if (-not($Response))
         {
             Write-Warning -Message "No face identification for '$CurrentPicture'"
+        }
+        else
+        {
+            Write-Verbose -Message "Face detected in '$CurrentPicture'"
         }
     }
     catch [System.Net.WebException] {   
@@ -258,12 +260,13 @@ $IdentifyDetectedFaces = foreach($CurrentPicture in $Pictures) {
         }
     }
 }
-$IdentifyDetectedFaces
+Write-Verbose $($IdentifyDetectedFaces | Out-String)
 $IdentifyDetectedFacesHT = $IdentifyDetectedFaces | Group-Object -Property faceId -AsHashTable -AsString
 #endregion
 #endregion
 
 #region PersonGroup
+<#
 #region PersonGroup - Delete (all)
 $PersonGroupUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/persongroups/"
 $headers = @{
@@ -279,7 +282,6 @@ foreach($CurrentPersonGroup in $PersonGroups) {
     {
         # Invoke the REST API
         $DeletedFaceList = Invoke-RestMethod -Uri $($PersonGroupUrl+$CurrentPersonGroup.personGroupId) -Method Delete -Headers $headers
-        $DeletedFaceList
     }
     catch [System.Net.WebException] {   
         # Dig into the exception to get the Response details.
@@ -299,6 +301,7 @@ foreach($CurrentPersonGroup in $PersonGroups) {
     #endregion
 }
 #endregion
+#>
 
 #region Creating a new PersonGroup
 $MyPersonGroupName = "mypersongroup_$TimeStamp"
@@ -318,7 +321,7 @@ try
 {
     # Invoke the REST API
     Write-Host -Object "`r`nCreating '$MyPersonGroupName' PersonGroup ..." -ForegroundColor Cyan
-    $CreatedPersonGroup = Invoke-RestMethod -Uri $CreatePersonGroupUrl -Method Put -Headers $headers -Body $Body
+    $Response = Invoke-RestMethod -Uri $CreatePersonGroupUrl -Method Put -Headers $headers -Body $Body
 }
 catch [System.Net.WebException] {   
     # Dig into the exception to get the Response details.
@@ -330,7 +333,7 @@ catch [System.Net.WebException] {
     $respStream = $_.Exception.Response.GetResponseStream()
     $reader = New-Object System.IO.StreamReader($respStream)
     $Response = $reader.ReadToEnd() | ConvertFrom-Json
-    if (-not([string]::IsNullOrEmpty($CreatedPersonGroup.message)))
+    if (-not([string]::IsNullOrEmpty($Response.message)))
     {
         Write-Error -Message $Response.message -ErrorAction Stop
     }
@@ -359,8 +362,7 @@ $headers = @{
     "Content-Type" = "application/json"
 }
 
-$AddedPersonToPersonGroup = foreach($CurrentPerson in $Persons) {
-    $MyPersonGroupPersonName = (Get-Item (Split-Path $CurrentPicture)).Name
+foreach($CurrentPerson in $Persons) {
     $Body = [ordered]@{
         "name" = $CurrentPerson
         "userData" = $CurrentPerson
@@ -413,10 +415,9 @@ $AddedFacesToPersonGroupsPerson = foreach($CurrentPersonGroup in $PersonGroups) 
             $AddFaceToCurrentPersonGroupsPersonUrl = "$CurrentPersonGroupsPersonUrl/$($CurrentPerson.personId)/persistedFaces?userData=$($CurrentPerson.userData)&detectionModel=detection_01"
             foreach ($CurrentPicture in $Pictures)
             {
-                Write-Host -Object "`r`nAdding '$CurrentPicture' to '$($CurrentPerson.Name)' in $($CurrentPersonGroup.name) PersonGroup ..." -ForegroundColor Cyan
-                #$CurrentPictureData = [System.IO.File]::ReadAllBytes($CurrentPicture)
-                #$CurrentPictureBase64 = [System.Convert]::ToBase64String($CurrentPictureData)
+                Write-Host -Object "`r`nAdding '$CurrentPicture' to '$($CurrentPerson.Name)' in '$($CurrentPersonGroup.name)' PersonGroup ..." -ForegroundColor Cyan
                 $Person = Invoke-RestMethod -Uri $AddFaceToCurrentPersonGroupsPersonUrl -Method Post -Headers $headers -InFile $CurrentPicture
+                #Adding the FilePath property to keep track of the picture path
                 $Person | Select-Object -Property *, @{Name='FilePath'; Expression={$CurrentPicture}}
             }
         }
@@ -618,7 +619,6 @@ foreach ($FaceIdentifyDataItem in $FaceIdentifyData) {
 #endregion
 #endregion
 
-
 #region Some Cleanup
 Remove-AzResourceGroup -Name $ResourceGroupName -Force -Verbose -AsJob
 $cognitiveServices | Remove-AzCognitiveServicesAccount -Force -Verbose
@@ -627,4 +627,3 @@ $null=Get-AzCognitiveServicesAccount -InRemovedState | Remove-AzResource -Force 
 <#
 #>
 #endregion
-
