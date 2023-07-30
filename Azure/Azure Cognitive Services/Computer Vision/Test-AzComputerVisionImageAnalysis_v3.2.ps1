@@ -180,8 +180,8 @@ for($i=0; $i -lt $TestNumber;  $i++)
         # Analyze the photo using the Computer Vision API
         #FROM https://eastus.dev.cognitive.microsoft.com/docs/services/computer-vision-v3-2/
         $analyzeUrl = "$CognitiveServicesAccountEndPoint/vision/v3.2/analyze?visualFeatures=$CurrentvisualFeature&language=en"
-        $CurrentPictureData = [System.IO.File]::ReadAllBytes($CurrentPicture)
-        $CurrentPictureBase64 = [System.Convert]::ToBase64String($CurrentPictureData)
+        #$CurrentPictureData = [System.IO.File]::ReadAllBytes($CurrentPicture)
+        #$CurrentPictureBase64 = [System.Convert]::ToBase64String(#$CurrentPictureData)
 
         $headers = @{
             "Ocp-Apim-Subscription-Key" = $CognitiveServicesAccountKey
