@@ -39,18 +39,17 @@ function Get-AzCognitiveServicesNameAvailability {
     $profileClient = New-Object -TypeName Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient -ArgumentList ($azProfile)
     $token = $profileClient.AcquireAccessToken($azContext.Subscription.TenantId)
     $authHeader = @{
-        'Content-Type'='application/json'
-        'Authorization'='Bearer ' + $token.AccessToken
+        'Content-Type'  = 'application/json'
+        'Authorization' = 'Bearer ' + $token.AccessToken
     }
     #endregion
     $Body = [ordered]@{ 
         "subdomainName" = $CognitiveServicesName
-        "type" = "Microsoft.CognitiveServices/accounts"
+        "type"          = "Microsoft.CognitiveServices/accounts"
     } | ConvertTo-Json
 
     $URI = "https://management.azure.com/subscriptions/$SubcriptionID/providers/Microsoft.CognitiveServices/checkDomainAvailability?api-version=2023-05-01"
-    try
-    {
+    try {
         # Invoke the REST API
         $Response = Invoke-RestMethod -Method Post -Headers $authHeader -Body $Body -ContentType "application/json" -Uri $URI -ErrorVariable ResponseError
     }
@@ -70,6 +69,7 @@ function Get-AzCognitiveServicesNameAvailability {
 }
 
 function Split-ArrayIntoSegments {
+    [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true, ValueFromPipeline = $false, ValueFromPipelineByPropertyName = $false)]
         [array]$InputArray,
@@ -78,17 +78,52 @@ function Split-ArrayIntoSegments {
         [int]$SegmentSize = 10
     )
 
-    $start=0
-    $end=[math]::Min($start+$SegmentSize-1, $InputArray.Count)
+    $start = 0
+    $end = [math]::Min($start + $SegmentSize - 1, $InputArray.Count)
 
-    $segments = while ($start -lt $InputArray.Count)
-    {
+    $segments = while ($start -lt $InputArray.Count) {
         # Comma creates an array with one element (subarray)
-        ,$InputArray[$start..$end]
-        $start = $end+1
-        $end=[math]::Min($start+$SegmentSize-1, $InputArray.Count-1)
+        , $InputArray[$start..$end]
+        $start = $end + 1
+        $end = [math]::Min($start + $SegmentSize - 1, $InputArray.Count - 1)
     }
     return $segments
+}
+
+function Write-MyProgress {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true, ValueFromPipeline = $false, ValueFromPipelineByPropertyName = $false)]
+        [int] $Index,
+        [Parameter(Mandatory = $true, ValueFromPipeline = $false, ValueFromPipelineByPropertyName = $false)]
+        [int] $Count,
+        [Parameter(Mandatory = $true, ValueFromPipeline = $false, ValueFromPipelineByPropertyName = $false)]
+        [string] $Item,
+        [Parameter(Mandatory = $true, ValueFromPipeline = $false, ValueFromPipelineByPropertyName = $false)]
+        [datetime] $StartTime,
+        [Parameter(Mandatory = $false, ValueFromPipeline = $false, ValueFromPipelineByPropertyName = $false)]
+        [int] $Id = 1
+    )
+    Write-Verbose "`$Index: $Index"
+    Write-Verbose "`$Count: $Count"
+    Write-Verbose "`$Item: $Item"
+    Write-Verbose "`$StartTime: $StartTime"
+    Write-Verbose "`$Id: $Id"
+    $Percent = ($Index / $Count * 100)
+    Write-Verbose "`$Percent: $Percent"
+    $ElapsedTime = New-TimeSpan -Start $StartTime -End $(Get-Date)
+    $ElapsedTimeToString = $ElapsedTime.ToString('hh\:mm\:ss')
+    Write-Verbose "`$ElapsedTime: $ElapsedTime"
+    try {
+        $RemainingTime = New-TimeSpan -Seconds $($ElapsedTime.Seconds / ($Index - 1) * ($Count - $Index + 1))
+        $RemainingTimeToString = $RemainingTime.ToString('hh\:mm\:ss')
+    }
+    catch {
+        $RemainingTimeToString = '--:--:--'
+    }
+    Write-Verbose "`$RemainingTime: $RemainingTime"
+    Write-Progress -Id $Id -Activity "[$Index/$Count] Processing '$Item'" -Status "Percent : $('{0:N0}' -f $Percent)% - Elapsed Time: $ElapsedTimeToString - Remaining Time: $RemainingTimeToString" -PercentComplete $Percent
+    Start-Sleep -Seconds 2
 }
 #endregion
 
@@ -151,7 +186,7 @@ $ResourceGroupName = $ResourceGroupName.ToLower()
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
 if ($ResourceGroup) {
     #Step 0: Remove previously existing Azure Resource Group with the same name
-    $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
+    $ResourceGroup | Remove-AzResourceGroup -Force
 }
 
 # Create Resource Groups 
@@ -159,8 +194,7 @@ $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Locatio
 
 #region Cognitive Services
 # Create a Free FaceAPI (Only One Per Subscription)  Cognitive Services resource: https://azure.microsoft.com/en-us/pricing/details/cognitive-services/computer-vision/
-try
-{
+try {
     $cognitiveServices = New-AzCognitiveServicesAccount -Name $cognitiveServicesName -ResourceGroupName $resourceGroupName -Location $Location -SkuName "S0" -Kind "Face" -ErrorAction Stop
 }
 catch [System.Management.Automation.PSInvalidOperationException] {   
@@ -186,14 +220,12 @@ Write-Verbose -Message "`$CognitiveServicesAccountEndPoint: $CognitiveServicesAc
 $facelistsUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/facelists"
 $headers = @{
     "Ocp-Apim-Subscription-Key" = $CognitiveServicesAccountKey
-    "Content-Type" = "application/octet-stream"
+    "Content-Type"              = "application/octet-stream"
 }
 
-Do
-{
+Do {
     Start-Sleep -Seconds 10
-    try
-    {
+    try {
         $StatusCode = 200
         # Invoke the REST API
         $Response = Invoke-RestMethod -Uri $facelistsUrl -Method Get -Headers $headers
@@ -217,30 +249,30 @@ $Pictures = (Get-ChildItem -Path $IdentifyDir -Filter "*.jpg" -File -Recurse).Fu
 $detectUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/detect?returnFaceId=true&returnFaceLandmarks=true&returnFaceAttributes=headPose,glasses,occlusion,accessories,blur,exposure,noise,qualityForRecognition&returnFaceLandmarks=true&recognitionModel=recognition_04&returnRecognitionModel=true&detectionModel=detection_01"
 $headers = @{
     "Ocp-Apim-Subscription-Key" = $CognitiveServicesAccountKey
-    "Content-Type" = "application/octet-stream"
+    "Content-Type"              = "application/octet-stream"
 }
 
-
-$IdentifyDetectedFaces = foreach($CurrentPicture in $Pictures) {
-    Write-Host -Object "`r`nDetecting face in '$CurrentPicture' ..." -ForegroundColor Cyan
+$Index = 0
+$StartTime = Get-Date
+$IdentifyDetectedFaces = foreach ($CurrentPicture in $Pictures) {
+    Write-Host -Object "`r`nDetecting face in '$CurrentPicture' ..."
+    $Index++
+    Write-MyProgress -Index $Index -Count $Pictures.Count -Item $CurrentPicture -StartTime $StartTime #-Verbose
 
     # Detect face in the photo using the Face API
     #$detectUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/detect?returnFaceId=true&returnFaceLandmarks=true&returnFaceAttributes=headPose,glasses&recognitionModel=recognition_04&returnRecognitionModel=true"
     #$CurrentPictureData = [System.IO.File]::ReadAllBytes($CurrentPicture)
     #$CurrentPictureBase64 = [System.Convert]::ToBase64String(#$CurrentPictureData)
 
-    try
-    {
+    try {
         # Invoke the REST API
         $Response = Invoke-RestMethod -Uri $detectUrl -Method Post -Headers $headers -InFile $CurrentPicture
         #Adding the FilePath property to keep track of the picture path
-        $Response | Select-Object -Property *, @{Name='FilePath'; Expression={$CurrentPicture}}
-        if (-not($Response))
-        {
+        $Response | Select-Object -Property *, @{Name = 'FilePath'; Expression = { $CurrentPicture } }
+        if (-not($Response)) {
             Write-Warning -Message "No face identification for '$CurrentPicture'"
         }
-        else
-        {
+        else {
             Write-Verbose -Message "Face detected in '$CurrentPicture'"
         }
     }
@@ -254,12 +286,12 @@ $IdentifyDetectedFaces = foreach($CurrentPicture in $Pictures) {
         $respStream = $_.Exception.Response.GetResponseStream()
         $reader = New-Object System.IO.StreamReader($respStream)
         $Response = $reader.ReadToEnd() | ConvertFrom-Json
-        if (-not([string]::IsNullOrEmpty($Response.message)))
-        {
+        if (-not([string]::IsNullOrEmpty($Response.message))) {
             Write-Error -Message $Response.message -ErrorAction Stop
         }
     }
 }
+Write-Progress -Activity "Completed !" -Completed
 Write-Verbose $($IdentifyDetectedFaces | Out-String)
 $IdentifyDetectedFacesHT = $IdentifyDetectedFaces | Group-Object -Property faceId -AsHashTable -AsString
 #endregion
@@ -274,10 +306,14 @@ $headers = @{
     "Content-Type" = "application/octet-stream"
 }
 
+$Index=0
+$StartTime = Get-Date
 $PersonGroups = Invoke-RestMethod -Uri $PersonGroupUrl -Method Get -Headers $headers
 foreach($CurrentPersonGroup in $PersonGroups) {
-    Write-Host -Object "`r`nDeleting '$($CurrentPersonGroup.name)' PersonGroup ..." -ForegroundColor Cyan
+    Write-Host -Object "`r`nDeleting '$($CurrentPersonGroup.name)' PersonGroup ..."
     #region FaceList - Get
+    $Index++
+    Write-MyProgress -Index $Index -Count $PersonGroups.Count -Item $($CurrentPersonGroup.name) -StartTime $StartTime #-Verbose
     try
     {
         # Invoke the REST API
@@ -300,6 +336,7 @@ foreach($CurrentPersonGroup in $PersonGroups) {
     }
     #endregion
 }
+Write-Progress -Activity "Completed !" -Completed
 #endregion
 #>
 
@@ -308,19 +345,18 @@ $MyPersonGroupName = "mypersongroup_$TimeStamp"
 $CreatePersonGroupUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/persongroups/$MyPersonGroupName"
 $headers = @{
     "Ocp-Apim-Subscription-Key" = $CognitiveServicesAccountKey
-    "Content-Type" = "application/json"
+    "Content-Type"              = "application/json"
 }
 
 $Body = [ordered]@{
-    "name" = $MyPersonGroupName
-    "userData" = $MyPersonGroupName
+    "name"             = $MyPersonGroupName
+    "userData"         = $MyPersonGroupName
     "recognitionModel" = "recognition_04"
 } | ConvertTo-Json
 
-try
-{
+try {
     # Invoke the REST API
-    Write-Host -Object "`r`nCreating '$MyPersonGroupName' PersonGroup ..." -ForegroundColor Cyan
+    Write-Host -Object "`r`nCreating '$MyPersonGroupName' PersonGroup ..."
     $Response = Invoke-RestMethod -Uri $CreatePersonGroupUrl -Method Put -Headers $headers -Body $Body
 }
 catch [System.Net.WebException] {   
@@ -333,8 +369,7 @@ catch [System.Net.WebException] {
     $respStream = $_.Exception.Response.GetResponseStream()
     $reader = New-Object System.IO.StreamReader($respStream)
     $Response = $reader.ReadToEnd() | ConvertFrom-Json
-    if (-not([string]::IsNullOrEmpty($Response.message)))
-    {
+    if (-not([string]::IsNullOrEmpty($Response.message))) {
         Write-Error -Message $Response.message -ErrorAction Stop
     }
 }
@@ -344,7 +379,7 @@ catch [System.Net.WebException] {
 $PersonGroupsUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/persongroups/"
 $headers = @{
     "Ocp-Apim-Subscription-Key" = $CognitiveServicesAccountKey
-    "Content-Type" = "application/octet-stream"
+    "Content-Type"              = "application/octet-stream"
 }
 
 $PersonGroups = Invoke-RestMethod -Uri $PersonGroupsUrl -Method Get -Headers $headers
@@ -359,19 +394,22 @@ $MyPersonGroupName = "mypersongroup_$TimeStamp"
 $CreatePersonGroupPersonUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/persongroups/$MyPersonGroupName/persons"
 $headers = @{
     "Ocp-Apim-Subscription-Key" = $CognitiveServicesAccountKey
-    "Content-Type" = "application/json"
+    "Content-Type"              = "application/json"
 }
 
-foreach($CurrentPerson in $Persons) {
+$Index = 0
+$StartTime = Get-Date
+foreach ($CurrentPerson in $Persons) {
     $Body = [ordered]@{
-        "name" = $CurrentPerson
+        "name"     = $CurrentPerson
         "userData" = $CurrentPerson
     } | ConvertTo-Json
+    $Index++
+    Write-MyProgress -Index $Index -Count $Persons.Count -Item $CurrentPerson -StartTime $StartTime #-Verbose
 
-    try
-    {
+    try {
         # Invoke the REST API
-        Write-Host -Object "`r`nAdding '$CurrentPerson' to '$MyPersonGroupName' PersonGroup ..." -ForegroundColor Cyan
+        Write-Host -Object "`r`nAdding '$CurrentPerson' to '$MyPersonGroupName' PersonGroup ..."
         $CreatedPersonGroupPerson = Invoke-RestMethod -Uri $CreatePersonGroupPersonUrl -Method Post -Headers $headers -Body $Body
     }
     catch [System.Net.WebException] {   
@@ -384,12 +422,12 @@ foreach($CurrentPerson in $Persons) {
         $respStream = $_.Exception.Response.GetResponseStream()
         $reader = New-Object System.IO.StreamReader($respStream)
         $Response = $reader.ReadToEnd() | ConvertFrom-Json
-        if (-not([string]::IsNullOrEmpty($CreatedPersonGroupPerson.message)))
-        {
+        if (-not([string]::IsNullOrEmpty($CreatedPersonGroupPerson.message))) {
             Write-Error -Message $Response.message -ErrorAction Stop
         }
     }
 }
+Write-Progress -Activity "Completed !" -Completed
 #endregion
 
 #region PersonGroup - Person - Add Face
@@ -398,29 +436,41 @@ $TrainingDir = Join-Path -Path $CurrentDir -ChildPath "Training"
 $PersonGroupsUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/persongroups/"
 $headers = @{
     "Ocp-Apim-Subscription-Key" = $CognitiveServicesAccountKey
-    "Content-Type" = "application/octet-stream"
+    "Content-Type"              = "application/octet-stream"
 }
 
 $PersonGroups = Invoke-RestMethod -Uri $PersonGroupsUrl -Method Get -Headers $headers
-$AddedFacesToPersonGroupsPerson = foreach($CurrentPersonGroup in $PersonGroups) {
-    try
-    {
+$Index = 0
+$StartTime = Get-Date
+$AddedFacesToPersonGroupsPerson = foreach ($CurrentPersonGroup in $PersonGroups) {
+    $Index++
+    Write-MyProgress -Index $Index -Count $PersonGroups.Count -Item $CurrentPersonGroup.name -StartTime $StartTime #-Verbose
+    try {
         # Invoke the REST API
-        $CurrentPersonGroupsPersonUrl = $PersonGroupsUrl+$CurrentPersonGroup.personGroupId+'/persons'
+        $CurrentPersonGroupsPersonUrl = $PersonGroupsUrl + $CurrentPersonGroup.personGroupId + '/persons'
         $Persons = Invoke-RestMethod -Uri $CurrentPersonGroupsPersonUrl -Method Get -Headers $headers
-        foreach ($CurrentPerson in $Persons)
-        {
+        $Index2 = 0
+        $StartTime2 = Get-Date
+        foreach ($CurrentPerson in $Persons) {
+            $Index2++
+            Write-MyProgress -Id 2 -Index $Index2 -Count $Persons.Count -Item $CurrentPerson.name -StartTime $StartTime2
             $TrainingPersonDir = Join-Path -Path $TrainingDir -ChildPath $($CurrentPerson.Name)
             $Pictures = (Get-ChildItem -Path $TrainingPersonDir -Filter "*.jpg" -File -Recurse).FullName
             $AddFaceToCurrentPersonGroupsPersonUrl = "$CurrentPersonGroupsPersonUrl/$($CurrentPerson.personId)/persistedFaces?userData=$($CurrentPerson.userData)&detectionModel=detection_01"
-            foreach ($CurrentPicture in $Pictures)
-            {
-                Write-Host -Object "`r`nAdding '$CurrentPicture' to '$($CurrentPerson.Name)' in '$($CurrentPersonGroup.name)' PersonGroup ..." -ForegroundColor Cyan
+            $Index3 = 0
+            $StartTime3 = Get-Date
+            foreach ($CurrentPicture in $Pictures) {
+                $Index3++
+                Write-MyProgress -Id 3 -Index $Index3 -Count $Persons.Count -Item $CurrentPicture -StartTime $StartTime3
+                Write-Host -Object "`r`nAdding '$CurrentPicture' to '$($CurrentPerson.Name)' in '$($CurrentPersonGroup.name)' PersonGroup ..."
                 $Person = Invoke-RestMethod -Uri $AddFaceToCurrentPersonGroupsPersonUrl -Method Post -Headers $headers -InFile $CurrentPicture
                 #Adding the FilePath property to keep track of the picture path
-                $Person | Select-Object -Property *, @{Name='FilePath'; Expression={$CurrentPicture}}
+                $Person | Select-Object -Property *, @{Name = 'FilePath'; Expression = { $CurrentPicture } }
+                Write-Verbose -Message $($Person | Out-String)
             }
+            Write-Progress -Id 3 -Activity "Completed !" -Completed
         }
+        Write-Progress -Id 2 -Activity "Completed !" -Completed
     }
     catch [System.Net.WebException] {   
         # Dig into the exception to get the Response details.
@@ -432,12 +482,12 @@ $AddedFacesToPersonGroupsPerson = foreach($CurrentPersonGroup in $PersonGroups) 
         $respStream = $_.Exception.Response.GetResponseStream()
         $reader = New-Object System.IO.StreamReader($respStream)
         $Response = $reader.ReadToEnd() | ConvertFrom-Json
-        if (-not([string]::IsNullOrEmpty($Response.message)))
-        {
+        if (-not([string]::IsNullOrEmpty($Response.message))) {
             Write-Error -Message $Response.message -ErrorAction Stop
         }
     }
 }
+Write-Progress -Activity "Completed !" -Completed
 $AddedFacesToPersonGroupsPerson
 #endregion
 
@@ -445,16 +495,19 @@ $AddedFacesToPersonGroupsPerson
 $PersonGroupsUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/persongroups/"
 $headers = @{
     "Ocp-Apim-Subscription-Key" = $CognitiveServicesAccountKey
-    "Content-Type" = "application/octet-stream"
+    "Content-Type"              = "application/octet-stream"
 }
 
 $PersonGroups = Invoke-RestMethod -Uri $PersonGroupsUrl -Method Get -Headers $headers
-$PersonGroupData = foreach($CurrentPersonGroup in $PersonGroups) {
-    try
-    {
+$Index = 0
+$StartTime = Get-Date
+$PersonGroupData = foreach ($CurrentPersonGroup in $PersonGroups) {
+    $Index++
+    Write-MyProgress -Index $Index -Count $PersonGroups.Count -Item $CurrentPersonGroup.name -StartTime $StartTime #-Verbose
+    try {
         # Invoke the REST API
-        Write-Host -Object "`r`nListing '$($CurrentPersonGroup.name)' PersonGroup ..." -ForegroundColor Cyan
-        $CurrentPersonGroupsPersonUrl = $PersonGroupsUrl+$CurrentPersonGroup.personGroupId+'/persons'
+        Write-Host -Object "`r`nListing '$($CurrentPersonGroup.name)' PersonGroup ..."
+        $CurrentPersonGroupsPersonUrl = $PersonGroupsUrl + $CurrentPersonGroup.personGroupId + '/persons'
         $Response = Invoke-RestMethod -Uri $CurrentPersonGroupsPersonUrl -Method Get -Headers $headers
         $Response
     }
@@ -468,12 +521,12 @@ $PersonGroupData = foreach($CurrentPersonGroup in $PersonGroups) {
         $respStream = $_.Exception.Response.GetResponseStream()
         $reader = New-Object System.IO.StreamReader($respStream)
         $Response = $reader.ReadToEnd() | ConvertFrom-Json
-        if (-not([string]::IsNullOrEmpty($Response.message)))
-        {
+        if (-not([string]::IsNullOrEmpty($Response.message))) {
             Write-Error -Message $Response.message -ErrorAction Stop
         }
     }
 }
+Write-Progress -Activity "Completed !" -Completed
 $PersonGroupData | Format-List -Property *
 $PersonGroupDataHT = $PersonGroupData | Group-Object -Property personId -AsHashTable -AsString
 #endregion
@@ -483,16 +536,19 @@ $PersonGroupDataHT = $PersonGroupData | Group-Object -Property personId -AsHashT
 $PersonGroupsUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/persongroups/"
 $headers = @{
     "Ocp-Apim-Subscription-Key" = $CognitiveServicesAccountKey
-    "Content-Type" = "application/octet-stream"
+    "Content-Type"              = "application/octet-stream"
 }
 
 $PersonGroups = Invoke-RestMethod -Uri $PersonGroupsUrl -Method Get -Headers $headers
-foreach($CurrentPersonGroup in $PersonGroups) {
-    try
-    {
+$Index = 0
+$StartTime = Get-Date
+foreach ($CurrentPersonGroup in $PersonGroups) {
+    $Index++
+    Write-MyProgress -Index $Index -Count $PersonGroups.Count -Item $CurrentPersonGroup.name -StartTime $StartTime #-Verbose
+    try {
         # Invoke the REST API
-        Write-Host -Object "`r`nTraining '$($CurrentPersonGroup.name)' PersonGroup ..." -ForegroundColor Cyan
-        $CurrentPersonGroupsPersonUrl = $PersonGroupsUrl+$CurrentPersonGroup.personGroupId+'/train'
+        Write-Host -Object "`r`nTraining '$($CurrentPersonGroup.name)' PersonGroup ..."
+        $CurrentPersonGroupsPersonUrl = $PersonGroupsUrl + $CurrentPersonGroup.personGroupId + '/train'
         $Response = Invoke-RestMethod -Uri $CurrentPersonGroupsPersonUrl -Method Post -Headers $headers
         $Response
     }
@@ -506,28 +562,31 @@ foreach($CurrentPersonGroup in $PersonGroups) {
         $respStream = $_.Exception.Response.GetResponseStream()
         $reader = New-Object System.IO.StreamReader($respStream)
         $Response = $reader.ReadToEnd() | ConvertFrom-Json
-        if (-not([string]::IsNullOrEmpty($Response.message)))
-        {
+        if (-not([string]::IsNullOrEmpty($Response.message))) {
             Write-Error -Message $Response.message -ErrorAction Stop
         }
     }
 }
+Write-Progress -Activity "Completed !" -Completed
 #endregion
 
 #region PersonGroup - Training Status
 $PersonGroupsUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/persongroups/"
 $headers = @{
     "Ocp-Apim-Subscription-Key" = $CognitiveServicesAccountKey
-    "Content-Type" = "application/octet-stream"
+    "Content-Type"              = "application/octet-stream"
 }
 
 $PersonGroups = Invoke-RestMethod -Uri $PersonGroupsUrl -Method Get -Headers $headers
-$PersonGroupTrainData = foreach($CurrentPersonGroup in $PersonGroups) {
-    try
-    {
+$Index = 0
+$StartTime = Get-Date
+$PersonGroupTrainData = foreach ($CurrentPersonGroup in $PersonGroups) {
+    $Index++
+    Write-MyProgress -Index $Index -Count $PersonGroups.Count -Item $CurrentPersonGroup.name -StartTime $StartTime #-Verbose
+    try {
         # Invoke the REST API
-        Write-Host -Object "`r`nTraining '$($CurrentPersonGroup.name)' PersonGroup ..." -ForegroundColor Cyan
-        $CurrentPersonGroupsPersonUrl = $PersonGroupsUrl+$CurrentPersonGroup.personGroupId+'/training'
+        Write-Host -Object "`r`nTraining '$($CurrentPersonGroup.name)' PersonGroup ..."
+        $CurrentPersonGroupsPersonUrl = $PersonGroupsUrl + $CurrentPersonGroup.personGroupId + '/training'
         $Response = Invoke-RestMethod -Uri $CurrentPersonGroupsPersonUrl -Method Get -Headers $headers
         $Response
     }
@@ -541,12 +600,12 @@ $PersonGroupTrainData = foreach($CurrentPersonGroup in $PersonGroups) {
         $respStream = $_.Exception.Response.GetResponseStream()
         $reader = New-Object System.IO.StreamReader($respStream)
         $Response = $reader.ReadToEnd() | ConvertFrom-Json
-        if (-not([string]::IsNullOrEmpty($Response.message)))
-        {
+        if (-not([string]::IsNullOrEmpty($Response.message))) {
             Write-Error -Message $Response.message -ErrorAction Stop
         }
     }
 }
+Write-Progress -Activity "Completed !" -Completed
 $PersonGroupTrainData | Format-List -Property * -Force
 #endregion
 #endregion
@@ -558,7 +617,7 @@ $Pictures = (Get-ChildItem -Path $IdentifyDir -Filter "*.jpg" -File -Recurse).Fu
 $identifyUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/identify"
 $headers = @{
     "Ocp-Apim-Subscription-Key" = $CognitiveServicesAccountKey
-    "Content-Type" = "application/octet-stream"
+    "Content-Type"              = "application/octet-stream"
 }
 
 $PersonGroupsUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/persongroups/"
@@ -567,19 +626,24 @@ $PersonGroups = Invoke-RestMethod -Uri $PersonGroupsUrl -Method Get -Headers $he
 $SegmentedIdentifyDetectedFacesFaceId = Split-ArrayIntoSegments -InputArray $IdentifyDetectedFaces.faceId -SegmentSize 10
 
 $Index = 0
+$StartTime = Get-Date
 $FaceIdentifyData = foreach ($CurrentFaceIdsSegment in $SegmentedIdentifyDetectedFacesFaceId) {
     $Index++
+    Write-MyProgress -Index $Index -Count $SegmentedIdentifyDetectedFacesFaceId.Count -Item $Index -StartTime $StartTime #-Verbose
+    $Index2 = 0
+    $StartTime2 = Get-Date
     foreach ($CurrentPersonGroup in $PersonGroups) {
+        $Index2++
+        Write-MyProgress -Id 2 -Index $Index2 -Count $PersonGroups.Count -Item $CurrentPersonGroup.name -StartTime $StartTime2
         $Body = [ordered]@{ 
-            "personGroupId" = $CurrentPersonGroup.personGroupId
-            "faceIds" = $CurrentFaceIdsSegment
+            "personGroupId"              = $CurrentPersonGroup.personGroupId
+            "faceIds"                    = $CurrentFaceIdsSegment
             "maxNumOfCandidatesReturned" = 1
-            "confidenceThreshold" = 0.8
+            "confidenceThreshold"        = 0.8
         } | ConvertTo-Json
-        try
-        {
+        try {
             # Invoke the REST API
-            Write-Host -Object "`r`n[$Index/$($SegmentedIdentifyDetectedFacesFaceId.Count)] Identifying '$($CurrentPersonGroup.name)' PersonGroup ..." -ForegroundColor Cyan
+            Write-Host -Object "`r`n[$Index/$($SegmentedIdentifyDetectedFacesFaceId.Count)] Identifying '$($CurrentPersonGroup.name)' PersonGroup ..."
             $Response = Invoke-RestMethod -Uri $identifyUrl -Method Post -Headers $headers -Body $Body -ContentType "application/json"
             $Response
         }
@@ -593,36 +657,42 @@ $FaceIdentifyData = foreach ($CurrentFaceIdsSegment in $SegmentedIdentifyDetecte
             $respStream = $_.Exception.Response.GetResponseStream()
             $reader = New-Object System.IO.StreamReader($respStream)
             $Response = $reader.ReadToEnd() | ConvertFrom-Json
-            if (-not([string]::IsNullOrEmpty($Response.message)))
-            {
+            if (-not([string]::IsNullOrEmpty($Response.message))) {
                 Write-Error -Message $Response.message -ErrorAction Stop
             }
         }
     }
+    Write-Progress -Id 2 -Activity "Completed !" -Completed
 }
+Write-Progress -Activity "Completed !" -Completed
 
-foreach ($FaceIdentifyDataItem in $FaceIdentifyData) {
+$Index = 0
+$StartTime = Get-Date
+$MyMatches = foreach ($FaceIdentifyDataItem in $FaceIdentifyData) {
     $CurrentIdentifyDetectedFace = $IdentifyDetectedFacesHT[$($FaceIdentifyDataItem.faceId)]
-    if ($FaceIdentifyDataItem.candidates.Count -gt 0)
-    {
+    $Index++
+    Write-MyProgress -Index $Index -Count $FaceIdentifyData.Count -Item $CurrentIdentifyDetectedFace.FilePath -StartTime $StartTime #-Verbose
+    if ($FaceIdentifyDataItem.candidates.Count -gt 0) {
         $Identification = $PersonGroupDataHT[$FaceIdentifyDataItem.candidates.personId].name
         $Confidence = '{0:p2}' -f $FaceIdentifyDataItem.candidates.confidence
         #$Confidence = $('{0:p2}' -f $FaceIdentifyDataItem.candidates.confidence).padLeft(7, '0')
-        #Write-Host -Object "Matching '$Identification' (Confidence: $Confidence) for [$($FaceIdentifyDataItem.faceId)] '$($CurrentIdentifyDetectedFace.FilePath)' ..." -ForegroundColor Cyan    
-        Write-Host -Object "Matching '$Identification' (Confidence: $Confidence) for '$($CurrentIdentifyDetectedFace.FilePath)' ..." -ForegroundColor Cyan    
+        #Write-Host -Object "Matching '$Identification' (Confidence: $Confidence) for [$($FaceIdentifyDataItem.faceId)] '$($CurrentIdentifyDetectedFace.FilePath)' ..."    
+        Write-Verbose -Message "Matching '$Identification' (Confidence: $Confidence) for '$($CurrentIdentifyDetectedFace.FilePath)' ..."
+        [PSCustomObject] @{Match = $Identification; Confidence = $Confidence; FilePath = $CurrentIdentifyDetectedFace.FilePath }  
     }
-    else
-    {
+    else {
         Write-Warning -Message "Unable to identify [$($FaceIdentifyDataItem.faceId)] '$($CurrentIdentifyDetectedFace.FilePath)' ..." 
     }
 }
+Write-Progress -Activity "Completed !" -Completed
+$MyMatches
 #endregion
 #endregion
 
 #region Some Cleanup
-Remove-AzResourceGroup -Name $ResourceGroupName -Force -Verbose -AsJob
-$cognitiveServices | Remove-AzCognitiveServicesAccount -Force -Verbose
-$null=Get-AzCognitiveServicesAccount -InRemovedState | Remove-AzResource -Force -Verbose
+$null = Remove-AzResourceGroup -Name $ResourceGroupName -Force -AsJob
+$cognitiveServices | Remove-AzCognitiveServicesAccount -Force
+$null = Get-AzCognitiveServicesAccount -InRemovedState | Remove-AzResource -Force
 <#
 <#
 #>
