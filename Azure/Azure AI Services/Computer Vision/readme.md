@@ -1,8 +1,8 @@
-# Azure Cognitives Services
+# Azure AI Services
 
 Table of content:
 
-- [Azure Cognitives Services](#azure-cognitives-services)
+- [Azure AI Services](#azure-ai-services)
 - [Preliminary Remarks](#preliminary-remarks)
 - [Computer Vision](#computer-vision)
   - [Some examples](#some-examples)
