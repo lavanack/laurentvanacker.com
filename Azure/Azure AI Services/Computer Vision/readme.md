@@ -1,21 +1,20 @@
-# Azure AI Services
+# Azure AI Services > Computer Vision
 
 Table of content:
 
-- [Azure AI Services](#azure-ai-services)
+- [Azure AI Services \> Computer Vision](#azure-ai-services--computer-vision)
 - [Preliminary Remarks](#preliminary-remarks)
 - [Computer Vision](#computer-vision)
   - [Some examples](#some-examples)
-- [Face Recognization](#face-recognization)
 
 # Preliminary Remarks
-All scripts are standalone scripts and will create and use their own related Cognitive Services resources (Free if possible).
+All scripts are standalone scripts and will create and use their own related Azure AI Services resources (Free if possible).
 
 # Computer Vision
 
-The [Test-AzComputerVisionImageAnalysis_v3.2.ps1](<Test-AzComputerVisionImageAnalysis_v3.2.ps1>)script downloads 3 random pictures (1920x1080) from [https://picsum.photos/](https://picsum.photos/) and use the [Computer Vision > Image Analysis](https://learn.microsoft.com/en-us/azure/cognitive-services/computer-vision/overview-image-analysis?tabs=4-0) of [Azure Cognitive Services](https://learn.microsoft.com/en-us/azure/cognitive-services/) to analyze the downloaded pictures.
+The [Test-AzComputerVisionImageAnalysis_v3.2.ps1](<Test-AzComputerVisionImageAnalysis_v3.2.ps1>)script downloads 3 random pictures (Resolution: 1920x1080 - Every run will get 3 different pictures) from [https://picsum.photos/](https://picsum.photos/) and use the [Computer Vision > Image Analysis](https://learn.microsoft.com/en-us/azure/cognitive-services/computer-vision/overview-image-analysis?tabs=4-0) of [Azure Cognitive Services](https://learn.microsoft.com/en-us/azure/cognitive-services/) to analyze the downloaded pictures.
 
-For that, it will create a dedicated resource group with a Free (Only one free tier (F0) per subscription) Computer Vision Cognitive Service (You will have to create your very first Computer Vision resource using the portal to accept the EULA). If you already have set up one, the script will failed and stop (around line 142).
+For that, it will create a dedicated resource group with a Free (Only one free tier - F0 - per subscription) Computer Vision Cognitive Service (You will have to create your very first Computer Vision resource using the portal to accept the EULA). If you already have set up one, the script will failed and stop (around line 142).
 
 The script will return
 
@@ -32,7 +31,3 @@ Judge by yourself with 3 examples ;)
 ![Alt text](docs/20230713034134_877-1920x1080.jpg)
 ![Alt text](docs/20230713034141_151-1920x1080.jpg)
 ![Alt text](docs/results.jpg)
-
-# Face Recognization
-
-Tou se the features Identification and Verification you have to apply for access at [https://aka.ms/facerecognition](https://aka.ms/facerecognition)
