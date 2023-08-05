@@ -259,11 +259,6 @@ $IdentifyDetectedFaces = foreach ($CurrentPicture in $Pictures) {
     $Index++
     Write-MyProgress -Index $Index -Count $Pictures.Count -Item $CurrentPicture -StartTime $StartTime #-Verbose
 
-    # Detect face in the photo using the Face API
-    #$detectUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/detect?returnFaceId=true&returnFaceLandmarks=true&returnFaceAttributes=headPose,glasses&recognitionModel=recognition_04&returnRecognitionModel=true"
-    #$CurrentPictureData = [System.IO.File]::ReadAllBytes($CurrentPicture)
-    #$CurrentPictureBase64 = [System.Convert]::ToBase64String(#$CurrentPictureData)
-
     try {
         # Invoke the REST API
         $Response = Invoke-RestMethod -Uri $detectUrl -Method Post -Headers $headers -InFile $CurrentPicture
@@ -329,8 +324,7 @@ foreach($CurrentPersonGroup in $PersonGroups) {
         $respStream = $_.Exception.Response.GetResponseStream()
         $reader = New-Object System.IO.StreamReader($respStream)
         $Response = $reader.ReadToEnd() | ConvertFrom-Json
-        if (-not([string]::IsNullOrEmpty($Response.message)))
-        {
+        if (-not([string]::IsNullOrEmpty($Response.message))) {
             Write-Error -Message $Response.message -ErrorAction Stop
         }
     }
@@ -673,12 +667,10 @@ $MyMatches = foreach ($FaceIdentifyDataItem in $FaceIdentifyData) {
     $Index++
     Write-MyProgress -Index $Index -Count $FaceIdentifyData.Count -Item $CurrentIdentifyDetectedFace.FilePath -StartTime $StartTime #-Verbose
     if ($FaceIdentifyDataItem.candidates.Count -gt 0) {
-        $Identification = $PersonGroupDataHT[$FaceIdentifyDataItem.candidates.personId].name
+        $Match = $PersonGroupDataHT[$FaceIdentifyDataItem.candidates.personId].name
         $Confidence = '{0:p2}' -f $FaceIdentifyDataItem.candidates.confidence
-        #$Confidence = $('{0:p2}' -f $FaceIdentifyDataItem.candidates.confidence).padLeft(7, '0')
-        #Write-Host -Object "Matching '$Identification' (Confidence: $Confidence) for [$($FaceIdentifyDataItem.faceId)] '$($CurrentIdentifyDetectedFace.FilePath)' ..."    
-        Write-Verbose -Message "Matching '$Identification' (Confidence: $Confidence) for '$($CurrentIdentifyDetectedFace.FilePath)' ..."
-        [PSCustomObject] @{Match = $Identification; Confidence = $Confidence; FilePath = $CurrentIdentifyDetectedFace.FilePath }  
+        Write-Verbose -Message "Matching '$Match' (Confidence: $Confidence) for '$($CurrentIdentifyDetectedFace.FilePath)' ..."
+        [PSCustomObject] @{Match = $Match; Confidence = $Confidence; FilePath = $CurrentIdentifyDetectedFace.FilePath }  
     }
     else {
         Write-Warning -Message "Unable to identify [$($FaceIdentifyDataItem.faceId)] '$($CurrentIdentifyDetectedFace.FilePath)' ..." 
