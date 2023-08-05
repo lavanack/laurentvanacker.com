@@ -38,18 +38,17 @@ function Get-AzCognitiveServicesNameAvailability {
     $profileClient = New-Object -TypeName Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient -ArgumentList ($azProfile)
     $token = $profileClient.AcquireAccessToken($azContext.Subscription.TenantId)
     $authHeader = @{
-        'Content-Type'='application/json'
-        'Authorization'='Bearer ' + $token.AccessToken
+        'Content-Type'  = 'application/json'
+        'Authorization' = 'Bearer ' + $token.AccessToken
     }
     #endregion
     $Body = [ordered]@{ 
         "subdomainName" = $CognitiveServicesName
-        "type" = "Microsoft.CognitiveServices/accounts"
+        "type"          = "Microsoft.CognitiveServices/accounts"
     } | ConvertTo-Json
 
     $URI = "https://management.azure.com/subscriptions/$SubcriptionID/providers/Microsoft.CognitiveServices/checkDomainAvailability?api-version=2023-05-01"
-    try
-    {
+    try {
         # Invoke the REST API
         $Response = Invoke-RestMethod -Method POST -Headers $authHeader -Body $Body -ContentType "application/json" -Uri $URI -ErrorVariable ResponseError
     }
@@ -128,8 +127,7 @@ if ($ResourceGroup) {
 $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 
 # Create a Free ComputerVision (Only One Per Subscription)  Cognitive Services resource: https://azure.microsoft.com/en-us/pricing/details/cognitive-services/computer-vision/
-try
-{
+try {
     $cognitiveServices = New-AzCognitiveServicesAccount -Name $cognitiveServicesName -ResourceGroupName $resourceGroupName -Location $Location -SkuName "F0" -Kind "Face" -ErrorAction Stop
 }
 catch [System.Management.Automation.PSInvalidOperationException] {   
@@ -152,7 +150,7 @@ $CognitiveServicesAccountEndPoint = (Get-AzCognitiveServicesAccount -ResourceGro
 $Pictures = (Get-ChildItem -Path $CurrentDir -Filter "*.jpg" -File -Recurse).FullName
 $detectUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/detect?returnFaceId=true&returnFaceLandmarks=true&returnFaceAttributes=headPose,glasses,occlusion,accessories,blur,exposure,noise,qualityForRecognition&returnFaceLandmarks=true&recognitionModel=recognition_04&returnRecognitionModel=true&detectionModel=detection_01"
 
-foreach($CurrentPicture in $Pictures) {
+foreach ($CurrentPicture in $Pictures) {
     Write-Host -Object "`r`nProcessing '$CurrentPicture' ..." -ForegroundColor Cyan
 
     # Detect face in the photo using the Computer Vision API
@@ -163,11 +161,10 @@ foreach($CurrentPicture in $Pictures) {
 
     $headers = @{
         "Ocp-Apim-Subscription-Key" = $CognitiveServicesAccountKey
-        "Content-Type" = "application/octet-stream"
+        "Content-Type"              = "application/octet-stream"
     }
 
-    try
-    {
+    try {
         # Invoke the REST API
         $Response = Invoke-RestMethod -Uri $detectUrl -Method POST -Headers $headers -InFile $CurrentPicture
     }
@@ -179,12 +176,11 @@ foreach($CurrentPicture in $Pictures) {
         $respStream = $_.Exception.Response.GetResponseStream()
         $reader = New-Object System.IO.StreamReader($respStream)
         $Response = $reader.ReadToEnd() | ConvertFrom-Json
-        if (-not([string]::IsNullOrEmpty($Response.message)))
-        {
+        if (-not([string]::IsNullOrEmpty($Response.message))) {
             Write-Error -Message $Response.message -ErrorAction Stop
         }
     }
     $Response | Format-List -Property * -Force
-    $Response |ConvertTo-Json
+    $Response | ConvertTo-Json
 }
 #endregion
