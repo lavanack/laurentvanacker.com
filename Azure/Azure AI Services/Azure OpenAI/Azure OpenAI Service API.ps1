@@ -155,15 +155,15 @@ function Get-Completion {
         [parameter(Mandatory = $true, HelpMessage = "Max number of tokens allowed to be used in this request")]
         [ValidateNotNullOrEmpty()]
         [int]$Maxtokens
-        )
+    )
 
-Process {
-    $ErrorActionPreference = "Stop"
-    $APIVersion = "2022-12-01"
-    # Construct URI
-    $uri = "https://$ResourceName.openai.azure.com/openai/deployments/$DeploymentName/completions?api-version=$ApiVersion"
-    # Construct Body
-    $Body = @"
+    Process {
+        $ErrorActionPreference = "Stop"
+        $APIVersion = "2022-12-01"
+        # Construct URI
+        $uri = "https://$ResourceName.openai.azure.com/openai/deployments/$DeploymentName/completions?api-version=$ApiVersion"
+        # Construct Body
+        $Body = @"
     {
 "prompt": "$Prompt",
 "max_tokens": $maxtokens
@@ -171,14 +171,14 @@ Process {
 "@
 
 
-    try {
-        $Global:Request = invoke-restmethod -Method POST -Uri $uri -ContentType "application/json" -Body $body  -Headers $Global:MyHeader
+        try {
+            $Global:Request = invoke-restmethod -Method POST -Uri $uri -ContentType "application/json" -Body $body  -Headers $Global:MyHeader
 
-       }
-    catch [System.Exception] {
-      Write-Warning "Failed to to POST request: $($_.Exception.Message)"; break
-    }
-    return $Request
+        }
+        catch [System.Exception] {
+            Write-Warning "Failed to to POST request: $($_.Exception.Message)"; break
+        }
+        return $Request
     }
 }
 #endregion
@@ -198,6 +198,7 @@ $ResourceName = "replace-with-your-own-resource-name"
 $AZOpenAIURI = "https://$ResourceName.openai.azure.com/openai/deployments/$DeploymentName/completions?api-version=2022-12-01"
 #endregion
 
+
 $Prompt = "What is microsoft azure?"
 
 #region Sample #1
@@ -209,13 +210,11 @@ $Body = [ordered]@{
 }
 
 $Response = Invoke-RestMethod -Method POST -Headers $Headers -Body $($Body | ConvertTo-Json)  -ContentType "application/json" -Uri $AZOpenAIURI
-$Response
+Write-Verbose -Message $($Response | Out-String)
 
-"Generated text:"
-$Response.choices.text
+Write-Host -Object "Generated text: $($Response.choices.text)"
+Write-Host -Object "Token cost: $($Response.usage)"
 
-"Token cost"
-$Response.usage
 #endregion
 
 Write-Host "Sleeping 1 minute due to rate limit of the free tier ..."
@@ -225,11 +224,8 @@ Start-Sleep -Seconds 60
 #From https://alexholmeset.blog/2023/02/09/getting-started-with-azure-openai-and-powershell/
 Get-AzureOpenAIToken -APIKey $APIKey
 $Response = Get-Completion -DeploymentName $DeploymentName -ResourceName $ResourceName -Maxtokens 100 -Prompt $Prompt
-$Response
+Write-Verbose -Message $($Response | Out-String)
 
-"Generated text:"
-$Response.choices.text
-
-"Token cost"
-$Response.usage
+Write-Host -Object "Generated text: $($Response.choices.text)"
+Write-Host -Object "Token cost: $($Response.usage)"
 #endregion
