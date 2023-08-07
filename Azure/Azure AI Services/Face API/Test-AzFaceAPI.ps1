@@ -123,7 +123,6 @@ function Write-MyProgress {
     }
     Write-Verbose "`$RemainingTime: $RemainingTime"
     Write-Progress -Id $Id -Activity "[$Index/$Count] Processing '$Item'" -Status "Percent : $('{0:N0}' -f $Percent)% - Elapsed Time: $ElapsedTimeToString - Remaining Time: $RemainingTimeToString" -PercentComplete $Percent
-    Start-Sleep -Seconds 2
 }
 #endregion
 
@@ -158,6 +157,7 @@ While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName)) {
 $null = Register-AzResourceProvider -ProviderNamespace Microsoft.CognitiveServices
 #Important: Wait until RegistrationState is set to Registered. 
 While (Get-AzResourceProvider -ProviderNamespace Microsoft.CognitiveServices | Where-Object -FilterScript { $_.RegistrationState -ne 'Registered' }) {
+    Write-Verbose -Message "Sleeping 10 seconds ..."
     Start-Sleep -Seconds 10
 }
 #endregion
@@ -166,19 +166,18 @@ While (Get-AzResourceProvider -ProviderNamespace Microsoft.CognitiveServices | W
 # Set the Azure region for the Cognitive Services resource
 $Location = "eastus"
 $LocationShortName = $shortNameHT[$Location].shortName
-$CognitiveServicesNameMaxLength = 15
-$CognitiveServicesPrefix = "cg"
+$FaceAPINameMaxLength = 15
+$FaceAPIPrefix = "face"
 $ResourceGroupPrefix = "rg"
-$Project = "cg"
-$Role = "faceapi"
-#$DigitNumber = 4
-$DigitNumber = $CognitiveServicesNameMaxLength - ($CognitiveServicesPrefix + $Project + $Role + $LocationShortName).Length
+$Project = "ai"
+$Role = "face"
+$DigitNumber = $FaceAPINameMaxLength - ($FaceAPIPrefix + $Project + $Role + $LocationShortName).Length
 
 Do {
     $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
     # Create a unique name for the Cognitive Services resource
-    $CognitiveServicesName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $CognitiveServicesPrefix, $Project, $Role, $LocationShortName, $Instance                       
-} While ((-not(Get-AzCognitiveServicesNameAvailability -Name $CognitiveServicesName).isSubdomainAvailable))
+    $FaceAPIName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $FaceAPIPrefix, $Project, $Role, $LocationShortName, $Instance                       
+} While ((-not(Get-AzCognitiveServicesNameAvailability -Name $FaceAPIName).isSubdomainAvailable))
 
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $ResourceGroupName = $ResourceGroupName.ToLower()
@@ -195,7 +194,7 @@ $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Locatio
 #region Cognitive Services
 # Create a Free FaceAPI (Only One Per Subscription)  Cognitive Services resource: https://azure.microsoft.com/en-us/pricing/details/cognitive-services/computer-vision/
 try {
-    $cognitiveServices = New-AzCognitiveServicesAccount -Name $cognitiveServicesName -ResourceGroupName $resourceGroupName -Location $Location -SkuName "S0" -Kind "Face" -ErrorAction Stop
+    $CognitiveServicesAccount = New-AzCognitiveServicesAccount -Name $FaceAPIName -ResourceGroupName $resourceGroupName -Location $Location -SkuName "S0" -Kind "Face" -ErrorAction Stop
 }
 catch [System.Management.Automation.PSInvalidOperationException] {   
     # Dig into the exception to get the Response details.
@@ -204,19 +203,19 @@ catch [System.Management.Automation.PSInvalidOperationException] {
     exit
 }
 
-#$cognitiveServices
+#$FaceAPI
 #endregion
 
 # Get the key and CognitiveServicesAccountEndPoint for the Cognitive Services resource
-$CognitiveServicesAccountKey = (Get-AzCognitiveServicesAccountKey -ResourceGroupName $resourceGroupName -Name $cognitiveServicesName).Key2
-$CognitiveServicesAccountEndPoint = (Get-AzCognitiveServicesAccount -ResourceGroupName $resourceGroupName -Name $cognitiveServicesName).Endpoint
+$CognitiveServicesAccountKey = (Get-AzCognitiveServicesAccountKey -ResourceGroupName $resourceGroupName -Name $FaceAPIName).Key2
+$CognitiveServicesAccountEndPoint = (Get-AzCognitiveServicesAccount -ResourceGroupName $resourceGroupName -Name $FaceAPIName).Endpoint
 
 Write-Verbose -Message "`$CognitiveServicesAccountKey: $CognitiveServicesAccountKey"
 Write-Verbose -Message "`$CognitiveServicesAccountEndPoint: $CognitiveServicesAccountEndPoint"
 #endregion
 
-#region Snapshot
-#region Snapshot - List
+#region FaceList - Just for Waiting and avoid useless HTTP/401 response
+#region FaceList - List
 $facelistsUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/facelists"
 $headers = @{
     "Ocp-Apim-Subscription-Key" = $CognitiveServicesAccountKey
@@ -224,6 +223,7 @@ $headers = @{
 }
 
 Do {
+    Write-Verbose -Message "Sleeping 10 seconds ..."
     Start-Sleep -Seconds 10
     try {
         $StatusCode = 200
@@ -1126,9 +1126,9 @@ $MyMatches
 #endregion
 
 #region Some Cleanup
-#Get-AzResourceGroup -Name rg-cg-faceapi* | Remove-AzResourceGroup -Force -Verbose -AsJob
+#Get-AzResourceGroup -Name rg-cg-face* | Remove-AzResourceGroup -Force -Verbose -AsJob
 $null = Remove-AzResourceGroup -Name $ResourceGroupName -Force -AsJob
-$cognitiveServices | Remove-AzCognitiveServicesAccount -Force
+$CognitiveServicesAccount | Remove-AzCognitiveServicesAccount -Force
 $null = Get-AzCognitiveServicesAccount -InRemovedState | Remove-AzResource -Force
 <#
 <#

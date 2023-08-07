@@ -104,19 +104,19 @@ While (Get-AzResourceProvider -ProviderNamespace Microsoft.CognitiveServices | W
 # Set the Azure region for the Cognitive Services resource
 $Location = "eastus"
 $LocationShortName = $shortNameHT[$Location].shortName
-$CognitiveServicesNameMaxLength = 15
-$CognitiveServicesPrefix = "cg"
+$ComputerVisionNameMaxLength = 15
+$ComputerVisionPrefix = "cpv"
 $ResourceGroupPrefix = "rg"
-$Project = "cg"
-$Role = "cpvia"
+$Project = "ai"
+$Role = "cpv"
 #$DigitNumber = 4
-$DigitNumber = $CognitiveServicesNameMaxLength - ($CognitiveServicesPrefix + $Project + $Role + $LocationShortName).Length
+$DigitNumber = $ComputerVisionNameMaxLength - ($ComputerVisionPrefix + $Project + $Role + $LocationShortName).Length
 
 Do {
     $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
     # Create a unique name for the Cognitive Services resource
-    $CognitiveServicesName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $CognitiveServicesPrefix, $Project, $Role, $LocationShortName, $Instance                       
-} While ((-not(Get-AzCognitiveServicesNameAvailability -Name $CognitiveServicesName).isSubdomainAvailable))
+    $ComputerVisionName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ComputerVisionPrefix, $Project, $Role, $LocationShortName, $Instance                       
+} While ((-not(Get-AzCognitiveServicesNameAvailability -Name $ComputerVisionName).isSubdomainAvailable))
 
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $ResourceGroupName = $ResourceGroupName.ToLower()
@@ -133,7 +133,7 @@ $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Locatio
 # Create a Free ComputerVision (Only One Per Subscription)  Cognitive Services resource: https://azure.microsoft.com/en-us/pricing/details/cognitive-services/computer-vision/
 try
 {
-    $cognitiveServices = New-AzCognitiveServicesAccount -Name $cognitiveServicesName -ResourceGroupName $resourceGroupName -Location $Location -SkuName "F0" -Kind "ComputerVision" -ErrorAction Stop
+    $ComputerVision = New-AzCognitiveServicesAccount -Name $ComputerVisionName -ResourceGroupName $resourceGroupName -Location $Location -SkuName "F0" -Kind "ComputerVision" -ErrorAction Stop
 }
 catch [System.Management.Automation.PSInvalidOperationException] {   
     # Dig into the exception to get the Response details.
@@ -142,26 +142,26 @@ catch [System.Management.Automation.PSInvalidOperationException] {
     exit
 }
 
-$cognitiveServices
+$ComputerVision
 
 #Sleeping some seconds to avoid a HTTP error 401".
 Start-Sleep -Seconds 60
 
 # Get the key and CognitiveServicesAccountEndPoint for the Cognitive Services resource
-$CognitiveServicesAccountKey = (Get-AzCognitiveServicesAccountKey -ResourceGroupName $resourceGroupName -Name $cognitiveServicesName).Key2
-$CognitiveServicesAccountEndPoint = (Get-AzCognitiveServicesAccount -ResourceGroupName $resourceGroupName -Name $cognitiveServicesName).Endpoint
+$CognitiveServicesAccountKey = (Get-AzCognitiveServicesAccountKey -ResourceGroupName $resourceGroupName -Name $ComputerVisionName).Key2
+$CognitiveServicesAccountEndPoint = (Get-AzCognitiveServicesAccount -ResourceGroupName $resourceGroupName -Name $ComputerVisionName).Endpoint
 
 $visualFeatures = "Description", "Objects", "Tags", "Categories", "Faces"
 
 # Will Get a new full HD photo at every request
-$RandomFullHSPictureURI = "https://picsum.photos/1920/1080"
+$RandomFullHDPictureURI = "https://picsum.photos/1920/1080"
 $TestNumber = 3
 
 for($i=0; $i -lt $TestNumber;  $i++)
 {
     $TimeStamp = Get-Date -Format "yyyyMMddHHmmss"
     $CurrentPicture = Join-Path -Path $CurrentDir -ChildPath $('{0}.jpg' -f $TimeStamp)
-    $Response = Invoke-WebRequest -Uri "https://picsum.photos/1920/1080" -OutFile $CurrentPicture -PassThru
+    $Response = Invoke-WebRequest -Uri $RandomFullHDPictureURI -OutFile $CurrentPicture -PassThru
     $OriginalFileName = $null
     if ($Response.Headers["Content-Disposition"] -match 'filename=\"(?<filename>.*)"')
     {
@@ -222,3 +222,13 @@ for($i=0; $i -lt $TestNumber;  $i++)
     }
     Start-Sleep -Seconds 5
 }
+
+#region Some Cleanup
+#Get-AzResourceGroup -Name rg-cg-faceapi* | Remove-AzResourceGroup -Force -Verbose -AsJob
+$null = Remove-AzResourceGroup -Name $ResourceGroupName -Force -AsJob
+$ComputerVision | Remove-AzCognitiveServicesAccount -Force
+$null = Get-AzCognitiveServicesAccount -InRemovedState | Remove-AzResource -Force
+<#
+<#
+#>
+#endregion
