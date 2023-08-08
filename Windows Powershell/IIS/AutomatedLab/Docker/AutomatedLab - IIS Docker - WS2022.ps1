@@ -133,18 +133,17 @@ Install-Lab -Verbose
 Checkpoint-LabVM -SnapshotName FreshInstall -All
 #Restore-LabVMSnapshot -SnapshotName 'FreshInstall' -All -Verbose
 
-
-#region Installing Required Windows Features
-$machines = Get-LabVM
-$Jobs = @()
-$Job += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools -AsJob
-#endregion
-
 #region Enabling Nested Virtualization on DOCKER01
 #Restarting all VMs
 Stop-LabVM -All -Wait
 Set-VMProcessor -VMName DOCKER01 -ExposeVirtualizationExtensions $true
 Start-LabVM -All -Wait
+#endregion
+
+#region Installing Required Windows Features
+$machines = Get-LabVM
+$Jobs = @()
+$Jobs += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools -AsJob
 #endregion
 
 #Installing and setting up DNS
@@ -188,11 +187,13 @@ Install-LabWindowsFeature -FeatureName Web-Mgmt-Console -ComputerName DOCKER01 -
     #We have to run twice : 1 run form the HyperV and containers setup (reboot required) and 1 run for the docker setup
     Invoke-LabCommand -ActivityName 'Docker Setup' -ComputerName DOCKER01 -ScriptBlock {
         #From https://learn.microsoft.com/en-us/virtualization/windowscontainers/quick-start/set-up-environment?tabs=dockerce#windows-server-1
-        #Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/microsoft/Windows-Containers/Main/helpful_tools/Install-DockerCE/install-docker-ce.ps1) } -HyperV -NoRestart -Verbose"
+        Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/microsoft/Windows-Containers/Main/helpful_tools/Install-DockerCE/install-docker-ce.ps1) } -HyperV -NoRestart -Verbose"
+        <#
         Set-Location -Path $env:Temp
         Invoke-WebRequest -UseBasicParsing "https://raw.githubusercontent.com/microsoft/Windows-Containers/Main/helpful_tools/Install-DockerCE/install-docker-ce.ps1" -OutFile install-docker-ce.ps1
         #.\install-docker-ce.ps1 -HyperV -Force -Verbose
         .\install-docker-ce.ps1 -NoRestart -HyperV
+        #>
     } -Verbose
     Restart-LabVM -ComputerName DOCKER01 -Wait
 }
