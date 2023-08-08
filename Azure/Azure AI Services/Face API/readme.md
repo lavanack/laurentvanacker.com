@@ -46,6 +46,12 @@ In this script, I added the following features for testing purposes:
 
 ***Remark***: These pictures are for illustration and demonstration and come from the Microsoft library used for presentations and deliverables.
 
-![Lydia](Training/Lydia/Lydia_001.jpg)
-![Mohammed](Training/Mohammed/Mohammed_03.jpg)
-![Taimoor](Training/Taimoor/Taimoor_02.jpg)
+- Lydia
+  
+  ![Lydia](Training/Lydia/Lydia_001.jpg)
+- Mohammed
+  
+  ![Mohammed](Training/Mohammed/Mohammed_03.jpg)
+- Taimoor
+  
+  ![Taimoor](Training/Taimoor/Taimoor_02.jpg)
