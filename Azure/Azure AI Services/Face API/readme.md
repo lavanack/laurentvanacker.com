@@ -13,6 +13,8 @@ Table of content:
 
 All scripts are standalone scripts and will create and use their own related Azure AI Services resources (Free if possible).
 
+***The scripts are not intended to be used in a production environment. The scripts are provided as is without any warranty. The scripts could be used as a starting point for further development.***
+
 # Face API
 
 ***To use the features Identification and Verification you have to apply for access at [https://aka.ms/facerecognition](https://aka.ms/facerecognition)***
