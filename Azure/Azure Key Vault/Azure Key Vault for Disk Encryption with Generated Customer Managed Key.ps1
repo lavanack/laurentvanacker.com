@@ -223,7 +223,7 @@ $image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.Publi
 #>
 
 # Step 9: Create a virtual machine configuration file (As a Spot Intance)
-$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1
+$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1 -IdentityType SystemAssigned
 
 Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 
@@ -261,7 +261,8 @@ $VM = Add-AzVMDataDisk -VM $VMConfig -Name $DataDiskName -Caching 'ReadWrite' -C
 #endregion
 
 #Step 10: Create Azure Virtual Machine
-New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig #-DisableBginfoExtension
+New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig
+#-DisableBginfoExtension
 
 $VM = Get-AzVM -ResourceGroup $ResourceGroupName -Name $VMName
 #Assign privilege to VM so it can access Azure key Vault. We do that by using VM’s System managed identity.
