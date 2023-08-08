@@ -1,23 +1,20 @@
 # Azure AI Services > Face API
 
 Table of content:
-
 - [Azure AI Services \> Face API](#azure-ai-services--face-api)
-- [Preliminary Remarks](#preliminary-remarks)
-- [Face API](#face-api)
+  - [Preliminary Remarks](#preliminary-remarks)
   - [Test-AzFaceAPIFaceIdentify.ps1](#test-azfaceapifaceidentifyps1)
   - [Test-AzFaceAPI.ps1](#test-azfaceapips1)
   - [Some demo pictures](#some-demo-pictures)
 
-# Preliminary Remarks
+
+## Preliminary Remarks
 
 All scripts are standalone scripts and will create and use their own related Azure AI Services resources (Free if possible).
 
-***The scripts are not intended to be used in a production environment. The scripts are provided as is without any warranty. The scripts could be used as a starting point for further development.***
-
-# Face API
-
 ***To use the features Identification and Verification you have to apply for access at [https://aka.ms/facerecognition](https://aka.ms/facerecognition)***
+
+***The scripts are not intended to be used in a production environment. The scripts are provided as is without any warranty. The scripts could be used as a starting point for further development.***
 
 ## Test-AzFaceAPIFaceIdentify.ps1
 

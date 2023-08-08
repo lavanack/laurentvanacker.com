@@ -3,16 +3,16 @@
 Table of content:
 
 - [Azure AI Services \> Computer Vision](#azure-ai-services--computer-vision)
-- [Preliminary Remarks](#preliminary-remarks)
-- [Computer Vision](#computer-vision)
+  - [Preliminary Remarks](#preliminary-remarks)
+  - [Computer Vision](#computer-vision)
   - [Some examples](#some-examples)
 
-# Preliminary Remarks
+## Preliminary Remarks
 All scripts are standalone scripts and will create and use their own related Azure AI Services resources (Free if possible).
 
 ***The scripts are not intended to be used in a production environment. The scripts are provided as is without any warranty. The scripts could be used as a starting point for further development.***
 
-# Computer Vision
+## Computer Vision
 
 The [Test-AzComputerVisionImageAnalysis_v3.2.ps1](<Test-AzComputerVisionImageAnalysis_v3.2.ps1>)script downloads 3 random pictures (Resolution: 1920x1080 - Every run will get 3 different pictures) from [https://picsum.photos/](https://picsum.photos/) and use the [Computer Vision > Image Analysis](https://learn.microsoft.com/en-us/azure/cognitive-services/computer-vision/overview-image-analysis?tabs=4-0) of [Azure Cognitive Services](https://learn.microsoft.com/en-us/azure/cognitive-services/) to analyze the downloaded pictures.
 
