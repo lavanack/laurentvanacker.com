@@ -243,6 +243,7 @@ Do {
 #endregion
 
 #region FaceList
+<#
 #region FaceList - Delete (all)
 $FaceListUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/facelists/"
 $headers = @{
@@ -275,7 +276,7 @@ foreach ($CurrentFaceList in $FaceLists) {
     #endregion
 }
 #endregion
-
+#>
 #region Creating a new FaceList #1
 $MyTrainingFaceListName = "mytrainingfacelist_$TimeStamp"
 $CreateFaceListUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/facelists/$MyTrainingFaceListName"
@@ -739,6 +740,7 @@ $FaceFindSimilar | Where-Object -FilterScript { $_.confidence -ge 0.8 } | Format
 #endregion
 
 #region PersonGroup
+<#
 #region PersonGroup - Delete (all)
 $PersonGroupUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/persongroups/"
 $headers = @{
@@ -777,7 +779,7 @@ foreach($CurrentPersonGroup in $PersonGroups) {
 }
 Write-Progress -Activity "Completed !" -Completed
 #endregion
-
+#>
 #region Creating a new PersonGroup
 $MyPersonGroupName = "mypersongroup_$TimeStamp"
 $CreatePersonGroupUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/persongroups/$MyPersonGroupName"
