@@ -1052,8 +1052,6 @@ $PersonGroupTrainData | Format-List -Property * -Force
 
 #region Face
 #region Face - Identify
-$IdentifyDir = Join-Path -Path $CurrentDir -ChildPath "Identify"
-$Pictures = (Get-ChildItem -Path $IdentifyDir -Filter "*.jpg" -File -Recurse).FullName
 $identifyUrl = "$CognitiveServicesAccountEndPoint/face/v1.0/identify"
 $headers = @{
     "Ocp-Apim-Subscription-Key" = $CognitiveServicesAccountKey
