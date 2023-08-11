@@ -15,7 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-##requires -Version 5 -Modules Az.Accounts, Az.DesktopVirtualization, Az.Network, Az.KeyVault, Az.Resources, Az.Storage, PowerShellGet -RunAsAdministrator 
+##requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.DesktopVirtualization, Az.Network, Az.KeyVault, Az.Resources, Az.Storage, PowerShellGet -RunAsAdministrator 
 #requires -Version 5 -RunAsAdministrator 
 
 #It is recommended not locate FSLogix on same storage as MSIX packages in production environment, 
@@ -38,8 +38,8 @@ function Get-AzKeyVaultNameAvailability {
     $profileClient = New-Object -TypeName Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient -ArgumentList ($azProfile)
     $token = $profileClient.AcquireAccessToken($azContext.Subscription.TenantId)
     $authHeader = @{
-        'Content-Type'='application/json'
-        'Authorization'='Bearer ' + $token.AccessToken
+        'Content-Type'  = 'application/json'
+        'Authorization' = 'Bearer ' + $token.AccessToken
     }
     #endregion
     $Body = [ordered]@{ 
@@ -48,8 +48,7 @@ function Get-AzKeyVaultNameAvailability {
     }
 
     $URI = "https://management.azure.com/subscriptions/$SubcriptionID/providers/Microsoft.KeyVault/checkNameAvailability?api-version=2022-07-01"
-    try
-    {
+    try {
         # Invoke the REST API
         $Response = Invoke-RestMethod -Method POST -Headers $authHeader -Body $($Body | ConvertTo-Json) -ContentType "application/json" -Uri $URI -ErrorVariable ResponseError
     }
@@ -63,8 +62,7 @@ function Get-AzKeyVaultNameAvailability {
         $Response = $reader.ReadToEnd() | ConvertFrom-Json
         Write-Warning -Message $Response.message
     }
-    finally 
-    {
+    finally {
     }
     return $Response
 }
@@ -130,23 +128,19 @@ function New-AzWvdPooledHostPoolSetup {
             $PooledDesktopsOU = New-ADOrganizationalUnit -Name "PooledDesktops" -Path $AVDRootOU.DistinguishedName -ProtectedFromAccidentalDeletion $false -PassThru
         }
         #region Starter GPOs Management
-        try
-        {
+        try {
             $null = Get-GPStarterGPO -Name "Group Policy Reporting Firewall Ports"
             $null = Get-GPStarterGPO -Name "Group Policy Reporting Firewall Ports"
         }
-        catch 
-        {
+        catch {
             Write-Warning "The required starter GPOs are not installed. Please click on the 'Create Starter GPOs Folder' under Group Policy Management / Forest / Domains / $((Get-ADDomain).DNSRoot) / Starter GPOs "
             Start-Process -FilePath $env:ComSpec -ArgumentList "/c", "gpmc.msc" -Wait
         }
         #region These Starter GPOs include policy settings to configure the firewall rules required for GPO operations
-        if (-not(Get-GPO -Name "Group Policy Reporting Firewall Ports" -ErrorAction Ignore))
-        {
+        if (-not(Get-GPO -Name "Group Policy Reporting Firewall Ports" -ErrorAction Ignore)) {
             Get-GPStarterGPO -Name "Group Policy Reporting Firewall Ports" | New-GPO -Name "Group Policy Reporting Firewall Ports" | New-GPLink -Target $AVDRootOU.DistinguishedName -LinkEnabled Yes -ErrorAction Ignore
         }
-        if (-not(Get-GPO -Name "Group Policy Remote Update Firewall Ports" -ErrorAction Ignore))
-        {
+        if (-not(Get-GPO -Name "Group Policy Remote Update Firewall Ports" -ErrorAction Ignore)) {
             Get-GPStarterGPO -Name "Group Policy Remote Update Firewall Ports" | New-GPO -Name "Group Policy Remote Update Firewall Ports" | New-GPLink -Target $AVDRootOU.DistinguishedName -LinkEnabled Yes -ErrorAction Ignore
         }
         #endregion
@@ -240,7 +234,7 @@ function New-AzWvdPooledHostPoolSetup {
         #From https://learn.microsoft.com/en-us/azure/virtual-desktop/start-virtual-machine-connect?tabs=azure-portal#assign-the-desktop-virtualization-power-on-contributor-role-with-the-azure-portal
         $objId = (Get-AzADServicePrincipal -AppId "9cdead84-a844-4324-93f2-b2e6bb768d07").Id
         $SubscriptionId = (Get-AzContext).Subscription.Id
-        $Scope="/subscriptions/$SubscriptionId"
+        $Scope = "/subscriptions/$SubscriptionId"
         if (-not(Get-AzRoleAssignment -RoleDefinitionName "Desktop Virtualization Power On Contributor" -Scope $Scope)) {
             New-AzRoleAssignment -RoleDefinitionName "Desktop Virtualization Power On Contributor" -ObjectId $objId -Scope $Scope
         }
@@ -263,6 +257,10 @@ function New-AzWvdPooledHostPoolSetup {
                 $CurrentPooledHostPoolUsersADGroup = New-ADGroup -Name $CurrentPooledHostPoolUsersADGroupName -SamAccountName $CurrentPooledHostPoolUsersADGroupName -GroupCategory Security -GroupScope Global -DisplayName $CurrentPooledHostPoolUsersADGroupName -Path $CurrentPooledHostPoolOU.DistinguishedName -PassThru
             }
             #endregion
+            #endregion
+
+            #region Scale session hosts using Azure Automation
+            #TODO : https://learn.microsoft.com/en-us/training/modules/automate-azure-virtual-desktop-management-tasks/1-introduction
             #endregion
 
             #region FSLogix
@@ -293,8 +291,7 @@ function New-AzWvdPooledHostPoolSetup {
             #endregion
 
             #region Run a sync with Azure AD
-            if (Get-Service -Name ADSync -ErrorAction Ignore)
-            {
+            if (Get-Service -Name ADSync -ErrorAction Ignore) {
                 Start-Service -Name ADSync -Verbose
                 Import-Module -Name "C:\Program Files\Microsoft Azure AD Sync\Bin\ADSync"
                 if (-not(Get-ADSyncConnectorRunStatus)) {
@@ -310,8 +307,9 @@ function New-AzWvdPooledHostPoolSetup {
             #region FSLogix Storage Account Name Setup
             $CurrentPooledHostPoolStorageAccountName = "fsl{0}" -f $($CurrentPooledHostPool.Name -replace "\W")
             $CurrentPooledHostPoolStorageAccountName = $CurrentPooledHostPoolStorageAccountName.Substring(0, [system.math]::min($CurrentPooledHostPoolStorageAccountNameMaxLength, $CurrentPooledHostPoolStorageAccountName.Length)).ToLower()
+            #endregion 
 
-            #region Dedicated Host Pool AD GPO Management (1 GPO per Host Pool for setting up the dedicated VHDLocations value)
+            #region Dedicated Host Pool AD GPO Management (1 GPO per Host Pool for setting up the dedicated VHDLocations/CCDLocations value)
             $CurrentPooledHostPoolFSLogixGPO = Get-GPO -Name "$($CurrentPooledHostPool.Name) - FSLogix Settings" -ErrorAction Ignore
             if (-not($CurrentPooledHostPoolFSLogixGPO)) {
                 $CurrentPooledHostPoolFSLogixGPO = New-GPO -Name "$($CurrentPooledHostPool.Name) - FSLogix Settings"
@@ -356,11 +354,9 @@ function New-AzWvdPooledHostPoolSetup {
             $Changed = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")
             #$ADGroupToExcludeFromFSLogix = @('Domain Admins', 'Enterprise Admins')
             $ADGroupToExcludeFromFSLogix = @('Domain Admins')
-            $Members = foreach ($CurrentADGroupToExcludeFromFSLogix in $ADGroupToExcludeFromFSLogix)
-            {
+            $Members = foreach ($CurrentADGroupToExcludeFromFSLogix in $ADGroupToExcludeFromFSLogix) {
                 $CurrentADGroupToExcludeFromFSLogixSID = (Get-ADGroup -Filter "Name -eq '$CurrentADGroupToExcludeFromFSLogix'").SID.Value
-                if (-not([string]::IsNullOrEmpty($CurrentADGroupToExcludeFromFSLogixSID)))
-                {
+                if (-not([string]::IsNullOrEmpty($CurrentADGroupToExcludeFromFSLogixSID))) {
                     "<Member name=""$((Get-ADDomain).NetBIOSName)\$CurrentADGroupToExcludeFromFSLogix"" action=""ADD"" sid=""$CurrentADGroupToExcludeFromFSLogixSID""/>"
                 }
             }
@@ -388,12 +384,12 @@ function New-AzWvdPooledHostPoolSetup {
             #region GPT.INI Management
             $GPTINIGPOFilePath = "\\{0}\SYSVOL\{0}\Policies\{{{1}}}\GPT.INI" -f ($(Get-ADDomain).DNSRoot), $($CurrentPooledHostPoolFSLogixGPO.Id)
             Write-Verbose -Message "Processing [$GPTINIGPOFilePath]"
-            $result =  Select-string -Pattern "(Version)=(\d+)" -AllMatches -Path $GPTINIGPOFilePath
+            $result = Select-string -Pattern "(Version)=(\d+)" -AllMatches -Path $GPTINIGPOFilePath
             #Getting current version
             [int]$VersionNumber = $result.Matches.Groups[-1].Value
             Write-Verbose -Message "Version Number: $VersionNumber"
             #Increasing current version
-            $VersionNumber+=2
+            $VersionNumber += 2
             Write-Verbose -Message "New Version Number: $VersionNumber"
             #Updating file
             (Get-Content $GPTINIGPOFilePath -Encoding UTF8) -replace "(Version)=(\d+)", "`$1=$VersionNumber" | Set-Content $GPTINIGPOFilePath -Encoding UTF8
@@ -408,9 +404,8 @@ function New-AzWvdPooledHostPoolSetup {
             $RegExPattern = $gPCmachineExtensionNamesToAdd -replace "(\W)" , '\$1'
             $GPOADObject = Get-ADObject -LDAPFilter "CN={$($CurrentPooledHostPoolFSLogixGPO.Id.Guid)}" -Properties gPCmachineExtensionNames
             #if (-not($GPOADObject.gPCmachineExtensionNames.StartsWith($gPCmachineExtensionNamesToAdd)))
-            if ($GPOADObject.gPCmachineExtensionNames -notmatch $RegExPattern)
-            {
-                $GPOADObject | Set-ADObject -Replace @{gPCmachineExtensionNames=$($gPCmachineExtensionNamesToAdd + $GPOADObject.gPCmachineExtensionNames)}
+            if ($GPOADObject.gPCmachineExtensionNames -notmatch $RegExPattern) {
+                $GPOADObject | Set-ADObject -Replace @{gPCmachineExtensionNames = $($gPCmachineExtensionNamesToAdd + $GPOADObject.gPCmachineExtensionNames) }
                 Get-ADObject -LDAPFilter "CN={$($CurrentPooledHostPoolFSLogixGPO.Id.Guid)}" -Properties gPCmachineExtensionNames
             }
             #endregion
@@ -426,17 +421,13 @@ function New-AzWvdPooledHostPoolSetup {
             }
             #endregion
 
-            #region Scale session hosts using Azure Automation
-            #TODO : https://learn.microsoft.com/en-us/training/modules/automate-azure-virtual-desktop-management-tasks/1-introduction
-            #endregion
-
             #region Dedicated Storage Account Setup
             $CurrentPooledHostPoolStorageAccount = Get-AzStorageAccount -Name $CurrentPooledHostPoolStorageAccountName -ResourceGroupName $CurrentPooledHostPoolResourceGroupName -ErrorAction Ignore
             if (-not($CurrentPooledHostPoolStorageAccount)) {
                 if (-not(Get-AzStorageAccountNameAvailability -Name $CurrentPooledHostPoolStorageAccountName).NameAvailable) {
                     Write-Error "The storage account name '$CurrentPooledHostPoolStorageAccountName' is not available !" -ErrorAction Stop
                 }
-                $CurrentPooledHostPoolStorageAccount = New-AzStorageAccount -ResourceGroupName $CurrentPooledHostPoolResourceGroupName -AccountName $CurrentPooledHostPoolStorageAccountName -Location $CurrentPooledHostPool.Location -SkuName $SKUName
+                $CurrentPooledHostPoolStorageAccount = New-AzStorageAccount -ResourceGroupName $CurrentPooledHostPoolResourceGroupName -AccountName $CurrentPooledHostPoolStorageAccountName -Location $CurrentPooledHostPool.Location -SkuName $SKUName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true
             }
             #Registering the Storage Account with your active directory environment under the target
             if (-not(Get-ADComputer -Filter "Name -eq '$CurrentPooledHostPoolStorageAccountName'" -SearchBase $CurrentPooledHostPoolOU.DistinguishedName)) {
@@ -552,8 +543,7 @@ function New-AzWvdPooledHostPoolSetup {
                 #endregion
 
                 #region Run a sync with Azure AD
-                if (Get-Service -Name ADSync -ErrorAction Ignore)
-                {
+                if (Get-Service -Name ADSync -ErrorAction Ignore) {
                     Start-Service -Name ADSync -Verbose
                     Import-Module -Name "C:\Program Files\Microsoft Azure AD Sync\Bin\ADSync"
                     if (-not(Get-ADSyncConnectorRunStatus)) {
@@ -572,8 +562,7 @@ function New-AzWvdPooledHostPoolSetup {
                 #Get the name of the custom role
                 $FileShareContributorRole = Get-AzRoleDefinition "Storage File Data SMB Share Contributor"
                 #Assign the custom role to the target identity with the specified scope.
-                Do 
-                {
+                Do {
                     $AzADGroup = $null
                     $AzADGroup = Get-AzADGroup -SearchString $CurrentPooledHostPoolFSLogixContributorADGroupName
                     Write-Verbose -Message "Sleeping 10 seconds ..."
@@ -588,8 +577,7 @@ function New-AzWvdPooledHostPoolSetup {
                 #Get the name of the custom role
                 $FileShareContributorRole = Get-AzRoleDefinition "Storage File Data SMB Share Elevated Contributor"
                 #Assign the custom role to the target identity with the specified scope.
-                Do 
-                {
+                Do {
                     $AzADGroup = $null
                     $AzADGroup = Get-AzADGroup -SearchString $CurrentPooledHostPoolFSLogixElevatedContributorADGroupName
                     Write-Verbose -Message "Sleeping 10 seconds ..."
@@ -605,8 +593,7 @@ function New-AzWvdPooledHostPoolSetup {
                 #Get the name of the custom role
                 $FileShareContributorRole = Get-AzRoleDefinition "Storage File Data SMB Share Reader"
                 #Assign the custom role to the target identity with the specified scope.
-                Do 
-                {
+                Do {
                     $AzADGroup = $null
                     $AzADGroup = Get-AzADGroup -SearchString $CurrentPooledHostPoolFSLogixReaderADGroupName
                     Write-Verbose -Message "Sleeping 10 seconds ..."
@@ -621,8 +608,8 @@ function New-AzWvdPooledHostPoolSetup {
             }
             #endregion
             #endregion
-            #endregion
 
+            #TODO: Private endpoint for storage
             #endregion
 
             #region MSIX
@@ -655,8 +642,7 @@ function New-AzWvdPooledHostPoolSetup {
             #endregion
 
             #region Run a sync with Azure AD
-            if (Get-Service -Name ADSync -ErrorAction Ignore)
-            {
+            if (Get-Service -Name ADSync -ErrorAction Ignore) {
                 Start-Service -Name ADSync -Verbose
                 Import-Module -Name "C:\Program Files\Microsoft Azure AD Sync\Bin\ADSync"
                 if (-not(Get-ADSyncConnectorRunStatus)) {
@@ -672,6 +658,7 @@ function New-AzWvdPooledHostPoolSetup {
             $CurrentPooledHostPoolStorageAccountName = $CurrentPooledHostPoolStorageAccountName.Substring(0, [system.math]::min($CurrentPooledHostPoolStorageAccountNameMaxLength, $CurrentPooledHostPoolStorageAccountName.Length)).ToLower()
             #endregion 
 
+            #region Dedicated Host Pool AD GPO Management
             #region Microsoft Defender Endpoint A/V General Exclusions
             #From https://learn.microsoft.com/en-us/fslogix/overview-prerequisites#configure-antivirus-file-and-folder-exclusions
             Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions' -ValueName "Exclusions_Paths" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 1
@@ -696,6 +683,8 @@ function New-AzWvdPooledHostPoolSetup {
             Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderCIM" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.CIM"
             #endregion
 
+            #endregion
+
             #region Dedicated Resource Group Management (1 per HostPool)
             $CurrentPooledHostPoolResourceGroupName = "rg-avd-$($CurrentPooledHostPool.Name.ToLower())"
 
@@ -711,7 +700,7 @@ function New-AzWvdPooledHostPoolSetup {
                 if (-not(Get-AzStorageAccountNameAvailability -Name $CurrentPooledHostPoolStorageAccountName).NameAvailable) {
                     Write-Error "The storage account name '$CurrentPooledHostPoolStorageAccountName' is not available !" -ErrorAction Stop
                 }
-                $CurrentPooledHostPoolStorageAccount = New-AzStorageAccount -ResourceGroupName $CurrentPooledHostPoolResourceGroupName -AccountName $CurrentPooledHostPoolStorageAccountName -Location $CurrentPooledHostPool.Location -SkuName $SKUName
+                $CurrentPooledHostPoolStorageAccount = New-AzStorageAccount -ResourceGroupName $CurrentPooledHostPoolResourceGroupName -AccountName $CurrentPooledHostPoolStorageAccountName -Location $CurrentPooledHostPool.Location -SkuName $SKUName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true
             }
             #Registering the Storage Account with your active directory environment under the target
             if (-not(Get-ADComputer -Filter "Name -eq '$CurrentPooledHostPoolStorageAccountName'" -SearchBase $CurrentPooledHostPoolOU.DistinguishedName)) {
@@ -804,7 +793,6 @@ function New-AzWvdPooledHostPoolSetup {
 
                 # Unmount the share
                 Remove-PSDrive -Name Z
-                #endregion
 
                 #region RBAC Management
                 #Constrain the scope to the target file share
@@ -817,8 +805,7 @@ function New-AzWvdPooledHostPoolSetup {
                 #Get the name of the custom role
                 $FileShareContributorRole = Get-AzRoleDefinition "Storage File Data SMB Share Contributor"
                 #Assign the custom role to the target identity with the specified scope.
-                Do 
-                {
+                Do {
                     $AzADGroup = $null
                     $AzADGroup = Get-AzADGroup -SearchString $CurrentPooledHostPoolMSIXHostsADGroupName
                     Write-Verbose -Message "Sleeping 10 seconds ..."
@@ -828,8 +815,7 @@ function New-AzWvdPooledHostPoolSetup {
                     New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope
                 }
                 #Assign the custom role to the target identity with the specified scope.
-                Do 
-                {
+                Do {
                     $AzADGroup = $null
                     $AzADGroup = Get-AzADGroup -SearchString $CurrentPooledHostPoolMSIXUsersADGroupName
                     Write-Verbose -Message "Sleeping 10 seconds ..."
@@ -844,8 +830,7 @@ function New-AzWvdPooledHostPoolSetup {
                 #Get the name of the custom role
                 $FileShareContributorRole = Get-AzRoleDefinition "Storage File Data SMB Share Elevated Contributor"
                 #Assign the custom role to the target identity with the specified scope.
-                Do 
-                {
+                Do {
                     $AzADGroup = $null
                     $AzADGroup = Get-AzADGroup -SearchString $CurrentPooledHostPoolMSIXShareAdminsADGroupName
                     Write-Verbose -Message "Sleeping 10 seconds ..."
@@ -860,6 +845,9 @@ function New-AzWvdPooledHostPoolSetup {
             }
             #endregion
 
+            #TODO: Private endpoint for storage
+            #endregion
+            
             #endregion
 
             #region Key Vault
@@ -885,6 +873,52 @@ function New-AzWvdPooledHostPoolSetup {
                 }
                 $CurrentPooledHostPoolKeyVault = New-AzKeyVault -ResourceGroupName $CurrentPooledHostPoolResourceGroupName -VaultName $CurrentPooledHostPoolKeyVaultName -Location $CurrentPooledHostPool.Location -EnabledForDiskEncryption
             }
+            #endregion
+
+
+            #region Private endpoint for Key Vault Setup
+            #From https://learn.microsoft.com/en-us/azure/private-link/create-private-endpoint-powershell?tabs=dynamic-ip#create-a-private-endpoint
+            #From https://www.jorgebernhardt.com/private-endpoint-azure-key-vault-powershell/
+            ## Create the private endpoint connection. ## 
+            #region Get the subnet where this DC is connected to
+            $vmName = $env:COMPUTERNAME
+
+            # Get the VM resource group and network interface
+            $vm = Get-AzVM -Name $vmName -Status
+            $nicId = $vm.NetworkProfile.NetworkInterfaces[0].Id
+            $nic = Get-AzNetworkInterface -ResourceId $nicId
+
+            # Get the subnet ID
+            $subnetId = $nic.IpConfigurations[0].Subnet.Id
+
+            # Get the subnet details
+            $subnet = Get-AzVirtualNetworkSubnetConfig -ResourceId $subnetId
+            #endregion
+
+            $PrivateEndpointName = "pep{0}" -f $($CurrentPooledHostPool.Name -replace "\W")
+            $GroupId = (Get-AzPrivateLinkResource -PrivateLinkResourceId $CurrentPooledHostPoolKeyVault.ResourceId).GroupId
+            $PrivateLinkServiceConnection = New-AzPrivateLinkServiceConnection -Name $PrivateEndpointName -PrivateLinkServiceId $CurrentPooledHostPoolKeyVault.ResourceId -GroupId $GroupId
+            $PrivateEndpoint = New-AzPrivateEndpoint -Name $PrivateEndpointName -ResourceGroupName $CurrentPooledHostPoolResourceGroupName -Location $CurrentPooledHostPool.Location -Subnet $Subnet -PrivateLinkServiceConnection $PrivateLinkServiceConnection -CustomNetworkInterfaceName $("{0}-nic" -f $PrivateEndpointName)
+
+            ## Create the private DNS zone. ##
+            $PrivateDnsZoneName = 'privatelink.vaultcore.azure.net'
+            $PrivateDnsZone = New-AzPrivateDnsZone -ResourceGroupName $CurrentPooledHostPoolResourceGroupName -Name $PrivateDnsZoneName
+
+            ## Create a DNS network link. ##
+            $PrivateDnsVirtualNetworkLinkName = "pdvnl{0}" -f $($CurrentPooledHostPool.Name -replace "\W")
+            $PrivateDnsVirtualNetworkLink = New-AzPrivateDnsVirtualNetworkLink -ResourceGroupName $CurrentPooledHostPoolResourceGroupName -Name $PrivateDnsVirtualNetworkLinkName  -ZoneName $PrivateDnsZone.Name -VirtualNetworkId $VirtualNetwork.Id
+
+            ## Configure the DNS zone. ##
+            $PrivateDnsZoneConfig = New-AzPrivateDnsZoneConfig -Name $PrivateDnsZone.Name -PrivateDnsZoneId $PrivateDnsZone.ResourceId
+
+            ## Create the DNS zone group. ##
+            $PrivateDnsZoneGroup = New-AzPrivateDnsZoneGroup -ResourceGroupName $CurrentPooledHostPoolResourceGroupName -PrivateEndpointName $PrivateEndpointName -Name 'default' -PrivateDnsZoneConfig $PrivateDnsZoneConfig
+
+            #Key Vault - Disabling Public Access
+            Update-AzKeyVault -VaultName $CurrentPooledHostPoolKeyVaultName -ResourceGroupName $CurrentPooledHostPoolResourceGroupName -PublicNetworkAccess "Disabled" 
+            #endregion
+
+            #TODO: Private endpoint for Keyvault
             #endregion
             #endregion
 
@@ -922,8 +956,7 @@ function New-AzWvdPooledHostPoolSetup {
 
             #region Assign groups to an application group
             # Get the object ID of the user group you want to assign to the application group
-            Do 
-            {
+            Do {
                 $AzADGroup = $null
                 $AzADGroup = Get-AzADGroup -DisplayName $CurrentPooledHostPoolUsersADGroupName
                 Write-Verbose -Message "Sleeping 10 seconds ..."
@@ -971,8 +1004,7 @@ function New-AzWvdPooledHostPoolSetup {
 
             #region Assign groups to an application group
             # Get the object ID of the user group you want to assign to the application group
-            Do 
-            {
+            Do {
                 $AzADGroup = $null
                 $AzADGroup = Get-AzADGroup -DisplayName $CurrentPooledHostPoolUsersADGroupName
                 Write-Verbose -Message "Sleeping 10 seconds ..."
@@ -1022,18 +1054,15 @@ Set-Location -Path $CurrentDir
 #For installing required modules if needed
 #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Verbose
 Get-PackageProvider -Name NuGet -Force -Verbose
-$RequiredModules = 'Az.Accounts', 'Az.DesktopVirtualization', 'Az.Network', 'Az.KeyVault', 'Az.Resources', 'Az.Storage', 'PowerShellGet'
+$RequiredModules = 'Az.Accounts', 'Az.Compute', 'Az.DesktopVirtualization', 'Az.Network', 'Az.KeyVault', 'Az.Resources', 'Az.Storage', 'PowerShellGet'
 $InstalledModule = Get-InstalledModule -Name $RequiredModules -ErrorAction Ignore
-if (-not([String]::IsNullOrEmpty($InstalledModule)))
-{
-    $MissingModules  = (Compare-Object -ReferenceObject $RequiredModules -DifferenceObject (Get-InstalledModule -Name $RequiredModules -ErrorAction Ignore).Name).InputObject
+if (-not([String]::IsNullOrEmpty($InstalledModule))) {
+    $MissingModules = (Compare-Object -ReferenceObject $RequiredModules -DifferenceObject (Get-InstalledModule -Name $RequiredModules -ErrorAction Ignore).Name).InputObject
 }
-else
-{
-    $MissingModules  = $RequiredModules
+else {
+    $MissingModules = $RequiredModules
 }
-if (-not([String]::IsNullOrEmpty($MissingModules)))
-{
+if (-not([String]::IsNullOrEmpty($MissingModules))) {
     Install-Module -Name $MissingModules -Force -Verbose
 }
 
@@ -1042,16 +1071,14 @@ if (-not([String]::IsNullOrEmpty($MissingModules)))
 Register-AzResourceProvider -ProviderNamespace Microsoft.DesktopVirtualization
 
 #Important: Wait until RegistrationState is set to Registered. 
-While (Get-AzResourceProvider -ProviderNamespace Microsoft.DesktopVirtualization | Where-Object -FilterScript {$_.RegistrationState -ne 'Registered'})
-{
+While (Get-AzResourceProvider -ProviderNamespace Microsoft.DesktopVirtualization | Where-Object -FilterScript { $_.RegistrationState -ne 'Registered' }) {
     Write-Verbose -Message "Sleeping 10 seconds ..."
     Start-Sleep -Seconds 10
 }
 #endregion
 
 #region Azure Connection
-if (-not(Get-AzContext))
-{
+if (-not(Get-AzContext)) {
     Connect-AzAccount
     Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
 }
@@ -1127,7 +1154,7 @@ New-AzWvdPooledHostPoolSetup -PooledHostPool $PooledHostPools -Verbose
 #Or pipeline processing call
 #$PooledHostPools | New-AzWvdPooledHostPoolSetup 
 #(Get-ADComputer -Filter 'DNSHostName -like "*"').Name | Invoke-GPUpdate -Force -Verbose
-Invoke-Command -ComputerName $((Get-ADComputer -Filter 'DNSHostName -like "*"').Name) -ScriptBlock { gpupdate /force /wait:-1 /target:computer} 
-Invoke-Command -ComputerName $((Get-ADComputer -Filter 'DNSHostName -like "*"').Name) -ScriptBlock { Get-LocalGroupMember -Group "FSLogix Profile Exclude List" -ErrorAction Ignore}
+Invoke-Command -ComputerName $((Get-ADComputer -Filter 'DNSHostName -like "*"').Name) -ScriptBlock { gpupdate /force /wait:-1 /target:computer } 
+Invoke-Command -ComputerName $((Get-ADComputer -Filter 'DNSHostName -like "*"').Name) -ScriptBlock { Get-LocalGroupMember -Group "FSLogix Profile Exclude List" -ErrorAction Ignore }
 #endregion
 #endregion
