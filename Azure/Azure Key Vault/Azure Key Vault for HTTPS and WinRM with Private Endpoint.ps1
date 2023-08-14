@@ -313,6 +313,9 @@ $VM = Get-AzVM -ResourceGroup $ResourceGroupName -Name $VMName
 #From https://ystatit.medium.com/azure-key-vault-with-azure-service-endpoints-and-private-link-part-1-bcc84b4c5fbc
 $AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -ObjectId $VM.Identity.PrincipalId -PermissionsToSecrets all -PermissionsToKeys all -PermissionsToCertificates all -PassThru
 
+#Key Vault - Disabling Public Access
+Update-AzKeyVault -VaultName $KeyVaultName -ResourceGroupName $ResourceGroupName -PublicNetworkAccess "Disabled"  
+
 #region JIT Access Management
 #region Enabling JIT Access
 $NewJitPolicy = (@{
@@ -378,9 +381,6 @@ try {
 catch {}
 $VM | Update-AzVM -Verbose
 #endregion
-
-#Key Vault - Disabling Public Access
-Update-AzKeyVault -VaultName $KeyVaultName -ResourceGroupName $ResourceGroupName -PublicNetworkAccess "Disabled"  
 
 # Adding Credentials to the Credential Manager (and escaping the password)
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDN /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
