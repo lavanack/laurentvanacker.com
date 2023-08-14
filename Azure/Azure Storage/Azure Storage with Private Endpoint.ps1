@@ -338,18 +338,18 @@ $StorageAccountPrivateDnsZoneConfig = New-AzPrivateDnsZoneConfig -Name $StorageA
 $StorageAccountPrivateDnsZoneGroup = New-AzPrivateDnsZoneGroup -ResourceGroupName $ResourceGroupName -PrivateEndpointName $StorageAccountPrivateEndpointName -Name 'default' -PrivateDnsZoneConfig $StorageAccountPrivateDnsZoneConfig
 #endregion
 
+#Storage Account - Disabling Public Access
+#From https://www.jorgebernhardt.com/azure-storage-public-access/
+#From https://learn.microsoft.com/en-us/azure/storage/common/storage-network-security?tabs=azure-powershell#change-the-default-network-access-rule
+Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Disabled
+#(Get-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $resourceGroupName ).AllowBlobPublicAccess
+
 try {
     Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$DSCFileName.zip" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $ConfigurationName -Version "2.80" -Location $Location -AutoUpdate -Verbose #-ErrorAction Ignore
 }
 catch { $_ }
 $VM | Update-AzVM -Verbose
 #endregion
-
-#Storage Account - Disabling Public Access
-#From https://www.jorgebernhardt.com/azure-storage-public-access/
-#From https://learn.microsoft.com/en-us/azure/storage/common/storage-network-security?tabs=azure-powershell#change-the-default-network-access-rule
-Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Disabled
-#(Get-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $resourceGroupName ).AllowBlobPublicAccess
 
 # Adding Credentials to the Credential Manager (and escaping the password)
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDN /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
