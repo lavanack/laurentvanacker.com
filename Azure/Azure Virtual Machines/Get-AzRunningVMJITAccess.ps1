@@ -4,7 +4,7 @@ Clear-Host
 $RDPPort = 3389
 $JitPolicyTimeInHours = 3
 $JitPolicyName = "Default"
-$MyPublicIp = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
+$MyPublicIp = (Invoke-WebRequest -uri "https://ipv4.seeip.org").Content
 $RunningVM = Get-AzVM -Status | Where-Object -FilterScript { $_.PowerState -match "running" }
 #endregion
 
