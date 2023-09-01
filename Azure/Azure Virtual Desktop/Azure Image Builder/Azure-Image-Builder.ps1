@@ -21,6 +21,8 @@ of the Sample Code.
 
 Clear-Host
 $Error.Clear()
+$StartTime = Get-Date
+
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
@@ -62,7 +64,7 @@ $currentAzContext = Get-AzContext
 $timeInt=(Get-Date -UFormat "%s").Split(".")[0]
 
 # Destination image resource group
-$imageResourceGroup="rg-avd-azimg-$timeInt"
+$ResourceGroupName="rg-avd-azimg-$timeInt"
 
 # Location (see possible locations in the main docs)
 $location="eastus"
@@ -89,11 +91,11 @@ $runOutputName02="cgOutput02"
 $Version = Get-Date -UFormat "%Y.%m.%d"
 
 # Create resource group
-if (Get-AzResourceGroup -Name $imageResourceGroup -Location $location -ErrorAction Ignore)
+if (Get-AzResourceGroup -Name $ResourceGroupName -Location $location -ErrorAction Ignore)
 {
-    Remove-AzResourceGroup -Name $imageResourceGroup -Force
+    Remove-AzResourceGroup -Name $ResourceGroupName -Force
 }
-New-AzResourceGroup -Name $imageResourceGroup -Location $location -Force
+New-AzResourceGroup -Name $ResourceGroupName -Location $location -Force
 #endregion
 
 #region Permissions, user identity, and role
@@ -102,10 +104,10 @@ $imageRoleDefName="Azure Image Builder Image Def - "+$timeInt
 $identityName="aibIdentity-"+$timeInt
 
 # Create the identity
-New-AzUserAssignedIdentity -ResourceGroupName $imageResourceGroup -Name $identityName -Location $location
+New-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name $identityName -Location $location
 
-$identityNameResourceId=$(Get-AzUserAssignedIdentity -ResourceGroupName $imageResourceGroup -Name $identityName).Id
-$identityNamePrincipalId=$(Get-AzUserAssignedIdentity -ResourceGroupName $imageResourceGroup -Name $identityName).PrincipalId
+$identityNameResourceId=$(Get-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name $identityName).Id
+$identityNamePrincipalId=$(Get-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name $identityName).PrincipalId
 
 
 #$aibRoleImageCreationUrl="https://raw.githubusercontent.com/PeterR-msft/M365AVDWS/master/Azure%20Image%20Builder/aibRoleImageCreation.json"
@@ -119,7 +121,7 @@ $aibRoleImageCreationPath = $aibRoleImageCreationPath -replace ".json$", "_$time
 Invoke-WebRequest -Uri $aibRoleImageCreationUrl -OutFile $aibRoleImageCreationPath -UseBasicParsing
 
 ((Get-Content -path $aibRoleImageCreationPath -Raw) -replace '<subscriptionID>',$subscriptionID) | Set-Content -Path $aibRoleImageCreationPath
-((Get-Content -path $aibRoleImageCreationPath -Raw) -replace '<rgName>', $imageResourceGroup) | Set-Content -Path $aibRoleImageCreationPath
+((Get-Content -path $aibRoleImageCreationPath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $aibRoleImageCreationPath
 ((Get-Content -path $aibRoleImageCreationPath -Raw) -replace 'Azure Image Builder Service Image Creation Role', $imageRoleDefName) | Set-Content -Path $aibRoleImageCreationPath
 
 # Create a role definition
@@ -132,9 +134,9 @@ Do {
 Start-Sleep -Seconds 30
 
 # Grant the role definition to the VM Image Builder service principal
-New-AzRoleAssignment -ObjectId $identityNamePrincipalId -RoleDefinitionName $imageRoleDefName -Scope "/subscriptions/$subscriptionID/resourceGroups/$imageResourceGroup"
+New-AzRoleAssignment -ObjectId $identityNamePrincipalId -RoleDefinitionName $imageRoleDefName -Scope "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName"
 <#
-While (-not(Get-AzRoleAssignment -ObjectId $identityNamePrincipalId -RoleDefinitionName $imageRoleDefName -Scope "/subscriptions/$subscriptionID/resourceGroups/$imageResourceGroup"))
+While (-not(Get-AzRoleAssignment -ObjectId $identityNamePrincipalId -RoleDefinitionName $imageRoleDefName -Scope "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName"))
 {
     Start-Sleep -Seconds 10
 }
@@ -147,19 +149,19 @@ Install-Module -Name AzureAD -Force
 Connect-AzureAD
 $ApplicationId = (Get-AzureADServicePrincipal -SearchString "Azure Virtual Machine Image Builder").AppId
 #>
-#New-AzRoleAssignment -ApplicationId cf32a0cc-373c-47c9-9156-0db11f6a6dfc -Scope /subscriptions/$subscriptionID/resourceGroups/$imageResourceGroup -RoleDefinitionName Contributor
+#New-AzRoleAssignment -ApplicationId cf32a0cc-373c-47c9-9156-0db11f6a6dfc -Scope /subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName -RoleDefinitionName Contributor
 #endregion
 
 #region Create an Azure Compute Gallery
 $cgGalleryName= "acg_avd_$timeInt"
 
 # Create the gallery
-New-AzGallery -GalleryName $cgGalleryName -ResourceGroupName $imageResourceGroup -Location $location
+New-AzGallery -GalleryName $cgGalleryName -ResourceGroupName $ResourceGroupName -Location $location
 
 #region Template #1 via a customized JSON file
 #Based on https://github.com/Azure/azvmimagebuilder/tree/main/solutions/14_Building_Images_WVD
 # Create the gallery definition
-New-AzGalleryImageDefinition -GalleryName $cgGalleryName -ResourceGroupName $imageResourceGroup -Location $location -Name $imageDefName01 -OsState generalized -OsType Windows -Publisher 'Contoso' -Offer 'Windows' -Sku 'avd-win11' -HyperVGeneration V2
+New-AzGalleryImageDefinition -GalleryName $cgGalleryName -ResourceGroupName $ResourceGroupName -Location $location -Name $imageDefName01 -OsState generalized -OsType Windows -Publisher 'Contoso' -Offer 'Windows' -Sku 'avd-win11' -HyperVGeneration V2
 
 #region Download and configure the template
 #$templateUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/14_Building_Images_WVD/armTemplateWVD.json"
@@ -172,7 +174,7 @@ $templateFilePath = $templateFilePath -replace ".json$", "_$timeInt.json"
 Invoke-WebRequest -Uri $templateUrl -OutFile $templateFilePath -UseBasicParsing
 
 ((Get-Content -path $templateFilePath -Raw) -replace '<subscriptionID>',$subscriptionID) | Set-Content -Path $templateFilePath
-((Get-Content -path $templateFilePath -Raw) -replace '<rgName>',$imageResourceGroup) | Set-Content -Path $templateFilePath
+((Get-Content -path $templateFilePath -Raw) -replace '<rgName>',$ResourceGroupName) | Set-Content -Path $templateFilePath
 #((Get-Content -path $templateFilePath -Raw) -replace '<region>',$location) | Set-Content -Path $templateFilePath
 ((Get-Content -path $templateFilePath -Raw) -replace '<runOutputName>',$runOutputName01) | Set-Content -Path $templateFilePath
 
@@ -184,18 +186,18 @@ Invoke-WebRequest -Uri $templateUrl -OutFile $templateFilePath -UseBasicParsing
 #endregion
 
 #region Submit the template
-New-AzResourceGroupDeployment -ResourceGroupName $imageResourceGroup -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2020-02-14"} -imageTemplateName $imageTemplateName01 -svclocation $location
+New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2020-02-14"} -imageTemplateName $imageTemplateName01 -svclocation $location
 
 #To determine whenever or not the template upload process was successful, run the following command.
-$getStatus01=$(Get-AzImageBuilderTemplate -ResourceGroupName $imageResourceGroup -Name $imageTemplateName01)
+$getStatus01=$(Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName01)
 $getStatus01
 # Optional - if you have any errors running the preceding command, run:
 $getStatus01.ProvisioningErrorCode 
 $getStatus01.ProvisioningErrorMessage
 
 #region Build the image
-Start-AzImageBuilderTemplate -ResourceGroupName $imageResourceGroup -Name $imageTemplateName01 #-NoWait
-$getStatus01=$(Get-AzImageBuilderTemplate -ResourceGroupName $imageResourceGroup -Name $imageTemplateName01)
+Start-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName01 #-NoWait
+$getStatus01=$(Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName01)
 
 # Shows all the properties
 $getStatus01 | Format-List -Property *
@@ -216,7 +218,7 @@ Remove-Item -Path $aibRoleImageCreationPath, $templateFilePath -Force
 # create gallery definition
 $GalleryParams = @{
   GalleryName = $cgGalleryName
-  ResourceGroupName = $imageResourceGroup
+  ResourceGroupName = $ResourceGroupName
   Location = $location
   Name = $imageDefName02
   OsState = 'generalized'
@@ -239,7 +241,7 @@ $srcPlatform = New-AzImageBuilderTemplateSourceObject @SrcObjParams
 
 $disObjParams = @{
   SharedImageDistributor = $true
-  GalleryImageId = "/subscriptions/$subscriptionID/resourceGroups/$imageResourceGroup/providers/Microsoft.Compute/galleries/$cgGalleryName/images/$imageDefName02/versions/$version"
+  GalleryImageId = "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName/providers/Microsoft.Compute/galleries/$cgGalleryName/images/$imageDefName02/versions/$version"
   ArtifactTag = @{source='avd-win11'; baseosimg='windows11'}
  
   # 1. Uncomment following line for a single region deployment.
@@ -267,7 +269,7 @@ $Customizer = New-AzImageBuilderTemplateCustomizerObject @ImgCustomParams
 #Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
 $ImgTemplateParams = @{
   ImageTemplateName = $imageTemplateName02
-  ResourceGroupName = $imageResourceGroup
+  ResourceGroupName = $ResourceGroupName
   Source = $srcPlatform
   Distribute = $disSharedImg
   Customize = $Customizer
@@ -279,7 +281,7 @@ $ImgTemplateParams = @{
 New-AzImageBuilderTemplate @ImgTemplateParams
 
 #To determine whenever or not the template upload process was successful, run the following command.
-$getStatus02=$(Get-AzImageBuilderTemplate -ResourceGroupName $imageResourceGroup -Name $imageTemplateName02)
+$getStatus02=$(Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName02)
 $getStatus02
 # Optional - if you have any errors running the preceding command, run:
 $getStatus02.ProvisioningErrorCode 
@@ -288,8 +290,8 @@ $getStatus02.ProvisioningErrorMessage
 
 #region Build the image
 #Start the image building process using Start-AzImageBuilderTemplate cmdlet:
-Start-AzImageBuilderTemplate -ResourceGroupName $imageResourceGroup -Name $imageTemplateName02 #-NoWait
-$getStatus02=$(Get-AzImageBuilderTemplate -ResourceGroupName $imageResourceGroup -Name $imageTemplateName02)
+Start-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName02 #-NoWait
+$getStatus02=$(Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName02)
 
 # Shows all the properties
 $getStatus02 | Format-List -Property *
@@ -304,19 +306,22 @@ $getStatus02 | Remove-AzImageBuilderTemplate #-AsJob
 #endregion
 #endregion
 
+$EndTime = Get-Date
+$TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
+Write-Host -Object "Processing Time: $($TimeSpan.ToString())"
 #Adding a delete lock (for preventing accidental deletion)
-#New-AzResourceLock -LockLevel CanNotDelete -LockNotes "$imageResourceGroup - CanNotDelete" -LockName "$imageResourceGroup - CanNotDelete" -ResourceGroupName $imageResourceGroup -Force
+#New-AzResourceLock -LockLevel CanNotDelete -LockNotes "$ResourceGroupName - CanNotDelete" -LockName "$ResourceGroupName - CanNotDelete" -ResourceGroupName $ResourceGroupName -Force
 
 #region Clean up your resources
 <#
-Remove-AzRoleAssignment -ObjectId $identityNamePrincipalId -RoleDefinitionName $imageRoleDefName -Scope "/subscriptions/$subscriptionID/resourceGroups/$imageResourceGroup"
+Remove-AzRoleAssignment -ObjectId $identityNamePrincipalId -RoleDefinitionName $imageRoleDefName -Scope "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName"
 
 ## Remove the definitions
-Remove-AzRoleDefinition -Name "$identityNamePrincipalId" -Force -Scope "/subscriptions/$subscriptionID/resourceGroups/$imageResourceGroup"
+Remove-AzRoleDefinition -Name "$identityNamePrincipalId" -Force -Scope "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName"
 
 ## Delete the identity
-Remove-AzUserAssignedIdentity -ResourceGroupName $imageResourceGroup -Name $identityName -Force
+Remove-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name $identityName -Force
 
-Remove-AzResourceGroup $imageResourceGroup -Force -AsJob
+Remove-AzResourceGroup $ResourceGroupName -Force -AsJob
 #>
 #endregion
