@@ -41,11 +41,11 @@ While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName))
 #endregion
 
 #To use Azure Image Builder, you have to register for the providers and to ensure that RegistrationState will be set to Registered.
-Register-AzResourceProvider -ProviderNamespace Microsoft.VirtualMachineImages
-Register-AzResourceProvider -ProviderNamespace Microsoft.Storage
-Register-AzResourceProvider -ProviderNamespace Microsoft.Compute
-Register-AzResourceProvider -ProviderNamespace Microsoft.KeyVault
-Register-AzResourceProvider -ProviderNamespace Microsoft.ManagedIdentity
+$null = Register-AzResourceProvider -ProviderNamespace Microsoft.VirtualMachineImages
+$null = Register-AzResourceProvider -ProviderNamespace Microsoft.Storage
+$null = Register-AzResourceProvider -ProviderNamespace Microsoft.Compute
+$null = Register-AzResourceProvider -ProviderNamespace Microsoft.KeyVault
+$null = Register-AzResourceProvider -ProviderNamespace Microsoft.ManagedIdentity
 
 #Important: Wait until RegistrationState is set to Registered. 
 While (Get-AzResourceProvider -ProviderNamespace Microsoft.VirtualMachineImages, Microsoft.Storage, Microsoft.Compute, Microsoft.KeyVault, Microsoft.ManagedIdentity | Where-Object -FilterScript {$_.RegistrationState -ne 'Registered'})
@@ -55,11 +55,8 @@ While (Get-AzResourceProvider -ProviderNamespace Microsoft.VirtualMachineImages,
 }
 
 #region Set up the environment and variables
-# Step 1: Import module
-Import-Module Az.Accounts
-
-# Step 2: get existing context
-$currentAzContext = Get-AzContext
+# get existing context
+$AzContext = Get-AzContext
 
 #Timestamp
 $timeInt=(Get-Date -UFormat "%s").Split(".")[0]
@@ -72,7 +69,7 @@ $location="eastus"
 $replicationRegions="eastus2"
 
 # Your subscription. This command gets your current subscription
-$subscriptionID=$currentAzContext.Subscription.Id
+$subscriptionID=$AzContext.Subscription.Id
 
 # Image template and definition names
 #Fully Customized image
