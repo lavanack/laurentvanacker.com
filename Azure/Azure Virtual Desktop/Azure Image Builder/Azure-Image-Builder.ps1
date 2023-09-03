@@ -50,6 +50,7 @@ Register-AzResourceProvider -ProviderNamespace Microsoft.ManagedIdentity
 #Important: Wait until RegistrationState is set to Registered. 
 While (Get-AzResourceProvider -ProviderNamespace Microsoft.VirtualMachineImages, Microsoft.Storage, Microsoft.Compute, Microsoft.KeyVault, Microsoft.ManagedIdentity | Where-Object -FilterScript {$_.RegistrationState -ne 'Registered'})
 {
+    Write-Verbose -Message "Sleeping 10 seconds ..."
     Start-Sleep -Seconds 10
 }
 
@@ -104,11 +105,7 @@ $imageRoleDefName="Azure Image Builder Image Def - "+$timeInt
 $identityName="aibIdentity-"+$timeInt
 
 # Create the identity
-New-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name $identityName -Location $location
-
-$identityNameResourceId=$(Get-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name $identityName).Id
-$identityNamePrincipalId=$(Get-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name $identityName).PrincipalId
-
+$AssignedIdentity = New-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name $identityName -Location $location
 
 #$aibRoleImageCreationUrl="https://raw.githubusercontent.com/PeterR-msft/M365AVDWS/master/Azure%20Image%20Builder/aibRoleImageCreation.json"
 #$aibRoleImageCreationUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/12_Creating_AIB_Security_Roles/aibRoleImageCreation.json"
@@ -136,9 +133,9 @@ Do {
 Start-Sleep -Seconds 30
 
 # Grant the role definition to the VM Image Builder service principal
-New-AzRoleAssignment -ObjectId $identityNamePrincipalId -RoleDefinitionName $imageRoleDefName -Scope "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName"
+New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $imageRoleDefName -Scope "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName"
 <#
-While (-not(Get-AzRoleAssignment -ObjectId $identityNamePrincipalId -RoleDefinitionName $imageRoleDefName -Scope "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName"))
+While (-not(Get-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $imageRoleDefName -Scope "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName"))
 {
     Start-Sleep -Seconds 10
 }
@@ -155,15 +152,15 @@ $ApplicationId = (Get-AzureADServicePrincipal -SearchString "Azure Virtual Machi
 #endregion
 
 #region Create an Azure Compute Gallery
-$cgGalleryName= "acg_avd_$timeInt"
+$GalleryName= "acg_avd_$timeInt"
 
 # Create the gallery
-New-AzGallery -GalleryName $cgGalleryName -ResourceGroupName $ResourceGroupName -Location $location
+New-AzGallery -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -Location $location
 
 #region Template #1 via a customized JSON file
 #Based on https://github.com/Azure/azvmimagebuilder/tree/main/solutions/14_Building_Images_WVD
 # Create the gallery definition
-New-AzGalleryImageDefinition -GalleryName $cgGalleryName -ResourceGroupName $ResourceGroupName -Location $location -Name $imageDefName01 -OsState generalized -OsType Windows -Publisher 'Contoso' -Offer 'Windows' -Sku 'avd-win11' -HyperVGeneration V2
+New-AzGalleryImageDefinition -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -Location $location -Name $imageDefName01 -OsState generalized -OsType Windows -Publisher 'Contoso' -Offer 'Windows' -Sku 'avd-win11' -HyperVGeneration V2
 
 #region Download and configure the template
 #$templateUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/14_Building_Images_WVD/armTemplateWVD.json"
@@ -181,9 +178,9 @@ Invoke-WebRequest -Uri $templateUrl -OutFile $templateFilePath -UseBasicParsing
 ((Get-Content -path $templateFilePath -Raw) -replace '<runOutputName>',$runOutputName01) | Set-Content -Path $templateFilePath
 
 ((Get-Content -path $templateFilePath -Raw) -replace '<imageDefName>',$imageDefName01) | Set-Content -Path $templateFilePath
-((Get-Content -path $templateFilePath -Raw) -replace '<sharedImageGalName>',$cgGalleryName) | Set-Content -Path $templateFilePath
+((Get-Content -path $templateFilePath -Raw) -replace '<sharedImageGalName>',$GalleryName) | Set-Content -Path $templateFilePath
 ((Get-Content -path $templateFilePath -Raw) -replace '<region1>',$replicationRegions) | Set-Content -Path $templateFilePath
-((Get-Content -path $templateFilePath -Raw) -replace '<imgBuilderId>',$identityNameResourceId) | Set-Content -Path $templateFilePath
+((Get-Content -path $templateFilePath -Raw) -replace '<imgBuilderId>',$AssignedIdentity.Id) | Set-Content -Path $templateFilePath
 ((Get-Content -path $templateFilePath -Raw) -replace '<version>',$version) | Set-Content -Path $templateFilePath
 #endregion
 
@@ -219,7 +216,7 @@ Remove-Item -Path $aibRoleImageCreationPath, $templateFilePath -Force
 
 # create gallery definition
 $GalleryParams = @{
-  GalleryName = $cgGalleryName
+  GalleryName = $GalleryName
   ResourceGroupName = $ResourceGroupName
   Location = $location
   Name = $imageDefName02
@@ -243,7 +240,7 @@ $srcPlatform = New-AzImageBuilderTemplateSourceObject @SrcObjParams
 
 $disObjParams = @{
   SharedImageDistributor = $true
-  GalleryImageId = "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName/providers/Microsoft.Compute/galleries/$cgGalleryName/images/$imageDefName02/versions/$version"
+  GalleryImageId = "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName/providers/Microsoft.Compute/galleries/$GalleryName/images/$imageDefName02/versions/$version"
   ArtifactTag = @{source='avd-win11'; baseosimg='windows11'}
  
   # 1. Uncomment following line for a single region deployment.
@@ -276,7 +273,7 @@ $ImgTemplateParams = @{
   Distribute = $disSharedImg
   Customize = $Customizer
   Location = $location
-  UserAssignedIdentityId = $identityNameResourceId
+  UserAssignedIdentityId = $AssignedIdentity.Id
   VMProfileVmsize = "Standard_D4s_v3"
   VMProfileOsdiskSizeGb = 127
 }
@@ -316,14 +313,12 @@ Write-Host -Object "Processing Time: $($TimeSpan.ToString())"
 
 #region Clean up your resources
 <#
-Remove-AzRoleAssignment -ObjectId $identityNamePrincipalId -RoleDefinitionName $imageRoleDefName -Scope "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName"
+
+## Remove the Resource Group
+Remove-AzResourceGroup $ResourceGroupName -Force -AsJob
 
 ## Remove the definitions
-Remove-AzRoleDefinition -Name "$identityNamePrincipalId" -Force -Scope "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName"
+Remove-AzRoleDefinition -Name $AssignedIdentity.PrincipalId -Force
 
-## Delete the identity
-Remove-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name $identityName -Force
-
-Remove-AzResourceGroup $ResourceGroupName -Force -AsJob
 #>
 #endregion
