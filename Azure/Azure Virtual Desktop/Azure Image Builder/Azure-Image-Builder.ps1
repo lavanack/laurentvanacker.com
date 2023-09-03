@@ -30,7 +30,7 @@ Set-Location -Path $CurrentDir
 
 #region Defining variables 
 $SubscriptionName = "Cloud Solution Architect"
-# Login to your Azure subscription.
+#region Login to your Azure subscription.
 While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName))
 {
     Connect-AzAccount
@@ -40,7 +40,7 @@ While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName))
 }
 #endregion
 
-#To use Azure Image Builder, you have to register for the providers and to ensure that RegistrationState will be set to Registered.
+#region To use Azure Image Builder, you have to register for the providers and to ensure that RegistrationState will be set to Registered.
 $null = Register-AzResourceProvider -ProviderNamespace Microsoft.VirtualMachineImages
 $null = Register-AzResourceProvider -ProviderNamespace Microsoft.Storage
 $null = Register-AzResourceProvider -ProviderNamespace Microsoft.Compute
@@ -53,23 +53,39 @@ While (Get-AzResourceProvider -ProviderNamespace Microsoft.VirtualMachineImages,
     Write-Verbose -Message "Sleeping 10 seconds ..."
     Start-Sleep -Seconds 10
 }
+#endregion
+
+#region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
+$AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
+$ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/main/src/repository/resourcelocations.json
+$shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @{Name = 'Location'; Expression = { $AzLocation[$_.name].Location } } | Where-Object -FilterScript { $_.Location } | Group-Object -Property Location -AsHashTable -AsString
+#endregion
 
 #region Set up the environment and variables
 # get existing context
 $AzContext = Get-AzContext
+# Your subscription. This command gets your current subscription
+$subscriptionID=$AzContext.Subscription.Id
+
 
 #Timestamp
 $timeInt=(Get-Date -UFormat "%s").Split(".")[0]
 
-# Destination image resource group
-$ResourceGroupName="rg-avd-azimg-$timeInt"
+#Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
+$AzureComputeGalleryPrefix = "acg"
+$ResourceGroupPrefix = "rg"
 
 # Location (see possible locations in the main docs)
-$location="eastus"
-$replicationRegions="eastus2"
+$Location="eastus"
+$LocationShortName = $shortNameHT[$Location].shortName
+$ReplicationRegions="eastus2"
 
-# Your subscription. This command gets your current subscription
-$subscriptionID=$AzContext.Subscription.Id
+$Project = "avd"
+$Role = "aib"
+$TimeInt=(Get-Date -UFormat "%s").Split(".")[0]
+$ResourceGroupName = "{0}-{1}-{2}-{3}-{4}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $TimeInt 
+$ResourceGroupName = $ResourceGroupName.ToLower()
+Write-Verbose "ResourceGroupName: $ResourceGroupName"
 
 # Image template and definition names
 #Fully Customized image
@@ -87,6 +103,8 @@ $runOutputName02="cgOutput02"
 
 #$Version = "1.0.0"
 $Version = Get-Date -UFormat "%Y.%m.%d"
+#endregion
+#endregion
 
 # Create resource group
 if (Get-AzResourceGroup -Name $ResourceGroupName -Location $location -ErrorAction Ignore)
@@ -94,7 +112,7 @@ if (Get-AzResourceGroup -Name $ResourceGroupName -Location $location -ErrorActio
     Remove-AzResourceGroup -Name $ResourceGroupName -Force
 }
 New-AzResourceGroup -Name $ResourceGroupName -Location $location -Force
-#endregion
+
 
 #region Permissions, user identity, and role
 # setup role def names, these need to be unique
