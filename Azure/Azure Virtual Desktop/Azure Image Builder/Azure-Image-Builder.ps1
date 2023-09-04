@@ -108,7 +108,7 @@ $Version = Get-Date -UFormat "%Y.%m.%d"
 if (Get-AzResourceGroup -Name $ResourceGroupName -Location $location -ErrorAction Ignore) {
   Remove-AzResourceGroup -Name $ResourceGroupName -Force
 }
-New-AzResourceGroup -Name $ResourceGroupName -Location $location -Force
+$ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $location -Force
 
 
 #region Permissions, user identity, and role
@@ -136,16 +136,17 @@ Invoke-WebRequest -Uri $aibRoleImageCreationUrl -OutFile $aibRoleImageCreationPa
 ((Get-Content -path $aibRoleImageCreationPath -Raw) -replace 'Azure Image Builder Service Image Creation Role', $imageRoleDefName) | Set-Content -Path $aibRoleImageCreationPath
 
 # Create a role definition
-New-AzRoleDefinition -InputFile $aibRoleImageCreationPath
+$RoleDefinition = New-AzRoleDefinition -InputFile $aibRoleImageCreationPath
 
 Do {
   # wait for role creation
-  Start-Sleep -Seconds 30
+  Write-Verbose -Message "Sleeping 10 seconds ..."
+  Start-Sleep -Seconds 10
 } While (-not(Get-AzRoleDefinition -Name $imageRoleDefName))
-Start-Sleep -Seconds 30
+
 
 # Grant the role definition to the VM Image Builder service principal
-New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $imageRoleDefName -Scope "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName"
+$RoleAssignment = New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $imageRoleDefName -Scope "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName"
 <#
 While (-not(Get-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $imageRoleDefName -Scope "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName"))
 {
@@ -164,7 +165,7 @@ $ApplicationId = (Get-AzureADServicePrincipal -SearchString "Azure Virtual Machi
 #endregion
 
 #region Create an Azure Compute Gallery
-$GalleryName = "acg_avd_$timeInt"
+$GalleryName = "{0}_{1}_{2}_{3}" -f $AzureComputeGalleryPrefix, $Project, $LocationShortName, $timeInt
 
 # Create the gallery
 New-AzGallery -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -Location $location
