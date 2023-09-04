@@ -65,7 +65,6 @@ $AzContext = Get-AzContext
 # Your subscription. This command gets your current subscription
 $subscriptionID = $AzContext.Subscription.Id
 
-
 #Timestamp
 $timeInt = (Get-Date -UFormat "%s").Split(".")[0]
 
@@ -87,12 +86,12 @@ Write-Verbose "ResourceGroupName: $ResourceGroupName"
 
 # Image template and definition names
 #Single Session Image Market Place Image + customizations: VSCode
-$imageDefName01 = "avd-win11-22h2-ent-fslogix-teams-vscode"
-#$imageTemplateName01 = "avd-win11-22h2-ent-fslogix-teams-vscode-template"
+$imageDefName01 = "win11-22h2-ent-fslogix-teams-vscode"
+#$imageTemplateName01 = "win11-22h2-ent-fslogix-teams-vscode-template"
 $imageTemplateName01 = $imageDefName01 + "-template-" + $timeInt
 #AVD MultiSession Market Place Image + customizations: VSCode
-$imageDefName02 = "avd-win11-22h2-avd-m365-vscode"
-#$imageTemplateName02 = "avd-win11-22h2-avd-m365-vscode-template"
+$imageDefName02 = "win11-22h2-avd-m365-vscode"
+#$imageTemplateName02 = "win11-22h2-avd-m365-vscode-template"
 $imageTemplateName02 = $imageDefName02 + "-template-" + $timeInt
 
 # Distribution properties object name (runOutput). Gives you the properties of the managed image on completion
@@ -113,8 +112,8 @@ $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $locatio
 
 #region Permissions, user identity, and role
 # setup role def names, these need to be unique
-$imageRoleDefName = "Azure Image Builder Image Def - " + $timeInt
-$identityName = "aibIdentity-" + $timeInt
+$imageRoleDefName = "Azure Image Builder Image Def - $timeInt"
+$identityName = "aibIdentity-$timeInt"
 
 # Create the identity
 $AssignedIdentity = New-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name $identityName -Location $location
@@ -173,7 +172,7 @@ $Gallery = New-AzGallery -GalleryName $GalleryName -ResourceGroupName $ResourceG
 #region Template #1 via a customized JSON file
 #Based on https://github.com/Azure/azvmimagebuilder/tree/main/solutions/14_Building_Images_WVD
 # Create the gallery definition
-New-AzGalleryImageDefinition -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -Location $location -Name $imageDefName01 -OsState generalized -OsType Windows -Publisher 'Contoso' -Offer 'Windows' -Sku 'avd-win11' -HyperVGeneration V2
+$GalleryImageDefinition01 = New-AzGalleryImageDefinition -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -Location $location -Name $imageDefName01 -OsState generalized -OsType Windows -Publisher 'Contoso' -Offer 'Windows' -Sku 'avd-win11' -HyperVGeneration V2
 
 #region Download and configure the template
 #$templateUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/14_Building_Images_WVD/armTemplateWVD.json"
@@ -198,10 +197,10 @@ Invoke-WebRequest -Uri $templateUrl -OutFile $templateFilePath -UseBasicParsing
 #endregion
 
 #region Submit the template
-New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2020-02-14" } -imageTemplateName $imageTemplateName01 -svclocation $location
+$ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2020-02-14" } -imageTemplateName $imageTemplateName01 -svclocation $location
 
 #To determine whenever or not the template upload process was successful, run the following command.
-$getStatus01 = $(Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName01)
+$getStatus01 = Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName01
 $getStatus01
 # Optional - if you have any errors running the preceding command, run:
 $getStatus01.ProvisioningErrorCode 
@@ -209,7 +208,7 @@ $getStatus01.ProvisioningErrorMessage
 
 #region Build the image
 Start-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName01 #-NoWait
-$getStatus01 = $(Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName01)
+$getStatus01 = Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName01
 
 # Shows all the properties
 $getStatus01 | Format-List -Property *
@@ -240,7 +239,7 @@ $GalleryParams = @{
   Sku               = 'Win11WVD'
   HyperVGeneration  = 'V2'
 }
-New-AzGalleryImageDefinition @GalleryParams
+$GalleryImageDefinition02 = New-AzGalleryImageDefinition @GalleryParams
 
 $SrcObjParams = @{
   PlatformImageSource = $true
@@ -290,7 +289,7 @@ $ImgTemplateParams = @{
   VMProfileVmsize        = "Standard_D4s_v3"
   VMProfileOsdiskSizeGb  = 127
 }
-New-AzImageBuilderTemplate @ImgTemplateParams
+$ImageBuilderTemplate = New-AzImageBuilderTemplate @ImgTemplateParams
 
 #To determine whenever or not the template upload process was successful, run the following command.
 $getStatus02 = $(Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName02)
@@ -303,7 +302,7 @@ $getStatus02.ProvisioningErrorMessage
 #region Build the image
 #Start the image building process using Start-AzImageBuilderTemplate cmdlet:
 Start-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName02 #-NoWait
-$getStatus02 = $(Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName02)
+$getStatus02 = Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName02
 
 # Shows all the properties
 $getStatus02 | Format-List -Property *
