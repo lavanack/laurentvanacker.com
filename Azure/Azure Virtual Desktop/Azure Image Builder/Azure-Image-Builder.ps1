@@ -143,7 +143,6 @@ Do {
   Start-Sleep -Seconds 10
 } While (-not(Get-AzRoleDefinition -Name $RoleDefinition.Name))
 
-
 # Grant the role definition to the VM Image Builder service principal
 $RoleAssignment = New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $ResourceGroup.ResourceId
 <#
@@ -160,7 +159,7 @@ Install-Module -Name AzureAD -Force
 Connect-AzureAD
 $ApplicationId = (Get-AzureADServicePrincipal -SearchString "Azure Virtual Machine Image Builder").AppId
 #>
-#New-AzRoleAssignment -ApplicationId cf32a0cc-373c-47c9-9156-0db11f6a6dfc -Scope /subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName -RoleDefinitionName Contributor
+#New-AzRoleAssignment -ApplicationId cf32a0cc-373c-47c9-9156-0db11f6a6dfc -Scope $ResourceGroup.ResourceId -RoleDefinitionName Contributor
 #endregion
 
 #region Create an Azure Compute Gallery
@@ -252,7 +251,7 @@ $srcPlatform = New-AzImageBuilderTemplateSourceObject @SrcObjParams
 
 $disObjParams = @{
   SharedImageDistributor = $true
-  GalleryImageId         = "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName/providers/Microsoft.Compute/galleries/$GalleryName/images/$imageDefName02/versions/$version"
+  GalleryImageId         = "$($GalleryImageDefinition02.Id)/versions/$version"
   ArtifactTag            = @{source = 'avd-win11'; baseosimg = 'windows11' }
  
   # 1. Uncomment following line for a single region deployment.
