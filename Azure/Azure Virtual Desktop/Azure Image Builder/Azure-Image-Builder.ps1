@@ -31,12 +31,11 @@ Set-Location -Path $CurrentDir
 #region Defining variables 
 $SubscriptionName = "Cloud Solution Architect"
 #region Login to your Azure subscription.
-While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName))
-{
-    Connect-AzAccount
-    Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
-    #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
-    #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
+While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName)) {
+  Connect-AzAccount
+  Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
+  #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
+  #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
 }
 #endregion
 
@@ -48,10 +47,9 @@ $null = Register-AzResourceProvider -ProviderNamespace Microsoft.KeyVault
 $null = Register-AzResourceProvider -ProviderNamespace Microsoft.ManagedIdentity
 
 #Important: Wait until RegistrationState is set to Registered. 
-While (Get-AzResourceProvider -ProviderNamespace Microsoft.VirtualMachineImages, Microsoft.Storage, Microsoft.Compute, Microsoft.KeyVault, Microsoft.ManagedIdentity | Where-Object -FilterScript {$_.RegistrationState -ne 'Registered'})
-{
-    Write-Verbose -Message "Sleeping 10 seconds ..."
-    Start-Sleep -Seconds 10
+While (Get-AzResourceProvider -ProviderNamespace Microsoft.VirtualMachineImages, Microsoft.Storage, Microsoft.Compute, Microsoft.KeyVault, Microsoft.ManagedIdentity | Where-Object -FilterScript { $_.RegistrationState -ne 'Registered' }) {
+  Write-Verbose -Message "Sleeping 10 seconds ..."
+  Start-Sleep -Seconds 10
 }
 #endregion
 
@@ -65,41 +63,41 @@ $shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @
 # get existing context
 $AzContext = Get-AzContext
 # Your subscription. This command gets your current subscription
-$subscriptionID=$AzContext.Subscription.Id
+$subscriptionID = $AzContext.Subscription.Id
 
 
 #Timestamp
-$timeInt=(Get-Date -UFormat "%s").Split(".")[0]
+$timeInt = (Get-Date -UFormat "%s").Split(".")[0]
 
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
 $AzureComputeGalleryPrefix = "acg"
 $ResourceGroupPrefix = "rg"
 
 # Location (see possible locations in the main docs)
-$Location="eastus"
+$Location = "eastus"
 $LocationShortName = $shortNameHT[$Location].shortName
-$ReplicationRegions="eastus2"
+$ReplicationRegions = "eastus2"
 
 $Project = "avd"
 $Role = "aib"
-$TimeInt=(Get-Date -UFormat "%s").Split(".")[0]
+$TimeInt = (Get-Date -UFormat "%s").Split(".")[0]
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $TimeInt 
 $ResourceGroupName = $ResourceGroupName.ToLower()
 Write-Verbose "ResourceGroupName: $ResourceGroupName"
 
 # Image template and definition names
 #Fully Customized image
-$imageDefName01      = "avd-win11-22h2-ent-fslogix-teams-vscode"
+$imageDefName01 = "avd-win11-22h2-ent-fslogix-teams-vscode"
 #$imageTemplateName01 = "avd-win11-22h2-ent-fslogix-teams-vscode-template"
 $imageTemplateName01 = $imageDefName01 + "-template-" + $timeInt
 #Market place image + customization(s)
-$imageDefName02      = "avd-win11-22h2-avd-m365-vscode"
+$imageDefName02 = "avd-win11-22h2-avd-m365-vscode"
 #$imageTemplateName02 = "avd-win11-22h2-avd-m365-vscode-template"
 $imageTemplateName02 = $imageDefName02 + "-template-" + $timeInt
 
 # Distribution properties object name (runOutput). Gives you the properties of the managed image on completion
-$runOutputName01="cgOutput01"
-$runOutputName02="cgOutput02"
+$runOutputName01 = "cgOutput01"
+$runOutputName02 = "cgOutput02"
 
 #$Version = "1.0.0"
 $Version = Get-Date -UFormat "%Y.%m.%d"
@@ -107,17 +105,16 @@ $Version = Get-Date -UFormat "%Y.%m.%d"
 #endregion
 
 # Create resource group
-if (Get-AzResourceGroup -Name $ResourceGroupName -Location $location -ErrorAction Ignore)
-{
-    Remove-AzResourceGroup -Name $ResourceGroupName -Force
+if (Get-AzResourceGroup -Name $ResourceGroupName -Location $location -ErrorAction Ignore) {
+  Remove-AzResourceGroup -Name $ResourceGroupName -Force
 }
 New-AzResourceGroup -Name $ResourceGroupName -Location $location -Force
 
 
 #region Permissions, user identity, and role
 # setup role def names, these need to be unique
-$imageRoleDefName="Azure Image Builder Image Def - "+$timeInt
-$identityName="aibIdentity-"+$timeInt
+$imageRoleDefName = "Azure Image Builder Image Def - " + $timeInt
+$identityName = "aibIdentity-" + $timeInt
 
 # Create the identity
 $AssignedIdentity = New-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name $identityName -Location $location
@@ -125,7 +122,7 @@ $AssignedIdentity = New-AzUserAssignedIdentity -ResourceGroupName $ResourceGroup
 #$aibRoleImageCreationUrl="https://raw.githubusercontent.com/PeterR-msft/M365AVDWS/master/Azure%20Image%20Builder/aibRoleImageCreation.json"
 #$aibRoleImageCreationUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/12_Creating_AIB_Security_Roles/aibRoleImageCreation.json"
 #$aibRoleImageCreationUrl="https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/aibRoleImageCreation.json"
-$aibRoleImageCreationUrl="https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/aibRoleImageCreation.json"
+$aibRoleImageCreationUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/aibRoleImageCreation.json"
 #$aibRoleImageCreationPath = "aibRoleImageCreation.json"
 $aibRoleImageCreationPath = Join-Path -Path $CurrentDir -ChildPath $(Split-Path $aibRoleImageCreationUrl -Leaf)
 #Generate a unique file name 
@@ -134,7 +131,7 @@ $aibRoleImageCreationPath = $aibRoleImageCreationPath -replace ".json$", "_$time
 # Download the config
 Invoke-WebRequest -Uri $aibRoleImageCreationUrl -OutFile $aibRoleImageCreationPath -UseBasicParsing
 
-((Get-Content -path $aibRoleImageCreationPath -Raw) -replace '<subscriptionID>',$subscriptionID) | Set-Content -Path $aibRoleImageCreationPath
+((Get-Content -path $aibRoleImageCreationPath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $aibRoleImageCreationPath
 ((Get-Content -path $aibRoleImageCreationPath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $aibRoleImageCreationPath
 ((Get-Content -path $aibRoleImageCreationPath -Raw) -replace 'Azure Image Builder Service Image Creation Role', $imageRoleDefName) | Set-Content -Path $aibRoleImageCreationPath
 
@@ -142,8 +139,8 @@ Invoke-WebRequest -Uri $aibRoleImageCreationUrl -OutFile $aibRoleImageCreationPa
 New-AzRoleDefinition -InputFile $aibRoleImageCreationPath
 
 Do {
-    # wait for role creation
-    Start-Sleep -Seconds 30
+  # wait for role creation
+  Start-Sleep -Seconds 30
 } While (-not(Get-AzRoleDefinition -Name $imageRoleDefName))
 Start-Sleep -Seconds 30
 
@@ -167,7 +164,7 @@ $ApplicationId = (Get-AzureADServicePrincipal -SearchString "Azure Virtual Machi
 #endregion
 
 #region Create an Azure Compute Gallery
-$GalleryName= "acg_avd_$timeInt"
+$GalleryName = "acg_avd_$timeInt"
 
 # Create the gallery
 New-AzGallery -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -Location $location
@@ -180,30 +177,30 @@ New-AzGalleryImageDefinition -GalleryName $GalleryName -ResourceGroupName $Resou
 #region Download and configure the template
 #$templateUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/14_Building_Images_WVD/armTemplateWVD.json"
 #$templateFilePath = "armTemplateWVD.json"
-$templateUrl="https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVD.json"
+$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVD.json"
 $templateFilePath = Join-Path -Path $CurrentDir -ChildPath $(Split-Path $templateUrl -Leaf)
 #Generate a unique file name 
 $templateFilePath = $templateFilePath -replace ".json$", "_$timeInt.json"
 
 Invoke-WebRequest -Uri $templateUrl -OutFile $templateFilePath -UseBasicParsing
 
-((Get-Content -path $templateFilePath -Raw) -replace '<subscriptionID>',$subscriptionID) | Set-Content -Path $templateFilePath
-((Get-Content -path $templateFilePath -Raw) -replace '<rgName>',$ResourceGroupName) | Set-Content -Path $templateFilePath
+((Get-Content -path $templateFilePath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $templateFilePath
+((Get-Content -path $templateFilePath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $templateFilePath
 #((Get-Content -path $templateFilePath -Raw) -replace '<region>',$location) | Set-Content -Path $templateFilePath
-((Get-Content -path $templateFilePath -Raw) -replace '<runOutputName>',$runOutputName01) | Set-Content -Path $templateFilePath
+((Get-Content -path $templateFilePath -Raw) -replace '<runOutputName>', $runOutputName01) | Set-Content -Path $templateFilePath
 
-((Get-Content -path $templateFilePath -Raw) -replace '<imageDefName>',$imageDefName01) | Set-Content -Path $templateFilePath
-((Get-Content -path $templateFilePath -Raw) -replace '<sharedImageGalName>',$GalleryName) | Set-Content -Path $templateFilePath
-((Get-Content -path $templateFilePath -Raw) -replace '<region1>',$replicationRegions) | Set-Content -Path $templateFilePath
-((Get-Content -path $templateFilePath -Raw) -replace '<imgBuilderId>',$AssignedIdentity.Id) | Set-Content -Path $templateFilePath
-((Get-Content -path $templateFilePath -Raw) -replace '<version>',$version) | Set-Content -Path $templateFilePath
+((Get-Content -path $templateFilePath -Raw) -replace '<imageDefName>', $imageDefName01) | Set-Content -Path $templateFilePath
+((Get-Content -path $templateFilePath -Raw) -replace '<sharedImageGalName>', $GalleryName) | Set-Content -Path $templateFilePath
+((Get-Content -path $templateFilePath -Raw) -replace '<region1>', $replicationRegions) | Set-Content -Path $templateFilePath
+((Get-Content -path $templateFilePath -Raw) -replace '<imgBuilderId>', $AssignedIdentity.Id) | Set-Content -Path $templateFilePath
+((Get-Content -path $templateFilePath -Raw) -replace '<version>', $version) | Set-Content -Path $templateFilePath
 #endregion
 
 #region Submit the template
-New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2020-02-14"} -imageTemplateName $imageTemplateName01 -svclocation $location
+New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2020-02-14" } -imageTemplateName $imageTemplateName01 -svclocation $location
 
 #To determine whenever or not the template upload process was successful, run the following command.
-$getStatus01=$(Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName01)
+$getStatus01 = $(Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName01)
 $getStatus01
 # Optional - if you have any errors running the preceding command, run:
 $getStatus01.ProvisioningErrorCode 
@@ -211,7 +208,7 @@ $getStatus01.ProvisioningErrorMessage
 
 #region Build the image
 Start-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName01 #-NoWait
-$getStatus01=$(Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName01)
+$getStatus01 = $(Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName01)
 
 # Shows all the properties
 $getStatus01 | Format-List -Property *
@@ -231,71 +228,71 @@ Remove-Item -Path $aibRoleImageCreationPath, $templateFilePath -Force
 
 # create gallery definition
 $GalleryParams = @{
-  GalleryName = $GalleryName
+  GalleryName       = $GalleryName
   ResourceGroupName = $ResourceGroupName
-  Location = $location
-  Name = $imageDefName02
-  OsState = 'generalized'
-  OsType = 'Windows'
-  Publisher = 'Contoso'
-  Offer = 'Windows'
-  Sku = 'Win11WVD'
-  HyperVGeneration = 'V2'
+  Location          = $location
+  Name              = $imageDefName02
+  OsState           = 'generalized'
+  OsType            = 'Windows'
+  Publisher         = 'Contoso'
+  Offer             = 'Windows'
+  Sku               = 'Win11WVD'
+  HyperVGeneration  = 'V2'
 }
 New-AzGalleryImageDefinition @GalleryParams
 
 $SrcObjParams = @{
   PlatformImageSource = $true
-  Publisher = 'MicrosoftWindowsDesktop'
-  Offer = 'Office-365'    
-  Sku = 'win11-22h2-avd-m365'  
-  Version = 'latest'
+  Publisher           = 'MicrosoftWindowsDesktop'
+  Offer               = 'Office-365'    
+  Sku                 = 'win11-22h2-avd-m365'  
+  Version             = 'latest'
 }
 $srcPlatform = New-AzImageBuilderTemplateSourceObject @SrcObjParams
 
 $disObjParams = @{
   SharedImageDistributor = $true
-  GalleryImageId = "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName/providers/Microsoft.Compute/galleries/$GalleryName/images/$imageDefName02/versions/$version"
-  ArtifactTag = @{source='avd-win11'; baseosimg='windows11'}
+  GalleryImageId         = "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName/providers/Microsoft.Compute/galleries/$GalleryName/images/$imageDefName02/versions/$version"
+  ArtifactTag            = @{source = 'avd-win11'; baseosimg = 'windows11' }
  
   # 1. Uncomment following line for a single region deployment.
   #ReplicationRegion = $location
  
   # 2. Uncomment following line if the custom image should be replicated to another region(s).
-  ReplicationRegion = @($location)+@($replicationRegions)
+  ReplicationRegion      = @($location) + @($replicationRegions)
  
-  RunOutputName = $runOutputName02
-  ExcludeFromLatest = $false
+  RunOutputName          = $runOutputName02
+  ExcludeFromLatest      = $false
 }
 $disSharedImg = New-AzImageBuilderTemplateDistributorObject @disObjParams
 
 
 $ImgCustomParams = @{  
-   PowerShellCustomizer = $true  
-   Name = 'InstallVSCode'  
-   RunElevated = $true  
-   runAsSystem = $true  
-   ScriptUri = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/Install-VSCode.ps1'
-  }
+  PowerShellCustomizer = $true  
+  Name                 = 'InstallVSCode'  
+  RunElevated          = $true  
+  runAsSystem          = $true  
+  ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/Install-VSCode.ps1'
+}
 
 $Customizer = New-AzImageBuilderTemplateCustomizerObject @ImgCustomParams 
 
 #Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
 $ImgTemplateParams = @{
-  ImageTemplateName = $imageTemplateName02
-  ResourceGroupName = $ResourceGroupName
-  Source = $srcPlatform
-  Distribute = $disSharedImg
-  Customize = $Customizer
-  Location = $location
+  ImageTemplateName      = $imageTemplateName02
+  ResourceGroupName      = $ResourceGroupName
+  Source                 = $srcPlatform
+  Distribute             = $disSharedImg
+  Customize              = $Customizer
+  Location               = $location
   UserAssignedIdentityId = $AssignedIdentity.Id
-  VMProfileVmsize = "Standard_D4s_v3"
-  VMProfileOsdiskSizeGb = 127
+  VMProfileVmsize        = "Standard_D4s_v3"
+  VMProfileOsdiskSizeGb  = 127
 }
 New-AzImageBuilderTemplate @ImgTemplateParams
 
 #To determine whenever or not the template upload process was successful, run the following command.
-$getStatus02=$(Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName02)
+$getStatus02 = $(Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName02)
 $getStatus02
 # Optional - if you have any errors running the preceding command, run:
 $getStatus02.ProvisioningErrorCode 
@@ -305,7 +302,7 @@ $getStatus02.ProvisioningErrorMessage
 #region Build the image
 #Start the image building process using Start-AzImageBuilderTemplate cmdlet:
 Start-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName02 #-NoWait
-$getStatus02=$(Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName02)
+$getStatus02 = $(Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName02)
 
 # Shows all the properties
 $getStatus02 | Format-List -Property *
