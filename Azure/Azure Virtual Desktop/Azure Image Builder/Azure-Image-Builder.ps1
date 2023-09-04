@@ -86,11 +86,11 @@ $ResourceGroupName = $ResourceGroupName.ToLower()
 Write-Verbose "ResourceGroupName: $ResourceGroupName"
 
 # Image template and definition names
-#Fully Customized image
+#Single Session Image Market Place Image + customizations: VSCode
 $imageDefName01 = "avd-win11-22h2-ent-fslogix-teams-vscode"
 #$imageTemplateName01 = "avd-win11-22h2-ent-fslogix-teams-vscode-template"
 $imageTemplateName01 = $imageDefName01 + "-template-" + $timeInt
-#Market place image + customization(s)
+#AVD MultiSession Market Place Image + customizations: VSCode
 $imageDefName02 = "avd-win11-22h2-avd-m365-vscode"
 #$imageTemplateName02 = "avd-win11-22h2-avd-m365-vscode-template"
 $imageTemplateName02 = $imageDefName02 + "-template-" + $timeInt
@@ -142,13 +142,13 @@ Do {
   # wait for role creation
   Write-Verbose -Message "Sleeping 10 seconds ..."
   Start-Sleep -Seconds 10
-} While (-not(Get-AzRoleDefinition -Name $imageRoleDefName))
+} While (-not(Get-AzRoleDefinition -Name $RoleDefinition.Name))
 
 
 # Grant the role definition to the VM Image Builder service principal
-$RoleAssignment = New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $imageRoleDefName -Scope "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName"
+$RoleAssignment = New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $ResourceGroup.ResourceId
 <#
-While (-not(Get-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $imageRoleDefName -Scope "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName"))
+While (-not(Get-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $ResourceGroup.ResourceId))
 {
     Start-Sleep -Seconds 10
 }
@@ -168,7 +168,7 @@ $ApplicationId = (Get-AzureADServicePrincipal -SearchString "Azure Virtual Machi
 $GalleryName = "{0}_{1}_{2}_{3}" -f $AzureComputeGalleryPrefix, $Project, $LocationShortName, $timeInt
 
 # Create the gallery
-New-AzGallery -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -Location $location
+$Gallery = New-AzGallery -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -Location $location
 
 #region Template #1 via a customized JSON file
 #Based on https://github.com/Azure/azvmimagebuilder/tree/main/solutions/14_Building_Images_WVD
