@@ -55,13 +55,6 @@
             "customize": [
                     {
                         "type": "PowerShell",
-                        "name": "installFsLogix",
-                        "runElevated": true,
-                        "runAsSystem": true,
-                        "scriptUri": "https://raw.githubusercontent.com/Azure/azvmimagebuilder/main/solutions/14_Building_Images_WVD/0_installConfFsLogix.ps1"
-                    },
-                    {
-                        "type": "PowerShell",
                         "name": "Install Visual Studio Code",
                         "runElevated": true,
                         "runAsSystem": true,
