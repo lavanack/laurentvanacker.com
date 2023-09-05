@@ -85,12 +85,12 @@ $ResourceGroupName = $ResourceGroupName.ToLower()
 Write-Verbose "ResourceGroupName: $ResourceGroupName"
 
 # Image template and definition names
-#Single Session Image Market Place Image + customizations: VSCode
-$imageDefName01 = "win11-22h2-ent-fslogix-teams-vscode"
+#AVD MultiSession Session Image Market Place Image + customizations: VSCode
+$imageDefName01 = "win11-22h2-ent-avd-vscode"
 #$imageTemplateName01 = "win11-22h2-ent-fslogix-teams-vscode-template"
 $imageTemplateName01 = $imageDefName01 + "-template-" + $timeInt
-#AVD MultiSession Market Place Image + customizations: VSCode
-$imageDefName02 = "win11-22h2-avd-m365-vscode"
+#AVD MultiSession + Microsoft 365 Market Place Image + customizations: VSCode
+$imageDefName02 = "win11-22h2-ent-avd-m365-vscode"
 #$imageTemplateName02 = "win11-22h2-avd-m365-vscode-template"
 $imageTemplateName02 = $imageDefName02 + "-template-" + $timeInt
 
