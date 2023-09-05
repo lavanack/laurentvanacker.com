@@ -86,7 +86,7 @@ Write-Verbose "ResourceGroupName: $ResourceGroupName"
 
 # Image template and definition names
 #AVD MultiSession Session Image Market Place Image + customizations: VSCode
-$imageDefName01 = "win11-22h2-ent-avd-vscode"
+$imageDefName01 = "win11-22h2-ent-avd-custom-vscode"
 #$imageTemplateName01 = "win11-22h2-ent-fslogix-teams-vscode-template"
 $imageTemplateName01 = $imageDefName01 + "-template-" + $timeInt
 #AVD MultiSession + Microsoft 365 Market Place Image + customizations: VSCode
