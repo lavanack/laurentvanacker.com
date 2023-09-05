@@ -28,8 +28,7 @@ function New-AAD-Hybrid-Lab {
         [parameter(Mandatory = $true, HelpMessage = 'Enter the password that will be applied to each user account to be created in AD.')]
         [PSCredential] $UserCredential,
         [parameter(Mandatory = $false, HelpMessage = 'Select a VM SKU (please ensure the SKU is available in your selected region).')]
-        [ValidateSet("Standard_DS2_v2", "Standard_D2_v3", "Standard_D2_v4", "Standard_D2s_v3", "Standard_D2s_v4", "Standard_D4_v4", "Standard_D4s_v4")] 
-        [string] $VMSize = "Standard_D2s_v4",
+        [string] $VMSize = "Standard_D2s_v5",
         [parameter(Mandatory = $false, HelpMessage = 'Please specify the project')]
         [ValidateLength(2, 4)] 
         [string] $Project = "avd",
