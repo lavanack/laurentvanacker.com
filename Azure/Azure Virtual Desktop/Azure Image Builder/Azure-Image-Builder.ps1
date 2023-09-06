@@ -100,6 +100,7 @@ $runOutputName02 = "cgOutput02"
 
 #$Version = "1.0.0"
 $Version = Get-Date -UFormat "%Y.%m.%d"
+$Jobs = @()
 #endregion
 #endregion
 
@@ -170,7 +171,6 @@ $Gallery = New-AzGallery -GalleryName $GalleryName -ResourceGroupName $ResourceG
 #endregion
 
 #region Template #1 via a customized JSON file
-$StartTime01 = Get-Date
 #Based on https://github.com/Azure/azvmimagebuilder/tree/main/solutions/14_Building_Images_WVD
 # Create the gallery definition
 $GalleryImageDefinition01 = New-AzGalleryImageDefinition -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -Location $location -Name $imageDefName01 -OsState generalized -OsType Windows -Publisher 'Contoso' -Offer 'Windows' -Sku 'avd-win11' -HyperVGeneration V2
@@ -208,29 +208,12 @@ $getStatus01.ProvisioningErrorCode
 $getStatus01.ProvisioningErrorMessage
 
 #region Build the image
-Start-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName01 #-NoWait
-$getStatus01 = Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName01
-
-# Shows all the properties
-$getStatus01 | Format-List -Property *
-
-# Shows the status of the build
-$getStatus01.LastRunStatusRunState 
-$getStatus01.LastRunStatusMessage
-$getStatus01.LastRunStatusRunSubState
+$Jobs += Start-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName01 -AsJob
 #endregion
-
-$getStatus01 | Remove-AzImageBuilderTemplate #-AsJob
-Remove-Item -Path $aibRoleImageCreationPath, $templateFilePath -Force
 #endregion
-
-$EndTime = Get-Date
-$TimeSpan = New-TimeSpan -Start $StartTime01 -End $EndTime
-Write-Host -Object "Template #01 Processing Time: $($TimeSpan.ToString())"
 #endregion
 
 #region Template #2 via a image from the market place + customizations
-$StartTime02 = Get-Date
 # create gallery definition
 $GalleryParams = @{
   GalleryName       = $GalleryName
@@ -306,9 +289,25 @@ $getStatus02.ProvisioningErrorMessage
 
 #region Build the image
 #Start the image building process using Start-AzImageBuilderTemplate cmdlet:
-Start-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName02 #-NoWait
-$getStatus02 = Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName02
+$Jobs += Start-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName02 -AsJob
+#endregion
 
+$Jobs | Wait-Job
+
+#region imageTemplateName01 status 
+$getStatus01 = Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName01
+# Shows all the properties
+$getStatus01 | Format-List -Property *
+# Shows the status of the build
+$getStatus01.LastRunStatusRunState 
+$getStatus01.LastRunStatusMessage
+$getStatus01.LastRunStatusRunSubState
+$getStatus01 | Remove-AzImageBuilderTemplate #-AsJob
+Remove-Item -Path $aibRoleImageCreationPath, $templateFilePath -Force
+#endregion
+
+#region imageTemplateName02 status
+$getStatus02 = Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName02
 # Shows all the properties
 $getStatus02 | Format-List -Property *
 
@@ -316,13 +315,10 @@ $getStatus02 | Format-List -Property *
 $getStatus02.LastRunStatusRunState 
 $getStatus02.LastRunStatusMessage
 $getStatus02.LastRunStatusRunSubState
+$getStatus02 | Remove-AzImageBuilderTemplate #-AsJob
 #endregion
 
-$getStatus02 | Remove-AzImageBuilderTemplate #-AsJob
-
-$EndTime = Get-Date
-$TimeSpan = New-TimeSpan -Start $StartTime02 -End $EndTime
-Write-Host -Object "Template #02 Processing Time: $($TimeSpan.ToString())"
+$Jobs | Remove-Job
 #endregion
 
 $EndTime = Get-Date
