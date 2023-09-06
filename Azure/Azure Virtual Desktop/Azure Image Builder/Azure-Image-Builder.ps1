@@ -167,8 +167,10 @@ $GalleryName = "{0}_{1}_{2}_{3}" -f $AzureComputeGalleryPrefix, $Project, $Locat
 
 # Create the gallery
 $Gallery = New-AzGallery -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -Location $location
+#endregion
 
 #region Template #1 via a customized JSON file
+$StartTime01 = Get-Date
 #Based on https://github.com/Azure/azvmimagebuilder/tree/main/solutions/14_Building_Images_WVD
 # Create the gallery definition
 $GalleryImageDefinition01 = New-AzGalleryImageDefinition -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -Location $location -Name $imageDefName01 -OsState generalized -OsType Windows -Publisher 'Contoso' -Offer 'Windows' -Sku 'avd-win11' -HyperVGeneration V2
@@ -221,10 +223,14 @@ $getStatus01.LastRunStatusRunSubState
 $getStatus01 | Remove-AzImageBuilderTemplate #-AsJob
 Remove-Item -Path $aibRoleImageCreationPath, $templateFilePath -Force
 #endregion
+
+$EndTime = Get-Date
+$TimeSpan = New-TimeSpan -Start $StartTime01 -End $EndTime
+Write-Host -Object "Template #01 Processing Time: $($TimeSpan.ToString())"
 #endregion
 
 #region Template #2 via a image from the market place + customizations
-
+$StartTime02 = Get-Date
 # create gallery definition
 $GalleryParams = @{
   GalleryName       = $GalleryName
@@ -291,7 +297,7 @@ $ImgTemplateParams = @{
 $ImageBuilderTemplate = New-AzImageBuilderTemplate @ImgTemplateParams
 
 #To determine whenever or not the template upload process was successful, run the following command.
-$getStatus02 = $(Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName02)
+$getStatus02 = Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName02
 $getStatus02
 # Optional - if you have any errors running the preceding command, run:
 $getStatus02.ProvisioningErrorCode 
@@ -313,12 +319,15 @@ $getStatus02.LastRunStatusRunSubState
 #endregion
 
 $getStatus02 | Remove-AzImageBuilderTemplate #-AsJob
-#endregion
+
+$EndTime = Get-Date
+$TimeSpan = New-TimeSpan -Start $StartTime02 -End $EndTime
+Write-Host -Object "Template #02 Processing Time: $($TimeSpan.ToString())"
 #endregion
 
 $EndTime = Get-Date
 $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
-Write-Host -Object "Processing Time: $($TimeSpan.ToString())"
+Write-Host -Object "Total Processing Time: $($TimeSpan.ToString())"
 #Adding a delete lock (for preventing accidental deletion)
 #New-AzResourceLock -LockLevel CanNotDelete -LockNotes "$ResourceGroupName - CanNotDelete" -LockName "$ResourceGroupName - CanNotDelete" -ResourceGroupName $ResourceGroupName -Force
 
@@ -329,7 +338,7 @@ Write-Host -Object "Processing Time: $($TimeSpan.ToString())"
 Remove-AzResourceGroup $ResourceGroupName -Force -AsJob
 
 ## Remove the definitions
-Remove-AzRoleDefinition -Name $AssignedIdentity.PrincipalId -Force
+Remove-AzRoleDefinition -Name $RoleDefinition.Name -Force
 
 #>
 #endregion
