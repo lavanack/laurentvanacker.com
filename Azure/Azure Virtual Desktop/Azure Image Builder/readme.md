@@ -1,6 +1,6 @@
 # Azure Image Builder
 
-The [Azure-Image-Builder.ps1](Azure-Image-Builder.ps1) script creates an [Azure Compute Gallery](https://learn.microsoft.com/en-us/azure/virtual-machines/azure-compute-gallery) with 2 image definitions as shown below:
+The [AzureImageBuilder.ps1](AzureImageBuilder.ps1) script creates an [Azure Compute Gallery](https://learn.microsoft.com/en-us/azure/virtual-machines/azure-compute-gallery) with 2 image definitions as shown below:
 
 ![](docs/acg.jpg)
 
@@ -10,11 +10,11 @@ The [Azure-Image-Builder.ps1](Azure-Image-Builder.ps1) script creates an [Azure 
 
 ### Setup
 
-Run the [Azure-Image-Builder.ps1](Azure-Image-Builder.ps1) script (PowerShell 5.1 needed) wait for completion (~40 minutes).
+Run the [AzureImageBuilder.ps1](AzureImageBuilder.ps1) script (PowerShell 5.1 needed) wait for completion (~40 minutes).
 
 **Notes:**
 
-* The first image definition is based on the [armTemplateAVD.json](armTemplateAVD.json) file (as listed in the above screenshot - but first template in the [Azure-Image-Builder.ps1](Azure-Image-Builder.ps1) script).
+* The first image definition is based on the [armTemplateAVD.json](armTemplateAVD.json) file (as listed in the above screenshot - but first template in the [AzureImageBuilder.ps1](AzureImageBuilder.ps1) script).
   * Will use the latest Windows 11 Enterprise 22H2 Multi-Session (without Microsoft 365) image from the Azure Marketplace
   * The Azure VM will use the [Standard_D4s_v3](https://learn.microsoft.com/en-us/azure/virtual-machines/dv3-dsv3-series) Azure VM (127GB for the disk space).
   * The OS will be optimized for [Azure Virtual Desktop](https://azure.microsoft.com/en-us/products/virtual-desktop). These optimisations come from the [AVD Accelerator](https://github.com/Azure/avdaccelerator) which is maintained by the community/field. The Microsoft optimizations scripts are available on [RDS-Templates GitHub](https://github.com/Azure/RDS-Templates/tree/master/CustomImageTemplateScripts). This repo will be updated (when time permits) to use these scripts. 
