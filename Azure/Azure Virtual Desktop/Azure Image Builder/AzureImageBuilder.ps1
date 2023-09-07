@@ -124,15 +124,15 @@ function New-AzureComputeGallery {
   Write-Verbose -Message "Creating '$imageRoleDefName' Role Definition ..."
   $RoleDefinition = New-AzRoleDefinition -InputFile $aibRoleImageCreationPath
 
-  Do {
-    # wait for role creation
+  # Grant the role definition to the VM Image Builder service principal
+  Write-Verbose -Message "Assigning '$($RoleDefinition.Name)' Role to '$($AssignedIdentity.Name)' ..."
+  Do
+  {
     Write-Verbose -Message "Sleeping 10 seconds ..."
     Start-Sleep -Seconds 10
-  } While (-not(Get-AzRoleDefinition -Name $RoleDefinition.Name))
-
-  # Grant the role definition to the VM Image Builder service principal
-  Write-Verbose -Message "Assigining '$($RoleDefinition.Name)' Role to '$($AssignedIdentity.Name)'  ..."
-  $RoleAssignment = New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $ResourceGroup.ResourceId #-Debug
+    $RoleAssignment = New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $ResourceGroup.ResourceId -ErrorAction Ignore #-Debug
+  } While ($null -eq $RoleAssignment)
+  
   <#
   While (-not(Get-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $ResourceGroup.ResourceId))
   {
@@ -155,7 +155,7 @@ function New-AzureComputeGallery {
   Write-Verbose -Message "`$GalleryName: $GalleryName"
 
   # Create the gallery
-  Write-Verbose -Message "Creating Azure Compute Gallery '$GalleryName'  ..."
+  Write-Verbose -Message "Creating Azure Compute Gallery '$GalleryName' ..."
   $Gallery = New-AzGallery -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -Location $location
   #endregion
 
@@ -367,7 +367,7 @@ While (Get-AzResourceProvider -ProviderNamespace Microsoft.VirtualMachineImages,
   Start-Sleep -Seconds 10
 }
 
-$AzureComputeGallery = New-AzureComputeGallery #-Verbose
+$AzureComputeGallery = New-AzureComputeGallery -Verbose
 $AzureComputeGallery
 (Get-AzGalleryImageDefinition -GalleryName $AzureComputeGallery.Name -ResourceGroupName $AzureComputeGallery.ResourceGroupName).Id | Get-Random
 #Remove-AzResourceGroup -Name $AzureComputeGallery.ResourceGroupName -Force -AsJob
