@@ -23,7 +23,8 @@ Function Update-AutomatedLabRDCMan
     (
 		[Parameter(Mandatory = $false)]
 		[string]$FullName = $(Join-Path -Path $([Environment]::GetFolderPath("MyDocuments")) -ChildPath "$env:USERNAME.rdg"),
-        [switch] $Open
+        [switch] $Open,
+        [switch] $Install
     )
 
 
@@ -181,11 +182,21 @@ Function Update-AutomatedLabRDCMan
         #endregion 
     }
     $AutomatedLabRDGFileContent.Save($FullName)
-    if ($Open)
+    if ($Install)
+    {
+        $OutFile = Join-Path -Path $env:Temp -ChildPath "RDCMan.zip"
+        $Response = Invoke-WebRequest -Uri "https://download.sysinternals.com/files/RDCMan.zip" -OutFile $OutFile -PassThru
+        Expand-Archive -Path $OutFile -DestinationPath $(Join-Path -Path $env:windir -ChildPath "system32") -Force -Verbose
+        Remove-Item -Path $OutFile -Force
+        if ($Open)
+        {
+            Start-Process -FilePath "$env:comspec" -ArgumentList '/c', "rdcman ""$FullName""" -Wait
+        }
+    }
+    elseif ($Open)
     {
         & $FullName
     }
-
 }
 
 Update-AutomatedLabRDCMan -Open -Verbose
