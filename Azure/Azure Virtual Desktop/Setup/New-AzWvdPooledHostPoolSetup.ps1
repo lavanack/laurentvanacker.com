@@ -2258,6 +2258,166 @@ function New-AzWvdPooledHostPoolSetup {
     }
     end {}
 }
+
+function Update-AVDRDCMan {
+    [CmdletBinding()]
+    param
+    (
+		[Parameter(Mandatory = $false)]
+		[string]$FullName = $(Join-Path -Path $([Environment]::GetFolderPath("Desktop")) -ChildPath "$((Get-ADDomain).DNSRoot).rdg"),
+		[Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]$Credential,
+        [switch] $Open,
+        [switch] $Install
+    )
+
+
+    $null = Add-Type -AssemblyName System.Security
+    #region variables
+    $RootAVDOUName = 'AVD'
+    $DomainName = (Get-ADDomain).DNSRoot
+    $RDGFileContentTemplate = @"
+<?xml version="1.0" encoding="utf-8"?>
+<RDCMan programVersion="2.83" schemaVersion="3">
+    <file>
+        <credentialsProfiles />
+        <properties>
+            <expanded>True</expanded>
+            <name>$($DomainName)</name>
+        </properties>
+        <remoteDesktop inherit="None">
+            <sameSizeAsClientArea>True</sameSizeAsClientArea>
+            <fullScreen>False</fullScreen>
+            <colorDepth>24</colorDepth>
+        </remoteDesktop>
+        <localResources inherit="None">
+            <audioRedirection>Client</audioRedirection>
+            <audioRedirectionQuality>Dynamic</audioRedirectionQuality>
+            <audioCaptureRedirection>DoNotRecord</audioCaptureRedirection>
+            <keyboardHook>FullScreenClient</keyboardHook>
+            <redirectClipboard>True</redirectClipboard>
+            <redirectDrives>True</redirectDrives>
+            <redirectDrivesList>
+            </redirectDrivesList>
+            <redirectPrinters>False</redirectPrinters>
+            <redirectPorts>False</redirectPorts>
+            <redirectSmartCards>False</redirectSmartCards>
+            <redirectPnpDevices>False</redirectPnpDevices>
+        </localResources>
+        <group>
+            <properties>
+                <expanded>True</expanded>
+                <name>$RootAVDOUName</name>
+            </properties>
+        </group>
+    </file>
+    <connected />
+    <favorites />
+    <recentlyUsed />
+</RDCMan>
+"@
+    #endregion
+
+    #Remove-Item -Path $FullName -Force 
+    If (-not(Test-Path -Path $FullName)) {
+        Write-Verbose -Message "Creating '$FullName' file ..."
+        Set-Content -Value $RDGFileContentTemplate -Path $FullName
+    }
+
+    $OUs = Get-ADOrganizationalUnit -SearchBase "OU=$RootAVDOUName,$((Get-ADDomain).DistinguishedName)" -Filter "Name -ne '$RootAVDOUName'" -Properties *
+    $AVDRDGFileContent = [xml](Get-Content -Path $FullName)
+    $AVDFileElement = $AVDRDGFileContent.RDCMan.file
+    $AVDGroupElement = $AVDFileElement.group | Where-Object -FilterScript {
+        $_.ChildNodes.Name -eq $RootAVDOUName
+    }
+
+    foreach ($CurrentOU in $OUs) {
+        Write-Verbose -Message "Processing '$CurrentOU' OU ..."
+        #region Remove all previously existing nodes with the same name
+        #$PreviouslyExistingNodes = $AVDRDGFileContent.SelectNodes("//group/group/group/properties[contains(name, '$($CurrentOU.Name)')]")
+        $PreviouslyExistingNodes = $AVDRDGFileContent.SelectNodes("//properties[contains(name, '$($CurrentOU.Name)')]")
+        #$PreviouslyExistingNodes | ForEach-Object -Process {$_.ParentNode.RemoveAll()}
+        $PreviouslyExistingNodes | ForEach-Object -Process {
+            $ParentNode = $_.ParentNode
+            $null = $ParentNode.ParentNode.RemoveChild($ParentNode)
+        }
+        #endregion 
+
+        #region Dedicated RDG Group creation
+        $ParentCurrentOUDistinguishedName = $CurrentOU.DistinguishedName.split(',',2)[1]
+        $ParentCurrentOU = Get-ADOrganizationalUnit -SearchBase $ParentCurrentOUDistinguishedName -Filter * -SearchScope Base
+        $ParentElement = $AVDGroupElement.group | Where-Object -FilterScript {
+            $_.ChildNodes.Name -eq $ParentCurrentOU.Name
+        }
+        if ($null -eq $ParentElement)
+        {
+            $ParentElement = $AVDGroupElement
+        }
+        $groupElement = $ParentElement.AppendChild($AVDRDGFileContent.CreateElement('group'))
+        $propertiesElement = $groupElement.AppendChild($AVDRDGFileContent.CreateElement('properties'))
+        $nameElement = $propertiesElement.AppendChild($AVDRDGFileContent.CreateElement('name'))
+        $nameTextNode = $nameElement.AppendChild($AVDRDGFileContent.CreateTextNode($CurrentOU.Name))
+        $expandedElement = $propertiesElement.AppendChild($AVDRDGFileContent.CreateElement('expanded'))
+        $expandedTextNode = $expandedElement.AppendChild($AVDRDGFileContent.CreateTextNode('True'))
+
+        #region Credential Management
+        if ($null -ne $Credential)
+        {
+            $UserName = $Credential.UserName
+            $Password = $Credential.GetNetworkCredential().Password
+            $PasswordBytes = [System.Text.Encoding]::Unicode.GetBytes($Password)
+            $SecurePassword = [Security.Cryptography.ProtectedData]::Protect($PasswordBytes, $null, [Security.Cryptography.DataProtectionScope]::LocalMachine)
+            $SecurePasswordStr = [System.Convert]::ToBase64String($SecurePassword)
+            $logonCredentialsElement = $groupElement.AppendChild($AVDRDGFileContent.CreateElement('logonCredentials'))
+            $logonCredentialsElement.SetAttribute('inherit', 'None')
+            $profileNameElement = $logonCredentialsElement.AppendChild($AVDRDGFileContent.CreateElement('profileName'))
+            $profileNameElement.SetAttribute('scope', 'Local')
+            $profileNameTextNode = $profileNameElement.AppendChild($AVDRDGFileContent.CreateTextNode('Custom'))
+            $UserNameElement = $logonCredentialsElement.AppendChild($AVDRDGFileContent.CreateElement('UserName'))
+            $UserNameTextNode = $UserNameElement.AppendChild($AVDRDGFileContent.CreateTextNode($UserName))
+            $PasswordElement = $logonCredentialsElement.AppendChild($AVDRDGFileContent.CreateElement('Password'))
+            $PasswordTextNode = $PasswordElement.AppendChild($AVDRDGFileContent.CreateTextNode($SecurePasswordStr))
+            $DomainElement = $logonCredentialsElement.AppendChild($AVDRDGFileContent.CreateElement('Domain'))
+            #$DomainTextNode = $DomainElement.AppendChild($AVDRDGFileContent.CreateTextNode($DomainName))
+            $DomainTextNode = $DomainElement.AppendChild($AVDRDGFileContent.CreateTextNode('.'))
+        }
+        #endregion
+
+        #region Server Nodes Management
+        $Machines = Get-ADComputer -SearchBase $CurrentOU -Properties DNSHostName -Filter 'DNSHostName -like "*"' -SearchScope OneLevel
+        foreach ($CurrentMachine in $Machines) {
+            Write-Verbose -Message "Processing '$($CurrentMachine.Name)' Machine ..."
+            $serverElement = $groupElement.AppendChild($AVDRDGFileContent.CreateElement('server'))
+            $propertiesElement = $serverElement.AppendChild($AVDRDGFileContent.CreateElement('properties'))
+            $displayNameElement = $propertiesElement.AppendChild($AVDRDGFileContent.CreateElement('displayName'))
+            $displayNameTextNode = $displayNameElement.AppendChild($AVDRDGFileContent.CreateTextNode($CurrentMachine.Name))
+            $nameElement = $propertiesElement.AppendChild($AVDRDGFileContent.CreateElement('name'))
+            $NameTextNode = $nameElement.AppendChild($AVDRDGFileContent.CreateTextNode($CurrentMachine.Name))
+        }
+        #endregion
+        #endregion 
+    }
+    $AVDRDGFileContent.Save($FullName)
+    if ($Install)
+    {
+        $OutFile = Join-Path -Path $env:Temp -ChildPath "RDCMan.zip"
+        Write-Verbose "Downloading the latest RDCMan version form SysInternals ..."
+        $Response = Invoke-WebRequest -Uri "https://download.sysinternals.com/files/RDCMan.zip" -OutFile $OutFile -PassThru
+        Write-Verbose "Extracting the downloaded archive file to system32 ..."
+        Expand-Archive -Path $OutFile -DestinationPath $(Join-Path -Path $env:windir -ChildPath "system32") -Force -Verbose
+        Write-Verbose "Removing the downloaded archive file to system32 ..."
+        Remove-Item -Path $OutFile -Force
+        if ($Open)
+        {
+            Write-Verbose "Opening RDC Manager ..."
+            Start-Process -FilePath "$env:comspec" -ArgumentList '/c', "rdcman ""$FullName"""
+        }
+    }
+    elseif ($Open)
+    {
+        & $FullName
+    }
+}
 #endregion
 
 #region Main code
@@ -2375,6 +2535,10 @@ $PooledHostPools = @(
 New-AzWvdPooledHostPoolSetup -PooledHostPool $PooledHostPools -Verbose
 #Or pipeline processing call
 #$PooledHostPools | New-AzWvdPooledHostPoolSetup 
+
+#Running RDCMan to connect to all Session Hosts (for administration purpose if needed)
+#Update-AVDRDCMan -Credential $LocalAdminCredential -Install -Open -Verbose
+Update-AVDRDCMan -Install -Open -Verbose
 
 #Remove-AzResourceGroup -Name $AzureComputeGallery.ResourceGroupName -Force -AsJob
 
