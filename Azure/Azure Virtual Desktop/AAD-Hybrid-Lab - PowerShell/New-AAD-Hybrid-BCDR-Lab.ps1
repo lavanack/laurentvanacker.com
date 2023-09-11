@@ -27,6 +27,9 @@ function New-AAD-Hybrid-BCDR-Lab {
         [PSCredential] $AdminCredential,
         [parameter(Mandatory = $false, HelpMessage = 'Select a VM SKU (please ensure the SKU is available in your selected region).')]
         [string] $VMSize = "Standard_D2s_v5",
+        [parameter(Mandatory = $false, HelpMessage = 'Select an OS Disk Type')]
+        [ValidateSet("Standard_LRS", "Premium_LRS")] 
+        [string] $OSDiskType = "Premium_LRS",
         [parameter(Mandatory = $false, HelpMessage = 'Please specify the project')]
         [ValidateLength(2, 4)] 
         [string] $Project = "avd",
@@ -54,7 +57,8 @@ function New-AAD-Hybrid-BCDR-Lab {
         [int] $Instance = $(Get-Random -Minimum 0 -Maximum 1000),
         [ValidateScript({ $_ -in $((Get-AzLocation).Location) })] 
         [string] $Location = "eastus2",
-        [switch] $Spot
+        [switch] $Spot,
+        [switch] $Bastion
     )
 
     Write-Verbose "`$VMSize: $VMSize"
@@ -69,6 +73,7 @@ function New-AAD-Hybrid-BCDR-Lab {
     Write-Verbose "`$Instance: $Instance"
     Write-Verbose "`$Location: $Location"
     Write-Verbose "`$Spot: $Spot"
+    Write-Verbose "`$Bastion: $Bastion"
 
     #region Defining variables 
     $SubscriptionName = "Cloud Solution Architect"
@@ -133,7 +138,7 @@ function New-AAD-Hybrid-BCDR-Lab {
     #$DataDiskName          = "$VMName-DataDisk01"
     $OSDiskSize = "127"
     $StorageAccountSkuName = "Standard_LRS"
-    $OSDiskType = "Premium_LRS"
+    #$OSDiskType = "Premium_LRS"
     $DSCZipFileUri = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell/DSC/adBCDRDSC.zip"
     $DSCConfigurationName = "AdditionalDomainController"
 
@@ -239,6 +244,20 @@ function New-AAD-Hybrid-BCDR-Lab {
     Add-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $vNetwork -AddressPrefix $ADSubnetAddressRange -NetworkSecurityGroupId $NetworkSecurityGroup.Id
     $vNetwork = Set-AzVirtualNetwork -VirtualNetwork $vNetwork
     $Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $vNetwork
+
+    if ($Bastion)
+    {
+        #Generation Bastion Subnet Address Range by getting the subnets and finding the third token available in the IP.
+        $ThirdToken = (Get-AzVirtualNetwork -Name $VirtualNetworkName).Subnets.AddressPrefix -replace "\d+\.\d+\.(\d+)\.\d\/.*", '$1' | Sort-Object
+        $ThirdTokenAvailable = 1..254 | Where-Object -FilterScript {$_ -notin $ThirdToken}
+        $BastionSubnetAddressRange = (Get-AzVirtualNetwork -Name $VirtualNetworkName).Subnets.AddressPrefix | Sort-Object | Select-Object -Last 1
+        $BastionSubnetAddressRange -match '(\d+)\.(\d+)\.(\d+)\.(\d+)/(\d+)'
+        #$BastionSubnetAddressRange = "{0}.{1}.{2}.0/26" -f $Matches[1], $Matches[2], ([int]$Matches[3]+1)
+        $BastionSubnetAddressRange = "{0}.{1}.{2}.0/26" -f $Matches[1], $Matches[2], $ThirdTokenAvailable[0]
+        Add-AzVirtualNetworkSubnetConfig -Name "AzureBastionSubnet" -VirtualNetwork $vNetwork -AddressPrefix $BastionSubnetAddressRange | Set-AzVirtualNetwork
+        $publicip = New-AzPublicIpAddress -ResourceGroupName $ResourceGroupName -name "$VirtualNetworkName-ip" -location "EastUS" -AllocationMethod Static -Sku Standard
+        New-AzBastion -ResourceGroupName $ResourceGroupName -Name "$VirtualNetworkName-bastion" -PublicIpAddressRgName $ResourceGroupName -PublicIpAddressName "$VirtualNetworkName-ip" -VirtualNetworkRgName $ResourceGroupName -VirtualNetworkName $VirtualNetworkName -Sku "Basic"
+    }
 
     #Step 6: Create Azure Public Address
     $PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $ResourceGroupName -Location $Location -AlLocationMethod Static -DomainNameLabel $VMName.ToLower()
@@ -434,7 +453,7 @@ $AdminCredential = Get-Credential -Credential $env:USERNAME
 
 $Parameters = @{
     "AdminCredential"      = $AdminCredential
-    "VMSize"               = "Standard_D2_v4"
+    "VMSize"               = "Standard_D2s_v5"
     "Project"              = "avd"
     "Role"                 = "adds"
     "ADDomainName"         = "csa.fr"
@@ -446,6 +465,7 @@ $Parameters = @{
     "Instance"             = 001
     "Location"             = "eastus2"
     "Spot"                 = $true
+    "Bastion"              = $true
     "Verbose"              = $true
 }
 
