@@ -459,6 +459,7 @@ $Parameters = @{
     "AdminCredential"      = $AdminCredential
     "UserCredential"       = $UserCredential
     "VMSize"               = "Standard_D2s_v5"
+    "OSDiskType"           = "Premium_LRS"
     "Project"              = "avd"
     "Role"                 = "adds"
     "ADDomainName"         = "csa.fr"
