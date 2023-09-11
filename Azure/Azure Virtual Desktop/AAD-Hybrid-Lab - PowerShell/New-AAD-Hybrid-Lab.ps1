@@ -289,7 +289,7 @@ function New-AAD-Hybrid-Lab {
 
         Add-AzVirtualNetworkSubnetConfig -Name "AzureBastionSubnet" -VirtualNetwork $vNetwork -AddressPrefix $BastionSubnetAddressRange -NetworkSecurityGroupId $BastionNetworkSecurityGroup.Id | Set-AzVirtualNetwork
         $publicip = New-AzPublicIpAddress -ResourceGroupName $ResourceGroupName -name "$VirtualNetworkName-ip" -location "EastUS" -AllocationMethod Static -Sku Standard
-        New-AzBastion -ResourceGroupName $ResourceGroupName -Name "$VirtualNetworkName-bastion" -PublicIpAddressRgName $ResourceGroupName -PublicIpAddressName "$VirtualNetworkName-ip" -VirtualNetworkRgName $ResourceGroupName -VirtualNetworkName $VirtualNetworkName -Sku "Basic"
+        $BastionJob = New-AzBastion -ResourceGroupName $ResourceGroupName -Name "$VirtualNetworkName-bastion" -PublicIpAddressRgName $ResourceGroupName -PublicIpAddressName "$VirtualNetworkName-ip" -VirtualNetworkRgName $ResourceGroupName -VirtualNetworkName $VirtualNetworkName -Sku "Basic" -AsJob
 
         #Adding Security Rules for allowing connection from Bastion
         #RDP
@@ -298,7 +298,7 @@ function New-AAD-Hybrid-Lab {
         Set-AzNetworkSecurityGroup
         #SSH
         Get-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Name $NetworkSecurityGroupName | `
-        Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_SSH -Description "Allow SSH Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange 22 -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 100 -Direction Inbound 
+        Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_SSH -Description "Allow SSH Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange 22 -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 100 -Direction Inbound | ` 
         Set-AzNetworkSecurityGroup
     }
     
@@ -443,6 +443,11 @@ function New-AAD-Hybrid-Lab {
     }
     #endregion
 
+    if ($null -ne $BastionJob)
+    {
+        Write-Verbose -Message "Waiting the creation of the Bastion completes ..."
+        $BastionJob | Wait-Job | Out-Null
+    }
     # Adding Credentials to the Credential Manager (and escaping the password)
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDN /user:$($AdminCredential.UserName) /pass:$($AdminCredential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
 
