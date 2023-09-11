@@ -246,7 +246,7 @@ function New-AAD-Hybrid-Lab {
         #endregion
         #>
     )
-
+    
     $NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NetworkSecurityGroupName -SecurityRules $SecurityRules -Force
 
     #Steps 4 + 5: Create Azure Virtual network using the virtual network subnet configuration
@@ -256,8 +256,8 @@ function New-AAD-Hybrid-Lab {
     $vNetwork = Set-AzVirtualNetwork -VirtualNetwork $vNetwork
     $Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $vNetwork
 
-    if ($Bastion)
-    {
+    if ($Bastion) {
+        
         #Generation Bastion Subnet Address Range by getting the subnets and finding the third token available in the IP.
         $ThirdToken = (Get-AzVirtualNetwork -Name $VirtualNetworkName).Subnets.AddressPrefix -replace "\d+\.\d+\.(\d+)\.\d\/.*", '$1' | Sort-Object
         $ThirdTokenAvailable = 1..254 | Where-Object -FilterScript {$_ -notin $ThirdToken}
@@ -265,9 +265,41 @@ function New-AAD-Hybrid-Lab {
         $BastionSubnetAddressRange -match '(\d+)\.(\d+)\.(\d+)\.(\d+)/(\d+)'
         #$BastionSubnetAddressRange = "{0}.{1}.{2}.0/26" -f $Matches[1], $Matches[2], ([int]$Matches[3]+1)
         $BastionSubnetAddressRange = "{0}.{1}.{2}.0/26" -f $Matches[1], $Matches[2], $ThirdTokenAvailable[0]
-        Add-AzVirtualNetworkSubnetConfig -Name "AzureBastionSubnet" -VirtualNetwork $vNetwork -AddressPrefix $BastionSubnetAddressRange | Set-AzVirtualNetwork
+
+        $BastionSecurityRules = @(
+            #From https://learn.microsoft.com/en-us/azure/bastion/bastion-nsg#apply
+            #region Inbound
+            New-AzNetworkSecurityRuleConfig -Name AllowHttpsInBound -Description "Allow Https InBound" -Protocol Tcp -SourcePortRange * -DestinationPortRange 443 -SourceAddressPrefix 'Internet' -DestinationAddressPrefix * -Access Allow  -Priority 120 -Direction Inbound 
+            New-AzNetworkSecurityRuleConfig -Name AllowGatewayManagerInBound -Description "Allow Gateway Manager InBound" -Protocol Tcp -SourcePortRange * -DestinationPortRange 443 -SourceAddressPrefix 'GatewayManager' -DestinationAddressPrefix * -Access Allow  -Priority 130 -Direction Inbound 
+            New-AzNetworkSecurityRuleConfig -Name AllowAzureLoadBalancerInBound -Description "AllowAzureLoad Balancer InBound" -Protocol Tcp -SourcePortRange * -DestinationPortRange 443 -SourceAddressPrefix 'AzureLoadBalancer' -DestinationAddressPrefix * -Access Allow  -Priority 140 -Direction Inbound 
+            New-AzNetworkSecurityRuleConfig -Name AllowBastionHostcommunication -Description "Allow Azure LoadBalancer" -Protocol * -SourcePortRange * -DestinationPortRange 8080,5701 -SourceAddressPrefix 'VirtualNetwork' -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 150 -Direction Inbound 
+            #endregion
+            #region Outbound
+            New-AzNetworkSecurityRuleConfig -Name AllowSshRdpOutBound -Description 'Allow Ssh Rdp OutBound' -SourceAddressPrefix * -SourcePortRange * -DestinationAddressPrefix 'VirtualNetwork' -DestinationPortRange 22,3389 -Protocol * -Access Allow -Priority 100 -Direction Outbound 
+            New-AzNetworkSecurityRuleConfig -Name AllowAzureCloudOutBound -Description 'Allow Azure Cloud OutBound' -SourceAddressPrefix * -SourcePortRange * -DestinationAddressPrefix 'AzureCloud' -DestinationPortRange 443 -Protocol Tcp -Access Allow -Priority 110 -Direction Outbound 
+            New-AzNetworkSecurityRuleConfig -Name AllowBastionCommunication -Description 'Allow Bastion Communication' -SourceAddressPrefix 'VirtualNetwork' -SourcePortRange * -DestinationAddressPrefix 'VirtualNetwork' -DestinationPortRange 8080,5071 -Protocol * -Access Allow -Priority 120 -Direction Outbound 
+            New-AzNetworkSecurityRuleConfig -Name AllowGetSessionInformation -Description 'Allow Get Session Information' -SourceAddressPrefix * -SourcePortRange * -DestinationAddressPrefix 'Internet' -DestinationPortRange 80 -Protocol * -Access Allow -Priority 130 -Direction Outbound 
+            #endregion
+            #>
+        )
+        $BastionNetworkSecurityGroupName = '{0}-bastion-{1}-{2}-{3}-{4:D3}' -f $NetworkSecurityGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
+        Write-Verbose "`$BastionNetworkSecurityGroupName: $BastionNetworkSecurityGroupName"         
+
+        $BastionNetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $BastionNetworkSecurityGroupName -SecurityRules $BastionSecurityRules -Force
+
+        Add-AzVirtualNetworkSubnetConfig -Name "AzureBastionSubnet" -VirtualNetwork $vNetwork -AddressPrefix $BastionSubnetAddressRange -NetworkSecurityGroupId $BastionNetworkSecurityGroup.Id | Set-AzVirtualNetwork
         $publicip = New-AzPublicIpAddress -ResourceGroupName $ResourceGroupName -name "$VirtualNetworkName-ip" -location "EastUS" -AllocationMethod Static -Sku Standard
         New-AzBastion -ResourceGroupName $ResourceGroupName -Name "$VirtualNetworkName-bastion" -PublicIpAddressRgName $ResourceGroupName -PublicIpAddressName "$VirtualNetworkName-ip" -VirtualNetworkRgName $ResourceGroupName -VirtualNetworkName $VirtualNetworkName -Sku "Basic"
+
+        #Adding Security Rules for allowing connection from Bastion
+        #RDP
+        Get-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Name $NetworkSecurityGroupName | `
+        Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_RDP -Description "Allow RDP Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange $RDPPort -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 100 -Direction Inbound | `
+        Set-AzNetworkSecurityGroup
+        #SSH
+        Get-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Name $NetworkSecurityGroupName | `
+        Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_SSH -Description "Allow SSH Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange 22 -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 100 -Direction Inbound 
+        Set-AzNetworkSecurityGroup
     }
     
     #Step 6: Create Azure Public Address
