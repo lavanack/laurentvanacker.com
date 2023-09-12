@@ -911,6 +911,8 @@ function New-AzWvdPooledHostPoolSetup {
     )
 
     begin {
+        $AzContext = Get-AzContext
+        $storageAccountEndpoint = $AzContext | Select-Object -ExpandProperty Environment | Select-Object -ExpandProperty StorageEndpointSuffix
         #region Get the vnet and subnet where this DC is connected to
         # Get the VM networking data
         $ThisDomainController = Get-AzVMCompute | Get-AzVM
@@ -1122,7 +1124,7 @@ function New-AzWvdPooledHostPoolSetup {
         #region Assigning the Desktop Virtualization Power On Contributor
         #From https://learn.microsoft.com/en-us/azure/virtual-desktop/start-virtual-machine-connect?tabs=azure-portal#assign-the-desktop-virtualization-power-on-contributor-role-with-the-azure-portal
         $objId = (Get-AzADServicePrincipal -AppId "9cdead84-a844-4324-93f2-b2e6bb768d07").Id
-        $SubscriptionId = (Get-AzContext).Subscription.Id
+        $SubscriptionId = $AzContext.Subscription.Id
         $Scope="/subscriptions/$SubscriptionId"
         if (-not(Get-AzRoleAssignment -RoleDefinitionName "Desktop Virtualization Power On Contributor" -Scope $Scope)) {
             Write-Verbose -Message "Assigning the 'Desktop Virtualization Power On Contributor' RBAC role to Service Principal '$objId' on the Subscription '$SubscriptionId' ..."
@@ -1214,9 +1216,9 @@ function New-AzWvdPooledHostPoolSetup {
 
             #region Dedicated GPO settings for FSLogix profiles for this HostPool 
             Write-Verbose -Message "Setting some 'FSLogix' related registry values for '$($CurrentPooledHostPoolFSLogixGPO.DisplayName)' GPO (linked to '$($CurrentPooledHostPoolOU.DistinguishedName)' OU) ..."
-            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\FSLogix\Profiles' -ValueName "VHDLocations" -Type ([Microsoft.Win32.RegistryValueKind]::MultiString) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles"
+            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\FSLogix\Profiles' -ValueName "VHDLocations" -Type ([Microsoft.Win32.RegistryValueKind]::MultiString) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint\profiles"
             #Use Redirections.xml. Be careful : https://twitter.com/JimMoyle/status/1247843511413755904w
-            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\FSLogix\Profiles' -ValueName "RedirXMLSourceFolder" -Type ([Microsoft.Win32.RegistryValueKind]::MultiString) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles"
+            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\FSLogix\Profiles' -ValueName "RedirXMLSourceFolder" -Type ([Microsoft.Win32.RegistryValueKind]::MultiString) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint\profiles"
             #endregion
 
             #region Microsoft Defender Endpoint A/V General Exclusions
@@ -1234,15 +1236,15 @@ function New-AzWvdPooledHostPoolSetup {
             #region Microsoft Defender Endpoint A/V Exclusions for this HostPool 
             #From https://learn.microsoft.com/en-us/fslogix/overview-prerequisites#configure-antivirus-file-and-folder-exclusions
             Write-Verbose -Message "Setting some 'Microsoft Defender Endpoint A/V Exclusions for this HostPool' related registry values for '$($CurrentPooledHostPoolFSLogixGPO.DisplayName)' GPO (linked to '$($CurrentPooledHostPoolOU.DistinguishedName)' OU) ..."
-            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHD" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHD"
-            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDLock" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHD.lock"
-            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDMeta" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHD.meta"
-            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDMetaData" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHD.metadata"
-            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDX" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHDX"
-            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDXLock" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHDX.lock"
-            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDXMeta" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHDX.meta"
-            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDXMetaData" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHDX.metadata"
-            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderCIM" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.CIM"
+            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHD" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint\profiles\*.VHD"
+            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDLock" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint\profiles\*.VHD.lock"
+            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDMeta" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint\profiles\*.VHD.meta"
+            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDMetaData" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint\profiles\*.VHD.metadata"
+            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDX" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint\profiles\*.VHDX"
+            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDXLock" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint\profiles\*.VHDX.lock"
+            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDXMeta" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint\profiles\*.VHDX.meta"
+            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDXMetaData" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint\profiles\*.VHDX.metadata"
+            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderCIM" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint\profiles\*.CIM"
             #endregion
 
             #region GPO "Local Users and Groups" Management via groups.xml
@@ -1366,7 +1368,7 @@ function New-AzWvdPooledHostPoolSetup {
 
             # Save the password so the drive 
             Write-Verbose -Message "Saving the credentials for accessing to the Storage Account '$CurrentPooledHostPoolStorageAccountName' in the Windows Credential Manager ..."
-            Start-Process -FilePath $env:ComSpec -ArgumentList "/c", "cmdkey /add:`"$CurrentPooledHostPoolStorageAccountName.file.core.windows.net`" /user:`"localhost\$CurrentPooledHostPoolStorageAccountName`" /pass:`"$($CurrentPooledHostPoolStorageAccountKey.Value)`""
+            Start-Process -FilePath $env:ComSpec -ArgumentList "/c", "cmdkey /add:`"$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint`" /user:`"localhost\$CurrentPooledHostPoolStorageAccountName`" /pass:`"$($CurrentPooledHostPoolStorageAccountKey.Value)`""
 
             #region Private endpoint for Storage Setup
             #From https://learn.microsoft.com/en-us/azure/private-link/create-private-endpoint-powershell?tabs=dynamic-ip#create-a-private-endpoint
@@ -1382,7 +1384,7 @@ function New-AzWvdPooledHostPoolSetup {
 
             ## Create the private DNS zone. ##
             Write-Verbose -Message "Creating the Private DNS Zone for the Storage Account '$CurrentPooledHostPoolStorageAccountName' (in the '$($ThisDomainController.ResourceGroupName)' Resource Group) ..."
-            $PrivateDnsZoneName = 'privatelink.file.core.windows.net'
+            $PrivateDnsZoneName = "privatelink.file.$storageAccountEndpoint"
             $PrivateDnsZone = Get-AzPrivateDnsZone -ResourceGroupName $ThisDomainController.ResourceGroupName -Name $PrivateDnsZoneName -ErrorAction Ignore
             if ($PrivateDnsZone -eq $null)
             {
@@ -1409,6 +1411,10 @@ function New-AzWvdPooledHostPoolSetup {
             Write-Verbose -Message "Creating the Private DNS Zone Group in the Specified Private Endpoint '$PrivateEndpointName' (in the '$CurrentPooledHostPoolResourceGroupName' Resource Group) ..."
             $PrivateDnsZoneGroup = New-AzPrivateDnsZoneGroup -ResourceGroupName $CurrentPooledHostPoolResourceGroupName -PrivateEndpointName $PrivateEndpointName -Name 'default' -PrivateDnsZoneConfig $PrivateDnsZoneConfig
 
+            #Adding Dns Server Conditional Forwarder Zone
+            Write-Verbose -Message "Adding Dns Server Conditional Forwarder Zone for '$storageAccountEndpoint' ..."
+            Add-DnsServerConditionalForwarderZone -Name $storageAccountEndpoint -MasterServers "168.63.129.16"
+
             #Storage Account - Disabling Public Access
             #From https://www.jorgebernhardt.com/azure-storage-public-access/
             #From https://learn.microsoft.com/en-us/azure/storage/common/storage-network-security?tabs=azure-powershell#change-the-default-network-access-rule
@@ -1427,7 +1433,7 @@ function New-AzWvdPooledHostPoolSetup {
                 $CurrentPooledHostPoolStorageAccountShare = New-AzRmStorageShare -ResourceGroupName $CurrentPooledHostPoolResourceGroupName -StorageAccountName $CurrentPooledHostPoolStorageAccountName -Name $CurrentPooledHostPoolShareName -AccessTier Hot -QuotaGiB 200
 
                 # Mount the share
-                $null = New-PSDrive -Name Z -PSProvider FileSystem -Root "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\$CurrentPooledHostPoolShareName"
+                $null = New-PSDrive -Name Z -PSProvider FileSystem -Root "\\$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint\$CurrentPooledHostPoolShareName"
 
                 #region NTFS permissions for FSLogix
                 #From https://blue42.net/windows/changing-ntfs-security-permissions-using-powershell/
@@ -1520,7 +1526,6 @@ function New-AzWvdPooledHostPoolSetup {
 
                 #region RBAC Management
                 #Constrain the scope to the target file share
-                $AzContext = Get-AzContext
                 $SubscriptionId = $AzContext.Subscription.Id
                 $Scope = "/subscriptions/$SubscriptionId/resourceGroups/$CurrentPooledHostPoolResourceGroupName/providers/Microsoft.Storage/storageAccounts/$CurrentPooledHostPoolStorageAccountName/fileServices/default/fileshares/$CurrentPooledHostPoolShareName"
 
@@ -1663,15 +1668,15 @@ function New-AzWvdPooledHostPoolSetup {
             #region Microsoft Defender Endpoint A/V Exclusions for this HostPool 
             #From https://learn.microsoft.com/en-us/fslogix/overview-prerequisites#configure-antivirus-file-and-folder-exclusions
             Write-Verbose -Message "Setting some 'Microsoft Defender Endpoint A/V Exclusions for this HostPool' related registry values for '$($CurrentPooledHostPoolMSIXGPO.DisplayName)' GPO (linked to '$($CurrentPooledHostPoolOU.DistinguishedName)' OU) ..."
-            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHD" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHD"
-            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDLock" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHD.lock"
-            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDMeta" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHD.meta"
-            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDMetaData" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHD.metadata"
-            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDX" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHDX"
-            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDXLock" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHDX.lock"
-            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDXMeta" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHDX.meta"
-            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDXMetaData" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.VHDX.metadata"
-            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderCIM" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\profiles\*.CIM"
+            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHD" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint\profiles\*.VHD"
+            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDLock" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint\profiles\*.VHD.lock"
+            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDMeta" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint\profiles\*.VHD.meta"
+            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDMetaData" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint\profiles\*.VHD.metadata"
+            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDX" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint\profiles\*.VHDX"
+            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDXLock" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint\profiles\*.VHDX.lock"
+            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDXMeta" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint\profiles\*.VHDX.meta"
+            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDXMetaData" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint\profiles\*.VHDX.metadata"
+            $null = Set-GPRegistryValue -Name $CurrentPooledHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderCIM" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint\profiles\*.CIM"
             #endregion
 
             #endregion
@@ -1716,7 +1721,7 @@ function New-AzWvdPooledHostPoolSetup {
 
             # Save the password so the drive 
             Write-Verbose -Message "Saving the credentials for accessing to the Storage Account '$CurrentPooledHostPoolStorageAccountName' in the Windows Credential Manager ..."
-            Start-Process -FilePath $env:ComSpec -ArgumentList "/c", "cmdkey /add:`"$CurrentPooledHostPoolStorageAccountName.file.core.windows.net`" /user:`"localhost\$CurrentPooledHostPoolStorageAccountName`" /pass:`"$($CurrentPooledHostPoolStorageAccountKey.Value)`""
+            Start-Process -FilePath $env:ComSpec -ArgumentList "/c", "cmdkey /add:`"$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint`" /user:`"localhost\$CurrentPooledHostPoolStorageAccountName`" /pass:`"$($CurrentPooledHostPoolStorageAccountKey.Value)`""
 
             #region Private endpoint for Storage Setup
             #From https://learn.microsoft.com/en-us/azure/private-link/create-private-endpoint-powershell?tabs=dynamic-ip#create-a-private-endpoint
@@ -1731,7 +1736,7 @@ function New-AzWvdPooledHostPoolSetup {
             $PrivateEndpoint = New-AzPrivateEndpoint -Name $PrivateEndpointName -ResourceGroupName $CurrentPooledHostPoolResourceGroupName -Location $ThisDomainControllerVirtualNetwork.Location -Subnet $ThisDomainControllerSubnet -PrivateLinkServiceConnection $PrivateLinkServiceConnection -CustomNetworkInterfaceName $("{0}-nic" -f $PrivateEndpointName) -Force
 
             ## Create the private DNS zone. ##
-            $PrivateDnsZoneName = 'privatelink.file.core.windows.net'
+            $PrivateDnsZoneName = "privatelink.file.$storageAccountEndpoint"
             $PrivateDnsZone = Get-AzPrivateDnsZone -ResourceGroupName $ThisDomainController.ResourceGroupName -Name $PrivateDnsZoneName -ErrorAction Ignore
             if ($PrivateDnsZone -eq $null)
             {
@@ -1777,10 +1782,10 @@ function New-AzWvdPooledHostPoolSetup {
                 $CurrentPooledHostPoolStorageShare = New-AzRmStorageShare -ResourceGroupName $CurrentPooledHostPoolResourceGroupName -StorageAccountName $CurrentPooledHostPoolStorageAccountName -Name $CurrentPooledHostPoolShareName -AccessTier Hot -QuotaGiB 200
 
                 # Copying the  Demo MSIX Packages from my dedicated GitHub repository
-                $MSIXDemoPackages = Copy-MSIXDemoPackage -Destination "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\$CurrentPooledHostPoolShareName"
+                $MSIXDemoPackages = Copy-MSIXDemoPackage -Destination "\\$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint\$CurrentPooledHostPoolShareName"
 
                 # Mount the share
-                $null = New-PSDrive -Name Z -PSProvider FileSystem -Root "\\$CurrentPooledHostPoolStorageAccountName.file.core.windows.net\$CurrentPooledHostPoolShareName"
+                $null = New-PSDrive -Name Z -PSProvider FileSystem -Root "\\$CurrentPooledHostPoolStorageAccountName.file.$storageAccountEndpoint\$CurrentPooledHostPoolShareName"
 
                 #region NTFS permissions for MSIX
                 #From https://docs.microsoft.com/en-us/azure/virtual-desktop/app-attach-file-share#how-to-set-up-the-file-share
@@ -1847,7 +1852,6 @@ function New-AzWvdPooledHostPoolSetup {
 
                 #region RBAC Management
                 #Constrain the scope to the target file share
-                $AzContext = Get-AzContext
                 $SubscriptionId = $AzContext.Subscription.Id
                 $Scope = "/subscriptions/$SubscriptionId/resourceGroups/$CurrentPooledHostPoolResourceGroupName/providers/Microsoft.Storage/storageAccounts/$CurrentPooledHostPoolStorageAccountName/fileServices/default/fileshares/$CurrentPooledHostPoolShareName"
 
@@ -2167,7 +2171,6 @@ function New-AzWvdPooledHostPoolSetup {
             #region Publishing MSIX apps to an application group
             #From https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-powershell#publish-msix-apps-to-an-application-group
             #Publishing MSIX application to a desktop application group
-            $AzContext = Get-AzContext
             $SubscriptionId = $AzContext.Subscription.Id
             $null = New-AzWvdApplication -ResourceGroupName $CurrentPooledHostPoolResourceGroupName -SubscriptionId $SubscriptionId -Name $obj.PackageName -ApplicationType MsixApplication  -ApplicationGroupName $CurrentAzDesktopApplicationGroup.Name -MsixPackageFamilyName $obj.PackageFamilyName -CommandLineSetting 0
             
@@ -2425,7 +2428,6 @@ Clear-Host
 $StartTime = Get-Date
 $Error.Clear()
 #From https://aka.ms/azps-changewarnings: Disabling breaking change warning messages in Azure PowerShell
-$null = Update-AzConfig -DisplayBreakingChangeWarning $false
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
@@ -2448,25 +2450,7 @@ if (-not([String]::IsNullOrEmpty($MissingModules)))
 {
     Install-Module -Name $MissingModules -AllowClobber -Force
 }
-
-#region Azure Provider Registration
-#To use Azure Virtual Desktop, you have to register for the providers and to ensure that RegistrationState will be set to Registered.
-$null = Register-AzResourceProvider -ProviderNamespace Microsoft.DesktopVirtualization
-$null = Register-AzResourceProvider -ProviderNamespace Microsoft.Insights
-$null = Register-AzResourceProvider -ProviderNamespace Microsoft.VirtualMachineImages
-$null = Register-AzResourceProvider -ProviderNamespace Microsoft.Storage
-$null = Register-AzResourceProvider -ProviderNamespace Microsoft.Compute
-$null = Register-AzResourceProvider -ProviderNamespace Microsoft.KeyVault
-$null = Register-AzResourceProvider -ProviderNamespace Microsoft.ManagedIdentity
-#Important: Wait until RegistrationState is set to Registered. 
-While (Get-AzResourceProvider -ProviderNamespace Microsoft.DesktopVirtualization, Microsoft.Insights, Microsoft.VirtualMachineImages, Microsoft.Storage, Microsoft.Compute, Microsoft.KeyVault, Microsoft.ManagedIdentity | Where-Object -FilterScript {$_.RegistrationState -ne 'Registered'})
-{
-    Write-Verbose -Message "Sleeping 10 seconds ..."
-    Start-Sleep -Seconds 10
-}
-
-
-#endregion
+$null = Update-AzConfig -DisplayBreakingChangeWarning $false
 
 #region Azure Connection
 if (-not(Get-AzContext))
@@ -2474,6 +2458,23 @@ if (-not(Get-AzContext))
     Connect-AzAccount
     Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
 }
+#endregion
+
+#region Azure Provider Registration
+#To use Azure Virtual Desktop, you have to register for the providers and to ensure that RegistrationState will be set to Registered.
+$RequiredResourceProviders = "Microsoft.DesktopVirtualization", "Microsoft.Insights", "Microsoft.VirtualMachineImages", "Microsoft.Storage", "Microsoft.Compute", "Microsoft.KeyVault", "Microsoft.ManagedIdentity"
+foreach ($CurrentRequiredResourceProvider in $RequiredResourceProviders)
+{
+    $null = Register-AzResourceProvider -ProviderNamespace $CurrentRequiredResourceProvider -AsJob
+}
+#Important: Wait until RegistrationState is set to Registered. 
+While (Get-AzResourceProvider -ProviderNamespace $RequiredResourceProviders | Where-Object -FilterScript {$_.RegistrationState -ne 'Registered'})
+{
+    Write-Verbose -Message "Sleeping 10 seconds ..."
+    Start-Sleep -Seconds 10
+}
+
+
 #endregion
 
 #region Installling FSLogix GPO Setting
