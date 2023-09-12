@@ -88,10 +88,10 @@ Set-LabInstallationCredential -Username $Logon -Password $ClearTextPassword
 $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:Network'         = $LabName
     'Add-LabMachineDefinition:DomainName'      = $FQDNDomainName
-    'Add-LabMachineDefinition:MinMemory'       = 1GB
-    'Add-LabMachineDefinition:MaxMemory'       = 2GB
-    'Add-LabMachineDefinition:Memory'          = 2GB
-    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Datacenter (Desktop Experience)'
+    'Add-LabMachineDefinition:MinMemory'       = 2GB
+    'Add-LabMachineDefinition:MaxMemory'       = 4GB
+    'Add-LabMachineDefinition:Memory'          = 4GB
+    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2022 Datacenter (Desktop Experience)'
     #'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2012 R2 Datacenter (Server with a GUI)'
     'Add-LabMachineDefinition:Processors'      = 2
 }
@@ -105,7 +105,7 @@ $PULLNetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switc
 #Domain controller + Certificate Authority
 Add-LabMachineDefinition -Name DC -Roles RootDC, CARoot -IpAddress $DCIPv4Address
 #PULL Server
-Add-LabMachineDefinition -Name PULL -NetworkAdapter $PULLNetAdapter -Memory 4GB -MinMemory 2GB -MaxMemory 4GB #-Processors 4
+Add-LabMachineDefinition -Name PULL -NetworkAdapter $PULLNetAdapter #-Memory 4GB -MinMemory 2GB -MaxMemory 4GB #-Processors 4
 #Member server
 Add-LabMachineDefinition -Name MS1 -IpAddress $MS1IPv4Address
 #Member server
