@@ -316,8 +316,6 @@ Publish-AzVMDscConfiguration $DSCFilePath -ResourceGroupName $ResourceGroupName 
 
 #region Private Endpoint Setup
 #From https://learn.microsoft.com/en-us/azure/private-link/create-private-endpoint-powershell?tabs=dynamic-ip#create-a-private-endpoint
-#From https://www.jorgebernhardt.com/private-endpoint-azure-key-vault-powershell/
-#From https://ystatit.medium.com/azure-key-vault-with-azure-service-endpoints-and-private-link-part-1-bcc84b4c5fbc
 ## Create the private endpoint connection. ## 
 $GroupId = (Get-AzPrivateLinkResource -PrivateLinkResourceId $StorageAccount.Id).GroupId | Where-Object -FilterScript { $_ -match "blob" }
 $StorageAccountPrivateLinkServiceConnection = New-AzPrivateLinkServiceConnection -Name $StorageAccountPrivateEndpointName -PrivateLinkServiceId $StorageAccount.Id -GroupId $GroupId
