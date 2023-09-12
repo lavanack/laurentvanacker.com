@@ -476,7 +476,7 @@ Register-ArgumentCompleter -CommandName New-AAD-Hybrid-BCDR-Lab -ParameterName L
 
 #region Example #1
 #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Verbose
-Get-PackageProvider -Name NuGet -Force -Verbose
+$null = Get-PackageProvider -Name NuGet -Force -Verbose
 $RequiredModules = 'ActiveDirectoryDSC', 'NetworkingDSC', 'ComputerManagementDSC'
 $InstalledModule = Get-InstalledModule -Name $RequiredModules -ErrorAction Ignore
 if (-not([String]::IsNullOrEmpty($InstalledModule))) {
