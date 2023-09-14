@@ -1411,9 +1411,13 @@ function New-AzWvdPooledHostPoolSetup {
             Write-Verbose -Message "Creating the Private DNS Zone Group in the Specified Private Endpoint '$PrivateEndpointName' (in the '$CurrentPooledHostPoolResourceGroupName' Resource Group) ..."
             $PrivateDnsZoneGroup = New-AzPrivateDnsZoneGroup -ResourceGroupName $CurrentPooledHostPoolResourceGroupName -PrivateEndpointName $PrivateEndpointName -Name 'default' -PrivateDnsZoneConfig $PrivateDnsZoneConfig
 
-            #Adding Dns Server Conditional Forwarder Zone
-            Write-Verbose -Message "Adding Dns Server Conditional Forwarder Zone for '$storageAccountEndpoint' ..."
-            Add-DnsServerConditionalForwarderZone -Name $storageAccountEndpoint -MasterServers "168.63.129.16"
+            if ($null -eq (Get-DnsServerZone -Name $storageAccountEndpoint -ErrorAction Ignore))
+            {
+                #Adding Dns Server Conditional Forwarder Zone
+                Write-Verbose -Message "Adding Dns Server Conditional Forwarder Zone for '$storageAccountEndpoint' ..."
+                #From https://learn.microsoft.com/en-us/azure/virtual-network/what-is-ip-address-168-63-129-16
+                Add-DnsServerConditionalForwarderZone -Name $storageAccountEndpoint -MasterServers "168.63.129.16"
+            }
 
             #Storage Account - Disabling Public Access
             #From https://www.jorgebernhardt.com/azure-storage-public-access/
@@ -2528,7 +2532,7 @@ $AzureComputeGallery = New-AzureComputeGallery -Verbose
 $VMSourceImageId = (Get-AzGalleryImageDefinition -GalleryName $AzureComputeGallery.Name -ResourceGroupName $AzureComputeGallery.ResourceGroupName).Id | Get-Random
 Write-Verbose "Random VM Source Image Id for the ACG Host Pool: $VMSourceImageId"
 $PooledHostPools = @(
-    [PSCustomObject]@{Name = "hp-ad-demo-mp-001"; Location = "EastUS"; MaxSessionLimit = 5; NamePrefix = "MP"; VMNumberOfInstances = 2; LocalAdminCredential=$LocalAdminCredential; ADDomainJoinCredential=$ADDomainJoinCredential; VMSize="Standard_D2s_v3"; ImagePublisherName="microsoftwindowsdesktop"; ImageOffer="office-365";ImageSku = "win11-22h2-avd-m365" }
+    [PSCustomObject]@{Name = "hp-ad-demo-amp-eu-001"; Location = "EastUS"; MaxSessionLimit = 5; NamePrefix = "AMP"; VMNumberOfInstances = 2; LocalAdminCredential=$LocalAdminCredential; ADDomainJoinCredential=$ADDomainJoinCredential; VMSize="Standard_D2s_v3"; ImagePublisherName="microsoftwindowsdesktop"; ImageOffer="office-365";ImageSku = "win11-22h2-avd-m365" }
     [PSCustomObject]@{Name = "hp-ad-demo-acg-eu-001"; Location = "EastUS"; MaxSessionLimit = 5; NamePrefix = "ACG"; VMNumberOfInstances = 2; LocalAdminCredential=$LocalAdminCredential; ADDomainJoinCredential=$ADDomainJoinCredential; VMSize="Standard_D2s_v3"; VMSourceImageId=$VMSourceImageId }
 )
 #>
