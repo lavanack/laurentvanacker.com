@@ -116,7 +116,6 @@ Copy-LabFileItem -Path $CurrentDir\MSIX -ComputerName $Client -DestinationFolder
 Restart-LabVM $Client -Wait
 
 Invoke-LabCommand -ActivityName "Installing winget and 'MSIX Packaging Tool'" -ComputerName $Client -ScriptBlock {
-    Set-WinUserLanguageList -LanguageList fr-fr -Force
     #region Installing winget via the WingetTools Powershell module
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
     Install-Module -Name WingetTools -Force -Verbose
@@ -125,6 +124,7 @@ Invoke-LabCommand -ActivityName "Installing winget and 'MSIX Packaging Tool'" -C
 
     $CommandLine = 'winget install "MSIX Packaging Tool" --source msstore --accept-source-agreements --accept-package-agreements'
     Start-Process -FilePath $env:ComSpec -ArgumentList "/c", $CommandLine -Wait
+    Set-WinUserLanguageList -LanguageList fr-fr -Force
 }
 
 Show-LabDeploymentSummary -Detailed
