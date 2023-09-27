@@ -400,7 +400,7 @@ Configuration AutomatedLabSetupDSC {
             }
  
             TestScript = {
-                return (Test-Path -Path "C:\Program Files\Microsoft VS Code\Code.exe" -PathType Leaf)
+                return (Test-Path -Path "$($env:ProgramFiles)\Microsoft VS Code\Code.exe" -PathType Leaf)
             }
             DependsOn  = @("[Script]InstallPowerShellCrossPlatform", "[Package]InstallGit")
             PsDscRunAsCredential = $Credential
