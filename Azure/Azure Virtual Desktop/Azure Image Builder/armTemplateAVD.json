@@ -62,13 +62,6 @@
                     },
                     {
                         "type": "PowerShell",
-                        "name": "Disable AutoUpdates",
-                        "runElevated": true,
-                        "runAsSystem": true,
-                        "scriptUri": "https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-07-31/DisableAutoUpdates.ps1"
-                    },
-                    {
-                        "type": "PowerShell",
                         "name": "Install Visual Studio Code",
                         "runElevated": true,
                         "runAsSystem": true,
@@ -82,6 +75,13 @@
                             "include:$true"
                                     ],
                         "updateLimit": 40
+                    },
+                    {
+                        "type": "PowerShell",
+                        "name": "Disable AutoUpdates",
+                        "runElevated": true,
+                        "runAsSystem": true,
+                        "scriptUri": "https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-07-31/DisableAutoUpdates.ps1"
                     }
 
             ],
