@@ -9,7 +9,7 @@ This is lab is based on the the one available on [https://aka.ms/m365avdws](http
 * Adding the BGInfo extension
 * The DSC Configuration has been optimized to use the latest version of the DSC modules (xActiveDirectory --> ActiveDirectoryDSC, xNetworking --> NetworkingDSC and xComputerManagement --> ComputerManagementDSC) and the Script DSC resources used return the right boolean value (instead of hard-coded $false value)
 * Added an (empty) AVD Organizational Unit (for my needs)
-* [https://code.visualstudio.com/](Visual Studio Code) and [https://github.com/PowerShell/PowerShell/](PowerShell (7+)) are also installed.
+* [Visual Studio Code](https://code.visualstudio.com) and [PowerShell (7+)](https://github.com/PowerShell/PowerShell) are also installed.
 
 ## Quick Start
 
