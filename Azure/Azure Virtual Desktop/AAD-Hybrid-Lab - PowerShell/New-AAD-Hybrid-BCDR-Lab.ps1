@@ -53,8 +53,10 @@ function New-AAD-Hybrid-BCDR-Lab {
         [parameter(Mandatory = $false, HelpMessage = 'The IP Addresses assigned to the domain controllers (a, b). Remember the first IP in a subnet is .4 e.g. 10.0.0.0/16 reserves 10.0.0.0-3. Specify one IP per server - must match numberofVMInstances or deployment will fail.')]
         [ValidatePattern("\d{1,3}\.\d{1,3}.\d{1,3}.\d{1,3}")] 
         [string] $DomainControllerIP = '10.1.1.4',
+        [parameter(Mandatory = $false, HelpMessage = 'The instance number for your deployment.')]
         [ValidateScript({ $_ -in 0..999 })] 
         [int] $Instance = $(Get-Random -Minimum 0 -Maximum 1000),
+        [parameter(Mandatory = $false, HelpMessage = 'The Azure location where you want to deploy your ressources.')]
         [ValidateScript({ $_ -in $((Get-AzLocation).Location) })] 
         [string] $Location = "eastus2",
         [switch] $Spot,
@@ -76,20 +78,11 @@ function New-AAD-Hybrid-BCDR-Lab {
     Write-Verbose "`$Bastion: $Bastion"
 
     #region Defining variables 
-    $SubscriptionName = "Cloud Solution Architect"
     #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
     $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
     $ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/main/src/repository/resourcelocations.json
     $shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @{Name = 'Location'; Expression = { $AzLocation[$_.name].Location } } | Where-Object -FilterScript { $_.Location } | Group-Object -Property Location -AsHashTable -AsString
     #endregion
-
-    # Login to your Azure subscription.
-    While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName)) {
-        Connect-AzAccount
-        Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
-        #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
-        #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
-    }
 
     $AzureVMNameMaxLength = 15
     $RDPPort = 3389
@@ -471,6 +464,15 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
+#region Azure Connection
+if (-not(Get-AzContext))
+{
+    Connect-AzAccount
+    Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
+    Write-Verbose -Message "Account : $((Get-AzContext).Account)"
+    Write-Verbose -Message "Subscription : $((Get-AzContext).Subscription.Name)"
+}
+#endregion
 $scriptBlock = { (Get-AzLocation).Location }
 Register-ArgumentCompleter -CommandName New-AAD-Hybrid-BCDR-Lab -ParameterName Location -ScriptBlock $scriptBlock
 
@@ -503,10 +505,10 @@ $Parameters = @{
     "ADSubnetAddressRange" = '10.1.1.0/24'
     "FirstDCIP"            = '10.0.1.4'
     "DomainControllerIP"   = '10.1.1.4'
-    "Instance"             = 001
+    "Instance"             = 1
     "Location"             = "eastus2"
-    "Spot"                 = $true
-    "Bastion"              = $true
+    "Spot"                 = $false
+    "Bastion"              = $false
     "Verbose"              = $true
 }
 

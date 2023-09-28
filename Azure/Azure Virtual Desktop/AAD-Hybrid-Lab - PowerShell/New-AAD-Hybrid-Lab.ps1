@@ -504,10 +504,8 @@ $Parameters = @{
     "OSDiskType"           = "Premium_LRS"
     "Project"              = "avd"
     "Role"                 = "adds"
-<#
     "ADDomainName"         = "csa.fr"
     "CustomUPNSuffix"      = "cloudsolutionarchitect.fr"
-#>
     "VNetAddressRange"     = '10.0.0.0/16'
     "ADSubnetAddressRange" = '10.0.1.0/24'
     "DomainControllerIP"   = '10.0.1.4'
