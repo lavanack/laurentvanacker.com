@@ -1,0 +1,74 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "dataCollectionRules_name": {
+            "type": "String"
+        },
+        "workspaces_externalid": {
+            "type": "String"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Insights/dataCollectionRules",
+            "apiVersion": "2022-06-01",
+            "name": "[parameters('dataCollectionRules_name')]",
+            "location": "eastus",
+            "properties": {
+                "description": "Data collection rule for VM Insights.",
+                "dataSources": {
+                    "performanceCounters": [
+                        {
+                            "streams": [
+                                "Microsoft-InsightsMetrics"
+                            ],
+                            "samplingFrequencyInSeconds": 60,
+                            "counterSpecifiers": [
+                                "\\VmInsights\\DetailedMetrics"
+                            ],
+                            "name": "VMInsightsPerfCounters"
+                        }
+                    ],
+                    "extensions": [
+                        {
+                            "streams": [
+                                "Microsoft-ServiceMap"
+                            ],
+                            "extensionName": "DependencyAgent",
+                            "extensionSettings": {},
+                            "name": "DependencyAgentDataSource"
+                        }
+                    ]
+                },
+                "destinations": {
+                    "logAnalytics": [
+                        {
+                            "workspaceResourceId": "[parameters('workspaces_externalid')]",
+                            "name": "VMInsightsPerf-Logs-Dest"
+                        }
+                    ]
+                },
+                "dataFlows": [
+                    {
+                        "streams": [
+                            "Microsoft-InsightsMetrics"
+                        ],
+                        "destinations": [
+                            "VMInsightsPerf-Logs-Dest"
+                        ]
+                    },
+                    {
+                        "streams": [
+                            "Microsoft-ServiceMap"
+                        ],
+                        "destinations": [
+                            "VMInsightsPerf-Logs-Dest"
+                        ]
+                    }
+                ]
+            }
+        }
+    ]
+}
