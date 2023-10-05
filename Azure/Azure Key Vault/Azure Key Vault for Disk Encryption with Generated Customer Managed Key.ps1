@@ -336,27 +336,29 @@ Write-Host -Object "Your RDP credentials (login/password) are $($Credential.User
 Stop-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName -Force
 
 #region Migrating from CMK to PMK
-Write-Host "Processing '$($VMOSDisk.Name)' OS Disk ..."
+Write-Host "[CMK -> PMK] Processing '$($VMOSDisk.Name)' OS Disk ..."
 $VMOSDisk = Get-AzDisk -Name (Get-AzVM -Name $VMName).StorageProfile.OsDisk.Name
-New-AzDiskUpdateConfig -EncryptionType "EncryptionAtRestWithPlatformKey" -DiskEncryptionSetId $null | Update-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $VMOSDisk.Name
+$null = New-AzDiskUpdateConfig -EncryptionType "EncryptionAtRestWithPlatformKey" -DiskEncryptionSetId $null | Update-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $VMOSDisk.Name
 
 $VMDataDisks = Get-AzDisk -Name (Get-AzVM -Name $VMName).StorageProfile.DataDisks.Name
-foreach ($CurrentVMDataDisk in $VMDataDisks) {
-    Write-Host "Processing '$($CurrentVMDataDisk.Name)' Data Disk ..."
-    New-AzDiskUpdateConfig -EncryptionType "EncryptionAtRestWithPlatformKey" -DiskEncryptionSetId $null | Update-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $CurrentVMDataDisk.Name
+foreach ($CurrentVMDataDisk in $VMDataDisks)
+{
+    Write-Host "[CMK -> PMK] Processing '$($CurrentVMDataDisk.Name)' Data Disk ..."
+    $null = New-AzDiskUpdateConfig -EncryptionType "EncryptionAtRestWithPlatformKey" -DiskEncryptionSetId $null | Update-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $CurrentVMDataDisk.Name
 }
 #endregion
 
 #region Migrating from PMK to CMK
 $DiskEncryptionSet = Get-AzDiskEncryptionSet -ResourceGroupName $ResourceGroupName -Name $DiskEncryptionSetName
  
-Write-Host "Processing '$($VMOSDisk.Name)' OS Disk ..."
+Write-Host "[PMK -> CMK] Processing '$($VMOSDisk.Name)' OS Disk ..."
 $VMOSDisk = Get-AzDisk -Name (Get-AzVM -Name $VMName).StorageProfile.OsDisk.Name
-New-AzDiskUpdateConfig -EncryptionType "EncryptionAtRestWithCustomerKey" -DiskEncryptionSetId $DiskEncryptionSet.Id | Update-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $VMOSDisk.Name
+$null = New-AzDiskUpdateConfig -EncryptionType "EncryptionAtRestWithCustomerKey" -DiskEncryptionSetId $DiskEncryptionSet.Id | Update-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $VMOSDisk.Name
 
 $VMDataDisks = Get-AzDisk -Name (Get-AzVM -Name $VMName).StorageProfile.DataDisks.Name
-foreach ($CurrentVMDataDisk in $VMDataDisks) {
-    Write-Host "Processing '$($CurrentVMDataDisk.Name)' Data Disk ..."
-    New-AzDiskUpdateConfig -EncryptionType "EncryptionAtRestWithCustomerKey" -DiskEncryptionSetId $DiskEncryptionSet.Id | Update-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $CurrentVMDataDisk.Name
+foreach ($CurrentVMDataDisk in $VMDataDisks)
+{
+    Write-Host "[PMK -> CMK] Processing '$($CurrentVMDataDisk.Name)' Data Disk ..."
+    $null = New-AzDiskUpdateConfig -EncryptionType "EncryptionAtRestWithCustomerKey" -DiskEncryptionSetId $DiskEncryptionSet.Id | Update-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $CurrentVMDataDisk.Name
 }
 #endregion
