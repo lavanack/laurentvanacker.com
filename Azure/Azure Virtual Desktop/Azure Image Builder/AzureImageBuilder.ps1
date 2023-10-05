@@ -17,6 +17,7 @@ of the Sample Code.
 #>
 #requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.ImageBuilder, Az.ManagedServiceIdentity, Az.Resources -RunAsAdministrator 
 
+#region Function definitions
 #FROM https://github.com/Azure/azvmimagebuilder/tree/main/solutions/14_Building_Images_WVD
 function New-AzureComputeGallery {
   [CmdletBinding()]
@@ -80,7 +81,6 @@ function New-AzureComputeGallery {
   #$Version = "1.0.0"
   $Version = Get-Date -UFormat "%Y.%m.%d"
   $Jobs = @()
-  #endregion
   #endregion
 
   # Create resource group
@@ -289,7 +289,7 @@ function New-AzureComputeGallery {
   Write-Verbose -Message "'$imageTemplateName01' LastRunStatusMessage: $($getStatus01.LastRunStatusMessage) "
   Write-Verbose -Message "'$imageTemplateName01' LastRunStatusRunSubState: $($getStatus01.LastRunStatusRunSubState) "
   Write-Verbose -Message "Removing Azure Image Builder Template for '$imageTemplateName01' ..."
-  $null = $getStatus01 | Remove-AzImageBuilderTemplate -AsJob
+  $Jobs += $getStatus01 | Remove-AzImageBuilderTemplate -AsJob
   Write-Verbose -Message "Removing '$aibRoleImageCreationPath' ..."
   Write-Verbose -Message "Removing '$templateFilePath' ..."
   Remove-Item -Path $aibRoleImageCreationPath, $templateFilePath -Force
@@ -308,9 +308,7 @@ function New-AzureComputeGallery {
   #endregion
 
   Write-Verbose -Message "Removing Azure Image Builder Template for '$imageTemplateName02' ..."
-  $null = $getStatus02 | Remove-AzImageBuilderTemplate -AsJob
-  Write-Verbose -Message "Removing jobs ..."
-  $Jobs | Remove-Job
+  $Jobs += $getStatus02 | Remove-AzImageBuilderTemplate -AsJob
   #endregion
 
   $EndTime = Get-Date
@@ -327,6 +325,9 @@ function New-AzureComputeGallery {
   #>
   #endregion
   
+  $Jobs | Wait-Job | Out-Null
+  Write-Verbose -Message "Removing jobs ..."
+  $Jobs | Remove-Job -Force
   return $Gallery
 }
 #endregion
@@ -355,20 +356,19 @@ While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName)) {
 #endregion
 
 #region To use Azure Image Builder, you have to register for the providers and to ensure that RegistrationState will be set to Registered.
-$null = Register-AzResourceProvider -ProviderNamespace Microsoft.VirtualMachineImages
-$null = Register-AzResourceProvider -ProviderNamespace Microsoft.Storage
-$null = Register-AzResourceProvider -ProviderNamespace Microsoft.Compute
-$null = Register-AzResourceProvider -ProviderNamespace Microsoft.KeyVault
-$null = Register-AzResourceProvider -ProviderNamespace Microsoft.ManagedIdentity
-
-#Important: Wait until RegistrationState is set to Registered. 
-While (Get-AzResourceProvider -ProviderNamespace Microsoft.VirtualMachineImages, Microsoft.Storage, Microsoft.Compute, Microsoft.KeyVault, Microsoft.ManagedIdentity | Where-Object -FilterScript { $_.RegistrationState -ne 'Registered' }) {
-  Write-Verbose -Message "Sleeping 10 seconds ..."
-  Start-Sleep -Seconds 10
+$RequiredResourceProviders = 'Microsoft.VirtualMachineImages', 'Microsoft.Storage', 'Microsoft.Compute', 'Microsoft.KeyVault', 'Microsoft.ManagedIdentity'
+$Jobs = foreach ($CurrentRequiredResourceProvider in $RequiredResourceProviders) {
+    Register-AzResourceProvider -ProviderNamespace $CurrentRequiredResourceProvider -AsJob
 }
+#Important: Wait until RegistrationState is set to Registered. 
+While (Get-AzResourceProvider -ProviderNamespace $RequiredResourceProviders | Where-Object -FilterScript { $_.RegistrationState -ne 'Registered' }) {
+    Write-Verbose -Message "Sleeping 10 seconds ..."
+    Start-Sleep -Seconds 10
+}
+$Jobs | Remove-Job -Force
+#endregion
 
 $AzureComputeGallery = New-AzureComputeGallery -Verbose
 $AzureComputeGallery
-(Get-AzGalleryImageDefinition -GalleryName $AzureComputeGallery.Name -ResourceGroupName $AzureComputeGallery.ResourceGroupName).Id | Get-Random
 #Remove-AzResourceGroup -Name $AzureComputeGallery.ResourceGroupName -Force -AsJob
 #endregion
