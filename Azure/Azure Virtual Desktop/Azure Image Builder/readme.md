@@ -25,3 +25,7 @@ Run the [AzureImageBuilder.ps1](AzureImageBuilder.ps1) script (PowerShell 5.1 ne
 * The second image is based on a market place image
   * Will use the latest Windows 11 Enterprise 22H2 with Microsoft 365 optimized [Azure Virtual Desktop](https://azure.microsoft.com/en-us/products/virtual-desktop) for image from the Azure Marketplace
   * [Visual Studio Code](https://code.visualstudio.com/) will be installed
+
+**Remarks:**
+
+The script [AzureImageBuilder with CMK.ps1](AzureImageBuilder%20with%20CMK.ps1) is an example to show how to use a customer-managed key to encrypt a VM Image Version. It was asked by a customer
