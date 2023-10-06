@@ -336,8 +336,8 @@ Write-Host -Object "Your RDP credentials (login/password) are $($Credential.User
 Stop-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName -Force
 
 #region Migrating from CMK to PMK
-Write-Host "[CMK -> PMK] Processing '$($VMOSDisk.Name)' OS Disk ..."
 $VMOSDisk = Get-AzDisk -Name (Get-AzVM -Name $VMName).StorageProfile.OsDisk.Name
+Write-Host "[CMK -> PMK] Processing '$($VMOSDisk.Name)' OS Disk ..."
 $null = New-AzDiskUpdateConfig -EncryptionType "EncryptionAtRestWithPlatformKey" -DiskEncryptionSetId $null | Update-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $VMOSDisk.Name
 
 $VMDataDisks = Get-AzDisk -Name (Get-AzVM -Name $VMName).StorageProfile.DataDisks.Name
@@ -351,8 +351,8 @@ foreach ($CurrentVMDataDisk in $VMDataDisks)
 #region Migrating from PMK to CMK
 $DiskEncryptionSet = Get-AzDiskEncryptionSet -ResourceGroupName $ResourceGroupName -Name $DiskEncryptionSetName
  
-Write-Host "[PMK -> CMK] Processing '$($VMOSDisk.Name)' OS Disk ..."
 $VMOSDisk = Get-AzDisk -Name (Get-AzVM -Name $VMName).StorageProfile.OsDisk.Name
+Write-Host "[PMK -> CMK] Processing '$($VMOSDisk.Name)' OS Disk ..."
 $null = New-AzDiskUpdateConfig -EncryptionType "EncryptionAtRestWithCustomerKey" -DiskEncryptionSetId $DiskEncryptionSet.Id | Update-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $VMOSDisk.Name
 
 $VMDataDisks = Get-AzDisk -Name (Get-AzVM -Name $VMName).StorageProfile.DataDisks.Name

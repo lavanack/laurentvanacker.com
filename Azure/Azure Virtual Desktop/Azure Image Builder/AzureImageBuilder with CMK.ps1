@@ -18,7 +18,6 @@ of the Sample Code.
 #requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.ImageBuilder, Az.ManagedServiceIdentity, Az.Resources -RunAsAdministrator 
 
 #region Function definitions
-#FROM https://github.com/Azure/azvmimagebuilder/tree/main/solutions/14_Building_Images_WVD
 function New-CMKDiskEncryptionSet {
 	[CmdletBinding()]
 	Param(
@@ -53,6 +52,7 @@ function New-CMKDiskEncryptionSet {
 	return $DiskEncryptionSet
 }
 
+#FROM https://github.com/Azure/azvmimagebuilder/tree/main/solutions/14_Building_Images_WVD
 function New-AzureComputeGallery {
 	[CmdletBinding()]
 	Param(
