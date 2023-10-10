@@ -15,13 +15,13 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules xPSDesiredStateConfiguration, ActiveDirectoryDsc, ComputerManagementDsc, SqlServerDsc -RunAsAdministrator 
+#requires -Version 5 -Modules ActiveDirectoryDsc, ComputerManagementDsc, SqlServerDsc -RunAsAdministrator 
 
 <#
 #Prerequisites
 Install-WindowsFeature -Name RSAT-AD-PowerShell -Verbose
 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-Install-Module -Name ActiveDirectoryDsc, xPSDesiredStateConfiguration, ComputerManagementDsc, SqlServerDsc -Force -AllowClobber
+Install-Module -Name ActiveDirectoryDsc, ComputerManagementDsc, SqlServerDsc -Force -AllowClobber
 #>
 
 Clear-Host
@@ -111,7 +111,6 @@ foreach ($CurrentModuleToCompress in $ModuleToCompress)
     Compress-Archive -Path $CurrentModuleBase -DestinationPath $ArchiveDestinationPath -Force -Verbose
     New-DscChecksum -Path $ArchiveDestinationPath
 }
-
 
 Get-ChildItem -Path $DscServiceConfigurationDirectory, $DscServiceModulesDirectory
 #endregion
