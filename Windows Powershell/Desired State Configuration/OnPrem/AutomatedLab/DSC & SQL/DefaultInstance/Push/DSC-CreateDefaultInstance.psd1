@@ -33,14 +33,12 @@
             SQLTCPPort = 1433
             #endregion
         },
-        # SQLNODE01 - First cluster node.
         @{
             # Replace with the name of the actual target node.
             NodeName = 'SQLNODE01'
          }
          <#
          ,
-         # SQLNODE02 - Second cluster node
          @{
             # Replace with the name of the actual target node.
             NodeName = 'SQLNODE02'
