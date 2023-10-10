@@ -136,7 +136,9 @@ Checkpoint-LabVM -SnapshotName $LabName -All -Verbose
 #Installing PowerBI Desktop on the SQL Server (or any machine in the lab)
 $PBIDesktopX64 = Get-LabInternetFile -Uri $PBIDesktopX64Uri -Path $labSources\SoftwarePackages -PassThru -Force
 
-Install-LabSoftwarePackage -ComputerName SQL01 -Path $PBIDesktopX64.FullName -CommandLine "-quiet -norestart LANGUAGE=en-us ACCEPT_EULA=1 INSTALLDESKTOPSHORTCUT=0" -AsJob
+$Jobs = @()
+$Jobs += Install-LabSoftwarePackage -ComputerName SQL01 -Path $PBIDesktopX64.FullName -CommandLine "-quiet -norestart LANGUAGE=en-us ACCEPT_EULA=1 INSTALLDESKTOPSHORTCUT=0" -AsJob
+
 #cf. https://docs.microsoft.com/en-us/archive/blogs/fieldcoding/visualize-dsc-reporting-with-powerbi#powerbi---the-interesting-part
 #Copying the DSC Dashboard on the machine where you have installed PowerBI Desktop 
 Copy-LabFileItem -Path "$CurrentDir\DSC Dashboard.pbix" -ComputerName SQL01
@@ -468,7 +470,7 @@ Invoke-LabCommand -ActivityName 'Updating the LCM Configuration to use the NLB V
     Add-LocalGroupMember -Group "Remote Desktop Users" -Member $using:StandardUsr
 }
 
-Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
+$Jobs | Wait-Job | Out-Null
 
 Show-LabDeploymentSummary -Detailed
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
