@@ -15,14 +15,29 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules ActiveDirectoryDsc, ComputerManagementDsc, SqlServerDsc -RunAsAdministrator 
+#requires -Version 5 #-Modules ActiveDirectoryDsc, ComputerManagementDsc, SqlServerDsc -RunAsAdministrator 
 
-<#
 #Prerequisites
-Install-WindowsFeature -Name RSAT-AD-PowerShell -Verbose
-Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-Install-Module -Name ActiveDirectoryDsc, ComputerManagementDsc, SqlServerDsc -Force -AllowClobber
-#>
+if (-not(Get-WindowsFeature -Name RSAT-AD-PowerShell).Installed)
+{
+    Install-WindowsFeature -Name RSAT-AD-PowerShell -Verbose
+}
+#Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+
+$null = Get-PackageProvider -Name NuGet -Force
+$RequiredModules = 'ActiveDirectoryDsc','ComputerManagementDsc', 'SqlServerDsc'
+$InstalledModule = Get-InstalledModule -Name $RequiredModules -ErrorAction Ignore
+if (-not([String]::IsNullOrEmpty($InstalledModule))) {
+    $MissingModules = (Compare-Object -ReferenceObject $RequiredModules -DifferenceObject $InstalledModule.Name).InputObject
+}
+else {
+    $MissingModules = $RequiredModules
+}
+if (-not([String]::IsNullOrEmpty($MissingModules))) {
+    Install-Module -Name $MissingModules -AllowClobber -Force
+}
+
+#Install-Module -Name ActiveDirectoryDsc, ComputerManagementDsc, SqlServerDsc -Force -AllowClobber
 
 Clear-Host
 $Error.Clear()

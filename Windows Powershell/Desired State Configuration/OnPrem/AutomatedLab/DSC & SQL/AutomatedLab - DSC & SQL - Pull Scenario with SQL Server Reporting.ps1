@@ -204,10 +204,10 @@ Copy-LabFileItem -Path "$CurrentDir\DSC Dashboard.pbix" -ComputerName PULL
 Copy-LabFileItem -Path "$CurrentDir\Get-DSC*.ps1" -ComputerName $SQLServerTargetNodes
 
 #Copying the DSC Script to the dedicated folder
-#Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath '*SQLFCICluster*') -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace
 Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "AG") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
 Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "FCI") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
 Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "DefaultInstance") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
+Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "DefaultInstance") -ComputerName PULL -DestinationFolderPath $WorkSpace -Recurse
 #endregion
 
 Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $AllLabVMs -ScriptBlock {
@@ -644,6 +644,7 @@ Invoke-LabCommand -ActivityName 'Clearing "Microsoft-Windows-Dsc/Operational" ev
 
 Show-LabDeploymentSummary -Detailed
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
+#Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All -Verbose
 
 $VerbosePreference = $PreviousVerbosePreference
 $ErrorActionPreference = $PreviousErrorActionPreference
