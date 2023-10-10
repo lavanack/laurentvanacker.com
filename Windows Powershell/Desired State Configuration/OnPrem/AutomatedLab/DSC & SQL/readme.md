@@ -59,7 +59,7 @@ Edit the [CreateClusterWithThreeNodes.ps1](FCI/CreateClusterWithThreeNodes.ps1) 
 **Notes** 
 * The [CreateClusterWithThreeNodes.ps1](FCI/CreateClusterWithThreeNodes.ps1) script is just the start script.
 * The [DSC-CreateCluster.ps1](FCI/DSC-CreateCluster.ps1) is the main script (where the magic happens - take a look into it) that will be called by the [CreateClusterWithThreeNodes.ps1](FCI/CreateClusterWithThreeNodes.ps1) script.
-* The [DSC-CreateClusterWithThreeNodes.psd1)](FCI/DSC-CreateClusterWithThreeNodes.psd1) file is the configuration data file.
+* The [DSC-CreateClusterWithThreeNodes.psd1](FCI/DSC-CreateClusterWithThreeNodes.psd1) file is the configuration data file.
 * After the deployment you'll have :
   
   * a 'Clusters' OU in the contoso.com domain with 2 dedicated computer account
@@ -68,3 +68,8 @@ Edit the [CreateClusterWithThreeNodes.ps1](FCI/CreateClusterWithThreeNodes.ps1) 
  ![](docs/cluadmin_1.jpg)
  ![](docs/cluadmin_2.jpg)
  ![](docs/sqlfci.jpg)
+
+
+
+**Remark(s)**
+The [AutomatedLab - DSC & SQL - Pull Scenario with SQL Server Reporting.ps1](AutomatedLab%20-%20DSC%20&%20SQL%20-%20Pull%20Scenario%20with%20SQL%20Server%20Reporting.ps1) adds a pull server (IIS Mode) and a SQL Server for Reporting as mentionned [here](https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/configuring-a-powershell-dsc-web-pull-server-to-use-sql-database/ba-p/259626).
