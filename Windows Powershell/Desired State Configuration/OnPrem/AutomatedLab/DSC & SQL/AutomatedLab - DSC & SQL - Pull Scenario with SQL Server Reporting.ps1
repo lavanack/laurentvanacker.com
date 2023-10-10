@@ -14,7 +14,7 @@ copyright notice on Your software product in which the Sample Code is
 embedded; and (iii) to indemnify, hold harmless, and defend Us and
 Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
-of the Sample Code..svc
+of the Sample Code.
 #>
 
 trap {
