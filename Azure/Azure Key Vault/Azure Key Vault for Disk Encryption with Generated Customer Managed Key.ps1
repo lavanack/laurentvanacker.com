@@ -254,6 +254,7 @@ $AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $keyVaultName -ObjectId $D
 # Set OsDisk configuration
 Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -DiskEncryptionSetId $DiskEncryptionSet.Id -CreateOption fromImage
 
+
 #region Adding Data Disk
 $VMDataDisk01Config = New-AzDiskConfig -SkuName $OSDiskType -Location $Location -CreateOption Empty -DiskSizeGB 512
 $VMDataDisk01 = New-AzDisk -DiskName $DataDiskName -Disk $VMDataDisk01Config -ResourceGroupName $ResourceGroupName
@@ -340,11 +341,15 @@ $VMOSDisk = Get-AzDisk -Name (Get-AzVM -Name $VMName).StorageProfile.OsDisk.Name
 Write-Host "[CMK -> PMK] Processing '$($VMOSDisk.Name)' OS Disk ..."
 $null = New-AzDiskUpdateConfig -EncryptionType "EncryptionAtRestWithPlatformKey" -DiskEncryptionSetId $null | Update-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $VMOSDisk.Name
 
-$VMDataDisks = Get-AzDisk -Name (Get-AzVM -Name $VMName).StorageProfile.DataDisks.Name
-foreach ($CurrentVMDataDisk in $VMDataDisks)
+$VMDataDiskNames = (Get-AzVM -Name $VMName).StorageProfile.DataDisks.Name
+if ($null -ne $VMDataDiskNames)
 {
-    Write-Host "[CMK -> PMK] Processing '$($CurrentVMDataDisk.Name)' Data Disk ..."
-    $null = New-AzDiskUpdateConfig -EncryptionType "EncryptionAtRestWithPlatformKey" -DiskEncryptionSetId $null | Update-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $CurrentVMDataDisk.Name
+    $VMDataDisks = Get-AzDisk -Name $VMDataDiskNames
+    foreach ($CurrentVMDataDisk in $VMDataDisks)
+    {
+        Write-Host "[CMK -> PMK] Processing '$($CurrentVMDataDisk.Name)' Data Disk ..."
+        $null = New-AzDiskUpdateConfig -EncryptionType "EncryptionAtRestWithPlatformKey" -DiskEncryptionSetId $null | Update-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $CurrentVMDataDisk.Name
+    }
 }
 #endregion
 
@@ -355,10 +360,15 @@ $VMOSDisk = Get-AzDisk -Name (Get-AzVM -Name $VMName).StorageProfile.OsDisk.Name
 Write-Host "[PMK -> CMK] Processing '$($VMOSDisk.Name)' OS Disk ..."
 $null = New-AzDiskUpdateConfig -EncryptionType "EncryptionAtRestWithCustomerKey" -DiskEncryptionSetId $DiskEncryptionSet.Id | Update-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $VMOSDisk.Name
 
-$VMDataDisks = Get-AzDisk -Name (Get-AzVM -Name $VMName).StorageProfile.DataDisks.Name
-foreach ($CurrentVMDataDisk in $VMDataDisks)
+
+$VMDataDiskNames = (Get-AzVM -Name $VMName).StorageProfile.DataDisks.Name
+if ($null -ne $VMDataDiskNames)
 {
-    Write-Host "[PMK -> CMK] Processing '$($CurrentVMDataDisk.Name)' Data Disk ..."
-    $null = New-AzDiskUpdateConfig -EncryptionType "EncryptionAtRestWithCustomerKey" -DiskEncryptionSetId $DiskEncryptionSet.Id | Update-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $CurrentVMDataDisk.Name
+    $VMDataDisks = Get-AzDisk -Name $VMDataDiskNames
+    foreach ($CurrentVMDataDisk in $VMDataDisks)
+    {
+        Write-Host "[PMK -> CMK] Processing '$($CurrentVMDataDisk.Name)' Data Disk ..."
+        $null = New-AzDiskUpdateConfig -EncryptionType "EncryptionAtRestWithCustomerKey" -DiskEncryptionSetId $DiskEncryptionSet.Id | Update-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $CurrentVMDataDisk.Name
+    }
 }
 #endregion
