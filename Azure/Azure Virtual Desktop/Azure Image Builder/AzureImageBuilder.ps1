@@ -288,7 +288,8 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "'$imageTemplateName01' LastRunStatusMessage: $($getStatus01.LastRunStatusMessage) "
 	Write-Verbose -Message "'$imageTemplateName01' LastRunStatusRunSubState: $($getStatus01.LastRunStatusRunSubState) "
 	Write-Verbose -Message "Removing Azure Image Builder Template for '$imageTemplateName01' ..."
-	$Jobs += $getStatus01 | Remove-AzImageBuilderTemplate -AsJob
+	#$Jobs += $getStatus01 | Remove-AzImageBuilderTemplate -AsJob
+	$getStatus01 | Remove-AzImageBuilderTemplate -NoWait
 	Write-Verbose -Message "Removing '$aibRoleImageCreationPath' ..."
 	Write-Verbose -Message "Removing '$templateFilePath' ..."
 	Remove-Item -Path $aibRoleImageCreationPath, $templateFilePath -Force
@@ -307,7 +308,8 @@ function New-AzureComputeGallery {
 	#endregion
 
 	Write-Verbose -Message "Removing Azure Image Builder Template for '$imageTemplateName02' ..."
-	$Jobs += $getStatus02 | Remove-AzImageBuilderTemplate -AsJob
+	#$Jobs += $getStatus02 | Remove-AzImageBuilderTemplate -AsJob
+	$getStatus02 | Remove-AzImageBuilderTemplate -NoWait
 	#endregion
 
 	$EndTime = Get-Date
