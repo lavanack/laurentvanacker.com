@@ -23,9 +23,9 @@ function New-AzureComputeGallery {
 	[CmdletBinding()]
 	Param(
 		[Parameter(Mandatory = $false)]
-		[string]$Location = "eastus",
+		[string]$Location = "EastUS",
 		[Parameter(Mandatory = $false)]
-		[string[]]$ReplicationRegions = "eastus2"
+		[string[]]$ReplicationRegions = "EastUS2"
 	)
 
 	#region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
@@ -48,11 +48,11 @@ function New-AzureComputeGallery {
 	$ResourceGroupPrefix = "rg"
 
 	# Location (see possible locations in the main docs)
-	#$Location = "eastus"
+	#$Location = "EastUS"
 	Write-Verbose -Message "`$Location: $Location"
 	$LocationShortName = $shortNameHT[$Location].shortName
 	Write-Verbose -Message "`$LocationShortName: $LocationShortName"
-	#$ReplicationRegions = "eastus2"
+	#$ReplicationRegions = "EastUS2"
 	Write-Verbose -Message "`$ReplicationRegions: $($ReplicationRegions -join ', ')"
 
 	$Project = "avd"
