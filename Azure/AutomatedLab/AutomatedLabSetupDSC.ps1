@@ -58,7 +58,7 @@ Configuration AutomatedLabSetupDSC {
             RebootNodeIfNeeded = $true
             ActionAfterReboot = 'ContinueConfiguration'
         }
-        
+        <#
         #Alternative https://github.com/dsccommunity/ComputerManagementDsc/wiki/IEEnhancedSecurityConfiguration
         Registry DisableIESCForAdmins
         {
@@ -78,7 +78,20 @@ Configuration AutomatedLabSetupDSC {
 			Ensure    = 'Present'
             DependsOn = "[Registry]DisableIESCForAdmins"
 		}		
+        #>
 
+        IEEnhancedSecurityConfiguration 'DisableForAdministrators'
+        {
+            Role    = 'Administrators'
+            Enabled = $false
+        }
+        
+        IEEnhancedSecurityConfiguration 'DisableForUsers'
+        {
+            Role    = 'Users'
+            Enabled = $false
+        }
+        
         WindowsOptionalFeature  HyperVAll
         {
             Name   = 'Microsoft-Hyper-V-All'
@@ -285,7 +298,7 @@ Configuration AutomatedLabSetupDSC {
             #To always have the latest Git version for Windows x64
             #Uri             = 'https://go.microsoft.com/fwlink/?LinkId=708343&clcid=0x409'
             Uri             = 'https://download.microsoft.com/download/A/E/3/AE32C485-B62B-4437-92F7-8B6B2C48CB40/StorageExplorer-windows-x64.exe'
-            UserAgent       = [Microsoft.PowerShell.Commands.PSUserAgent]::InternetExplorer
+            UserAgent       = [Microsoft.PowerShell.Commands.PSUserAgent]::Chrome
             Headers         = @{'Accept-Language' = 'en-US'}
             MatchSource     = $false
             DependsOn       = '[File]TempFolder'
