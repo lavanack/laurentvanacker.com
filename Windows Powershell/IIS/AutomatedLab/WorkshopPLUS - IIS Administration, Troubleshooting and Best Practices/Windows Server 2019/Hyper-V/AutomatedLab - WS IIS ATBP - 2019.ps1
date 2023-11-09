@@ -129,7 +129,7 @@ $SQL01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Swit
 
 #SQL Server
 $SQLServer2019Role = Get-LabMachineRoleDefinition -Role SQLServer2019 -Properties @{ Features = 'SQL,Tools' }
-Add-LabIsoImageDefinition -Name SQLServer2019 -Path $labSources\ISOs\en_sql_server_2019_standard_x64_dvd_cdcd4b9f.iso
+Add-LabIsoImageDefinition -Name SQLServer2019 -Path $labSources\ISOs\en_sql_server_2019_enterprise_x64_dvd_5e1ecc6b.iso
 
 #region server definitions
 #Domain controller + Certificate Authority
