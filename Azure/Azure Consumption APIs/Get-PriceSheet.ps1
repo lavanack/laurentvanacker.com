@@ -41,11 +41,11 @@ $URI = "https://management.azure.com/subscriptions/$subscriptionId/providers/Mic
 
 $Items = Do {
     Write-Verbose $URI
-    $PriceSheet = Invoke-RestMethod -Method GET -Uri $URI -Headers $authHeader -ContentType "application/json"
+    $PriceSheet = Invoke-RestMethod -Method GET -Uri $URI -Headers $authHeader
     $PriceSheet.properties.pricesheets
     Write-Verbose "Count: $($PriceSheet.properties.pricesheets.Count)"
     #Write-Verbose "Last Item: $($PriceSheet.properties.pricesheets[-1] | Out-String)"
     $URI = $PriceSheet.properties.NextLink
 } While ($null -ne $URI)
 $Items | Export-Csv -Path $CSVFile -NoTypeInformation
-Write-Host "Azure Retail Prices have been exported to '$CSVFile' ..."
+Write-Host "Azure Prices have been exported to '$CSVFile' ..."
