@@ -39,8 +39,7 @@ $authHeader = @{
 
 $URI = "https://management.azure.com/subscriptions/$subscriptionId/providers/Microsoft.Consumption/pricesheets/default?api-version=2023-05-01"
 
-$Items = Do
-{
+$Items = Do {
     Write-Verbose $URI
     $PriceSheet = Invoke-RestMethod -Method GET -Uri $URI -Headers $authHeader -ContentType "application/json"
     $PriceSheet.properties.pricesheets
