@@ -41,7 +41,7 @@
     },
     "vmSize": {
       "type": "string",
-      "defaultValue": "Standard_D2s_v4",
+      "defaultValue": "Standard_D2s_v5",
       "metadata": { "description": "This is the allowed list of VM sizes" }
     }
   },
