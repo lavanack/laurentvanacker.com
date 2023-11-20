@@ -26,11 +26,10 @@ $CSVFile = $CurrentScript -replace "$Extension", $("_{0:yyyyMMddHHmmss}.csv" -f 
 
 Set-Location -Path $CurrentDir
 
-$uri = "https://prices.azure.com/api/retail/prices?api-version=2023-01-01-preview&meterRegion='primary'"
-$Items = Do
-{
+$uri = "https://prices.azure.com/api/retail/prices?api-version=2023-01-01-preview&meterRegion='primary'&currencyCode=EUR"
+$Items = Do {
     Write-Verbose $uri
-    $PriceSheet = Invoke-WebRequest -Uri $uri | ConvertFrom-Json
+    $PriceSheet = Invoke-RestMethod -Method GET -Uri $uri -ContentType "application/json"
     $PriceSheet.Items
     Write-Verbose "Count: $($PriceSheet.Count)"
     #Write-Verbose "Last Item: $($PriceSheet.Items[-1] | Out-String)"
