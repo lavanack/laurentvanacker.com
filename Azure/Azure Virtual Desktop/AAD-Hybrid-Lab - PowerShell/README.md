@@ -121,6 +121,5 @@ At the end of the deployment, proceed as follow:
   ![Alt text](docs/AzureADConnect_11.jpg)
   ![Alt text](docs/AzureADConnect_12.jpg)
   ![Alt text](docs/AzureADConnect_13.jpg)
-  ![Alt text](docs/AzureADConnect_14.jpg)
   ![Alt text](docs/AzureADConnect_16.jpg)
   ![Alt text](docs/AzureADConnect_17.jpg)
