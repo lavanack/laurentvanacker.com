@@ -10,11 +10,11 @@
 - The [New-AAD-Hybrid-Lab.ps1](https://github.com/lavanack/laurentvanacker.com/blob/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell/New-AAD-Hybrid-Lab.ps1) script has the same functionality same the lab available on [https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab) but in a full Powershell version  instead of using ARM templates. The default values remain the same as the original version (ARM-based) with one exception: you can optionally deploy Azure Bastion (cf. parameters at the end of the [New-AAD-Hybrid-Lab.ps1](https://github.com/lavanack/laurentvanacker.com/blob/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell/New-AAD-Hybrid-Lab.ps1) script). Feel free to customize the values to your needs (some explanations are available [below](#new-aad-hybrid-labps1-step-by-step-guide)).
 
 - The [New-AAD-Hybrid-BCDR-Lab.ps1](https://github.com/lavanack/laurentvanacker.com/blob/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell/New-AAD-Hybrid-BCDR-Lab.ps1) script is for BCDR strategy for the domain controller deployed via the [New-AAD-Hybrid-Lab.ps1](https://github.com/lavanack/laurentvanacker.com/blob/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell/New-AAD-Hybrid-Lab.ps1) script.
-  - An additional DC will deployed in an another Azure region - "eastus2" by default (customize the value to your needs).
+  - An additional DC will deployed in an another Azure region - "eastus2" by default (customize the value to your needs - You will find some explanations about the parameters [below](#new-aad-hybrid-bcdr-labps1-step-by-step-guide)
+).
   - A vNet peering will be created between the two vNets (primary and secondary regions)
   - You just will have to configure the AzureAD Connect in Staging Mode
-  - You will find some explanations about the parameters [below](#new-aad-hybrid-bcdr-labps1-step-by-step-guide)
-
+  
 ## New-AAD-Hybrid-Lab.ps1: Step-by-step guide
 
 - Open the [New-AAD-Hybrid-Lab.ps1](https://github.com/lavanack/laurentvanacker.com/blob/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell/New-AAD-Hybrid-Lab.ps1) script and customize the parameters values (at the end of the file) to your needs:
