@@ -21,7 +21,7 @@ Clear-Host
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
-$Extension = $((Get-ItemProperty -Path $CurrentScript).Extension)
+$Extension = (Get-ItemProperty -Path $CurrentScript).Extension
 $CSVFile = $CurrentScript -replace "$Extension", $("_{0:yyyyMMddHHmmss}.csv" -f (Get-Date))
 
 Set-Location -Path $CurrentDir
