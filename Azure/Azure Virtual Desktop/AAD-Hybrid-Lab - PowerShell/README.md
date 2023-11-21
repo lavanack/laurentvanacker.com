@@ -24,24 +24,25 @@ At the end of the deployment, proceed as follow:
 - Connect via RDP (via the public IP address - a NSG rule allow a direct connection from your public IP - the one you use when deploying the Azure VM) or Azure Bastion
 - Run Azure AD Connect (Shortcut on the desktop) and configure as follow:
 
-![Alt text](docs/AzureADConnect_01.jpg)
-![Alt text](docs/AzureADConnect_02.jpg)
-![Alt text](docs/AzureADConnect_03.jpg)
-![Alt text](docs/AzureADConnect_04.jpg)
-![Alt text](docs/AzureADConnect_05.jpg)
-![Alt text](docs/AzureADConnect_06.jpg)
-![Alt text](docs/AzureADConnect_07.jpg)
-![Alt text](docs/AzureADConnect_08.jpg)
-![Alt text](docs/AzureADConnect_09.jpg)
-![Alt text](docs/AzureADConnect_10.jpg)
-![Alt text](docs/AzureADConnect_11.jpg)
-![Alt text](docs/AzureADConnect_12.jpg)
-![Alt text](docs/AzureADConnect_13.jpg)
-![Alt text](docs/AzureADConnect_14.jpg)
-![Alt text](docs/AzureADConnect_15.jpg)
-- At the end, you will find the 6 demo users in the [Azure Portal](https://portal.azure.com/#view/Microsoft_AAD_UsersAndTenants/UserManagementMenuBlade/~/AllUsers). 
+  ![Alt text](docs/AzureADConnect_01.jpg)
+  ![Alt text](docs/AzureADConnect_02.jpg)
+  ![Alt text](docs/AzureADConnect_03.jpg)
+  ![Alt text](docs/AzureADConnect_04.jpg)
+  ![Alt text](docs/AzureADConnect_05.jpg)
+  ![Alt text](docs/AzureADConnect_06.jpg)
+  ![Alt text](docs/AzureADConnect_07.jpg)
+  ![Alt text](docs/AzureADConnect_08.jpg)
+  ![Alt text](docs/AzureADConnect_09.jpg)
+  ![Alt text](docs/AzureADConnect_10.jpg)
+  ![Alt text](docs/AzureADConnect_11.jpg)
+  ![Alt text](docs/AzureADConnect_12.jpg)
+  ![Alt text](docs/AzureADConnect_13.jpg)
+  ![Alt text](docs/AzureADConnect_14.jpg)
+  ![Alt text](docs/AzureADConnect_15.jpg)
+- At the end, you will find the 6 demo users in the [Azure Portal](https://portal.azure.com/#view/Microsoft_AAD_UsersAndTenants/UserManagementMenuBlade/~/AllUsers).
 
 ![Alt text](docs/AzureADUsers.jpg)
+
 ## New-AAD-Hybrid-BCDR-Lab.ps1
 
 The [New-AAD-Hybrid-BCDR-Lab.ps1](https://github.com/lavanack/laurentvanacker.com/blob/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell/New-AAD-Hybrid-BCDR-Lab.ps1) is for BCDR strategy for the domain controller(s):
