@@ -3,7 +3,9 @@
 - [Azure Active Directory Hybrid Lab - PowerShell version](#azure-active-directory-hybrid-lab---powershell-version)
   - [Preliminary Note(s)](#preliminary-notes)
   - [New-AAD-Hybrid-Lab.ps1: Step-by-step guide](#new-aad-hybrid-labps1-step-by-step-guide)
+    - [New-AAD-Hybrid-Lab.ps1: Post-deployment steps](#new-aad-hybrid-labps1-post-deployment-steps)
   - [New-AAD-Hybrid-BCDR-Lab.ps1: Step-by-step guide](#new-aad-hybrid-bcdr-labps1-step-by-step-guide)
+    - [New-AAD-Hybrid-BCDR-Lab.ps1: Post-deployment steps](#new-aad-hybrid-bcdr-labps1-post-deployment-steps)
 
 ## Preliminary Note(s)
 
@@ -44,6 +46,8 @@
 ![Alt text](docs/dsa.jpg)
 
 The deployment will take around 15 minutes to complete.
+
+### New-AAD-Hybrid-Lab.ps1: Post-deployment steps
 
 At the end of the deployment, proceed as follow:
 
@@ -96,6 +100,8 @@ At the end of the deployment, proceed as follow:
   - Domain Administrator credentials (the username will be auto-filled with your current logged in username" but you can change it if you want)
 
 The deployment will take around 15 minutes to complete.
+
+### New-AAD-Hybrid-BCDR-Lab.ps1: Post-deployment steps
 
 At the end of the deployment, proceed as follow:
 
