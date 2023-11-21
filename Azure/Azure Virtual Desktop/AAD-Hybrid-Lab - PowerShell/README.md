@@ -5,11 +5,29 @@
   - [New-AAD-Hybrid-BCDR-Lab.ps1](#new-aad-hybrid-bcdr-labps1)
 
 The [New-AAD-Hybrid-Lab.ps1](https://github.com/lavanack/laurentvanacker.com/blob/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell/New-AAD-Hybrid-Lab.ps1) has the same functionality same the lab available on [https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab) but in a full Powershell version  instead of using ARM templates.
-The default values remain the same as the original version (ARM-based) with one exception: you can optionally deploy Azure Bastion (cf. parameters at the end of the [New-AAD-Hybrid-Lab.ps1](https://github.com/lavanack/laurentvanacker.com/blob/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell/New-AAD-Hybrid-Lab.ps1) script). Feel free to customize the values to your needs.
+<!-- The default values remain the same as the original version (ARM-based) with one exception: you can optionally deploy Azure Bastion (cf. parameters at the end of the [New-AAD-Hybrid-Lab.ps1](https://github.com/lavanack/laurentvanacker.com/blob/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell/New-AAD-Hybrid-Lab.ps1) script). Feel free to customize the values to your needs. -->
 
 ## New-AAD-Hybrid-Lab.ps1: Step-by-step guide
 
-- Open the [New-AAD-Hybrid-Lab.ps1](https://github.com/lavanack/laurentvanacker.com/blob/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell/New-AAD-Hybrid-Lab.ps1) script and customize the parameters values (at the end of the file) to your needs.
+- Open the [New-AAD-Hybrid-Lab.ps1](https://github.com/lavanack/laurentvanacker.com/blob/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell/New-AAD-Hybrid-Lab.ps1) script and customize the parameters values (at the end of the file) to your needs:
+
+  - AdminCredential: Domain Administrator Credentials
+  - UserCredential: Password for the demo users
+  - VMSize: Azure VM Size (Default Value: Standard_D2s_v5)
+  - OSDiskType: Disk type for the Operating System (Default Value: Premium_LRS)
+  - Project: Short name for the project. Is part of the Azure resource naming convention (Default Value: avd)
+  - Role: Short name for the role. Is part of the Azure resource naming convention (Default Value: adds)
+  - ADDomainName: Active Directory Name (Default Value: contoso.local)
+  - CustomUPNSuffix: Custom UPN Suffix (Default Value: last domain entry registered in the Teannt)
+  - VNetAddressRange: Virtual Network Address Range (Default Value: 10.0.0.0/16)
+  - ADSubnetAddressRange: Active Directory Subnet Address Range (Default Value: 10.0.0.0/24)
+  - DomainControllerIP: Domain Controller IP Address (Default Value: 10.0.1.4)
+  - Instance: Instance Number (Default Value: 1)
+  - Location: Azure location (Default value: EastUS)
+  - Spot: Use Spot Instance (Default Value: False)
+  - Bastion: Deploy Azure Bastion (Default Value: False)
+  - Verbose: Verbose mode (Default Value: False)
+  
 - Run it
 - You will be prompted for 2 credential sets:
   - Domain Administrator credentials (the username will be auto-filled with your current logged in username" but you can change it if you want)
