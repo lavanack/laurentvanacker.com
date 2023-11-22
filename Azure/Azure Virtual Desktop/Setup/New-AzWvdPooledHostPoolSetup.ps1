@@ -3772,7 +3772,7 @@ if (-not(Test-Path -Path $env:SystemRoot\policyDefinitions\en-US\terminalserver-
 $HostPoolSessionCredentialKeyVault = New-AzHostPoolSessionCredentialKeyVault -Verbose
 
 $AzureComputeGalleryStartTime = Get-Date
-#$AzureComputeGallery = New-AzureComputeGallery -Verbose
+$AzureComputeGallery = New-AzureComputeGallery -Verbose
 $AzureComputeGallery = Get-AzGallery | Sort-Object -Property Name -Descending | Select-Object -First 1
 $AzureComputeGalleryEndTime = Get-Date
 $AzureComputeGalleryTimeSpan = New-TimeSpan -Start $AzureComputeGalleryStartTime -End $AzureComputeGalleryEndTime
