@@ -34,7 +34,7 @@ $Items = Do {
     Write-Verbose "Count: $($PriceSheet.Count)"
     #Write-Verbose "Last Item: $($PriceSheet.Items[-1] | Out-String)"
     $uri = $PriceSheet.NextPageLink
-} While ($null -ne $uri)
+} While (-not([string]::IsNullOrEmpty($URI)))
 $Items | Export-Csv -Path $CSVFile -NoTypeInformation
 Write-Host "Azure Retail Prices have been exported to '$CSVFile' ..."
 #Limit on November, 20th 2023 = https://prices.azure.com/api/retail/prices?api-version=2023-01-01-preview&meterRegion=%27primary%27&$skip=579870

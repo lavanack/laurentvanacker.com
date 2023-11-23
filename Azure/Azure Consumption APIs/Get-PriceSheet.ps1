@@ -46,6 +46,6 @@ $Items = Do {
     Write-Verbose "Count: $($PriceSheet.properties.pricesheets.Count)"
     #Write-Verbose "Last Item: $($PriceSheet.properties.pricesheets[-1] | Out-String)"
     $URI = $PriceSheet.properties.NextLink
-} While ($null -ne $URI)
+} While (-not([string]::IsNullOrEmpty($URI)))
 $Items | Export-Csv -Path $CSVFile -NoTypeInformation
 Write-Host "Azure Prices have been exported to '$CSVFile' ..."
