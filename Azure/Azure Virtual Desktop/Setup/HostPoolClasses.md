@@ -23,6 +23,7 @@ This is the Base class for the PooledHostPool and PersonalHostPool PowerShell cl
   - mp: MarketPlace for image coming from MarketPlace Gallery
   - cg: Compute Gallery for image coming from Compute Gallery
 
+> [!NOTE]
 > cf. <https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool> for more details about Azure Naming Convention
 
 - Type: Personal or Pooled (via the HostPoolType enum)
