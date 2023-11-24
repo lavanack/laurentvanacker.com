@@ -80,7 +80,7 @@ The following properties are set by default:
 - ResetIndex: Reset the Index to 0
 
 > [!NOTE]
-> I choose to not implement Azure AD/Microsoft Entra ID joined Session Hosts in this scenario (Maybe in the future). The Session Hosts are joined to an AD Domain.
+> I choose to not implement Azure AD/Microsoft Entra ID joined Session Hosts for Pooled HostPool this scenario in this scenario (Maybe in the future). The Session Hosts are joined to an AD Domain.
 
 ## PersonalHostPool PowerShell Class
 
