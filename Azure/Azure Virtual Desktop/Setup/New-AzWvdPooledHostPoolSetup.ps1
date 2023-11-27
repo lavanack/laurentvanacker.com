@@ -18,6 +18,9 @@ of the Sample Code.
 
 ##requires -Version 5 -Modules AzureAD, Az.Accounts, Az.Compute, Az.DesktopVirtualization, Az.ImageBuilder, Az.Insights, Az.ManagedServiceIdentity, Az.Monitor, Az.Network, Az.KeyVault, Az.OperationalInsights, Az.PrivateDns, Az.Resources, Az.Storage, PowerShellGet, ThreadJob -RunAsAdministrator 
 #requires -Version 5 -RunAsAdministrator 
+#requires -Modules @{ ModuleName="Az.Compute"; ModuleVersion="6.3.0" }
+
+#Install-Module -Name Az.Compute -RequiredVersion 6.3.0.0 -Force -Verbose -AllowClobber
 
 #It is recommended not locate FSLogix on same storage as MSIX packages in production environment, 
 #To run from a Domain Controller
@@ -68,7 +71,7 @@ $ClassDefinitionScriptBlock = {
         hidden Init() { 
             $this.Type = [HostPoolType]::Pooled
             $this.Name = "hp-np-ad-poc-mp-eu-{0:D2}" -f [PooledHostPool]::Index
-            $this.NamePrefix = "napocmeu{0}" -f [PooledHostPool]::Index
+            $this.NamePrefix = "napocmeu{0:D2}" -f [PooledHostPool]::Index
             $this.MaxSessionLimit = 5
             $this.ImagePublisherName = "microsoftwindowsdesktop"
             $this.ImageOffer = "office-365"
@@ -96,7 +99,7 @@ $ClassDefinitionScriptBlock = {
             $this.Init()
             $LimitedIndex = $Index % 100
             $this.Name = "hp-np-ad-poc-mp-eu-{0:D2}" -f $LimitedIndex
-            $this.NamePrefix = "napocmeu{0}" -f $LimitedIndex
+            $this.NamePrefix = "napocmeu{0:D2}" -f $LimitedIndex
             if ($null -ne $KeyVault) { $this.KeyVault = $KeyVault }
         }
 
@@ -188,10 +191,19 @@ $ClassDefinitionScriptBlock = {
     class PersonalHostPool : HostPool {
         [ValidateRange(0, 99)] static [int] $Index = 0
 
-        hidden Init() { 
+        hidden Init([boolean] $IsMicrosoftEntraIdJoined) { 
+            $this.IsMicrosoftEntraIdJoined = $IsMicrosoftEntraIdJoined
+            if ($this.IsMicrosoftEntraIdJoined)
+            {
+                $this.Name = "hp-pd-ei-poc-mp-eu-{0:D2}" -f [PersonalHostPool]::Index
+                $this.NamePrefix = "pepocmeu{0:D2}" -f [PersonalHostPool]::Index
+            }
+            else
+            {
+                $this.Name = "hp-pd-ad-poc-mp-eu-{0:D2}" -f [PersonalHostPool]::Index
+                $this.NamePrefix = "papocmeu{0:D2}" -f [PersonalHostPool]::Index
+            }
             $this.Type = [HostPoolType]::Personal
-            $this.Name = "hp-pd-ad-poc-mp-eu-{0:D2}" -f [PersonalHostPool]::Index
-            $this.NamePrefix = "papocmeu{0}" -f [PersonalHostPool]::Index
             $this.ImagePublisherName = "microsoftwindowsdesktop"
             $this.ImageOffer = "windows-11"
             $this.ImageSku = "win11-22h2-ent"
@@ -206,10 +218,8 @@ $ClassDefinitionScriptBlock = {
             [boolean] $IsMicrosoftEntraIdJoined
         ) : base() {
             [PersonalHostPool]::Index++
-            $this.Init()
+            $this.Init($IsMicrosoftEntraIdJoined)
             if ($null -ne $KeyVault) { $this.KeyVault = $KeyVault }
-            $this.IsMicrosoftEntraIdJoined = $IsMicrosoftEntraIdJoined
-
         }
 
         PersonalHostPool(
@@ -217,12 +227,10 @@ $ClassDefinitionScriptBlock = {
             [Object] $KeyVault,
             [boolean] $IsMicrosoftEntraIdJoined
         ) {
-            $this.Init()
+            [PersonalHostPool]::Index = $Index
+            $this.Init($IsMicrosoftEntraIdJoined)
             $LimitedIndex = $Index % 100
-            $this.Name = "hp-pd-ad-poc-mp-eu-{0:D2}" -f $LimitedIndex
-            $this.NamePrefix = "papocmeu{0}" -f $LimitedIndex
             if ($null -ne $KeyVault) { $this.KeyVault = $KeyVault }
-            $this.IsMicrosoftEntraIdJoined = $IsMicrosoftEntraIdJoined
         }
 
         PersonalHostPool (
@@ -231,11 +239,10 @@ $ClassDefinitionScriptBlock = {
             [Object] $KeyVault,
             [boolean] $IsMicrosoftEntraIdJoined
         ) {
-            $this.Init()
+            $this.Init($IsMicrosoftEntraIdJoined)
             if (-not([string]::IsNullOrEmpty($Name))) { $this.Name = $Name }
             if (-not([string]::IsNullOrEmpty($NamePrefix))) { $this.NamePrefix = $NamePrefix }
             if ($null -ne $KeyVault) { $this.KeyVault = $KeyVault }
-            $this.IsMicrosoftEntraIdJoined = $IsMicrosoftEntraIdJoined
         }
 
         PersonalHostPool (
@@ -245,12 +252,11 @@ $ClassDefinitionScriptBlock = {
             [boolean] $IsMicrosoftEntraIdJoined,
             [string] $VMSourceImageId  
         ) {
-            $this.Init()
+            $this.Init($IsMicrosoftEntraIdJoined)
             if (-not([string]::IsNullOrEmpty($Name))) { $this.Name = $Name }
             if (-not([string]::IsNullOrEmpty($NamePrefix))) { $this.NamePrefix = $NamePrefix }
             if (-not([string]::IsNullOrEmpty($VMSourceImageId))) { $this.VMSourceImageId = $VMSourceImageId }
             if ($null -ne $KeyVault) { $this.KeyVault = $KeyVault }
-            $this.IsMicrosoftEntraIdJoined = $IsMicrosoftEntraIdJoined
         }
 
         PersonalHostPool (
@@ -265,13 +271,12 @@ $ClassDefinitionScriptBlock = {
             [string] $ImageOffer,
             [string] $ImageSku
         ) {
-            $this.Init()
+            $this.Init($IsMicrosoftEntraIdJoined)
             if (-not([string]::IsNullOrEmpty($Name))) { $this.Name = $Name }
             if (-not([string]::IsNullOrEmpty($Location))) { $this.Location = $Location }
             if (-not([string]::IsNullOrEmpty($NamePrefix))) { $this.NamePrefix = $NamePrefix }
             if ($VMNumberOfInstances -gt 0) { $this.VMNumberOfInstances = $VMNumberOfInstances }
             if ($null -ne $KeyVault) { $this.KeyVault = $KeyVault }
-            $this.IsMicrosoftEntraIdJoined = $IsMicrosoftEntraIdJoined
             if (-not([string]::IsNullOrEmpty($VMSize))) { $this.VMSize = $VMSize }
             if (-not([string]::IsNullOrEmpty($ImagePublisherName))) { $this.ImagePublisherName = $ImagePublisherName }
             if (-not([string]::IsNullOrEmpty($ImageOffer))) { $this.ImageOffer = $ImageOffer }
@@ -289,13 +294,12 @@ $ClassDefinitionScriptBlock = {
             [string] $VMSize,
             [string] $VMSourceImageId
         ) {
-            $this.Init()
+            $this.Init($IsMicrosoftEntraIdJoined)
             if (-not([string]::IsNullOrEmpty($Name))) { $this.Name = $Name }
             if (-not([string]::IsNullOrEmpty($Location))) { $this.Location = $Location }
             if (-not([string]::IsNullOrEmpty($NamePrefix))) { $this.NamePrefix = $NamePrefix }
             if ($VMNumberOfInstances -gt 0) { $this.VMNumberOfInstances = $VMNumberOfInstances }
             if ($null -ne $KeyVault) { $this.KeyVault = $KeyVault }
-            $this.IsMicrosoftEntraIdJoined = $IsMicrosoftEntraIdJoined
             if (-not([string]::IsNullOrEmpty($VMSize))) { $this.VMSize = $VMSize }
             if (-not([string]::IsNullOrEmpty($VMSourceImageId))) {
                 $this.VMSourceImageId = $VMSourceImageId
@@ -330,7 +334,7 @@ function New-AzHostPoolSessionCredentialKeyVault {
             Write-Error "No name available for HostPool Credential Keyvault ..." -ErrorAction Stop
         }
     } While (-not(Test-AzKeyVaultNameAvailability -Name $KeyVaultName).NameAvailable)
-    $ResourceGroupName = "rg-avd-keyvault-{0}-{1:D3}" -f $shortNameHT[$Location].shortName, $Index
+    $ResourceGroupName = "rg-avd-kv-{0}-{1:D3}" -f $shortNameHT[$Location].shortName, $Index
 
     $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
     if ($null -eq $ResourceGroup) {
@@ -1133,10 +1137,10 @@ function New-AzAvdSessionHost {
         #Create a virtual machine configuration file
         if ($IsMicrosoftEntraIdJoined) {
             #We have to create a SystemAssignedIdentity for Microsoft Entra ID joined Azure VM
-            $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -IdentityType SystemAssigned
+            $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -SecurityType Standard -IdentityType SystemAssigned
         }
         else {
-            $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize
+            $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -SecurityType Standard
         }
     }
     $null = Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
@@ -1257,6 +1261,13 @@ function New-AzAvdSessionHost {
 
     if ($IsMicrosoftEntraIdJoined) {
         #Installing the AADLoginForWindows extension
+        $PreviouslyExistingAzureADDevice = Get-AzureADDevice -SearchString $VMName
+        if ($null -ne $PreviouslyExistingAzureADDevice)
+        {
+            Write-Verbose -Message "Removing previously existing '$VMName' as a device into 'Microsoft Entra ID' ..."
+            $PreviouslyExistingAzureADDevice | Remove-AzureADDevice
+        }
+        Write-Verbose -Message "Adding '$VMName' as a device into 'Microsoft Entra ID' ..."
         Set-AzVMExtension -Publisher Microsoft.Azure.ActiveDirectory -Name AADLoginForWindows -ResourceGroupName $ResourceGroupName -VMName $VMName -ExtensionType AADLoginForWindows -TypeHandlerVersion 2.0
     }
     <#
@@ -1387,7 +1398,7 @@ function Copy-MSIXDemoAppAttachPackage {
         [string]$Destination
     )   
     $URI = "https://api.github.com/repos/lavanack/laurentvanacker.com/contents/Azure/Azure%20Virtual%20Desktop/MSIX/MSIX"
-    $Response = Invoke-WebRequest -Uri $URI
+    $Response = Invoke-WebRequest -Uri $URI -UseBasicParsing
     $Objects = $Response.Content | ConvertFrom-Json
     $Files = $Objects | Where-Object -FilterScript { $_.type -eq "file" } | Select-Object -ExpandProperty download_url
     $VHDFileURIs = $Files -match "\.vhd$"
@@ -1412,7 +1423,7 @@ function Copy-MSIXDemoPFXFile {
     )   
 
     $URI = "https://api.github.com/repos/lavanack/laurentvanacker.com/contents/Azure/Azure%20Virtual%20Desktop/MSIX/MSIX"
-    $Response = Invoke-WebRequest -Uri $URI
+    $Response = Invoke-WebRequest -Uri $URI -UseBasicParsing
     $Objects = $Response.Content | ConvertFrom-Json
     $Files = $Objects | Where-Object -FilterScript { $_.type -eq "file" } | Select-Object -ExpandProperty download_url
     $PFXFileURIs = $Files -match "\.pfx$"
@@ -1502,6 +1513,7 @@ function Remove-AzAvdHostPoolSetup {
     #region Azure AD/Microsoft Entra ID clenaup
     $MicrosoftEntraIDHostPools = $HostPools | Where-Object -FilterScript { $_.IsMicrosoftEntraIdJoined }
     $MicrosoftEntraIDSessionHostNames = foreach ($CurrentHostPoolName in $MicrosoftEntraIDHostPools.Name) { (Get-AzWvdSessionHost -HostPoolName $CurrentHostPoolName -ResourceGroupName "rg-avd-$CurrentHostPoolName" -ErrorAction Ignore).ResourceId -replace ".*/" | Where-Object -FilterScript { -not([string]::IsNullOrEmpty($_)) } }
+    Write-Verbose -Message "Removing Microsoft Entra ID Devices : $($MicrosoftEntraIDSessionHostNames -join ', ')"
     Get-AzureADDevice | Where-Object -FilterScript { $_.DisplayName -in $MicrosoftEntraIDSessionHostNames } | Remove-AzureADDevice
     #endregion
     #region Azure Cleanup
@@ -3647,7 +3659,7 @@ function Update-AVDRDCMan {
     if ($Install) {
         $OutFile = Join-Path -Path $env:Temp -ChildPath "RDCMan.zip"
         Write-Verbose "Downloading the latest RDCMan version form SysInternals ..."
-        $Response = Invoke-WebRequest -Uri "https://download.sysinternals.com/files/RDCMan.zip" -OutFile $OutFile -PassThru
+        $Response = Invoke-WebRequest -Uri "https://download.sysinternals.com/files/RDCMan.zip" -UseBasicParsing -OutFile $OutFile -PassThru
         Write-Verbose "Extracting the downloaded archive file to system32 ..."
         $System32 = $(Join-Path -Path $env:windir -ChildPath "system32")
         $RDCManProcess = (Get-Process -Name rdcman -ErrorAction Ignore)
@@ -3685,8 +3697,6 @@ $Error.Clear()
 $StartTime = Get-Date
 # Define the class in the current scope by dot-sourcing the script block.
 . $ClassDefinitionScriptBlock
-#From https://aka.ms/azps-changewarnings: Disabling breaking change warning messages in Azure PowerShell
-Update-AzConfig -DisplayBreakingChangeWarning $true
 
 #For installing required modules if needed
 #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
@@ -3702,7 +3712,9 @@ else {
 if (-not([String]::IsNullOrEmpty($MissingModules))) {
     Install-Module -Name $MissingModules -AllowClobber -Force
 }
-$null = Update-AzConfig -DisplayBreakingChangeWarning $false
+
+#From https://aka.ms/azps-changewarnings: Disabling breaking change warning messages in Azure PowerShell
+$null = Update-AzConfig -DisplayBreakingChangeWarning $true
 
 #region Azure Connection
 if (-not(Get-AzContext)) {
@@ -3758,7 +3770,7 @@ if (-not(Test-Path -Path $env:SystemRoot\policyDefinitions\en-US\terminalserver-
     Invoke-WebRequest -Uri  $AVDGPOLatestURI -OutFile $OutFile
     $AVDGPOLatestDir = New-Item -Path $env:Temp\AVDGPOLatest -ItemType Directory -Force
     Start-Process -FilePath $env:ComSpec -ArgumentList "/c", "extrac32 $OutFile /Y" -WorkingDirectory $AVDGPOLatestDir -Wait 
-    $ZipFiles = Get-ChildItem -Path $AVDGPOLatestDir -Filter *.zip -File 
+    $ZipFiles = Get-ChildItem -Path $AVDGPOLatestDir -F$eilter *.zip -File 
     $ZipFiles | Expand-Archive -DestinationPath $AVDGPOLatestDir -Force
     Remove-Item -Path $ZipFiles.FullName -Force
 
@@ -3772,39 +3784,40 @@ if (-not(Test-Path -Path $env:SystemRoot\policyDefinitions\en-US\terminalserver-
 $HostPoolSessionCredentialKeyVault = New-AzHostPoolSessionCredentialKeyVault -Verbose
 
 $AzureComputeGalleryStartTime = Get-Date
-$AzureComputeGallery = New-AzureComputeGallery -Verbose
+#$AzureComputeGallery = New-AzureComputeGallery -Verbose
 $AzureComputeGallery = Get-AzGallery | Sort-Object -Property Name -Descending | Select-Object -First 1
 $AzureComputeGalleryEndTime = Get-Date
 $AzureComputeGalleryTimeSpan = New-TimeSpan -Start $AzureComputeGalleryStartTime -End $AzureComputeGalleryEndTime
 Write-Host -Object "Azure Compute Gallery Processing Time: $($AzureComputeGalleryTimeSpan.ToString())"
 
+#Reset Index (staring at 1) for automatic numbering (every will instantiation increment the Index)
 [PooledHostPool]::ResetIndex()
 [PersonalHostPool]::ResetIndex()
 
-$RandomNumber = Get-Random -Minimum 1 -Maximum 100
-$RandomNumber = 45
+#$RandomNumber = Get-Random -Minimum 1 -Maximum 100
+$RandomNumber = 99
 $HostPools = @(
-    #Pooled ADDS + FSLogix + MSIX
-    [PooledHostPool]::new($RandomNumber, $HostPoolSessionCredentialKeyVault)
-    #Personal Azure AD/Microsoft Entra ID - w/o FSLogix - w/o MSIX
+    # Use case 1: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with FSLogix and MSIX
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault)
+    # Use case 2: Deploy a Personal HostPool with 3 (default value) Session Hosts (AD Domain joined) without FSLogix and MSIX
     [PersonalHostPool]::new($RandomNumber, $HostPoolSessionCredentialKeyVault, $false)
-    #Personal ADDS - w/o FSLogix - w/o MSIX
-    [PersonalHostPool]::new("hp-pd-ei-poc-mp-eu-{0:D2}" -f $RandomNumber, $null, "pepocmeu{0}" -f $RandomNumber, $null, $HostPoolSessionCredentialKeyVault, $true, $null, $null, $null, $null)
+    # Use case 3: Deploy a Personal HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined) without FSLogix and MSIX
+    [PersonalHostPool]::new("hp-pd-ei-poc-mp-eu-{0:D2}" -f $RandomNumber, $null, "pepocmeu{0:D2}" -f $RandomNumber, $null, $HostPoolSessionCredentialKeyVault, $true, $null, $null, $null, $null)
 )
 
 #region Creating a new Pooled Host Pool for every image definition in the Azure Compute Gallery
 #$Index = [math]::Max([PooledHostPool]::Index, [PersonalHostPool]::Index)
 $Index = [PooledHostPool]::Index
-(Get-AzGalleryImageDefinition -GalleryName $AzureComputeGallery.Name -ResourceGroupName $AzureComputeGallery.ResourceGroupName).Id | ForEach-Object -Process {
+$GalleryImageDefinition = Get-AzGalleryImageDefinition -GalleryName $AzureComputeGallery.Name -ResourceGroupName $AzureComputeGallery.ResourceGroupName
+foreach ($CurrentGalleryImageDefinition in $GalleryImageDefinition)
+{
+    #$LatestCurrentGalleryImageVersion = Get-AzGalleryImageVersion -GalleryName $AzureComputeGallery.Name -ResourceGroupName $AzureComputeGallery.ResourceGroupName -GalleryImageDefinitionName $CurrentGalleryImageDefinition.Name | Sort-Object -Property Id | Select-Object -Last 1
     $Index++
-    #Only %50% of Pooled Desktops will randomly have FSLogix and MSIX Features.
-    #$FSlogix = (0 -eq ($Index % 2)) 
-    #$MSIX = (0 -eq ($Index % 2)) 
     $FSLogix = $false
     $MSIX = $false
-    Write-Verbose "VM Source Image Id for the ACG Host Pool: $_ (MSIX: $MSIX / FSlogix: $FSlogix)" -Verbose
-    #Pooled ADDS - w/o FSLogix - w/o MSIX
-    $PooledHostPool = [PooledHostPool]::new("hp-np-ad-poc-cg-eu-{0:D2}" -f $Index, "EastUS", "napocceu{0}" -f $Index, 5, 3, $HostPoolSessionCredentialKeyVault, "Standard_D2s_v3", $_, $FSlogix, $MSIX)
+    Write-Verbose "VM Source Image Id for the ACG Host Pool: $LatestCurrentGalleryImageVersion (MSIX: $MSIX / FSlogix: $FSlogix)" -Verbose
+    # Use case 4: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with an Image coming from an Azure Compute Gallery and without FSLogix and MSIX
+    $PooledHostPool = [PooledHostPool]::new("hp-np-ad-poc-cg-eu-{0:D2}" -f $Index, "EastUS", "napocceu{0:D2}" -f $Index, 5, 3, $HostPoolSessionCredentialKeyVault, "Standard_D2s_v3", $CurrentGalleryImageDefinition.Id, $FSlogix, $MSIX)
     $HostPools += $PooledHostPool
 }
 #endregion
@@ -3829,6 +3842,18 @@ Update-AVDRDCMan -HostPool $HostPools -Install -Open -Verbose
 
 #Remove-AzResourceGroup -Name $AzureComputeGallery.ResourceGroupName -Force -AsJob
 
+$SessionHostNames = foreach ($CurrentHostPoolName in $HostPools.Name) { (Get-AzWvdSessionHost -HostPoolName $CurrentHostPoolName -ResourceGroupName "rg-avd-$CurrentHostPoolName" -ErrorAction Ignore).ResourceId -replace ".*/" | Where-Object -FilterScript { -not([string]::IsNullOrEmpty($_)) } }
+
+$Jobs = foreach ($CurrentSessionHostName in $SessionHostNames) 
+{
+    Write-Host -Object "Restarting '$CurrentSessionHostName' Azure VM ..."
+    Get-AzVM -Name $CurrentSessionHostName | Restart-AzVM -AsJob -Verbose
+}
+Write-Host -Object "Waiting for all restarts ..."
+$Jobs | Wait-Job | Out-Null
+$Jobs | Remove-Job -Force
+
+<#
 $ADDSHostPools = $HostPools | Where-Object -FilterScript { -not($_.IsMicrosoftEntraIdJoined) }
 $ADDSSessionHostNames = foreach ($CurrentHostPoolName in $ADDSHostPools.Name) { (Get-AzWvdSessionHost -HostPoolName $CurrentHostPoolName -ResourceGroupName "rg-avd-$CurrentHostPoolName" -ErrorAction Ignore).ResourceId -replace ".*/" | Where-Object -FilterScript { -not([string]::IsNullOrEmpty($_)) } }
 if (-not([string]::IsNullOrEmpty($ADDSHostPools))) {
@@ -3838,6 +3863,8 @@ if (-not([string]::IsNullOrEmpty($ADDSHostPools))) {
     Invoke-Command -ComputerName $ADDSSessionHostNames -ScriptBlock { Get-LocalGroupMember -Group "FSLogix Profile Exclude List" -ErrorAction Ignore }
     #endregion
 }
+#>
+
 
 #region Adding Test Users (under the OrgUsers OU) as HostPool Users (for all HostPools)
 Get-ADGroup -Filter "Name -like 'hp*- Users'" | Add-ADGroupMember -Members "AVD Users"
@@ -3849,7 +3876,10 @@ $EndTime = Get-Date
 $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
 Write-Host -Object "Overall Processing Time: $($TimeSpan.ToString())"
 #endregion
-#Select-String -Pattern "~~" -Path $CurrentDir\new*.txt
-#Stop-Transcript; Get-Job | Remove-Job -Force; Remove-Item -Path $CurrentDir\new*.txt -Force
-
+<#
+#Looking for error in the log files
+Select-String -Pattern "~~" -Path $CurrentDir\new*.txt -Context 1
+#Doing some cleanups
+Stop-Transcript; Get-Job | Remove-Job -Force; Remove-Item -Path $CurrentDir\new*.txt -Force
+#>
 Stop-Transcript
