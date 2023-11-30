@@ -29,10 +29,10 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
 #region Latest DotNet Core Hosting Bundle
-$LatestNetCoreHostingBundleURI = (Invoke-WebRequest https://dotnet.microsoft.com/permalink/dotnetcore-current-windows-runtime-bundle-installer).links.href | Where-Object -FilterScript { $_ -match "\.exe$"} | Select-Object -Unique
-$LatestDotNetCoreSDKFilePath = Join-Path -Path $CurrentDir -ChildPath $(($LatestNetCoreHostingBundleURI -split "/")[-1])
-Start-BitsTransfer -Source $LatestNetCoreHostingBundleURI -Destination $LatestDotNetCoreSDKFilePath
-Write-Verbose "Latest DotNet Core Hosting Bundle is available at '$LatestDotNetCoreSDKFilePath'"
+$LatestDotNetCoreHostingBundleURI = (Invoke-WebRequest https://dotnet.microsoft.com/permalink/dotnetcore-current-windows-runtime-bundle-installer).links.href | Where-Object -FilterScript { $_ -match "\.exe$"} | Select-Object -Unique
+$LatestDotNetCoreHostingBundleFilePath = Join-Path -Path $CurrentDir -ChildPath $(($LatestDotNetCoreHostingBundleURI -split "/")[-1])
+Start-BitsTransfer -Source $LatestDotNetCoreHostingBundleURI -Destination $LatestDotNetCoreHostingBundleFilePath
+Write-Verbose "Latest DotNet Core Hosting Bundle is available at '$LatestDotNetCoreHostingBundleFilePath'"
 #endregion
 
 #region Latest DotNet SDK
