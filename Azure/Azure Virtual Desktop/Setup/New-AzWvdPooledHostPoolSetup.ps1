@@ -708,7 +708,9 @@ function Grant-ADJoinPermission {
     #If the user doesn't exist, we create it
     if (-not($ADUser)) {
         Write-Verbose -Message "Creating '$($Credential.UserName)' AD User (for adding Azure VM to ADDS)"
-        $ADUser = New-ADUser -Name $Credential.UserName -AccountPassword $Credential.Password -PasswordNeverExpires $true -Enabled $true -Description "Created by PowerShell Script for ADDS-joined AVD Session Hosts" -UserPrincipalName $("{0}@{1}" -f $Credential.UserName, $((Get-ADDomain).DNSRoot)) -PassThru
+        $DomainName = (Get-ADDomain).DNSRoot
+        #$DomainName = [System.DirectoryServices.ActiveDirectory.Domain]::GetCurrentDomain().Forest.Name
+        $ADUser = New-ADUser -Name $Credential.UserName -AccountPassword $Credential.Password -PasswordNeverExpires $true -Enabled $true -Description "Created by PowerShell Script for ADDS-joined AVD Session Hosts" -UserPrincipalName $("{0}@{1}" -f $Credential.UserName, $DomainName) -PassThru
     }
 
     # Define the security SamAccountName (user or group) to which you want to grant the permission
@@ -1497,7 +1499,9 @@ function Remove-AzAvdHostPoolSetup {
             try {
                 if (-not([string]::IsNullOrEmpty($_))) {
                     Write-Verbose "Removing DNS Record: '$_' ..."
-                    Remove-DnsServerResourceRecord -ZoneName $((Get-ADDomain).DNSRoot) -RRType "A" -Name "$_" -Force -ErrorAction Ignore
+                    $DomainName = (Get-ADDomain).DNSRoot
+                    #$DomainName = [System.DirectoryServices.ActiveDirectory.Domain]::GetCurrentDomain().Forest.Name
+                    Remove-DnsServerResourceRecord -ZoneName $DomainName -RRType "A" -Name "$_" -Force -ErrorAction Ignore
                 }
             } 
             catch {} 
@@ -1610,6 +1614,7 @@ function New-AzAvdPersonalHostPoolSetup {
         $ThisDomainControllerVirtualNetwork = Get-AzResource -ResourceId $ThisDomainControllerVirtualNetworkId | Get-AzVirtualNetwork
 
         $DomainName = (Get-ADDomain).DNSRoot
+        #$DomainName = [System.DirectoryServices.ActiveDirectory.Domain]::GetCurrentDomain().Forest.Name
         #endregion 
 
     }
@@ -2041,6 +2046,7 @@ function New-AzAvdPooledHostPoolSetup {
         $ThisDomainControllerVirtualNetwork = Get-AzResource -ResourceId $ThisDomainControllerVirtualNetworkId | Get-AzVirtualNetwork
 
         $DomainName = (Get-ADDomain).DNSRoot
+        #$DomainName = [System.DirectoryServices.ActiveDirectory.Domain]::GetCurrentDomain().Forest.Name
         #endregion 
 
     }
@@ -3300,6 +3306,7 @@ function New-AzAvdHostPoolSetup {
 
         $DefaultNamingContext = (Get-ADRootDSE).defaultNamingContext
         $DomainName = (Get-ADDomain).DNSRoot
+        #$DomainName = [System.DirectoryServices.ActiveDirectory.Domain]::GetCurrentDomain().Forest.Name
 
         $AVDRootOU = Get-ADOrganizationalUnit -Filter 'Name -eq "AVD"' -SearchBase $DefaultNamingContext
         if (-not($AVDRootOU)) {
@@ -3388,7 +3395,9 @@ function New-AzAvdHostPoolSetup {
             #>
             $OutFile = Join-Path -Path $env:Temp -ChildPath StarterGPOs.zip
             Invoke-WebRequest -Uri https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Setup/StarterGPOs.zip -OutFile $OutFile
-            $DestinationPath = "\\{0}\SYSVOL\{0}" -f $((Get-ADDomain).DNSRoot)
+            $DomainName = (Get-ADDomain).DNSRoot
+            #$DomainName = [System.DirectoryServices.ActiveDirectory.Domain]::GetCurrentDomain().Forest.Name
+            $DestinationPath = "\\{0}\SYSVOL\{0}" -f $DomainName
             Expand-Archive -Path $OutFile -DestinationPath $DestinationPath
             Remove-Item -Path $OutFile -Force -ErrorAction Ignore
         }
@@ -3487,6 +3496,7 @@ function Update-AVDRDCMan {
     #region variables
     $RootAVDOUName = 'AVD'
     $DomainName = (Get-ADDomain).DNSRoot
+    #$DomainName = [System.DirectoryServices.ActiveDirectory.Domain]::GetCurrentDomain().Forest.Name
     $RDGFileContentTemplate = @"
 <?xml version="1.0" encoding="utf-8"?>
 <RDCMan programVersion="2.83" schemaVersion="3">
@@ -3770,7 +3780,7 @@ if (-not(Test-Path -Path $env:SystemRoot\policyDefinitions\en-US\terminalserver-
     Invoke-WebRequest -Uri  $AVDGPOLatestURI -OutFile $OutFile
     $AVDGPOLatestDir = New-Item -Path $env:Temp\AVDGPOLatest -ItemType Directory -Force
     Start-Process -FilePath $env:ComSpec -ArgumentList "/c", "extrac32 $OutFile /Y" -WorkingDirectory $AVDGPOLatestDir -Wait 
-    $ZipFiles = Get-ChildItem -Path $AVDGPOLatestDir -F$eilter *.zip -File 
+    $ZipFiles = Get-ChildItem -Path $AVDGPOLatestDir -Filter *.zip -File 
     $ZipFiles | Expand-Archive -DestinationPath $AVDGPOLatestDir -Force
     Remove-Item -Path $ZipFiles.FullName -Force
 
@@ -3784,7 +3794,7 @@ if (-not(Test-Path -Path $env:SystemRoot\policyDefinitions\en-US\terminalserver-
 $HostPoolSessionCredentialKeyVault = New-AzHostPoolSessionCredentialKeyVault -Verbose
 
 $AzureComputeGalleryStartTime = Get-Date
-#$AzureComputeGallery = New-AzureComputeGallery -Verbose
+$AzureComputeGallery = New-AzureComputeGallery -Verbose
 $AzureComputeGallery = Get-AzGallery | Sort-Object -Property Name -Descending | Select-Object -First 1
 $AzureComputeGalleryEndTime = Get-Date
 $AzureComputeGalleryTimeSpan = New-TimeSpan -Start $AzureComputeGalleryStartTime -End $AzureComputeGalleryEndTime
