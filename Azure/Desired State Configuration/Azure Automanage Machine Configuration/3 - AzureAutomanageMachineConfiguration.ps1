@@ -34,11 +34,11 @@ $GuestConfigurationPackageName = "$ConfigurationName.zip"
 #region Deploy prerequisites to enable Guest Configuration policies on virtual machines
 
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName
-$PolicyDefinition = Get-AzPolicySetDefinition | Where-Object -FilterScript { $_.Properties.DisplayName -eq "Deploy prerequisites to enable Guest Configuration policies on virtual machines" }
-$PolicyAssignment = New-AzPolicyAssignment -Name 'deployPrerequisitesForGuestConfigurationPolicies' -DisplayName 'Deploy prerequisites to enable Guest Configuration policies on virtual machines' -Scope $ResourceGroup.ResourceId -PolicySetDefinition $PolicyDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $Location
+$PolicySetDefinition = Get-AzPolicySetDefinition | Where-Object -FilterScript { $_.Properties.DisplayName -eq "Deploy prerequisites to enable Guest Configuration policies on virtual machines" }
+$PolicyAssignment = New-AzPolicyAssignment -Name "$($resourceGroupName)-deployPrereqForGuestConfigurationPolicies" -DisplayName 'Deploy prerequisites to enable Guest Configuration policies on virtual machines' -Scope $ResourceGroup.ResourceId -PolicySetDefinition $PolicySetDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $Location
 
 # Grant defined roles with PowerShell
-$roleDefinitionIds = $PolicyDefinition.Properties.PolicyDefinitions | ForEach-Object -Process { Get-AzPolicyDefinition -Id $_.policyDefinitionId | Select-Object @{n = "roleDefinitionIds"; e = { $_.Properties.policyRule.then.details.roleDefinitionIds } } } | Select-Object -ExpandProperty roleDefinitionIds -Unique
+$roleDefinitionIds = $PolicySetDefinition.Properties.PolicyDefinitions | ForEach-Object -Process { Get-AzPolicyDefinition -Id $_.policyDefinitionId | Select-Object @{Name = "roleDefinitionIds"; Expression = { $_.Properties.policyRule.then.details.roleDefinitionIds } } } | Select-Object -ExpandProperty roleDefinitionIds -Unique
 Start-Sleep -Seconds 30
 if ($roleDefinitionIds.Count -gt 0) {
     $roleDefinitionIds | ForEach-Object {
@@ -49,15 +49,16 @@ if ($roleDefinitionIds.Count -gt 0) {
     }
 }
 
-$job = @() 
+$Jobs = @() 
 # Start remediation for every policy definition
-$PolicyDefinition.Properties.PolicyDefinitions | ForEach-Object -Process {
-    Write-Host -Object "Creating remediation for Policy $($_.policyDefinitionReferenceId)"
-    $job += Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignment.PolicyAssignmentId -PolicyDefinitionReferenceId $_.policyDefinitionReferenceId -Name $_.policyDefinitionReferenceId -ResourceGroupName $ResourceGroup.ResourceGroupName -ResourceDiscoveryMode ReEvaluateCompliance -AsJob
+$PolicySetDefinition.Properties.PolicyDefinitions | ForEach-Object -Process {
+    Write-Host -Object "Creating remediation for '$($_.policyDefinitionReferenceId)' Policy ..."
+    $Jobs += Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignment.PolicyAssignmentId -PolicyDefinitionReferenceId $_.policyDefinitionReferenceId -Name $_.policyDefinitionReferenceId -ResourceGroupName $ResourceGroup.ResourceGroupName -ResourceDiscoveryMode ReEvaluateCompliance -AsJob
 }
-$remediation = $job | Wait-Job | Receive-Job #-Keep
+$remediation = $Jobs | Wait-Job | Receive-Job #-Keep
 $remediation
 
+Write-Host -Object "Starting Compliance Scan for '$ResourceGroupName' Resource Group ..."
 Start-AzPolicyComplianceScan -ResourceGroupName $ResourceGroupName
 #endregion
 
@@ -106,7 +107,7 @@ $NonComplianceMessage = [Microsoft.Azure.Commands.ResourceManager.Cmdlets.Entiti
 $NonComplianceMessage.message = "Non Compliance Message"
 $IncludeArcConnectedServers = @{'IncludeArcMachines' = 'true' }# <- IncludeArcMachines is important - given you want to target Arc as well as Azure VMs
 
-$PolicyAssignment = New-AzPolicyAssignment -Name $ConfigurationName -DisplayName "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $ConfigurationName DSC Config." -Scope $ResourceGroup.ResourceId -PolicyDefinition $PolicyDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $Location -PolicyParameterObject $IncludeArcConnectedServers -NonComplianceMessage $NonComplianceMessage  
+$PolicyAssignment = New-AzPolicyAssignment -Name "$($ResourceGroupName)-$($ConfigurationName)" -DisplayName "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $ConfigurationName DSC Config." -Scope $ResourceGroup.ResourceId -PolicyDefinition $PolicyDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $Location -PolicyParameterObject $IncludeArcConnectedServers -NonComplianceMessage $NonComplianceMessage  
 
 # Grant defined roles with PowerShell
 # https://docs.microsoft.com/en-us/azure/governance/policy/how-to/remediate-resources#grant-defined-roles-with-PowerShell
@@ -121,17 +122,17 @@ if ($roleDefinitionIds.Count -gt 0) {
     }
 }
 
-$PolicyAssignmentName = ($PolicyAssignment.PolicyAssignmentId -split '/')[-1]
-Write-Host -Object "Creating remediation for Policy '$($PolicyDefinition.Properties.DisplayName)'"
-$job = Start-AzPolicyRemediation -Name $PolicyAssignmentName -PolicyAssignmentId $PolicyAssignment.PolicyAssignmentId -ResourceGroupName $ResourceGroup.ResourceGroupName -ResourceDiscoveryMode ReEvaluateCompliance -AsJob
-$remediation = $job | Wait-Job | Receive-Job #-Keep
+Write-Host -Object "Creating remediation for '$($PolicyDefinition.Properties.DisplayName)' Policy ..."
+$Jobs = Start-AzPolicyRemediation -Name $PolicyAssignment.Name -PolicyAssignmentId $PolicyAssignment.PolicyAssignmentId -ResourceGroupName $ResourceGroup.ResourceGroupName -ResourceDiscoveryMode ReEvaluateCompliance -AsJob
+$remediation = $Jobs | Wait-Job | Receive-Job #-Keep
 $remediation
 
 #If you want to force an update on the compliance result you can use the following cmdlet instead of waiting for the next trigger : https://docs.microsoft.com/en-us/azure/governance/policy/how-to/get-compliance-data#evaluation-triggers.
+Write-Host -Object "Starting Compliance Scan for '$ResourceGroupName' Resource Group ..."
 Start-AzPolicyComplianceScan -ResourceGroupName $ResourceGroupName -Verbose
 
 # Get the resources in your resource group that are non-compliant to the policy assignment
-Get-AzPolicyState -ResourceGroupName $ResourceGroupName -PolicyAssignmentName $PolicyAssignmentName #-Filter 'IsCompliant eq false'
+Get-AzPolicyState -ResourceGroupName $ResourceGroupName -PolicyAssignmentName $PolicyAssignment.Name #-Filter 'IsCompliant eq false'
 
 #Get latest non-compliant policy states summary in resource group scope
 Get-AzPolicyStateSummary -ResourceGroupName $ResourceGroupName | Select-Object -ExpandProperty PolicyAssignments 
