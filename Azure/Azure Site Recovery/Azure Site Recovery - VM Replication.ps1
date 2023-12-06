@@ -257,7 +257,6 @@ $PrimaryLocationSubnet = Get-AzVirtualNetworkSubnetConfig -Name $PrimaryLocation
 $RecoveryLocationVirtualNetwork = New-AzVirtualNetwork -ResourceGroupName $RecoveryLocationResourceGroupName -Name $RecoveryLocationVirtualNetworkName  -AddressPrefix $RecoveryLocationVirtualNetworkAddressSpace -Location $RecoveryLocation
 $null = Add-AzVirtualNetworkSubnetConfig -Name $RecoveryLocationSubnetName -VirtualNetwork $RecoveryLocationVirtualNetwork -AddressPrefix $SubnetIPRange -NetworkSecurityGroupId $RecoveryLocationNetworkSecurityGroup.Id
 $RecoveryLocationVirtualNetwork = Set-AzVirtualNetwork -VirtualNetwork $RecoveryLocationVirtualNetwork
-$RecoveryLocationSubnet = Get-AzVirtualNetworkSubnetConfig -Name $RecoveryLocationSubnetName -VirtualNetwork $RecoveryLocationVirtualNetwork
 #endregion
 
 #Create Azure Public Address

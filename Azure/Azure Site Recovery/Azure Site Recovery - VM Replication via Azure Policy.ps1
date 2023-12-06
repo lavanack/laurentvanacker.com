@@ -93,8 +93,6 @@ $PrimaryLocationShortName = $shortNameHT[$PrimaryLocation].shortName
 $RecoveryLocationShortName = $shortNameHT[$RecoveryLocation].shortName
 
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
-$RecoveryServicesAsrFabricPrefix = "rsaf"
-$RecoveryServicesAsrProtectionContainerPrefix = "rsapc"
 $RecoverySiteVaultPrefix = "rsv"
 $ResourceGroupPrefix = "rg"
 $StorageAccountPrefix = "sa"
@@ -127,10 +125,6 @@ $RecoveryLocationSubnetName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $SubnetPref
 $PrimaryLocationResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $PrimaryLocationShortName, $Instance                       
 $RecoveryLocationResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $RecoveryLocationShortName, $Instance                       
 $RecoveryServicesVaultName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $RecoverySiteVaultPrefix, $Project, $Role, $RecoveryLocationShortName, $Instance
-$PrimaryLocationRecoveryServicesAsrFabricName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $RecoveryServicesAsrFabricPrefix, $Project, $Role, $PrimaryLocationShortName, $Instance               
-$RecoveryLocationRecoveryServicesAsrFabricName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $RecoveryServicesAsrFabricPrefix, $Project, $Role, $RecoveryLocationShortName, $Instance               
-$PrimaryLocationRecoveryServicesAsrProtectionContainerName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $RecoveryServicesAsrProtectionContainerPrefix, $Project, $Role, $PrimaryLocationShortName, $Instance
-$RecoveryLocationRecoveryServicesAsrProtectionContainerName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $RecoveryServicesAsrProtectionContainerPrefix, $Project, $Role, $RecoveryLocationShortName, $Instance
 
 $VMName = $VMName.ToLower()
 $PrimaryLocationNetworkSecurityGroupName = $PrimaryLocationNetworkSecurityGroupName.ToLower()
@@ -142,10 +136,7 @@ $RecoveryLocationSubnetName = $RecoveryLocationSubnetName.ToLower()
 $PrimaryLocationResourceGroupName = $PrimaryLocationResourceGroupName.ToLower()
 $RecoveryLocationResourceGroupName = $RecoveryLocationResourceGroupName.ToLower()
 $PrimaryLocationVirtualNetworkAddressSpace = "10.0.0.0/16" # Format 10.0.0.0/16
-$RecoveryLocationVirtualNetworkAddressSpace = "10.0.0.0/16" # Format 10.0.0.0/16
 $SubnetIPRange = "10.0.0.0/24" # Format 10.0.1.0/24                         
-$TestFailOverVirtualNetworkAddressSpace = "10.3.0.0/16" # Format 10.0.0.0/16
-$TestFailOverSubnetIPRange = "10.3.0.0/20" # Format 10.0.0.0/20                         
 
 $FQDN = "$VMName.$PrimaryLocation.cloudapp.azure.com".ToLower()
 
@@ -250,7 +241,6 @@ $SecurityRules = @(
 )
 
 $PrimaryLocationNetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $PrimaryLocationResourceGroupName -Location $PrimaryLocation -Name $PrimaryLocationNetworkSecurityGroupName -SecurityRules $SecurityRules -Force
-$RecoveryLocationNetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $RecoveryLocationResourceGroupName -Location $RecoveryLocation -Name $RecoveryLocationNetworkSecurityGroupName -SecurityRules $SecurityRules -Force
 
 #Steps 4 + 5: Create Azure Virtual network (and related NSG) using the virtual network subnet configuration
 #region Primary Location
@@ -258,13 +248,6 @@ $PrimaryLocationVirtualNetwork = New-AzVirtualNetwork -ResourceGroupName $Primar
 Add-AzVirtualNetworkSubnetConfig -Name $PrimaryLocationSubnetName -VirtualNetwork $PrimaryLocationVirtualNetwork -AddressPrefix $SubnetIPRange -NetworkSecurityGroupId $PrimaryLocationNetworkSecurityGroup.Id
 $PrimaryLocationVirtualNetwork = Set-AzVirtualNetwork -VirtualNetwork $PrimaryLocationVirtualNetwork
 $PrimaryLocationSubnet = Get-AzVirtualNetworkSubnetConfig -Name $PrimaryLocationSubnetName -VirtualNetwork $PrimaryLocationVirtualNetwork
-#endregion
-
-#region Recovery Location
-$RecoveryLocationVirtualNetwork = New-AzVirtualNetwork -ResourceGroupName $RecoveryLocationResourceGroupName -Name $RecoveryLocationVirtualNetworkName  -AddressPrefix $RecoveryLocationVirtualNetworkAddressSpace -Location $RecoveryLocation
-$null = Add-AzVirtualNetworkSubnetConfig -Name $RecoveryLocationSubnetName -VirtualNetwork $RecoveryLocationVirtualNetwork -AddressPrefix $SubnetIPRange -NetworkSecurityGroupId $RecoveryLocationNetworkSecurityGroup.Id
-$RecoveryLocationVirtualNetwork = Set-AzVirtualNetwork -VirtualNetwork $RecoveryLocationVirtualNetwork
-$RecoveryLocationSubnet = Get-AzVirtualNetworkSubnetConfig -Name $RecoveryLocationSubnetName -VirtualNetwork $RecoveryLocationVirtualNetwork
 #endregion
 
 #Create Azure Public Address
