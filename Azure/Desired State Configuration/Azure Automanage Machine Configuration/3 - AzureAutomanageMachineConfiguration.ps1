@@ -124,8 +124,8 @@ if ($roleDefinitionIds.Count -gt 0) {
 
 Write-Host -Object "Creating remediation for '$($PolicyDefinition.Properties.DisplayName)' Policy ..."
 $Jobs = Start-AzPolicyRemediation -Name $PolicyAssignment.Name -PolicyAssignmentId $PolicyAssignment.PolicyAssignmentId -ResourceGroupName $ResourceGroup.ResourceGroupName -ResourceDiscoveryMode ReEvaluateCompliance -AsJob
-$remediation = $Jobs | Wait-Job | Receive-Job #-Keep
-$remediation
+$PolicyRemediation = $Jobs | Wait-Job | Receive-Job #-Keep
+$PolicyRemediation
 
 #If you want to force an update on the compliance result you can use the following cmdlet instead of waiting for the next trigger : https://docs.microsoft.com/en-us/azure/governance/policy/how-to/get-compliance-data#evaluation-triggers.
 Write-Host -Object "Starting Compliance Scan for '$ResourceGroupName' Resource Group ..."

@@ -161,13 +161,13 @@ $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList
 $Jobs = @()
 $PrimaryLocationResourceGroup = Get-AzResourceGroup -Name $PrimaryLocationResourceGroupName -ErrorAction Ignore 
 if ($PrimaryLocationResourceGroup) {
-    #Step 0: Remove previously existing Azure Resource Group with the same name
+    #Remove previously existing Azure Resource Group with the same name
     $Jobs += $PrimaryLocationResourceGroup | Remove-AzResourceGroup -Force -AsJob
 }
 
 $RecoveryLocationResourceGroup = Get-AzResourceGroup -Name $RecoveryLocationResourceGroupName -ErrorAction Ignore 
 if ($RecoveryLocationResourceGroup) {
-    #Step 0: Remove previously existing Azure Resource Group with the same name
+    #Remove previously existing Azure Resource Group with the same name
     $Jobs += $RecoveryLocationResourceGroup | Remove-AzResourceGroup -Force -AsJob
 }
 
@@ -222,14 +222,14 @@ elseif ($null -eq (Get-AZVMSize -Location $RecoveryLocation | Where-Object -Filt
     Write-Error "The '$VMSize' is not available in the '$RecoveryLocation' location ..." -ErrorAction Stop
 }
 
-#Step 1: Create Azure Resource Group
+#Create Azure Resource Group
 # Create Resource Groups
 #The resource group for the virtual machine(s)
 $PrimaryLocationResourceGroup = New-AzResourceGroup -Name $PrimaryLocationResourceGroupName -Location $PrimaryLocation -Force
 #The resource group that the virtual machine(s) must be created in when failed over.
 $RecoveryLocationResourceGroup = New-AzResourceGroup -Name $RecoveryLocationResourceGroupName -Location $RecoveryLocation -Force
 
-#Step 3: Create Azure Network Security Group
+#Create Azure Network Security Group
 #RDP only for my public IP address
 $SecurityRules = @(
     #region Inbound
@@ -239,8 +239,6 @@ $SecurityRules = @(
     New-AzNetworkSecurityRuleConfig -Name HTTPRule -Description "Allow HTTP" -Access Allow -Protocol Tcp -Direction Inbound -Priority 301 -SourceAddressPrefix $MyPublicIp -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 80
     #HTTPS only for my public IP address
     New-AzNetworkSecurityRuleConfig -Name HTTPSRule -Description "Allow HTTPS" -Access Allow -Protocol Tcp -Direction Inbound -Priority 302 -SourceAddressPrefix $MyPublicIp -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 443
-    #WinRM only for my public IP address
-    New-AzNetworkSecurityRuleConfig -Name WinRMRule -Description "Allow WinRM" -Access Allow -Protocol Tcp -Direction Inbound -Priority 303 -SourceAddressPrefix $MyPublicIp -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 5985, 5986
     #endregion
 )
 
@@ -262,22 +260,22 @@ $RecoveryLocationVirtualNetwork = Set-AzVirtualNetwork -VirtualNetwork $Recovery
 $RecoveryLocationSubnet = Get-AzVirtualNetworkSubnetConfig -Name $RecoveryLocationSubnetName -VirtualNetwork $RecoveryLocationVirtualNetwork
 #endregion
 
-#Step 6: Create Azure Public Address
+#Create Azure Public Address
 $PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $PrimaryLocationResourceGroupName -Location $PrimaryLocation -AlLocationMethod Static -DomainNameLabel $VMName.ToLower()
 #Setting up the DNS Name
 #$PublicIP.DnsSettings.Fqdn = $FQDN
 
-#Step 7: Create Network Interface Card 
+#Create Network Interface Card 
 $NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $PrimaryLocationResourceGroupName -Location $PrimaryLocation -SubnetId $PrimaryLocationSubnet.Id -PublicIpAddressId $PublicIP.Id #-NetworkSecurityGroupId $PrimaryLocationNetworkSecurityGroup.Id
 
-<# Optional : Step 8: Get Virtual Machine publisher, Image Offer, Sku and Image
+<# Optional : Get Virtual Machine publisher, Image Offer, Sku and Image
 $ImagePublisherName = Get-AzVMImagePublisher -Location $PrimaryLocation | Where-Object -FilterScript { $_.PublisherName -eq "MicrosoftWindowsDesktop"}
 $ImageOffer = Get-AzVMImageOffer -Location $PrimaryLocation -publisher $ImagePublisherName.PublisherName | Where-Object -FilterScript { $_.Offer  -eq "Windows-11"}
 $ImageSku = Get-AzVMImageSku -Location  $PrimaryLocation -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer | Where-Object -FilterScript { $_.Skus  -eq "win11-21h2-pro"}
 $image = Get-AzVMImage -Location  $PrimaryLocation -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer -sku $ImageSku.Skus | Sort-Object -Property Version -Descending | Select-Object -First 1
 #>
 
-# Step 9: Create a virtual machine configuration file (As a Spot Intance)
+# Create a virtual machine configuration file (As a Spot Intance)
 $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1 -IdentityType SystemAssigned -SecurityType Standard
 
 $null = Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
@@ -289,7 +287,7 @@ $null = Set-AzVMOperatingSystem -VM $VMConfig -Windows -ComputerName $VMName -Cr
 # Set boot diagnostic to managed storage account
 $null = Set-AzVMBootDiagnostic -VM $VMConfig -Enable 
 
-# The uncommented lines below replace Step #8 : Set virtual machine source image
+# The uncommented lines below replace Set virtual machine source image
 $null = Set-AzVMSourceImage -VM $VMConfig -PublisherName $ImagePublisherName -Offer $ImageOffer -Skus $ImageSku -Version 'latest'
 
 # Set OsDisk configuration
@@ -301,7 +299,7 @@ $VMDataDisk01 = New-AzDisk -DiskName $DataDiskName -Disk $VMDataDisk01Config -Re
 $VM = Add-AzVMDataDisk -VM $VMConfig -Name $DataDiskName -CreateOption Attach -ManagedDiskId $VMDataDisk01.Id -Lun 0
 #endregion
 
-#Step 10: Create Azure Virtual Machine
+#Create Azure Virtual Machine
 $null = New-AzVM -ResourceGroupName $PrimaryLocationResourceGroupName -Location $PrimaryLocation -VM $VMConfig #-DisableBginfoExtension
 
 $VM = Get-AzVM -ResourceGroup $PrimaryLocationResourceGroupName -Name $VMName
@@ -357,7 +355,7 @@ $Properties.Add('targetResourceId', $VM.Id)
 $null = New-AzResource -Location $PrimaryLocation -ResourceId $ScheduledShutdownResourceId -Properties $Properties -Force
 #endregion
 
-#Step 11: Start Azure Virtual Machine
+#Start Azure Virtual Machine
 Write-Host -Object "Starting the '$VMName' VM ..."
 $null = Start-AzVM -Name $VMName -ResourceGroupName $PrimaryLocationResourceGroupName
 
@@ -369,7 +367,7 @@ Write-Host -Object "The '$VMName' Azure VM is created and started ..."
 
 #Start-Sleep -Seconds 15
 
-#Step 13: Start RDP Session
+#Start RDP Session
 #mstsc /v $FQDN
 #endregion
 
@@ -597,7 +595,7 @@ Write-Host -Object "Replication protected item creation status: $($TempASRJob.St
 
 #Monitor the replication state and replication health
 Write-Host -Object "Waiting the replication state of the replicated item be 'protected' ..." 
-Write-Host -Object "Replication state of the replicated item: $(Get-AzRecoveryServicesAsrReplicationProtectedItem -ProtectionContainer $PrimaryProtectionContainer | Select FriendlyName, ProtectionState, ReplicationHealth | Out-String)"
+Write-Host -Object "Replication state of the replicated item: $(Get-AzRecoveryServicesAsrReplicationProtectedItem -ProtectionContainer $PrimaryProtectionContainer | Select-Object -Property FriendlyName, ProtectionState, ReplicationHealth | Out-String)"
 
 Write-Host -Object "Waiting the replication state of the replicated item completes ..."
 while ((Get-AzRecoveryServicesAsrReplicationProtectedItem -ProtectionContainer $PrimaryProtectionContainer).ProtectionState -ne "Protected") {
@@ -605,7 +603,7 @@ while ((Get-AzRecoveryServicesAsrReplicationProtectedItem -ProtectionContainer $
 }
 
 #Monitor the replication state and replication health
-Write-Host -Object "Replication state of the replicated item: $(Get-AzRecoveryServicesAsrReplicationProtectedItem -ProtectionContainer $PrimaryProtectionContainer | Select FriendlyName, ProtectionState, ReplicationHealth | Out-String)"
+Write-Host -Object "Replication state of the replicated item: $(Get-AzRecoveryServicesAsrReplicationProtectedItem -ProtectionContainer $PrimaryProtectionContainer | Select-Object -Property  FriendlyName, ProtectionState, ReplicationHealth | Out-String)"
 #endregion
 
 #region Do a test failover, validate, and cleanup test failover
