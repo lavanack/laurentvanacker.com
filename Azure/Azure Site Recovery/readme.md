@@ -1,8 +1,14 @@
 # Azure Site Recovery
 
 - [Azure Site Recovery](#azure-site-recovery)
+  - [Preliminary note](#preliminary-note)
   - [Azure Site Recovery - VM Replication.ps1](#azure-site-recovery---vm-replicationps1)
   - [Azure Site Recovery - VM Replication via Azure Policy.ps1](#azure-site-recovery---vm-replication-via-azure-policyps1)
+
+## Preliminary note
+
+> [!NOTE]
+> I used "East US" and "East US2" as source and target regions in both scripts. You can change the regions in the variables `$PrimaryLocation` and `$RecoveryLocation` at the beginning of the scripts.
 
 ## Azure Site Recovery - VM Replication.ps1
 
