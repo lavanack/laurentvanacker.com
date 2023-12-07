@@ -36,16 +36,30 @@ There are some use cases for every kind of HostPool type at the end of the scrip
 ```powershell:
 # Use case 1: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with FSLogix and MSIX
 [PooledHostPool]::new($HostPoolSessionCredentialKeyVault)
-# Use case 2: Deploy a Personal HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined) without FSLogix and MSIX
+# Use case 2: Deploy a Personal HostPool with 3 (default value) Session Hosts (AD Domain joined) without FSLogix and MSIX
 [PersonalHostPool]::new($RandomNumber, $HostPoolSessionCredentialKeyVault, $false)
 # Use case 3: Deploy a Personal HostPool with 3 (default value) Session Hosts (AD Domain joined) without FSLogix and MSIX
 [PersonalHostPool]::new("hp-pd-ei-poc-mp-eu-{0:D2}" -f $RandomNumber, $null, "pepocmeu{0}" -f $RandomNumber, $null, $HostPoolSessionCredentialKeyVault, $true, $null, $null, $null, $null)
 # Use case 4: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with an Image coming from an Azure Compute Gallery and without FSLogix and MSIX
 $PooledHostPool = [PooledHostPool]::new("hp-np-ad-poc-cg-eu-{0:D2}" -f $Index, "EastUS", "napocceu{0}" -f $Index, 5, 3, $HostPoolSessionCredentialKeyVault, "Standard_D2s_v3", $VMSourceImageId, $FSlogix, $MSIX)
-
 ```
 
+This class is used to defined the HostPool objects you want to deploy in Azure and the code will do the rest for you.
+
 ### Azure Key Vault for Credentials
+
+You probably noticed the `$HostPoolSessionCredentialKeyVault` variable in the previous code snippet. This variable is used to define the Azure Key Vault where the credentials for the Session Hosts will be stored.
+We have to store 4 secrets in the Azure Key Vault:
+
+- `LocalAdminUserName`: The user name for the local administrator account on the Session Hosts
+- `LocalAdminPassword`: The password for the local administrator account on the Session Hosts
+- `ADJoinUserName`: The user name for the account used to join the Session Hosts to the Active Directory domain
+- `ADJoinPassword`: The password for the account used to join the Session Hosts to the Active Directory domain
+
+You can use your own KeyVault (with these 4 secrets) or let the script create one for you : We do this with the `New-AzHostPoolSessionCredentialKeyVault` function.
+
+The `New-AzHostPoolSessionCredentialKeyVault` function have hard coded values for `LocalAdminUserName` and  `ADJoinUserName` (respectively `localadmin` and `adjoin` - feel free to customize to you needs). The value for the `LocalAdminPassword` is also hard coded for a simple reason : If the user specified as value of the `LocalAdminUserName` secret already exists in the Active Directory domain, we need to specify the right password. If the user doesn't exist, the script will create it in the Active Directory domain with the password specified in the `LocalAdminPassword` secret.
+The value for the `ADJoinPassword` is randomly generated with the `New-RandomPassword` function (for information it will be written in the output).
 
 ### Azure Compute Gallery
 
