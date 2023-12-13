@@ -62,6 +62,7 @@ function New-AzureComputeGallery {
 	$ResourceGroupName = $ResourceGroupName.ToLower()
 	Write-Verbose -Message "`$ResourceGroupName: $ResourceGroupName"
 
+
 	# Image template and definition names
 	#AVD MultiSession Session Image Market Place Image + customizations: VSCode
 	$imageDefName01 = "win11-22h2-ent-avd-custom-vscode"
@@ -116,9 +117,9 @@ function New-AzureComputeGallery {
 	# Download the config
 	Invoke-WebRequest -Uri $aibRoleImageCreationUrl -OutFile $aibRoleImageCreationPath -UseBasicParsing
 
-  ((Get-Content -path $aibRoleImageCreationPath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $aibRoleImageCreationPath
-  ((Get-Content -path $aibRoleImageCreationPath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $aibRoleImageCreationPath
-  ((Get-Content -path $aibRoleImageCreationPath -Raw) -replace 'Azure Image Builder Service Image Creation Role', $imageRoleDefName) | Set-Content -Path $aibRoleImageCreationPath
+    ((Get-Content -path $aibRoleImageCreationPath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $aibRoleImageCreationPath
+    ((Get-Content -path $aibRoleImageCreationPath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $aibRoleImageCreationPath
+    ((Get-Content -path $aibRoleImageCreationPath -Raw) -replace 'Azure Image Builder Service Image Creation Role', $imageRoleDefName) | Set-Content -Path $aibRoleImageCreationPath
 
 	# Create a role definition
 	Write-Verbose -Message "Creating '$imageRoleDefName' Role Definition ..."
@@ -132,22 +133,7 @@ function New-AzureComputeGallery {
 		$RoleAssignment = New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $ResourceGroup.ResourceId -ErrorAction Ignore #-Debug
 	} While ($null -eq $RoleAssignment)
   
-	<#
-  While (-not(Get-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $ResourceGroup.ResourceId))
-  {
-      Start-Sleep -Seconds 10
-  }
-  #>
-
-	#To allow Azure VM Image Builder to distribute images to either the managed images or to a Azure Compute Gallery, you will need to provide Contributor permissions for the service "Azure Virtual Machine Image Builder" (ApplicationId: cf32a0cc-373c-47c9-9156-0db11f6a6dfc) on the resource group.
-	# assign permissions for the resource group, so that AIB can distribute the image to it
-	<#
-  Install-Module -Name AzureAD -Force
-  Connect-AzureAD
-  $ApplicationId = (Get-AzureADServicePrincipal -SearchString "Azure Virtual Machine Image Builder").AppId
-  #>
-	#New-AzRoleAssignment -ApplicationId cf32a0cc-373c-47c9-9156-0db11f6a6dfc -Scope $ResourceGroup.ResourceId -RoleDefinitionName Contributor
-	#endregion
+    #endregion
 
 	#region Create an Azure Compute Gallery
 	$GalleryName = "{0}_{1}_{2}_{3}" -f $AzureComputeGalleryPrefix, $Project, $LocationShortName, $timeInt
@@ -175,16 +161,16 @@ function New-AzureComputeGallery {
 
 	Invoke-WebRequest -Uri $templateUrl -OutFile $templateFilePath -UseBasicParsing
 
-  ((Get-Content -path $templateFilePath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $templateFilePath
-  ((Get-Content -path $templateFilePath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $templateFilePath
-	#((Get-Content -path $templateFilePath -Raw) -replace '<region>',$location) | Set-Content -Path $templateFilePath
-  ((Get-Content -path $templateFilePath -Raw) -replace '<runOutputName>', $runOutputName01) | Set-Content -Path $templateFilePath
+    ((Get-Content -path $templateFilePath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $templateFilePath
+    ((Get-Content -path $templateFilePath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $templateFilePath
+    #((Get-Content -path $templateFilePath -Raw) -replace '<region>',$location) | Set-Content -Path $templateFilePath
+    ((Get-Content -path $templateFilePath -Raw) -replace '<runOutputName>', $runOutputName01) | Set-Content -Path $templateFilePath
 
-  ((Get-Content -path $templateFilePath -Raw) -replace '<imageDefName>', $imageDefName01) | Set-Content -Path $templateFilePath
-  ((Get-Content -path $templateFilePath -Raw) -replace '<sharedImageGalName>', $GalleryName) | Set-Content -Path $templateFilePath
-  ((Get-Content -path $templateFilePath -Raw) -replace '<region1>', $replicationRegions) | Set-Content -Path $templateFilePath
-  ((Get-Content -path $templateFilePath -Raw) -replace '<imgBuilderId>', $AssignedIdentity.Id) | Set-Content -Path $templateFilePath
-  ((Get-Content -path $templateFilePath -Raw) -replace '<version>', $version) | Set-Content -Path $templateFilePath
+    ((Get-Content -path $templateFilePath -Raw) -replace '<imageDefName>', $imageDefName01) | Set-Content -Path $templateFilePath
+    ((Get-Content -path $templateFilePath -Raw) -replace '<sharedImageGalName>', $GalleryName) | Set-Content -Path $templateFilePath
+    ((Get-Content -path $templateFilePath -Raw) -replace '<region1>', $replicationRegions) | Set-Content -Path $templateFilePath
+    ((Get-Content -path $templateFilePath -Raw) -replace '<imgBuilderId>', $AssignedIdentity.Id) | Set-Content -Path $templateFilePath
+    ((Get-Content -path $templateFilePath -Raw) -replace '<version>', $version) | Set-Content -Path $templateFilePath
 	#endregion
 
 	#region Submit the template
@@ -242,7 +228,7 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "Creating Azure Image Builder Template Distributor Object  ..."
 	$disSharedImg = New-AzImageBuilderTemplateDistributorObject @disObjParams
 
-	$ImgCustomParams = @{  
+	$ImgVSCodePowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
 		Name                 = 'InstallVSCode'  
 		RunElevated          = $true  
@@ -250,8 +236,8 @@ function New-AzureComputeGallery {
 		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/Install-VSCode.ps1'
 	}
 
-	Write-Verbose -Message "Creating Azure Image Builder Template Customizer Object  ..."
-	$Customizer = New-AzImageBuilderTemplateCustomizerObject @ImgCustomParams 
+	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for 'VSCode' ..."
+	$VSCodeCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgVSCodePowerShellCustomizerParams 
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
 	$ImgTemplateParams = @{
@@ -259,7 +245,7 @@ function New-AzureComputeGallery {
 		ResourceGroupName      = $ResourceGroupName
 		Source                 = $srcPlatform
 		Distribute             = $disSharedImg
-		Customize              = $Customizer
+		Customize              = $VSCodeCustomizer
 		Location               = $location
 		UserAssignedIdentityId = $AssignedIdentity.Id
 		VMProfileVmsize        = "Standard_D4s_v3"
@@ -312,18 +298,15 @@ function New-AzureComputeGallery {
 	$getStatus02 | Remove-AzImageBuilderTemplate -NoWait
 	#endregion
 
-	$EndTime = Get-Date
-	$TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
-	Write-Verbose -Message "Total Processing Time: $($TimeSpan.ToString())"
 	#Adding a delete lock (for preventing accidental deletion)
 	#New-AzResourceLock -LockLevel CanNotDelete -LockNotes "$ResourceGroupName - CanNotDelete" -LockName "$ResourceGroupName - CanNotDelete" -ResourceGroupName $ResourceGroupName -Force
 	#region Clean up your resources
 	<#
-  ## Remove the Resource Group
-  Remove-AzResourceGroup $ResourceGroupName -Force -AsJob
-  ## Remove the definitions
-  Remove-AzRoleDefinition -Name $RoleDefinition.Name -Force
-  #>
+    ## Remove the Resource Group
+    Remove-AzResourceGroup $ResourceGroupName -Force -AsJob
+    ## Remove the definitions
+    Remove-AzRoleDefinition -Name $RoleDefinition.Name -Force
+    #>
 	#endregion
   
 	$Jobs | Wait-Job | Out-Null
@@ -371,5 +354,10 @@ $Jobs | Remove-Job -Force
 
 $AzureComputeGallery = New-AzureComputeGallery -Verbose
 $AzureComputeGallery
+
+$EndTime = Get-Date
+$TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
+Write-Verbose -Message "Total Processing Time: $($TimeSpan.ToString())"
+
 #Remove-AzResourceGroup -Name $AzureComputeGallery.ResourceGroupName -Force -AsJob
 #endregion
