@@ -15,6 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
+#requires -Version 5 -Modules Az.Accounts, Az.Compute
 
 $ActiveSASDisk = Get-AzDisk | Where-Object -FilterScript { $_.DiskState -eq "ActiveSAS" } | Out-GridView -OutputMode Multiple
 
