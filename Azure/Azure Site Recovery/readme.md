@@ -38,7 +38,7 @@ It will mainly do the following:
 - Create two resource groups (1 in a source region and 1 in a target region)
 - Create a virtual network (1 in a source region)
 - Create an Azure VM in the source region
-- Enable replication for the VM via the [https://github.com/Azure/azure-policy/blob/f3ebdd272fca516d9e904052b3f486388d6b0d55/built-in-policies/policyDefinitions/Compute/VirtualMachineReplication_AzureSiteRecovery_DINE.json](Configure disaster recovery on virtual machines by enabling replication via Azure Site Recovery) Azure Policy
+- Enable replication for the VM via the [Configure disaster recovery on virtual machines by enabling replication via Azure Site Recovery](https://github.com/Azure/azure-policy/blob/f3ebdd272fca516d9e904052b3f486388d6b0d55/built-in-policies/policyDefinitions/Compute/VirtualMachineReplication_AzureSiteRecovery_DINE.json) Azure Policy
 - Create a remediation task for the Azure Policy with all required (and optional) parameters
 
 Just wait and see (time the Azure Policy applies) ...
