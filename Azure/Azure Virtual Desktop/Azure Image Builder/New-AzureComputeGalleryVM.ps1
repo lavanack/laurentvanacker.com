@@ -120,6 +120,27 @@ $SubnetIPRange = "10.10.1.0/24" # Format 10.10.1.0/24
 $FQDN = "$VMName.$Location.cloudapp.azure.com".ToLower()
 
 
+#region Setting Gallery and Image to use
+$Gallery = $null
+Do {
+    $Gallery = Get-AzGallery | Out-GridView -OutputMode Single -Title "Select your Azure Compute Gallery"
+} While ($null -eq $Gallery)
+#$GalleryImageDefinition = Get-AzGalleryImageDefinition -ResourceGroupName $Gallery.ResourceGroupName -GalleryName $Gallery.Name
+#Only Image definition with a version number
+$GalleryImageDefinition = Get-AzGalleryImageDefinition -ResourceGroupName $Gallery.ResourceGroupName -GalleryName $Gallery.Name | Where-Object -FilterScript { Get-AzGalleryImageVersion -ResourceGroupName $Gallery.ResourceGroupName -GalleryName $Gallery.Name -GalleryImageDefinitionName $_.Name}
+if ($GalleryImageDefinition -is [array])
+    {
+    Do {
+        $AzVMSourceImageId = $GalleryImageDefinition.Id | Out-GridView -OutputMode Single -Title "Select your Image"
+    } While ($null -eq $AzVMSourceImageId)
+}
+else
+{
+    $AzVMSourceImageId = $GalleryImageDefinition.Id
+}
+#endregion
+
+
 #region Defining credential(s)
 $Username = $env:USERNAME
 #$ClearTextPassword = 'I@m@JediLikeMyF@therB4Me'
@@ -234,18 +255,15 @@ Set-AzVMOperatingSystem -VM $VMConfig -Windows -ComputerName $VMName -Credential
 # Set boot diagnostic to managed storage account
 Set-AzVMBootDiagnostic -VM $VMConfig -Enable 
 
-# The uncommented lines below replace Step #8 : Set virtual machine source image
+# The lines below replace Step #8 : Set virtual machine source image
 #Set-AzVMSourceImage -VM $VMConfig -PublisherName $ImagePublisherName -Offer $ImageOffer -Skus $ImageSku -Version 'latest'
 #region Using an Image for the Azure Compute Gallery
-#$cgGalleryName= "AVD_ACG"
 #Using the latest ACG based on the naming convention
-$LatestCgGallery = (Get-AzGallery -Name "acg_avd*" | Sort-Object -Property Name -Descending | Select-Object -First 1)
-$cgGalleryName = $LatestCgGallery.Name
-$imageResourceGroup = $LatestCgGallery.ResourceGroupName
-$galleryImage = Get-AzGalleryImageDefinition -ResourceGroupName $imageResourceGroup -GalleryName $cgGalleryName
-#$AzVMSourceImage = $galleryImage.id | Select-Object -First 1
+#$Gallery = (Get-AzGallery -Name "acg_avd*" | Sort-Object -Property Name -Descending | Select-Object -First 1)
+#$AzVMSourceImage = $GalleryImageDefinition.id | Select-Object -First 1
 #We randomly choose an image
-$AzVMSourceImageId = $galleryImage.id | Get-Random
+#$AzVMSourceImageId = $GalleryImageDefinition.id | Get-Random
+
 Write-Host "Source Image: $AzVMSourceImageId" -ForegroundColor Yellow
 Set-AzVMSourceImage -VM $VMConfig -Id $AzVMSourceImageId
 #endregion
