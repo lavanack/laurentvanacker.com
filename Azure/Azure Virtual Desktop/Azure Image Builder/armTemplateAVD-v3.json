@@ -35,7 +35,6 @@
                             
                     }
                     },
-        
         "properties": {
             "buildTimeoutInMinutes" : 240,
 
@@ -107,7 +106,7 @@
                     "galleryImageId": "/subscriptions/<subscriptionID>/resourceGroups/<rgName>/providers/Microsoft.Compute/galleries/<sharedImageGalName>/images/<imageDefName>/versions/<version>",
                     "runOutputName": "<runOutputName>",
                     "artifactTags": {
-                        "source": "avd-win11",
+                        "source": "win10-22h2-ent-g2-arm-vscode",
                         "baseosimg": "windows11"
                     },
                     "replicationRegions": [
