@@ -322,9 +322,6 @@ function New-AzureComputeGallery {
 	$GalleryImageVersion = New-AzGalleryImageVersion -ResourceGroupName $ResourceGroupName -GalleryName $GalleryName -GalleryImageDefinitionName $GalleryImageDefinition.Name -Name $CMKGalleryImageVersionName -Location $Location -SourceImageId $sourceImageId -TargetRegion $TargetRegions
 	#endregion
 
-	$EndTime = Get-Date
-	$TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
-	Write-Verbose -Message "Total Processing Time: $($TimeSpan.ToString())"
 	#Adding a delete lock (for preventing accidental deletion)
 	#New-AzResourceLock -LockLevel CanNotDelete -LockNotes "$ResourceGroupName - CanNotDelete" -LockName "$ResourceGroupName - CanNotDelete" -ResourceGroupName $ResourceGroupName -Force
 	#region Clean up your resources
@@ -380,5 +377,10 @@ $Jobs | Remove-Job -Force
 
 $AzureComputeGallery = New-AzureComputeGallery -Verbose
 $AzureComputeGallery
+
+$EndTime = Get-Date
+$TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
+Write-Verbose -Message "Total Processing Time: $($TimeSpan.ToString())"
+
 #Remove-AzResourceGroup -Name $AzureComputeGallery.ResourceGroupName -Force -AsJob
 #endregion
