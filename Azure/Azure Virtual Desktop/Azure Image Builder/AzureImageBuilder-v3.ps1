@@ -46,7 +46,7 @@ function New-AzureComputeGallery {
 	#Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
 	$AzureComputeGalleryPrefix = "acg"
 	$ResourceGroupPrefix = "rg"
-    $StorageAccountPrefix = "sa"
+	$StorageAccountPrefix = "sa"
 
 	# Location (see possible locations in the main docs)
 	#$Location = "EastUS"
@@ -65,10 +65,10 @@ function New-AzureComputeGallery {
 
 	# Image template and definition names
 	#AVD MultiSession Session Image Market Place Image + customizations: VSCode
-	$imageDefName01 = "win11-22h2-ent-avd-custom-vscode"
+	$imageDefName01 = "win10-22h2-ent-g2-arm-vscode"
 	$imageTemplateName01 = $imageDefName01 + "-template-" + $timeInt
 	#AVD MultiSession + Microsoft 365 Market Place Image + customizations: VSCode
-	$imageDefName02 = "win11-22h2-ent-avd-m365-vscode"
+	$imageDefName02 = "win10-22h2-ent-g2-posh-vscode"
 	$imageTemplateName02 = $imageDefName02 + "-template-" + $timeInt
 	Write-Verbose -Message "`$imageDefName01: $imageDefName01"
 	Write-Verbose -Message "`$imageTemplateName01: $imageTemplateName01"
@@ -135,7 +135,7 @@ function New-AzureComputeGallery {
   
 
 	#region Create storage resource group
-    $StorageAccountName = "{0}{1}{2}{3}{4}" -f $StorageAccountPrefix, $Project, $Role, $LocationShortName, $TimeInt                       
+	$StorageAccountName = "{0}{1}{2}{3}{4}" -f $StorageAccountPrefix, $Project, $Role, $LocationShortName, $TimeInt                       
 	$StorageResourceGroupName = "{0}-{1}-{2}-storage-{3}-{4}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $TimeInt 
 	$StorageResourceGroupName = $StorageResourceGroupName.ToLower()
 	Write-Verbose -Message "`$StorageResourceGroupName: $StorageResourceGroupName"
@@ -147,40 +147,40 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "Creating '$StorageResourceGroupName' Resource Group Name ..."
 	$StorageResourceGroup = New-AzResourceGroup -Name $StorageResourceGroupName -Location $location -Force
 
-    $StorageAccountSkuName = "Standard_LRS"
-    $ContainerName = "software"
-    $StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $StorageResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true  -AllowBlobPublicAccess $true
-    $StorageContext = $StorageAccount.Context
-    $StorageContainer = New-AzStorageContainer -Name $ContainerName -Context $StorageContext
-    #$ContainerSASToken = New-AzStorageContainerSASToken -Container $ContainerName -Permission rl -Context $StorageContext -FullUri
+	$StorageAccountSkuName = "Standard_LRS"
+	$ContainerName = "software"
+	$StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $StorageResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true  -AllowBlobPublicAccess $true
+	$StorageContext = $StorageAccount.Context
+	$StorageContainer = New-AzStorageContainer -Name $ContainerName -Context $StorageContext
+	#$ContainerSASToken = New-AzStorageContainerSASToken -Container $ContainerName -Permission rl -Context $StorageContext -FullUri
 
-    #Granting the "Storage Blob Data Reader" role to the container
-    $RoleAssignment = New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName "Storage Blob Data Reader" -Scope "$($StorageAccount.Id)/blobServices/default/containers/$ContainerName" -ErrorAction Ignore #-Debug
+	#Granting the "Storage Blob Data Reader" role to the container
+	$RoleAssignment = New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName "Storage Blob Data Reader" -Scope "$($StorageAccount.Id)/blobServices/default/containers/$ContainerName" -ErrorAction Ignore #-Debug
 
-    $SoftwareDir = New-Item -Path $CurrentDir -Name "Software" -ItemType Directory -Force
-    $StartTime = Get-Date
-    $EndTime = $StartTime.AddDays(1)
-    #region Uploading Notepad++
-    #region Notepad++ Installer
-    $DownloadURI = "https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v8.6/npp.8.6.Installer.x64.exe"
-    $DestinationFileName = Split-Path -Path $DownloadURI -Leaf
-    $DestinationDirName = "001-NotepadPlusPlus"
-    $DestinationDir = New-Item -Path $SoftwareDir -Name $DestinationDirName -ItemType Directory -Force
-    $BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
-    $DestinationFullName = Join-Path $DestinationDir -ChildPath $DestinationFileName
-    Start-BitsTransfer -Source $DownloadURI -Destination $DestinationFullName -DisplayName $DownloadURI
-    $null = Set-AzStorageBlobContent -Context $StorageContext -File $DestinationFullName -Container $ContainerName -Blob $BlobName -BlobType Block -Force
-    #endregion
-	
-    #region Notepad++ Setup PowerShell Script
-    $InstallNotepadPlusPlusPowershellScript = New-Item -Path $DestinationDir -Name "Install-NotepadPlusPlus.ps1" -Value 'Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$PSScriptRoot\npp.8.6.Installer.x64.exe"" /S" -Wait' -Force
-    $DestinationFileName = Split-Path -Path $InstallNotepadPlusPlusPowershellScript -Leaf
-    $BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
-    $null = Set-AzStorageBlobContent -Context $StorageContext -File $InstallNotepadPlusPlusPowershellScript -Container $ContainerName -Blob $BlobName -BlobType Block -Force
-    #endregion
-    #endregion
+	$SoftwareDir = New-Item -Path $CurrentDir -Name "Software" -ItemType Directory -Force
+	$StartTime = Get-Date
+	$EndTime = $StartTime.AddDays(1)
+	#region Uploading Notepad++
+	#region Notepad++ Installer
+	$DownloadURI = "https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v8.6/npp.8.6.Installer.x64.exe"
+	$DestinationFileName = Split-Path -Path $DownloadURI -Leaf
+	$DestinationDirName = "001-NotepadPlusPlus"
+	$DestinationDir = New-Item -Path $SoftwareDir -Name $DestinationDirName -ItemType Directory -Force
+	$BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
+	$DestinationFullName = Join-Path $DestinationDir -ChildPath $DestinationFileName
+	Start-BitsTransfer -Source $DownloadURI -Destination $DestinationFullName -DisplayName $DownloadURI
+	$null = Set-AzStorageBlobContent -Context $StorageContext -File $DestinationFullName -Container $ContainerName -Blob $BlobName -BlobType Block -Force
 	#endregion
-    #endregion
+	
+	#region Notepad++ Setup PowerShell Script
+	$InstallNotepadPlusPlusPowershellScript = New-Item -Path $DestinationDir -Name "Install-NotepadPlusPlus.ps1" -Value 'Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$PSScriptRoot\npp.8.6.Installer.x64.exe"" /S" -Wait' -Force
+	$DestinationFileName = Split-Path -Path $InstallNotepadPlusPlusPowershellScript -Leaf
+	$BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
+	$null = Set-AzStorageBlobContent -Context $StorageContext -File $InstallNotepadPlusPlusPowershellScript -Container $ContainerName -Blob $BlobName -BlobType Block -Force
+	#endregion
+	#endregion
+	#endregion
+	#endregion
 
 	#region Create an Azure Compute Gallery
 	$GalleryName = "{0}_{1}_{2}_{3}" -f $AzureComputeGalleryPrefix, $Project, $LocationShortName, $timeInt
@@ -195,12 +195,12 @@ function New-AzureComputeGallery {
 	#Based on https://github.com/Azure/azvmimagebuilder/tree/main/solutions/14_Building_Images_WVD
 	# Create the gallery definition
 	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefName01' (From Customized JSON)..."
-	$GalleryImageDefinition01 = New-AzGalleryImageDefinition -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -Location $location -Name $imageDefName01 -OsState generalized -OsType Windows -Publisher 'Contoso' -Offer 'Windows' -Sku 'avd-win11-custom' -HyperVGeneration V2
+	$GalleryImageDefinition01 = New-AzGalleryImageDefinition -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -Location $location -Name $imageDefName01 -OsState generalized -OsType Windows -Publisher 'Contoso' -Offer 'Windows' -Sku 'win10-22h2-ent-g2-arm-vscode' -HyperVGeneration V2
 
 	#region Download and configure the template
 	#$templateUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/14_Building_Images_WVD/armTemplateWVD.json"
 	#$templateFilePath = "armTemplateWVD.json"
-	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVD-v2.json"
+	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVD-v3.json"
 	$templateFilePath = Join-Path -Path $CurrentDir -ChildPath $(Split-Path $templateUrl -Leaf)
 	#Generate a unique file name 
 	$templateFilePath = $templateFilePath -replace ".json$", "_$timeInt.json"
@@ -210,7 +210,7 @@ function New-AzureComputeGallery {
 
     ((Get-Content -path $templateFilePath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $templateFilePath
-    #((Get-Content -path $templateFilePath -Raw) -replace '<region>',$location) | Set-Content -Path $templateFilePath
+	#((Get-Content -path $templateFilePath -Raw) -replace '<region>',$location) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<runOutputName>', $runOutputName01) | Set-Content -Path $templateFilePath
 
     ((Get-Content -path $templateFilePath -Raw) -replace '<imageDefName>', $imageDefName01) | Set-Content -Path $templateFilePath
@@ -222,11 +222,11 @@ function New-AzureComputeGallery {
 
 	#region Submit the template
 	Write-Verbose -Message "Starting Resource Group Deployment from '$templateFilePath' ..."
-	#$ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2020-02-14" } -imageTemplateName $imageTemplateName01 -svclocation $location
+	$ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2020-02-14" } -imageTemplateName $imageTemplateName01 -svclocation $location
 
 	#region Build the image
 	Write-Verbose -Message "Starting Image Builder Template from '$imageTemplateName01' (As Job) ..."
-	#$Jobs += Start-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName01 -AsJob
+	$Jobs += Start-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName01 -AsJob
 	#endregion
 	#endregion
 	#endregion
@@ -242,7 +242,7 @@ function New-AzureComputeGallery {
 		OsType            = 'Windows'
 		Publisher         = 'Contoso'
 		Offer             = 'Windows'
-		Sku               = 'avd-win11-m365'
+		Sku               = 'win10-22h2-ent-g2-posh-vscode'
 		HyperVGeneration  = 'V2'
 	}
 	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefName02' (From A Market Place Image)..."
@@ -251,8 +251,8 @@ function New-AzureComputeGallery {
 	$SrcObjParams = @{
 		PlatformImageSource = $true
 		Publisher           = 'MicrosoftWindowsDesktop'
-		Offer               = 'Office-365'    
-		Sku                 = 'win11-22h2-avd-m365'  
+		Offer               = 'Windows-10'    
+		Sku                 = 'win10-22h2-ent-g2'  
 		Version             = 'latest'
 	}
 	Write-Verbose -Message "Creating Azure Image Builder Template Source Object  ..."
@@ -261,7 +261,7 @@ function New-AzureComputeGallery {
 	$disObjParams = @{
 		SharedImageDistributor = $true
 		GalleryImageId         = "$($GalleryImageDefinition02.Id)/versions/$version"
-		ArtifactTag            = @{source = 'avd-win11'; baseosimg = 'windows11' }
+		ArtifactTag            = @{source = 'win10-22h2-ent-g2-posh-vscode'; baseosimg = 'windows10' }
 
 		# 1. Uncomment following line for a single region deployment.
 		#ReplicationRegion = $location
@@ -275,42 +275,41 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "Creating Azure Image Builder Template Distributor Object  ..."
 	$disSharedImg = New-AzImageBuilderTemplateDistributorObject @disObjParams
 
-    #We sort by extension descending to be sure an MSI/EXE file be processed before its related powershell setup file
-    $StorageBlob = Get-AzStorageBlob -Container $containerName -Context $StorageContext
-    $NonPowerShellScriptStorageBlob = $StorageBlob | Where-Object -FilterScript {$_.Name -notmatch "\.ps1$"}
-    $PowerShellScriptStorageBlob = $StorageBlob | Where-Object -FilterScript {$_.Name -match "\.ps1$"}
-    $StorageBlob = @($NonPowerShellScriptStorageBlob) + @($PowerShellScriptStorageBlob)
-    $StorageBlobCustomizers = foreach ($CurrentStorageBlob in $StorageBlob)
-    {
-        $CurrentStorageBlobSASToken = New-AzStorageBlobSASToken -Container $ContainerName -Blob $CurrentStorageBlob.Name -Permission rl -Context $StorageContext -FullUri -StartTime $StartTime -ExpiryTime $EndTime
-        $Destination = Join-Path "C:\AVDImage" -ChildPath $CurrentStorageBlob.Name
-	    $CurrentStorageBlobFileCustomizerParams = @{  
-		    FileCustomizer       = $true  
-		    Name                 = "FC_{0}" -f ($CurrentStorageBlob.Name -replace "\W", "_")
-		    sourceUri            = $CurrentStorageBlobSASToken
-            destination          = $Destination
-	    }
-        Write-Verbose -Message "Creating Azure Image Builder Template File Customizer Object for copying '$($CurrentStorageBlob.Name)' from a Storage Account Container ..."
-	    New-AzImageBuilderTemplateCustomizerObject @CurrentStorageBlobFileCustomizerParams 
+	#We sort by extension descending to be sure an MSI/EXE file be processed before its related powershell setup file
+	$StorageBlob = Get-AzStorageBlob -Container $containerName -Context $StorageContext
+	$NonPowerShellScriptStorageBlob = $StorageBlob | Where-Object -FilterScript { $_.Name -notmatch "\.ps1$" } | Sort-Object -Property Name
+	$PowerShellScriptStorageBlob = $StorageBlob | Where-Object -FilterScript { $_.Name -match "\.ps1$" } | Sort-Object -Property Name
+	$StorageBlob = @($NonPowerShellScriptStorageBlob) + @($PowerShellScriptStorageBlob)
+	$StorageBlobCustomizers = foreach ($CurrentStorageBlob in $StorageBlob) {
+		$CurrentStorageBlobSASToken = New-AzStorageBlobSASToken -Container $ContainerName -Blob $CurrentStorageBlob.Name -Permission rl -Context $StorageContext -FullUri -StartTime $StartTime -ExpiryTime $EndTime
+		$Destination = Join-Path "C:\AVDImage" -ChildPath $CurrentStorageBlob.Name
+		$CurrentStorageBlobFileCustomizerParams = @{  
+			FileCustomizer = $true  
+			Name           = "FC_{0}" -f ($CurrentStorageBlob.Name -replace "\W", "_")
+			sourceUri      = $CurrentStorageBlobSASToken
+			destination    = $Destination
+		}
+		Write-Verbose -Message "Creating Azure Image Builder Template File Customizer Object for copying '$($CurrentStorageBlob.Name)' from a Storage Account Container ..."
+		New-AzImageBuilderTemplateCustomizerObject @CurrentStorageBlobFileCustomizerParams 
         
-        if ($CurrentStorageBlob.Name -match "\.ps1$") {
-	        $CurrentStorageBlobPowerShellCustomizerParams = @{  
-		        PowerShellCustomizer = $true  
-		        Name                 = "PC_{0}" -f ($CurrentStorageBlob.Name -replace "\W", "_")
-		        RunElevated          = $true  
-		        runAsSystem          = $true
-                inline               = $Destination
-	        }
-	        Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for running '$($CurrentStorageBlob.Name)' ..."
-	        New-AzImageBuilderTemplateCustomizerObject @CurrentStorageBlobPowerShellCustomizerParams 
-        }
-    }
+		if ($CurrentStorageBlob.Name -match "\.ps1$") {
+			$CurrentStorageBlobPowerShellCustomizerParams = @{  
+				PowerShellCustomizer = $true  
+				Name                 = "PC_{0}" -f ($CurrentStorageBlob.Name -replace "\W", "_")
+				RunElevated          = $true  
+				runAsSystem          = $true
+				inline               = $Destination
+			}
+			Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for running '$($CurrentStorageBlob.Name)' ..."
+			New-AzImageBuilderTemplateCustomizerObject @CurrentStorageBlobPowerShellCustomizerParams 
+		}
+	}
 
 	$ImgCopyInstallLanguagePacksFileCustomizerParams = @{  
-		FileCustomizer       = $true  
-		Name                 = 'CopyInstallLanguagePacks'  
-		sourceUri            = 'https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-11-20/InstallLanguagePacks.ps1'
-        destination          = "C:\AVDImage\installLanguagePacks.ps1"
+		FileCustomizer = $true  
+		Name           = 'CopyInstallLanguagePacks'  
+		sourceUri      = 'https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-11-20/InstallLanguagePacks.ps1'
+		destination    = "C:\AVDImage\installLanguagePacks.ps1"
 	}
 
 	Write-Verbose -Message "Creating Azure Image Builder Template Customizer Object for copying 'InstallLanguagePacks.ps1' from the RDS-Templates Github repository ..."
@@ -321,10 +320,21 @@ function New-AzureComputeGallery {
 		Name                 = 'InstallLanguagePacks'  
 		RunElevated          = $true  
 		runAsSystem          = $true
-        inline               = "C:\AVDImage\installLanguagePacks.ps1 -LanguageList 'German (Germany)','French (France)'"
+		inline               = "C:\AVDImage\installLanguagePacks.ps1 -LanguageList 'German (Germany)','French (France)'"
 	}
 	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for running 'InstallLanguagePacks.ps1' ..."
 	$InstallLanguagePacksCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgInstallLanguagePacksFileCustomizerParams 
+
+	$ImgTimeZoneRedirectionPowerShellCustomizerParams = @{  
+		PowerShellCustomizer = $true  
+		Name                 = 'Timezone Redirection'  
+		RunElevated          = $true  
+		runAsSystem          = $true  
+		ScriptUri            = 'https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-07-31/TimezoneRedirection.ps1'
+	}
+
+	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgTimeZoneRedirectionPowerShellCustomizerParams.Name)' ..."
+	$TimeZoneRedirectionCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgTimeZoneRedirectionPowerShellCustomizerParams 
 
 	$ImgVSCodePowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
@@ -334,16 +344,27 @@ function New-AzureComputeGallery {
 		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/Install-VSCode.ps1'
 	}
 
-	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for 'VSCode' ..."
+	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgVSCodePowerShellCustomizerParams.Name)' ..."
 	$VSCodeCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgVSCodePowerShellCustomizerParams 
 
+	Write-Verbose -Message "Creating Azure Image Builder Template WindowsUpdate Customizer Object ..."
+	$WindowsUpdateCustomizer = New-AzImageBuilderTemplateCustomizerObject -WindowsUpdateCustomizer -Name 'WindowsUpdate' -Filter @('exclude:$_.Title -like ''*Preview*''', 'include:$true') -SearchCriterion "IsInstalled=0" -UpdateLimit 40
+
+	$ImgDisableAutoUpdatesPowerShellCustomizerParams = @{  
+		PowerShellCustomizer = $true  
+		Name                 = 'Disable AutoUpdates'  
+		RunElevated          = $true  
+		runAsSystem          = $true  
+		ScriptUri            = 'https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-07-31/TimezoneRedirection.ps1'
+	}
+
+	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgDisableAutoUpdatesPowerShellCustomizerParams.Name)' ..."
+	$DisableAutoUpdatesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgDisableAutoUpdatesPowerShellCustomizerParams 
+
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
-    #$Customize = @($CopyInstallLanguagePacksCustomizer, $InstallLanguagePacksCustomizer, $VSCodeCustomizer) + @($StorageBlobCustomizers)
-    #$Customize = @($CopyInstallLanguagePacksCustomizer, $VSCodeCustomizer) + @($StorageBlobCustomizers)
-    
-    #$Customize = $StorageBlobCustomizers
-    #$Customize = @($StorageBlobCustomizers)+@($VSCodeCustomizer)
-    $Customize = @($CopyInstallLanguagePacksCustomizer, $InstallLanguagePacksCustomizer)+@($StorageBlobCustomizers)+@($VSCodeCustomizer)
+	#As $StorageBlobCustomizers is an array we force the two first items in an array so $Customize will be cast as an array
+	#$Customize = @($StorageBlobCustomizers) + @($TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer)
+	$Customize = @($CopyInstallLanguagePacksCustomizer, $InstallLanguagePacksCustomizer)+@($StorageBlobCustomizers)+@($TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer)
 	$ImgTemplateParams = @{
 		ImageTemplateName      = $imageTemplateName02
 		ResourceGroupName      = $ResourceGroupName
@@ -352,9 +373,9 @@ function New-AzureComputeGallery {
 		Customize              = $Customize
 		Location               = $location
 		UserAssignedIdentityId = $AssignedIdentity.Id
-		VMProfileVmsize        = "Standard_D4s_v5"
+		VMProfileVmsize        = "Standard_D8s_v5"
 		VMProfileOsdiskSizeGb  = 127
-        BuildTimeoutInMinute   = 180
+		BuildTimeoutInMinute   = 240
 	}
 	Write-Verbose -Message "Creating Azure Image Builder Template from '$imageTemplateName02' Image Template Name ..."
 	$ImageBuilderTemplate = New-AzImageBuilderTemplate @ImgTemplateParams
@@ -370,7 +391,7 @@ function New-AzureComputeGallery {
 
 	#region imageTemplateName01 status 
 	#To determine whenever or not the template upload process was successful, run the following command.
-	#$getStatus01 = Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName01
+	$getStatus01 = Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName01
 	# Optional - if you have any errors running the preceding command, run:
 	Write-Verbose -Message "'$imageTemplateName01' ProvisioningErrorCode: $($getStatus01.ProvisioningErrorCode) "
 	Write-Verbose -Message "'$imageTemplateName01' ProvisioningErrorMessage: $($getStatus01.ProvisioningErrorMessage) "
@@ -379,8 +400,8 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "'$imageTemplateName01' LastRunStatusMessage: $($getStatus01.LastRunStatusMessage) "
 	Write-Verbose -Message "'$imageTemplateName01' LastRunStatusRunSubState: $($getStatus01.LastRunStatusRunSubState) "
 	Write-Verbose -Message "Removing Azure Image Builder Template for '$imageTemplateName01' ..."
-	#$Jobs += $getStatus01 | Remove-AzImageBuilderTemplate -AsJob
-	#$getStatus01 | Remove-AzImageBuilderTemplate -NoWait
+	$Jobs += $getStatus01 | Remove-AzImageBuilderTemplate -AsJob
+	$getStatus01 | Remove-AzImageBuilderTemplate -NoWait
 	Write-Verbose -Message "Removing '$aibRoleImageCreationPath' ..."
 	Write-Verbose -Message "Removing '$templateFilePath' ..."
 	Remove-Item -Path $aibRoleImageCreationPath, $templateFilePath -Force
@@ -400,7 +421,7 @@ function New-AzureComputeGallery {
 
 	Write-Verbose -Message "Removing Azure Image Builder Template for '$imageTemplateName02' ..."
 	#$Jobs += $getStatus02 | Remove-AzImageBuilderTemplate -AsJob
-	#$getStatus02 | Remove-AzImageBuilderTemplate -NoWait
+	$getStatus02 | Remove-AzImageBuilderTemplate -NoWait
 	#endregion
 
 	#Adding a delete lock (for preventing accidental deletion)
