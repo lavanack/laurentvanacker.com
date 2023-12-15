@@ -42,7 +42,10 @@
             "vmProfile": 
                     {
                     "vmSize": "Standard_D4s_v5",
-                    "osDiskSizeGB": 127
+                    "osDiskSizeGB": 127,
+                    "vnetConfig": {
+                        "subnetId": "/subscriptions/<subscriptionID>/resourceGroups/<vnetRgName>/providers/Microsoft.Network/virtualNetworks/<vnetName>/subnets/<subnetName>"
+                        }
                     },
         
             "source": {
