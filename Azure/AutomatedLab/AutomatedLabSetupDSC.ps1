@@ -464,6 +464,9 @@ Configuration AutomatedLabSetupDSC {
 
 <#
 Clear-Host
+$CurrentScript = $MyInvocation.MyCommand.Path
+#Getting the current directory (where this script file resides)
+$CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 Try {
     Enable-PSRemoting -Force 
