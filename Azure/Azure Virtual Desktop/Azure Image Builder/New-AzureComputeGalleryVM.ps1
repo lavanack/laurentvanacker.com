@@ -82,7 +82,7 @@ $RDPPort = 3389
 $JitPolicyTimeInHours = 3
 $JitPolicyName = "Default"
 $Location = "eastus"
-$VMSize = "Standard_D4s_v5"
+$VMSize = "Standard_D8s_v5"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
 $ResourceGroupPrefix = "rg"
