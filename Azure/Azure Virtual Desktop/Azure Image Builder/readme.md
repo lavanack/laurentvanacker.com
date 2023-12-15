@@ -52,7 +52,6 @@ In this version we use a win10-22h2-ent-g2 image from the Azure Marketplace (Thi
 Should use an existing Virtual Network and Subnet to build the VM.
 More details [here](https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-networking) and [here](https://learn.microsoft.com/en-us/azure/virtual-machines/windows/image-builder-vnet).
 
-
 ## AzureImageBuilder with CMK.ps1
 
 The script [AzureImageBuilder with CMK.ps1](AzureImageBuilder%20with%20CMK.ps1) is an example to show how to use a customer-managed key to encrypt a VM Image Version. It was asked by a customer
