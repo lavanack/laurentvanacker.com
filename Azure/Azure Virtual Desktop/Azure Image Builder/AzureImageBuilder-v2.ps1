@@ -227,7 +227,6 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "Creating Azure Image Builder Template Distributor Object  ..."
 	$disSharedImg = New-AzImageBuilderTemplateDistributorObject @disObjParams
 
-
 	$ImgCopyInstallLanguagePacksFileCustomizerParams = @{  
 		FileCustomizer       = $true  
 		Name                 = 'CopyInstallLanguagePacks'  
@@ -248,27 +247,53 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for running 'InstallLanguagePacks.ps1' ..."
 	$InstallLanguagePacksCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgInstallLanguagePacksFileCustomizerParams 
 
+	$ImgTimeZoneRedirectionPowerShellCustomizerParams = @{  
+		PowerShellCustomizer = $true  
+		Name                 = 'Timezone Redirection'  
+		RunElevated          = $true  
+		runAsSystem          = $true  
+		ScriptUri            = 'https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-07-31/TimezoneRedirection.ps1'
+	}
+
+	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgTimeZoneRedirectionPowerShellCustomizerParams.Name)' ..."
+	$TimeZoneRedirectionCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgTimeZoneRedirectionPowerShellCustomizerParams 
+
 	$ImgVSCodePowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
-		Name                 = 'InstallVSCode'  
+		Name                 = 'Install Visual Studio Code'  
 		RunElevated          = $true  
 		runAsSystem          = $true  
 		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/Install-VSCode.ps1'
 	}
 
-	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for 'VSCode' ..."
+	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgVSCodePowerShellCustomizerParams.Name)' ..."
 	$VSCodeCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgVSCodePowerShellCustomizerParams 
 
+	Write-Verbose -Message "Creating Azure Image Builder Template WindowsUpdate Customizer Object ..."
+    $WindowsUpdateCustomizer = New-AzImageBuilderTemplateCustomizerObject -WindowsUpdateCustomizer -Name 'WindowsUpdate' -Filter @('exclude:$_.Title -like ''*Preview*''', 'include:$true') -SearchCriterion "IsInstalled=0" -UpdateLimit 40
+
+	$ImgDisableAutoUpdatesPowerShellCustomizerParams = @{  
+		PowerShellCustomizer = $true  
+		Name                 = 'Disable AutoUpdates'  
+		RunElevated          = $true  
+		runAsSystem          = $true  
+		ScriptUri            = 'https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-07-31/TimezoneRedirection.ps1'
+	}
+
+	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgDisableAutoUpdatesPowerShellCustomizerParams.Name)' ..."
+	$DisableAutoUpdatesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgDisableAutoUpdatesPowerShellCustomizerParams 
+
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
+    $Customize = $CopyInstallLanguagePacksCustomizer, $InstallLanguagePacksCustomizer, $TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
 	$ImgTemplateParams = @{
 		ImageTemplateName      = $imageTemplateName02
 		ResourceGroupName      = $ResourceGroupName
 		Source                 = $srcPlatform
 		Distribute             = $disSharedImg
-		Customize              = $CopyInstallLanguagePacksCustomizer, $InstallLanguagePacksCustomizer, $VSCodeCustomizer
+		Customize              = $Customize
 		Location               = $location
 		UserAssignedIdentityId = $AssignedIdentity.Id
-		VMProfileVmsize        = "Standard_D4s_v3"
+		VMProfileVmsize        = "Standard_D4s_v5"
 		VMProfileOsdiskSizeGb  = 127
 	}
 	Write-Verbose -Message "Creating Azure Image Builder Template from '$imageTemplateName02' Image Template Name ..."
