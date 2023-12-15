@@ -2,121 +2,110 @@
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-      "imageTemplateName": {
-        "type": "string"
+        "imageTemplateName": {
+            "type": "string"
         },
         "api-version": {
-          "type": "string"
+            "type": "string"
         },
         "svclocation": {
             "type": "string"
         }
     },
-    
+
     "variables": {
     },
 
 
     "resources": [
-      {
-        "name": "[parameters('imageTemplateName')]",
-        "type": "Microsoft.VirtualMachineImages/imageTemplates",
-        "apiVersion": "[parameters('api-version')]",
-        "location": "[parameters('svclocation')]",
-        "dependsOn": [],
-        "tags": {
-            "imagebuilderTemplate": "AzureVMImageBuilderVNET",
-            "userIdentity": "enabled"
-                },
+        {
+            "name": "[parameters('imageTemplateName')]",
+            "type": "Microsoft.VirtualMachineImages/imageTemplates",
+            "apiVersion": "[parameters('api-version')]",
+            "location": "[parameters('svclocation')]",
+            "dependsOn": [],
+            "tags": {
+                "imagebuilderTemplate": "AzureVMImageBuilderVNET",
+                "userIdentity": "enabled"
+            },
             "identity": {
                 "type": "UserAssigned",
-                        "userAssignedIdentities": {
-                        "<imgBuilderId>": {}
-                            
-                    }
-                    },
-    "properties": {
+                "userAssignedIdentities": {
+                    "<imgBuilderId>": {}
 
-        "buildTimeoutInMinutes" : 240,
-        
-        "vmProfile": 
-            {
-            "vmSize": "Standard_D8s_v5",
-            "osDiskSizeGB": 127,
-            "vnetConfig": {
-                "subnetId": "/subscriptions/<subscriptionID>/resourceGroups/<vnetRgName>/providers/Microsoft.Network/virtualNetworks/<vnetName>/subnets/<subnetName>"
                 }
             },
+            "properties": {
+                "buildTimeoutInMinutes": 240,
+                "vmProfile": {
+                    "vmSize": "Standard_D8s_v5",
+                    "osDiskSizeGB": 127,
+                    "vnetConfig": {
+                        "subnetId": "/subscriptions/<subscriptionID>/resourceGroups/<vnetRgName>/providers/Microsoft.Network/virtualNetworks/<vnetName>/subnets/<subnetName>"
+                    }
+                },
 
-        "source": {
-            "type": "PlatformImage",
-                "publisher": "MicrosoftWindowsServer",
+                "source": {
+                    "type": "PlatformImage",
+                    "publisher": "MicrosoftWindowsDesktop",
                     "offer": "Windows-10",
                     "sku": "win10-22h2-ent-g2",
-                "version": "latest"
-            
-        },
-        "customize": [
-            {
-                "type": "PowerShell",
-                "name": "CreateBuildPath",
-                "scriptUri": "https://raw.githubusercontent.com/danielsollondon/azvmimagebuilder/master/testPsScript.ps1"
-            },
-            {
-                "type": "WindowsRestart",
-                "restartCheckCommand": "echo Azure-Image-Builder-Restarted-the-VM  > c:\\buildArtifacts\\azureImageBuilderRestart.txt",
-                "restartTimeout": "5m"
-            },
-            {
-                "type": "File",
-                "name": "downloadBuildArtifacts",
-                "sourceUri": "https://raw.githubusercontent.com/danielsollondon/azvmimagebuilder/master/quickquickstarts/exampleArtifacts/buildArtifacts/index.html",
-                "destination":"c:\\buildArtifacts\\index.html"
-            },
+                    "version": "latest"
 
-            {
-                "type": "PowerShell",
-                "name": "settingUpMgmtAgtPath",
-                "inline": [
-                    "mkdir c:\\buildActions",
-                    "echo Azure-Image-Builder-Was-Here  > c:\\buildActions\\buildActionsOutput.txt"
-                ]
-            },
-                
-            {
-                "type": "WindowsUpdate",
-                "searchCriteria": "IsInstalled=0",
-                "filters": [
-                    "exclude:$_.Title -like '*Preview*'",
-                    "include:$true"
-                            ],
-                "updateLimit": 40
-            }
-        ],
-        "distribute": 
-            [
-                {   
-                    "type": "SharedImage",
-                    "galleryImageId": "/subscriptions/<subscriptionID>/resourceGroups/<rgName>/providers/Microsoft.Compute/galleries/<sharedImageGalName>/images/<imageDefName>/versions/<version>",
-                    "runOutputName": "<runOutputName>",
-                    "artifactTags": {
-                        "source": "win10-22h2-ent-g2-arm-vscode",
-                        "baseosimg": "windows11"
+                },
+                "customize": [
+                    {
+                        "type": "PowerShell",
+                        "name": "CreateBuildPath",
+                        "scriptUri": "https://raw.githubusercontent.com/danielsollondon/azvmimagebuilder/master/testPsScript.ps1"
                     },
-                    "replicationRegions": [
-                      "<region1>"
+                    {
+                        "type": "WindowsRestart",
+                        "restartCheckCommand": "echo Azure-Image-Builder-Restarted-the-VM  > c:\\buildArtifacts\\azureImageBuilderRestart.txt",
+                        "restartTimeout": "5m"
+                    },
+                    {
+                        "type": "File",
+                        "name": "downloadBuildArtifacts",
+                        "sourceUri": "https://raw.githubusercontent.com/danielsollondon/azvmimagebuilder/master/quickquickstarts/exampleArtifacts/buildArtifacts/index.html",
+                        "destination": "c:\\buildArtifacts\\index.html"
+                    },
 
-                    ]
-                }
-            ]
+                    {
+                        "type": "PowerShell",
+                        "name": "settingUpMgmtAgtPath",
+                        "inline": [
+                            "mkdir c:\\buildActions",
+                            "echo Azure-Image-Builder-Was-Here  > c:\\buildActions\\buildActionsOutput.txt"
+                        ]
+                    },
+
+                    {
+                        "type": "WindowsUpdate",
+                        "searchCriteria": "IsInstalled=0",
+                        "filters": [
+                            "exclude:$_.Title -like '*Preview*'",
+                            "include:$true"
+                        ],
+                        "updateLimit": 40
+                    }
+                ],
+                "distribute": [
+                    {
+                        "type": "SharedImage",
+                        "galleryImageId": "/subscriptions/<subscriptionID>/resourceGroups/<rgName>/providers/Microsoft.Compute/galleries/<sharedImageGalName>/images/<imageDefName>/versions/<version>",
+                        "runOutputName": "<runOutputName>",
+                        "artifactTags": {
+                            "source": "win10-22h2-ent-g2-arm-vscode",
+                            "baseosimg": "windows10"
+                        },
+                        "replicationRegions": [
+                            "<region1>"
+
+                        ]
+                    }
+                ]
+            }
         }
-    }
     ]
 }
-
-
-
-
-
-
-
