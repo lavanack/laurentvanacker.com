@@ -93,7 +93,7 @@ function New-AzureSoftwareContainer {
     #endregion
 	
     #region Notepad++ Setup PowerShell Script
-	$InstallPowershellScript = New-Item -Path $DestinationDir -Name "Install-NotepadPlusPlus.ps1" -Value 'Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$PSScriptRoot\npp.8.6.Installer.x64.exe"" /S" -Wait' -Force
+	$InstallPowershellScript = New-Item -Path $DestinationDir -Name "Install-NotepadPlusPlus.ps1" -Value "Start-Process -FilePath `"`$env:comspec`" -ArgumentList '/c', `"`"`"`$PSScriptRoot\$DestinationFileName`"`" /S`" -Wait" -Force
     $DestinationFileName = Split-Path -Path $InstallPowershellScript -Leaf
     $BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
     $null = Set-AzStorageBlobContent -Context $StorageContext -File $InstallPowershellScript -Container $ContainerName -Blob $BlobName -BlobType Block -Force
@@ -114,7 +114,7 @@ function New-AzureSoftwareContainer {
     #endregion
 	
     #region StorageExplorer Setup PowerShell Script
-	$InstallPowershellScript = New-Item -Path $DestinationDir -Name "Install-StorageExplorer.ps1" -Value 'Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$PSScriptRoot\DestinationFileName"" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /ALLUSERS" -Wait' -Force
+	$InstallPowershellScript = New-Item -Path $DestinationDir -Name "Install-StorageExplorer.ps1" -Value "Start-Process -FilePath `"`$env:comspec`" -ArgumentList '/c', `"`"`"`$PSScriptRoot\$DestinationFileName`"`" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /ALLUSERS`" -Wait" -Force
     $DestinationFileName = Split-Path -Path $InstallPowershellScript -Leaf
     $BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
     $null = Set-AzStorageBlobContent -Context $StorageContext -File $InstallPowershellScript -Container $ContainerName -Blob $BlobName -BlobType Block -Force
@@ -125,7 +125,7 @@ function New-AzureSoftwareContainer {
     #region DNS Server Setup
     $DestinationDirName = "03-DNS"
     $DestinationDir = New-Item -Path $SoftwareDir -Name $DestinationDirName -ItemType Directory -Force
-    $SetDnsPowershellScript = New-Item -Path $DestinationDir -Name "Set-Dns.ps1" -Value "Get-NetAdapter -Name Ethernet | Set-DnsClientServerAddress -ServerAddresses '8.8.8.8'" -Force
+    $SetDnsPowershellScript = New-Item -Path $DestinationDir -Name "Set-Dns.ps1" -Value "Get-NetAdapter -InterfaceDescription 'Microsoft Hyper-V Network Adapter*' | Set-DnsClientServerAddress -ServerAddresses '8.8.8.8'" -Force
     $DestinationFileName = Split-Path -Path $SetDnsPowershellScript -Leaf
     $BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
     $null = Set-AzStorageBlobContent -Context $StorageContext -File $SetDnsPowershellScript -Container $ContainerName -Blob $BlobName -BlobType Block -Force

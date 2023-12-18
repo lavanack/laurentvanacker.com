@@ -383,7 +383,7 @@ $AzureComputeGallery
 
 $EndTime = Get-Date
 $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
-Write-Verbose -Message "Total Processing Time: $($TimeSpan.ToString())"
+Write-Host -Object "Total Processing Time: $($TimeSpan.ToString())"
 
 #Remove-AzResourceGroup -Name $AzureComputeGallery.ResourceGroupName -Force -AsJob
 #endregion

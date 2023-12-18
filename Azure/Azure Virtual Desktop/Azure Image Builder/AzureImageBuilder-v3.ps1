@@ -173,7 +173,7 @@ function New-AzureComputeGallery {
 	#endregion
 	
 	#region Notepad++ Setup PowerShell Script
-	$InstallNotepadPlusPlusPowershellScript = New-Item -Path $DestinationDir -Name "Install-NotepadPlusPlus.ps1" -Value 'Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$PSScriptRoot\npp.8.6.Installer.x64.exe"" /S" -Wait' -Force
+	$InstallNotepadPlusPlusPowershellScript = New-Item -Path $DestinationDir -Name "Install-NotepadPlusPlus.ps1" -Value "Start-Process -FilePath `"`$env:comspec`" -ArgumentList '/c', `"`"`"`$PSScriptRoot\$DestinationFileName`"`" /S`" -Wait" -Force
 	$DestinationFileName = Split-Path -Path $InstallNotepadPlusPlusPowershellScript -Leaf
 	$BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
 	$null = Set-AzStorageBlobContent -Context $StorageContext -File $InstallNotepadPlusPlusPowershellScript -Container $ContainerName -Blob $BlobName -BlobType Block -Force
