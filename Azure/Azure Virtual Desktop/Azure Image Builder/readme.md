@@ -61,7 +61,7 @@ The [AzureImageBuilder-v5.ps1](AzureImageBuilder-v5.ps1) script is an evolution 
 The main difference is [Storage Explorer](https://azure.microsoft.com/en-us/products/storage/storage-explorer) is also installed on the VM during the image build. But Instead of using a [File Customizer](https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-json?tabs=json%2Cazure-powershell#file-customizer) to download the required sofwares to install on the VM we will use a PowerShell script with call [AZCopy](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10) under the hood. The reason is explained [here](https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-json?tabs=json%2Cazure-powershell#file-customizer).
 > [!NOTE]
 > The file customizer is only suitable for small file downloads, < 20MB. For larger file downloads, use a script or inline command, then use code to download files, such as, Linux wget or curl, Windows, Invoke-WebRequest.
-> The [Storage Explorer](https://azure.microsoft.com/en-us/products/storage/storage-explorer) setup file exceeds the 20MB limit so we need to use an alternative as mentionned above. I have chosen to use [AZCopy](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10) to download the setup file from the Azure Container.
+> The [Storage Explorer](https://azure.microsoft.com/en-us/products/storage/storage-explorer) setup file exceeds the 20MB limit so we need to use an alternative solution as mentionned above. I have chosen to use [AZCopy](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10) to download the setup file from the Azure Container.
 
 ## AzureImageBuilder with CMK.ps1
 
