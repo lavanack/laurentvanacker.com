@@ -7,13 +7,14 @@
   - [AzureImageBuilder-v2.ps1](#azureimagebuilder-v2ps1)
   - [AzureImageBuilder-v3.ps1](#azureimagebuilder-v3ps1)
   - [AzureImageBuilder-v4.ps1](#azureimagebuilder-v4ps1)
+  - [AzureImageBuilder-v5.ps1](#azureimagebuilder-v5ps1)
   - [AzureImageBuilder with CMK.ps1](#azureimagebuilder-with-cmkps1)
 
 ## AzureImageBuilder.ps1
 
 The [AzureImageBuilder.ps1](AzureImageBuilder.ps1) script creates an [Azure Compute Gallery](https://learn.microsoft.com/en-us/azure/virtual-machines/azure-compute-gallery) with 2 image definitions as shown below:
 
-![](docs/acg.jpg)
+![Azure Compute Gallery](docs/acg.jpg)
 
 ### Prerequisites
 
@@ -33,6 +34,7 @@ Run the [AzureImageBuilder.ps1](AzureImageBuilder.ps1) script (PowerShell 5.1 ne
   - The Windows latest updates will be installed
   - The autoupdate feature will be disabled
   - The TimeZone Redirection feature will be enabled
+  - The image is replicated in the EastUS and EastUS2 regions
 - The second image is based on a market place image
   - Will use the latest Windows 11 Enterprise 22H2 with Microsoft 365 optimized [Azure Virtual Desktop](https://azure.microsoft.com/en-us/products/virtual-desktop) for image from the Azure Marketplace
   - All others settings are the same as the first image definition
@@ -48,9 +50,18 @@ In this version we use a win10-22h2-ent-g2 image from the Azure Marketplace (Thi
 
 ## AzureImageBuilder-v4.ps1
 
-... In progress ...
-Should use an existing Virtual Network and Subnet to build the VM.
+The [AzureImageBuilder-v4.ps1](AzureImageBuilder-v4.ps1) script is an evolution of the [AzureImageBuilder-v3.ps1](AzureImageBuilder-v3.ps1))
+The storage account (and its related container) is now in a dedicated resource group with also contains dedicated virtual network and subnet.
+So the Azure VM Iage Builder is now deployed in this dedicated subnet and the storage account is only accessible from this subnet via a Private EndPoint.
 More details [here](https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-networking) and [here](https://learn.microsoft.com/en-us/azure/virtual-machines/windows/image-builder-vnet).
+
+## AzureImageBuilder-v5.ps1
+
+The [AzureImageBuilder-v5.ps1](AzureImageBuilder-v5.ps1) script is an evolution of the [AzureImageBuilder-v4.ps1](AzureImageBuilder-v4.ps1))
+The main difference is [Storage Explorer](https://azure.microsoft.com/en-us/products/storage/storage-explorer) is also installed on the VM during the image build. But Instead of using a [File Customizer](https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-json?tabs=json%2Cazure-powershell#file-customizer) to download the required sofwares to install on the VM we will use a PowerShell script with call [AZCopy](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10) under the hood. The reason is explained [here](https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-json?tabs=json%2Cazure-powershell#file-customizer).
+> [!NOTE]
+> The file customizer is only suitable for small file downloads, < 20MB. For larger file downloads, use a script or inline command, then use code to download files, such as, Linux wget or curl, Windows, Invoke-WebRequest.
+> The [Storage Explorer](https://azure.microsoft.com/en-us/products/storage/storage-explorer) setup file exceeds the 20MB limit so we need to use an alternative as mentionned above. I have chosen to use [AZCopy](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10) to download the setup file from the Azure Container.
 
 ## AzureImageBuilder with CMK.ps1
 
