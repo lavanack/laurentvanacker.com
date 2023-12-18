@@ -93,13 +93,14 @@ function New-AzureSoftwareContainer {
     #endregion
 	
     #region Notepad++ Setup PowerShell Script
-    $InstallPowershellScript = New-Item -Path $DestinationDir -Name "Install-NotepadPlusPlus.ps1" -Value "Start-Process -FilePath ""`$env:comspec"" -ArgumentList ""/c"", ""'`$PSScriptRoot\$DestinationFileName' /S"" -Wait" -Force
+	$InstallPowershellScript = New-Item -Path $DestinationDir -Name "Install-NotepadPlusPlus.ps1" -Value 'Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$PSScriptRoot\npp.8.6.Installer.x64.exe"" /S" -Wait' -Force
     $DestinationFileName = Split-Path -Path $InstallPowershellScript -Leaf
     $BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
     $null = Set-AzStorageBlobContent -Context $StorageContext -File $InstallPowershellScript -Container $ContainerName -Blob $BlobName -BlobType Block -Force
     #endregion
     #endregion
-
+    <#
+    #From https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-json?tabs=json%2Cazure-powershell#file-customizer (Read the note for the file size)
     #region Storage Explorer 
     #region Storage Explorer Installer
     $DownloadURI = "https://download.microsoft.com/download/A/E/3/AE32C485-B62B-4437-92F7-8B6B2C48CB40/StorageExplorer-windows-x64.exe"
@@ -113,23 +114,21 @@ function New-AzureSoftwareContainer {
     #endregion
 	
     #region StorageExplorer Setup PowerShell Script
-    $InstallPowershellScript = New-Item -Path $DestinationDir -Name "Install-StorageExplorer.ps1" -Value "Start-Process -FilePath ""`$env:comspec"" -ArgumentList ""/c"", ""'`$PSScriptRoot\$DestinationFileName' /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /ALLUSERS"" -Wait" -Force
+	$InstallPowershellScript = New-Item -Path $DestinationDir -Name "Install-StorageExplorer.ps1" -Value 'Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$PSScriptRoot\DestinationFileName"" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /ALLUSERS" -Wait' -Force
     $DestinationFileName = Split-Path -Path $InstallPowershellScript -Leaf
     $BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
     $null = Set-AzStorageBlobContent -Context $StorageContext -File $InstallPowershellScript -Container $ContainerName -Blob $BlobName -BlobType Block -Force
     #endregion
     #endregion
-
-    #region DNS Server Setup
+    #>
 	
-    #region StorageExplorer Setup PowerShell Script
+    #region DNS Server Setup
     $DestinationDirName = "03-DNS"
     $DestinationDir = New-Item -Path $SoftwareDir -Name $DestinationDirName -ItemType Directory -Force
     $SetDnsPowershellScript = New-Item -Path $DestinationDir -Name "Set-Dns.ps1" -Value "Get-NetAdapter -Name Ethernet | Set-DnsClientServerAddress -ServerAddresses '8.8.8.8'" -Force
     $DestinationFileName = Split-Path -Path $SetDnsPowershellScript -Leaf
     $BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
     $null = Set-AzStorageBlobContent -Context $StorageContext -File $SetDnsPowershellScript -Container $ContainerName -Blob $BlobName -BlobType Block -Force
-    #endregion
     #endregion
 	#endregion
 
@@ -155,7 +154,6 @@ function New-AzureSoftwareContainer {
     $vNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName  -AddressPrefix $VNetAddressRange -Location $Location -Subnet $Subnet
     #endregion
 
-    <#
     #region Private endpoint for Storage Setup
     #From https://learn.microsoft.com/en-us/azure/private-link/create-private-endpoint-powershell?tabs=dynamic-ip#create-a-private-endpoint
     #From https://www.jorgebernhardt.com/private-endpoint-azure-key-vault-powershell/
@@ -170,7 +168,7 @@ function New-AzureSoftwareContainer {
     $PrivateEndpoint = New-AzPrivateEndpoint -Name $PrivateEndpointName -ResourceGroupName $ResourceGroupName -Location $Location -Subnet $Subnet -PrivateLinkServiceConnection $PrivateLinkServiceConnection -CustomNetworkInterfaceName $("{0}-nic" -f $PrivateEndpointName) -Force
 
     ## Create the private DNS zone. ##
-    Write-Verbose -Message "Creating the Private DNS Zone for the Storage Account '$StorageAccountName' (in the '$($ResourceGroupName)' Resource Group) ..."
+    #Write-Verbose -Message "Creating the Private DNS Zone for the Storage Account '$StorageAccountName' (in the '$($ResourceGroupName)' Resource Group) ..."
     $AzContext = Get-AzContext
     $StorageEndpointSuffix = $AzContext | Select-Object -ExpandProperty Environment | Select-Object -ExpandProperty StorageEndpointSuffix
     $PrivateDnsZoneName = "privatelink.$GroupId.$StorageEndpointSuffix"
@@ -180,7 +178,7 @@ function New-AzureSoftwareContainer {
         $PrivateDnsZone = New-AzPrivateDnsZone -ResourceGroupName $ResourceGroupName -Name $PrivateDnsZoneName
     }
 
-    $PrivateDnsVirtualNetworkLinkName = "pdvnl{0}" -f $($ThisDomainControllerVirtualNetwork.Name -replace "\W")
+    $PrivateDnsVirtualNetworkLinkName = "pdvnl{0}" -f $($vNetwork.Name -replace "\W")
     $PrivateDnsVirtualNetworkLink = Get-AzPrivateDnsVirtualNetworkLink -ResourceGroupName $ResourceGroupName -Name $PrivateDnsVirtualNetworkLinkName -ZoneName $PrivateDnsZone.Name -ErrorAction Ignore
     if ($null -eq $PrivateDnsVirtualNetworkLink) {
         ## Create a DNS network link. ##
@@ -200,11 +198,11 @@ function New-AzureSoftwareContainer {
     #From https://www.jorgebernhardt.com/azure-storage-public-access/
     #From https://learn.microsoft.com/en-us/azure/storage/common/storage-network-security?tabs=azure-powershell#change-the-default-network-access-rule
     #From https://github.com/adstuart/azure-privatelink-dns-microhack
-    Write-Verbose -Message "Disabling the Public Access for the Storage Account '$StorageAccountName' (in the '$ResourceGroupName' Resource Group) ..."
-    $null = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Disabled
+    #Write-Verbose -Message "Disabling the Public Access for the Storage Account '$StorageAccountName' (in the '$ResourceGroupName' Resource Group) ..."
+    #$null = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Disabled
     #(Get-AzStorageAccount -Name $ResourceGroupName -ResourceGroupName $StorageAccountName ).AllowBlobPublicAccess
     #endregion
-    #>
+
 	return $StorageContainer
 }
 
@@ -256,10 +254,10 @@ function New-AzureComputeGallery {
 
 	# Image template and definition names
 	#AVD MultiSession Session Image Market Place Image + customizations: VSCode
-	$imageDefName01 = "win11-22h2-ent-avd-custom-vscode"
+	$imageDefName01 = "win10-22h2-ent-g2-arm-vscode"
 	$imageTemplateName01 = $imageDefName01 + "-template-" + $timeInt
 	#AVD MultiSession + Microsoft 365 Market Place Image + customizations: VSCode
-	$imageDefName02 = "win11-22h2-ent-avd-m365-vscode"
+	$imageDefName02 = "win10-22h2-ent-g2-posh-vscode"
 	$imageTemplateName02 = $imageDefName02 + "-template-" + $timeInt
 	Write-Verbose -Message "`$imageDefName01: $imageDefName01"
 	Write-Verbose -Message "`$imageTemplateName01: $imageTemplateName01"
@@ -390,7 +388,7 @@ function New-AzureComputeGallery {
 	#Based on https://github.com/Azure/azvmimagebuilder/tree/main/solutions/14_Building_Images_WVD
 	# Create the gallery definition
 	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefName01' (From Customized JSON)..."
-	$GalleryImageDefinition01 = New-AzGalleryImageDefinition -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -Location $location -Name $imageDefName01 -OsState generalized -OsType Windows -Publisher 'Contoso' -Offer 'Windows' -Sku 'avd-win11-custom' -HyperVGeneration V2
+	$GalleryImageDefinition01 = New-AzGalleryImageDefinition -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -Location $location -Name $imageDefName01 -OsState generalized -OsType Windows -Publisher 'Contoso' -Offer 'Windows' -Sku 'win10-22h2-ent-g2-arm-vscode' -HyperVGeneration V2
 
 	#region Download and configure the template
 	#$templateUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/14_Building_Images_WVD/armTemplateWVD.json"
@@ -441,7 +439,7 @@ function New-AzureComputeGallery {
 		OsType            = 'Windows'
 		Publisher         = 'Contoso'
 		Offer             = 'Windows'
-		Sku               = 'avd-win11-m365'
+		Sku               = 'win10-22h2-ent-g2-posh-vscode'
 		HyperVGeneration  = 'V2'
 	}
 	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefName02' (From A Market Place Image)..."
@@ -450,8 +448,8 @@ function New-AzureComputeGallery {
 	$SrcObjParams = @{
 		PlatformImageSource = $true
 		Publisher           = 'MicrosoftWindowsDesktop'
-		Offer               = 'Office-365'    
-		Sku                 = 'win11-22h2-avd-m365'  
+		Offer               = 'Windows-10'    
+		Sku                 = 'win10-22h2-ent-g2'  
 		Version             = 'latest'
 	}
 	Write-Verbose -Message "Creating Azure Image Builder Template Source Object  ..."
@@ -460,7 +458,7 @@ function New-AzureComputeGallery {
 	$disObjParams = @{
 		SharedImageDistributor = $true
 		GalleryImageId         = "$($GalleryImageDefinition02.Id)/versions/$version"
-		ArtifactTag            = @{source = 'avd-win11'; baseosimg = 'windows11' }
+		ArtifactTag            = @{source = 'win10-22h2-ent-g2-posh-vscode'; baseosimg = 'windows10' }
 
 		# 1. Uncomment following line for a single region deployment.
 		#ReplicationRegion = $location
@@ -480,6 +478,7 @@ function New-AzureComputeGallery {
     #We sort by extension descending to be sure an MSI/EXE file be processed before its related powershell setup file
     $StartTime = Get-Date
 	$ExpiryTime = $StartTime.AddDays(1)
+
 	$StorageBlob = Get-AzStorageBlob -Container $SoftwareContainer.Name -Context $SoftwareContainer.Context
     $NonPowerShellScriptStorageBlob = $StorageBlob | Where-Object -FilterScript {$_.Name -notmatch "\.ps1$"} | Sort-Object -Property Name
     $PowerShellScriptStorageBlob = $StorageBlob | Where-Object -FilterScript {$_.Name -match "\.ps1$"} | Sort-Object -Property Name
@@ -568,9 +567,7 @@ function New-AzureComputeGallery {
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
     #As $StorageBlobCustomizers is an array we force the two first items in an array so $Customize will be cast as an array
-    #$Customize = @($CopyInstallLanguagePacksCustomizer, $InstallLanguagePacksCustomizer)+@($StorageBlobCustomizers), @($TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer)
-    #$Customize = @($CopyInstallLanguagePacksCustomizer, $InstallLanguagePacksCustomizer)+@($StorageBlobCustomizers)+@($TimeZoneRedirectionCustomizer, $VSCodeCustomizer)
-    $Customize = @($StorageBlobCustomizers)+@($TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer)
+	$Customize = @($CopyInstallLanguagePacksCustomizer, $InstallLanguagePacksCustomizer)+@($StorageBlobCustomizers)+@($TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer)
 	$ImgTemplateParams = @{
 		ImageTemplateName      = $imageTemplateName02
 		ResourceGroupName      = $ResourceGroupName
@@ -587,6 +584,10 @@ function New-AzureComputeGallery {
 	}
 	Write-Verbose -Message "Creating Azure Image Builder Template from '$imageTemplateName02' Image Template Name ..."
 	$ImageBuilderTemplate = New-AzImageBuilderTemplate @ImgTemplateParams
+
+    #Write-Verbose -Message "Disabling the Public Access for the Storage Account '$StorageAccountName' (in the '$ResourceGroupName' Resource Group) ..."
+    $null = Set-AzStorageAccount -ResourceGroupName $StorageAccount.ResourceGroupName -Name $StorageAccount.StorageAccountName -PublicNetworkAccess Disabled
+    #(Get-AzStorageAccount -Name $StorageAccount.ResourceGroupName -ResourceGroupName $StorageAccountName ).AllowBlobPublicAccess
 
 	#region Build the image
 	#Start the image building process using Start-AzImageBuilderTemplate cmdlet:
@@ -608,7 +609,7 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "'$imageTemplateName01' LastRunStatusMessage: $($getStatus01.LastRunStatusMessage) "
 	Write-Verbose -Message "'$imageTemplateName01' LastRunStatusRunSubState: $($getStatus01.LastRunStatusRunSubState) "
 	Write-Verbose -Message "Removing Azure Image Builder Template for '$imageTemplateName01' ..."
-	$Jobs += $getStatus01 | Remove-AzImageBuilderTemplate -AsJob
+	#$Jobs += $getStatus01 | Remove-AzImageBuilderTemplate -AsJob
 	$getStatus01 | Remove-AzImageBuilderTemplate -NoWait
 	Write-Verbose -Message "Removing '$aibRoleImageCreationPath' ..."
 	Write-Verbose -Message "Removing '$templateFilePath' ..."
@@ -692,6 +693,6 @@ $AzureComputeGallery
 
 $EndTime = Get-Date
 $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
-Write-Verbose -Message "Total Processing Time: $($TimeSpan.ToString())"
+Write-Host -Object "Total Processing Time: $($TimeSpan.ToString())"
 #Remove-AzResourceGroup -Name $AzureComputeGallery.ResourceGroupName -Force -AsJob
 #endregion
