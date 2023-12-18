@@ -139,11 +139,20 @@ While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName)) {
 foreach ($CurrentAzImageBuilderTemplate in Get-AzImageBuilderTemplate)
 {
     Write-Host "Processing '$($CurrentAzImageBuilderTemplate.Name)' ..."
-    foreach ($CurrentDistribute in $CurrentAzImageBuilderTemplate.Distribute)
+    $AzureImageBuilderStatusJSON = Get-AzureImageBuilderStatus -imageTemplateName $CurrentAzImageBuilderTemplate.Name -imageResourceGroup $CurrentAzImageBuilderTemplate.ResourceGroupName -Verbose
+    $AzureImageBuilderStatusJSON
+    $AzureImageBuilderStatus = $AzureImageBuilderStatusJSON | ConvertFrom-Json
+    if ($AzureImageBuilderStatus.properties.lastRunStatus.runState -ne "running")
     {
-        Write-Host "`tProcessing '$($CurrentDistribute.RunOutputName)' ..."
-        Get-AzureImageBuilderRunOutput -imageTemplateName $CurrentAzImageBuilderTemplate.Name -imageResourceGroup $CurrentAzImageBuilderTemplate.ResourceGroupName -runOutputName $CurrentDistribute.RunOutputName -Verbose
+        foreach ($CurrentDistribute in $CurrentAzImageBuilderTemplate.Distribute)
+        {
+            Write-Host "`tProcessing '$($CurrentDistribute.RunOutputName)' ..."
+            Get-AzureImageBuilderRunOutput -imageTemplateName $CurrentAzImageBuilderTemplate.Name -imageResourceGroup $CurrentAzImageBuilderTemplate.ResourceGroupName -runOutputName $CurrentDistribute.RunOutputName -Verbose
+        }
     }
-    Get-AzureImageBuilderStatus -imageTemplateName $CurrentAzImageBuilderTemplate.Name -imageResourceGroup $CurrentAzImageBuilderTemplate.ResourceGroupName -Verbose
+    else
+    {
+        Write-Warning -Message "'$($AzureImageBuilderStatus.name)' is running. So no output available ..."
+    }
 }
 #endregion

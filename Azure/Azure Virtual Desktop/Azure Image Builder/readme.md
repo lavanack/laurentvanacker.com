@@ -9,6 +9,9 @@
   - [AzureImageBuilder-v4.ps1](#azureimagebuilder-v4ps1)
   - [AzureImageBuilder-v5.ps1](#azureimagebuilder-v5ps1)
   - [AzureImageBuilder with CMK.ps1](#azureimagebuilder-with-cmkps1)
+  - [New-AzureComputeGalleryVM.ps1](#new-azurecomputegalleryvmps1)
+  - [Get-AzureVMImageBuilderCustomizationLog.ps1](#get-azurevmimagebuildercustomizationlogps1)
+  - [Get-AzureVMImageBuilderData.ps1](#get-azurevmimagebuilderdataps1)
 
 ## AzureImageBuilder.ps1
 
@@ -66,3 +69,16 @@ The main difference is [Storage Explorer](https://azure.microsoft.com/en-us/prod
 ## AzureImageBuilder with CMK.ps1
 
 The script [AzureImageBuilder with CMK.ps1](AzureImageBuilder%20with%20CMK.ps1) is an example to show how to use a customer-managed key to encrypt a VM Image Version. It was asked by a customer
+
+## New-AzureComputeGalleryVM.ps1
+
+The script [New-AzureComputeGalleryVM.ps1](New-AzureComputeGalleryVM.ps1) allows you to setup a new Azure VM from an Azure Compute Gallery Image. You will be prompted (via the [Out-GridView](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/out-gridview?view=powershell-5.1) cmdlet) to select the Azure Compute Gallery and the Image to use.
+
+## Get-AzureVMImageBuilderCustomizationLog.ps1
+
+The script [Get-AzureVMImageBuilderCustomizationLog.ps1](Get-AzureVMImageBuilderCustomizationLog.ps1) downloads in the script directory (can be customized via a parameter to the called function) the customization.log files used by [Azure VM Image Builder](https://learn.microsoft.com/en-us/azure/virtual-machines/image-builder-overview?tabs=azure-powershell). The downloaded files are timestamped (based on the current time). So every run will create a new local file (can be enabled/disabled via the -Timestamp switch). It can be useful for tracking the process evolution.
+More details [here](https://learn.microsoft.com/en-us/azure/virtual-desktop/troubleshoot-custom-image-templates) and [here](https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-troubleshoot).
+
+## Get-AzureVMImageBuilderData.ps1
+
+The script [Get-AzureVMImageBuilderData.ps1](Get-AzureVMImageBuilderData.ps1) return some data about the Azure VM Image Builder process. It can be useful for tracking the process evolution.
