@@ -120,16 +120,7 @@ function New-AzureSoftwareContainer {
     $null = Set-AzStorageBlobContent -Context $StorageContext -File $InstallPowershellScript -Container $ContainerName -Blob $BlobName -BlobType Block -Force
     #endregion
     #endregion
-	
-    #region DNS Server Setup
-    $DestinationDirName = "03-DNS"
-    $DestinationDir = New-Item -Path $SoftwareDir -Name $DestinationDirName -ItemType Directory -Force
-    $SetDnsPowershellScript = New-Item -Path $DestinationDir -Name "Set-Dns.ps1" -Value "Get-NetAdapter -InterfaceDescription 'Microsoft Hyper-V Network Adapter*' | Set-DnsClientServerAddress -ServerAddresses '8.8.8.8'" -Force
-    $DestinationFileName = Split-Path -Path $SetDnsPowershellScript -Leaf
-    $BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
-    $null = Set-AzStorageBlobContent -Context $StorageContext -File $SetDnsPowershellScript -Container $ContainerName -Blob $BlobName -BlobType Block -Force
-    #endregion
-    #endregion
+	#endregion
 
 	#region Create Virtual Network and Subnet
     #From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/image-builder-vnet
