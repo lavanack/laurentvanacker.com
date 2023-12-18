@@ -52,8 +52,8 @@ In this version we use a win10-22h2-ent-g2 image from the Azure Marketplace (Thi
 
 The [AzureImageBuilder-v4.ps1](AzureImageBuilder-v4.ps1) script is an evolution of the [AzureImageBuilder-v3.ps1](AzureImageBuilder-v3.ps1))
 The storage account (and its related container) is now in a dedicated resource group with also contains dedicated virtual network and subnet.
-So the Azure VM Iage Builder is now deployed in this dedicated subnet and the storage account is only accessible from this subnet via a Private EndPoint.
-More details [here](https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-networking) and [here](https://learn.microsoft.com/en-us/azure/virtual-machines/windows/image-builder-vnet).
+So the Azure VM Iage Builder is now deployed in this dedicated subnet and the storage account is only accessible from this subnet via a Private Endpoint (More details [here](https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-networking) and [here](https://learn.microsoft.com/en-us/azure/virtual-machines/windows/image-builder-vnet)).
+The DNS is also set to 8.8.8.8 (for example)
 
 ## AzureImageBuilder-v5.ps1
 
