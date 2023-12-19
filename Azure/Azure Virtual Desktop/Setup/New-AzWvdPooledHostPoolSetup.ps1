@@ -97,9 +97,8 @@ $ClassDefinitionScriptBlock = {
             [Object] $KeyVault
         ) {
             $this.Init()
-            $LimitedIndex = $Index % 100
-            $this.Name = "hp-np-ad-poc-mp-eu-{0:D2}" -f $LimitedIndex
-            $this.NamePrefix = "napocmeu{0:D2}" -f $LimitedIndex
+            $this.Name = "hp-np-ad-poc-mp-eu-{0:D2}" -f $Index
+            $this.NamePrefix = "napocmeu{0:D2}" -f $Index
             if ($null -ne $KeyVault) { $this.KeyVault = $KeyVault }
         }
 
@@ -229,7 +228,6 @@ $ClassDefinitionScriptBlock = {
         ) {
             [PersonalHostPool]::Index = $Index
             $this.Init($IsMicrosoftEntraIdJoined)
-            $LimitedIndex = $Index % 100
             if ($null -ne $KeyVault) { $this.KeyVault = $KeyVault }
         }
 
@@ -319,7 +317,7 @@ function New-AzHostPoolSessionCredentialKeyVault {
     (
         [string] $Location = "EastUs"
     )
-
+    $StartTime = Get-Date
     #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
     $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
     $ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/main/src/repository/resourcelocations.json
@@ -425,6 +423,10 @@ function New-AzHostPoolSessionCredentialKeyVault {
     Write-Verbose -Message "Disabling the Public Access for the Key Vault'$KeyVaultName' (in the '$ResourceGroupName' Resource Group) ..."
     $null = Update-AzKeyVault -VaultName $KeyVaultName -ResourceGroupName $ResourceGroupName -PublicNetworkAccess "Disabled" 
     #endregion
+
+    $EndTime = Get-Date
+    $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
+    Write-Host -Object "Azure Key Vault Setup Processing Time: $($TimeSpan.ToString())"
 
     return $KeyVault
 }
@@ -742,6 +744,7 @@ function New-AzureComputeGallery {
         [string[]]$ReplicationRegions = "EastUS2"
     )
 
+    $StartTime = Get-Date
     #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
     $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
     $ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/main/src/repository/resourcelocations.json
@@ -1026,9 +1029,6 @@ function New-AzureComputeGallery {
     $getStatus02 | Remove-AzImageBuilderTemplate -NoWait
     #endregion
 
-    $EndTime = Get-Date
-    $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
-    Write-Verbose -Message "Total Processing Time: $($TimeSpan.ToString())"
     #Adding a delete lock (for preventing accidental deletion)
     #New-AzResourceLock -LockLevel CanNotDelete -LockNotes "$ResourceGroupName - CanNotDelete" -LockName "$ResourceGroupName - CanNotDelete" -ResourceGroupName $ResourceGroupName -Force
     #region Clean up your resources
@@ -1043,6 +1043,9 @@ function New-AzureComputeGallery {
     $Jobs | Wait-Job | Out-Null
     Write-Verbose -Message "Removing jobs ..."
     $Jobs | Remove-Job -Force
+    $EndTime = Get-Date
+    $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
+    Write-Host -Object "Azure Compute Gallery Setup Processing Time: $($TimeSpan.ToString())"
     return $Gallery
 }
 
@@ -1381,7 +1384,7 @@ function Add-AzAvdSessionHost {
 "@)
             Write-Verbose "Starting background job for '$CurrentVMName' SessionHost Creation (via New-AzAvdSessionHost) ... "
             Write-Verbose "`$using:CurrentDir: $using:CurrentDir"
-            Start-ThreadJob -ScriptBlock { param($CurrentDir) New-AzAvdSessionHost @using:Params *>&1 | Out-File -FilePath $("{0}\New-AzAvdSessionHost_{1}_{2}.txt" -f $CurrentDir, $using:CurrentVMName, (Get-Date -Format 'yyyyMMddHHmmss')) } -InitializationScript $ExportedFunctions -ArgumentList $using:CurrentDir
+            Start-ThreadJob -ScriptBlock { param($CurrentDir) New-AzAvdSessionHost @using:Params *>&1 | Out-File -FilePath $("{0}\New-AzAvdSessionHost_{1}_{2}.txt" -f $CurrentDir, $using:CurrentVMName, (Get-Date -Format 'yyyyMMddHHmmss')) } -InitializationScript $ExportedFunctions -ArgumentList $using:CurrentDir -StreamingHost $Host
         }
         else {
             New-AzAvdSessionHost @Params
@@ -1489,6 +1492,7 @@ function Remove-AzAvdHostPoolSetup {
         [alias('Name')]
         [HostPool[]]$HostPool
     )
+    $StartTime = Get-Date
     #region Cleanup of the previously existing resources
     #region DNS Cleanup
     $OUDistinguishedNames = (Get-ADOrganizationalUnit -Filter * | Where-Object -FilterScript { $_.Name -in $($HostPools.Name) }).DistinguishedName 
@@ -1577,6 +1581,9 @@ function Remove-AzAvdHostPoolSetup {
     #region Run a sync with Azure AD
     Start-MicrosoftEntraIDConnectSync
     #endregion
+    $EndTime = Get-Date
+    $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
+    Write-Host -Object "HostPool Removal Processing Time: $($TimeSpan.ToString())"
 }
 
 function New-AzAvdPersonalHostPoolSetup {
@@ -1594,6 +1601,7 @@ function New-AzAvdPersonalHostPoolSetup {
     )
 
     begin {
+        $StartTime = Get-Date
         $AzContext = Get-AzContext
 
         #region Variables
@@ -1620,6 +1628,7 @@ function New-AzAvdPersonalHostPoolSetup {
     }
     process {
         Foreach ($CurrentHostPool in $HostPool) {
+            $StartTime = Get-Date
             $Tag = @{HostPoolName = $CurrentHostPool.Name; HostPoolType = "Personal" }
 
             #region General AD Management
@@ -1976,10 +1985,15 @@ function New-AzAvdPersonalHostPoolSetup {
             }
             #endregion
             #endregion
-
+            $EndTime = Get-Date
+            $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
+            Write-Host -Object "'$($CurrentHostPool.Name)' Setup Processing Time: $($TimeSpan.ToString())"
         }    
     }
     end {
+        $EndTime = Get-Date
+        $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
+        Write-Host -Object "Overall Personal HostPool Setup Processing Time: $($TimeSpan.ToString())"
     }
 }
 
@@ -1998,6 +2012,7 @@ function New-AzAvdPooledHostPoolSetup {
     )
 
     begin {
+        $StartTime = Get-Date
         $AzContext = Get-AzContext
         $StorageEndpointSuffix = $AzContext | Select-Object -ExpandProperty Environment | Select-Object -ExpandProperty StorageEndpointSuffix
 
@@ -2052,6 +2067,7 @@ function New-AzAvdPooledHostPoolSetup {
     }
     process {
         Foreach ($CurrentHostPool in $HostPool) {
+            $StartTime = Get-Date
             #Microsoft Entra ID
             if ($CurrentHostPool.IsMicrosoftEntraIdJoined) {
                 Write-Error "A Pooled HostPool must be an ADDS-joined Azure VM in this script. This is not the case for '$($CurrentHostPool.Name)'. We Skip it !!!"
@@ -2344,7 +2360,7 @@ function New-AzAvdPooledHostPoolSetup {
 
                 ## Create the private DNS zone. ##
                 Write-Verbose -Message "Creating the Private DNS Zone for the Storage Account '$CurrentHostPoolStorageAccountName' (in the '$($ThisDomainController.ResourceGroupName)' Resource Group) ..."
-                $PrivateDnsZoneName = "privatelink.file.$StorageEndpointSuffix"
+                $PrivateDnsZoneName = "privatelink.$GroupId.$StorageEndpointSuffix"
                 $PrivateDnsZone = Get-AzPrivateDnsZone -ResourceGroupName $ThisDomainController.ResourceGroupName -Name $PrivateDnsZoneName -ErrorAction Ignore
                 if ($null -eq $PrivateDnsZone) {
                     Write-Verbose -Message "Creating the Private DNS Zone for the Storage Account '$CurrentHostPoolStorageAccountName' (in the '$($ThisDomainController.ResourceGroupName)' Resource Group) ..."
@@ -2489,7 +2505,7 @@ function New-AzAvdPooledHostPoolSetup {
                         $AzADGroup = $null
                         $AzADGroup = Get-AzADGroup -SearchString $CurrentHostPoolFSLogixContributorADGroupName
                     } While (-not($AzADGroup.Id))
-                    if (-not(Get-AzRoleAssignment -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope)) {
+                    if (-not(Get-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope)) {
                         Write-Verbose -Message "Assigning the '$($FileShareContributorRole.Name)' RBAC role to '$CurrentHostPoolFSLogixContributorADGroupName' AD Group on the Share '$CurrentHostPoolShareName' in the Storage Account '$CurrentHostPoolStorageAccountName' (in the '$CurrentHostPoolResourceGroupName' Resource Group)  ..."
                         $null = New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope
                     }
@@ -2507,7 +2523,7 @@ function New-AzAvdPooledHostPoolSetup {
                         $AzADGroup = Get-AzADGroup -SearchString $CurrentHostPoolFSLogixElevatedContributorADGroupName
                     } While (-not($AzADGroup.Id))
 
-                    if (-not(Get-AzRoleAssignment -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope)) {
+                    if (-not(Get-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope)) {
                         Write-Verbose -Message "Assigning the '$($FileShareContributorRole.Name)' RBAC role to '$CurrentHostPoolFSLogixElevatedContributorADGroupName' AD Group on the Share '$CurrentHostPoolShareName' in the Storage Account '$CurrentHostPoolStorageAccountName' (in the '$CurrentHostPoolResourceGroupName' Resource Group)  ..."
                         $null = New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope
                     }
@@ -2524,7 +2540,7 @@ function New-AzAvdPooledHostPoolSetup {
                         $AzADGroup = $null
                         $AzADGroup = Get-AzADGroup -SearchString $CurrentHostPoolFSLogixReaderADGroupName
                     } While (-not($AzADGroup.Id))
-                    if (-not(Get-AzRoleAssignment -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope)) {
+                    if (-not(Get-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope)) {
                         Write-Verbose -Message "Assigning the '$($FileShareContributorRole.Name)' RBAC role to '$CurrentHostPoolFSLogixReaderADGroupName' AD Group on the Share '$CurrentHostPoolShareName' in the Storage Account '$CurrentHostPoolStorageAccountName' (in the '$CurrentHostPoolResourceGroupName' Resource Group)  ..."
                         $null = New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope
                     }
@@ -2679,7 +2695,7 @@ function New-AzAvdPooledHostPoolSetup {
 
                 ## Create the private DNS zone. ##
                 Write-Verbose -Message "Creating the Private DNS Zone for the Storage Account '$CurrentHostPoolStorageAccountName' (in the '$($ThisDomainController.ResourceGroupName)' Resource Group) ..."
-                $PrivateDnsZoneName = "privatelink.file.$StorageEndpointSuffix"
+                $PrivateDnsZoneName = "privatelink.$GroupId.$StorageEndpointSuffix"
                 $PrivateDnsZone = Get-AzPrivateDnsZone -ResourceGroupName $ThisDomainController.ResourceGroupName -Name $PrivateDnsZoneName -ErrorAction Ignore
                 if ($null -eq $PrivateDnsZone) {
                     Write-Verbose -Message "Creating the Private DNS Zone for the Storage Account '$CurrentHostPoolStorageAccountName' (in the '$($ThisDomainController.ResourceGroupName)' Resource Group) ..."
@@ -2812,7 +2828,7 @@ function New-AzAvdPooledHostPoolSetup {
                         $AzADGroup = Get-AzADGroup -SearchString $CurrentHostPoolMSIXHostsADGroupName
                     } While (-not($AzADGroup.Id))
 
-                    if (-not(Get-AzRoleAssignment -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope)) {
+                    if (-not(Get-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope)) {
                         Write-Verbose -Message "Assigning the '$($FileShareContributorRole.Name)' RBAC role to '$CurrentHostPoolMSIXHostsADGroupName' AD Group on the Share '$CurrentHostPoolShareName' in the Storage Account '$CurrentHostPoolStorageAccountName' (in the '$CurrentHostPoolResourceGroupName' Resource Group) ..."
                         $null = New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope
                     }
@@ -2825,7 +2841,7 @@ function New-AzAvdPooledHostPoolSetup {
                         $AzADGroup = $null
                         $AzADGroup = Get-AzADGroup -SearchString $CurrentHostPoolMSIXUsersADGroupName
                     } While (-not($AzADGroup.Id))
-                    if (-not(Get-AzRoleAssignment -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope)) {
+                    if (-not(Get-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope)) {
                         Write-Verbose -Message "Assigning the '$($FileShareContributorRole.Name)' RBAC role to 'CurrentPooledHostPoolMSIXUsersADGroupName' AD Group on the Share '$CurrentHostPoolShareName' in the Storage Account '$CurrentHostPoolStorageAccountName'  (in the '$CurrentHostPoolResourceGroupName' Resource Group) ..."
                         $null = New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope
                     }
@@ -2842,7 +2858,7 @@ function New-AzAvdPooledHostPoolSetup {
                         $AzADGroup = $null
                         $AzADGroup = Get-AzADGroup -SearchString $CurrentHostPoolMSIXShareAdminsADGroupName
                     } While (-not($AzADGroup.Id))
-                    if (-not(Get-AzRoleAssignment -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope)) {
+                    if (-not(Get-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope)) {
                         Write-Verbose -Message "Assigning the '$($FileShareContributorRole.Name)' RBAC role to '$CurrentHostPoolMSIXShareAdminsADGroupName' AD Group on the Share '$CurrentHostPoolShareName' in the Storage Account '$CurrentHostPoolStorageAccountName' (in the '$CurrentHostPoolResourceGroupName' Resource Group) ..."
                         $null = New-AzRoleAssignment -ObjectId $AzADGroup.Id -RoleDefinitionName $FileShareContributorRole.Name -Scope $Scope
                     }
@@ -3247,9 +3263,15 @@ function New-AzAvdPooledHostPoolSetup {
             }
             #endregion
             #endregion
+            $EndTime = Get-Date
+            $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
+            Write-Host -Object "'$($CurrentHostPool.Name)' Setup Processing Time: $($TimeSpan.ToString())"
         }    
     }
     end {
+        $EndTime = Get-Date
+        $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
+        Write-Host -Object "Overall Pooled HostPool Setup Processing Time: $($TimeSpan.ToString())"
     }
 }
 
@@ -3264,6 +3286,7 @@ function New-AzAvdHostPoolSetup {
     )
 
     begin {
+        $StartTime = Get-Date
         $AzContext = Get-AzContext
         <#
         $StorageEndpointSuffix = $AzContext | Select-Object -ExpandProperty Environment | Select-Object -ExpandProperty StorageEndpointSuffix
@@ -3423,7 +3446,7 @@ function New-AzAvdHostPoolSetup {
         $objId = (Get-AzADServicePrincipal -AppId "9cdead84-a844-4324-93f2-b2e6bb768d07").Id
         $SubscriptionId = $AzContext.Subscription.Id
         $Scope = "/subscriptions/$SubscriptionId"
-        if (-not(Get-AzRoleAssignment -RoleDefinitionName "Desktop Virtualization Power On Contributor" -Scope $Scope)) {
+        if (-not(Get-AzRoleAssignment -ObjectId $objId -RoleDefinitionName "Desktop Virtualization Power On Contributor" -Scope $Scope)) {
             Write-Verbose -Message "Assigning the 'Desktop Virtualization Power On Contributor' RBAC role to Service Principal '$objId' on the Subscription '$SubscriptionId' ..."
             $null = New-AzRoleAssignment -ObjectId $objId -RoleDefinitionName "Desktop Virtualization Power On Contributor" -Scope $Scope
         }
@@ -3452,12 +3475,12 @@ function New-AzAvdHostPoolSetup {
             $Jobs = @()
             $Jobs += foreach ($CurrentPooledHostPool in $PooledHostPools) {
                 Write-Verbose "Starting background job for '$($CurrentPooledHostPool.Name)' Pooled HostPool Creation (via New-AzAvdPooledHostPoolSetup) ... "
-                Start-ThreadJob -ScriptBlock { New-AzAvdPooledHostPoolSetup -HostPool $using:CurrentPooledHostPool -ADOrganizationalUnit $using:PooledDesktopsOU -Verbose -AsJob *>&1 | Out-File -FilePath $("{0}\New-AzAvdPooledHostPoolSetup_{1}_{2}.txt" -f $using:CurrentDir, $($using:CurrentPooledHostPool).Name, (Get-Date -Format 'yyyyMMddHHmmss')) } -InitializationScript $ExportedFunctions -ThrottleLimit 10
+                Start-ThreadJob -ScriptBlock { New-AzAvdPooledHostPoolSetup -HostPool $using:CurrentPooledHostPool -ADOrganizationalUnit $using:PooledDesktopsOU -Verbose -AsJob *>&1 | Out-File -FilePath $("{0}\New-AzAvdPooledHostPoolSetup_{1}_{2}.txt" -f $using:CurrentDir, $($using:CurrentPooledHostPool).Name, (Get-Date -Format 'yyyyMMddHHmmss')) } -InitializationScript $ExportedFunctions -StreamingHost $Host
             }
 
             $Jobs += foreach ($CurrentPersonalHostPool in $PersonalHostPools) {
                 Write-Verbose "Starting background job for '$($CurrentPersonalHostPool.Name)' Personal HostPool Creation (via New-AzAvdPersonalHostPoolSetup) ..."
-                Start-ThreadJob -ScriptBlock { New-AzAvdPersonalHostPoolSetup -HostPool $using:CurrentPersonalHostPool -ADOrganizationalUnit $using:PersonalDesktopsOU -Verbose -AsJob *>&1 | Out-File -FilePath $("{0}\New-AzAvdPersonalHostPoolSetup_{1}_{2}.txt" -f $using:CurrentDir, $($using:CurrentPersonalHostPool).Name, (Get-Date -Format 'yyyyMMddHHmmss')) } -InitializationScript $ExportedFunctions -ThrottleLimit 10
+                Start-ThreadJob -ScriptBlock { New-AzAvdPersonalHostPoolSetup -HostPool $using:CurrentPersonalHostPool -ADOrganizationalUnit $using:PersonalDesktopsOU -Verbose -AsJob *>&1 | Out-File -FilePath $("{0}\New-AzAvdPersonalHostPoolSetup_{1}_{2}.txt" -f $using:CurrentDir, $($using:CurrentPersonalHostPool).Name, (Get-Date -Format 'yyyyMMddHHmmss')) } -InitializationScript $ExportedFunctions -StreamingHost $Host
             }
 
             Write-Verbose -Message "Waiting the background jobs complete ..."
@@ -3475,6 +3498,9 @@ function New-AzAvdHostPoolSetup {
         }
     }
     end {
+        $EndTime = Get-Date
+        $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
+        Write-Host -Object "Overall HostPool Setup Processing Time: $($TimeSpan.ToString())"
     }
 }
 
@@ -3696,15 +3722,15 @@ function Update-AVDRDCMan {
 
 #region Main code
 Clear-Host
+$StartTime = Get-Date
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
-$TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}" -f (Get-Date)).txt"
+$TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}" -f $StartTime).txt"
 Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader #-Verbose
 
 $Error.Clear()
-$StartTime = Get-Date
 # Define the class in the current scope by dot-sourcing the script block.
 . $ClassDefinitionScriptBlock
 
@@ -3737,7 +3763,7 @@ if (-not(Get-AzContext)) {
 
 #region Microsoft Entra ID/Azure AD Connection
 try {
-    $null = Get-AzureADDevice
+    $null = Get-AzureADDevice #-ErrorAction Stop
 }
 catch {
     Write-Verbose -Message "Connecting to Microsoft Entra ID/Azure AD"
@@ -3793,19 +3819,15 @@ if (-not(Test-Path -Path $env:SystemRoot\policyDefinitions\en-US\terminalserver-
 #region function calls
 $HostPoolSessionCredentialKeyVault = New-AzHostPoolSessionCredentialKeyVault -Verbose
 
-$AzureComputeGalleryStartTime = Get-Date
-$AzureComputeGallery = New-AzureComputeGallery -Verbose
+#$AzureComputeGallery = New-AzureComputeGallery -Verbose
 $AzureComputeGallery = Get-AzGallery | Sort-Object -Property Name -Descending | Select-Object -First 1
-$AzureComputeGalleryEndTime = Get-Date
-$AzureComputeGalleryTimeSpan = New-TimeSpan -Start $AzureComputeGalleryStartTime -End $AzureComputeGalleryEndTime
-Write-Host -Object "Azure Compute Gallery Processing Time: $($AzureComputeGalleryTimeSpan.ToString())"
 
 #Reset Index (staring at 1) for automatic numbering (every will instantiation increment the Index)
 [PooledHostPool]::ResetIndex()
 [PersonalHostPool]::ResetIndex()
 
-#$RandomNumber = Get-Random -Minimum 1 -Maximum 100
-$RandomNumber = 99
+$RandomNumber = Get-Random -Minimum 1 -Maximum 100
+$RandomNumber = 73
 $HostPools = @(
     # Use case 1: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with FSLogix and MSIX
     [PooledHostPool]::new($HostPoolSessionCredentialKeyVault)
@@ -3838,13 +3860,12 @@ Remove-AzAvdHostPoolSetup -HostPool $HostPools -Verbose
 #Or pipeline processing call
 #$HostPools | Remove-AzAvdHostPoolSetup -Verbose
 
-$AvdHostPoolSetupStartTime = Get-Date
+#Setting the ThrottleLimit to the total number of host pool VM instances + 1
+Start-ThreadJob -ScriptBlock { $null } -ThrottleLimit $(($HostPools.VMNumberOfInstances | Measure-Object -Sum).Sum+1)
+
 New-AzAvdHostPoolSetup -HostPool $HostPools -Verbose -AsJob
 #Or pipeline processing call
 #$HostPools | New-AzAvdHostPoolSetup #-AsJob 
-$AvdHostPoolSetupEndTime = Get-Date
-$AvdHostPoolSetupTimeSpan = New-TimeSpan -Start $AvdHostPoolSetupStartTime -End $AvdHostPoolSetupEndTime
-Write-Host -Object "HostPool Setup Processing Time: $($AvdHostPoolSetupTimeSpan.ToString())"
 
 #Running RDCMan to connect to all Session Hosts (for administration purpose if needed)
 #Update-AVDRDCMan -Credential $LocalAdminCredential -Install -Open -Verbose
@@ -3887,9 +3908,12 @@ $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
 Write-Host -Object "Overall Processing Time: $($TimeSpan.ToString())"
 #endregion
 <#
+Get-Job | Remove-Job -Force
+Stop-Transcript
 #Looking for error in the log files
-Select-String -Pattern "~~" -Path $CurrentDir\new*.txt -Context 1
+$LogFiles = Get-ChildItem -Path $CurrentDir -Filter New*.txt -File | Where-Object -FilterScript {$_.LastWriteTime -ge $StartTime}
+Select-String -Pattern "~~" -Path $LogFiles -Context 1
 #Doing some cleanups
-Stop-Transcript; Get-Job | Remove-Job -Force; Remove-Item -Path $CurrentDir\new*.txt -Force
+Remove-Item -Path $LogFiles -Force
 #>
 Stop-Transcript
