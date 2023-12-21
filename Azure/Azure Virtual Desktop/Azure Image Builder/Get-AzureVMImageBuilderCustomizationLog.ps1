@@ -30,8 +30,7 @@ function Get-AzureVMImageBuilderCustomizationLog {
 	)
     #Getting all Image Builder Template ResourceGroup
     $AzImageBuilderTemplateResourceGroup =  Get-AzResourceGroup -Name IT_* 
-    foreach ($CurrentAzImageBuilderTemplateResourceGroup in $AzImageBuilderTemplateResourceGroup)
-    {
+    foreach ($CurrentAzImageBuilderTemplateResourceGroup in $AzImageBuilderTemplateResourceGroup) {
         Write-Verbose -Message "Processing '$($CurrentAzImageBuilderTemplateResourceGroup.ResourceGroupName)' Resource Group (Image Template: $($CurrentAzImageBuilderTemplateResourceGroup.Tags.imageTemplateName) / Resource Group: $($CurrentAzImageBuilderTemplateResourceGroup.Tags.imageTemplateResourceGroupName))..."
         #Creating a dedicated directory per Image Builder Template ResourceGroup
         $CurrentDestination = New-Item -Path $Destination -Name $CurrentAzImageBuilderTemplateResourceGroup.ResourceGroupName -ItemType Directory -Force

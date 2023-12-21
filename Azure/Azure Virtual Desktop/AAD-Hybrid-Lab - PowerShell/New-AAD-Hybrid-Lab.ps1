@@ -243,17 +243,17 @@ function New-AAD-Hybrid-Lab {
     $NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NetworkSecurityGroupName -SecurityRules $SecurityRules -Force
 
     #Steps 4 + 5: Create Azure Virtual network using the virtual network subnet configuration
-    $vNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName  -AddressPrefix $VNetAddressRange -Location $Location
-
-    Add-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $vNetwork -AddressPrefix $ADSubnetAddressRange -NetworkSecurityGroupId $NetworkSecurityGroup.Id
+    $subnet = New-AzVirtualNetworkSubnetConfig -Name $subnetName -AddressPrefix $ADSubnetAddressRange -NetworkSecurityGroup $NetworkSecurityGroup
+    $vNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName  -AddressPrefix $VNetAddressRange -Location $Location -Subnet $Subnet
+    <#
     $vNetwork = Set-AzVirtualNetwork -VirtualNetwork $vNetwork
     $Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $vNetwork
-
+    #>
     if ($Bastion) {
         
         #Generation Bastion Subnet Address Range by getting the subnets and finding the third token available in the IP.
         $ThirdToken = (Get-AzVirtualNetwork -Name $VirtualNetworkName).Subnets.AddressPrefix -replace "\d+\.\d+\.(\d+)\.\d\/.*", '$1' | Sort-Object
-        $ThirdTokenAvailable = 1..254 | Where-Object -FilterScript {$_ -notin $ThirdToken}
+        $ThirdTokenAvailable = 1..254 | Where-Object -FilterScript { $_ -notin $ThirdToken }
         $BastionSubnetAddressRange = (Get-AzVirtualNetwork -Name $VirtualNetworkName).Subnets.AddressPrefix | Sort-Object | Select-Object -Last 1
         $BastionSubnetAddressRange -match '(\d+)\.(\d+)\.(\d+)\.(\d+)/(\d+)'
         #$BastionSubnetAddressRange = "{0}.{1}.{2}.0/26" -f $Matches[1], $Matches[2], ([int]$Matches[3]+1)
@@ -265,12 +265,12 @@ function New-AAD-Hybrid-Lab {
             New-AzNetworkSecurityRuleConfig -Name AllowHttpsInBound -Description "Allow Https InBound" -Protocol Tcp -SourcePortRange * -DestinationPortRange 443 -SourceAddressPrefix 'Internet' -DestinationAddressPrefix * -Access Allow  -Priority 120 -Direction Inbound 
             New-AzNetworkSecurityRuleConfig -Name AllowGatewayManagerInBound -Description "Allow Gateway Manager InBound" -Protocol Tcp -SourcePortRange * -DestinationPortRange 443 -SourceAddressPrefix 'GatewayManager' -DestinationAddressPrefix * -Access Allow  -Priority 130 -Direction Inbound 
             New-AzNetworkSecurityRuleConfig -Name AllowAzureLoadBalancerInBound -Description "AllowAzureLoad Balancer InBound" -Protocol Tcp -SourcePortRange * -DestinationPortRange 443 -SourceAddressPrefix 'AzureLoadBalancer' -DestinationAddressPrefix * -Access Allow  -Priority 140 -Direction Inbound 
-            New-AzNetworkSecurityRuleConfig -Name AllowBastionHostcommunication -Description "Allow Azure LoadBalancer" -Protocol * -SourcePortRange * -DestinationPortRange 8080,5701 -SourceAddressPrefix 'VirtualNetwork' -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 150 -Direction Inbound 
+            New-AzNetworkSecurityRuleConfig -Name AllowBastionHostcommunication -Description "Allow Azure LoadBalancer" -Protocol * -SourcePortRange * -DestinationPortRange 8080, 5701 -SourceAddressPrefix 'VirtualNetwork' -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 150 -Direction Inbound 
             #endregion
             #region Outbound
-            New-AzNetworkSecurityRuleConfig -Name AllowSshRdpOutBound -Description 'Allow Ssh Rdp OutBound' -SourceAddressPrefix * -SourcePortRange * -DestinationAddressPrefix 'VirtualNetwork' -DestinationPortRange 22,3389 -Protocol * -Access Allow -Priority 100 -Direction Outbound 
+            New-AzNetworkSecurityRuleConfig -Name AllowSshRdpOutBound -Description 'Allow Ssh Rdp OutBound' -SourceAddressPrefix * -SourcePortRange * -DestinationAddressPrefix 'VirtualNetwork' -DestinationPortRange 22, 3389 -Protocol * -Access Allow -Priority 100 -Direction Outbound 
             New-AzNetworkSecurityRuleConfig -Name AllowAzureCloudOutBound -Description 'Allow Azure Cloud OutBound' -SourceAddressPrefix * -SourcePortRange * -DestinationAddressPrefix 'AzureCloud' -DestinationPortRange 443 -Protocol Tcp -Access Allow -Priority 110 -Direction Outbound 
-            New-AzNetworkSecurityRuleConfig -Name AllowBastionCommunication -Description 'Allow Bastion Communication' -SourceAddressPrefix 'VirtualNetwork' -SourcePortRange * -DestinationAddressPrefix 'VirtualNetwork' -DestinationPortRange 8080,5071 -Protocol * -Access Allow -Priority 120 -Direction Outbound 
+            New-AzNetworkSecurityRuleConfig -Name AllowBastionCommunication -Description 'Allow Bastion Communication' -SourceAddressPrefix 'VirtualNetwork' -SourcePortRange * -DestinationAddressPrefix 'VirtualNetwork' -DestinationPortRange 8080, 5071 -Protocol * -Access Allow -Priority 120 -Direction Outbound 
             New-AzNetworkSecurityRuleConfig -Name AllowGetSessionInformation -Description 'Allow Get Session Information' -SourceAddressPrefix * -SourcePortRange * -DestinationAddressPrefix 'Internet' -DestinationPortRange 80 -Protocol * -Access Allow -Priority 130 -Direction Outbound 
             #endregion
             #>
@@ -289,11 +289,11 @@ function New-AAD-Hybrid-Lab {
         #Adding Security Rules for allowing connection from Bastion
         #RDP
         Get-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Name $NetworkSecurityGroupName | `
-        Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_RDP -Description "Allow RDP Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange $RDPPort -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 101 -Direction Inbound | `
-        Set-AzNetworkSecurityGroup
+            Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_RDP -Description "Allow RDP Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange $RDPPort -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 101 -Direction Inbound | `
+            Set-AzNetworkSecurityGroup
         #SSH
         Get-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Name $NetworkSecurityGroupName | `
-        Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_SSH -Description "Allow SSH Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange 22 -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 102 -Direction Inbound | ` 
+            Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_SSH -Description "Allow SSH Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange 22 -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 102 -Direction Inbound | `
         Set-AzNetworkSecurityGroup
     }
     
@@ -303,7 +303,7 @@ function New-AAD-Hybrid-Lab {
     #$PublicIP.DnsSettings.Fqdn = $FQDN
 
     #Step 7: Create Network Interface Card 
-    $NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -PublicIpAddressId $PublicIP.Id -PrivateIpAddress $DomainControllerIP #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
+    $NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $(Get-AzVirtualNetworkSubnetConfig -VirtualNetwork $vNetwork).Id -PublicIpAddressId $PublicIP.Id -PrivateIpAddress $DomainControllerIP #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
 
     <# Optional : Step 8: Get Virtual Machine publisher, Image Offer, Sku and Image
     $ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq "MicrosoftWindowsDesktop"}
@@ -412,8 +412,7 @@ function New-AAD-Hybrid-Lab {
     $DSCZipLocalFilePath = Join-Path -Path $env:TEMP -ChildPath $DSCZipFileName
     #Downloading the zip file from the Gitbub repository (We use the same Zip file that the one use for the ARM template deployment to avoid content duplication)
     Invoke-RestMethod -Uri $DSCZipFileUri -OutFile $DSCZipLocalFilePath -Verbose
-    if (Test-Path -Path $DSCZipLocalFilePath)
-    {
+    if (Test-Path -Path $DSCZipLocalFilePath) {
         $DestinationFolder = Join-Path -Path $env:TEMP -ChildPath $((Get-Item -Path $DSCZipLocalFilePath).BaseName)
         #Extracting the files from the downoaded zip file
         Expand-Archive -Path $DSCZipLocalFilePath -DestinationPath $DestinationFolder -Verbose -Force 
@@ -432,14 +431,12 @@ function New-AAD-Hybrid-Lab {
         Remove-Item -Path $DSCZipLocalFilePath -Force
         Remove-Item -Path $DestinationFolder -Recurse -Force
     }
-    else
-    {
+    else {
         Write-Error -Exception "Unable to download $DSCZipFileUri ..." -ErrorAction Continue
     }
     #endregion
 
-    if ($null -ne $BastionJob)
-    {
+    if ($null -ne $BastionJob) {
         Write-Verbose -Message "Waiting the creation of the Bastion completes ..."
         $BastionJob | Wait-Job | Out-Null
     }
@@ -464,8 +461,7 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
 #region Azure Connection
-if (-not(Get-AzContext))
-{
+if (-not(Get-AzContext)) {
     Connect-AzAccount
     Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
     Write-Verbose -Message "Account : $((Get-AzContext).Account)"
@@ -481,21 +477,18 @@ Register-ArgumentCompleter -CommandName New-AAD-Hybrid-Lab -ParameterName Locati
 $null = Get-PackageProvider -Name NuGet -Force -Verbose
 $RequiredModules = 'ActiveDirectoryDSC', 'NetworkingDSC', 'ComputerManagementDSC'
 $InstalledModule = Get-InstalledModule -Name $RequiredModules -ErrorAction Ignore
-if (-not([String]::IsNullOrEmpty($InstalledModule)))
-{
-    $MissingModules  = (Compare-Object -ReferenceObject $RequiredModules -DifferenceObject (Get-InstalledModule -Name $RequiredModules -ErrorAction Ignore).Name).InputObject
+if (-not([String]::IsNullOrEmpty($InstalledModule))) {
+    $MissingModules = (Compare-Object -ReferenceObject $RequiredModules -DifferenceObject (Get-InstalledModule -Name $RequiredModules -ErrorAction Ignore).Name).InputObject
 }
-else
-{
-    $MissingModules  = $RequiredModules
+else {
+    $MissingModules = $RequiredModules
 }
-if (-not([String]::IsNullOrEmpty($MissingModules)))
-{
+if (-not([String]::IsNullOrEmpty($MissingModules))) {
     Install-Module -Name $MissingModules -Force -Verbose
 }
 
 $AdminCredential = Get-Credential -Credential $env:USERNAME
-$UserCredential  = Get-Credential -Credential "Only password is required"
+$UserCredential = Get-Credential -Credential "Only password is required"
 
 $Parameters = @{
     "AdminCredential"      = $AdminCredential

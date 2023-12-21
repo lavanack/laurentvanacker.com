@@ -232,13 +232,10 @@ function New-AAD-Hybrid-BCDR-Lab {
     $NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NetworkSecurityGroupName -SecurityRules $SecurityRules -Force
 
     #Steps 4 + 5: Create Azure Virtual network using the virtual network subnet configuration
-    $vNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName  -AddressPrefix $VNetAddressRange -Location $Location
+    $subnet = New-AzVirtualNetworkSubnetConfig -Name $subnetName -AddressPrefix $ADSubnetAddressRange -NetworkSecurityGroup $NetworkSecurityGroup
+    $vNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName  -AddressPrefix $VNetAddressRange -Location $Location -Subnet $Subnet
 
-    Add-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $vNetwork -AddressPrefix $ADSubnetAddressRange -NetworkSecurityGroupId $NetworkSecurityGroup.Id
-    $vNetwork = Set-AzVirtualNetwork -VirtualNetwork $vNetwork
-    $Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $vNetwork
-
-  if ($Bastion) {
+    if ($Bastion) {
         
         #Generation Bastion Subnet Address Range by getting the subnets and finding the third token available in the IP.
         $ThirdToken = (Get-AzVirtualNetwork -Name $VirtualNetworkName).Subnets.AddressPrefix -replace "\d+\.\d+\.(\d+)\.\d\/.*", '$1' | Sort-Object
@@ -292,7 +289,7 @@ function New-AAD-Hybrid-BCDR-Lab {
     #$PublicIP.DnsSettings.Fqdn = $FQDN
 
     #Step 7: Create Network Interface Card 
-    $NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -PublicIpAddressId $PublicIP.Id -PrivateIpAddress $DomainControllerIP #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
+    $NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $(Get-AzVirtualNetworkSubnetConfig -VirtualNetwork $vNetwork).Id -PublicIpAddressId $PublicIP.Id -PrivateIpAddress $DomainControllerIP #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
 
     <# Optional : Step 8: Get Virtual Machine publisher, Image Offer, Sku and Image
     $ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq "MicrosoftWindowsDesktop"}
