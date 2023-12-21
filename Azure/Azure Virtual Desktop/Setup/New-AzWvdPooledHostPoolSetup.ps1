@@ -3827,7 +3827,7 @@ if (-not(Test-Path -Path $env:SystemRoot\policyDefinitions\en-US\terminalserver-
 #region function calls
 $HostPoolSessionCredentialKeyVault = New-AzHostPoolSessionCredentialKeyVault -Verbose
 
-#$AzureComputeGallery = New-AzureComputeGallery -Verbose
+$AzureComputeGallery = New-AzureComputeGallery -Verbose
 $AzureComputeGallery = Get-AzGallery | Sort-Object -Property Name -Descending | Select-Object -First 1
 
 #Reset Index (staring at 1) for automatic numbering (every will instantiation increment the Index)
