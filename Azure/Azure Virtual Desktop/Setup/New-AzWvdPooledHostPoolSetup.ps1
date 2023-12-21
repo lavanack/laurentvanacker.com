@@ -3352,10 +3352,15 @@ function New-AzAvdHostPoolSetup {
         #region Network Settings
         #From https://learn.microsoft.com/en-us/training/modules/configure-user-experience-settings/4-configure-user-settings-through-group-policies
         Write-Verbose -Message "Setting some 'Network Settings' related registry values for '$($AVDGPO.DisplayName)' GPO (linked to '$($AVDRootOU.DistinguishedName)' OU) ..."
+        #From https://admx.help/?Category=Windows_10_2016&Policy=Microsoft.Policies.BITS::BITS_DisableBranchCache
         $null = Set-GPRegistryValue -Name $AVDGPO.DisplayName -Key 'HKLM\Software\Policies\Microsoft\Windows\BITS' -ValueName "DisableBranchCache" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 1
+        #From https://admx.help/?Category=Windows_10_2016&Policy=Microsoft.PoliciesContentWindowsBranchCache::EnableWindowsBranchCache
         $null = Set-GPRegistryValue -Name $AVDGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\PeerDist\Service' -ValueName "Enable" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 0
+        #From https://admx.help/?Category=Windows_10_2016&Policy=Microsoft.Policies.HotspotAuthentication::HotspotAuth_Enable
         $null = Set-GPRegistryValue -Name $AVDGPO.DisplayName -Key 'HKLM\Software\Policies\Microsoft\Windows\HotspotAuthentication' -ValueName "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 0
+        #From https://admx.help/?Category=Windows_10_2016&Policy=Microsoft.Policies.PlugandPlay::P2P_Disabled
         $null = Set-GPRegistryValue -Name $AVDGPO.DisplayName -Key 'HKLM\Software\policies\Microsoft\Peernet' -ValueName "Disabled" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 1
+        #From https://admx.help/?Category=Windows_10_2016&Policy=Microsoft.Policies.OfflineFiles::Pol_Enabled
         $null = Set-GPRegistryValue -Name $AVDGPO.DisplayName -Key 'HKLM\Software\Policies\Microsoft\Windows\NetCache' -ValueName "Enabled" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 0
         #endregion
 
@@ -3459,6 +3464,9 @@ function New-AzAvdHostPoolSetup {
         #From https://stackoverflow.com/questions/7162090/how-do-i-start-a-job-of-a-function-i-just-defined
         #From https://stackoverflow.com/questions/76844912/how-to-call-a-class-object-in-powershell-jobs
         if ($AsJob) {
+            #Setting the ThrottleLimit to the total number of host pool VM instances + 1
+            $null = Start-ThreadJob -ScriptBlock { $null } -ThrottleLimit $(($HostPools.VMNumberOfInstances | Measure-Object -Sum).Sum+$HostPools.Count+1)
+
             $ExportedFunctions = [scriptblock]::Create(@"
                 Function New-AzAvdPooledHostPoolSetup { ${Function:New-AzAvdPooledHostPoolSetup} }
                 Function New-AzAvdPersonalHostPoolSetup { ${Function:New-AzAvdPersonalHostPoolSetup} }
@@ -3859,9 +3867,6 @@ foreach ($CurrentGalleryImageDefinition in $GalleryImageDefinition)
 Remove-AzAvdHostPoolSetup -HostPool $HostPools -Verbose
 #Or pipeline processing call
 #$HostPools | Remove-AzAvdHostPoolSetup -Verbose
-
-#Setting the ThrottleLimit to the total number of host pool VM instances + 1
-Start-ThreadJob -ScriptBlock { $null } -ThrottleLimit $(($HostPools.VMNumberOfInstances | Measure-Object -Sum).Sum+1)
 
 New-AzAvdHostPoolSetup -HostPool $HostPools -Verbose -AsJob
 #Or pipeline processing call
