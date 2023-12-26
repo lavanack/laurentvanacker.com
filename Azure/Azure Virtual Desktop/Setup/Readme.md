@@ -97,12 +97,12 @@ We have to store 4 secrets in the Azure Key Vault:
 
 You can use your own KeyVault (with these 4 secret names) or let the script create one for you : We do this with the `New-AzHostPoolSessionCredentialKeyVault` function.
 
-The `New-AzHostPoolSessionCredentialKeyVault` function have hard coded values for `LocalAdminUserName` and  `ADJoinUserName` (respectively `localadmin` and `adjoin` - feel free to customize to you needs). The value for the `LocalAdminPassword` is also hard coded for a simple reason : If the user specified as value of the `LocalAdminUserName` secret already exists in the Active Directory domain, we need to specify the right password. If the user doesn't exist, the script will create it in the Active Directory domain with the password specified in the `LocalAdminPassword` secret.
+The `New-AzHostPoolSessionCredentialKeyVault` function have hard coded values for `LocalAdminUserName` and  `ADJoinUserName` (respectively `localadmin` and `adjoin` - feel free to customize to you needs). The value for the `LocalAdminPassword` is also hard coded for a simple reason : If the user specified as value of the `LocalAdminUserName` secret already exists in the Active Directory domain, we need to specify the current password. If the user doesn't exist, the script will create it in the Active Directory domain with the password specified in the `LocalAdminPassword` secret.
 The value for the `ADJoinPassword` is randomly generated with the `New-RandomPassword` function (for information it will be written in the output).
 
 ### Azure Compute Gallery
 
-I also create an Azure Compute Gallery with the `New-AzComputeGallery` function. All details are [here](../Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder#azureimagebuilderps1) (AzureImageBuilder.ps1 paragraph only - nevertheless you can read all the article to see  some posibilities an Azure Compute Gallery can offer). If you prefer use your own Azure Compute Gallery images, you can comment the call to `New-AzComputeGallery` function and adjust the Azure Compute Gallery to use in the lines starting with:
+I also create an Azure Compute Gallery with the `New-AzComputeGallery` function. All details are [here](../Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder#azureimagebuilderps1) (AzureImageBuilder.ps1 paragraph only - nevertheless you can read all the article to see  some posibilities an Azure Compute Gallery can offer). If you prefer to use your own Azure Compute Gallery images, you can comment the call to `New-AzComputeGallery` function and adjust the Azure Compute Gallery to use in the lines starting with:
   
   ```powershell
 $AzureComputeGallery = Get-AzGallery ...
@@ -112,7 +112,7 @@ $GalleryImageDefinition = Get-AzGalleryImageDefinition -GalleryName ...
 
 ## Cleanup
 
-If you have already deployed an Azure Virtual Desktop environment with this script and want to do some cleanup  of the existing environment, you can use the `Remove-AzAvdHostPoolSetup` function. This function takes an HostPool array as parameter (so set the parameter values you used for the already deployed environement). It will remove all the resources created by the script (HostPool, Session Hosts, Application Groups, Workspace, etc.) based on the HostPool array. Some cleanup are also done in the Active Directory domain (removing the computer accounts of the Session Hosts and the Azure File Shares ...) and the Windows Credential Manager.
+If you have already deployed an Azure Virtual Desktop environment with this script and want to do some cleanup  of the existing environment, you can use the `Remove-AzAvdHostPoolSetup` function. This function takes an HostPool array as parameter (so set the parameter values you used for the already deployed environement). It will remove all the resources created by the script (HostPool, Session Hosts, Application Groups, Workspace, etc.) based on the `$HostPool` array. Some cleanup are also done in the Active Directory domain (removing the computer accounts of the Session Hosts and the Azure File Shares ...) and the Windows Credential Manager.
 You can also use the `Remove-AzAvdHostPoolSetup` function after the deployment to remove the environment if you are not satisfied with the result or to save costs after testing the deployed resources.
 
 ## Deployment
