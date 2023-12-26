@@ -50,7 +50,7 @@ Function Merge-PowerPointPresentation {
 		#The collection of the powerpoint files to merge
 		[Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
 		[ValidateScript( {
-				(Test-Path -Path $_ -PathType Leaf) -and ($_ -match "\.ppt(x{0,1})$")
+				(Test-Path -Path $_ -PathType Leaf) -and ($_ -match "\.pptx?$")
 			})]
 		[alias('FilePath', 'Path', 'FullName')]
 		[string[]]$Source,
