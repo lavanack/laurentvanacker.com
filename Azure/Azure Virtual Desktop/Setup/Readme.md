@@ -3,6 +3,7 @@
 - [Azure Virtual Desktop -Proof Of Concept - PowerShell version](#azure-virtual-desktop--proof-of-concept---powershell-version)
   - [Prerequisites](#prerequisites)
   - [What this script does ?](#what-this-script-does-)
+  - [TL;DR](#tldr)
   - [Script Explanation](#script-explanation)
     - [HostPool PowerShell Classes](#hostpool-powershell-classes)
     - [Required PowerShell Modules](#required-powershell-modules)
@@ -39,6 +40,12 @@ Before continuing, make sure you have a domain controller (Windows Server with t
 
 The goal of this script is to deploy multiple full Azure Virtual Desktop environments in a few minutes. The script is based on the Microsoft documentation and best practices.
 Every script execution will generate a timestamped transcript in the script directory.
+
+## TL;DR
+
+If you don't want to continue reading, here is the [TL;DR](https://dictionary.cambridge.org/dictionary/english/tldr) version:
+
+- The script with its default values will deploy 5 HostPools (3 Pooled and 2 Personal) with 3 Session Hosts each (all session hosts will be AD Domain joined except for one Personal that will be Azure AD/Microsoft entra ID joined). One Pooled HostPool will be configured with FSLogix and MSIX. The Session Hosts will be deployed in the `EastUS` Azure region. Some recommendations/best practices are also applied (like A/V exclusions, FSLogix Settings, etc.).
 
 ## Script Explanation
 
