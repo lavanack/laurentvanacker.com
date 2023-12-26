@@ -174,7 +174,7 @@ This function is called by the `New-AzAvdHostPoolSetup` function for every HostP
     - [Disabling automatic updates](https://learn.microsoft.com/en-us/azure/virtual-desktop/set-up-customize-master-image#disable-automatic-updates)
     - [Disabling Storage Sense](https://learn.microsoft.com/en-us/azure/virtual-desktop/set-up-customize-master-image#disable-storage-sense)
     - [Setting antivirus exclusions](https://learn.microsoft.com/en-us/fslogix/overview-prerequisites#configure-antivirus-file-and-folder-exclusions)
-    - A FSLogix Profile Container exclusion is set for the `Domain Admins` group
+    - A FSLogix Profile Container exclusion is set for the `Domain Admins` AD group
   
 - If MSIX is required:
   - A MSIX file share (called `msix`) is created in a dedicated Storage Account (a naming convention `msix<HostPoolName without dashes and in lowercase>`) on the dedicated resource group, the [required NTFS permissions](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=msix-app-attach#permissions) are set and the account is registered in the Active Directory Domain. The credentials for the storage account are stored in Windows Credential Manager.
@@ -182,7 +182,7 @@ This function is called by the `New-AzAvdHostPoolSetup` function for every HostP
   - 3 dedicated AD security groups are created and the required role assignments are done
     - `<HostPoolName> - MSIX Hosts` (`Storage File Data SMB Share Contributor` role assignment on the Azure File Share). This AD group will contain the Session Hosts that will have a MSIX App Attach.
     - `<HostPoolName> - MSIX Share Admins` (`Storage File Data SMB Share Elevated Contributor` role assignment on the Azure File Share)
-    - `<HostPoolName> - MSIX Users` (`Storage File Data SMB Share Contributor` role assignment on the Azure File Share). This AD group will contain the end users that will have a MSIX App Attach.
+    - `<HostPoolName> - MSIX Users` (`Storage File Data SMB Share Contributor` role assignment on the Azure File Share). This AD group will contain the end users that will have use MSIX App Attach.
   - A GPO is also created (name : `<HostPoolName> - MSIX Settings`) with some settings for:
     - [Turning off automatic updates for MSIX app attach applications](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-azure-portal#turn-off-automatic-updates-for-msix-app-attach-applications)
     - [Setting antivirus exclusions](https://learn.microsoft.com/en-us/fslogix/overview-prerequisites#configure-antivirus-file-and-folder-exclusions)
@@ -221,7 +221,7 @@ Some helper functions are also available in the script but are not documented he
 
 ### Deliverables
 
-At the end of the deployment, the following deliverables are available (the following screenshots are with the default values):
+At the end of the deployment, the following deliverables are available (the following screenshots reflect the default values):
 
 - A timestamped transcript file in the script directory
 - A .rdg file on the Desktop with all the information to connect to the Session Hosts (cf. [here](#remote-desktop-connection-manager))
