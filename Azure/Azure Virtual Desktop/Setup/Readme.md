@@ -75,7 +75,7 @@ $PooledHostPool = [PooledHostPool]::new("hp-np-ad-poc-cg-eu-{0:D2}" -f $Index, "
 
 This class is used to defined the HostPool objects you want to deploy in Azure and the code will do the rest for you.
 > [!IMPORTANT]
-> These sample lines are the only line you have to modify to deploy your own HostPool environment(s). You can also add more HostPools by adding more lines (with the same syntax) in the script. Or simply remove some lines if you don't want to deploy some HostPools.
+> These sample lines are the only line you have to modify to deploy your own HostPool environment(s). You can also add more HostPools by adding more lines (with the same syntax) in the script. Or simply remove some lines if you don't want to deploy some HostPools. Feel free to customize the HostPool objects to your needs !
 
 ### Required PowerShell Modules
 
