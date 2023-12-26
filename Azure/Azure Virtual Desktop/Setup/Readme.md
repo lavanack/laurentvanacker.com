@@ -12,9 +12,17 @@
   - [Cleanup](#cleanup)
   - [Deployment](#deployment)
   - [Remote Desktop Connection Manager](#remote-desktop-connection-manager)
-  - [Transcript](#transcript)
   - [Testing](#testing)
-  - [New-AzAvdHostPoolSetup: Technical Details](#new-azavdhostpoolsetup-technical-details)
+  - [Technical Details](#technical-details)
+    - [New-AzAvdHostPoolSetup.ps1](#new-azavdhostpoolsetupps1)
+    - [New-AzAvdPooledHostPoolSetup.ps1](#new-azavdpooledhostpoolsetupps1)
+    - [New-AzAvdPersonalHostPoolSetup](#new-azavdpersonalhostpoolsetup)
+    - [Helpers functions](#helpers-functions)
+    - [Deliverables](#deliverables)
+
+> [!IMPORTANT]
+> This script is my version of an Azure Virtual Desktop (AVD) Proof Of Concept (POC) and is not intended to be used in production. It is provided "AS IS" without warranty of any. It was written during my rampup on AVD and to summarize in one location some best practices. It covers OnPrem and Azure setups in one PowerShell script.
+> If you want to deploy a Microsoft supported version I recommend to use The Azure Virtual Desktop (AVD) Landing Zone Accelerator (LZA) available [here](https://github.com/Azure/avdaccelerator) (Covers only the Azure part)
 
 ## Prerequisites
 
@@ -23,6 +31,9 @@ Before continuing, make sure you have a domain controller (Windows Server with t
 - [https://aka.ms/m365avdws](https://aka.ms/m365avdws)
 - [https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab)
 - [https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell) (Only the New-AAD-Hybrid-Lab.ps1: Step-by-step guide is needed - the rest optional)
+
+> [!IMPORTANT]
+> This script has to be run from the Domain Controller (from any local folder) from an account with the domain administrator privileges. Azure privilege role is also required (Global Administrator for instance) to deploy the Azure resources.
 
 ## What this script does ?
 
@@ -62,7 +73,7 @@ The script requires some PowerShell modules to be installed on the machine (ADDS
 
 ### Azure Connection
 
-The script will ask you to connect to your Azure subscription and to you Microsoft Entra ID for you if you are not. 
+The script will ask you to connect to your Azure subscription and to you Microsoft Entra ID for you if you are not.
 
 ### Azure Key Vault for Credentials
 
@@ -97,23 +108,127 @@ You can also use the `Remove-AzAvdHostPoolSetup` function after the deployment t
 ## Deployment
 
 The `New-AzAvdHostPoolSetup` function is the main function of the script. It takes an HostPool array as parameter (so set the parameter values you want for the HostPool(s) you want to deploy). It will deploy all the resources needed for the HostPool(s) based on the HostPool array.  
-This function has a -AsJob parameter. When this switch is specified, the ressources will be deployed in parallel (via the [Start-ThreadJob](https://learn.microsoft.com/en-us/powershell/module/threadjob/start-threadjob?view=powershell-7.4&viewFallbackFrom=powershell-5.1) cmdlet) instead of sequentially. The processing time is greatly reduced from 4h to 1h (including the Azure Compute Gallery Setup if needed - wihout the Azure Compute Gallery Setup, the processing time are 3h30 in parallel and 30 minutes sequentially). Nevertheless, sometimes the setup fails in parallel mode (some error occurs) so I recommend to use the sequential mode if any error occurs ib this mode (or retry).
+This function has a `-AsJob` parameter. When this switch is specified, the ressources will be deployed in parallel (via the [Start-ThreadJob](https://learn.microsoft.com/en-us/powershell/module/threadjob/start-threadjob?view=powershell-7.4&viewFallbackFrom=powershell-5.1) cmdlet) instead of sequentially. The processing time is greatly reduced from 4h to 1h (including the Azure Compute Gallery Setup if needed - wihout the Azure Compute Gallery Setup, the processing time are 3h30 in parallel and 30 minutes sequentially). Nevertheless, sometimes the setup fails in parallel mode (some error occurs) so I recommend to use the sequential mode if any error occurs ib this mode (or retry).
 > [!NOTE]
 > The impacted ressources by the parallel mode are the HostPools and the Session Hosts. The Job Management is done at the end of the The `New-AzAvdHostPoolSetup` function.
 
 ## Remote Desktop Connection Manager
 
-At the end of the deployment an RDCMan (<domain name>.rdg) file generated on the Desktop will all information to connect to the deployed Azure VMs. You can use this file with the [Remote Desktop Connection Manager](https://download.sysinternals.com/files/RDCMan.zip) tool to connect to the Session Hosts. For the Azure AD/Microsoft Entra ID joined VM, the local admin credentials are stored in this file for an easier connection.
+At the end of the deployment an RDCMan (\<domain name\>.rdg) file generated on the Desktop will all information to connect to the deployed Azure VMs. You can use this file with the [Remote Desktop Connection Manager](https://download.sysinternals.com/files/RDCMan.zip) tool to connect to the Session Hosts. For the Azure AD/Microsoft Entra ID joined VM, the local admin credentials are stored in this file for an easier connection.
+
 ![Remote Desktop Connection Manager](docs/rdcman.jpg)
-
-## Transcript
-
-Every run will generate a timestamped transcript in the script directory. 
 
 ## Testing
 
 After a successful deployment, you can connect to [Remote Desktop Web Client](https://client.wvd.microsoft.com/arm/webclient/index.html) or [Windows 365](https://windows365.microsoft.com/) site and use on the of the test users (available in the `OrgUsers` OU).
 
-## New-AzAvdHostPoolSetup: Technical Details
+## Technical Details
 
-If you want to know more about the `New-AzAvdHostPoolSetup` function, you can read the paragraph else happy testing ;) 
+If you want to know more about the `New-AzAvdHostPooledPoolSetup`, `New-AzAvdHostPersonalPoolSetup` and `New-AzAvdHostPoolSetup` functions, you can read the paragraph else happy testing ;)
+
+### New-AzAvdHostPoolSetup.ps1
+
+Ths function is the core function of the script. It proceeds as follows:
+
+- The required DNS forwarders are created in the Active Directory DNS (if not already created) for the Azure File Shared and the Azure Key Vaults.
+- The `AVD` Organization Unit (OU) is created in the Active Directory domain (if not already created). A GPO is created and linked to this OU. The following settings are configured:
+  - Network Settings
+  - Session Time Settings
+  - Enabing [Screen Capture Protection](https://learn.microsoft.com/en-us/azure/virtual-desktop/screen-capture-protection)
+  - Enabling [Watermarking](https://learn.microsoft.com/en-us/azure/virtual-desktop/watermarking)
+  - Enabling and using the new [performance counters](https://learn.microsoft.com/en-us/training/modules/install-configure-apps-session-host/10-troubleshoot-application-issues-user-input-delay)
+- The `AVD/PersonalDesktops` and `AVD/PooledDesktops` are also created
+- The following Starter GPOs `Group Policy Reporting Firewall Ports` and `Group Policy Remote Update Firewall Ports` are also created and linked to the `AVD` OU
+- The Desktop Virtualization Power On Contributor` role-based access control (RBAC) role is assigned to the Azure Virtual Desktop service principal with your Azure subscription as the assignable scope. More details [here](https://learn.microsoft.com/en-us/azure/virtual-desktop/start-virtual-machine-connect?tabs=azure-portal#assign-the-desktop-virtualization-power-on-contributor-role-with-the-azure-portal).
+- Every HostPool is processed based on its type (more details [here](HostPoolClasses.md)) by calling either the `New-AzAvdPersonalHostPoolSetup` or the `New-AzAvdPooledHostPoolSetup` function (sequentially or via a parallel processing if the `-AsJob` switch is specified).
+
+### New-AzAvdPooledHostPoolSetup.ps1
+
+This function is called by the `New-AzAvdHostPoolSetup` function for every HostPool of type Pooled. It proceeds as follows:
+
+- A dedicated OU is created in the Active Directory domain (under the `AVD/PooledDesktops` OU) for the every Pooled HostPool. The OU name is the HostPool name.
+- The ADJoin user (The related credentials are stored in the Azure Key Vault) is created if not already present and receive the required rights to add computer accounts to the Active Directory domain.
+- A Security Global AD Group is created with the naming convention `<HostPoolName> - Users` (all test users - via the `AVD Users` AD security Group - are added to the created groups at the end of the script).
+- A dedicated Azure Resource Group is created for the HostPool (a naming convention `rg-avd-<HostPoolName>`)
+- If FSLogix is required:
+  - A FSLogix file share (called `profiles`) is created in a dedicated Storage Account (a naming convention `fsl<HostPoolName without dashes and in lowercase>`) on the dedicated resource group, the [required NTFS permissions](https://learn.microsoft.com/en-us/fslogix/how-to-configure-storage-permissions#recommended-acls) are set and the account is registered in the Active Directory Domain. The credentials for the storage account are stored in Windows Credential Manager. A [redirections.xml](https://learn.microsoft.com/fr-fr/fslogix/tutorial-redirections-xml) file is also created in the file share.
+    An `odfc` fileshare is also created for the Office Container but it is not used for the moment.
+  - A Private Endpoint is created for the Storage Account and the required DNS configuration is also created.
+  - 3 dedicated AD security groups are created and the required role assignments are done
+    - `<HostPoolName> - FSLogix Contributor` (`Storage File Data SMB Share Contributor` role assignment on the Azure File Share): This AD group will contain the end-users that will have a FSLogix Profile Container.
+    - `<HostPoolName> - FSLogix Elevated Contributor` (`Storage File Data SMB Share Elevated Contributor` role assignment on the Azure File Share)
+    - `<HostPoolName> - FSLogix Reader` (`Storage File Data SMB Share Reader` role assignment on the Azure File Share)
+  - A GPO is also created (name : `<HostPoolName> - FSLogix Settings`) with some settings for:
+    - [Profile Container](https://learn.microsoft.com/en-us/fslogix/tutorial-configure-profile-containers#profile-container-configuration)
+    - [Timezone redirection](https://learn.microsoft.com/en-us/azure/virtual-desktop/set-up-customize-master-image#set-up-time-zone-redirection)
+    - [Disabling automatic updates](https://learn.microsoft.com/en-us/azure/virtual-desktop/set-up-customize-master-image#disable-automatic-updates)
+    - [Disabling Storage Sense](https://learn.microsoft.com/en-us/azure/virtual-desktop/set-up-customize-master-image#disable-storage-sense)
+    - [Setting antivirus exclusions](https://learn.microsoft.com/en-us/fslogix/overview-prerequisites#configure-antivirus-file-and-folder-exclusions)
+    - A FSLogix Profile Container exclusion is set for the `Domain Admins` group
+  
+- If MSIX is required:
+  - A MSIX file share (called `msix`) is created in a dedicated Storage Account (a naming convention `msix<HostPoolName without dashes and in lowercase>`) on the dedicated resource group, the [required NTFS permissions](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=msix-app-attach#permissions) are set and the account is registered in the Active Directory Domain. The credentials for the storage account are stored in Windows Credential Manager.
+  - A Private Endpoint is created for the Storage Account and the required DNS configuration is also created.
+  - 3 dedicated AD security groups are created and the required role assignments are done
+    - `<HostPoolName> - MSIX Hosts` (`Storage File Data SMB Share Contributor` role assignment on the Azure File Share). This AD group will contain the Session Hosts that will have a MSIX App Attach.
+    - `<HostPoolName> - MSIX Share Admins` (`Storage File Data SMB Share Elevated Contributor` role assignment on the Azure File Share)
+    - `<HostPoolName> - MSIX Users` (`Storage File Data SMB Share Contributor` role assignment on the Azure File Share). This AD group will contain the end users that will have a MSIX App Attach.
+  - A GPO is also created (name : `<HostPoolName> - MSIX Settings`) with some settings for:
+    - [Turning off automatic updates for MSIX app attach applications](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-azure-portal#turn-off-automatic-updates-for-msix-app-attach-applications)
+    - [Setting antivirus exclusions](https://learn.microsoft.com/en-us/fslogix/overview-prerequisites#configure-antivirus-file-and-folder-exclusions)
+  - Some demo applications (and related certificate) are also deployed  from [here](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/MSIX/MSIX)
+- An Azure Key Vault is also created (with the naming convention `kv-<HostPoolName without dashes>`) on the dedicated resource group. This KeyVault is secure via a Private Endpoint and the required DNS configuration is also created. This KeyVault is deployed for testing purpose only and is not used for the moment.
+- A Pooled Hostpool is also created (with `BreadthFirst` load balancer type)
+- A Desktop Application Group is also created (with the naming convention `<HostPoolName>-DAG`) and the `Desktop Virtualization User` RBAC role is assigned to the `<HostPoolName> - Users` AD security group.
+- A Remote Application Group is also created (with the naming convention `<HostPoolName>-RAG`) and the `Desktop Virtualization User` RBAC role is assigned to the `<HostPoolName> - Users` AD security group.
+- A Workspace is also created (with the naming convention `ws-<HostPoolName>`)
+- The Session Hosts are added to the HostPool and are AD Domain joined.
+- A Log Analytics Workspace is also deployed (with the naming convention `opiw-<HostPoolName>`) and the Session Hosts are connected to it. More details can be found [here](https://learn.microsoft.com/en-us/training/modules/monitor-manage-performance-health/3-log-analytics-workspace-for-azure-monitor) and [here](https://www.rozemuller.com/deploy-azure-monitor-for-windows-virtual-desktop-automated/#update-25-03-2021). Some event logs and performance counters are also configured to be collected.
+- The Log Analytics Agent is also installed on the Session Hosts
+- The VM insights are enabled by using PowerShell via [Data Collection Rules](https://learn.microsoft.com/en-us/azure/azure-monitor/essentials/data-collection-rule-overview?tabs=portal)
+
+### New-AzAvdPersonalHostPoolSetup
+
+This function is called by the `New-AzAvdHostPoolSetup` function for every HostPool of type Personal. It proceeds as follows:
+
+- A dedicated OU is created in the Active Directory domain (under the `AVD/PersonalDesktops` OU) for the every Personal HostPool. The OU name is the HostPool name.
+- The ADJoin user (The related credentials are stored in the Azure Key Vault) is created if not already present and receive the required rights to add computer accounts to the Active Directory domain.
+- A Security Global AD Group is created with the naming convention `<HostPoolName> - Users` (all test users - via the `AVD Users` AD security Group - are added to the created groups at the end of the script).
+- A dedicated Azure Resource Group is created for the HostPool (a naming convention `rg-avd-<HostPoolName>`)
+- An Azure Key Vault is also created (with the naming convention `kv-<HostPoolName without dashes>`) on the dedicated resource group. This KeyVault is secure via a Private Endpoint and the required DNS configuration is also created. This KeyVault is deployed for testing purpose only and is not used for the moment.
+- A Personal Hostpool is also created
+- A Desktop Application Group is also created (with the naming convention `<HostPoolName>-DAG`) and the `Desktop Virtualization User` RBAC role is assigned to the `<HostPoolName> - Users` AD security group.
+- A Remote Application Group is also created (with the naming convention `<HostPoolName>-RAG`) and the `Desktop Virtualization User` RBAC role is assigned to the `<HostPoolName> - Users` AD security group.
+- A Workspace is also created (with the naming convention `ws-<HostPoolName>`)
+- The Session Hosts are added to the HostPool and are either Azure AD/Microsoft Entra ID or AD Domain joined. If the Session hosts are Azure AD/Microsoft Entra ID joined, the 'Virtual Machine Administrator Login' RBAC role is assigned to the `<HostPoolName> - Users` AD security group.
+- A Log Analytics Workspace is also deployed (with the naming convention `opiw-<HostPoolName>`) and the Session Hosts are connected to it. More details can be found [here](https://learn.microsoft.com/en-us/training/modules/monitor-manage-performance-health/3-log-analytics-workspace-for-azure-monitor) and [here](https://www.rozemuller.com/deploy-azure-monitor-for-windows-virtual-desktop-automated/#update-25-03-2021). Some event logs and performance counters are also configured to be collected.
+- The Log Analytics Agent is also installed on the Session Hosts
+- The VM insights are enabled by using PowerShell via [Data Collection Rules](https://learn.microsoft.com/en-us/azure/azure-monitor/essentials/data-collection-rule-overview?tabs=portal)
+
+### Helpers functions
+
+Some helper functions are also available in the script but are not documented here.
+
+### Deliverables
+
+At the end of the deployment, the following deliverables are available (the following screenshots are with the default values):
+
+- A timestamped transcript file in the script directory
+- A .rdg file on the Desktop with all the information to connect to the Session Hosts (cf. [here](#remote-desktop-connection-manager))
+- A dedicated Organization Unit (OU) in the Active Directory domain for every HostPool
+
+![Organization Units](docs/ou.jpg)
+
+- Some GPOs
+  - 'AVD Global Settings' GPO linked to the `AVD` OU
+  - '`<HostPoolName>` - FSLogix Settings' GPO linked to the `<HostPoolName>` OU for the FSLogix Settings (if FSLogix is required) per HostPool
+  - '`<HostPoolName>` - MSIX Settings' GPO linked to the `<HostPoolName>` OU for the MSIX Settings (if MSIX is required) per HostPool
+  - 2 starter GPOs linked to the `AVD` OU
+    - 'Group Policy Reporting Firewall Ports'
+    - 'Group Policy Remote Update Firewall Ports'
+
+![GPOs](docs/gpo.jpg)
+
+- Different HostPools (based on the HostPool type you setup)
+
+![HostPools](docs/hostpool.jpg)
