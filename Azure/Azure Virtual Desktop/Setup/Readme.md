@@ -45,7 +45,7 @@ Every script execution will generate a timestamped transcript in the script dire
 
 If you don't want to continue reading, here is the [TL;DR](https://dictionary.cambridge.org/dictionary/english/tldr) version:
 
-- The script with its default values will deploy 5 HostPools (3 Pooled and 2 Personal) with 3 Session Hosts each (all session hosts will be AD Domain joined except for one Personal that will be Azure AD/Microsoft entra ID joined). One Pooled HostPool will be configured with FSLogix and MSIX. The Session Hosts will be deployed in the `EastUS` Azure region. Some recommendations/best practices are also applied (like A/V exclusions, FSLogix Settings, etc.).
+- The script, with its default values, will deploy 5 HostPools (3 Pooled and 2 Personal) with 3 Session Hosts each (all session hosts will be AD Domain joined except for one Personal that will be Azure AD/Microsoft entra ID joined). One Pooled HostPool will be configured with FSLogix and MSIX. The Session Hosts will be deployed in the `EastUS` Azure region. Some recommendations/best practices are also applied (like A/V exclusions, FSLogix Settings, etc.).
 
 ## Script Explanation
 
@@ -77,6 +77,9 @@ This class is used to defined the HostPool objects you want to deploy in Azure a
 ### Required PowerShell Modules
 
 The script requires some PowerShell modules to be installed on the machine (ADDS Domain Controller) where you'll run the script. The script will check if the modules are installed and if not, it will install them for you.
+> [!WARNING]
+> I fill a bug on the 7+ version of the Az.Compute module preventing the successful run of the Azure Compute Gallery. When writing this documentation (December 2023), the bug is not fixed I encourage you to use the 6.3.0 version of the Az.Compute module. You can install it with the following PowerShell command line (from an elevated PowerShell Host):  
+`Install-Module -Name Az.Compute -RequiredVersion 6.3.0.0 -Force -Verbose -AllowClobber`
 
 ### Azure Connection
 
