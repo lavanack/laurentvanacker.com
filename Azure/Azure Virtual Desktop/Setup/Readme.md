@@ -112,15 +112,15 @@ $GalleryImageDefinition = Get-AzGalleryImageDefinition -GalleryName ...
 
 ## Cleanup
 
-If you have already deployed an Azure Virtual Desktop environment with this script and want to do some cleanup  of the existing environment, you can use the `Remove-AzAvdHostPoolSetup` function. This function takes an HostPool array as parameter (so set the parameter values you used for the already deployed environement). It will remove all the resources created by the script (HostPool, Session Hosts, Application Groups, Workspace, etc.) based on the `$HostPool` array. Some cleanup are also done in the Active Directory domain (removing the computer accounts of the Session Hosts and the Azure File Shares ...) and the Windows Credential Manager.
+If you have already deployed an Azure Virtual Desktop environment with this script and want to do some cleanup  of the existing environment, you can use the `Remove-AzAvdHostPoolSetup` function. This function takes an `$HostPool` array as parameter (so set the parameter values you used for the already deployed environement). It will remove all the resources created by the script (HostPool, Session Hosts, Application Groups, Workspace, etc.) based on the `$HostPool` array. Some cleanup are also done in the Active Directory domain (removing the computer accounts of the Session Hosts and the Azure File Shares ...) and the Windows Credential Manager.
 You can also use the `Remove-AzAvdHostPoolSetup` function after the deployment to remove the environment if you are not satisfied with the result or to save costs after testing the deployed resources.
 
 ## Deployment
 
-The `New-AzAvdHostPoolSetup` function is the main function of the script. It takes an HostPool array as parameter (so set the parameter values you want for the HostPool(s) you want to deploy). It will deploy all the resources needed for the HostPool(s) based on the HostPool array.  
-This function has a `-AsJob` parameter. When this switch is specified, the ressources will be deployed in parallel (via the [Start-ThreadJob](https://learn.microsoft.com/en-us/powershell/module/threadjob/start-threadjob?view=powershell-7.4&viewFallbackFrom=powershell-5.1) cmdlet) instead of sequentially. The processing time is greatly reduced from 4h to 1h (including the Azure Compute Gallery Setup if needed - wihout the Azure Compute Gallery Setup, the processing time are 3h30 in parallel and 30 minutes sequentially). Nevertheless, sometimes the setup fails in parallel mode (some error occurs) so I recommend to use the sequential mode if any error occurs ib this mode (or retry).
+The `New-AzAvdHostPoolSetup` function is the main function of the script. It takes an `$HostPool` array as parameter (so set the parameter values you want for the HostPool(s) you want to deploy). It will deploy all the resources needed for the HostPool(s) based on the `$HostPool` array.  
+This function has a `-AsJob` parameter. When this switch is specified, the ressources will be deployed in parallel (via the [Start-ThreadJob](https://learn.microsoft.com/en-us/powershell/module/threadjob/start-threadjob?view=powershell-7.4&viewFallbackFrom=powershell-5.1) cmdlet) instead of sequentially. The processing time is greatly reduced from 4h to 1h (including the Azure Compute Gallery Setup if needed - wihout the Azure Compute Gallery Setup, the processing time are 3h30 in parallel and 30 minutes sequentially). Nevertheless, sometimes the setup fails in parallel mode (some error occurs) so I recommend to use the sequential mode if any error occurs in this mode (or retry).
 > [!NOTE]
-> The impacted ressources by the parallel mode are the HostPools and the Session Hosts. The Job Management is done at the end of the The `New-AzAvdHostPoolSetup` function.
+> The impacted ressources by the parallel mode are the HostPools and the Session Hosts. The Job Management is done at the end of the `New-AzAvdHostPoolSetup` function.
 
 ## Remote Desktop Connection Manager
 
@@ -130,7 +130,7 @@ At the end of the deployment an RDCMan (\<domain name\>.rdg) file generated on t
 
 ## Testing
 
-After a successful deployment, you can connect to [Remote Desktop Web Client](https://client.wvd.microsoft.com/arm/webclient/index.html) or [Windows 365](https://windows365.microsoft.com/) site and use on the of the test users (available in the `OrgUsers` OU).
+After a successful deployment, you can connect to [Remote Desktop Web Client](https://client.wvd.microsoft.com/arm/webclient/index.html) or [Windows 365](https://windows365.microsoft.com/) site and use one the of the test users (available in the `OrgUsers` OU).
 
 ## Technical Details
 
@@ -147,9 +147,9 @@ Ths function is the core function of the script. It proceeds as follows:
   - Enabing [Screen Capture Protection](https://learn.microsoft.com/en-us/azure/virtual-desktop/screen-capture-protection)
   - Enabling [Watermarking](https://learn.microsoft.com/en-us/azure/virtual-desktop/watermarking)
   - Enabling and using the new [performance counters](https://learn.microsoft.com/en-us/training/modules/install-configure-apps-session-host/10-troubleshoot-application-issues-user-input-delay)
-- The `AVD/PersonalDesktops` and `AVD/PooledDesktops` are also created
+- The `AVD/PersonalDesktops` and `AVD/PooledDesktops` OUs are also created
 - The following Starter GPOs `Group Policy Reporting Firewall Ports` and `Group Policy Remote Update Firewall Ports` are also created and linked to the `AVD` OU
-- The Desktop Virtualization Power On Contributor` role-based access control (RBAC) role is assigned to the Azure Virtual Desktop service principal with your Azure subscription as the assignable scope. More details [here](https://learn.microsoft.com/en-us/azure/virtual-desktop/start-virtual-machine-connect?tabs=azure-portal#assign-the-desktop-virtualization-power-on-contributor-role-with-the-azure-portal).
+- The `Desktop Virtualization Power On Contributor` role-based access control (RBAC) role is assigned to the Azure Virtual Desktop service principal with your Azure subscription as the assignable scope. More details [here](https://learn.microsoft.com/en-us/azure/virtual-desktop/start-virtual-machine-connect?tabs=azure-portal#assign-the-desktop-virtualization-power-on-contributor-role-with-the-azure-portal).
 - Every HostPool is processed based on its type (more details [here](HostPoolClasses.md)) by calling either the `New-AzAvdPersonalHostPoolSetup` or the `New-AzAvdPooledHostPoolSetup` function (sequentially or via a parallel processing if the `-AsJob` switch is specified).
 
 ### New-AzAvdPooledHostPoolSetup.ps1
