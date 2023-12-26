@@ -20,6 +20,7 @@
     - [New-AzAvdPersonalHostPoolSetup](#new-azavdpersonalhostpoolsetup)
     - [Helpers functions](#helpers-functions)
     - [Deliverables](#deliverables)
+    - [What's next ?](#whats-next-)
 
 > [!IMPORTANT]
 > This script is my version of an Azure Virtual Desktop (AVD) Proof Of Concept (POC) and is not intended to be used in production. It is provided "AS IS" without warranty of any. It was written during my rampup on AVD and to summarize in one location some best practices. It covers OnPrem and Azure setups in one PowerShell script.
@@ -242,3 +243,10 @@ At the end of the deployment, the following deliverables are available (the foll
 - Different HostPools (based on the HostPool type you setup)
 
 ![HostPools](docs/hostpool.jpg)
+
+### What's next ?
+
+I will probably integrate the following features in the script (when time permits):
+
+- BCDR strategy for the AVD environment. A BCDR strategy is already scripted [here](https://github.com/lavanack/laurentvanacker.com/blob/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell/New-AAD-Hybrid-BCDR-Lab.ps1) for the Domain Controller.
+- Implementing the FSLogix [Cloud Cache](https://learn.microsoft.com/en-us/fslogix/tutorial-cloud-cache-containers) feature
