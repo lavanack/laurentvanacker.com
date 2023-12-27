@@ -48,7 +48,7 @@
                     "type": "PlatformImage",
                     "publisher": "MicrosoftWindowsDesktop",
                     "offer": "Windows-11",
-                    "sku": "win11-23h2-avd",
+                    "sku": "win11-22h2-avd",
                     "version": "latest"
                 },
                 "customize": [
