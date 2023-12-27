@@ -65,10 +65,10 @@ function New-AzureComputeGallery {
 
 	# Image template and definition names
 	#AVD MultiSession Session Image Market Place Image + customizations: VSCode
-	$imageDefName01 = "win11-22h2-ent-avd-custom-vscode"
+	$imageDefName01 = "win11-23h2-ent-avd-custom-vscode"
 	$imageTemplateName01 = $imageDefName01 + "-template-" + $timeInt
 	#AVD MultiSession + Microsoft 365 Market Place Image + customizations: VSCode
-	$imageDefName02 = "win11-22h2-ent-avd-m365-vscode"
+	$imageDefName02 = "win11-23h2-ent-avd-m365-vscode"
 	$imageTemplateName02 = $imageDefName02 + "-template-" + $timeInt
 	Write-Verbose -Message "`$imageDefName01: $imageDefName01"
 	Write-Verbose -Message "`$imageTemplateName01: $imageTemplateName01"
@@ -133,7 +133,7 @@ function New-AzureComputeGallery {
 		$RoleAssignment = New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $ResourceGroup.ResourceId -ErrorAction Ignore #-Debug
 	} While ($null -eq $RoleAssignment)
   
-    #endregion
+	#endregion
 
 	#region Create an Azure Compute Gallery
 	$GalleryName = "{0}_{1}_{2}_{3}" -f $AzureComputeGalleryPrefix, $Project, $LocationShortName, $timeInt
@@ -163,7 +163,7 @@ function New-AzureComputeGallery {
 
     ((Get-Content -path $templateFilePath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $templateFilePath
-    #((Get-Content -path $templateFilePath -Raw) -replace '<region>',$location) | Set-Content -Path $templateFilePath
+	#((Get-Content -path $templateFilePath -Raw) -replace '<region>',$location) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<runOutputName>', $runOutputName01) | Set-Content -Path $templateFilePath
 
     ((Get-Content -path $templateFilePath -Raw) -replace '<imageDefName>', $imageDefName01) | Set-Content -Path $templateFilePath
@@ -205,7 +205,7 @@ function New-AzureComputeGallery {
 		PlatformImageSource = $true
 		Publisher           = 'MicrosoftWindowsDesktop'
 		Offer               = 'Office-365'    
-		Sku                 = 'win11-22h2-avd-m365'  
+		Sku                 = 'win11-23h2-avd-m365'  
 		Version             = 'latest'
 	}
 	Write-Verbose -Message "Creating Azure Image Builder Template Source Object  ..."
@@ -251,7 +251,7 @@ function New-AzureComputeGallery {
 	$VSCodeCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgVSCodePowerShellCustomizerParams 
 
 	Write-Verbose -Message "Creating Azure Image Builder Template WindowsUpdate Customizer Object ..."
-    $WindowsUpdateCustomizer = New-AzImageBuilderTemplateCustomizerObject -WindowsUpdateCustomizer -Name 'WindowsUpdate' -Filter @('exclude:$_.Title -like ''*Preview*''', 'include:$true') -SearchCriterion "IsInstalled=0" -UpdateLimit 40
+	$WindowsUpdateCustomizer = New-AzImageBuilderTemplateCustomizerObject -WindowsUpdateCustomizer -Name 'WindowsUpdate' -Filter @('exclude:$_.Title -like ''*Preview*''', 'include:$true') -SearchCriterion "IsInstalled=0" -UpdateLimit 40
 
 	$ImgDisableAutoUpdatesPowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
@@ -265,7 +265,7 @@ function New-AzureComputeGallery {
 	$DisableAutoUpdatesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgDisableAutoUpdatesPowerShellCustomizerParams 
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
-    $Customize = $TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
+	$Customize = $TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
 	$ImgTemplateParams = @{
 		ImageTemplateName      = $imageTemplateName02
 		ResourceGroupName      = $ResourceGroupName
