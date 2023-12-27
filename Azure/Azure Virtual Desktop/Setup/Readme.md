@@ -246,6 +246,14 @@ At the end of the deployment, the following deliverables are available (the foll
 
 ![HostPools](docs/hostpool.jpg)
 
+- Some Azure AD/Microsoft Entra ID Devices
+  
+![AD/Microsoft Entra ID Devices](docs/EntraIDDevices.jpg)
+
+- Some AD Computers Objects
+  
+![ADDS Computers](docs/ADDSComputers.jpg)
+
 ### What's next ?
 
 I will probably integrate the following features in the script (when time permits):
