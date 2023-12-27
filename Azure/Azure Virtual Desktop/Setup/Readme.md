@@ -20,6 +20,7 @@
     - [New-AzAvdPersonalHostPoolSetup](#new-azavdpersonalhostpoolsetup)
     - [Helpers functions](#helpers-functions)
     - [Deliverables](#deliverables)
+    - [Limitations](#limitations)
     - [What's next ?](#whats-next-)
 
 > [!IMPORTANT]
@@ -253,6 +254,12 @@ At the end of the deployment, the following deliverables are available (the foll
 - Some AD Computers Objects
   
 ![ADDS Computers](docs/ADDSComputers.jpg)
+
+### Limitations
+
+- We will use the Virtual Network used for the Domain Controller. It is not recommended to use the same Virtual Network for the Domain Controller and the Session Hosts. It is recommended to use a dedicated Virtual Network for the Session Hosts. This is not implemented in the script for the moment.
+- I'm not using Application Security Group (only Network Security Groups).
+- The Pooled HostPool can only be AD Domain joined (not Azure AD/Microsoft Entra ID joined).
 
 ### What's next ?
 
