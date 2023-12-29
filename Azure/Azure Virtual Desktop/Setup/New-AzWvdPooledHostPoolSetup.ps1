@@ -75,7 +75,7 @@ $ClassDefinitionScriptBlock = {
             $this.MaxSessionLimit = 5
             $this.ImagePublisherName = "microsoftwindowsdesktop"
             $this.ImageOffer = "office-365"
-            $this.ImageSku = "win11-22h2-avd-m365"
+            $this.ImageSku = "win11-23h2-avd-m365"
             $this.FSlogix = $true
             $this.MSIX = $true
         }
@@ -192,20 +192,18 @@ $ClassDefinitionScriptBlock = {
 
         hidden Init([boolean] $IsMicrosoftEntraIdJoined) { 
             $this.IsMicrosoftEntraIdJoined = $IsMicrosoftEntraIdJoined
-            if ($this.IsMicrosoftEntraIdJoined)
-            {
+            if ($this.IsMicrosoftEntraIdJoined) {
                 $this.Name = "hp-pd-ei-poc-mp-eu-{0:D2}" -f [PersonalHostPool]::Index
                 $this.NamePrefix = "pepocmeu{0:D2}" -f [PersonalHostPool]::Index
             }
-            else
-            {
+            else {
                 $this.Name = "hp-pd-ad-poc-mp-eu-{0:D2}" -f [PersonalHostPool]::Index
                 $this.NamePrefix = "papocmeu{0:D2}" -f [PersonalHostPool]::Index
             }
             $this.Type = [HostPoolType]::Personal
             $this.ImagePublisherName = "microsoftwindowsdesktop"
             $this.ImageOffer = "windows-11"
-            $this.ImageSku = "win11-22h2-ent"
+            $this.ImageSku = "win11-23h2-ent"
         }
 
         static ResetIndex() {
@@ -781,10 +779,10 @@ function New-AzureComputeGallery {
 
     # Image template and definition names
     #AVD MultiSession Session Image Market Place Image + customizations: VSCode
-    $imageDefName01 = "win11-22h2-ent-avd-custom-vscode"
+    $imageDefName01 = "win11-23h2-ent-avd-custom-vscode"
     $imageTemplateName01 = $imageDefName01 + "-template-" + $timeInt
     #AVD MultiSession + Microsoft 365 Market Place Image + customizations: VSCode
-    $imageDefName02 = "win11-22h2-ent-avd-m365-vscode"
+    $imageDefName02 = "win11-23h2-ent-avd-m365-vscode"
     $imageTemplateName02 = $imageDefName02 + "-template-" + $timeInt
     Write-Verbose -Message "`$imageDefName01: $imageDefName01"
     Write-Verbose -Message "`$imageTemplateName01: $imageTemplateName01"
@@ -936,7 +934,7 @@ function New-AzureComputeGallery {
         PlatformImageSource = $true
         Publisher           = 'MicrosoftWindowsDesktop'
         Offer               = 'Office-365'    
-        Sku                 = 'win11-22h2-avd-m365'  
+        Sku                 = 'win11-23h2-avd-m365'  
         Version             = 'latest'
     }
     Write-Verbose -Message "Creating Azure Image Builder Template Source Object  ..."
@@ -1090,7 +1088,7 @@ function New-AzAvdSessionHost {
         [Parameter(Mandatory = $false, ParameterSetName = 'Image', ValueFromPipeline = $false, ValueFromPipelineByPropertyName = $false)]
         [string]$ImageOffer = "office-365",
         [Parameter(Mandatory = $false, ParameterSetName = 'Image', ValueFromPipeline = $false, ValueFromPipelineByPropertyName = $false)]
-        [string]$ImageSku = "win11-22h2-avd-m365",
+        [string]$ImageSku = "win11-23h2-avd-m365",
         [Parameter(Mandatory = $true, ParameterSetName = 'ACG', ValueFromPipeline = $false, ValueFromPipelineByPropertyName = $false)]
         [ValidateNotNullOrEmpty()]
         [string]$VMSourceImageId,
@@ -1267,8 +1265,7 @@ function New-AzAvdSessionHost {
     if ($IsMicrosoftEntraIdJoined) {
         #Installing the AADLoginForWindows extension
         $PreviouslyExistingAzureADDevice = Get-AzureADDevice -SearchString $VMName
-        if ($null -ne $PreviouslyExistingAzureADDevice)
-        {
+        if ($null -ne $PreviouslyExistingAzureADDevice) {
             Write-Verbose -Message "Removing previously existing '$VMName' as a device into 'Microsoft Entra ID' ..."
             $PreviouslyExistingAzureADDevice | Remove-AzureADDevice
         }
@@ -1308,7 +1305,7 @@ function Add-AzAvdSessionHost {
         [Parameter(Mandatory = $false, ParameterSetName = 'Image', ValueFromPipeline = $false, ValueFromPipelineByPropertyName = $false)]
         [string]$ImageOffer = "office-365",
         [Parameter(Mandatory = $false, ParameterSetName = 'Image', ValueFromPipeline = $false, ValueFromPipelineByPropertyName = $false)]
-        [string]$ImageSku = "win11-22h2-avd-m365",
+        [string]$ImageSku = "win11-23h2-avd-m365",
         [Parameter(Mandatory = $true, ParameterSetName = 'ACG', ValueFromPipeline = $false, ValueFromPipelineByPropertyName = $false)]
         [ValidateNotNullOrEmpty()]
         [string]$VMSourceImageId,
@@ -2191,32 +2188,32 @@ function New-AzAvdPooledHostPoolSetup {
                 #From https://learn.microsoft.com/en-us/fslogix/overview-prerequisites#configure-antivirus-file-and-folder-exclusions
                 Write-Verbose -Message "Setting some 'Microsoft Defender Endpoint A/V Exclusions for this HostPool' related registry values for '$($CurrentHostPoolFSLogixGPO.DisplayName)' GPO (linked to '$($CurrentHostPoolOU.DistinguishedName)' OU) ..."
                 $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions' -ValueName "Exclusions_Paths" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 1
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "TempFolderVHD" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "%TEMP%\*\*.VHD"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "TempFolderVHDX" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "%TEMP%\*\*.VHDX"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "WindirTempFolderVHD" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "%Windir%\TEMP\*\*.VHD"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "WindirTempFolderVHDX" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "%Windir%\TEMP\*\*.VHDX"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixCache" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "%ProgramData%\FSLogix\Cache\*"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixProxy" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "%ProgramData%\FSLogix\Proxy\*"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "frxdrv.sys" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "%ProgramFiles%\FSLogix\Apps\frxdrv.sys"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "frxdrvvt.sys" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "%ProgramFiles%\FSLogix\Apps\frxdrvvt.sys"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "frxccd.sys" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "%ProgramFiles%\FSLogix\Apps\frxccd.sys"
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "%TEMP%\*\*.VHD" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "%TEMP%\*\*.VHDX" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "%Windir%\TEMP\*\*.VHD" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "%Windir%\TEMP\*\*.VHDX" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "%ProgramData%\FSLogix\Cache\*" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "%ProgramData%\FSLogix\Proxy\*" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "%ProgramFiles%\FSLogix\Apps\frxdrv.sys" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "%ProgramFiles%\FSLogix\Apps\frxdrvvt.sys" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "%ProgramFiles%\FSLogix\Apps\frxccd.sys" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
 
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHD" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHD"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDLock" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHD.lock"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDMeta" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHD.meta"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDMetaData" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHD.metadata"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDX" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHDX"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDXLock" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHDX.lock"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDXMeta" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHDX.meta"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderVHDXMetaData" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHDX.metadata"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "FSLogixSharedFolderCIM" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.CIM"
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHD" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHD.lock" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHD.meta" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHD.metadata" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHDX" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHDX.lock" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHDX.meta" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHDX.metadata" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.CIM" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
 
                 #From https://admx.help/?Category=Windows_10_2016&Policy=Microsoft.Policies.WindowsDefender::Exclusions_Processesget-job
                 $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions' -ValueName "Exclusions_Processes" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 1
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Processes' -ValueName "frxccd.exe" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "%ProgramFiles%\FSLogix\Apps\frxccd.exe"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Processes' -ValueName "frxccds.exe" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "%ProgramFiles%\FSLogix\Apps\frxccds.exe"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Processes' -ValueName "frxsvc.exe" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "%ProgramFiles%\FSLogix\Apps\frxsvc.exe"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Processes' -ValueName "frxrobocopy.exe" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "%ProgramFiles%\FSLogix\Apps\frxrobocopy.exe"
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Processes' -ValueName "%ProgramFiles%\FSLogix\Apps\frxccd.exe" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Processes' -ValueName "%ProgramFiles%\FSLogix\Apps\frxccds.exe" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Processes' -ValueName "%ProgramFiles%\FSLogix\Apps\frxsvc.exe" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolFSLogixGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Processes' -ValueName "%ProgramFiles%\FSLogix\Apps\frxrobocopy.exe" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
                 #endregion
 
                 Write-Verbose -Message "Setting some 'FSLogix' related registry values for '$($CurrentHostPoolFSLogixGPO.DisplayName)' GPO (linked to '$($CurrentHostPoolOU.DistinguishedName)' OU) ..."
@@ -2617,15 +2614,15 @@ function New-AzAvdPooledHostPoolSetup {
                 #region Microsoft Defender Endpoint A/V Exclusions for this HostPool 
                 #From https://learn.microsoft.com/en-us/fslogix/overview-prerequisites#configure-antivirus-file-and-folder-exclusions
                 Write-Verbose -Message "Setting some 'Microsoft Defender Endpoint A/V Exclusions for this HostPool' related registry values for '$($CurrentHostPoolMSIXGPO.DisplayName)' GPO (linked to '$($CurrentHostPoolOU.DistinguishedName)' OU) ..."
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHD" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHD"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDLock" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHD.lock"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDMeta" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHD.meta"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDMetaData" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHD.metadata"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDX" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHDX"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDXLock" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHDX.lock"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDXMeta" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHDX.meta"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderVHDXMetaData" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHDX.metadata"
-                $null = Set-GPRegistryValue -Name $CurrentHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "MSixSharedFolderCIM" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.CIM"
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHD" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHD.lock" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHD.meta" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHD.metadata" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHDX" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHDX.lock" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHDX.meta" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.VHDX.metadata" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
+                $null = Set-GPRegistryValue -Name $CurrentHostPoolMSIXGPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Exclusions\Paths' -ValueName "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles\*.CIM" -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value 0
                 #endregion
 
                 #region Dedicated Resource Group Management (1 per HostPool)
@@ -3465,7 +3462,7 @@ function New-AzAvdHostPoolSetup {
         #From https://stackoverflow.com/questions/76844912/how-to-call-a-class-object-in-powershell-jobs
         if ($AsJob) {
             #Setting the ThrottleLimit to the total number of host pool VM instances + 1
-            $null = Start-ThreadJob -ScriptBlock { $null } -ThrottleLimit $(($HostPools.VMNumberOfInstances | Measure-Object -Sum).Sum+$HostPools.Count+1)
+            $null = Start-ThreadJob -ScriptBlock { $null } -ThrottleLimit $(($HostPools.VMNumberOfInstances | Measure-Object -Sum).Sum + $HostPools.Count + 1)
 
             $ExportedFunctions = [scriptblock]::Create(@"
                 Function New-AzAvdPooledHostPoolSetup { ${Function:New-AzAvdPooledHostPoolSetup} }
@@ -3830,18 +3827,18 @@ $HostPoolSessionCredentialKeyVault = New-AzHostPoolSessionCredentialKeyVault -Ve
 $AzureComputeGallery = New-AzureComputeGallery -Verbose
 $AzureComputeGallery = Get-AzGallery | Sort-Object -Property Name -Descending | Select-Object -First 1
 
-#Reset Index (staring at 1) for automatic numbering (every will instantiation increment the Index)
+#Reset Index (starting at 1) for automatic numbering (every instantiation will increment the Index)
 [PooledHostPool]::ResetIndex()
 [PersonalHostPool]::ResetIndex()
 
-$RandomNumber = Get-Random -Minimum 1 -Maximum 100
+#$RandomNumber = Get-Random -Minimum 1 -Maximum 100
 $RandomNumber = 73
 $HostPools = @(
     # Use case 1: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with FSLogix and MSIX
     [PooledHostPool]::new($HostPoolSessionCredentialKeyVault)
-    # Use case 2: Deploy a Personal HostPool with 3 (default value) Session Hosts (AD Domain joined) without FSLogix and MSIX
+    # Use case 2: Deploy a Personal HostPool with 3 (default value) Session Hosts (AD Domain joined), a custom Index (random number here) and without FSLogix and MSIX
     [PersonalHostPool]::new($RandomNumber, $HostPoolSessionCredentialKeyVault, $false)
-    # Use case 3: Deploy a Personal HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined) without FSLogix and MSIX
+    # Use case 3: Deploy a Personal HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined), a custom name and without FSLogix and MSIX
     [PersonalHostPool]::new("hp-pd-ei-poc-mp-eu-{0:D2}" -f $RandomNumber, $null, "pepocmeu{0:D2}" -f $RandomNumber, $null, $HostPoolSessionCredentialKeyVault, $true, $null, $null, $null, $null)
 )
 
@@ -3849,8 +3846,7 @@ $HostPools = @(
 #$Index = [math]::Max([PooledHostPool]::Index, [PersonalHostPool]::Index)
 $Index = [PooledHostPool]::Index
 $GalleryImageDefinition = Get-AzGalleryImageDefinition -GalleryName $AzureComputeGallery.Name -ResourceGroupName $AzureComputeGallery.ResourceGroupName
-foreach ($CurrentGalleryImageDefinition in $GalleryImageDefinition)
-{
+foreach ($CurrentGalleryImageDefinition in $GalleryImageDefinition) {
     #$LatestCurrentGalleryImageVersion = Get-AzGalleryImageVersion -GalleryName $AzureComputeGallery.Name -ResourceGroupName $AzureComputeGallery.ResourceGroupName -GalleryImageDefinitionName $CurrentGalleryImageDefinition.Name | Sort-Object -Property Id | Select-Object -Last 1
     $Index++
     $FSLogix = $false
@@ -3880,8 +3876,7 @@ Update-AVDRDCMan -HostPool $HostPools -Install -Open -Verbose
 
 $SessionHostNames = foreach ($CurrentHostPoolName in $HostPools.Name) { (Get-AzWvdSessionHost -HostPoolName $CurrentHostPoolName -ResourceGroupName "rg-avd-$CurrentHostPoolName" -ErrorAction Ignore).ResourceId -replace ".*/" | Where-Object -FilterScript { -not([string]::IsNullOrEmpty($_)) } }
 
-$Jobs = foreach ($CurrentSessionHostName in $SessionHostNames) 
-{
+$Jobs = foreach ($CurrentSessionHostName in $SessionHostNames) {
     Write-Host -Object "Restarting '$CurrentSessionHostName' Azure VM ..."
     Get-AzVM -Name $CurrentSessionHostName | Restart-AzVM -AsJob -Verbose
 }
