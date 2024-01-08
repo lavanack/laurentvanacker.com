@@ -1,18 +1,26 @@
-﻿Clear-Host
-$CurrentScript = $MyInvocation.MyCommand.Path
-#Getting the current directory (where this script file resides)
-$CurrentDir = Split-Path -Path $CurrentScript -Parent
-$Error.Clear()
+﻿<#
+This Sample Code is provided for the purpose of illustration only
+and is not intended to be used in a production environment.  THIS
+SAMPLE CODE AND ANY RELATED INFORMATION ARE PROVIDED "AS IS" WITHOUT
+WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT
+LIMITED TO THE IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS
+FOR A PARTICULAR PURPOSE.  We grant You a nonexclusive, royalty-free
+right to use and modify the Sample Code and to reproduce and distribute
+the object code form of the Sample Code, provided that You agree:
+(i) to not use Our name, logo, or trademarks to market Your software
+product in which the Sample Code is embedded; (ii) to include a valid
+copyright notice on Your software product in which the Sample Code is
+embedded; and (iii) to indemnify, hold harmless, and defend Us and
+Our suppliers from and against any claims or lawsuits, including
+attorneys' fees, that arise or result from the use or distribution
+of the Sample Code.
+#>
+#requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources, Az.KeyVault
 
-$Random = Get-Random -Minimum 0 -Maximum 1000
-$Location = "eastus"
-$ResourceGroupName = "rg-keyvault-arm-eu-{0:D3}" -f $Random
-$KeyVaultName = "kv-keyvault-arm-eu-{0:D3}" -f $Random
-$SQLServerARMTemplate = Join-Path -Path $CurrentDir -ChildPath "SQLServerARMTemplate.json"
-$VMARMTemplateUri = "https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/quickstarts/microsoft.compute/vm-simple-windows/azuredeploy.json"
-$VMARMTemplateParameterFile = Join-Path -Path $CurrentDir -ChildPath "VMARMTemplate.parameters.json"
-$VMARMTemplateFile = Join-Path -Path $CurrentDir -ChildPath "VMARMTemplate.json"
-#$UserPrincipalName          = (Get-AzContext).Account.Id
+[CmdletBinding()]
+param
+(
+)
 
 #region function definitions 
 #Based from https://adamtheautomator.com/powershell-random-password/
@@ -43,6 +51,50 @@ function New-RandomPassword {
     }
 }
 #endregion
+
+
+Clear-Host
+$Error.Clear()
+
+$CurrentScript = $MyInvocation.MyCommand.Path
+#Getting the current directory (where this script file resides)
+$CurrentDir = Split-Path -Path $CurrentScript -Parent
+Set-Location -Path $CurrentDir 
+
+#region Defining variables 
+$SubscriptionName = "Cloud Solution Architect"
+#region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
+$AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
+$ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/main/src/repository/resourcelocations.json
+$shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @{Name = 'Location'; Expression = { $AzLocation[$_.name].Location } } | Where-Object -FilterScript { $_.Location } | Group-Object -Property Location -AsHashTable -AsString
+#endregion
+
+# Login to your Azure subscription.
+While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName)) {
+    Connect-AzAccount
+    Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
+    #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
+    #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
+}
+
+$LocationShortName = $shortNameHT[$Location].shortName
+#Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
+$KeyVaultPrefix = "kv"
+$ResourceGroupPrefix = "rg"
+$VirtualMachinePrefix = "vm"
+
+$Project = "kv"
+$Role = "arm"
+$DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role + $LocationShortName).Length
+
+Do {
+    $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
+    $KeyVaultName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $KeyVaultPrefix, $Project, $Role, $LocationShortName, $Instance                       
+    $KeyVaultName = $KeyVaultName.ToLower()
+} While (-not(Test-AzKeyVaultNameAvailability -Name $KeyVaultName).NameAvailable)
+       
+$ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
+$ResourceGroupName = $ResourceGroupName.ToLower()
 
 #region Resource Group Management
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 

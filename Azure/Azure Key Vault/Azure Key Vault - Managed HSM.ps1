@@ -15,8 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources, Az.KeyVault, Az.OperationalInsights
-
+#requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources, Az.KeyVault
 
 [CmdletBinding()]
 param
@@ -63,7 +62,6 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
 #region Defining variables 
-$UserPrincipalName  = (Get-AzContext).Account.Id
 $SubscriptionName = "Cloud Solution Architect"
 #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
 $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
@@ -91,14 +89,14 @@ $KeyVaultPrefix = "kv"
 $ResourceGroupPrefix = "rg"
 $StorageAccountPrefix = "sa"
 $VirtualMachinePrefix = "vm"
-$PrivateDnsVirtualNetworkLinkPrefix = "pdvnl" 
 $NetworkSecurityGroupPrefix = "nsg"
 $VirtualNetworkPrefix = "vnet"
 $SubnetPrefix = "vnets"
-$LogAnalyticsWorkSpacePrefix = "opiw"
+$DiskEncryptionSetPrefix = "des"
+$DiskEncryptionKeyPrefix = "dek"
 
 $Project = "kv"
-$Role = "sep"
+$Role = "mgdhsm"
 #$DigitNumber = 4
 $DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role + $LocationShortName).Length
 
@@ -114,7 +112,8 @@ $NetworkSecurityGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $NetworkSecur
 $VirtualNetworkName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $VirtualNetworkPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $SubnetName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $SubnetPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
-$LogAnalyticsWorkSpaceName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $LogAnalyticsWorkSpacePrefix, $Project, $Role, $LocationShortName, $Instance                       
+$DiskEncryptionSetName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $DiskEncryptionSetPrefix, $Project, $Role, $LocationShortName, $Instance                       
+$DiskEncryptionKeyName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $DiskEncryptionKeyPrefix, $Project, $Role, $LocationShortName, $Instance
 
 $StorageAccountName = $StorageAccountName.ToLower()
 $VMName = $VMName.ToLower()
@@ -125,6 +124,7 @@ $ResourceGroupName = $ResourceGroupName.ToLower()
 $VirtualNetworkAddressSpace = "10.10.0.0/16" # Format 10.10.0.0/16
 $SubnetIPRange = "10.10.1.0/24" # Format 10.10.1.0/24                         
 $FQDN = "$VMName.$Location.cloudapp.azure.com".ToLower()
+$DiskEncryptionKeyDestination = "Software"
 
 
 #region Defining credential(s)
@@ -142,10 +142,6 @@ if ($ResourceGroup) {
     $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
 }
 $MyPublicIp = (Invoke-WebRequest -uri "https://ipv4.seeip.org").Content
-$DSCFileName = "WebServerDSC.ps1"
-$DSCFilePath = Join-Path -Path $CurrentDir -ChildPath $DSCFileName
-$ConfigurationName = "WebServerConfiguration"
-
 
 #region Define Variables needed for Virtual Machine
 $ImagePublisherName = "MicrosoftWindowsServer"
@@ -154,7 +150,7 @@ $ImageSku = "2022-datacenter-g2"
 $PublicIPName = "pip-$VMName" 
 $NICName = "nic-$VMName"
 $OSDiskName = '{0}_OSDisk' -f $VMName
-#$DataDiskName = "$VMName-DataDisk01"
+$DataDiskName = '{0}_DataDisk' -f $VMName
 $OSDiskSize = "127"
 $StorageAccountSkuName = "Standard_LRS"
 $OSDiskType = "Premium_LRS"
@@ -199,14 +195,6 @@ $SecurityRules = @(
     New-AzNetworkSecurityRuleConfig -Name HTTPRule -Description "Allow HTTP" -Access Allow -Protocol Tcp -Direction Inbound -Priority 301 -SourceAddressPrefix $MyPublicIp -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 80
     #HTTPS only for my public IP address
     New-AzNetworkSecurityRuleConfig -Name HTTPSRule -Description "Allow HTTPS" -Access Allow -Protocol Tcp -Direction Inbound -Priority 302 -SourceAddressPrefix $MyPublicIp -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 443
-    #WinRM only for my public IP address
-    New-AzNetworkSecurityRuleConfig -Name WinRMRule -Description "Allow WinRM" -Access Allow -Protocol Tcp -Direction Inbound -Priority 303 -SourceAddressPrefix $MyPublicIp -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 5985, 5986
-
-    <#
-    #Restrict network access for a subnet
-    New-AzNetworkSecurityRuleConfig -Name Allow-KeyVault-All -Access Allow -DestinationAddressPrefix AzureKeyVault -DestinationPortRange * -Direction Outbound -Priority 100 -Protocol * -SourceAddressPrefix VirtualNetwork -SourcePortRange *
-    New-AzNetworkSecurityRuleConfig -Name Deny-Internet-All -Access Deny -DestinationAddressPrefix Internet -DestinationPortRange * -Direction Outbound -Priority 110 -Protocol * -SourceAddressPrefix VirtualNetwork -SourcePortRange *
-    #>
     #endregion
 )
 
@@ -214,7 +202,7 @@ $NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceG
 
 #Steps 4 + 5: Create Azure Virtual network using the virtual network subnet configuration
 $VirtualNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName  -AddressPrefix $VirtualNetworkAddressSpace -Location $Location
-Add-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork -AddressPrefix $SubnetIPRange -NetworkSecurityGroupId $NetworkSecurityGroup.Id -ServiceEndpoint Microsoft.KeyVault
+Add-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork -AddressPrefix $SubnetIPRange -NetworkSecurityGroupId $NetworkSecurityGroup.Id
 
 $VirtualNetwork = Set-AzVirtualNetwork -VirtualNetwork $VirtualNetwork
 $Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork
@@ -235,56 +223,13 @@ $ImageSku = Get-AzVMImageSku -Location  $Location -publisher $ImagePublisherName
 $image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer -sku $ImageSku.Skus | Sort-Object -Property Version -Descending | Select-Object -First 1
 #>
 
-#region Setting up the Key Vault for HTTPS and WinRM
-
-#Create an Azure Key Vault
-#region Service Endpoint Setup
-#From https://learn.microsoft.com/en-us/azure/virtual-network/tutorial-restrict-network-access-to-resources-powershell
-#Allowing access from the virtual network, Azure services and my public IP address so it can access Azure key Vault
-$NetworkRuleSet = New-AzKeyVaultNetworkRuleSetObject -DefaultAction Deny -Bypass AzureServices -IpAddressRange $MyPublicIp -VirtualNetworkResourceId $Subnet.Id
-$KeyVault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $location -NetworkRuleSet $NetworkRuleSet -EnabledForDeployment -EnabledForTemplateDeployment #-EnablePurgeProtection
-#endregion
-#As the owner of the key vault, you automatically have access to create secrets. If you need to let another user create secrets, use:
-#$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -UserPrincipalName $UserPrincipalName -PermissionsToSecrets Get,Delete,List,Set -PassThru
-
-#Generate a certificate and store in Key Vault
-$Policy = New-AzKeyVaultCertificatePolicy -SubjectName "CN=$FQDN" -SecretContentType "application/x-pkcs12" -IssuerName Self -ValidityInMonths 12
-Add-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $VMName -CertificatePolicy $Policy
-
-
-While (-not((Get-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $VMName).SecretId)) {
-    Write-Host "Sleeping 30 seconds ..."
-    Start-Sleep 30
-}
-
-#Add a certificate to VM from Key Vault
-$CertificateThumbprint = (Get-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $VMName).Certificate.Thumbprint
-$CertUrl = (Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name $VMName).id
-
-#endregion 
-
-#region Log Analytics WorkSpace
-# Creating the workspace
-$LogAnalyticsWorkSpace = New-AzOperationalInsightsWorkspace -Location $Location -Name $LogAnalyticsWorkSpaceName -Sku PerGB2018 -ResourceGroupName $ResourceGroupName -Force
-# Enabling access logging for KV
-Set-AzDiagnosticSetting -Name $VMName -ResourceId $KeyVault.ResourceId -WorkspaceId $LogAnalyticsWorkSpace.ResourceId -Enabled $true -Category "AuditEvent"
-#endregion
-
 # Step 9: Create a virtual machine configuration file (As a Spot Intance)
-$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1 -IdentityType SystemAssigned
+$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1
 
 Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 
 # Set VM operating system parameters
-Set-AzVMOperatingSystem -VM $VMConfig -Windows -ComputerName $VMName -Credential $Credential -ProvisionVMAgent -WinRMHttp -WinRMHttps -WinRMCertificateUrl $CertUrl
-
-#region Referencing your self-signed certificates URL while creating a VM
-#From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/connect-winrm
-$KeyVaultId = $KeyVault.ResourceId
-$CertificateStore = "My"
-$VMConfig = Add-AzVMSecret -VM $VMConfig -SourceVaultId $KeyVaultId -CertificateStore $CertificateStore -CertificateUrl $CertUrl
-#$VMConfig | Update-AzVM -Verbose
-#endregion 
+Set-AzVMOperatingSystem -VM $VMConfig -Windows -ComputerName $VMName -Credential $Credential -ProvisionVMAgent
 
 # Set boot diagnostic storage account
 #Set-AzVMBootDiagnostic -Enable -ResourceGroupName $ResourceGroupName -VM $VMConfig -StorageAccountName $StorageAccountName    
@@ -294,19 +239,34 @@ Set-AzVMBootDiagnostic -VM $VMConfig -Enable
 # The uncommented lines below replace Step #8 : Set virtual machine source image
 Set-AzVMSourceImage -VM $VMConfig -PublisherName $ImagePublisherName -Offer $ImageOffer -Skus $ImageSku -Version 'latest'
 
+#region Setting up the Key Vault for Disk Encryption
+#Create an Azure Key Vault
+$UserPrincipalName = (Get-AzContext).Account.Id
+$User = Get-AzADUser -UserPrincipalName $UserPrincipalName
+$KeyVault = New-AzKeyVaultManagedHsm -Name $KeyVaultName -ResourceGroup $ResourceGroupName -Location $Location -Administrator $User.Id -Verbose
+
+
+#FROM https://learn.microsoft.com/en-us/azure/virtual-machines/windows/disks-enable-customer-managed-keys-powershell#set-up-an-azure-key-vault-and-diskencryptionset-optionally-with-automatic-key-rotation
+$key = Add-AzKeyVaultKey -VaultName $keyVaultName -Name $DiskEncryptionKeyName -Destination $DiskEncryptionKeyDestination
+$DiskEncryptionSetConfig = New-AzDiskEncryptionSetConfig -Location $Location -SourceVaultId $keyVault.ResourceId -KeyUrl $key.Key.Kid -IdentityType SystemAssigned -RotationToLatestKeyVersionEnabled $true
+$DiskEncryptionSet = New-AzDiskEncryptionSet -Name $DiskEncryptionSetName -ResourceGroupName $ResourceGroupName -InputObject $DiskEncryptionSetConfig
+$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $keyVaultName -ObjectId $DiskEncryptionSet.Identity.PrincipalId -PermissionsToKeys wrapKey, unwrapKey, get
+
+#As the owner of the key vault, you automatically have access to create secrets. If you need to let another user create secrets, use:
+#$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -UserPrincipalName $UserPrincipalName -PermissionsToSecrets Get,Delete,List,Set -PassThru
+#endregion 
+
 # Set OsDisk configuration
-Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -CreateOption fromImage
+Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -DiskEncryptionSetId $DiskEncryptionSet.Id -CreateOption fromImage
 
 #region Adding Data Disk
-<#
 $VMDataDisk01Config = New-AzDiskConfig -SkuName $OSDiskType -Location $Location -CreateOption Empty -DiskSizeGB 512
 $VMDataDisk01 = New-AzDisk -DiskName $DataDiskName -Disk $VMDataDisk01Config -ResourceGroupName $ResourceGroupName
-$VM = Add-AzVMDataDisk -VM $VMConfig -Name $DataDiskName -Caching 'ReadWrite' -CreateOption Attach -ManagedDiskId $VMDataDisk01.Id -Lun 0
-#>
+$VM = Add-AzVMDataDisk -VM $VMConfig -Name $DataDiskName -Caching 'ReadWrite' -CreateOption Attach -ManagedDiskId $VMDataDisk01.Id -Lun 0 -DiskEncryptionSetId $DiskEncryptionSet.Id 
 #endregion
 
 #Step 10: Create Azure Virtual Machine
-$VM = New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig #-DisableBginfoExtension
+New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig #-DisableBginfoExtension
 
 $VM = Get-AzVM -ResourceGroup $ResourceGroupName -Name $VMName
 #Assign privilege to VM so it can access Azure key Vault. We do that by using VM’s System managed identity.
@@ -361,23 +321,11 @@ $Properties.Add('taskType', 'ComputeVmShutdownTask')
 $Properties.Add('dailyRecurrence', @{'time' = "2300" })
 $Properties.Add('timeZoneId', (Get-TimeZone).Id)
 $Properties.Add('targetResourceId', $VM.Id)
-New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Properties $Properties -Force
+New-AzResource -Location $Location -ResourceId $ScheduledShutdownResourceId -Properties $Properties -Force
 #endregion
 
 #Step 11: Start Azure Virtual Machine
 Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
-
-#region Setting up the DSC extension
-
-# Publishing DSC Configuration for AutomatedLab via Hyper-V (Nested Virtualization)
-Publish-AzVMDscConfiguration $DSCFilePath -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Force -Verbose
-
-try {
-    Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$DSCFileName.zip" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $ConfigurationName -ConfigurationArgument @{CertificateThumbprint = $CertificateThumbprint }  -Version "2.80" -Location $Location -AutoUpdate -Verbose #-ErrorAction Ignore
-}
-catch {}
-$VM | Update-AzVM -Verbose
-#endregion
 
 # Adding Credentials to the Credential Manager (and escaping the password)
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDN /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
@@ -386,10 +334,5 @@ Start-Sleep -Seconds 15
 
 #Step 13: Start RDP Session
 #mstsc /v $PublicIP.IpAddress
-Start-Process -FilePath "https://$FQDN"
 mstsc /v $FQDN
 Write-Host -Object "Your RDP credentials (login/password) are $($Credential.UserName)/$($Credential.GetNetworkCredential().Password)" -ForegroundColor Green
-
-#Step 14: Start WinRM Session
-#Enter-PSSession -ConnectionUri "https://$($FQDN):5986" -Credential $Credential -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck) -Authentication Negotiate
-Invoke-Command -ConnectionUri "https://$($FQDN):5986" -Credential $Credential -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck) -Authentication Negotiate -ScriptBlock { "Hello from a remote Powershell Session from $($using:FQDN)" }
