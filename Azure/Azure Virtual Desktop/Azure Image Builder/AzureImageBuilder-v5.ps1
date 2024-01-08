@@ -38,15 +38,15 @@ function New-AzureSoftwareContainer {
 	$subscriptionID = $AzContext.Subscription.Id
 
 	#Timestamp
-    $DigitNumber = 3
-    $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
+	$DigitNumber = 3
+	$Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
 
 	#Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
 	$ResourceGroupPrefix = "rg"
-    $StorageAccountPrefix = "sa"
-    $NetworkSecurityGroupPrefix = "nsg"
-    $VirtualNetworkPrefix = "vnet"
-    $SubnetPrefix = "vnets"
+	$StorageAccountPrefix = "sa"
+	$NetworkSecurityGroupPrefix = "nsg"
+	$VirtualNetworkPrefix = "vnet"
+	$SubnetPrefix = "vnets"
 
 	# Location (see possible locations in the main docs)
 	#$Location = "EastUS"
@@ -56,14 +56,14 @@ function New-AzureSoftwareContainer {
 
 	$Project = "avd"
 	$Role = "aib"
-    #endregion
+	#endregion
 
 	#region Create storage resource group
-    Do {
-        $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
-        $StorageAccountName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $StorageAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
-        Start-Sleep -Second 1
-    } While (-not(Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable)
+	Do {
+		$Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
+		$StorageAccountName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $StorageAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
+		Start-Sleep -Second 1
+	} While (-not(Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable)
  
 
 	$ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance 
@@ -73,125 +73,125 @@ function New-AzureSoftwareContainer {
 	Write-Verbose -Message "Creating '$ResourceGroupName' Resource Group Name ..."
 	$ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $location -Force
 
-    $StorageAccountSkuName = "Standard_LRS"
-    $ContainerName = "software"
-    $StorageAccount = New-AzStorageAccount -AccountName $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true #-AllowBlobPublicAccess $true
-    $StorageContext = $StorageAccount.Context
-    $StorageContainer = New-AzStorageContainer -Name $ContainerName -Context $StorageContext
+	$StorageAccountSkuName = "Standard_LRS"
+	$ContainerName = "software"
+	$StorageAccount = New-AzStorageAccount -AccountName $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true #-AllowBlobPublicAccess $true
+	$StorageContext = $StorageAccount.Context
+	$StorageContainer = New-AzStorageContainer -Name $ContainerName -Context $StorageContext
 
-    $SoftwareDir = New-Item -Path $CurrentDir -Name "Software" -ItemType Directory -Force
-    #region Notepad++
-    #region Notepad++ Installer
-    $DownloadURI = "https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v8.6/npp.8.6.Installer.x64.exe"
-    $DestinationFileName = Split-Path -Path $DownloadURI -Leaf
-    $DestinationDirName = "001-NotepadPlusPlus"
-    $DestinationDir = New-Item -Path $SoftwareDir -Name $DestinationDirName -ItemType Directory -Force
-    $BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
-    $DestinationFullName = Join-Path $DestinationDir -ChildPath $DestinationFileName
-    Start-BitsTransfer -Source $DownloadURI -Destination $DestinationFullName -DisplayName $DownloadURI
-    $null = Set-AzStorageBlobContent -Context $StorageContext -File $DestinationFullName -Container $ContainerName -Blob $BlobName -BlobType Block -Force
-    #endregion
+	$SoftwareDir = New-Item -Path $CurrentDir -Name "Software" -ItemType Directory -Force
+	#region Notepad++
+	#region Notepad++ Installer
+	$DownloadURI = "https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v8.6/npp.8.6.Installer.x64.exe"
+	$DestinationFileName = Split-Path -Path $DownloadURI -Leaf
+	$DestinationDirName = "001-NotepadPlusPlus"
+	$DestinationDir = New-Item -Path $SoftwareDir -Name $DestinationDirName -ItemType Directory -Force
+	$BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
+	$DestinationFullName = Join-Path $DestinationDir -ChildPath $DestinationFileName
+	Start-BitsTransfer -Source $DownloadURI -Destination $DestinationFullName -DisplayName $DownloadURI
+	$null = Set-AzStorageBlobContent -Context $StorageContext -File $DestinationFullName -Container $ContainerName -Blob $BlobName -BlobType Block -Force
+	#endregion
 	
-    #region Notepad++ Setup PowerShell Script
+	#region Notepad++ Setup PowerShell Script
 	$InstallPowershellScript = New-Item -Path $DestinationDir -Name "Install-NotepadPlusPlus.ps1" -Value "Start-Process -FilePath `"`$env:comspec`" -ArgumentList '/c', `"`"`"`$PSScriptRoot\$DestinationFileName`"`" /S`" -Wait" -Force
-    $DestinationFileName = Split-Path -Path $InstallPowershellScript -Leaf
-    $BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
-    $null = Set-AzStorageBlobContent -Context $StorageContext -File $InstallPowershellScript -Container $ContainerName -Blob $BlobName -BlobType Block -Force
-    #endregion
-    #endregion
+	$DestinationFileName = Split-Path -Path $InstallPowershellScript -Leaf
+	$BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
+	$null = Set-AzStorageBlobContent -Context $StorageContext -File $InstallPowershellScript -Container $ContainerName -Blob $BlobName -BlobType Block -Force
+	#endregion
+	#endregion
 
-    #From https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-json?tabs=json%2Cazure-powershell#file-customizer (Read the note for the file size)
-    #region Storage Explorer 
-    #region Storage Explorer Installer
-    $DownloadURI = "https://download.microsoft.com/download/A/E/3/AE32C485-B62B-4437-92F7-8B6B2C48CB40/StorageExplorer-windows-x64.exe"
-    $DestinationFileName = Split-Path -Path $DownloadURI -Leaf
-    $DestinationDirName = "02-StorageExplorer"
-    $DestinationDir = New-Item -Path $SoftwareDir -Name $DestinationDirName -ItemType Directory -Force
-    $BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
-    $DestinationFullName = Join-Path $DestinationDir -ChildPath $DestinationFileName
-    Start-BitsTransfer -Source $DownloadURI -Destination $DestinationFullName -DisplayName $DownloadURI
-    $null = Set-AzStorageBlobContent -Context $StorageContext -File $DestinationFullName -Container $ContainerName -Blob $BlobName -BlobType Block -Force
-    #endregion
+	#From https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-json?tabs=json%2Cazure-powershell#file-customizer (Read the note for the file size)
+	#region Storage Explorer 
+	#region Storage Explorer Installer
+	$DownloadURI = "https://download.microsoft.com/download/A/E/3/AE32C485-B62B-4437-92F7-8B6B2C48CB40/StorageExplorer-windows-x64.exe"
+	$DestinationFileName = Split-Path -Path $DownloadURI -Leaf
+	$DestinationDirName = "02-StorageExplorer"
+	$DestinationDir = New-Item -Path $SoftwareDir -Name $DestinationDirName -ItemType Directory -Force
+	$BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
+	$DestinationFullName = Join-Path $DestinationDir -ChildPath $DestinationFileName
+	Start-BitsTransfer -Source $DownloadURI -Destination $DestinationFullName -DisplayName $DownloadURI
+	$null = Set-AzStorageBlobContent -Context $StorageContext -File $DestinationFullName -Container $ContainerName -Blob $BlobName -BlobType Block -Force
+	#endregion
 	
-    #region StorageExplorer Setup PowerShell Script
+	#region StorageExplorer Setup PowerShell Script
 	$InstallPowershellScript = New-Item -Path $DestinationDir -Name "Install-StorageExplorer.ps1" -Value "Start-Process -FilePath `"`$env:comspec`" -ArgumentList '/c', `"`"`"`$PSScriptRoot\$DestinationFileName`"`" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /ALLUSERS`" -Wait" -Force
-    $DestinationFileName = Split-Path -Path $InstallPowershellScript -Leaf
-    $BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
-    $null = Set-AzStorageBlobContent -Context $StorageContext -File $InstallPowershellScript -Container $ContainerName -Blob $BlobName -BlobType Block -Force
-    #endregion
-    #endregion
+	$DestinationFileName = Split-Path -Path $InstallPowershellScript -Leaf
+	$BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
+	$null = Set-AzStorageBlobContent -Context $StorageContext -File $InstallPowershellScript -Container $ContainerName -Blob $BlobName -BlobType Block -Force
+	#endregion
+	#endregion
 	#endregion
 
 	#region Create Virtual Network and Subnet
-    #From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/image-builder-vnet
-    $NetworkSecurityGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $NetworkSecurityGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
-    $VirtualNetworkName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $VirtualNetworkPrefix, $Project, $Role, $LocationShortName, $Instance                       
-    $SubnetName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $SubnetPrefix, $Project, $Role, $LocationShortName, $Instance        
-    $VirtualNetworkName = $VirtualNetworkName.ToLower()
-    $SubnetName = $SubnetName.ToLower()
-    $NetworkSecurityGroupName = $NetworkSecurityGroupName.ToLower()
-    Write-Verbose "`$NetworkSecurityGroupName: $NetworkSecurityGroupName"         
-    Write-Verbose "`$VirtualNetworkName: $VirtualNetworkName"         
-    Write-Verbose "`$SubnetName: $SubnetName"         
-    $VNetAddressRange = '10.0.0.0/16'
-    $SubnetAddressRange = '10.0.1.0/24'
+	#From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/image-builder-vnet
+	$NetworkSecurityGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $NetworkSecurityGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
+	$VirtualNetworkName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $VirtualNetworkPrefix, $Project, $Role, $LocationShortName, $Instance                       
+	$SubnetName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $SubnetPrefix, $Project, $Role, $LocationShortName, $Instance        
+	$VirtualNetworkName = $VirtualNetworkName.ToLower()
+	$SubnetName = $SubnetName.ToLower()
+	$NetworkSecurityGroupName = $NetworkSecurityGroupName.ToLower()
+	Write-Verbose "`$NetworkSecurityGroupName: $NetworkSecurityGroupName"         
+	Write-Verbose "`$VirtualNetworkName: $VirtualNetworkName"         
+	Write-Verbose "`$SubnetName: $SubnetName"         
+	$VNetAddressRange = '10.0.0.0/16'
+	$SubnetAddressRange = '10.0.1.0/24'
 
-    #Add an NSG rule
-    $NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NetworkSecurityGroupName -Force
-    $null = $NetworkSecurityGroup | Add-AzNetworkSecurityRuleConfig -Name AzureImageBuilderAccess -Description "Allow Image Builder Private Link Access to Proxy VM" -Access Allow -Protocol Tcp -Direction Inbound -Priority 400 -SourceAddressPrefix AzureLoadBalancer -SourcePortRange * -DestinationAddressPrefix VirtualNetwork -DestinationPortRange 60000-60001 | Set-AzNetworkSecurityGroup
-    #Disable private service policy on the subnet
-    $subnet = New-AzVirtualNetworkSubnetConfig -Name $subnetName -AddressPrefix $SubnetAddressRange -PrivateLinkServiceNetworkPoliciesFlag "Disabled" -NetworkSecurityGroup $NetworkSecurityGroup
-    $vNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName  -AddressPrefix $VNetAddressRange -Location $Location -Subnet $Subnet
-    #endregion
+	#Add an NSG rule
+	$NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NetworkSecurityGroupName -Force
+	$null = $NetworkSecurityGroup | Add-AzNetworkSecurityRuleConfig -Name AzureImageBuilderAccess -Description "Allow Image Builder Private Link Access to Proxy VM" -Access Allow -Protocol Tcp -Direction Inbound -Priority 400 -SourceAddressPrefix AzureLoadBalancer -SourcePortRange * -DestinationAddressPrefix VirtualNetwork -DestinationPortRange 60000-60001 | Set-AzNetworkSecurityGroup
+	#Disable private service policy on the subnet
+	$subnet = New-AzVirtualNetworkSubnetConfig -Name $subnetName -AddressPrefix $SubnetAddressRange -PrivateLinkServiceNetworkPoliciesFlag "Disabled" -NetworkSecurityGroup $NetworkSecurityGroup
+	$vNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName  -AddressPrefix $VNetAddressRange -Location $Location -Subnet $Subnet
+	#endregion
 
-    #region Private endpoint for Storage Setup
-    #From https://learn.microsoft.com/en-us/azure/private-link/create-private-endpoint-powershell?tabs=dynamic-ip#create-a-private-endpoint
-    #From https://www.jorgebernhardt.com/private-endpoint-azure-key-vault-powershell/
-    #From https://ystatit.medium.com/azure-key-vault-with-azure-service-endpoints-and-private-link-part-1-bcc84b4c5fbc
-    ## Create the private endpoint connection. ## 
+	#region Private endpoint for Storage Setup
+	#From https://learn.microsoft.com/en-us/azure/private-link/create-private-endpoint-powershell?tabs=dynamic-ip#create-a-private-endpoint
+	#From https://www.jorgebernhardt.com/private-endpoint-azure-key-vault-powershell/
+	#From https://ystatit.medium.com/azure-key-vault-with-azure-service-endpoints-and-private-link-part-1-bcc84b4c5fbc
+	## Create the private endpoint connection. ## 
 
-    Write-Verbose -Message "Creating the Private Endpoint for the Storage Account '$StorageAccountName' (in the '$($ResourceGroupName)' Resource Group) ..."
-    $PrivateEndpointName = "pep{0}" -f $($StorageAccountName -replace "\W")
-    $GroupId = (Get-AzPrivateLinkResource -PrivateLinkResourceId $StorageAccount.Id).GroupId | Where-Object -FilterScript { $_ -match "blob" }
-    $PrivateLinkServiceConnection = New-AzPrivateLinkServiceConnection -Name $PrivateEndpointName -PrivateLinkServiceId $StorageAccount.Id -GroupId $GroupId
-    $Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $vNetwork
-    $PrivateEndpoint = New-AzPrivateEndpoint -Name $PrivateEndpointName -ResourceGroupName $ResourceGroupName -Location $Location -Subnet $Subnet -PrivateLinkServiceConnection $PrivateLinkServiceConnection -CustomNetworkInterfaceName $("{0}-nic" -f $PrivateEndpointName) -Force
+	Write-Verbose -Message "Creating the Private Endpoint for the Storage Account '$StorageAccountName' (in the '$($ResourceGroupName)' Resource Group) ..."
+	$PrivateEndpointName = "pep{0}" -f $($StorageAccountName -replace "\W")
+	$GroupId = (Get-AzPrivateLinkResource -PrivateLinkResourceId $StorageAccount.Id).GroupId | Where-Object -FilterScript { $_ -match "blob" }
+	$PrivateLinkServiceConnection = New-AzPrivateLinkServiceConnection -Name $PrivateEndpointName -PrivateLinkServiceId $StorageAccount.Id -GroupId $GroupId
+	$Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $vNetwork
+	$PrivateEndpoint = New-AzPrivateEndpoint -Name $PrivateEndpointName -ResourceGroupName $ResourceGroupName -Location $Location -Subnet $Subnet -PrivateLinkServiceConnection $PrivateLinkServiceConnection -CustomNetworkInterfaceName $("{0}-nic" -f $PrivateEndpointName) -Force
 
-    ## Create the private DNS zone. ##
-    #Write-Verbose -Message "Creating the Private DNS Zone for the Storage Account '$StorageAccountName' (in the '$($ResourceGroupName)' Resource Group) ..."
-    $AzContext = Get-AzContext
-    $StorageEndpointSuffix = $AzContext | Select-Object -ExpandProperty Environment | Select-Object -ExpandProperty StorageEndpointSuffix
-    $PrivateDnsZoneName = "privatelink.$GroupId.$StorageEndpointSuffix"
-    $PrivateDnsZone = Get-AzPrivateDnsZone -ResourceGroupName $ResourceGroupName -Name $PrivateDnsZoneName -ErrorAction Ignore
-    if ($null -eq $PrivateDnsZone) {
-        Write-Verbose -Message "Creating the Private DNS Zone for the Storage Account '$StorageAccountName' (in the '$($ResourceGroupName)' Resource Group) ..."
-        $PrivateDnsZone = New-AzPrivateDnsZone -ResourceGroupName $ResourceGroupName -Name $PrivateDnsZoneName
-    }
+	## Create the private DNS zone. ##
+	#Write-Verbose -Message "Creating the Private DNS Zone for the Storage Account '$StorageAccountName' (in the '$($ResourceGroupName)' Resource Group) ..."
+	$AzContext = Get-AzContext
+	$StorageEndpointSuffix = $AzContext | Select-Object -ExpandProperty Environment | Select-Object -ExpandProperty StorageEndpointSuffix
+	$PrivateDnsZoneName = "privatelink.$GroupId.$StorageEndpointSuffix"
+	$PrivateDnsZone = Get-AzPrivateDnsZone -ResourceGroupName $ResourceGroupName -Name $PrivateDnsZoneName -ErrorAction Ignore
+	if ($null -eq $PrivateDnsZone) {
+		Write-Verbose -Message "Creating the Private DNS Zone for the Storage Account '$StorageAccountName' (in the '$($ResourceGroupName)' Resource Group) ..."
+		$PrivateDnsZone = New-AzPrivateDnsZone -ResourceGroupName $ResourceGroupName -Name $PrivateDnsZoneName
+	}
 
-    $PrivateDnsVirtualNetworkLinkName = "pdvnl{0}" -f $($vNetwork.Name -replace "\W")
-    $PrivateDnsVirtualNetworkLink = Get-AzPrivateDnsVirtualNetworkLink -ResourceGroupName $ResourceGroupName -Name $PrivateDnsVirtualNetworkLinkName -ZoneName $PrivateDnsZone.Name -ErrorAction Ignore
-    if ($null -eq $PrivateDnsVirtualNetworkLink) {
-        ## Create a DNS network link. ##
-        Write-Verbose -Message "Creating the Private DNS VNet Link for the Storage Account '$StorageAccountName' (in the '$($ResourceGroupName)' Resource Group) ..."
-        $PrivateDnsVirtualNetworkLink = New-AzPrivateDnsVirtualNetworkLink -ResourceGroupName $ResourceGroupName -Name $PrivateDnsVirtualNetworkLinkName -ZoneName $PrivateDnsZone.Name -VirtualNetworkId $vNetwork.Id
-    }
+	$PrivateDnsVirtualNetworkLinkName = "pdvnl{0}" -f $($vNetwork.Name -replace "\W")
+	$PrivateDnsVirtualNetworkLink = Get-AzPrivateDnsVirtualNetworkLink -ResourceGroupName $ResourceGroupName -Name $PrivateDnsVirtualNetworkLinkName -ZoneName $PrivateDnsZone.Name -ErrorAction Ignore
+	if ($null -eq $PrivateDnsVirtualNetworkLink) {
+		## Create a DNS network link. ##
+		Write-Verbose -Message "Creating the Private DNS VNet Link for the Storage Account '$StorageAccountName' (in the '$($ResourceGroupName)' Resource Group) ..."
+		$PrivateDnsVirtualNetworkLink = New-AzPrivateDnsVirtualNetworkLink -ResourceGroupName $ResourceGroupName -Name $PrivateDnsVirtualNetworkLinkName -ZoneName $PrivateDnsZone.Name -VirtualNetworkId $vNetwork.Id
+	}
 
-    ## Configure the DNS zone. ##
-    Write-Verbose -Message "Creating the DNS Zone Configuration of the Private Dns Zone Group for the Storage Account '$StorageAccountName' ..."
-    $PrivateDnsZoneConfig = New-AzPrivateDnsZoneConfig -Name $PrivateDnsZone.Name -PrivateDnsZoneId $PrivateDnsZone.ResourceId
+	## Configure the DNS zone. ##
+	Write-Verbose -Message "Creating the DNS Zone Configuration of the Private Dns Zone Group for the Storage Account '$StorageAccountName' ..."
+	$PrivateDnsZoneConfig = New-AzPrivateDnsZoneConfig -Name $PrivateDnsZone.Name -PrivateDnsZoneId $PrivateDnsZone.ResourceId
 
-    ## Create the DNS zone group. ##
-    Write-Verbose -Message "Creating the Private DNS Zone Group in the Specified Private Endpoint '$PrivateEndpointName' (in the '$ResourceGroupName' Resource Group) ..."
-    $PrivateDnsZoneGroup = New-AzPrivateDnsZoneGroup -ResourceGroupName $ResourceGroupName -PrivateEndpointName $PrivateEndpointName -Name 'default' -PrivateDnsZoneConfig $PrivateDnsZoneConfig -Force
+	## Create the DNS zone group. ##
+	Write-Verbose -Message "Creating the Private DNS Zone Group in the Specified Private Endpoint '$PrivateEndpointName' (in the '$ResourceGroupName' Resource Group) ..."
+	$PrivateDnsZoneGroup = New-AzPrivateDnsZoneGroup -ResourceGroupName $ResourceGroupName -PrivateEndpointName $PrivateEndpointName -Name 'default' -PrivateDnsZoneConfig $PrivateDnsZoneConfig -Force
 
-    #Storage Account - Disabling Public Access
-    #From https://www.jorgebernhardt.com/azure-storage-public-access/
-    #From https://learn.microsoft.com/en-us/azure/storage/common/storage-network-security?tabs=azure-powershell#change-the-default-network-access-rule
-    #From https://github.com/adstuart/azure-privatelink-dns-microhack
-    #Write-Verbose -Message "Disabling the Public Access for the Storage Account '$StorageAccountName' (in the '$ResourceGroupName' Resource Group) ..."
-    #$null = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Disabled
-    #(Get-AzStorageAccount -Name $ResourceGroupName -ResourceGroupName $StorageAccountName ).AllowBlobPublicAccess
-    #endregion
+	#Storage Account - Disabling Public Access
+	#From https://www.jorgebernhardt.com/azure-storage-public-access/
+	#From https://learn.microsoft.com/en-us/azure/storage/common/storage-network-security?tabs=azure-powershell#change-the-default-network-access-rule
+	#From https://github.com/adstuart/azure-privatelink-dns-microhack
+	#Write-Verbose -Message "Disabling the Public Access for the Storage Account '$StorageAccountName' (in the '$ResourceGroupName' Resource Group) ..."
+	#$null = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Disabled
+	#(Get-AzStorageAccount -Name $ResourceGroupName -ResourceGroupName $StorageAccountName ).AllowBlobPublicAccess
+	#endregion
 
 	return $StorageContainer
 }
@@ -262,11 +262,11 @@ function New-AzureComputeGallery {
 	$Version = Get-Date -UFormat "%Y.%m.%d"
 	$Jobs = @()
 
-    #region Get data related to the software container
-    $StorageContainerStorageAccount = Get-AzStorageAccount | Where-Object -FilterScript { $_.StorageAccountName -eq $StorageContainer.Context.StorageAccount.Credentials.AccountName }
-    $StorageContainerVirtualNetwork = Get-AzVirtualNetwork -ResourceGroupName $StorageContainerStorageAccount.ResourceGroupName
-    $StorageContainerSubnet = Get-AzVirtualNetworkSubnetConfig -VirtualNetwork $StorageContainerVirtualNetwork
-    #endregion
+	#region Get data related to the software container
+	$StorageContainerStorageAccount = Get-AzStorageAccount | Where-Object -FilterScript { $_.StorageAccountName -eq $StorageContainer.Context.StorageAccount.Credentials.AccountName }
+	$StorageContainerVirtualNetwork = Get-AzVirtualNetwork -ResourceGroupName $StorageContainerStorageAccount.ResourceGroupName
+	$StorageContainerSubnet = Get-AzVirtualNetworkSubnetConfig -VirtualNetwork $StorageContainerVirtualNetwork
+	#endregion
 	#endregion
 
 	#region Create resource group
@@ -276,12 +276,12 @@ function New-AzureComputeGallery {
 	}
 	Write-Verbose -Message "Creating '$ResourceGroupName' Resource Group Name ..."
 	$ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $location -Force
-    #endregion
+	#endregion
 
 	#region Permissions, user identity, and role
 	# setup role def names, these need to be unique
 	$imageRoleDefName = "Azure Image Builder Image Def - $timeInt"
-    $networkRoleDefName="Azure Image Builder Network Def"+$timeInt
+	$networkRoleDefName = "Azure Image Builder Network Def" + $timeInt
 	$identityName = "aibIdentity-$timeInt"
 	Write-Verbose -Message "`$imageRoleDefName: $imageRoleDefName"
 	Write-Verbose -Message "`$identityName: $identityName"
@@ -290,24 +290,24 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "Creating User Assigned Identity '$identityName' ..."
 	$AssignedIdentity = New-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name $identityName -Location $location
 
-    #region aibRoleNetworking.json
-    #$aibRoleNetworkingUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/master/solutions/12_Creating_AIB_Security_Roles/aibRoleNetworking.json"
-    $aibRoleNetworkingUrl="https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/aibRoleNetworking.json"
+	#region aibRoleNetworking.json
+	#$aibRoleNetworkingUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/master/solutions/12_Creating_AIB_Security_Roles/aibRoleNetworking.json"
+	$aibRoleNetworkingUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/aibRoleNetworking.json"
 	$aibRoleNetworkingPath = Join-Path -Path $CurrentDir -ChildPath $(Split-Path $aibRoleNetworkingUrl -Leaf)
 	$aibRoleNetworkingPath = $aibRoleNetworkingPath -replace ".json$", "_$timeInt.json"
 	Write-Verbose -Message "`$aibRoleNetworkingPath: $aibRoleNetworkingPath"
 	# Download the config
 	Invoke-WebRequest -Uri $aibRoleNetworkingUrl -OutFile $aibRoleNetworkingPath -UseBasicParsing
 
-    ((Get-Content -path $aibRoleNetworkingPath -Raw) -replace 'Azure Image Builder Service Networking Role',$networkRoleDefName) | Set-Content -Path $aibRoleNetworkingPath
+    ((Get-Content -path $aibRoleNetworkingPath -Raw) -replace 'Azure Image Builder Service Networking Role', $networkRoleDefName) | Set-Content -Path $aibRoleNetworkingPath
 
-    # update role definitions
-    ((Get-Content -path $aibRoleNetworkingPath -Raw) -replace '<subscriptionID>',$subscriptionID) | Set-Content -Path $aibRoleNetworkingPath
-    ((Get-Content -path $aibRoleNetworkingPath -Raw) -replace '<vnetRgName>',$StorageContainerStorageAccount.ResourceGroupName) | Set-Content -Path $aibRoleNetworkingPath
-    #endregion
+	# update role definitions
+    ((Get-Content -path $aibRoleNetworkingPath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $aibRoleNetworkingPath
+    ((Get-Content -path $aibRoleNetworkingPath -Raw) -replace '<vnetRgName>', $StorageContainerStorageAccount.ResourceGroupName) | Set-Content -Path $aibRoleNetworkingPath
+	#endregion
 
 
-    #region aibRoleImageCreation.json
+	#region aibRoleImageCreation.json
 	#$aibRoleImageCreationUrl="https://raw.githubusercontent.com/PeterR-msft/M365AVDWS/master/Azure%20Image%20Builder/aibRoleImageCreation.json"
 	#$aibRoleImageCreationUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/12_Creating_AIB_Security_Roles/aibRoleImageCreation.json"
 	#$aibRoleImageCreationUrl="https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/aibRoleImageCreation.json"
@@ -324,46 +324,46 @@ function New-AzureComputeGallery {
     ((Get-Content -path $aibRoleImageCreationPath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $aibRoleImageCreationPath
     ((Get-Content -path $aibRoleImageCreationPath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $aibRoleImageCreationPath
     ((Get-Content -path $aibRoleImageCreationPath -Raw) -replace 'Azure Image Builder Service Image Creation Role', $imageRoleDefName) | Set-Content -Path $aibRoleImageCreationPath
-    #endregion
+	#endregion
 
-    #region Role Definition(s) and Assignement(s)
+	#region Role Definition(s) and Assignement(s)
 	# Create a role definition
-    #Image
+	#Image
 	Write-Verbose -Message "Creating '$imageRoleDefName' Role Definition ..."
 	$RoleDefinition = New-AzRoleDefinition -InputFile $aibRoleImageCreationPath
 	# Grant the role definition to the VM Image Builder service principal
 	Write-Verbose -Message "Assigning '$($RoleDefinition.Name)' Role to '$($AssignedIdentity.Name)' ..."
-    Do {
-        Write-Verbose -Message "Sleeping 10 seconds ..."
-        Start-Sleep -Seconds 10
-        $RoleAssignment = New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $ResourceGroup.ResourceId -ErrorAction Ignore #-Debug
-    } While ($null -eq $RoleAssignment)
+	Do {
+		Write-Verbose -Message "Sleeping 10 seconds ..."
+		Start-Sleep -Seconds 10
+		$RoleAssignment = New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $ResourceGroup.ResourceId -ErrorAction Ignore #-Debug
+	} While ($null -eq $RoleAssignment)
   
-    #Network
+	#Network
 	Write-Verbose -Message "Creating '$networkRoleDefName' Role Definition ..."
 	$RoleDefinition = New-AzRoleDefinition -InputFile $aibRoleNetworkingPath
 	# Grant the role definition to the VM Image Builder service principal
 	Write-Verbose -Message "Assigning '$($RoleDefinition.Name)' Role to '$($AssignedIdentity.Name)' ..."
-    $Scope = "/subscriptions/$subscriptionID/resourceGroups/$($StorageContainerStorageAccount.ResourceGroupName)"
-    Do {
-        Write-Verbose -Message "Sleeping 10 seconds ..."
-        Start-Sleep -Seconds 10
-        $RoleAssignment = New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $Scope -ErrorAction Ignore #-Debug
-    } While ($null -eq $RoleAssignment)
+	$Scope = "/subscriptions/$subscriptionID/resourceGroups/$($StorageContainerStorageAccount.ResourceGroupName)"
+	Do {
+		Write-Verbose -Message "Sleeping 10 seconds ..."
+		Start-Sleep -Seconds 10
+		$RoleAssignment = New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $Scope -ErrorAction Ignore #-Debug
+	} While ($null -eq $RoleAssignment)
 
-    #Granting the "Storage Blob Data Reader" role to the container
+	#Granting the "Storage Blob Data Reader" role to the container
 	Write-Verbose -Message "Assigning 'Storage Blob Data Reader' Role to '$($AssignedIdentity.Name)' ..."
-    $StorageAccount = Get-AzStorageAccount | Where-Object -FilterScript {$_.StorageAccountName -eq $StorageContainer.Context.StorageAccount.Credentials.AccountName}
-    $Scope = "$($StorageAccount.Id)/blobServices/default/containers/$($StorageContainer.Name)"
-    Do {
-        Write-Verbose -Message "Sleeping 10 seconds ..."
-        Start-Sleep -Seconds 10
-        $RoleAssignment = New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName "Storage Blob Data Reader" -Scope $Scope -ErrorAction Ignore #-Debug
-    } While ($null -eq $RoleAssignment)
+	$StorageAccount = Get-AzStorageAccount | Where-Object -FilterScript { $_.StorageAccountName -eq $StorageContainer.Context.StorageAccount.Credentials.AccountName }
+	$Scope = "$($StorageAccount.Id)/blobServices/default/containers/$($StorageContainer.Name)"
+	Do {
+		Write-Verbose -Message "Sleeping 10 seconds ..."
+		Start-Sleep -Seconds 10
+		$RoleAssignment = New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName "Storage Blob Data Reader" -Scope $Scope -ErrorAction Ignore #-Debug
+	} While ($null -eq $RoleAssignment)
 
 	#endregion
 	#endregion
-    #endregion
+	#endregion
 
 	#region Create an Azure Compute Gallery
 	$GalleryName = "{0}_{1}_{2}_{3}" -f $AzureComputeGalleryPrefix, $Project, $LocationShortName, $timeInt
@@ -391,10 +391,10 @@ function New-AzureComputeGallery {
 
 	Invoke-WebRequest -Uri $templateUrl -OutFile $templateFilePath -UseBasicParsing
 
-    # update AIB image config template
+	# update AIB image config template
     ((Get-Content -path $templateFilePath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $templateFilePath
-    #((Get-Content -path $templateFilePath -Raw) -replace '<region>',$location) | Set-Content -Path $templateFilePath
+	#((Get-Content -path $templateFilePath -Raw) -replace '<region>',$location) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<runOutputName>', $runOutputName01) | Set-Content -Path $templateFilePath
 
     ((Get-Content -path $templateFilePath -Raw) -replace '<imageDefName>', $imageDefName01) | Set-Content -Path $templateFilePath
@@ -402,9 +402,9 @@ function New-AzureComputeGallery {
     ((Get-Content -path $templateFilePath -Raw) -replace '<region1>', $replicationRegions) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<imgBuilderId>', $AssignedIdentity.Id) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<version>', $version) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<vnetName>',$StorageContainerVirtualNetwork.Name) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<subnetName>',$StorageContainerSubnet.Name) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<vnetRgName>',$StorageContainerStorageAccount.ResourceGroupName) | Set-Content -Path $templateFilePath
+    ((Get-Content -path $templateFilePath -Raw) -replace '<vnetName>', $StorageContainerVirtualNetwork.Name) | Set-Content -Path $templateFilePath
+    ((Get-Content -path $templateFilePath -Raw) -replace '<subnetName>', $StorageContainerSubnet.Name) | Set-Content -Path $templateFilePath
+    ((Get-Content -path $templateFilePath -Raw) -replace '<vnetRgName>', $StorageContainerStorageAccount.ResourceGroupName) | Set-Content -Path $templateFilePath
 	#endregion
 
 	#region Submit the template
@@ -462,71 +462,70 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "Creating Azure Image Builder Template Distributor Object  ..."
 	$disSharedImg = New-AzImageBuilderTemplateDistributorObject @disObjParams
     
-    #region Customizer
-    #region Software Customizer
+	#region Customizer
+	#region Software Customizer
 
-    $StartTime = Get-Date
+	$StartTime = Get-Date
 	$ExpiryTime = $StartTime.AddDays(1)
 
-    #For downloading AzCopy and copy it in system32 folder
+	#For downloading AzCopy and copy it in system32 folder
 	$ImgAZCopyPowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
 		Name                 = "PC_AZCopy"
 		RunElevated          = $true  
 		runAsSystem          = $true
-        inline               = @(
-            '$AzCopyURI = "https://aka.ms/downloadazcopy-v10-windows"'
-            '$OutputFile = Join-Path -Path $env:TEMP -ChildPath "azcopy_windows_amd64_latest.zip"'
-            'Invoke-WebRequest -Uri $AzCopyURI -OutFile $OutputFile'
-            'Expand-Archive -Path $OutputFile -DestinationPath $env:TEMP -Force'
-            '$DestinationDir = Get-ChildItem -Path $env:TEMP -Filter azcopy* -Directory | Sort-Object -Property Name | Select-Object -First 1'
-            '$LatestAzCopy = Join-Path -Path $DestinationDir.FullName -ChildPath "azcopy.exe"'
-            'Copy-Item -Path $LatestAzCopy -Destination $env:windir\system32 -Force'
-            'Remove-Item $OutputFile, $DestinationDir.FullName -Recurse -Force -Verbose'
-        )
+		inline               = @(
+			'$AzCopyURI = "https://aka.ms/downloadazcopy-v10-windows"'
+			'$OutputFile = Join-Path -Path $env:TEMP -ChildPath "azcopy_windows_amd64_latest.zip"'
+			'Invoke-WebRequest -Uri $AzCopyURI -OutFile $OutputFile'
+			'Expand-Archive -Path $OutputFile -DestinationPath $env:TEMP -Force'
+			'$DestinationDir = Get-ChildItem -Path $env:TEMP -Filter azcopy* -Directory | Sort-Object -Property Name | Select-Object -First 1'
+			'$LatestAzCopy = Join-Path -Path $DestinationDir.FullName -ChildPath "azcopy.exe"'
+			'Copy-Item -Path $LatestAzCopy -Destination $env:windir\system32 -Force'
+			'Remove-Item $OutputFile, $DestinationDir.FullName -Recurse -Force -Verbose'
+		)
 	}
 
 	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for local copy of AZCopy  ..."
-	$AZCopyCustomizer =  New-AzImageBuilderTemplateCustomizerObject @ImgAZCopyPowerShellCustomizerParams 
+	$AZCopyCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgAZCopyPowerShellCustomizerParams 
 
-    $AzStorageContainerSASToken = Get-AzStorageContainer -Container $SoftwareContainer.Name -Context $SoftwareContainer.Context | New-AzStorageContainerSASToken -Permission rl -FullUri -StartTime $StartTime -ExpiryTime $ExpiryTime
-    #Adding /* add the end of the URI to avoid to copy the container name in the local destination folder
-    $AzStorageContainerSASToken = $AzStorageContainerSASToken -replace "\?", "/*?"
+	$AzStorageContainerSASToken = Get-AzStorageContainer -Container $SoftwareContainer.Name -Context $SoftwareContainer.Context | New-AzStorageContainerSASToken -Permission rl -FullUri -StartTime $StartTime -ExpiryTime $ExpiryTime
+	#Adding /* add the end of the URI to avoid to copy the container name in the local destination folder
+	$AzStorageContainerSASToken = $AzStorageContainerSASToken -replace "\?", "/*?"
 	$ImgContainerCopyPowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
 		Name                 = "PC_{0}" -f ($SoftwareContainer.Name -replace "\W", "_")
 		RunElevated          = $true  
 		runAsSystem          = $true
-        inline               = @(
-            "`$URL = '$AzStorageContainerSASToken'"
-            '$DestinationFolder = "C:\AVDImage"'
-            'azcopy.exe copy $URL $DestinationFolder --overwrite=ifSourceNewer --check-md5 FailIfDifferent --recursive --log-level=INFO'
-        )
+		inline               = @(
+			"`$URL = '$AzStorageContainerSASToken'"
+			'$DestinationFolder = "C:\AVDImage"'
+			'azcopy.exe copy $URL $DestinationFolder --overwrite=ifSourceNewer --check-md5 FailIfDifferent --recursive --log-level=INFO'
+		)
 	}
 	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for local copy of the '$($SoftwareContainer.Name)' container content  ..."
 	$ContainerCopyCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgContainerCopyPowerShellCustomizerParams 
 
-    #We process only .ps1 file for running because all blobs have already locally copied in the previous step
-	$StorageBlob = Get-AzStorageBlob -Container $SoftwareContainer.Name -Context $SoftwareContainer.Context | Where-Object -FilterScript {$_.Name -match "\.ps1$"} | Sort-Object -Property Name
-    $StorageBlobPowerShellCustomizers = foreach ($CurrentStorageBlob in $StorageBlob)
-    {
-        $Destination = Join-Path "C:\AVDImage" -ChildPath $CurrentStorageBlob.Name
-	    $CurrentStorageBlobPowerShellCustomizerParams = @{  
-		    PowerShellCustomizer = $true  
-		    Name                 = "PC_{0}" -f ($CurrentStorageBlob.Name -replace "\W", "_")
-		    RunElevated          = $true  
-		    runAsSystem          = $true
-            inline               = $Destination
-	    }
-	    Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for running '$($CurrentStorageBlob.Name)' ..."
-	    New-AzImageBuilderTemplateCustomizerObject @CurrentStorageBlobPowerShellCustomizerParams 
-    }
+	#We process only .ps1 file for running because all blobs have already locally copied in the previous step
+	$StorageBlob = Get-AzStorageBlob -Container $SoftwareContainer.Name -Context $SoftwareContainer.Context | Where-Object -FilterScript { $_.Name -match "\.ps1$" } | Sort-Object -Property Name
+	$StorageBlobPowerShellCustomizers = foreach ($CurrentStorageBlob in $StorageBlob) {
+		$Destination = Join-Path "C:\AVDImage" -ChildPath $CurrentStorageBlob.Name
+		$CurrentStorageBlobPowerShellCustomizerParams = @{  
+			PowerShellCustomizer = $true  
+			Name                 = "PC_{0}" -f ($CurrentStorageBlob.Name -replace "\W", "_")
+			RunElevated          = $true  
+			runAsSystem          = $true
+			inline               = $Destination
+		}
+		Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for running '$($CurrentStorageBlob.Name)' ..."
+		New-AzImageBuilderTemplateCustomizerObject @CurrentStorageBlobPowerShellCustomizerParams 
+	}
 
 	$ImgCopyInstallLanguagePacksFileCustomizerParams = @{  
-		FileCustomizer       = $true  
-		Name                 = 'CopyInstallLanguagePacks'  
-		sourceUri            = 'https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-11-20/InstallLanguagePacks.ps1'
-        destination          = "C:\AVDImage\installLanguagePacks.ps1"
+		FileCustomizer = $true  
+		Name           = 'CopyInstallLanguagePacks'  
+		sourceUri      = 'https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-11-20/InstallLanguagePacks.ps1'
+		destination    = "C:\AVDImage\installLanguagePacks.ps1"
 	}
 
 	Write-Verbose -Message "Creating Azure Image Builder Template Customizer Object for copying 'InstallLanguagePacks.ps1' from the RDS-Templates Github repository ..."
@@ -537,7 +536,7 @@ function New-AzureComputeGallery {
 		Name                 = 'InstallLanguagePacks'  
 		RunElevated          = $true  
 		runAsSystem          = $true
-        inline               = "C:\AVDImage\installLanguagePacks.ps1 -LanguageList 'German (Germany)','French (France)'"
+		inline               = "C:\AVDImage\installLanguagePacks.ps1 -LanguageList 'German (Germany)','French (France)'"
 	}
 	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for running 'InstallLanguagePacks.ps1' ..."
 	$InstallLanguagePacksCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgInstallLanguagePacksFileCustomizerParams 
@@ -565,7 +564,7 @@ function New-AzureComputeGallery {
 	$VSCodeCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgVSCodePowerShellCustomizerParams 
 
 	Write-Verbose -Message "Creating Azure Image Builder Template WindowsUpdate Customizer Object ..."
-    $WindowsUpdateCustomizer = New-AzImageBuilderTemplateCustomizerObject -WindowsUpdateCustomizer -Name 'WindowsUpdate' -Filter @('exclude:$_.Title -like ''*Preview*''', 'include:$true') -SearchCriterion "IsInstalled=0" -UpdateLimit 40
+	$WindowsUpdateCustomizer = New-AzImageBuilderTemplateCustomizerObject -WindowsUpdateCustomizer -Name 'WindowsUpdate' -Filter @('exclude:$_.Title -like ''*Preview*''', 'include:$true') -SearchCriterion "IsInstalled=0" -UpdateLimit 40
 
 	$ImgDisableAutoUpdatesPowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
@@ -579,8 +578,8 @@ function New-AzureComputeGallery {
 	$DisableAutoUpdatesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgDisableAutoUpdatesPowerShellCustomizerParams 
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
-    #As $StorageBlobPowerShellCustomizers is an array we force the first items in an array so $Customize will be cast as an array
-	$Customize = @($CopyInstallLanguagePacksCustomizer, $InstallLanguagePacksCustomizer, $AZCopyCustomizer, $ContainerCopyCustomizer)+@($StorageBlobPowerShellCustomizers)+@($TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer)
+	#As $StorageBlobPowerShellCustomizers is an array we force the first items in an array so $Customize will be cast as an array
+	$Customize = @($CopyInstallLanguagePacksCustomizer, $InstallLanguagePacksCustomizer, $AZCopyCustomizer, $ContainerCopyCustomizer) + @($StorageBlobPowerShellCustomizers) + @($TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer)
 	$ImgTemplateParams = @{
 		ImageTemplateName      = $imageTemplateName02
 		ResourceGroupName      = $ResourceGroupName
@@ -591,16 +590,16 @@ function New-AzureComputeGallery {
 		UserAssignedIdentityId = $AssignedIdentity.Id
 		VMProfileVmsize        = "Standard_D8s_v5"
 		VMProfileOsdiskSizeGb  = 127
-        BuildTimeoutInMinute   = 240
-        VnetConfigSubnetId     = $StorageContainerSubnet.Id
+		BuildTimeoutInMinute   = 240
+		VnetConfigSubnetId     = $StorageContainerSubnet.Id
 
 	}
 	Write-Verbose -Message "Creating Azure Image Builder Template from '$imageTemplateName02' Image Template Name ..."
 	$ImageBuilderTemplate = New-AzImageBuilderTemplate @ImgTemplateParams
 
-    #Write-Verbose -Message "Disabling the Public Access for the Storage Account '$StorageAccountName' (in the '$ResourceGroupName' Resource Group) ..."
-    $null = Set-AzStorageAccount -ResourceGroupName $StorageAccount.ResourceGroupName -Name $StorageAccount.StorageAccountName -PublicNetworkAccess Disabled
-    #(Get-AzStorageAccount -Name $StorageAccount.ResourceGroupName -ResourceGroupName $StorageAccountName ).AllowBlobPublicAccess
+	#Write-Verbose -Message "Disabling the Public Access for the Storage Account '$StorageAccountName' (in the '$ResourceGroupName' Resource Group) ..."
+	$null = Set-AzStorageAccount -ResourceGroupName $StorageAccount.ResourceGroupName -Name $StorageAccount.StorageAccountName -PublicNetworkAccess Disabled
+	#(Get-AzStorageAccount -Name $StorageAccount.ResourceGroupName -ResourceGroupName $StorageAccountName ).AllowBlobPublicAccess
 
 	#region Build the image
 	#Start the image building process using Start-AzImageBuilderTemplate cmdlet:
