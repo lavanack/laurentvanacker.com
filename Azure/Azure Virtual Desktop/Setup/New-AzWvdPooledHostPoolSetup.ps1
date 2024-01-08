@@ -1128,23 +1128,13 @@ function New-AzAvdSessionHost {
 
     if ($Spot) {
         #Create a virtual machine configuration file (As a Spot Intance for saving costs . DON'T DO THAT IN A PRODUCTION ENVIRONMENT !!!)
-        if ($IsMicrosoftEntraIdJoined) {
-            #We have to create a SystemAssignedIdentity for Microsoft Entra ID joined Azure VM
-            $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -IdentityType SystemAssigned -Priority "Spot" -MaxPrice -1
-        }
-        else {
-            $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1
-        }
+        #We have to create a SystemAssignedIdentity for Microsoft Entra ID joined Azure VM but let's do it for all VM
+        $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -SecurityType Standard -IdentityType SystemAssigned -Priority "Spot" -MaxPrice -1
     }
     else {
         #Create a virtual machine configuration file
-        if ($IsMicrosoftEntraIdJoined) {
-            #We have to create a SystemAssignedIdentity for Microsoft Entra ID joined Azure VM
-            $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -SecurityType Standard -IdentityType SystemAssigned
-        }
-        else {
-            $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -SecurityType Standard
-        }
+        #We have to create a SystemAssignedIdentity for Microsoft Entra ID joined Azure VM but let's do it for all VM
+        $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -SecurityType Standard -IdentityType SystemAssigned
     }
     $null = Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 
@@ -1171,7 +1161,7 @@ function New-AzAvdSessionHost {
     #Set OsDisk configuration
     $null = Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -CreateOption fromImage
 
-    $null = New-AzVM -ResourceGroupName $ResourceGroupName -Location $ThisDomainControllerVirtualNetwork.Location -VM $VMConfig -Tag $Tag -DisableBginfoExtension
+    $null = New-AzVM -ResourceGroupName $ResourceGroupName -Location $ThisDomainControllerVirtualNetwork.Location -VM $VMConfig -Tag $Tag #-DisableBginfoExtension
     $VM = Get-AzVM -ResourceGroup $ResourceGroupName -Name $VMName
     $null = Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 
@@ -1380,8 +1370,18 @@ function Add-AzAvdSessionHost {
             $ClassDefinitionScriptBlock
 "@)
             Write-Verbose "Starting background job for '$CurrentVMName' SessionHost Creation (via New-AzAvdSessionHost) ... "
-            Write-Verbose "`$using:CurrentDir: $using:CurrentDir"
-            Start-ThreadJob -ScriptBlock { param($CurrentDir) New-AzAvdSessionHost @using:Params *>&1 | Out-File -FilePath $("{0}\New-AzAvdSessionHost_{1}_{2}.txt" -f $CurrentDir, $using:CurrentVMName, (Get-Date -Format 'yyyyMMddHHmmss')) } -InitializationScript $ExportedFunctions -ArgumentList $using:CurrentDir -StreamingHost $Host
+            try {
+                #Getting the Script Directory if ran from a Start-ThreadJob
+                $LocalCurrentDir = $using:CurrentDir
+                Write-Verbose "We are in the context of a 'Start-ThreadJob' ..."
+            }
+            catch {
+                #Getting the Script Directory if NOT ran from a Start-ThreadJob
+                $LocalCurrentDir = $CurrentDir
+                Write-Verbose "We are NOT in the context of a 'Start-ThreadJob' ..."
+            }
+            Write-Verbose "`$LocalCurrentDir: $LocalCurrentDir"
+            Start-ThreadJob -ScriptBlock { param($CurrentDir) New-AzAvdSessionHost @using:Params *>&1 | Out-File -FilePath $("{0}\New-AzAvdSessionHost_{1}_{2}.txt" -f $CurrentDir, $using:CurrentVMName, (Get-Date -Format 'yyyyMMddHHmmss')) } -InitializationScript $ExportedFunctions -ArgumentList $LocalCurrentDir #-StreamingHost $Host
         }
         else {
             New-AzAvdSessionHost @Params
@@ -1953,10 +1953,13 @@ function New-AzAvdPersonalHostPoolSetup {
                 $LogAnalyticsWorkSpaceKey = ($LogAnalyticsWorkSpace | Get-AzOperationalInsightsWorkspaceSharedKey).PrimarySharedKey
                 $PublicSettings = @{ "workspaceId" = $LogAnalyticsWorkSpace.CustomerId }
                 $ProtectedSettings = @{ "workspaceKey" = $LogAnalyticsWorkSpaceKey }
-                foreach ($CurrentSessionHostVM in $SessionHostVMs) {
-                    Write-Verbose -Message "Install Log Analytics Agent on the '$($CurrentSessionHostVM.Name )' Virtual Machine (in the '$CurrentHostPoolResourceGroupName' Resource Group) ..."
-                    $null = Set-AzVMExtension -ExtensionName "MicrosoftMonitoringAgent" -ResourceGroupName $CurrentHostPoolResourceGroupName -VMName $CurrentSessionHostVM.Name -Publisher "Microsoft.EnterpriseCloud.Monitoring" -ExtensionType "MicrosoftMonitoringAgent" -Settings $PublicSettings -TypeHandlerVersion "1.0" -ProtectedSettings $ProtectedSettings -Location $ThisDomainControllerVirtualNetwork.Location
+                $Jobs = foreach ($CurrentSessionHostVM in $SessionHostVMs) {
+                    Write-Verbose -Message "Install Log Analytics Agent on the '$($CurrentSessionHostVM.Name )' Virtual Machine (in the '$CurrentHostPoolResourceGroupName' Resource Group) (As A Job) ..."
+                    Set-AzVMExtension -ExtensionName "MicrosoftMonitoringAgent" -ResourceGroupName $CurrentHostPoolResourceGroupName -VMName $CurrentSessionHostVM.Name -Publisher "Microsoft.EnterpriseCloud.Monitoring" -ExtensionType "MicrosoftMonitoringAgent" -Settings $PublicSettings -TypeHandlerVersion "1.0" -ProtectedSettings $ProtectedSettings -Location $ThisDomainControllerVirtualNetwork.Location -AsJob
                 }
+                Write-Verbose -Message "Waiting all jobs completes ..."
+                $Jobs | Wait-Job | Out-Null
+                $Jobs | Remove-Job -Force
             }
             #endregion
 
@@ -2391,7 +2394,7 @@ function New-AzAvdPooledHostPoolSetup {
                 #(Get-AzStorageAccount -Name $CurrentHostPoolResourceGroupName -ResourceGroupName $CurrentHostPoolStorageAccountName ).AllowBlobPublicAccess
                 #endregion
                 #endregion
-
+                Start-Sleep -Seconds 60
                 #region Dedicated Share Management
                 $FSLogixShareName | ForEach-Object -Process { 
                     $CurrentHostPoolShareName = $_
@@ -2726,7 +2729,7 @@ function New-AzAvdPooledHostPoolSetup {
                 #(Get-AzStorageAccount -Name $CurrentHostPoolResourceGroupName -ResourceGroupName $CurrentHostPoolStorageAccountName ).AllowBlobPublicAccess
                 #endregion
                 #endregion
-
+                Start-Sleep -Seconds 60
                 $MSIXDemoPackages = $null
                 #region Dedicated Share Management
                 $MSIXShareName | ForEach-Object -Process { 
@@ -3232,10 +3235,13 @@ function New-AzAvdPooledHostPoolSetup {
                 $LogAnalyticsWorkSpaceKey = ($LogAnalyticsWorkSpace | Get-AzOperationalInsightsWorkspaceSharedKey).PrimarySharedKey
                 $PublicSettings = @{ "workspaceId" = $LogAnalyticsWorkSpace.CustomerId }
                 $ProtectedSettings = @{ "workspaceKey" = $LogAnalyticsWorkSpaceKey }
-                foreach ($CurrentSessionHostVM in $SessionHostVMs) {
-                    Write-Verbose -Message "Install Log Analytics Agent on the '$($CurrentSessionHostVM.Name )' Virtual Machine (in the '$CurrentHostPoolResourceGroupName' Resource Group) ..."
-                    $null = Set-AzVMExtension -ExtensionName "MicrosoftMonitoringAgent" -ResourceGroupName $CurrentHostPoolResourceGroupName -VMName $CurrentSessionHostVM.Name -Publisher "Microsoft.EnterpriseCloud.Monitoring" -ExtensionType "MicrosoftMonitoringAgent" -Settings $PublicSettings -TypeHandlerVersion "1.0" -ProtectedSettings $ProtectedSettings -Location $ThisDomainControllerVirtualNetwork.Location
+                $Jobs = foreach ($CurrentSessionHostVM in $SessionHostVMs) {
+                    Write-Verbose -Message "Install Log Analytics Agent on the '$($CurrentSessionHostVM.Name )' Virtual Machine (in the '$CurrentHostPoolResourceGroupName' Resource Group) (As A Job) ..."
+                    Set-AzVMExtension -ExtensionName "MicrosoftMonitoringAgent" -ResourceGroupName $CurrentHostPoolResourceGroupName -VMName $CurrentSessionHostVM.Name -Publisher "Microsoft.EnterpriseCloud.Monitoring" -ExtensionType "MicrosoftMonitoringAgent" -Settings $PublicSettings -TypeHandlerVersion "1.0" -ProtectedSettings $ProtectedSettings -Location $ThisDomainControllerVirtualNetwork.Location -AsJob
                 }
+                Write-Verbose -Message "Waiting all jobs completes ..."
+                $Jobs | Wait-Job | Out-Null
+                $Jobs | Remove-Job -Force
             }
             #endregion
 
@@ -3480,12 +3486,12 @@ function New-AzAvdHostPoolSetup {
             $Jobs = @()
             $Jobs += foreach ($CurrentPooledHostPool in $PooledHostPools) {
                 Write-Verbose "Starting background job for '$($CurrentPooledHostPool.Name)' Pooled HostPool Creation (via New-AzAvdPooledHostPoolSetup) ... "
-                Start-ThreadJob -ScriptBlock { New-AzAvdPooledHostPoolSetup -HostPool $using:CurrentPooledHostPool -ADOrganizationalUnit $using:PooledDesktopsOU -Verbose -AsJob *>&1 | Out-File -FilePath $("{0}\New-AzAvdPooledHostPoolSetup_{1}_{2}.txt" -f $using:CurrentDir, $($using:CurrentPooledHostPool).Name, (Get-Date -Format 'yyyyMMddHHmmss')) } -InitializationScript $ExportedFunctions -StreamingHost $Host
+                Start-ThreadJob -ScriptBlock { New-AzAvdPooledHostPoolSetup -HostPool $using:CurrentPooledHostPool -ADOrganizationalUnit $using:PooledDesktopsOU -Verbose -AsJob *>&1 | Out-File -FilePath $("{0}\New-AzAvdPooledHostPoolSetup_{1}_{2}.txt" -f $using:CurrentDir, $($using:CurrentPooledHostPool).Name, (Get-Date -Format 'yyyyMMddHHmmss')) } -InitializationScript $ExportedFunctions #-StreamingHost $Host
             }
 
             $Jobs += foreach ($CurrentPersonalHostPool in $PersonalHostPools) {
                 Write-Verbose "Starting background job for '$($CurrentPersonalHostPool.Name)' Personal HostPool Creation (via New-AzAvdPersonalHostPoolSetup) ..."
-                Start-ThreadJob -ScriptBlock { New-AzAvdPersonalHostPoolSetup -HostPool $using:CurrentPersonalHostPool -ADOrganizationalUnit $using:PersonalDesktopsOU -Verbose -AsJob *>&1 | Out-File -FilePath $("{0}\New-AzAvdPersonalHostPoolSetup_{1}_{2}.txt" -f $using:CurrentDir, $($using:CurrentPersonalHostPool).Name, (Get-Date -Format 'yyyyMMddHHmmss')) } -InitializationScript $ExportedFunctions -StreamingHost $Host
+                Start-ThreadJob -ScriptBlock { New-AzAvdPersonalHostPoolSetup -HostPool $using:CurrentPersonalHostPool -ADOrganizationalUnit $using:PersonalDesktopsOU -Verbose -AsJob *>&1 | Out-File -FilePath $("{0}\New-AzAvdPersonalHostPoolSetup_{1}_{2}.txt" -f $using:CurrentDir, $($using:CurrentPersonalHostPool).Name, (Get-Date -Format 'yyyyMMddHHmmss')) } -InitializationScript $ExportedFunctions #-StreamingHost $Host
             }
 
             Write-Verbose -Message "Waiting the background jobs complete ..."
@@ -3864,7 +3870,7 @@ Remove-AzAvdHostPoolSetup -HostPool $HostPools -Verbose
 #Or pipeline processing call
 #$HostPools | Remove-AzAvdHostPoolSetup -Verbose
 
-New-AzAvdHostPoolSetup -HostPool $HostPools -Verbose -AsJob
+New-AzAvdHostPoolSetup -HostPool $HostPools -Verbose #-AsJob
 #Or pipeline processing call
 #$HostPools | New-AzAvdHostPoolSetup #-AsJob 
 
