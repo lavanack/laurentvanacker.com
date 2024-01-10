@@ -138,7 +138,7 @@ At the end of the deployment an RDCMan (\<domain name\>.rdg) file generated on t
 
 ## Testing
 
-After a successful deployment, you can connect to [Remote Desktop Web Client](https://client.wvd.microsoft.com/arm/webclient/index.html), [Windows 365](https://windows365.microsoft.com/) or the [windows App](https://www.microsoft.com/store/productId/9N1F85V9T8BN?ocid=pdpshare) site and use one the of the test users (available in the `OrgUsers` OU).
+After a successful deployment, you can connect by using either [Remote Desktop Web Client](https://client.wvd.microsoft.com/arm/webclient/index.html), [Windows 365](https://windows365.microsoft.com/) or the [windows App](https://www.microsoft.com/store/productId/9N1F85V9T8BN?ocid=pdpshare) site and use one the of the test users (available in the `OrgUsers` OU).
 
 ## Technical Details
 
@@ -165,7 +165,7 @@ Ths function is the core function of the script. It proceeds as follows:
 This function is called by the `New-AzAvdHostPoolSetup` function for every HostPool of type Pooled. It proceeds as follows:
 
 - A dedicated OU is created in the Active Directory domain (under the `AVD/PooledDesktops` OU) for the every Pooled HostPool. The OU name is the HostPool name.
-- The ADJoin user (The related credentials are stored in the Azure Key Vault) is created if not already present and receive the required rights to add computer accounts to the Active Directory domain.
+- The ADJoin user (The related credentials are stored in the Azure Key Vault) is created if not already present and receives the required rights to add computer accounts to the Active Directory domain.
 - A Security Global AD Group is created with the naming convention `<HostPoolName> - Users` (all test users - via the `AVD Users` AD security Group - are added to the created groups at the end of the script).
 - A dedicated Azure Resource Group is created for the HostPool (a naming convention `rg-avd-<HostPoolName>`)
 - If FSLogix is required:
@@ -173,7 +173,7 @@ This function is called by the `New-AzAvdHostPoolSetup` function for every HostP
     An `odfc` fileshare is also created for the Office Container but it is not used for the moment.
   - A Private Endpoint is created for the Storage Account and the required DNS configuration is also created.
   - 3 dedicated AD security groups are created and the required role assignments are done
-    - `<HostPoolName> - FSLogix Contributor` (`Storage File Data SMB Share Contributor` role assignment on the Azure File Share): This AD group will contain the end-users that will have a FSLogix Profile Container.
+    - `<HostPoolName> - FSLogix Contributor` (`Storage File Data SMB Share Contributor` role assignment on the Azure File Share): This AD group will contain the end-users that will have a FSLogix Profile Container (all test users - via the `AVD Users` AD security Group).
     - `<HostPoolName> - FSLogix Elevated Contributor` (`Storage File Data SMB Share Elevated Contributor` role assignment on the Azure File Share)
     - `<HostPoolName> - FSLogix Reader` (`Storage File Data SMB Share Reader` role assignment on the Azure File Share)
   - A GPO is also created (name : `<HostPoolName> - FSLogix Settings`) with some settings for:
@@ -210,7 +210,7 @@ This function is called by the `New-AzAvdHostPoolSetup` function for every HostP
 This function is called by the `New-AzAvdHostPoolSetup` function for every HostPool of type Personal. It proceeds as follows:
 
 - A dedicated OU is created in the Active Directory domain (under the `AVD/PersonalDesktops` OU) for the every Personal HostPool. The OU name is the HostPool name.
-- The ADJoin user (The related credentials are stored in the Azure Key Vault) is created if not already present and receive the required rights to add computer accounts to the Active Directory domain.
+- The ADJoin user (The related credentials are stored in the Azure Key Vault) is created if not already present and receives the required rights to add computer accounts to the Active Directory domain.
 - A Security Global AD Group is created with the naming convention `<HostPoolName> - Users` (all test users - via the `AVD Users` AD security Group - are added to the created groups at the end of the script).
 - A dedicated Azure Resource Group is created for the HostPool (a naming convention `rg-avd-<HostPoolName>`)
 - An Azure Key Vault is also created (with the naming convention `kv-<HostPoolName without dashes>`) on the dedicated resource group. This KeyVault is secure via a Private Endpoint and the required DNS configuration is also created. This KeyVault is deployed for testing purpose only and is not used for the moment.
