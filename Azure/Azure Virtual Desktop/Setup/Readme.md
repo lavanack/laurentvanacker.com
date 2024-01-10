@@ -76,15 +76,17 @@ $PooledHostPool = [PooledHostPool]::new("hp-np-ad-poc-cg-eu-{0:D2}" -f $Index, "
 
 This class is used to defined the HostPool objects you want to deploy in Azure and the code will do the rest for you.
 > [!IMPORTANT]
-> These sample lines are the only line you have to modify to deploy your own HostPool environment(s). You can also add more HostPools by adding more lines (with the same syntax) in the script. Or simply remove some lines if you don't want to deploy some HostPools. Feel free to customize the HostPool objects to your needs !
+> These sample lines are the only lines you have to modify to deploy your own HostPool environment(s). You can also add more HostPools by adding more lines (with the same syntax) in the script ... or simply remove some lines if you don't want to deploy some HostPools. Feel free to customize the HostPool objects to your needs !
 
 ### Required PowerShell Modules
 
 The script requires some PowerShell modules to be installed on the machine (ADDS Domain Controller) where you'll run the script. The script will check if the modules are installed and if not, it will install them for you.
 > [!WARNING]
 > I fill a bug on the 7+ version of the Az.Compute module preventing the successful run of the Azure Compute Gallery. When writing this documentation (December 2023), the bug is not fixed. I encourage you to use the 6.3.0 version of the Az.Compute module as a temporary fix (and to uninstall all newer versions). You can install it with the following PowerShell command line (from an elevated PowerShell Host):  
-`Install-Module -Name Az.Compute -RequiredVersion 6.3.0.0 -Force -Verbose -AllowClobber`
-
+```powershell:
+Uninstall-Module -Name AZ.compute -AllVersions -Verbose
+Install-Module -Name Az.Compute -RequiredVersion 6.3.0.0 -Force -Verbose -AllowClobber
+```
 ### Azure Connection
 
 The script will ask you to connect to your Azure subscription and to you Microsoft Entra ID for you if you are not.
@@ -122,7 +124,7 @@ You can also use the `Remove-AzAvdHostPoolSetup` function after the deployment t
 ## Deployment
 
 The `New-AzAvdHostPoolSetup` function is the main function of the script. It takes an `$HostPool` array as parameter (so set the parameter values you want for the HostPool(s) you want to deploy). It will deploy all the resources needed for the HostPool(s) based on the `$HostPool` array.  
-This function has a `-AsJob` parameter. When this switch is specified, the ressources will be deployed in parallel (via the [Start-ThreadJob](https://learn.microsoft.com/en-us/powershell/module/threadjob/start-threadjob?view=powershell-7.4&viewFallbackFrom=powershell-5.1) cmdlet) instead of sequentially. The processing time is greatly reduced from 4.5 hours to 1.5 hours (including the Azure Compute Gallery Setup if needed - wihout the Azure Compute Gallery Setup, the processing time are 3h30 in parallel and 30 minutes sequentially). Nevertheless, sometimes the setup fails in parallel mode (some error occurs) so I recommend to use the sequential mode if any error occurs in this mode (or retry).
+This function has a `-AsJob` parameter. When this switch is specified, the ressources will be deployed in parallel (via the [Start-ThreadJob](https://learn.microsoft.com/en-us/powershell/module/threadjob/start-threadjob?view=powershell-7.4&viewFallbackFrom=powershell-5.1) cmdlet) instead of sequentially. The processing time is greatly reduced from 4.5 hours to 1.5 hours (including the Azure Compute Gallery Setup if needed - wihout the Azure Compute Gallery Setup, the processing time are 3h30 sequentially  and 45 minutes in parallel). Nevertheless, sometimes the setup fails in parallel mode (some error occurs) so I recommend to use the sequential mode if any error occurs in this mode (or retry).
 > [!NOTE]
 > The impacted ressources by the parallel mode are the HostPools and the Session Hosts. The Job Management is done at the end of the `New-AzAvdHostPoolSetup` function.
 
