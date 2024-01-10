@@ -190,12 +190,12 @@ This function is called by the `New-AzAvdHostPoolSetup` function for every HostP
   - 3 dedicated AD security groups are created and the required role assignments are done
     - `<HostPoolName> - MSIX Hosts` (`Storage File Data SMB Share Contributor` role assignment on the Azure File Share). This AD group will contain the Session Hosts that will have a MSIX App Attach.
     - `<HostPoolName> - MSIX Share Admins` (`Storage File Data SMB Share Elevated Contributor` role assignment on the Azure File Share)
-    - `<HostPoolName> - MSIX Users` (`Storage File Data SMB Share Contributor` role assignment on the Azure File Share). This AD group will contain the end users that will have use MSIX App Attach.
+    - `<HostPoolName> - MSIX Users` (`Storage File Data SMB Share Contributor` role assignment on the Azure File Share). This AD group will contain the end users that will have use MSIX App Attach (all test users - via the `AVD Users` AD security Group).
   - A GPO is also created (name : `<HostPoolName> - MSIX Settings`) with some settings for:
     - [Turning off automatic updates for MSIX app attach applications](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-azure-portal#turn-off-automatic-updates-for-msix-app-attach-applications)
     - [Setting antivirus exclusions](https://learn.microsoft.com/en-us/fslogix/overview-prerequisites#configure-antivirus-file-and-folder-exclusions)
   - Some demo applications (and related certificate) are also deployed  from [here](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/MSIX/MSIX)
-- An Azure Key Vault is also created (with the naming convention `kv-<HostPoolName without dashes>`) on the dedicated resource group. This KeyVault is secure via a Private Endpoint and the required DNS configuration is also created. This KeyVault is deployed for testing purpose only and is not used for the moment.
+- An Azure Key Vault is also created (with the naming convention `kv-<HostPoolName without dashes and in lowercase>`) on the dedicated resource group. This KeyVault is secure via a Private Endpoint and the required DNS configuration is also created. This KeyVault is deployed for testing purpose only and is not used for the moment.
 - A Pooled Hostpool is also created (with `BreadthFirst` load balancer type)
 - A Desktop Application Group is also created (with the naming convention `<HostPoolName>-DAG`) and the `Desktop Virtualization User` RBAC role is assigned to the `<HostPoolName> - Users` AD security group.
 - A Remote Application Group is also created (with the naming convention `<HostPoolName>-RAG`) and the `Desktop Virtualization User` RBAC role is assigned to the `<HostPoolName> - Users` AD security group.
@@ -213,7 +213,7 @@ This function is called by the `New-AzAvdHostPoolSetup` function for every HostP
 - The ADJoin user (The related credentials are stored in the Azure Key Vault) is created if not already present and receives the required rights to add computer accounts to the Active Directory domain.
 - A Security Global AD Group is created with the naming convention `<HostPoolName> - Users` (all test users - via the `AVD Users` AD security Group - are added to the created groups at the end of the script).
 - A dedicated Azure Resource Group is created for the HostPool (a naming convention `rg-avd-<HostPoolName>`)
-- An Azure Key Vault is also created (with the naming convention `kv-<HostPoolName without dashes>`) on the dedicated resource group. This KeyVault is secure via a Private Endpoint and the required DNS configuration is also created. This KeyVault is deployed for testing purpose only and is not used for the moment.
+- An Azure Key Vault is also created (with the naming convention `kv-<HostPoolName without dashes and in lowercase>`) on the dedicated resource group. This KeyVault is secure via a Private Endpoint and the required DNS configuration is also created. This KeyVault is deployed for testing purpose only and is not used for the moment.
 - A Personal Hostpool is also created
 - A Desktop Application Group is also created (with the naming convention `<HostPoolName>-DAG`) and the `Desktop Virtualization User` RBAC role is assigned to the `<HostPoolName> - Users` AD security group.
 - A Remote Application Group is also created (with the naming convention `<HostPoolName>-RAG`) and the `Desktop Virtualization User` RBAC role is assigned to the `<HostPoolName> - Users` AD security group.
