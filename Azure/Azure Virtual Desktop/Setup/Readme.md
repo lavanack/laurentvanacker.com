@@ -83,13 +83,15 @@ This class is used to defined the HostPool objects you want to deploy in Azure a
 The script requires some PowerShell modules to be installed on the machine (ADDS Domain Controller) where you'll run the script. The script will check if the modules are installed and if not, it will install them for you.
 > [!WARNING]
 > I fill a bug on the 7+ version of the Az.Compute module preventing the successful run of the Azure Compute Gallery. When writing this documentation (December 2023), the bug is not fixed. I encourage you to use the 6.3.0 version of the Az.Compute module as a temporary fix (and to uninstall all newer versions). You can install it with the following PowerShell command line (from an elevated PowerShell Host):  
+
 ```powershell:
 Uninstall-Module -Name AZ.compute -AllVersions -Verbose
 Install-Module -Name Az.Compute -RequiredVersion 6.3.0.0 -Force -Verbose -AllowClobber
 ```
+
 ### Azure Connection
 
-The script will ask you to connect to your Azure subscription and to you Microsoft Entra ID for you if you are not.
+The script will ask you to connect to your Azure subscription and to your Azure AD/Microsoft Entra ID for you if you are not.
 
 ### Azure Key Vault for Credentials
 
@@ -103,7 +105,7 @@ We have to store 4 secrets in the Azure Key Vault:
 
 You can use your own KeyVault (with these 4 secret names) or let the script create one for you : We do this with the `New-AzHostPoolSessionCredentialKeyVault` function.
 
-The `New-AzHostPoolSessionCredentialKeyVault` function have hard coded values for `LocalAdminUserName` and  `ADJoinUserName` (respectively `localadmin` and `adjoin` - feel free to customize to you needs). The value for the `LocalAdminPassword` is also hard coded for a simple reason : If the user specified as value of the `LocalAdminUserName` secret already exists in the Active Directory domain, we need to specify the current password. If the user doesn't exist, the script will create it in the Active Directory domain with the password specified in the `LocalAdminPassword` secret.
+The `New-AzHostPoolSessionCredentialKeyVault` function have hard coded values for `LocalAdminUserName` and  `ADJoinUserName` (respectively `localadmin` and `adjoin` - feel free to customize to your needs). The value for the `LocalAdminPassword` is also hard coded for a simple reason : If the user specified as value of the `LocalAdminUserName` secret already exists in the Active Directory domain, we need to specify the current password. If the user doesn't exist, the script will create it in the Active Directory domain with the password specified in the `LocalAdminPassword` secret.
 The value for the `ADJoinPassword` is randomly generated with the `New-RandomPassword` function (for information it will be written in the output).
 
 ### Azure Compute Gallery
@@ -118,13 +120,13 @@ $GalleryImageDefinition = Get-AzGalleryImageDefinition -GalleryName ...
 
 ## Cleanup
 
-If you have already deployed an Azure Virtual Desktop environment with this script and want to do some cleanup  of the existing environment, you can use the `Remove-AzAvdHostPoolSetup` function. This function takes an `$HostPool` array as parameter (so set the parameter values you used for the already deployed environement). It will remove all the resources created by the script (HostPool, Session Hosts, Application Groups, Workspace, etc.) based on the `$HostPool` array. Some cleanup are also done in the Active Directory domain (removing the computer accounts of the Session Hosts and the Azure File Shares ...) and the Windows Credential Manager.
+If you have already deployed an Azure Virtual Desktop environment with this script and want to to perform a cleanup of the existing environment, you can use the `Remove-AzAvdHostPoolSetup` function. This function takes an `$HostPool` array as parameter (so set the parameter values you used for the already deployed environement). It will remove all the resources created by the script (HostPool, Session Hosts, Application Groups, Workspace, etc.) based on the `$HostPool` array. A cleanup is also done in the Active Directory domain (removing the computer accounts of the Session Hosts and the Azure File Shares ...) and the Windows Credential Manager.
 You can also use the `Remove-AzAvdHostPoolSetup` function after the deployment to remove the environment if you are not satisfied with the result or to save costs after testing the deployed resources.
 
 ## Deployment
 
 The `New-AzAvdHostPoolSetup` function is the main function of the script. It takes an `$HostPool` array as parameter (so set the parameter values you want for the HostPool(s) you want to deploy). It will deploy all the resources needed for the HostPool(s) based on the `$HostPool` array.  
-This function has a `-AsJob` parameter. When this switch is specified, the ressources will be deployed in parallel (via the [Start-ThreadJob](https://learn.microsoft.com/en-us/powershell/module/threadjob/start-threadjob?view=powershell-7.4&viewFallbackFrom=powershell-5.1) cmdlet) instead of sequentially. The processing time is greatly reduced from 4.5 hours to 1.5 hours (including the Azure Compute Gallery Setup if needed - wihout the Azure Compute Gallery Setup, the processing time are 3h30 sequentially  and 45 minutes in parallel). Nevertheless, sometimes the setup fails in parallel mode (some error occurs) so I recommend to use the sequential mode if any error occurs in this mode (or retry).
+This function has a `-AsJob` parameter. When this switch is specified, the ressources will be deployed in parallel (via the [Start-ThreadJob](https://learn.microsoft.com/en-us/powershell/module/threadjob/start-threadjob?view=powershell-7.4&viewFallbackFrom=powershell-5.1) cmdlet) instead of sequentially. The processing time is greatly reduced from 4.5 hours to 1.5 hours (including the Azure Compute Gallery Setup if needed - wihout the Azure Compute Gallery Setup, the processing time are 3h30 sequentially  and 45 minutes in parallel). Nevertheless, sometimes the setup fails in parallel mode (some random error occurs) so I recommend to use the sequential mode if any error occurs in this mode (or retry).
 > [!NOTE]
 > The impacted ressources by the parallel mode are the HostPools and the Session Hosts. The Job Management is done at the end of the `New-AzAvdHostPoolSetup` function.
 
@@ -136,7 +138,7 @@ At the end of the deployment an RDCMan (\<domain name\>.rdg) file generated on t
 
 ## Testing
 
-After a successful deployment, you can connect to [Remote Desktop Web Client](https://client.wvd.microsoft.com/arm/webclient/index.html) or [Windows 365](https://windows365.microsoft.com/) site and use one the of the test users (available in the `OrgUsers` OU).
+After a successful deployment, you can connect to [Remote Desktop Web Client](https://client.wvd.microsoft.com/arm/webclient/index.html), [Windows 365](https://windows365.microsoft.com/) or the [windows App](https://www.microsoft.com/store/productId/9N1F85V9T8BN?ocid=pdpshare) site and use one the of the test users (available in the `OrgUsers` OU).
 
 ## Technical Details
 
