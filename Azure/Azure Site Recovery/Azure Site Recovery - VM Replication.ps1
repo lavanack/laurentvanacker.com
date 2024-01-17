@@ -183,10 +183,11 @@ $ImageSku = "2022-datacenter-g2"
 $PublicIPName = "pip-$VMName" 
 $NICName = "nic-$VMName"
 $OSDiskName = '{0}_OSDisk' -f $VMName
-$DataDiskName = '{0}_DataDisk' -f $VMName
+$DataDisk1Name = '{0}_DataDisk1' -f $VMName
+$DataDisk2Name = '{0}_DataDisk2' -f $VMName
 $OSDiskSize = "127"
 $StorageAccountSkuName = "Standard_LRS"
-$OSDiskType = "Premium_LRS"
+$DiskType = "Premium_LRS"
 
 Write-Verbose "`$VMName: $VMName"
 Write-Verbose "`$PrimaryLocationNetworkSecurityGroupName: $PrimaryLocationNetworkSecurityGroupName"         
@@ -290,16 +291,20 @@ $null = Set-AzVMBootDiagnostic -VM $VMConfig -Enable
 $null = Set-AzVMSourceImage -VM $VMConfig -PublisherName $ImagePublisherName -Offer $ImageOffer -Skus $ImageSku -Version 'latest'
 
 # Set OsDisk configuration
-$null = Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -CreateOption fromImage
+$null = Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $DiskType -CreateOption fromImage
 
-#region Adding Data Disk
-$VMDataDisk01Config = New-AzDiskConfig -SkuName $OSDiskType -Location $PrimaryLocation -CreateOption Empty -DiskSizeGB 512
-$VMDataDisk01 = New-AzDisk -DiskName $DataDiskName -Disk $VMDataDisk01Config -ResourceGroupName $PrimaryLocationResourceGroupName
-$VM = Add-AzVMDataDisk -VM $VMConfig -Name $DataDiskName -CreateOption Attach -ManagedDiskId $VMDataDisk01.Id -Lun 0
+#region Adding Data Disk(s)
+$VMDataDisk01Config = New-AzDiskConfig -SkuName $DiskType -Location $PrimaryLocation -CreateOption Empty -DiskSizeGB 512
+$VMDataDisk01 = New-AzDisk -DiskName $DataDisk1Name -Disk $VMDataDisk01Config -ResourceGroupName $PrimaryLocationResourceGroupName
+$VM = Add-AzVMDataDisk -VM $VMConfig -Name $DataDisk1Name -CreateOption Attach -ManagedDiskId $VMDataDisk01.Id -Lun 0
+
+$VMDataDisk02Config = New-AzDiskConfig -SkuName $DiskType -Location $PrimaryLocation -CreateOption Empty -DiskSizeGB 512
+$VMDataDisk02 = New-AzDisk -DiskName $DataDisk2Name -Disk $VMDataDisk02Config -ResourceGroupName $PrimaryLocationResourceGroupName
+$VM = Add-AzVMDataDisk -VM $VMConfig -Name $DataDisk2Name -CreateOption Attach -ManagedDiskId $VMDataDisk02.Id -Lun 1
 #endregion
 
 #Create Azure Virtual Machine
-$null = New-AzVM -ResourceGroupName $PrimaryLocationResourceGroupName -Location $PrimaryLocation -VM $VMConfig #-DisableBginfoExtension
+$null = New-AzVM -ResourceGroupName $PrimaryLocationResourceGroupName -Location $PrimaryLocation -VM $VMConfig -DisableBginfoExtension
 
 $VM = Get-AzVM -ResourceGroup $PrimaryLocationResourceGroupName -Name $VMName
 
@@ -480,7 +485,7 @@ while (($TempASRJob.State -eq "InProgress") -or ($TempASRJob.State -eq "NotStart
 }
 
 #Check if the Job completed successfully. The updated job state of a successfully completed job should be "Succeeded"
-Write-Host -Object "Protection container mapping creation status: $($Job_Failover.State) ..."
+Write-Host -Object "Protection container mapping creation status: $($TempASRJob.State) ..."
 
 $PrimaryToRecoveryPCMapping = Get-AzRecoveryServicesAsrProtectionContainerMapping -ProtectionContainer $PrimaryProtectionContainer  -Name $PrimaryToRecoveryPCMappingName
 #endregion
@@ -509,18 +514,18 @@ Write-Host -Object "Creating cache storage account and target storage account ..
 
 #region Create Cache storage account for replication logs in the primary region
 Write-Host -Object "Creating cache storage account for replication logs in the primary region ('$PrimaryLocation') ..."
-$PrimaryLocationCacheStorageAccount = New-AzStorageAccount -Name $PrimaryLocationCacheStorageAccountName -ResourceGroupName $PrimaryLocationResourceGroupName -Location $PrimaryLocation -SkuName Standard_LRS -Kind Storage
+$PrimaryLocationCacheStorageAccount = New-AzStorageAccount -Name $PrimaryLocationCacheStorageAccountName -ResourceGroupName $PrimaryLocationResourceGroupName -Location $PrimaryLocation -SkuName $StorageAccountSkuName -Kind Storage
 #endregion
 
 #region Create Cache storage account for replication logs in the recovery region
 Write-Host -Object "Creating cache storage account for replication logs in the recovery region ('$RecoveryLocation') ..."
-$RecoveryLocationCacheStorageAccount = New-AzStorageAccount -Name $RecoveryLocationCacheStorageAccountName -ResourceGroupName $RecoveryLocationResourceGroupName -Location $RecoveryLocation -SkuName Standard_LRS -Kind Storage
+$RecoveryLocationCacheStorageAccount = New-AzStorageAccount -Name $RecoveryLocationCacheStorageAccountName -ResourceGroupName $RecoveryLocationResourceGroupName -Location $RecoveryLocation -SkuName $StorageAccountSkuName -Kind Storage
 #endregion
 
 <#
 #region Create Target storage account in the recovery region. In this case a Standard Storage account for virtual machines not using managed disks
 Write-Host -Object "Creating Target storage account in the recovery region ('$RecoveryLocation'). In this case a Standard Storage account..."
-$RecoveryLocationStorageAccount = New-AzStorageAccount -Name $RecoveryLocationStorageAccountName -ResourceGroupName $RecoveryLocationResourceGroupName -Location $RecoveryLocation -SkuName Standard_LRS -Kind Storage
+$RecoveryLocationStorageAccount = New-AzStorageAccount -Name $RecoveryLocationStorageAccountName -ResourceGroupName $RecoveryLocationResourceGroupName -Location $RecoveryLocation -SkuName $StorageAccountSkuName -Kind Storage
 #endregion
 #>
 #endregion
@@ -560,23 +565,23 @@ Write-Host -Object "ASR network mapping creation status: $($TempASRJob.State) ..
 Write-Host -Object "Replicating Azure virtual machine with managed disks ..."
 #Specify replication properties for each disk of the VM that is to be replicated (create disk replication configuration)
 
-#OsDisk
-$OSdiskId = $vm.StorageProfile.OsDisk.ManagedDisk.Id
-$RecoveryOSDiskAccountType = $vm.StorageProfile.OsDisk.ManagedDisk.StorageAccountType
-$RecoveryReplicaDiskAccountType = $vm.StorageProfile.OsDisk.ManagedDisk.StorageAccountType
-
+#region OS Disk
+$OSdiskId = $VM.StorageProfile.OsDisk.ManagedDisk.Id
+$RecoveryOSDiskAccountType = $VM.StorageProfile.OsDisk.ManagedDisk.StorageAccountType
+$RecoveryReplicaDiskAccountType = $VM.StorageProfile.OsDisk.ManagedDisk.StorageAccountType
 $OSDiskReplicationConfig = New-AzRecoveryServicesAsrAzureToAzureDiskReplicationConfig -ManagedDisk -LogStorageAccountId $PrimaryLocationCacheStorageAccount.Id -DiskId $OSdiskId -RecoveryResourceGroupId  $RecoveryLocationResourceGroup.ResourceId -RecoveryReplicaDiskAccountType  $RecoveryReplicaDiskAccountType -RecoveryTargetDiskAccountType $RecoveryOSDiskAccountType
+#endregion
 
-# Data disk
-$datadiskId1 = $vm.StorageProfile.DataDisks[0].ManagedDisk.Id
-$RecoveryReplicaDiskAccountType = $vm.StorageProfile.DataDisks[0].ManagedDisk.StorageAccountType
-$RecoveryTargetDiskAccountType = $vm.StorageProfile.DataDisks[0].ManagedDisk.StorageAccountType
-
-$DataDisk1ReplicationConfig = New-AzRecoveryServicesAsrAzureToAzureDiskReplicationConfig -ManagedDisk -LogStorageAccountId $PrimaryLocationCacheStorageAccount.Id -DiskId $datadiskId1 -RecoveryResourceGroupId $RecoveryLocationResourceGroup.ResourceId -RecoveryReplicaDiskAccountType $RecoveryReplicaDiskAccountType -RecoveryTargetDiskAccountType $RecoveryTargetDiskAccountType
+#region Data Disk(s)
+$DataDisksReplicationConfig = foreach ($VMDataManagedDisk in $VM.StorageProfile.DataDisks.ManagedDisk) {
+    $RecoveryReplicaDiskAccountType = $VMDataManagedDisk.StorageAccountType
+    $RecoveryTargetDiskAccountType = $VMDataManagedDisk.StorageAccountType
+    New-AzRecoveryServicesAsrAzureToAzureDiskReplicationConfig -ManagedDisk -LogStorageAccountId $PrimaryLocationCacheStorageAccount.Id -DiskId $VMDataManagedDisk.Id -RecoveryResourceGroupId $RecoveryLocationResourceGroup.ResourceId -RecoveryReplicaDiskAccountType $RecoveryReplicaDiskAccountType -RecoveryTargetDiskAccountType $RecoveryTargetDiskAccountType
+}
+#endregion
 
 #Create a list of disk replication configuration objects for the disks of the virtual machine that are to be replicated.
-$diskconfigs = @()
-$diskconfigs += $OSDiskReplicationConfig, $DataDisk1ReplicationConfig
+$diskconfigs = @($OSDiskReplicationConfig) + $DataDisksReplicationConfig
 
 #Start replication by creating replication protected item. Using a GUID for the name of the replication protected item to ensure uniqueness of name.
 Write-Host "Starting replication by creating replication protected item ..."
