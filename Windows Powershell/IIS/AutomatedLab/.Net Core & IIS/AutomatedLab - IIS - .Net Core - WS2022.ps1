@@ -54,14 +54,17 @@ $NetworkID = '10.0.0.0/16'
 $DC01IPv4Address = '10.0.0.1'
 $IIS01IPv4Address = '10.0.0.11'
 
-<#
-$ASPNetCoreHostingBundleURI = "https://download.visualstudio.microsoft.com/download/pr/eaa3eab9-cc21-44b5-a4e4-af31ee73b9fa/d8ad75d525dec0a30b52adc990796b11/dotnet-hosting-6.0.9-win.exe"
-$NetSDKURI = "https://download.visualstudio.microsoft.com/download/pr/cebf08ce-ecf1-4439-8a0a-d81b3a4cad12/674ba293b83bdc9b1e00ddfa3ab82f10/dotnet-sdk-6.0.401-win-x64.exe"
-#>
 #Dynamically get the latest version
-$ASPNetCoreHostingBundleURI = ((Invoke-WebRequest https://dotnet.microsoft.com/permalink/dotnetcore-current-windows-runtime-bundle-installer).links | Where-Object -FilterScript {$_.innerHTML -match 'manually'}).href
-$NetSDKURI = 'https://dotnet.microsoft.com' + $(((Invoke-WebRequest https://dotnet.microsoft.com/en-us/download/dotnet/latest).links | Where-Object {$_.href -match 'sdk-.*-windows-x64-installer'}).href | Select-Object -First 1)
-$NetSDKURI = ((Invoke-WebRequest $NetSDKURI).links | Where-Object -FilterScript {$_.innerHTML -match 'manually'}).href
+#region Latest DotNet Core Hosting Bundle
+$LatestDotNetCoreHostingBundleURI = (Invoke-WebRequest https://dotnet.microsoft.com/permalink/dotnetcore-current-windows-runtime-bundle-installer).links.href | Where-Object -FilterScript { $_ -match "\.exe$"} | Select-Object -Unique
+$LatestDotNetCoreHostingBundleFilePath = Join-Path -Path $CurrentDir -ChildPath $(($LatestDotNetCoreHostingBundleURI -split "/")[-1])
+#endregion
+
+#region Latest DotNet SDK
+$LatestDotNetCoreSDKURI = (Invoke-WebRequest https://dotnet.microsoft.com/en-us/download).links.href | Where-Object -FilterScript { $_ -match "sdk.*windows.*-x64"}
+$LatestDotNetCoreSDKURI = "https://dotnet.microsoft.com$($LatestDotNetCoreSDKURI)"
+$LatestDotNetCoreSDKURI = (Invoke-WebRequest $LatestDotNetCoreSDKURI).links.href | Where-Object -FilterScript { $_ -match "sdk.*win.*-x64"} | Select-Object -Unique
+#endregion
 
 $LabName = 'NetCore'
 #endregion
@@ -181,13 +184,13 @@ Install-LabWindowsFeature -FeatureName Web-Server -ComputerName IIS01 -IncludeMa
 
 #region .Net Core pre-requisites
 #region Downloading and Installing .Net Hosting Bundle Installer for hosting the web app
-$ASPNetCoreHostingBundle = Get-LabInternetFile -Uri $ASPNetCoreHostingBundleURI -Path $labSources\SoftwarePackages -PassThru -Force
-Install-LabSoftwarePackage -ComputerName IIS01 -Path $ASPNetCoreHostingBundle.FullName -CommandLine "/install /passive /norestart"
+$LatestDotNetCoreHostingBundle = Get-LabInternetFile -Uri $LatestDotNetCoreHostingBundleURI -Path $labSources\SoftwarePackages -PassThru -Force
+Install-LabSoftwarePackage -ComputerName IIS01 -Path $LatestDotNetCoreHostingBundle.FullName -CommandLine "/install /passive /norestart"
 #endregion 
 
 #region Downloading and Installing .Net SDK for creating the web app
-$NetSDK = Get-LabInternetFile -Uri $NetSDKURI -Path $labSources\SoftwarePackages -PassThru -Force
-Install-LabSoftwarePackage -ComputerName IIS01 -Path $NetSDK.FullName -CommandLine "/install /passive /norestart"
+$LatestDotNetCoreSDK = Get-LabInternetFile -Uri $LatestDotNetCoreSDKURI -Path $labSources\SoftwarePackages -PassThru -Force
+Install-LabSoftwarePackage -ComputerName IIS01 -Path $LatestDotNetCoreSDK.FullName -CommandLine "/install /passive /norestart"
 #endregion
 
 Restart-LabVM -ComputerName IIS01 -Wait
@@ -247,7 +250,7 @@ Invoke-LabCommand -ActivityName 'Setting up the ASP.Net Core website' -ComputerN
     $NetCoreWebSitePath =  "C:\WebSites\$using:NetCoreWebSiteName"
     $null = New-Item -Path C:\Temp -ItemType Directory -Force
     Set-Location -Path C:\Temp
-    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "dotnet new webapp -o C:\Temp\aspnetcoreapp --force" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "dotnet new webapp -o C:\Temp\aspnetcoreapp --no-restore --force" -Wait
     Set-Location -Path C:\Temp\aspnetcoreapp
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "dotnet publish --configuration Release --verbosity detailed --force" -Wait
     $Source = (Get-ChildItem -Path '.\bin\Release\' -Recurse -Filter 'publish' -Directory).FullName
