@@ -15,7 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.KeyVault, Az.Network, Az.RecoveryServices, Az.Resources, Az.Security, Az.Storage
+#requires -Version 5 -Modules Az.Accounts, Az.Compute,Az.Network, Az.RecoveryServices, Az.Resources, Az.Security, Az.Storage
 
 #From https://learn.microsoft.com/en-us/azure/site-recovery/azure-to-azure-powershell
 
@@ -458,7 +458,7 @@ $RecoveryProtectionContainer = Get-AzRecoveryServicesAsrProtectionContainer -Fab
 
 #region Create replication policy
 Write-Host -Object "Creating replication policy ..."
-$RecoveryServicesAsrPolicyName = "$RecoveryServicesVaultName - A2APolicy" -f $RecoveryServicesVaultName
+$RecoveryServicesAsrPolicyName = "{0} - A2APolicy" -f $RecoveryServicesVaultName
 $TempASRJob = New-AzRecoveryServicesAsrPolicy -AzureToAzure -Name $RecoveryServicesAsrPolicyName -RecoveryPointRetentionInHours 24 -ApplicationConsistentSnapshotFrequencyInHours 4
 
 #Track Job status to check for completion
@@ -581,11 +581,11 @@ $DataDisksReplicationConfig = foreach ($VMDataManagedDisk in $VM.StorageProfile.
 #endregion
 
 #Create a list of disk replication configuration objects for the disks of the virtual machine that are to be replicated.
-$diskconfigs = @($OSDiskReplicationConfig) + $DataDisksReplicationConfig
+$DiskConfigs = @($OSDiskReplicationConfig) + $DataDisksReplicationConfig
 
 #Start replication by creating replication protected item. Using a GUID for the name of the replication protected item to ensure uniqueness of name.
 Write-Host "Starting replication by creating replication protected item ..."
-$TempASRJob = New-AzRecoveryServicesAsrReplicationProtectedItem -AzureToAzure -AzureVmId $VM.Id -Name (New-Guid).Guid -ProtectionContainerMapping $PrimaryToRecoveryPCMapping -AzureToAzureDiskReplicationConfiguration $diskconfigs -RecoveryResourceGroupId $RecoveryLocationResourceGroup.ResourceId
+$TempASRJob = New-AzRecoveryServicesAsrReplicationProtectedItem -AzureToAzure -AzureVmId $VM.Id -Name (New-Guid).Guid -ProtectionContainerMapping $PrimaryToRecoveryPCMapping -AzureToAzureDiskReplicationConfiguration $DiskConfigs -RecoveryResourceGroupId $RecoveryLocationResourceGroup.ResourceId
 
 #Track Job status to check for completion
 while (($TempASRJob.State -eq "InProgress") -or ($TempASRJob.State -eq "NotStarted")) {
@@ -613,7 +613,7 @@ Write-Host -Object "Replication state of the replicated item: $(Get-AzRecoverySe
 #region Do a test failover, validate, and cleanup test failover
 Write-Host -Object "Doing a test failover, validating, and cleaning up test failover ..."
 #Create a separate network for test failover (not connected to my DR network)
-$TFOVirtualNetworkName = "{0}-a2aTFOvnet" -f $PrimaryLocationVirtualNetworkName 
+$TFOVirtualNetworkName = "{0}-a2aTFOvnet" -f $PrimaryLocationVirtualNetwork.Name 
 $TFOVirtualNetwork = New-AzVirtualNetwork -Name $TFOVirtualNetworkName -ResourceGroupName $RecoveryLocationResourceGroupName -Location $RecoveryLocation -AddressPrefix $TestFailOverVirtualNetworkAddressSpace
 $null = Add-AzVirtualNetworkSubnetConfig -Name "default" -VirtualNetwork $TFOVirtualNetwork -AddressPrefix $TestFailOverSubnetIPRange | Set-AzVirtualNetwork
 
@@ -675,19 +675,19 @@ Write-Host -Object "Failover commit status: $($CommitFailoverJob.State) ..."
 
 #endregion
 
-#region Reprotect and fail back to the source region
-Write-Host -Object "Reprotecting and failing back to the source region ('$PrimaryLocation') ..." 
+#region Reprotect
+Write-Host -Object "Reprotecting ..." 
 
 #Use the recovery protection container, new cache storage account in recovery location and the source region VM resource group
 $ReprotectJob = Update-AzRecoveryServicesAsrProtectionDirection -ReplicationProtectedItem $ReplicationProtectedItem -AzureToAzure -ProtectionContainerMapping $RecoveryToPrimaryPCMapping -LogStorageAccountId $RecoveryLocationCacheStorageAccount.Id -RecoveryResourceGroupID $PrimaryLocationResourceGroup.ResourceId
 
-Write-Host -Object "Waiting the reprotection and failback complete ..." 
+Write-Host -Object "Waiting the reprotection completes ..." 
 while (($ReprotectJob.State -eq "InProgress") -or ($ReprotectJob.State -eq "NotStarted")) {
     $ReprotectJob = Get-AzRecoveryServicesAsrJob -Job $ReprotectJob;
     Start-Sleep -Seconds 30
 }
 
-Write-Host -Object "Reprotection and fail back status: $($ReprotectJob.State) ..."
+Write-Host -Object "Reprotection: $($ReprotectJob.State) ..."
 #endregion
 
 #region Disable replication
