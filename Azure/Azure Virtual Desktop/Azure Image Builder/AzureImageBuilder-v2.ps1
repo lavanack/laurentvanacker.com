@@ -40,9 +40,6 @@ function New-AzureComputeGallery {
 	# Your subscription. This command gets your current subscription
 	$subscriptionID = $AzContext.Subscription.Id
 
-	#Timestamp
-	$timeInt = (Get-Date $([datetime]::UtcNow) -UFormat "%s").Split(".")[0]
-
 	#Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
 	$AzureComputeGalleryPrefix = "acg"
 	$ResourceGroupPrefix = "rg"
@@ -57,7 +54,8 @@ function New-AzureComputeGallery {
 
 	$Project = "avd"
 	$Role = "aib"
-	$TimeInt = (Get-Date $([datetime]::UtcNow) -UFormat "%s").Split(".")[0]
+	#Timestamp
+	$timeInt = (Get-Date $([datetime]::UtcNow) -UFormat "%s").Split(".")[0]
 	$ResourceGroupName = "{0}-{1}-{2}-{3}-{4}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $TimeInt 
 	$ResourceGroupName = $ResourceGroupName.ToLower()
 	Write-Verbose -Message "`$ResourceGroupName: $ResourceGroupName"
