@@ -326,6 +326,7 @@ function New-AzHostPoolSessionCredentialKeyVault {
     Do {
         $Index++
         $KeyVaultName = "kvavdhpcred{0}{1:D3}" -f $shortNameHT[$Location].shortName, $Index
+        $KeyVaultName = $KeyVaultName.ToLower()
         if ($Index -gt 999) {
             Write-Error "No name available for HostPool Credential Keyvault ..." -ErrorAction Stop
         }
@@ -1700,6 +1701,7 @@ function New-AzAvdPersonalHostPoolSetup {
             #region Key Vault Name Setup
             $CurrentHostPoolKeyVaultName = "kv{0}" -f $($CurrentHostPool.Name -replace "\W")
             $CurrentHostPoolKeyVaultName = $CurrentHostPoolKeyVaultName.Substring(0, [system.math]::min($CurrentHostPoolKeyVaultNameMaxLength, $CurrentHostPoolKeyVaultName.Length)).ToLower()
+            $CurrentHostPoolKeyVaultName = $CurrentHostPoolKeyVaultName.ToLower()
             #endregion 
 
             #region Dedicated Key Vault Setup
@@ -2891,6 +2893,7 @@ function New-AzAvdPooledHostPoolSetup {
             #region Key Vault Name Setup
             $CurrentHostPoolKeyVaultName = "kv{0}" -f $($CurrentHostPool.Name -replace "\W")
             $CurrentHostPoolKeyVaultName = $CurrentHostPoolKeyVaultName.Substring(0, [system.math]::min($CurrentHostPoolKeyVaultNameMaxLength, $CurrentHostPoolKeyVaultName.Length)).ToLower()
+            $CurrentHostPoolKeyVaultName = $CurrentHostPoolKeyVaultName.ToLower()
             #endregion 
 
             #region Dedicated Key Vault Setup
