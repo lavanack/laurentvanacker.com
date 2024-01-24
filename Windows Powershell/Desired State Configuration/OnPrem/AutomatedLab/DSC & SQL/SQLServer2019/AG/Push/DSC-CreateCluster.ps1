@@ -511,6 +511,17 @@ Configuration CreateClusterWithTwoNodes {
         }
         #endregion        
 
+        #region Cluster Preferred Owner
+        ClusterPreferredOwner 'AddOwnersForCluster'
+        {
+            Ensure       = 'Present'
+            ClusterName  = $Node.ClusterName
+            ClusterGroup = $Node.AvailabilityGroupName
+            Nodes        = $AllNodes.NodeName
+            DependsOn    = '[Script]TestCluster'
+        }
+        #endregion
+
         #region SQL Server       
         #Disabling And Enabling the SQL Server AlwaysOn feature
         Script DisableAndEnableSqlAlwaysOn {
@@ -525,7 +536,7 @@ Configuration CreateClusterWithTwoNodes {
                 }
 
                 $PrimaryReplica = $($($using:AllNodes).Where{$_.Role -eq 'PrimaryReplica' }.NodeName)
-                $AvailabilityGroups = [string]$(Invoke-Sqlcmd -Query "SELECT Groups.[Name] AS AGname FROM sys.dm_hadr_availability_group_states States INNER JOIN master.sys.availability_groups Groups ON States.group_id = Groups.group_id WHERE primary_replica = '$PrimaryReplica';"  -ServerInstance $InstanceName).AGname -join ','
+                $AvailabilityGroups = [string]$(Invoke-Sqlcmd -Query "SELECT Groups.[Name] AS AGname FROM sys.dm_hadr_availability_group_states States INNER JOIN master.sys.availability_groups Groups ON States.group_id = Groups.group_id WHERE primary_replica = '$PrimaryReplica';"  -ServerInstance $InstanceName -Encrypt Optional).AGname -join ','
                 @{
                     GetScript  = $GetScript
                     SetScript  = $SetScript
@@ -716,7 +727,7 @@ Configuration CreateClusterWithTwoNodes {
                     $InstanceName = Join-Path -Path $($using:Node).NodeName -ChildPath $($using:Node).InstanceName
                 }
                 $PrimaryReplica = $($($using:AllNodes).Where{$_.Role -eq 'PrimaryReplica' }.NodeName)
-                $AvailabilityGroups = [string]$(Invoke-Sqlcmd -Query "SELECT Groups.[Name] AS AGname FROM sys.dm_hadr_availability_group_states States INNER JOIN master.sys.availability_groups Groups ON States.group_id = Groups.group_id WHERE primary_replica = '$PrimaryReplica';"  -ServerInstance $InstanceName).AGname -join ','
+                $AvailabilityGroups = [string]$(Invoke-Sqlcmd -Query "SELECT Groups.[Name] AS AGname FROM sys.dm_hadr_availability_group_states States INNER JOIN master.sys.availability_groups Groups ON States.group_id = Groups.group_id WHERE primary_replica = '$PrimaryReplica';"  -ServerInstance $InstanceName -Encrypt Optional).AGname -join ','
                 @{
                     GetScript  = $GetScript
                     SetScript  = $SetScript
