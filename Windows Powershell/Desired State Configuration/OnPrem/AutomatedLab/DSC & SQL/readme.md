@@ -20,7 +20,7 @@ This repository contains a set of scripts to deploy an [AutomatedLab](https://au
 
 ## Environment Setup
 
-Run the [AutomatedLab - DSC & SQL.ps1](AutomatedLab%20-%20DSC%20&%20SQL.ps1) script (PowerShell 5.1 needed) wait for completion (~90-120 minutes - depending of your hardware).
+Run the [AutomatedLab - DSC & SQL.ps1](AutomatedLab%20-%20DSC%20&%20SQL.ps1) script (PowerShell 5.1 needed) and wait for completion (~90-120 minutes - depending of your hardware).
 After completion you'll have:
 
 - a Domain Controller for the contoso.com domain: DC01.
