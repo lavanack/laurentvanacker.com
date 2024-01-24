@@ -204,10 +204,10 @@ Copy-LabFileItem -Path "$CurrentDir\DSC Dashboard.pbix" -ComputerName PULL
 Copy-LabFileItem -Path "$CurrentDir\Get-DSC*.ps1" -ComputerName $SQLServerTargetNodes
 
 #Copying the DSC Script to the dedicated folder
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "AG") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "FCI") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "DefaultInstance") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "DefaultInstance") -ComputerName PULL -DestinationFolderPath $WorkSpace -Recurse
+Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2019\AG") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
+Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2019\FCI") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
+Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2019\DefaultInstance") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
+Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2019\DefaultInstance") -ComputerName PULL -DestinationFolderPath $WorkSpace -Recurse
 #endregion
 
 Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $AllLabVMs -ScriptBlock {

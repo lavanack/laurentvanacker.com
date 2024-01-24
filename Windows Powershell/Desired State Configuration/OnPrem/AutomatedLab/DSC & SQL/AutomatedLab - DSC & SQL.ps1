@@ -457,9 +457,8 @@ Invoke-LabCommand -ActivityName 'Taking the disk online and initialize it' -Comp
 }
 
 #Copying the DSC Script to the dedicated folder
-#Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath '*SQLFCICluster*') -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "AG") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "FCI") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
+Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2019\AG") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
+Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2019\FCI") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
 
 Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName $AllLabVMs -ScriptBlock {
     Stop-Service WUAUSERV -PassThru | Set-Service -StartupType Disabled
@@ -478,8 +477,8 @@ Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 <#
 Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All
 Invoke-LabCommand -ActivityName "Removing $Labname folder" -ComputerName $SQLServerNodes -ScriptBlock { Remove-Item -Path $using:WorkSpace -Recurse -Force} -Verbose
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "AG") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "FCI") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
+Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2019\AG") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
+Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2019\FCI") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
 #>
 
 <#
