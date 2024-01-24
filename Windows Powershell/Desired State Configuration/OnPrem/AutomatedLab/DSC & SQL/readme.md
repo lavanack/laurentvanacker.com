@@ -40,13 +40,13 @@ This scenario will deploy a SQL Server Availability Group (AG) with 2 replicas (
 
 ![](docs/ag.jpg)
 
-Edit the [CreateClusterWithTwoNodes.ps1](AG/CreateClusterWithTwoNodes.ps1) script (via PowerShell ISE) and run it. After some minutes (~10 minutes) and some reboots you'll have a SQL Server AG with 2 replicas (SQLNODE01, SQLNODE02)
+Edit the [CreateClusterWithTwoNodes.ps1](SQLServer2019/AG/CreateClusterWithTwoNodes.ps1) script (via PowerShell ISE) and run it. After some minutes (~10 minutes) and some reboots you'll have a SQL Server AG with 2 replicas (SQLNODE01, SQLNODE02)
 
 **Notes**
 
-- The [CreateClusterWithTwoNodes.ps1](AG/CreateClusterWithTwoNodes.ps1) script is just the start script.
-- The [DSC-CreateCluster.ps1](AG/DSC-CreateCluster.ps1) is the main script (where the magic happens - take a look into it) that will be called by the [CreateClusterWithTwoNodes.ps1](AG/CreateClusterWithTwoNodes.ps1) script.
-- The [DSC-CreateClusterWithTwoNodes.psd1)](AG/DSC-CreateClusterWithTwoNodes.psd1) file is the configuration data file.
+- The [CreateClusterWithTwoNodes.ps1](SQLServer2019/AG/CreateClusterWithTwoNodes.ps1) script is just the start script.
+- The [DSC-CreateCluster.ps1](SQLServer2019/AG/DSC-CreateCluster.ps1) is the main script (where the magic happens - take a look into it) that will be called by the [CreateClusterWithTwoNodes.ps1](SQLServer2019/AG/CreateClusterWithTwoNodes.ps1) script.
+- The [DSC-CreateClusterWithTwoNodes.psd1)](SQLServer2019/AG/DSC-CreateClusterWithTwoNodes.psd1) file is the configuration data file.
 - After the deployment you'll have :
   
   - a 'Clusters' OU in the contoso.com domain with 2 dedicated computer account
@@ -60,21 +60,21 @@ This scenario will deploy a SQL Server Failover Cluster with 3 nodes (SQLNODE01,
 
 ![](docs/fci.jpg)
 
-Edit the [CreateClusterWithThreeNodes.ps1](FCI/CreateClusterWithThreeNodes.ps1) script (via PowerShell ISE) and run it. After some minutes (~30 minutes) and some reboots you'll have a SQL Server Failover Cluster with 3 nodes (SQLNODE01, SQLNODE02 and SQLNODE03)
+Edit the [CreateClusterWithThreeNodes.ps1](SQLServer2019/FCI/CreateClusterWithThreeNodes.ps1) script (via PowerShell ISE) and run it. After some minutes (~30 minutes) and some reboots you'll have a SQL Server Failover Cluster with 3 nodes (SQLNODE01, SQLNODE02 and SQLNODE03)
 
 ### Default Instance
 
 This scenario will deploy a SQL Server Default Instance in one of the following modes:
 
-- Pull mode: The DSC configuration is applied directly on the SQLNode01 server. The server name is specified in the [DefaultInstance/Pull/DSC-CreateDefaultInstance.psd1](DefaultInstance/Pull/DSC-CreateDefaultInstance.psd1) file. Change it at your convenience. for this scenario you must use the [AutomatedLab - DSC & SQL - Pull Scenario with SQL Server Reporting.ps1](<AutomatedLab - DSC & SQL - Pull Scenario with SQL Server Reporting.ps1>) script for the deployment.
+- Pull mode: The DSC configuration is applied directly on the SQLNode01 server. The server name is specified in the [DefaultInstance/Pull/DSC-CreateDefaultInstance.psd1](SQLServer2019/DefaultInstance/Pull/DSC-CreateDefaultInstance.psd1) file. Change it at your convenience. for this scenario you must use the [AutomatedLab - DSC & SQL - Pull Scenario with SQL Server Reporting.ps1](<AutomatedLab - DSC & SQL - Pull Scenario with SQL Server Reporting.ps1>) script for the deployment.
 - Push Mode: The DSC configuration is applied directly on the server where the script is run.
 
 
 **Notes**
 
-- The [CreateClusterWithThreeNodes.ps1](FCI/CreateClusterWithThreeNodes.ps1) script is just the start script.
-- The [DSC-CreateCluster.ps1](FCI/DSC-CreateCluster.ps1) is the main script (where the magic happens - take a look into it) that will be called by the [CreateClusterWithThreeNodes.ps1](FCI/CreateClusterWithThreeNodes.ps1) script.
-- The [DSC-CreateClusterWithThreeNodes.psd1](FCI/DSC-CreateClusterWithThreeNodes.psd1) file is the configuration data file.
+- The [CreateClusterWithThreeNodes.ps1](SQLServer2019/FCI/CreateClusterWithThreeNodes.ps1) script is just the start script.
+- The [DSC-CreateCluster.ps1](SQLServer2019/FCI/DSC-CreateCluster.ps1) is the main script (where the magic happens - take a look into it) that will be called by the [CreateClusterWithThreeNodes.ps1](SQLServer2019/FCI/CreateClusterWithThreeNodes.ps1) script.
+- The [DSC-CreateClusterWithThreeNodes.psd1](SQLServer2019/FCI/DSC-CreateClusterWithThreeNodes.psd1) file is the configuration data file.
 - After the deployment you'll have :
   
   - a 'Clusters' OU in the contoso.com domain with 2 dedicated computer account
