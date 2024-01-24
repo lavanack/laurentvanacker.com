@@ -256,6 +256,7 @@ Configuration CreateClusterWithTwoNodes {
             # Startup type for Browser Service.
             BrowserSvcStartupType  = "Automatic"
             PsDscRunAsCredential   = $SqlInstallCredential
+            DependsOn              = '[WindowsFeature]NetFramework45'
         }
 
         #SQL Server AlwaysOn Service

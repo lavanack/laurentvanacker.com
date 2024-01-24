@@ -377,8 +377,7 @@ Configuration CreateClusterWithTwoNodes {
             #BrowserSvcStartupType  = "Automatic"
             ForceReboot                  = $true
             PsDscRunAsCredential         = $SqlInstallCredential
-
-            DependsOn                    = '[Script]TestCluster', '[Script]AddClusterDisk'
+            DependsOn                    = '[Script]TestCluster', '[Script]AddClusterDisk', '[WindowsFeature]NetFramework45'
         }
 
         WaitForAll SqlSetupAddNode
@@ -610,6 +609,6 @@ Configuration CreateClusterWithTwoNodes {
             PsDscRunAsCredential         = $SqlInstallCredential
 
             #DependsOn              = '[File]Backup', '[File]Data', '[File]Log', '[File]TempDB'
-            DependsOn                = '[WaitForAny]FirstNode'
+            DependsOn                = '[WaitForAny]FirstNode', '[WindowsFeature]NetFramework45'
         }
     }}

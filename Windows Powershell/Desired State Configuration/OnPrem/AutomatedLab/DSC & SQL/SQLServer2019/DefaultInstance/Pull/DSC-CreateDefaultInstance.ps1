@@ -117,6 +117,7 @@ Configuration CreateDefaultInstance {
             # Startup type for Browser Service.
             BrowserSvcStartupType  = "Automatic"
             PsDscRunAsCredential   = $SqlInstallCredential
+            DependsOn              = '[WindowsFeature]NetFramework45'
         }
 
         #region SQL Server Registry Management

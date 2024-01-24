@@ -28,7 +28,6 @@
             Features = 'SQLENGINE,FullText,Replication'
             InstanceName  = 'MSSQLSERVER'
             BackupPath = '\\FS01\Backup'
-            SampleDatabaseName = 'Contoso'
             Drive = 'D:'
             SQLTCPPort = 1433
             #endregion
