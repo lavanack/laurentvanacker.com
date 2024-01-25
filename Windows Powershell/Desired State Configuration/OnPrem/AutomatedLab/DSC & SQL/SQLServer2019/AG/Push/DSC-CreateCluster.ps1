@@ -511,17 +511,6 @@ Configuration CreateClusterWithTwoNodes {
         }
         #endregion        
 
-        #region Cluster Preferred Owner
-        ClusterPreferredOwner 'AddOwnersForCluster'
-        {
-            Ensure       = 'Present'
-            ClusterName  = $Node.ClusterName
-            ClusterGroup = $Node.AvailabilityGroupName
-            Nodes        = $AllNodes.NodeName
-            DependsOn    = '[Script]TestCluster'
-        }
-        #endregion
-
         #region SQL Server       
         #Disabling And Enabling the SQL Server AlwaysOn feature
         Script DisableAndEnableSqlAlwaysOn {
@@ -630,6 +619,17 @@ Configuration CreateClusterWithTwoNodes {
             PsDscRunAsCredential = $ActiveDirectoryAdministratorCredential
             DependsOn            = '[SqlSetup]InstallAG', '[WaitForAll]WaitForAddReplica'#, '[SqlAGListener]AvailabilityGroupListener'
         }
+
+        #region Cluster Preferred Owner
+        ClusterPreferredOwner 'AddOwnersForCluster'
+        {
+            Ensure       = 'Present'
+            ClusterName  = $Node.ClusterName
+            ClusterGroup = $Node.AvailabilityGroupName
+            Nodes        = $AllNodes.NodeName
+            DependsOn    = '[Script]SetClusterOwnerNode'
+        }
+        #endregion
 
         #Adding a Sample database
         SqlDatabase CreateSampleDatabase

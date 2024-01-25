@@ -320,18 +320,6 @@ Configuration CreateClusterWithTwoNodes {
             DependsOn = '[WaitForAll]JoinAdditionalServerNodeToCluster'
         }
         
-        #region Cluster Preferred Owner
-        ClusterPreferredOwner 'AddOwnersForCluster'
-        {
-            Ensure               = 'Present'
-            ClusterName          = $Node.ClusterName
-            ClusterGroup         = $Node.FailoverClusterGroupName
-            Nodes                = $AllNodes.NodeName
-            DependsOn            = '[Script]TestCluster'
-            PsDscRunAsCredential = $ActiveDirectoryAdministratorCredential
-        }
-        #endregion
-
         #Installing SQL server in Failover Cluster Mode : First Node
         SqlSetup 'InstallFailoverCluster'
         {
@@ -422,6 +410,17 @@ Configuration CreateClusterWithTwoNodes {
             DependsOn            = '[WaitForAll]SqlSetupAddNode'
         }
                 
+        #region Cluster Preferred Owner
+        ClusterPreferredOwner 'AddOwnersForCluster'
+        {
+            Ensure       = 'Present'
+            ClusterName  = $Node.ClusterName
+            ClusterGroup = $Node.FailoverClusterGroupName
+            Nodes        = $AllNodes.NodeName
+            DependsOn    = '[Script]SetClusterOwnerNode'
+        }
+        #endregion
+
         #region SQL Server Service Management
         if ($Node.InstanceName -eq "MSSQLServer")
         {
