@@ -214,11 +214,9 @@ Copy-LabFileItem -Path "$CurrentDir\DSC Dashboard.pbix" -ComputerName PULL
 #Coping the PowerShell Script to have a local report of the DSC deployments
 Copy-LabFileItem -Path "$CurrentDir\Get-DSC*.ps1" -ComputerName $SQLServerTargetNodes
 
-#Copying the DSC Script to the dedicated folder
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\AG") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\FCI") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\DefaultInstance") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\DefaultInstance") -ComputerName PULL -DestinationFolderPath $WorkSpace -Recurse
+#Copying the SQLServer DSC Scripts to the dedicated folder inside the VMs
+$SQLServerDir = Get-ChildItem -Path  $CurrentDir -Directory -Filter SQLServer*
+Copy-LabFileItem -Path $SQLServerDir.FullName -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse -Verbose
 #endregion
 
 Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $AllLabVMs -ScriptBlock {
