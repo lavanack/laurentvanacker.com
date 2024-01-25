@@ -413,11 +413,12 @@ Configuration CreateClusterWithTwoNodes {
         #region Cluster Preferred Owner
         ClusterPreferredOwner 'AddOwnersForCluster'
         {
-            Ensure       = 'Present'
-            ClusterName  = $Node.ClusterName
-            ClusterGroup = $Node.FailoverClusterGroupName
-            Nodes        = $AllNodes.NodeName
-            DependsOn    = '[Script]SetClusterOwnerNode'
+            Ensure               = 'Present'
+            ClusterName          = $Node.ClusterName
+            ClusterGroup         = $Node.FailoverClusterGroupName
+            Nodes                = $AllNodes.NodeName
+            PsDscRunAsCredential = $SqlInstallCredential
+            DependsOn            = '[Script]SetClusterOwnerNode'
         }
         #endregion
 
