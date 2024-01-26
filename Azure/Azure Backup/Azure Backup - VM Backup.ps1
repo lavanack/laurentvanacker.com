@@ -369,6 +369,7 @@ $Jobs = foreach ($CurrentVM in $VM) {
     $EndDate = (Get-Date).AddDays(60).ToUniversalTime()
     Backup-AzRecoveryServicesBackupItem -Item $RecoveryServicesBackupItem -VaultId $RecoveryServicesVault.ID -ExpiryDateTimeUTC $EndDate
 }
+$Jobs
 #endregion
 
 <#
