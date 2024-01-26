@@ -54,15 +54,26 @@ $SQLServerSADGroup = "SQLServers"
 $SQLServicesADGroup = "SQLServices"
 $ClusterNameObjectsADGroup = "ClusterNameObjects"
 
-#SQL Server
-#$SQLServer2019StandardISO = "$labSources\ISOs\en_sql_server_2019_standard_x64_dvd_cdcd4b9f.iso"
-$SQLServer2019EnterpriseISO = "$labSources\ISOs\en_sql_server_2019_enterprise_x64_dvd_5e1ecc6b.iso"
+#region SQL Server
 #SQL Server Management Studio
 $SQLServerManagementStudioURI = 'https://aka.ms/ssmsfullsetup'
-#SQL Server 2019 Latest GDR: KB4583458 when writing
+
+#region SQL Server 2019
+$SQLServer2019EnterpriseISO = "$labSources\ISOs\en_sql_server_2019_enterprise_x64_dvd_5e1ecc6b.iso"
+#SQL Server 2019 Latest GDR: KB4583458 when writing/updating this script (January 2024)
 $SQLServer2019LatestGDRURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=102618 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "click here to download manually"}).href
-#SQL Server 2019 Latest Cumulative Update: KB5017593 - Cumulative Update 18 when writing/updating this script (October 2022)
+#SQL Server 2019 Latest Cumulative Update: KB5031908 when writing/updating this script (January 2024)
 $SQLServer2019LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=100809 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "click here to download manually"}).href
+#endregion
+
+#region SQL Server 2022
+$SQLServer2022EnterpriseISO = "$labSources\ISOs\enu_sql_server_2022_enterprise_edition_x64_dvd_aa36de9e"
+#SQL Server 2022 Latest GDR: KB5021522 when writing/updating this script (January 2024)
+$SQLServer2022LatestGDRURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/details.aspx?id=105003 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"}).href
+#SQL Server 2022 Latest Cumulative Update: KB5032679 when writing/updating this script (January 2024)
+$SQLServer2022LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/details.aspx?id=105013 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"}).href
+#endregion
+#endregion
 
 $NetworkID='10.0.0.0/24' 
 $Ipv4Gateway = '10.0.0.254'
@@ -116,7 +127,7 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:MinMemory'       = 1GB
     'Add-LabMachineDefinition:MaxMemory'       = 4GB
     'Add-LabMachineDefinition:Memory'          = 2GB
-    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Datacenter (Desktop Experience)'
+    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2022 Datacenter (Desktop Experience)'
     #'Add-LabMachineDefinition:Processors'      = $LabMachineDefinitionProcessors
 }
 
@@ -239,6 +250,7 @@ Restart-LabVM -ComputerName $SQLServerNodes -Wait
 $WindowsServer2019StandardISO = ($SQLServerNodes | Select-Object -First 1).OperatingSystem.IsoPath
 
 #$SQLServer2019StandardMountedVolume = Mount-LabIsoImage -IsoPath $SQLServer2019StandardISO -ComputerName FS01 -PassThru
+$SQLServer2022EnterpriseMountedVolume = Mount-LabIsoImage -IsoPath $SQLServer2022EnterpriseISO -ComputerName FS01 -PassThru
 $SQLServer2019EnterpriseMountedVolume = Mount-LabIsoImage -IsoPath $SQLServer2019EnterpriseISO -ComputerName FS01 -PassThru
 $WindowsServer2019StandardMountedVolume = Mount-LabIsoImage -IsoPath $WindowsServer2019StandardISO -ComputerName FS01 -PassThru
 
@@ -253,7 +265,7 @@ $SQLServerManagementStudio = Get-LabInternetFile -Uri $SQLServerManagementStudio
 $Job += Install-LabSoftwarePackage -ComputerName $SQLServerNodes -Path $SQLServerManagementStudio.FullName -CommandLine "/install /passive /norestart" -AsJob -PassThru
 #endregion
 
-Invoke-LabCommand -ActivityName 'Configuring Storage & Copying SQL Server 2019 ISO & Tools' -ComputerName FS01 -ScriptBlock {
+Invoke-LabCommand -ActivityName 'Configuring Storage & Copying SQL Server 2019 and 2022 ISOs & Tools' -ComputerName FS01 -ScriptBlock {
     <#
     Get-VirtualDisk | Remove-VirtualDisk -Confirm:$false
     Get-StoragePool | Remove-StoragePool -Confirm:$false
@@ -352,12 +364,18 @@ Invoke-LabCommand -ActivityName 'Configuring Storage & Copying SQL Server 2019 I
     $SQLServer2019UpdatesFolder = New-Item -Path $SQLServer2019Folder -Name "Updates" -ItemType Directory -Force
     #$SQLServer2019ISOContent = Join-Path -Path $using:SQLServer2019StandardMountedVolume.DriveLetter -ChildPath '*'
     $SQLServer2019ISOContent = Join-Path -Path $using:SQLServer2019EnterpriseMountedVolume.DriveLetter -ChildPath '*'
+    $SQLServer2022Folder = New-Item -Path $SourcesFolder -Name "SQLServer2022" -ItemType Directory -Force
+    $SQLServer2022UpdatesFolder = New-Item -Path $SQLServer2022Folder -Name "Updates" -ItemType Directory -Force
+    #$SQLServer2022ISOContent = Join-Path -Path $using:SQLServer2022StandardMountedVolume.DriveLetter -ChildPath '*'
+    $SQLServer2022ISOContent = Join-Path -Path $using:SQLServer2022EnterpriseMountedVolume.DriveLetter -ChildPath '*'
 
     #Copying SQL Server ISO content
     Copy-Item -Path $SQLServer2019ISOContent -Destination $SQLServer2019Folder -Recurse -Force
+    Copy-Item -Path $SQLServer2022ISOContent -Destination $SQLServer2022Folder -Recurse -Force
 
     #Copying Sources\Sxs folder from the OS ISO
     #Copy-Item -Path $WindowsServer2019ISOContent -Destination $WindowsServer2019SourcesFolder -Recurse -Force
+    #Copy-Item -Path $WindowsServer2022ISOContent -Destination $WindowsServer2022SourcesFolder -Recurse -Force
 
     #SQL Server Management Studio
     $SQLServerManagementStudioInstaller = Join-Path -Path $SQLServerTools -ChildPath 'SSMS-Setup-ENU.exe'
@@ -374,7 +392,17 @@ Invoke-LabCommand -ActivityName 'Configuring Storage & Copying SQL Server 2019 I
     #Invoke-WebRequest -Uri $using:SQLServer2019LatestCUURI -OutFile $SQLServer2019LatestCUInstaller -Verbose
     #Start-BitsTransfer -Source $using:SQLServer2019LatestCUURI -Destination $SQLServer2019LatestCUInstaller -Verbose
 
-    Start-BitsTransfer -Source $using:SQLServerManagementStudioURI, $using:SQLServer2019LatestGDRURI, $using:SQLServer2019LatestCUURI  -Destination $SQLServerManagementStudioInstaller, $SQLServer2019LatestGDRInstaller, $SQLServer2019LatestCUInstaller -Verbose  
+    #SQL Server 2022 Latest GDR
+    $SQLServer2022LatestGDRInstaller = Join-Path -Path $SQLServer2022UpdatesFolder -ChildPath $(Split-Path -Path $using:SQLServer2022LatestGDRURI -Leaf)
+    #Invoke-WebRequest -Uri $using:SQLServer2022LatestGDRURI -OutFile $SQLServer2022LatestGDRInstaller -Verbose
+    #Start-BitsTransfer -Source $using:SQLServer2022LatestGDRURI -Destination $SQLServer2022LatestGDRInstaller -Verbose
+
+    #SQL Server 2022 Latest Cumulative Update
+    $SQLServer2022LatestCUInstaller = Join-Path -Path $SQLServer2022UpdatesFolder -ChildPath $(Split-Path -Path $using:SQLServer2022LatestCUURI -Leaf)
+    #Invoke-WebRequest -Uri $using:SQLServer2022LatestCUURI -OutFile $SQLServer2022LatestCUInstaller -Verbose
+    #Start-BitsTransfer -Source $using:SQLServer2022LatestCUURI -Destination $SQLServer2022LatestCUInstaller -Verbose
+
+    Start-BitsTransfer -Source $using:SQLServerManagementStudioURI, $using:SQLServer2019LatestGDRURI, $using:SQLServer2019LatestCUURI, $using:SQLServer2022LatestGDRURI, $using:SQLServer2022LatestCUURI  -Destination $SQLServerManagementStudioInstaller, $SQLServer2019LatestGDRInstaller, $SQLServer2019LatestCUInstaller, $SQLServer2022LatestGDRInstaller, $SQLServer2022LatestCUInstaller -Verbose  
 
     #Installing required PowerShell modules from PowerShell Gallery
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
@@ -457,8 +485,8 @@ Invoke-LabCommand -ActivityName 'Taking the disk online and initialize it' -Comp
 }
 
 #Copying the DSC Script to the dedicated folder
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2019\AG") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2019\FCI") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
+Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\AG") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
+Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\FCI") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
 
 Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName $AllLabVMs -ScriptBlock {
     Stop-Service WUAUSERV -PassThru | Set-Service -StartupType Disabled
@@ -477,8 +505,8 @@ Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 <#
 Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All
 Invoke-LabCommand -ActivityName "Removing $Labname folder" -ComputerName $SQLServerNodes -ScriptBlock { Remove-Item -Path $using:WorkSpace -Recurse -Force} -Verbose
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2019\AG") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2019\FCI") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
+Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\AG") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
+Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\FCI") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
 #>
 
 <#
