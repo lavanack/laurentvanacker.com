@@ -17,7 +17,7 @@ of the Sample Code.
 #>
 #requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.Network, Az.RecoveryServices, Az.Resources, Az.Security, Az.Storage
 
-#From #From https://learn.microsoft.com/en-us/azure/backup/scripts/backup-powershell-sample-backup-encrypted-vm
+#From https://learn.microsoft.com/en-us/azure/backup/scripts/backup-powershell-sample-backup-encrypted-vm
 #From https://learn.microsoft.com/en-us/azure/backup/powershell-backup-samples
 #From https://learn.microsoft.com/en-us/azure/backup/scripts/backup-powershell-sample-backup-encrypted-vm
 
