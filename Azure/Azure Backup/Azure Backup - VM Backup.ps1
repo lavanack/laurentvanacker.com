@@ -95,7 +95,6 @@ $PrimaryLocationShortName = $shortNameHT[$PrimaryLocation].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
 $RecoverySiteVaultPrefix = "rsv"
 $ResourceGroupPrefix = "rg"
-$StorageAccountPrefix = "sa"
 $VirtualMachinePrefix = "vm"
 $NetworkSecurityGroupPrefix = "nsg"
 $VirtualNetworkPrefix = "vnet"
@@ -124,8 +123,6 @@ $PrimaryLocationSubnetName = $PrimaryLocationSubnetName.ToLower()
 $PrimaryLocationResourceGroupName = $PrimaryLocationResourceGroupName.ToLower()
 $PrimaryLocationVirtualNetworkAddressSpace = "10.0.0.0/16" # Format 10.0.0.0/16
 $SubnetIPRange = "10.0.0.0/24" # Format 10.0.1.0/24                         
-$TestFailOverVirtualNetworkAddressSpace = "10.3.0.0/16" # Format 10.0.0.0/16
-$TestFailOverSubnetIPRange = "10.3.0.0/20" # Format 10.0.0.0/20                         
 
 $FQDN = "$VMName.$PrimaryLocation.cloudapp.azure.com".ToLower()
 
@@ -160,7 +157,6 @@ $OSDiskName = '{0}_OSDisk' -f $VMName
 $DataDisk1Name = '{0}_DataDisk1' -f $VMName
 $DataDisk2Name = '{0}_DataDisk2' -f $VMName
 $OSDiskSize = "127"
-$StorageAccountSkuName = "Standard_LRS"
 $DiskType = "Premium_LRS"
 
 Write-Verbose "`$VMName: $VMName"
