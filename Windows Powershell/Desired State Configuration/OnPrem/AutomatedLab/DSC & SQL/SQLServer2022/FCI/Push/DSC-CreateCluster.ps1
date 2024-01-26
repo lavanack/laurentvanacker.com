@@ -274,7 +274,7 @@ Configuration CreateClusterWithTwoNodes {
                 return $state.Result -ne $null
             }
             PsDscRunAsCredential = $ActiveDirectoryAdministratorCredential
-            DependsOn = '[Cluster]CreateCluster'
+            DependsOn = '[WaitForAll]JoinAdditionalServerNodeToCluster'
         }
 
         #Waiting all nodes be up and running before validating the cluster.
@@ -317,7 +317,7 @@ Configuration CreateClusterWithTwoNodes {
                 return (($Output -replace ".*=") | Where-Object -FilterScript {($_ -eq 'Validated')}).Count -eq ($using:AllNodes.NodeName | Where-Object -FilterScript {$_ -ne '*'}).Count
             }
             PsDscRunAsCredential = $ActiveDirectoryAdministratorCredential
-            DependsOn = '[WaitForAll]JoinAdditionalServerNodeToCluster'
+            DependsOn = '[Script]AddClusterDisk'
         }
         
         #Installing SQL server in Failover Cluster Mode : First Node
@@ -551,7 +551,7 @@ Configuration CreateClusterWithTwoNodes {
         WaitForCluster WaitForCluster
         {
             Name = $Node.ClusterName
-            RetryIntervalSec = 10
+            RetryIntervalSec = 30
             RetryCount = 60
             #DependsOn = '[WindowsFeature]AddRSATClusteringCmdInterfaceFeature'
             DependsOn = '[WindowsFeature]AddRSATClustering'
@@ -623,4 +623,5 @@ Configuration CreateClusterWithTwoNodes {
             #DependsOn              = '[File]Backup', '[File]Data', '[File]Log', '[File]TempDB'
             DependsOn                = '[WaitForAny]FirstNode', '[WindowsFeature]NetFramework45'
         }
-    }}
+    }
+}
