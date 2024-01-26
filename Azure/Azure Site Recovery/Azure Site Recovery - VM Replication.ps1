@@ -103,7 +103,7 @@ $NetworkSecurityGroupPrefix = "nsg"
 $VirtualNetworkPrefix = "vnet"
 $SubnetPrefix = "vnets"
 $Project = "asr"
-$Role = "drp"
+$Role = "vm"
 #$DigitNumber = 4
 $DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role + $PrimaryLocationShortName).Length
 
