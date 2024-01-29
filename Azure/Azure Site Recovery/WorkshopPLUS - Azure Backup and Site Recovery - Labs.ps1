@@ -92,6 +92,8 @@ $SubscriptionDeployment = New-AzSubscriptionDeployment -Location $Location -Temp
 #endregion
 
 #region Azure Backup : Lab 1 : Exercise 3
+<#
+#Only needed if you don't use the previous template for deploying Azure resources
 #region Azure Backup : Lab 1 : Exercise 3 : Task 1
 if (Get-AzResourceGroup -Name $ResourceGroupName -Location $Location -ErrorAction Ignore) {
     Write-Host -Object "Removing '$ResourceGroupName' Resource Group Name ..."
@@ -152,6 +154,7 @@ Start-AzJitNetworkAccessPolicy -ResourceGroupName $($VM.ResourceGroupName) -Loca
 #endregion
 #endregion
 #endregion
+#>
 
 #region Azure Backup : Lab 1 : Exercise 3 : Task 2
 $TemplateURL = "https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/quickstarts/microsoft.sql/sql-database/azuredeploy.json"
@@ -517,7 +520,6 @@ Wait-AzRecoveryServicesBackupJob -Job $Job -Timeout 43200
 
 #endregion
 #endregion
-
 
 #region Azure Backup : Lab 8
 
