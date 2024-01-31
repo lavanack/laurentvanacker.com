@@ -299,6 +299,7 @@ Invoke-LabCommand -ActivityName 'DNS, AD & GPO Settings on DC' -ComputerName DC0
     $ADGroup = New-ADGroup -Name "$using:ClusterNameObjectsADGroup" -SamAccountName $using:ClusterNameObjectsADGroup -GroupCategory Security -GroupScope Global -DisplayName "$using:ClusterNameObjectsADGroup" -Path "CN=Computers,DC=$($using:FQDNDomainName -split "\." -join ",DC=")" -Description "Cluster Name Objects AD Group" -PassThru
 
     #Configuring key distribution service (KDS)
+    #From https://learn.microsoft.com/en-us/windows-server/security/group-managed-service-accounts/create-the-key-distribution-services-kds-root-key#to-create-the-kds-root-key-using-the-add-kdsrootkey-cmdlet
     $KdsRootKey = Add-KdsRootKey -EffectiveTime ((Get-Date).AddHours(-10))
 
     #Creating a new group managed service account
