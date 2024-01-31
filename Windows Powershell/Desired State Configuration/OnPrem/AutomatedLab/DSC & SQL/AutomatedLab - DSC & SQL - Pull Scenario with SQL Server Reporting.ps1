@@ -80,7 +80,6 @@ $SQLServer2022LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/
 #endregion
 
 $NetworkID='10.0.0.0/24' 
-$Ipv4Gateway = '10.0.0.254'
 $DC01IPv4Address = '10.0.0.1'
 $FS01IPv4Address = '10.0.0.21'
 $PULLIPv4Address = '10.0.0.31'
