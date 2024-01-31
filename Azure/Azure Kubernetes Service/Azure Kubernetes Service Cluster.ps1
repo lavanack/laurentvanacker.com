@@ -33,12 +33,10 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
-try
-{
+try {
     $null = kubectl
 }
-catch
-{
+catch {
     Write-Warning -Message "kubectl not found. We will install it via winget"
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "winget install -e --id Kubernetes.kubectl" -Wait
     Write-Warning -Message "kubectl installed. Re-run this script from a NEW PowerShell host !"
@@ -91,6 +89,7 @@ if ($ResourceGroup) {
 $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 #endregion
 
+#region AKS Cluster Setup
 #region Create AKS cluster
 $SshKeyValue = Join-Path -Path $HOME -ChildPath '.ssh\id_rsa.pub'
 if (Test-Path -Path $SshKeyValue -PathType Leaf) {
@@ -127,6 +126,7 @@ While (kubectl get service store-front | Select-String -Pattern "pending") {
 }
 $ExternalIP = ((kubectl get service store-front | Select-Object -Skip 1) -split "\s+")[3]
 Start-Process $("http://{0}" -f $ExternalIP)
+#endregion
 #endregion
 
 <#
