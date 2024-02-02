@@ -286,9 +286,11 @@ $BackupInstance = Initialize-AzDataProtectionBackupInstance -DatasourceType Azur
 #region Assign required permissions and validate
 Set-AzDataProtectionMSIPermission -BackupInstance $BackupInstance -VaultResourceGroup $ResourceGroupName -VaultName $BackupVault.Name -PermissionsScope "ResourceGroup" -Confirm:$false
 
+Start-Sleep -Seconds 60
+
 Test-AzDataProtectionBackupInstanceReadiness -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupInstance $BackupInstance.Property #-Debug
 
-New-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupInstance $BackupInstance
+$Instance = New-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupInstance $BackupInstance
 #endregion
 
 #region Run an on-demand backup
@@ -300,19 +302,23 @@ Do {
     Start-Sleep -Seconds 30
 } While (($AllInstances).Property.CurrentProtectionState -ne "ProtectionConfigured")
 
+
 #From https://learn.microsoft.com/en-us/powershell/module/az.dataprotection/backup-azdataprotectionbackupinstanceadhoc?view=azps-11.1.0#example-2-backup-a-protected-backup-instance
-$BackupJob = Backup-AzDataProtectionBackupInstanceAdhoc -BackupInstanceName $AllInstances[0].Name -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupRuleOptionRuleName $DataProtectionBackupPolicy.Property.PolicyRule[0].Name
-$JobID = $BackupJob.JobId.Split("/")[-1]
+$Jobs = foreach ($CurrentInstance in $AllInstances)
+{
+    Backup-AzDataProtectionBackupInstanceAdhoc -BackupInstanceName $CurrentInstance.Name -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupRuleOptionRuleName $DataProtectionBackupPolicy.Property.PolicyRule[0].Name
+}
+
 Do
 {
     Write-Verbose -Message "Sleeping 30 seconds ..."
     Start-Sleep -Seconds 30
-    $CurrentJob = Get-AzDataProtectionJob -Id $JobID -SubscriptionId $SubscriptionId -ResourceGroupName $ResourceGroupName -VaultName $BackupVaultName
-} while($CurrentJob.Status -ne "Completed")
+    $Jobs = Get-AzDataProtectionJob -SubscriptionId $SubscriptionId -ResourceGroupName $ResourceGroupName -VaultName $BackupVaultName
+} while($Jobs.Status -ne "Completed")
 #endregion
 
 #region Tracking jobs
-$Job = Search-AzDataProtectionJobInAzGraph -Subscription $SubscriptionId -ResourceGroup $ResourceGroupName -Vault $BackupVault.Name -DatasourceType AzureKubernetesService  -Operation OnDemandBackup
+#$Job = Search-AzDataProtectionJobInAzGraph -Subscription $SubscriptionId -ResourceGroup $ResourceGroupName -Vault $BackupVault.Name -DatasourceType AzureKubernetesService  -Operation OnDemandBackup
 #endregion
 
 #endregion

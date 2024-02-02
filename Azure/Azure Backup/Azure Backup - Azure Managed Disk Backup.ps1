@@ -353,7 +353,8 @@ $DataProtectionBackupPolicy = New-AzDataProtectionBackupPolicy -ResourceGroupNam
 #region Assign the Disk Backup Reader role to Backup vault’s managed identity on the Source disk(s) that needs to be backed up.
 #Get the name of the custom role
 $DiskBackupReaderRole = Get-AzRoleDefinition "Disk Backup Reader"
-foreach ($Disk in $Disks) {
+foreach ($Disk in $Disks)
+{
     $Scope = $Disk.Id
     if (-not(Get-AzRoleAssignment -ObjectId $BackupVault.IdentityPrincipalId -RoleDefinitionName $DiskBackupReaderRole.Name -Scope $Scope)) {
         $null = New-AzRoleAssignment -ObjectId $BackupVault.IdentityPrincipalId -RoleDefinitionName $DiskBackupReaderRole.Name -Scope $Scope
@@ -365,7 +366,8 @@ foreach ($Disk in $Disks) {
 #Get the name of the custom role
 $DiskSnapshotContributor = Get-AzRoleDefinition "Disk Snapshot Contributor"
 $Scopes = $SnapshotResourceGroup.ResourceId, $ResourceGroup.ResourceId
-foreach ($CurrentScope in $Scopes) {
+foreach ($CurrentScope in $Scopes)
+{
     if (-not(Get-AzRoleAssignment -ObjectId $BackupVault.IdentityPrincipalId -RoleDefinitionName $DiskSnapshotContributor.Name -Scope $CurrentScope)) {
         $null = New-AzRoleAssignment -ObjectId $BackupVault.IdentityPrincipalId -RoleDefinitionName $DiskSnapshotContributor.Name -Scope $CurrentScope
     }
@@ -374,7 +376,8 @@ foreach ($CurrentScope in $Scopes) {
 #endregion
 
 #region Prepare the request(s)
-foreach ($Disk in $Disks) {
+foreach ($Disk in $Disks)
+{
     $DataProtectionBackupInstance = Initialize-AzDataProtectionBackupInstance -DatasourceType AzureDisk -DatasourceLocation $BackupVault.Location -PolicyId $DataProtectionBackupPolicy.Id -DatasourceId $Disk.Id -SnapshotResourceGroupId $SnapshotResourceGroup.ResourceId 
     $DataProtectionBackupInstance = New-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupInstance $DataProtectionBackupInstance
 }
@@ -387,8 +390,9 @@ Do {
     Start-Sleep -Seconds 30
 } While (($AllInstances).Property.CurrentProtectionState -ne "ProtectionConfigured")
 
-$Jobs = foreach ($CurrentInstance in $AllInstances) {
-    Backup-AzDataProtectionBackupInstanceAdhoc -BackupInstanceName $AllInstances[0].Name -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupRuleOptionRuleName $DataProtectionBackupPolicy.Property.PolicyRule[0].Name
+$Jobs = foreach ($CurrentInstance in $AllInstances)
+{
+    Backup-AzDataProtectionBackupInstanceAdhoc -BackupInstanceName $CurrentInstance.Name -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupRuleOptionRuleName $DataProtectionBackupPolicy.Property.PolicyRule[0].Name
 }
 
 
