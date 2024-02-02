@@ -15,7 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Accounts, Az.Aks, Az.Compute, Az.KubernetesConfiguration, Az.Network, Az.Resources, Az.Security
+#requires -Version 5 -Modules Az.Accounts, Az.Aks, Az.Compute, Az.DataProtection, Az.KubernetesConfiguration, Az.Network, Az.ResourceGraph, Az.Resources, Az.Security, Az.Storage
 
 #From https://learn.microsoft.com/en-us/azure/aks/learn/quick-kubernetes-deploy-powershell
 #From https://learn.microsoft.com/en-us/azure/backup/azure-kubernetes-service-cluster-manage-backups
