@@ -18,7 +18,8 @@ of the Sample Code.
 #requires -Version 5 -Modules Az.Accounts, Az.Aks, Az.Compute, Az.DataProtection, Az.KubernetesConfiguration, Az.Network, Az.ResourceGraph, Az.Resources, Az.Security, Az.Storage
 
 #From https://learn.microsoft.com/en-us/azure/aks/learn/quick-kubernetes-deploy-powershell
-#From https://learn.microsoft.com/en-us/azure/backup/azure-kubernetes-service-cluster-manage-backups
+#From https://learn.microsoft.com/en-us/azure/backup/azure-kubernetes-service-cluster-backup-using-powershell
+#From https://learn.microsoft.com/en-us/azure/backup/azure-kubernetes-service-cluster-restore-using-powershell
 
 [CmdletBinding()]
 param
@@ -286,9 +287,11 @@ $BackupInstance = Initialize-AzDataProtectionBackupInstance -DatasourceType Azur
 #region Assign required permissions and validate
 Set-AzDataProtectionMSIPermission -BackupInstance $BackupInstance -VaultResourceGroup $ResourceGroupName -VaultName $BackupVault.Name -PermissionsScope "ResourceGroup" -Confirm:$false
 
-Start-Sleep -Seconds 60
-
-Test-AzDataProtectionBackupInstanceReadiness -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupInstance $BackupInstance.Property #-Debug
+Do {
+    Write-Verbose -Message "Sleeping 60 seconds ..."
+    Start-Sleep -Seconds 60
+    $DataProtectionBackupInstanceReadiness = Test-AzDataProtectionBackupInstanceReadiness -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupInstance $BackupInstance.Property -ErrorAction Ignore #-Debug 
+} While (-not($DataProtectionBackupInstanceReadiness))
 
 $Instance = New-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupInstance $BackupInstance
 #endregion
@@ -323,6 +326,9 @@ Do
 
 #endregion
 
+#endregion
+
+#region Restore Management
 #endregion
 
 <#
