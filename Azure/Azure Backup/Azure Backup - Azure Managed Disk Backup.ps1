@@ -353,8 +353,7 @@ $DataProtectionBackupPolicy = New-AzDataProtectionBackupPolicy -ResourceGroupNam
 #region Assign the Disk Backup Reader role to Backup vault’s managed identity on the Source disk(s) that needs to be backed up.
 #Get the name of the custom role
 $DiskBackupReaderRole = Get-AzRoleDefinition "Disk Backup Reader"
-foreach ($Disk in $Disks)
-{
+foreach ($Disk in $Disks) {
     $Scope = $Disk.Id
     if (-not(Get-AzRoleAssignment -ObjectId $BackupVault.IdentityPrincipalId -RoleDefinitionName $DiskBackupReaderRole.Name -Scope $Scope)) {
         $null = New-AzRoleAssignment -ObjectId $BackupVault.IdentityPrincipalId -RoleDefinitionName $DiskBackupReaderRole.Name -Scope $Scope
@@ -364,34 +363,34 @@ foreach ($Disk in $Disks)
 
 #region Assign the Disk Snapshot Contributor role to the Backup vault’s managed identity on the Resource group, where backups are created and managed by the Azure Backup service
 #Get the name of the custom role
-$DiskBackupReaderRole = Get-AzRoleDefinition "Disk Snapshot Contributor"
-$Scope = $SnapshotResourceGroup.ResourceId
-if (-not(Get-AzRoleAssignment -ObjectId $BackupVault.IdentityPrincipalId -RoleDefinitionName $DiskBackupReaderRole.Name -Scope $Scope)) {
-    $null = New-AzRoleAssignment -ObjectId $BackupVault.IdentityPrincipalId -RoleDefinitionName $DiskBackupReaderRole.Name -Scope $Scope
+$DiskSnapshotContributor = Get-AzRoleDefinition "Disk Snapshot Contributor"
+$Scopes = $SnapshotResourceGroup.ResourceId, $ResourceGroup.ResourceId
+foreach ($CurrentScope in $Scopes) {
+    if (-not(Get-AzRoleAssignment -ObjectId $BackupVault.IdentityPrincipalId -RoleDefinitionName $DiskSnapshotContributor.Name -Scope $CurrentScope)) {
+        $null = New-AzRoleAssignment -ObjectId $BackupVault.IdentityPrincipalId -RoleDefinitionName $DiskSnapshotContributor.Name -Scope $CurrentScope
+    }
 }
 #endregion
 #endregion
 
 #region Prepare the request(s)
-foreach ($Disk in $Disks)
-{
-    $DataProtectionBackupInstance = Initialize-AzDataProtectionBackupInstance -DatasourceType AzureDisk -DatasourceLocation $BackupVault.Location -PolicyId $DataProtectionBackupPolicy.Id -DatasourceId $Disk.Id
-    $DataProtectionBackupInstance.Property.PolicyInfo.PolicyParameter.DataStoreParametersList[0].ResourceGroupId = $SnapshotResourceGroup
+foreach ($Disk in $Disks) {
+    $DataProtectionBackupInstance = Initialize-AzDataProtectionBackupInstance -DatasourceType AzureDisk -DatasourceLocation $BackupVault.Location -PolicyId $DataProtectionBackupPolicy.Id -DatasourceId $Disk.Id -SnapshotResourceGroupId $SnapshotResourceGroup.ResourceId 
     $DataProtectionBackupInstance = New-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupInstance $DataProtectionBackupInstance
 }
 #endregion
 
 #region Run an on-demand backup
-Do 
-{
+Do {
     $AllInstances = Get-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name
+    Write-Verbose -Message "Sleeping 30 seconds ..."
     Start-Sleep -Seconds 30
-} While (($AllInstances).Property.CurrentProtectionState -eq "ConfiguringProtection")
+} While (($AllInstances).Property.CurrentProtectionState -ne "ProtectionConfigured")
 
-$Jobs = foreach ($CurrentInstance in $AllInstances)
-{
-    Backup-AzDataProtectionBackupInstanceAdhoc -BackupInstanceName $CurrentInstance.Name -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupRuleOptionRuleName "Default" 
+$Jobs = foreach ($CurrentInstance in $AllInstances) {
+    Backup-AzDataProtectionBackupInstanceAdhoc -BackupInstanceName $AllInstances[0].Name -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupRuleOptionRuleName $DataProtectionBackupPolicy.Property.PolicyRule[0].Name
 }
+
 
 #endregion
 #endregion
@@ -401,9 +400,8 @@ $Jobs = foreach ($CurrentInstance in $AllInstances)
 
 <#
 #region Cleanup
-Get-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVaultName | Remove-AzDataProtectionBackupInstance -PassThru
-$DataProtectionBackupPolicy | Remove-AzDataProtectionBackupPolicy -confirm:$false
-Remove-AzResourceGroup -Name $ResourceGroupName -Force -AsJob
-Remove-AzResourceGroup -Name $SnapshotResourceGroupName -Force -AsJob
+Get-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name | Remove-AzDataProtectionBackupInstance
+Get-AzDataProtectionBackupPolicy -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name | Remove-AzDataProtectionBackupPolicy
+Get-AzResourceGroup "*$ResourceGroupName*" | Remove-AzResourceGroup -Force -AsJob
 #endregion
 #>

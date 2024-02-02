@@ -292,7 +292,7 @@ New-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultN
 #endregion
 
 #region Run an on-demand backup
-$Instance = Get-AzDataProtectionBackupInstance -SubscriptionId $SubscriptionId -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -Name $BackupInstance.BackupInstanceName
+#$Instance = Get-AzDataProtectionBackupInstance -SubscriptionId $SubscriptionId -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -Name $BackupInstance.BackupInstanceName
 
 Do {
     $AllInstances = Get-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name

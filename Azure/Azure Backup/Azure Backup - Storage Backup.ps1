@@ -125,7 +125,7 @@ Wait-AzRecoveryServicesBackupJob -Job $Job -Timeout 43200
 
 <#
 #region Cleanup
-Stop-AzRecoveryServicesBackupJob -Job $Job
+Stop-AzRecoveryServicesBackupJob -Job $Job -ErrorAction Ignore
 $RecoveryServicesBackupItem = Get-AzRecoveryServicesBackupItem -Container $RecoveryServicesBackupContainer -WorkloadType AzureFiles | Where-Object -FilterScript  {$_.DeleteState -eq "NotDeleted"}
 foreach ($item in $RecoveryServicesBackupItem) { Disable-AzRecoveryServicesBackupProtection -Item $item -VaultId $RecoveryServicesVault.ID -RemoveRecoveryPoints -Force -Verbose }
 Get-AzResourceLock -ResourceGroupName $ResourceGroupName | Remove-AzResourceLock -Force
