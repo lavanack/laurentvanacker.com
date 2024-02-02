@@ -131,5 +131,5 @@ Start-Process $("http://{0}" -f $ExternalIP)
 
 <#
 #Cleanup
-Remove-AzResourceGroup -Name $ResourceGroupName -Force -AsJob
+Get-AzResourceGroup "*$ResourceGroupName*" | Remove-AzResourceGroup -Force -AsJob
 #>
