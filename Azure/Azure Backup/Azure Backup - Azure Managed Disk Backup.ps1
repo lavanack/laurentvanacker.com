@@ -353,7 +353,8 @@ $DataProtectionBackupPolicy = New-AzDataProtectionBackupPolicy -ResourceGroupNam
 #region Assign the Disk Backup Reader role to Backup vault’s managed identity on the Source disk(s) that needs to be backed up.
 #Get the name of the custom role
 $DiskBackupReaderRole = Get-AzRoleDefinition "Disk Backup Reader"
-foreach ($Disk in $Disks) {
+foreach ($Disk in $Disks)
+{
     $Scope = $Disk.Id
     if (-not(Get-AzRoleAssignment -ObjectId $BackupVault.IdentityPrincipalId -RoleDefinitionName $DiskBackupReaderRole.Name -Scope $Scope)) {
         $null = New-AzRoleAssignment -ObjectId $BackupVault.IdentityPrincipalId -RoleDefinitionName $DiskBackupReaderRole.Name -Scope $Scope
@@ -365,7 +366,8 @@ foreach ($Disk in $Disks) {
 #Get the name of the custom role
 $DiskSnapshotContributor = Get-AzRoleDefinition "Disk Snapshot Contributor"
 $Scopes = $SnapshotResourceGroup.ResourceId, $ResourceGroup.ResourceId
-foreach ($CurrentScope in $Scopes) {
+foreach ($CurrentScope in $Scopes)
+{
     if (-not(Get-AzRoleAssignment -ObjectId $BackupVault.IdentityPrincipalId -RoleDefinitionName $DiskSnapshotContributor.Name -Scope $CurrentScope)) {
         $null = New-AzRoleAssignment -ObjectId $BackupVault.IdentityPrincipalId -RoleDefinitionName $DiskSnapshotContributor.Name -Scope $CurrentScope
     }
@@ -374,7 +376,8 @@ foreach ($CurrentScope in $Scopes) {
 #endregion
 
 #region Prepare the request(s)
-$BackupInstances = foreach ($Disk in $Disks) {
+$BackupInstances = foreach ($Disk in $Disks)
+{
     $DataProtectionBackupInstance = Initialize-AzDataProtectionBackupInstance -DatasourceType AzureDisk -DatasourceLocation $BackupVault.Location -PolicyId $DataProtectionBackupPolicy.Id -DatasourceId $Disk.Id -SnapshotResourceGroupId $SnapshotResourceGroup.ResourceId #-FriendlyName $Disk.Name
     New-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupInstance $DataProtectionBackupInstance
 }
@@ -382,20 +385,22 @@ $BackupInstances = foreach ($Disk in $Disks) {
 
 #region Run an on-demand backup
 Do {
-    $AllInstances = Get-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name | Where-Object -FilterScript { $_.Name -in $BackupInstances.BackupInstanceName }
+    $AllInstances = Get-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name | Where-Object -FilterScript { $_.Name -in $BackupInstances.BackupInstanceName}
     Write-Host -Object "Waiting The Protection(s) Be Configured. Sleeping 30 seconds ..."
     Start-Sleep -Seconds 30
 } While (($AllInstances).Property.CurrentProtectionState -ne "ProtectionConfigured")
 
-$BackupJobs = foreach ($CurrentInstance in $AllInstances) {
+$BackupJobs = foreach ($CurrentInstance in $AllInstances)
+{
     Backup-AzDataProtectionBackupInstanceAdhoc -BackupInstanceName $CurrentInstance.Name -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupRuleOptionRuleName $DataProtectionBackupPolicy.Property.PolicyRule[0].Name
 }
 
-Do {
+Do
+{
     Write-Host -Object "Waiting The Backup Job(s) Be Completed. Sleeping 30 seconds ..."
     Start-Sleep -Seconds 30
-    $DataProtectionJob = Get-AzDataProtectionJob -SubscriptionId $SubscriptionId -ResourceGroupName $ResourceGroupName -VaultName $BackupVaultName | Where-Object -FilterScript { $_.Id -in $BackupJobs.JobId }
-} while ($DataProtectionJob.Status -ne "Completed")
+    $DataProtectionJob = Get-AzDataProtectionJob -SubscriptionId $SubscriptionId -ResourceGroupName $ResourceGroupName -VaultName $BackupVaultName | Where-Object -FilterScript { $_.Id -in $BackupJobs.JobId}
+} while($DataProtectionJob.Status -ne "Completed")
 #endregion
 
 #endregion
@@ -420,7 +425,8 @@ $RestoreResourceGroup = New-AzResourceGroup -Name $RestoreResourceGroupName -Loc
 #Get the name of the custom role
 $DiskRestoreOperator = Get-AzRoleDefinition "Disk Restore Operator"
 $Scopes = $RestoreResourceGroup.ResourceId
-foreach ($CurrentScope in $Scopes) {
+foreach ($CurrentScope in $Scopes)
+{
     if (-not(Get-AzRoleAssignment -ObjectId $BackupVault.IdentityPrincipalId -RoleDefinitionName $DiskRestoreOperator.Name -Scope $CurrentScope)) {
         $null = New-AzRoleAssignment -ObjectId $BackupVault.IdentityPrincipalId -RoleDefinitionName $DiskRestoreOperator.Name -Scope $CurrentScope
     }
@@ -429,32 +435,35 @@ foreach ($CurrentScope in $Scopes) {
 #endregion
 
 
-$AllInstances = Get-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name | Where-Object -FilterScript { $_.Name -in $BackupInstances.BackupInstanceName }
-$RestoreJobs = foreach ($CurrentInstance in $AllInstances) {
+$AllInstances = Get-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name | Where-Object -FilterScript { $_.Name -in $BackupInstances.BackupInstanceName}
+$RestoreJobs = foreach ($CurrentInstance in $AllInstances)
+{
     Write-Host -Object "Processing '$($CurrentInstance.Property.FriendlyName)'"
     #region Fetch the relevant recovery point
     $RecoveryPoints = Get-AzDataProtectionRecoveryPoint -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupInstanceName $CurrentInstance.BackupInstanceName
     $LatestRecoveryPointTime = $RecoveryPoints.Property | Sort-Object -Property RecoveryPointTime -Descending | Select-Object -First 1 
-    $LatestRecoveryPoint = $RecoveryPoints | Where-Object -FilterScript { $_.Property.RecoveryPointTime -eq $LatestRecoveryPointTime.RecoveryPointTime }
+    $LatestRecoveryPoint = $RecoveryPoints | Where-Object -FilterScript {$_.Property.RecoveryPointTime -eq $LatestRecoveryPointTime.RecoveryPointTime}
     Write-Host -Object "Latest Recovery Point for '$($CurrentInstance.Property.FriendlyName)': $($LatestRecoveryPoint.Property.RecoveryPointTime)"
     #endregion
 
     #region Preparing the restore request
-    $targetDiskId = "$($RestoreResourceGroup.ResourceId)/providers/Microsoft.Compute/disks/$($CurrentInstance.Property.FriendlyName)"
-    $restorerequest = Initialize-AzDataProtectionRestoreRequest -DatasourceType AzureDisk -SourceDataStore OperationalStore -RestoreLocation $BackupVault.Location  -RestoreType AlternateLocation -TargetResourceId $targetDiskId -RecoveryPoint $LatestRecoveryPoint.Name
+    $TargetDiskId = "$($RestoreResourceGroup.ResourceId)/providers/Microsoft.Compute/disks/$($CurrentInstance.Property.FriendlyName)"
+    $RestoreRequest = Initialize-AzDataProtectionRestoreRequest -DatasourceType AzureDisk -SourceDataStore OperationalStore -RestoreLocation $BackupVault.Location  -RestoreType AlternateLocation -TargetResourceId $TargetDiskId -RecoveryPoint $LatestRecoveryPoint.Name
     #endregion
 
     #region Trigger the restore
-    Start-AzDataProtectionBackupInstanceRestore -BackupInstanceName $CurrentInstance.BackupInstanceName -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -Parameter $restorerequest
+    Write-Host -Object "Restoring '$($CurrentInstance.Property.FriendlyName)' to the '$($RestoreResourceGroup.Name)' Resource Group"
+    Start-AzDataProtectionBackupInstanceRestore -BackupInstanceName $CurrentInstance.BackupInstanceName -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -Parameter $RestoreRequest
     #endregion
 }
 
 #region Tracking job
-Do {
+Do
+{
     Write-Host -Object "Waiting The Restore Job(s) Be Completed. Sleeping 30 seconds ..."
     Start-Sleep -Seconds 30
-    $Job = Get-AzDataProtectionJob -SubscriptionId $SubscriptionId -ResourceGroupName $ResourceGroupName -VaultName $BackupVaultName | Where-Object { $_.Id -in $RestoreJobs.JobID }
-} while ($Job.Status -ne "Completed")
+    $Job = Get-AzDataProtectionJob -SubscriptionId $SubscriptionId -ResourceGroupName $ResourceGroupName -VaultName $BackupVaultName | Where-Object {$_.Id -in $RestoreJobs.JobID }
+} while($Job.Status -ne "Completed")
 $Job | Format-Table -Property DataSourceName, Status
 
 #endregion
