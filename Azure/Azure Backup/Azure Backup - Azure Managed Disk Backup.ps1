@@ -379,6 +379,7 @@ foreach ($CurrentScope in $Scopes)
 $BackupInstances = foreach ($Disk in $Disks)
 {
     $DataProtectionBackupInstance = Initialize-AzDataProtectionBackupInstance -DatasourceType AzureDisk -DatasourceLocation $BackupVault.Location -PolicyId $DataProtectionBackupPolicy.Id -DatasourceId $Disk.Id -SnapshotResourceGroupId $SnapshotResourceGroup.ResourceId #-FriendlyName $Disk.Name
+    Write-Host -Object "Creating Backup Instance for '$($DataProtectionBackupInstance.Property.FriendlyName)' ..."
     New-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupInstance $DataProtectionBackupInstance
 }
 #endregion
@@ -392,6 +393,7 @@ Do {
 
 $BackupJobs = foreach ($CurrentInstance in $AllInstances)
 {
+    Write-Host -Object "Waiting The Backup Job Be Completed for '$($CurrentInstance.Property.FriendlyName)'. Sleeping 30 seconds ..."
     Backup-AzDataProtectionBackupInstanceAdhoc -BackupInstanceName $CurrentInstance.Name -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupRuleOptionRuleName $DataProtectionBackupPolicy.Property.PolicyRule[0].Name
 }
 
@@ -434,7 +436,7 @@ foreach ($CurrentScope in $Scopes)
 #endregion
 #endregion
 
-
+#region Instance processing
 $AllInstances = Get-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name | Where-Object -FilterScript { $_.Name -in $BackupInstances.BackupInstanceName}
 $RestoreJobs = foreach ($CurrentInstance in $AllInstances)
 {
@@ -452,10 +454,11 @@ $RestoreJobs = foreach ($CurrentInstance in $AllInstances)
     #endregion
 
     #region Trigger the restore
-    Write-Host -Object "Restoring '$($CurrentInstance.Property.FriendlyName)' to the '$($RestoreResourceGroup.Name)' Resource Group"
+    Write-Host -Object "Restoring '$($CurrentInstance.Property.FriendlyName)' to the '$($RestoreResourceGroup.ResourceGroupName)' Resource Group"
     Start-AzDataProtectionBackupInstanceRestore -BackupInstanceName $CurrentInstance.BackupInstanceName -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -Parameter $RestoreRequest
     #endregion
 }
+#endregion
 
 #region Tracking job
 Do
