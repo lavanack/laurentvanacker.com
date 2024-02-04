@@ -21,6 +21,8 @@ of the Sample Code.
 [CmdletBinding()]
 param
 (
+    [switch] $All,
+    [switch] $AsJob
 )
 
 
@@ -65,14 +67,15 @@ While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName)) {
 }
 #endregion
 
-if ($Force) {
+if ($All) {
     $RecoveryServicesVaults = Get-AzRecoveryServicesVault
 } 
 else {
     $RecoveryServicesVaults = Get-AzRecoveryServicesVault | Out-GridView -PassThru
 }
 
-$Jobs = foreach ($VaultToDelete in $RecoveryServicesVaults) {
+$Jobs = $RecoveryServicesVaults | ForEach-Object -Parallel {
+    $VaultToDelete = $_
     Write-Host -Object "Processing '$($VaultToDelete.Name)' Recovery Services Vault ..." 
     $ResourceGroup = ($VaultToDelete.Id -split "/")[4]
     $VaultName = $VaultToDelete.Name
@@ -275,4 +278,4 @@ $Jobs = foreach ($VaultToDelete in $RecoveryServicesVaults) {
     }
     #Finish
 }
-$Jobs
+$Jobs | Wait-Job

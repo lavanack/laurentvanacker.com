@@ -15,13 +15,14 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Accounts, Az.Aks, Az.Compute, Az.DataProtection, Az.KubernetesConfiguration, Az.Network, Az.RecoveryServices, Az.ResourceGraph, Az.Resources, Az.Security, Az.Storage
+#requires -Version 5 -Modules Az.Accounts, Az.Aks, Az.Compute, Az.DataProtection, Az.KubernetesConfiguration, Az.Network, Az.RecoveryServices, Az.ResourceGraph, Az.Resources, Az.Security, Az.Storage, ThreadJob
 
 
 [CmdletBinding()]
 param
 (
-    [switch] $Force
+    [switch] $All,
+    [switch] $AsJob
 )
 
 
@@ -43,7 +44,7 @@ While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName)) {
 }
 #endregion
 
-if ($Force) {
+if ($All) {
     $BackupVaults = Get-AzDataProtectionBackupVault
 } 
 else {
@@ -52,12 +53,23 @@ else {
 
 $Jobs = foreach ($CurrentBackupVault in $BackupVaults) {
     Write-Host -Object "Processing '$($CurrentBackupVault.Name)' Backup Vault ..." 
-    $ResourceGroupName = ($CurrentBackupVault.Id -split "/")[4]
-    Write-Host -Object "`tRemoving Backup Instances ..." 
-    Get-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $CurrentBackupVault.Name | Remove-AzDataProtectionBackupInstance -Verbose
-    Write-Host -Object "`tRemoving Backup Policies ..." 
-    Get-AzDataProtectionBackupPolicy -ResourceGroupName $ResourceGroupName -VaultName $CurrentBackupVault.Name | Remove-AzDataProtectionBackupPolicy
-    Write-Host -Object "`tRemoving Resource Groups ..." 
-    Get-AzResourceGroup "*$ResourceGroupName*" | Remove-AzResourceGroup -Force -AsJob
+    $ScriptBlock = {
+        param($CurrentBackupVault) 
+        $ResourceGroupName = ($CurrentBackupVault.Id -split "/")[4]
+        Write-Host -Object "`tRemoving Backup Instances ..." 
+        Get-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $CurrentBackupVault.Name | Remove-AzDataProtectionBackupInstance -Verbose
+        Write-Host -Object "`tRemoving Backup Policies ..." 
+        Get-AzDataProtectionBackupPolicy -ResourceGroupName $ResourceGroupName -VaultName $CurrentBackupVault.Name | Remove-AzDataProtectionBackupPolicy
+        Write-Host -Object "`tRemoving Resource Groups ..." 
+        Get-AzResourceGroup "*$ResourceGroupName*" | Remove-AzResourceGroup -Force -AsJob | Wait-Job
+    }
+    if ($AsJob)
+    {
+        Start-ThreadJob -ScriptBlock $ScriptBlock -ArgumentList $CurrentBackupVault -StreamingHost $Host
+    }
+    else
+    {
+        Invoke-Command -ScriptBlock $ScriptBlock -ArgumentList $CurrentBackupVault
+    }
 }
-$Jobs
+$Jobs | Wait-Job
