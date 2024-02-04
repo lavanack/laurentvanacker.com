@@ -125,6 +125,7 @@ $SubnetIPRange = "10.0.0.0/24" # Format 10.0.1.0/24
 $FQDN = "$VMName.$Location.cloudapp.azure.com".ToLower()
 #endregion
 
+#region Azure VM Setup
 #region Defining credential(s)
 $Username = $env:USERNAME
 #$ClearTextPassword = 'I@m@JediLikeMyF@therB4Me'
@@ -162,7 +163,7 @@ Write-Verbose "`$OSDiskName: $OSDiskName"
 Write-Verbose "`$FQDN: $FQDN"
 #endregion
 
-#region Azure VM Setup
+
 Write-Host -Object "The '$VMName' Azure VM is creating ..."
 if ($VMName.Length -gt $AzureVMNameMaxLength) {
     Write-Error "'$VMName' exceeds $AzureVMNameMaxLength characters" -ErrorAction Stop
@@ -454,6 +455,8 @@ $RestoreJobs = foreach ($CurrentInstance in $AllInstances)
     #endregion
 
     #region Trigger the restore
+    #validate the restore request created earlier
+    $validateRestore = Test-AzDataProtectionBackupInstanceRestore -SubscriptionId $SubscriptionId -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -RestoreRequest $RestoreRequest -Name $CurrentInstance.BackupInstanceName
     Write-Host -Object "Restoring '$($CurrentInstance.Property.FriendlyName)' to the '$($RestoreResourceGroup.ResourceGroupName)' Resource Group"
     Start-AzDataProtectionBackupInstanceRestore -BackupInstanceName $CurrentInstance.BackupInstanceName -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -Parameter $RestoreRequest
     #endregion

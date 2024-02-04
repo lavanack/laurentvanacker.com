@@ -86,8 +86,7 @@ While (Get-AzResourceProvider -ProviderNamespace 'Microsoft.ContainerService' | 
     Start-Sleep -Seconds 30
 }
 #endregion
-
-#engregion
+#endregion
 
 #From https://aka.ms/azps-changewarnings: Disabling breaking change warning messages in Azure PowerShell
 $null = Update-AzConfig -DisplayBreakingChangeWarning $false
@@ -280,48 +279,44 @@ $SnapshotResourceGroup = New-AzResourceGroup -Name $SnapshotResourceGroupName -L
 
 #region Prepare the request
 $BackupConfig = New-AzDataProtectionBackupConfigurationClientObject -SnapshotVolume $true -IncludeClusterScopeResource $true -DatasourceType AzureKubernetesService -LabelSelector "env=prod"
-$FriendlyName = $AKSCluster.Name
-$BackupInstance = Initialize-AzDataProtectionBackupInstance -DatasourceType AzureKubernetesService  -DatasourceLocation $Location -PolicyId $DataProtectionBackupPolicy.Id -DatasourceId $AksCluster.Id -SnapshotResourceGroupId $SnapshotResourceGroup.ResourceId -FriendlyName $FriendlyName -BackupConfiguration $BackupConfig
+$DataProtectionBackupInstance = Initialize-AzDataProtectionBackupInstance -DatasourceType AzureKubernetesService -DatasourceLocation $Location -PolicyId $DataProtectionBackupPolicy.Id -DatasourceId $AksCluster.Id -SnapshotResourceGroupId $SnapshotResourceGroup.ResourceId -BackupConfiguration $BackupConfig -FriendlyName $AKSCluster.Name
 #endregion
 
-#region Assign required permissions and validate
-Set-AzDataProtectionMSIPermission -BackupInstance $BackupInstance -VaultResourceGroup $ResourceGroupName -VaultName $BackupVault.Name -PermissionsScope "ResourceGroup" -Confirm:$false
+#region Assign required permissions and validafte
+Set-AzDataProtectionMSIPermission -BackupInstance $DataProtectionBackupInstance -VaultResourceGroup $ResourceGroupName -VaultName $BackupVault.Name -PermissionsScope "ResourceGroup" -Confirm:$false
 
 Do {
+    Write-Host -Object "Testing The Protection(s). Sleeping 60 seconds ..."
     Write-Verbose -Message "Sleeping 60 seconds ..."
     Start-Sleep -Seconds 60
-    $DataProtectionBackupInstanceReadiness = Test-AzDataProtectionBackupInstanceReadiness -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupInstance $BackupInstance.Property -ErrorAction Ignore #-Debug 
+    $DataProtectionBackupInstanceReadiness = Test-AzDataProtectionBackupInstanceReadiness -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupInstance $DataProtectionBackupInstance.Property -ErrorAction Ignore #-Debug 
 } While (-not($DataProtectionBackupInstanceReadiness))
 
-$Instance = New-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupInstance $BackupInstance
+$BackupInstance = New-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupInstance $DataProtectionBackupInstance
 #endregion
 
 #region Run an on-demand backup
-#$Instance = Get-AzDataProtectionBackupInstance -SubscriptionId $SubscriptionId -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -Name $BackupInstance.BackupInstanceName
 
 Do {
-    $AllInstances = Get-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name
-    Write-Verbose -Message "Sleeping 30 seconds ..."
+    $CurrentInstance = Get-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -Name $BackupInstance.BackupInstanceName
+    Write-Host -Object "Waiting The Protection(s) Be Configured. Sleeping 30 seconds ..."
     Start-Sleep -Seconds 30
-} While (($AllInstances).Property.CurrentProtectionState -ne "ProtectionConfigured")
+} While ($CurrentInstance.Property.CurrentProtectionState -ne "ProtectionConfigured")
 
 
 #From https://learn.microsoft.com/en-us/powershell/module/az.dataprotection/backup-azdataprotectionbackupinstanceadhoc?view=azps-11.1.0#example-2-backup-a-protected-backup-instance
-$Jobs = foreach ($CurrentInstance in $AllInstances)
-{
-    Backup-AzDataProtectionBackupInstanceAdhoc -BackupInstanceName $CurrentInstance.Name -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupRuleOptionRuleName $DataProtectionBackupPolicy.Property.PolicyRule[0].Name
-}
+$BackupJob = Backup-AzDataProtectionBackupInstanceAdhoc -BackupInstanceName $CurrentInstance.Name -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupRuleOptionRuleName $DataProtectionBackupPolicy.Property.PolicyRule[0].Name
 
 Do
 {
-    Write-Verbose -Message "Sleeping 30 seconds ..."
+    Write-Host -Object "Waiting The Backup Job(s) Be Completed. Sleeping 30 seconds ..."
     Start-Sleep -Seconds 30
-    $Jobs = Get-AzDataProtectionJob -SubscriptionId $SubscriptionId -ResourceGroupName $ResourceGroupName -VaultName $BackupVaultName
-} while($Jobs.Status -ne "Completed")
+    $DataProtectionJob = Get-AzDataProtectionJob -SubscriptionId $SubscriptionId -ResourceGroupName $ResourceGroupName -VaultName $BackupVaultName | Where-Object -FilterScript { $_.Id -eq $BackupJob.JobId}
+} while($DataProtectionJob.Status -ne "Completed")
 #endregion
 
 #region Tracking jobs
-#$Job = Search-AzDataProtectionJobInAzGraph -Subscription $SubscriptionId -ResourceGroup $ResourceGroupName -Vault $BackupVault.Name -DatasourceType AzureKubernetesService  -Operation OnDemandBackup
+#$Job = Search-AzDataProtectionJobInAzGraph -Subscription $SubscriptionId -ResourceGroup $ResourceGroupName -Vault $BackupVault.Name -DatasourceType AzureKubernetesService -Operation OnDemandBackup
 #endregion
 
 #endregion
@@ -329,13 +324,51 @@ Do
 #endregion
 
 #region Restore Management
+#region Instance processing
+$AllInstances = Get-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name | Where-Object -FilterScript { $_.Name -in $BackupInstance.BackupInstanceName}
+$RestoreJobs = foreach ($CurrentInstance in $AllInstances)
+{
+    Write-Host -Object "Processing '$($CurrentInstance.Property.FriendlyName)'"
+    #region Fetch the relevant recovery point
+    $RecoveryPoints = Get-AzDataProtectionRecoveryPoint -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupInstanceName $CurrentInstance.BackupInstanceName
+    $LatestRecoveryPointTime = $RecoveryPoints.Property | Sort-Object -Property RecoveryPointTime -Descending | Select-Object -First 1 
+    $LatestRecoveryPoint = $RecoveryPoints | Where-Object -FilterScript {$_.Property.RecoveryPointTime -eq $LatestRecoveryPointTime.RecoveryPointTime}
+    Write-Host -Object "Latest Recovery Point for '$($CurrentInstance.Property.FriendlyName)': $($LatestRecoveryPoint.Property.RecoveryPointTime)"
+    #endregion
+
+    #region Preparing the restore request on the original location/AKS Cluster
+    $RestoreCriteria = New-AzDataProtectionRestoreConfigurationClientObject -DatasourceType AzureKubernetesService -PersistentVolumeRestoreMode RestoreWithVolumeData -IncludeClusterScopeResource $true -NamespaceMapping  @{"sourceNamespace"="targetNamespace"}
+    $RestoreRequest = Initialize-AzDataProtectionRestoreRequest -DatasourceType AzureKubernetesService -SourceDataStore OperationalStore -RestoreLocation $Location -RestoreType OriginalLocation -RecoveryPoint $LatestRecoveryPoint.Property.RecoveryPointId -RestoreConfiguration $RestoreCriteria -BackupInstance $CurrentInstance
+    #$RestoreRequest = Initialize-AzDataProtectionRestoreRequest -DatasourceType AzureKubernetesService -SourceDataStore OperationalStore -RestoreLocation $Location -RestoreType AlternateLocation -TargetResourceId $RestoreAKSCluster.Id -RecoveryPoint $LatestRecoveryPoint.Property.RecoveryPointId -RestoreConfiguration $RestoreCriteria
+    #endregion
+
+    #region Trigger the restore
+    #validate the restore request created earlier
+    $validateRestore = Test-AzDataProtectionBackupInstanceRestore -SubscriptionId $SubscriptionId -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -RestoreRequest $RestoreRequest -Name $CurrentInstance.BackupInstanceName
+    Write-Host -Object "Restoring '$($CurrentInstance.Property.FriendlyName)' to the '$($ResourceGroup.ResourceGroupName)' Resource Group"
+    Start-AzDataProtectionBackupInstanceRestore -BackupInstanceName $CurrentInstance.BackupInstanceName -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -Parameter $RestoreRequest
+    #endregion
+}
+#endregion
+
+#region Tracking job
+Do
+{
+    Write-Host -Object "Waiting The Restore Job(s) Be Completed. Sleeping 30 seconds ..."
+    Start-Sleep -Seconds 30
+    $Job = Get-AzDataProtectionJob -SubscriptionId $SubscriptionId -ResourceGroupName $ResourceGroupName -VaultName $BackupVaultName | Where-Object {$_.Id -eq $RestoreJobs.JobID }
+} while($Job.Status -ne "Completed")
+$Job | Format-Table -Property DataSourceName, Status
+
+#endregion
+
 #endregion
 
 <#
-#Cleanup
+#region Cleanup
 Get-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name | Remove-AzDataProtectionBackupInstance
 Get-AzDataProtectionBackupPolicy -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name | Remove-AzDataProtectionBackupPolicy
 Get-AzResourceGroup "*$ResourceGroupName*" | Remove-AzResourceGroup -Force -AsJob
+#endregion
 #>
-
             
