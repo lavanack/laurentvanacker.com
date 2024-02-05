@@ -37,25 +37,25 @@ Set-Location -Path $CurrentDir
 
 #region Pre-requisites
 try {
- $null = kubectl
+    $null = kubectl
 }
 catch {
- Write-Warning -Message "kubectl not found. We will install it via winget"
- Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "winget install -e --id Kubernetes.kubectl" -Wait
- #Install-AzAksCliTool
- Write-Warning -Message "kubectl installed. Re-run this script from a NEW PowerShell host !"
- break
+    Write-Warning -Message "kubectl not found. We will install it via winget"
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "winget install -e --id Kubernetes.kubectl" -Wait
+    #Install-AzAksCliTool
+    Write-Warning -Message "kubectl installed. Re-run this script from a NEW PowerShell host !"
+    break
 }
 
 
 try {
- $null = az
+    $null = az
 }
 catch {
- Write-Warning -Message "az cli not found. We will install it via winget"
- Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "winget install -e --id Microsoft.AzureCLI" -Wait
- Write-Warning -Message "az cli installed. Re-run this script from a NEW PowerShell host !"
- break
+    Write-Warning -Message "az cli not found. We will install it via winget"
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "winget install -e --id Microsoft.AzureCLI" -Wait
+    Write-Warning -Message "az cli installed. Re-run this script from a NEW PowerShell host !"
+    break
 }
 
 
@@ -63,27 +63,27 @@ catch {
 #To use Azure Virtual Desktop, you have to register for the providers and to ensure that RegistrationState will be set to Registered.
 $RequiredResourceProviders = "Microsoft.ContainerService", "Microsoft.KubernetesConfiguration", "Microsoft.DataProtection"
 $Jobs = foreach ($CurrentRequiredResourceProvider in $RequiredResourceProviders) {
- Register-AzResourceProvider -ProviderNamespace $CurrentRequiredResourceProvider -AsJob
+    Register-AzResourceProvider -ProviderNamespace $CurrentRequiredResourceProvider -AsJob
 }
 #Important: Wait until RegistrationState is set to Registered. 
 While (Get-AzResourceProvider -ProviderNamespace $RequiredResourceProviders | Where-Object -FilterScript { $_.RegistrationState -ne 'Registered' }) {
- Write-Verbose -Message "Sleeping 30 seconds ..."
- Start-Sleep -Seconds 30
+    Write-Verbose -Message "Sleeping 30 seconds ..."
+    Start-Sleep -Seconds 30
 }
 $Jobs | Remove-Job -Force
 
 
 Register-AzProviderFeature -FeatureName TrustedAccessPreview -ProviderNamespace Microsoft.ContainerService
 While (Get-AzProviderFeature -FeatureName TrustedAccessPreview -ProviderNamespace Microsoft.ContainerService | Where-Object -FilterScript { $_.RegistrationState -ne 'Registered' }) {
- Write-Verbose -Message "Sleeping 30 seconds ..."
- Start-Sleep -Seconds 30
+    Write-Verbose -Message "Sleeping 30 seconds ..."
+    Start-Sleep -Seconds 30
 }
 #refreshing the Microsoft.ContainerService resource provider registration
 Register-AzResourceProvider -ProviderNamespace 'Microsoft.ContainerService'
 #Important: Wait until RegistrationState is set to Registered. 
 While (Get-AzResourceProvider -ProviderNamespace 'Microsoft.ContainerService' | Where-Object -FilterScript { $_.RegistrationState -ne 'Registered' }) {
- Write-Verbose -Message "Sleeping 30 seconds ..."
- Start-Sleep -Seconds 30
+    Write-Verbose -Message "Sleeping 30 seconds ..."
+    Start-Sleep -Seconds 30
 }
 #endregion
 #endregion
@@ -101,10 +101,10 @@ $shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @
 
 # Login to your Azure subscription.
 While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName)) {
- Connect-AzAccount
- Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
- #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
- #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
+    Connect-AzAccount
+    Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
+    #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
+    #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
 }
 
 
@@ -120,12 +120,12 @@ $Project = "bkp"
 $Role = "aks"
 $DigitNumber = 4
 $StorageAccountSkuName = "Standard_GRS"
-$ContainerName ="backup"
+$ContainerName = "backup"
 $AKSStoreQuickstartURI = 'https://raw.githubusercontent.com/Azure-Samples/aks-store-demo/main/aks-store-quickstart.yaml'
 
 Do {
- $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
- $StorageAccountName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $StorageAccountPrefix, $Project, $Role, $LocationShortName, $Instance
+    $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
+    $StorageAccountName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $StorageAccountPrefix, $Project, $Role, $LocationShortName, $Instance
 } While (-not(Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable)
 
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance 
@@ -139,8 +139,8 @@ $BackupVaultName = $BackupVaultName.ToLower()
 
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
 if ($ResourceGroup) {
- #Remove previously existing Azure Resource Group with the same name
- $ResourceGroup | Remove-AzResourceGroup -Force
+    #Remove previously existing Azure Resource Group with the same name
+    $ResourceGroup | Remove-AzResourceGroup -Force
 }
 $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 #endregion
@@ -149,10 +149,10 @@ $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Locatio
 #region Create AKS cluster
 $SshKeyValue = Join-Path -Path $HOME -ChildPath '.ssh\id_rsa.pub'
 if (Test-Path -Path $SshKeyValue -PathType Leaf) {
- $AksCluster = New-AzAksCluster -ResourceGroupName $ResourceGroupName -Name $AKSClusterName -NodeCount 1 -EnableManagedIdentity -SshKeyValue $SshKeyValue -Force
+    $AksCluster = New-AzAksCluster -ResourceGroupName $ResourceGroupName -Name $AKSClusterName -NodeCount 1 -EnableManagedIdentity -SshKeyValue $SshKeyValue -Force
 }
 else {
- $AksCluster = New-AzAksCluster -ResourceGroupName $ResourceGroupName -Name $AKSClusterName -NodeCount 1 -EnableManagedIdentity -GenerateSshKey -Force
+    $AksCluster = New-AzAksCluster -ResourceGroupName $ResourceGroupName -Name $AKSClusterName -NodeCount 1 -EnableManagedIdentity -GenerateSshKey -Force
 }
 
 #endregion
@@ -179,7 +179,7 @@ kubectl get pods
 
 #Check for a public IP address for the store-front applicatio
 While (kubectl get service store-front | Select-String -Pattern "pending") {
- Start-Sleep -Seconds 30
+    Start-Sleep -Seconds 30
 }
 $ExternalIP = ((kubectl get service store-front | Select-Object -Skip 1) -split "\s+")[3]
 Start-Process $("http://{0}" -f $ExternalIP)
@@ -210,8 +210,8 @@ $StorageContext = $StorageAccount.Context
 
 #Create a Container 
 Write-Host -Object "Creating the Container '$ContainerName' in the Storage Account '$StorageAccountName' (in the '$ResourceGroupName' Resource Group) ..."
-if(-not(Get-AzStorageContainer -Name $ContainerName -Context $StorageContext -ErrorAction SilentlyContinue)) {
- $StorageContainer = New-AzStorageContainer -Name $ContainerName -Context $StorageContext
+if (-not(Get-AzStorageContainer -Name $ContainerName -Context $StorageContext -ErrorAction SilentlyContinue)) {
+    $StorageContainer = New-AzStorageContainer -Name $ContainerName -Context $StorageContext
 }
 #endregion
 
@@ -219,21 +219,21 @@ if(-not(Get-AzStorageContainer -Name $ContainerName -Context $StorageContext -Er
 Register-AzResourceProvider -ProviderNamespace 'Microsoft.KubernetesConfiguration'
 #Important: Wait until RegistrationState is set to Registered. 
 While (Get-AzResourceProvider -ProviderNamespace 'Microsoft.KubernetesConfiguration' | Where-Object -FilterScript { $_.RegistrationState -ne 'Registered' }) {
- Write-Verbose -Message "Sleeping 30 seconds ..."
- Start-Sleep -Seconds 30
+    Write-Verbose -Message "Sleeping 30 seconds ..."
+    Start-Sleep -Seconds 30
 }
 
 $AzContext = Get-AzContext
 $SubscriptionId = $AzContext.Subscription.Id
 
 $ConfigurationSetting = @{
- "configuration.backupStorageLocation.bucket" = $ContainerName
- "configuration.backupStorageLocation.config.storageAccount" = $StorageAccountName
- "configuration.backupStorageLocation.config.resourceGroup" = $ResourceGroupName
- "configuration.backupStorageLocation.config.subscriptionId" = $SubscriptionId
- #"configuration.backupStorageLocation.config.useAAD" = $true
- "credentials.tenantId" = $AzContext.Tenant.Id
- #"configuration.backupStorageLocation.config.storageAccountURI" = $("https://{0}.blob.core.windows.net/" -f $StorageAccountName)
+    "configuration.backupStorageLocation.bucket"                = $ContainerName
+    "configuration.backupStorageLocation.config.storageAccount" = $StorageAccountName
+    "configuration.backupStorageLocation.config.resourceGroup"  = $ResourceGroupName
+    "configuration.backupStorageLocation.config.subscriptionId" = $SubscriptionId
+    #"configuration.backupStorageLocation.config.useAAD" = $true
+    "credentials.tenantId"                                      = $AzContext.Tenant.Id
+    #"configuration.backupStorageLocation.config.storageAccountURI" = $("https://{0}.blob.core.windows.net/" -f $StorageAccountName)
 } 
 
 $KubernetesExtension = New-AzKubernetesExtension -Name azure-aks-backup -ExtensionType microsoft.dataprotection.kubernetes -ClusterType ManagedClusters -ClusterName $AKSCluster.Name -ResourceGroupName $ResourceGroupName -ReleaseTrain stable -ConfigurationSetting $ConfigurationSetting -Verbose
@@ -246,8 +246,8 @@ Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "az k8s-extension cre
 #>
 
 if (-not(Get-AzRoleAssignment -ObjectId $KubernetesExtension.AkAssignedIdentityPrincipalId -RoleDefinitionName "Storage Account Contributor" -Scope $StorageAccount.Id)) {
- Write-Verbose -Message "Assigning the 'Storage Account Contributor' RBAC role to the user identity created in the AKS cluster's Node Pool Resource Group on the Storage Account '$StorageAccountName' (in the '$ResourceGroupName' Resource Group) ..."
- $null = New-AzRoleAssignment -ObjectId $KubernetesExtension.AkAssignedIdentityPrincipalId -RoleDefinitionName "Storage Account Contributor" -Scope $StorageAccount.Id
+    Write-Verbose -Message "Assigning the 'Storage Account Contributor' RBAC role to the user identity created in the AKS cluster's Node Pool Resource Group on the Storage Account '$StorageAccountName' (in the '$ResourceGroupName' Resource Group) ..."
+    $null = New-AzRoleAssignment -ObjectId $KubernetesExtension.AkAssignedIdentityPrincipalId -RoleDefinitionName "Storage Account Contributor" -Scope $StorageAccount.Id
 }
 #endregion
 
@@ -269,8 +269,8 @@ $SnapshotResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}-snap" -f $Resour
 $SnapshotResourceGroupName = $SnapshotResourceGroupName.ToLower()
 $SnapshotResourceGroup = Get-AzResourceGroup -Name $SnapshotResourceGroupName -ErrorAction Ignore 
 if ($SnapshotResourceGroup) {
- #Remove previously existing Azure Resource Group with the same name
- $SnapshotResourceGroup | Remove-AzResourceGroup -Force
+    #Remove previously existing Azure Resource Group with the same name
+    $SnapshotResourceGroup | Remove-AzResourceGroup -Force
 }
 
 $SnapshotResourceGroup = New-AzResourceGroup -Name $SnapshotResourceGroupName -Location $Location -Force
@@ -286,10 +286,10 @@ $DataProtectionBackupInstance = Initialize-AzDataProtectionBackupInstance -Datas
 Set-AzDataProtectionMSIPermission -BackupInstance $DataProtectionBackupInstance -VaultResourceGroup $ResourceGroupName -VaultName $BackupVault.Name -PermissionsScope "ResourceGroup" -Confirm:$false
 
 Do {
- Write-Host -Object "Testing The Protection(s). Sleeping 60 seconds ..."
- Write-Verbose -Message "Sleeping 60 seconds ..."
- Start-Sleep -Seconds 60
- $DataProtectionBackupInstanceReadiness = Test-AzDataProtectionBackupInstanceReadiness -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupInstance $DataProtectionBackupInstance.Property -ErrorAction Ignore #-Debug 
+    Write-Host -Object "Testing The Protection(s). Sleeping 60 seconds ..."
+    Write-Verbose -Message "Sleeping 60 seconds ..."
+    Start-Sleep -Seconds 60
+    $DataProtectionBackupInstanceReadiness = Test-AzDataProtectionBackupInstanceReadiness -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupInstance $DataProtectionBackupInstance.Property -ErrorAction Ignore #-Debug 
 } While (-not($DataProtectionBackupInstanceReadiness))
 
 $BackupInstance = New-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupInstance $DataProtectionBackupInstance
@@ -298,21 +298,20 @@ $BackupInstance = New-AzDataProtectionBackupInstance -ResourceGroupName $Resourc
 #region Run an on-demand backup
 
 Do {
- $CurrentInstance = Get-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -Name $BackupInstance.BackupInstanceName
- Write-Host -Object "Waiting The Protection(s) Be Configured. Sleeping 30 seconds ..."
- Start-Sleep -Seconds 30
+    $CurrentInstance = Get-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -Name $BackupInstance.BackupInstanceName
+    Write-Host -Object "Waiting The Protection(s) Be Configured. Sleeping 30 seconds ..."
+    Start-Sleep -Seconds 30
 } While ($CurrentInstance.Property.CurrentProtectionState -ne "ProtectionConfigured")
 
 
 #From https://learn.microsoft.com/en-us/powershell/module/az.dataprotection/backup-azdataprotectionbackupinstanceadhoc?view=azps-11.1.0#example-2-backup-a-protected-backup-instance
 $BackupJob = Backup-AzDataProtectionBackupInstanceAdhoc -BackupInstanceName $CurrentInstance.Name -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupRuleOptionRuleName $DataProtectionBackupPolicy.Property.PolicyRule[0].Name
 
-Do
-{
- Write-Host -Object "Waiting The Backup Job(s) Be Completed. Sleeping 30 seconds ..."
- Start-Sleep -Seconds 30
- $DataProtectionJob = Get-AzDataProtectionJob -SubscriptionId $SubscriptionId -ResourceGroupName $ResourceGroupName -VaultName $BackupVaultName | Where-Object -FilterScript { $_.Id -eq $BackupJob.JobId}
-} while($DataProtectionJob.Status -ne "Completed")
+Do {
+    Write-Host -Object "Waiting The Backup Job(s) Be Completed. Sleeping 30 seconds ..."
+    Start-Sleep -Seconds 30
+    $DataProtectionJob = Get-AzDataProtectionJob -SubscriptionId $SubscriptionId -ResourceGroupName $ResourceGroupName -VaultName $BackupVaultName | Where-Object -FilterScript { $_.Id -eq $BackupJob.JobId }
+} while ($DataProtectionJob.Status -ne "Completed")
 #endregion
 
 #region Tracking jobs
@@ -325,39 +324,37 @@ Do
 
 #region Restore Management
 #region Instance processing
-$AllInstances = Get-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name | Where-Object -FilterScript { $_.Name -in $BackupInstance.BackupInstanceName}
-$RestoreJobs = foreach ($CurrentInstance in $AllInstances)
-{
- Write-Host -Object "Processing '$($CurrentInstance.Property.FriendlyName)'"
- #region Fetch the relevant recovery point
- $RecoveryPoints = Get-AzDataProtectionRecoveryPoint -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupInstanceName $CurrentInstance.BackupInstanceName
- $LatestRecoveryPointTime = $RecoveryPoints.Property | Sort-Object -Property RecoveryPointTime -Descending | Select-Object -First 1 
- $LatestRecoveryPoint = $RecoveryPoints | Where-Object -FilterScript {$_.Property.RecoveryPointTime -eq $LatestRecoveryPointTime.RecoveryPointTime}
- Write-Host -Object "Latest Recovery Point for '$($CurrentInstance.Property.FriendlyName)': $($LatestRecoveryPoint.Property.RecoveryPointTime)"
- #endregion
+$AllInstances = Get-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name | Where-Object -FilterScript { $_.Name -in $BackupInstance.BackupInstanceName }
+$RestoreJobs = foreach ($CurrentInstance in $AllInstances) {
+    Write-Host -Object "Processing '$($CurrentInstance.Property.FriendlyName)'"
+    #region Fetch the relevant recovery point
+    $RecoveryPoints = Get-AzDataProtectionRecoveryPoint -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -BackupInstanceName $CurrentInstance.BackupInstanceName
+    $LatestRecoveryPointTime = $RecoveryPoints.Property | Sort-Object -Property RecoveryPointTime -Descending | Select-Object -First 1 
+    $LatestRecoveryPoint = $RecoveryPoints | Where-Object -FilterScript { $_.Property.RecoveryPointTime -eq $LatestRecoveryPointTime.RecoveryPointTime }
+    Write-Host -Object "Latest Recovery Point for '$($CurrentInstance.Property.FriendlyName)': $($LatestRecoveryPoint.Property.RecoveryPointTime)"
+    #endregion
 
- #region Preparing the restore request on the original location/AKS Cluster
- $RestoreCriteria = New-AzDataProtectionRestoreConfigurationClientObject -DatasourceType AzureKubernetesService -PersistentVolumeRestoreMode RestoreWithVolumeData -IncludeClusterScopeResource $true -NamespaceMapping @{"sourceNamespace"="targetNamespace"}
- $RestoreRequest = Initialize-AzDataProtectionRestoreRequest -DatasourceType AzureKubernetesService -SourceDataStore OperationalStore -RestoreLocation $Location -RestoreType OriginalLocation -RecoveryPoint $LatestRecoveryPoint.Property.RecoveryPointId -RestoreConfiguration $RestoreCriteria -BackupInstance $CurrentInstance
- #$RestoreRequest = Initialize-AzDataProtectionRestoreRequest -DatasourceType AzureKubernetesService -SourceDataStore OperationalStore -RestoreLocation $Location -RestoreType AlternateLocation -TargetResourceId $RestoreAKSCluster.Id -RecoveryPoint $LatestRecoveryPoint.Property.RecoveryPointId -RestoreConfiguration $RestoreCriteria
- #endregion
+    #region Preparing the restore request on the original location/AKS Cluster
+    $RestoreCriteria = New-AzDataProtectionRestoreConfigurationClientObject -DatasourceType AzureKubernetesService -PersistentVolumeRestoreMode RestoreWithVolumeData -IncludeClusterScopeResource $true -NamespaceMapping @{"sourceNamespace" = "targetNamespace" }
+    $RestoreRequest = Initialize-AzDataProtectionRestoreRequest -DatasourceType AzureKubernetesService -SourceDataStore OperationalStore -RestoreLocation $Location -RestoreType OriginalLocation -RecoveryPoint $LatestRecoveryPoint.Property.RecoveryPointId -RestoreConfiguration $RestoreCriteria -BackupInstance $CurrentInstance
+    #$RestoreRequest = Initialize-AzDataProtectionRestoreRequest -DatasourceType AzureKubernetesService -SourceDataStore OperationalStore -RestoreLocation $Location -RestoreType AlternateLocation -TargetResourceId $RestoreAKSCluster.Id -RecoveryPoint $LatestRecoveryPoint.Property.RecoveryPointId -RestoreConfiguration $RestoreCriteria
+    #endregion
  
- #region Trigger the restore
- #validate the restore request created earlier
- $validateRestore = Test-AzDataProtectionBackupInstanceRestore -SubscriptionId $SubscriptionId -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -RestoreRequest $RestoreRequest -Name $CurrentInstance.BackupInstanceName
- Write-Host -Object "Restoring '$($CurrentInstance.Property.FriendlyName)' to the '$($ResourceGroup.ResourceGroupName)' Resource Group"
- Start-AzDataProtectionBackupInstanceRestore -BackupInstanceName $CurrentInstance.BackupInstanceName -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -Parameter $RestoreRequest
- #endregion
+    #region Trigger the restore
+    #validate the restore request created earlier
+    $validateRestore = Test-AzDataProtectionBackupInstanceRestore -SubscriptionId $SubscriptionId -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -RestoreRequest $RestoreRequest -Name $CurrentInstance.BackupInstanceName
+    Write-Host -Object "Restoring '$($CurrentInstance.Property.FriendlyName)' to the '$($ResourceGroup.ResourceGroupName)' Resource Group"
+    Start-AzDataProtectionBackupInstanceRestore -BackupInstanceName $CurrentInstance.BackupInstanceName -ResourceGroupName $ResourceGroupName -VaultName $BackupVault.Name -Parameter $RestoreRequest
+    #endregion
 }
 #endregion
 
 #region Tracking job
-Do
-{
- Write-Host -Object "Waiting The Restore Job(s) Be Completed. Sleeping 30 seconds ..."
- Start-Sleep -Seconds 30
- $Job = Get-AzDataProtectionJob -SubscriptionId $SubscriptionId -ResourceGroupName $ResourceGroupName -VaultName $BackupVaultName | Where-Object {$_.Id -eq $RestoreJobs.JobID }
-} while($Job.Status -ne "Completed")
+Do {
+    Write-Host -Object "Waiting The Restore Job(s) Be Completed. Sleeping 30 seconds ..."
+    Start-Sleep -Seconds 30
+    $Job = Get-AzDataProtectionJob -SubscriptionId $SubscriptionId -ResourceGroupName $ResourceGroupName -VaultName $BackupVaultName | Where-Object { $_.Id -eq $RestoreJobs.JobID }
+} while ($Job.Status -ne "Completed")
 $Job | Format-Table -Property DataSourceName, Status
 
 #endregion
