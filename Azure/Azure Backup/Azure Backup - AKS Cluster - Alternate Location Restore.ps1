@@ -324,6 +324,7 @@ Do {
 #endregion
 
 #region Restore Management
+
 #region Alternate AKS Cluster Setup (for restoring on an alternate location)
 $RestoreResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}-rs" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $RestoreAKSClusterName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}-rs" -f $AKSClusterPrefix, $Project, $Role, $LocationShortName, $Instance
