@@ -282,7 +282,7 @@ $BackupConfig = New-AzDataProtectionBackupConfigurationClientObject -SnapshotVol
 $DataProtectionBackupInstance = Initialize-AzDataProtectionBackupInstance -DatasourceType AzureKubernetesService -DatasourceLocation $Location -PolicyId $DataProtectionBackupPolicy.Id -DatasourceId $AksCluster.Id -SnapshotResourceGroupId $SnapshotResourceGroup.ResourceId -BackupConfiguration $BackupConfig -FriendlyName $AKSCluster.Name
 #endregion
 
-#region Assign required permissions and validafte
+#region Assign required permissions and validate
 Set-AzDataProtectionMSIPermission -BackupInstance $DataProtectionBackupInstance -VaultResourceGroup $ResourceGroupName -VaultName $BackupVault.Name -PermissionsScope "ResourceGroup" -Confirm:$false
 
 Do {
