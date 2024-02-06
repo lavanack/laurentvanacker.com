@@ -22,7 +22,8 @@ of the Sample Code.
 param
 (
     [switch] $All,
-    [switch] $AsJob
+    [switch] $AsJob,
+    [switch] $Wait
 )
 
 
@@ -52,7 +53,7 @@ else {
 }
 
 $Jobs = foreach ($CurrentBackupVault in $BackupVaults) {
-    Write-Host -Object "Processing '$($CurrentBackupVault.Name)' Backup Vault ..." 
+    Write-Host -Object "Removing '$($CurrentBackupVault.Name)' Backup Vault ..." 
     $ScriptBlock = {
         param($CurrentBackupVault) 
         $ResourceGroupName = ($CurrentBackupVault.Id -split "/")[4]
@@ -61,15 +62,22 @@ $Jobs = foreach ($CurrentBackupVault in $BackupVaults) {
         Write-Host -Object "`t[$($CurrentBackupVault.Name)] Removing Backup Policies ..." 
         Get-AzDataProtectionBackupPolicy -ResourceGroupName $ResourceGroupName -VaultName $CurrentBackupVault.Name | Remove-AzDataProtectionBackupPolicy -Verbose
         Write-Host -Object "`t[$($CurrentBackupVault.Name)] Removing Resource Groups ..." 
-        Get-AzResourceGroup "*$ResourceGroupName*" | Remove-AzResourceGroup -Force -AsJob -Verbose | Wait-Job
+        if ($Wait) {
+            Get-AzResourceGroup "*$ResourceGroupName*" | Remove-AzResourceGroup -Force -AsJob -Verbose | Wait-Job
+        } 
+        else {
+            Get-AzResourceGroup "*$ResourceGroupName*" | Remove-AzResourceGroup -Force -AsJob -Verbose
+        }
     }
     if ($AsJob)
     {
-        Start-ThreadJob -ScriptBlock $ScriptBlock -ArgumentList $CurrentBackupVault -Verbose -StreamingHost $Host
+        Start-ThreadJob -ScriptBlock $ScriptBlock -ArgumentList $CurrentBackupVault -Verbose | Out-Null #-StreamingHost $Host
     }
     else
     {
         Invoke-Command -ScriptBlock $ScriptBlock -ArgumentList $CurrentBackupVault -Verbose
     }
 }
-$Jobs | Wait-Job
+if ($Wait) {
+    $Jobs | Wait-Job
+}
