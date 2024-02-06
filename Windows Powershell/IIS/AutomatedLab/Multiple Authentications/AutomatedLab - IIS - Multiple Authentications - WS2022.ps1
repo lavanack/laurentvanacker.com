@@ -102,7 +102,9 @@ $LocalTempFolder = 'C:\Temp'
 $MSEdgeEntUri = "http://go.microsoft.com/fwlink/?LinkID=2093437"
 
 #Wireshark Download URI
-$WiresharkWin64LatestExeUri = 'https://1.eu.dl.wireshark.org/win64/Wireshark-win64-latest.exe'
+$WireSharkDownloadHome = "https://www.wireshark.org/download/win64/"
+$WiresharkLatestX64 = (Invoke-WebRequest -Uri $TopURI).Links | Where-Object -FilterScript { $_.innerText -match "-latest-x64.exe" } | Sort-Object -Descending
+$WiresharkWin64LatestExeUri = "{0}{1}" -f $WireSharkDownloadHome, $WiresharkLatestX64.href
 
 #IIS Crypto Cli Download URI
 $IISCryptoCliExeUri = 'https://www.nartac.com/Downloads/IISCrypto/IISCryptoCli.exe'
@@ -474,6 +476,13 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     Set-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST/$using:BasicWebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
     #Disabling validation for application pool in integrated mode due to ASP.Net impersonation incompatibility
     Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:BasicWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False'
+
+    #From https://laurentvanacker.com/index.php/2020/09/03/nouvelle-fonctionnalite-iis-pour-aider-a-identifier-une-version-tls-obsolete-new-iis-functionality-to-help-identify-weak-tls-usage/
+    #Custom Log Fields for TLS & Certificates
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:BasicWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='crypt-protocol';sourceName='CRYPT_PROTOCOL';sourceType='ServerVariable'}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:BasicWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='crypt-cipher';sourceName='CRYPT_CIPHER_ALG_ID';sourceType='ServerVariable'}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:BasicWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='crypt-hash';sourceName='CRYPT_HASH_ALG_ID';sourceType='ServerVariable'}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:BasicWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='crypt-keyexchange';sourceName='CRYPT_KEYEXCHANGE_ALG_ID';sourceType='ServerVariable'}
     #endregion
         
     #region : Kerberos website management
@@ -595,6 +604,14 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     Set-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST/$using:ADClientCertWebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
     #Disabling validation for application pool in integrated mode due to ASP.Net impersonation incompatibility
     Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:ADClientCertWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False'
+    #From https://laurentvanacker.com/index.php/2020/09/03/nouvelle-fonctionnalite-iis-pour-aider-a-identifier-une-version-tls-obsolete-new-iis-functionality-to-help-identify-weak-tls-usage/
+    #Custom Log Fields for TLS & Certificates
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:ADClientCertWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='crypt-protocol';sourceName='CRYPT_PROTOCOL';sourceType='ServerVariable'}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:ADClientCertWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='crypt-cipher';sourceName='CRYPT_CIPHER_ALG_ID';sourceType='ServerVariable'}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:ADClientCertWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='crypt-hash';sourceName='CRYPT_HASH_ALG_ID';sourceType='ServerVariable'}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:ADClientCertWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='crypt-keyexchange';sourceName='CRYPT_KEYEXCHANGE_ALG_ID';sourceType='ServerVariable'}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:ADClientCertWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='cert-subject';sourceName='CERT_SUBJECT';sourceType='ServerVariable'}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:ADClientCertWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='cert-serialnumber';sourceName='CERT_SERIALNUMBER';sourceType='ServerVariable'}
     #endregion
 
     #region : IIS Client Certificate website management 1:1
@@ -640,6 +657,15 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     Set-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST/$using:IISClientOneToOneCertWebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
     #Disabling validation for application pool in integrated mode due to ASP.Net impersonation incompatibility
     Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientOneToOneCertWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False'
+
+    #From https://laurentvanacker.com/index.php/2020/09/03/nouvelle-fonctionnalite-iis-pour-aider-a-identifier-une-version-tls-obsolete-new-iis-functionality-to-help-identify-weak-tls-usage/
+    #Custom Log Fields for TLS & Certificates
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:IISClientOneToOneCertWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='crypt-protocol';sourceName='CRYPT_PROTOCOL';sourceType='ServerVariable'}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:IISClientOneToOneCertWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='crypt-cipher';sourceName='CRYPT_CIPHER_ALG_ID';sourceType='ServerVariable'}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:IISClientOneToOneCertWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='crypt-hash';sourceName='CRYPT_HASH_ALG_ID';sourceType='ServerVariable'}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:IISClientOneToOneCertWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='crypt-keyexchange';sourceName='CRYPT_KEYEXCHANGE_ALG_ID';sourceType='ServerVariable'}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:IISClientOneToOneCertWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='cert-subject';sourceName='CERT_SUBJECT';sourceType='ServerVariable'}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:IISClientOneToOneCertWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='cert-serialnumber';sourceName='CERT_SERIALNUMBER';sourceType='ServerVariable'}
     #endregion
 
     #region : IIS Client Certificate website management N:1
@@ -680,6 +706,14 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     Set-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST/$using:IISClientManyToOneCertWebSiteName" -filter 'system.web/identity' -name 'impersonate' -value 'True'
     #Disabling validation for application pool in integrated mode due to ASP.Net impersonation incompatibility
     Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -location "$using:IISClientManyToOneCertWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False'
+    #From https://laurentvanacker.com/index.php/2020/09/03/nouvelle-fonctionnalite-iis-pour-aider-a-identifier-une-version-tls-obsolete-new-iis-functionality-to-help-identify-weak-tls-usage/
+    #Custom Log Fields for TLS & Certificates
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:IISClientManyToOneCertWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='crypt-protocol';sourceName='CRYPT_PROTOCOL';sourceType='ServerVariable'}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:IISClientManyToOneCertWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='crypt-cipher';sourceName='CRYPT_CIPHER_ALG_ID';sourceType='ServerVariable'}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:IISClientManyToOneCertWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='crypt-hash';sourceName='CRYPT_HASH_ALG_ID';sourceType='ServerVariable'}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:IISClientManyToOneCertWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='crypt-keyexchange';sourceName='CRYPT_KEYEXCHANGE_ALG_ID';sourceType='ServerVariable'}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:IISClientManyToOneCertWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='cert-subject';sourceName='CERT_SUBJECT';sourceType='ServerVariable'}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:IISClientManyToOneCertWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='cert-serialnumber';sourceName='CERT_SERIALNUMBER';sourceType='ServerVariable'}
     #endregion
 
     #region : Forms website management
@@ -727,6 +761,13 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
 
     #Disabling validation for application pool in integrated mode due to ASP.Net impersonation incompatibility
     Set-WebConfigurationProperty -PSPath "IIS:\Sites\$using:FormsWebSiteName" -filter 'system.webServer/validation' -name 'validateIntegratedModeConfiguration' -value 'False'
+
+    #From https://laurentvanacker.com/index.php/2020/09/03/nouvelle-fonctionnalite-iis-pour-aider-a-identifier-une-version-tls-obsolete-new-iis-functionality-to-help-identify-weak-tls-usage/
+    #Custom Log Fields for TLS & Certificates
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:FormsWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='crypt-protocol';sourceName='CRYPT_PROTOCOL';sourceType='ServerVariable'}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:FormsWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='crypt-cipher';sourceName='CRYPT_CIPHER_ALG_ID';sourceType='ServerVariable'}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:FormsWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='crypt-hash';sourceName='CRYPT_HASH_ALG_ID';sourceType='ServerVariable'}
+    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'  -filter "system.applicationHost/sites/site[@name='$using:FormsWebSiteName']/logFile/customFields" -name "." -value @{logFieldName='crypt-keyexchange';sourceName='CRYPT_KEYEXCHANGE_ALG_ID';sourceType='ServerVariable'}
     #endregion
 }
 
