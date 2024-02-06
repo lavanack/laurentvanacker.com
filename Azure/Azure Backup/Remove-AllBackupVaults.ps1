@@ -56,20 +56,20 @@ $Jobs = foreach ($CurrentBackupVault in $BackupVaults) {
     $ScriptBlock = {
         param($CurrentBackupVault) 
         $ResourceGroupName = ($CurrentBackupVault.Id -split "/")[4]
-        Write-Host -Object "`tRemoving Backup Instances ..." 
+        Write-Host -Object "`t[$($CurrentBackupVault.Name)] Removing Backup Instances ..." 
         Get-AzDataProtectionBackupInstance -ResourceGroupName $ResourceGroupName -VaultName $CurrentBackupVault.Name | Remove-AzDataProtectionBackupInstance -Verbose
-        Write-Host -Object "`tRemoving Backup Policies ..." 
-        Get-AzDataProtectionBackupPolicy -ResourceGroupName $ResourceGroupName -VaultName $CurrentBackupVault.Name | Remove-AzDataProtectionBackupPolicy
-        Write-Host -Object "`tRemoving Resource Groups ..." 
-        Get-AzResourceGroup "*$ResourceGroupName*" | Remove-AzResourceGroup -Force -AsJob | Wait-Job
+        Write-Host -Object "`t[$($CurrentBackupVault.Name)] Removing Backup Policies ..." 
+        Get-AzDataProtectionBackupPolicy -ResourceGroupName $ResourceGroupName -VaultName $CurrentBackupVault.Name | Remove-AzDataProtectionBackupPolicy -Verbose
+        Write-Host -Object "`t[$($CurrentBackupVault.Name)] Removing Resource Groups ..." 
+        Get-AzResourceGroup "*$ResourceGroupName*" | Remove-AzResourceGroup -Force -AsJob -Verbose | Wait-Job
     }
     if ($AsJob)
     {
-        Start-ThreadJob -ScriptBlock $ScriptBlock -ArgumentList $CurrentBackupVault -StreamingHost $Host
+        Start-ThreadJob -ScriptBlock $ScriptBlock -ArgumentList $CurrentBackupVault -Verbose -StreamingHost $Host
     }
     else
     {
-        Invoke-Command -ScriptBlock $ScriptBlock -ArgumentList $CurrentBackupVault
+        Invoke-Command -ScriptBlock $ScriptBlock -ArgumentList $CurrentBackupVault -Verbose
     }
 }
 $Jobs | Wait-Job
