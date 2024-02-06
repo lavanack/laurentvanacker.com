@@ -85,7 +85,7 @@ The script requires some PowerShell modules to be installed on the machine (ADDS
 > I fill a bug on the 7+ version of the Az.Compute module preventing the successful run of the Azure Compute Gallery. When writing this documentation (December 2023), the bug is not fixed. I encourage you to use the 6.3.0 version of the Az.Compute module as a temporary fix (and to uninstall all newer versions). You can install it with the following PowerShell command line (from an elevated PowerShell Host):  
 
 ```powershell:
-Uninstall-Module -Name AZ.compute -AllVersions -Verbose
+Uninstall-Module -Name Az.compute -AllVersions -Verbose
 Install-Module -Name Az.Compute -RequiredVersion 6.3.0.0 -Force -Verbose -AllowClobber
 ```
 
