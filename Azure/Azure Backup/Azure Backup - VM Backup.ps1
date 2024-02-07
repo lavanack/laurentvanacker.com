@@ -343,7 +343,8 @@ $RetPol.IsDailyScheduleEnabled = $true
 $RetPol.IsMonthlyScheduleEnabled = $false
 $RetPol.IsWeeklyScheduleEnabled = $false
 $RetPol.IsYearlyScheduleEnabled = $false
-$RecoveryServicesBackupProtectionPolicy = New-AzRecoveryServicesBackupProtectionPolicy -Name "MyBackupPolicy" -WorkloadType AzureVM -BackupManagementType AzureVM -RetentionPolicy $RetPol -SchedulePolicy $SchPol
+$PolicyName = "MyBackupPolicy{0}" -f $Instance
+$RecoveryServicesBackupProtectionPolicy = New-AzRecoveryServicesBackupProtectionPolicy -Name $PolicyName -WorkloadType AzureVM -BackupManagementType AzureVM -RetentionPolicy $RetPol -SchedulePolicy $SchPol
 #endregion
 
 #region Enable backup for an Azure VM
