@@ -21,8 +21,7 @@ of the Sample Code.
 [CmdletBinding()]
 param
 (
-    [switch] $All,
-    [switch] $AsJob
+    [switch] $All
 )
 
 
@@ -74,9 +73,9 @@ else {
     $RecoveryServicesVaults = Get-AzRecoveryServicesVault | Out-GridView -PassThru
 }
 
-$Jobs = $RecoveryServicesVaults | ForEach-Object -Parallel {
+$RecoveryServicesVaults | ForEach-Object -Parallel {
     $VaultToDelete = $_
-    Write-Host -Object "Processing '$($VaultToDelete.Name)' Recovery Services Vault ..." 
+    Write-Host -Object "Removing '$($VaultToDelete.Name)' Recovery Services Vault ..." 
     $ResourceGroup = ($VaultToDelete.Id -split "/")[4]
     $VaultName = $VaultToDelete.Name
 
@@ -278,4 +277,5 @@ $Jobs = $RecoveryServicesVaults | ForEach-Object -Parallel {
     }
     #Finish
 }
-$Jobs | Wait-Job
+
+$RecoveryServicesVaults | ForEach-Object -Process { Remove-AzResourceGroup -Name $_.ResourceGroupName -AsJob -Force }
