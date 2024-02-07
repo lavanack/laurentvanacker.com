@@ -42,7 +42,7 @@ function Remove-AzVMStaleCredential {
             else {
                 If ($pscmdlet.ShouldProcess($DNSName, 'Removing Credentials from the Windows Credential Manager')) {
                     Write-Warning -Message "$VMName ($DNSName) Azure VM doesn't exist. The related credentials will be removed from the Windows Credential Manager"
-                    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /delete:$TERMSRV$DNSName" #-Wait
+                    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /delete:$TERMSRV$DNSName" -NoNewWindow #-Wait
                 }
             }
         }
