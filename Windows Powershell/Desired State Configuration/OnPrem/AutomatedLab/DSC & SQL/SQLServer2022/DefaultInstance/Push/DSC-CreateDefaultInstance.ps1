@@ -175,6 +175,18 @@ Configuration CreateDefaultInstance {
             DependsOn      = '[SqlSetup]DefaultInstance'
         }
 
+        SqlMaxDop 'MaxDegreeOfParallelism'
+        {
+            Ensure               = 'Present'
+            DynamicAlloc         = $false
+            MaxDop               = 1
+            ServerName           = $Node.NodeName
+            InstanceName         = $Node.InstanceName
+            PsDscRunAsCredential = $SqlInstallCredential
+            DependsOn      = '[SqlSetup]DefaultInstance', '[SqlConfiguration]ShowAdvancedOptions'
+        }
+
+        <#
         SqlConfiguration MaxDegreeOfParallelism
         {
  
@@ -184,8 +196,9 @@ Configuration CreateDefaultInstance {
             OptionValue    = 1
             RestartService = $false
             PsDscRunAsCredential   = $SqlInstallCredential
-            DependsOn      = '[SqlSetup]DefaultInstance', '[SqlConfiguration]ShowAdvancedOptions'
+            DependsOn      = '[SqlSetup]InstallAG', '[SqlConfiguration]ShowAdvancedOptions'
         }
+        #>
 
         SqlConfiguration AgentXPs
         {

@@ -496,6 +496,17 @@ Configuration CreateClusterWithTwoNodes {
             DependsOn      = '[SqlSetup]InstallFailoverCluster'
         }
 
+        SqlMaxDop 'MaxDegreeOfParallelism'
+        {
+            Ensure               = 'Present'
+            DynamicAlloc         = $false
+            MaxDop               = 1
+            ServerName           = $Node.NodeName
+            InstanceName         = $Node.InstanceName
+            PsDscRunAsCredential = $SqlInstallCredential
+            DependsOn      = '[SqlSetup]DefaultInstance', '[SqlConfiguration]ShowAdvancedOptions'
+        }
+        <#
         SqlConfiguration MaxDegreeOfParallelism
         {
  
@@ -507,6 +518,7 @@ Configuration CreateClusterWithTwoNodes {
             PsDscRunAsCredential = $SqlInstallCredential
             DependsOn            = '[SqlSetup]InstallFailoverCluster', '[SqlConfiguration]ShowAdvancedOptions'
         }
+        #>
 
         SqlConfiguration AgentXPs
         {
