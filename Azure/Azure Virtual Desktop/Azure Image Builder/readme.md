@@ -80,4 +80,4 @@ More details [here](https://learn.microsoft.com/en-us/azure/virtual-desktop/trou
 
 ## Get-AzureVMImageBuilderData.ps1
 
-The script [Get-AzureVMImageBuilderData.ps1](Get-AzureVMImageBuilderData.ps1) return some data about the Azure VM Image Builder process. It can be useful for tracking the process evolution.
+The script [Get-AzureVMImageBuilderData.ps1](Get-AzureVMImageBuilderData.ps1) returns some data about the Azure VM Image Builder process. It can be useful for tracking the process evolution.
