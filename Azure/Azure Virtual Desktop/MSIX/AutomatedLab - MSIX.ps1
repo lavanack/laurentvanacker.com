@@ -125,6 +125,9 @@ Invoke-LabCommand -ActivityName "Installing winget and 'MSIX Packaging Tool'" -C
     $CommandLine = 'winget install "MSIX Packaging Tool" --source msstore --accept-source-agreements --accept-package-agreements'
     Start-Process -FilePath $env:ComSpec -ArgumentList "/c", $CommandLine -Wait
     Set-WinUserLanguageList -LanguageList fr-fr -Force
+
+    #Customizing Taskbar
+    Invoke-Expression -Command "& { $((Invoke-RestMethod https://raw.githubusercontent.com/Ccmexec/PowerShell/master/Customize%20TaskBar%20and%20Start%20Windows%2011/CustomizeTaskbar.ps1) -replace "﻿") } -MoveStartLeft -RemoveWidgets -RemoveChat -RemoveSearch -RunForExistingUsers" -Verbose
 }
 
 Show-LabDeploymentSummary -Detailed
