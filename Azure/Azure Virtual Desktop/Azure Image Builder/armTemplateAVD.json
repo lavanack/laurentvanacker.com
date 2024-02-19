@@ -93,10 +93,7 @@
                             "source": "avd-win11",
                             "baseosimg": "windows11"
                         },
-                        "replicationRegions": [
-                            "<region1>"
-
-                        ]
+                        "targetRegions": <targetRegions>
                     }
                 ]
             }

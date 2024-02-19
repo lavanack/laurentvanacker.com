@@ -25,7 +25,9 @@ function New-AzureComputeGallery {
 		[Parameter(Mandatory = $false)]
 		[string]$Location = "EastUS",
 		[Parameter(Mandatory = $false)]
-		[string[]]$ReplicationRegions = "EastUS2"
+		[string[]]$targetRegions = @($Location,"EastUS2"),
+		[Parameter(Mandatory = $false)]
+		[int]$ReplicaCount = 1
 	)
 
 	#region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
@@ -45,12 +47,17 @@ function New-AzureComputeGallery {
 	$ResourceGroupPrefix = "rg"
 
 	# Location (see possible locations in the main docs)
-	#$Location = "EastUS"
 	Write-Verbose -Message "`$Location: $Location"
 	$LocationShortName = $shortNameHT[$Location].shortName
 	Write-Verbose -Message "`$LocationShortName: $LocationShortName"
-	#$ReplicationRegions = "EastUS2"
-	Write-Verbose -Message "`$ReplicationRegions: $($ReplicationRegions -join ', ')"
+    if ($Location -notin $targetRegions) {
+        $targetRegions += $Location
+    }
+	Write-Verbose -Message "`$targetRegions: $($targetRegions -join ', ')"
+    [array] $targetRegionSettings = foreach ($CurrentTargetRegion in $targetRegions)
+    {
+        @{"name"=$CurrentTargetRegion;"replicaCount"=$ReplicaCount;"storageAccountType"="Premium_LRS"}
+    }
 
 	$Project = "avd"
 	$Role = "aib"
@@ -151,7 +158,7 @@ function New-AzureComputeGallery {
 	#region Download and configure the template
 	#$templateUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/14_Building_Images_WVD/armTemplateWVD.json"
 	#$templateFilePath = "armTemplateWVD.json"
-	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVD.json"
+	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVDvNext.json"
 	$templateFilePath = Join-Path -Path $CurrentDir -ChildPath $(Split-Path $templateUrl -Leaf)
 	#Generate a unique file name 
 	$templateFilePath = $templateFilePath -replace ".json$", "_$timeInt.json"
@@ -166,14 +173,14 @@ function New-AzureComputeGallery {
 
     ((Get-Content -path $templateFilePath -Raw) -replace '<imageDefName>', $imageDefName01) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<sharedImageGalName>', $GalleryName) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<region1>', $replicationRegions) | Set-Content -Path $templateFilePath
+    ((Get-Content -path $templateFilePath -Raw) -replace '<targetRegions>', $($targetRegionSettings | ConvertTo-Json)) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<imgBuilderId>', $AssignedIdentity.Id) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<version>', $version) | Set-Content -Path $templateFilePath
 	#endregion
 
 	#region Submit the template
 	Write-Verbose -Message "Starting Resource Group Deployment from '$templateFilePath' ..."
-	$ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2020-02-14" } -imageTemplateName $imageTemplateName01 -svclocation $location
+	$ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2022-07-01"; "imageTemplateName" = $imageTemplateName01; "svclocation" = $location}
 
 	#region Build the image
 	Write-Verbose -Message "Starting Image Builder Template from '$imageTemplateName01' (As Job) ..."
@@ -218,7 +225,7 @@ function New-AzureComputeGallery {
 		#ReplicationRegion = $location
 
 		# 2. Uncomment following line if the custom image should be replicated to another region(s).
-		ReplicationRegion      = @($location) + $replicationRegions
+		TargetRegion           = $targetRegionSettings
 
 		RunOutputName          = $runOutputName02
 		ExcludeFromLatest      = $false
