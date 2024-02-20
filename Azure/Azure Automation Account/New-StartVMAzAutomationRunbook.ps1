@@ -25,7 +25,8 @@ param
 
 
 #region function definitions 
-function Get-AzAutomationRunbookDefinition {
+#From https://learn.microsoft.com/en-us/rest/api/automation/runbook/get-content?view=rest-automation-2023-11-01&tabs=HTTP
+function Get-AzAPIAutomationRunbookDefinition {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
@@ -71,6 +72,129 @@ function Get-AzAutomationRunbookDefinition {
     return $Response
 }
 
+#From https://learn.microsoft.com/en-us/rest/api/automation/runbook/get?view=rest-automation-2023-11-01&tabs=HTTP
+function Get-AzAPIAutomationRunbook {
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+        [string]$ResourceGroupName,
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+        [string]$AutomationAccountName,
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+        [string]$RunbookName
+    )
+    #region Azure Context
+    # Log in first with Connect-AzAccount if not using Cloud Shell
+
+    $azContext = Get-AzContext
+    $SubcriptionID = $azContext.Subscription.Id
+    $azProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile
+    $profileClient = New-Object -TypeName Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient -ArgumentList ($azProfile)
+    $token = $profileClient.AcquireAccessToken($azContext.Subscription.TenantId)
+    $authHeader = @{
+        'Content-Type'  = 'application/json'
+        'Authorization' = 'Bearer ' + $token.AccessToken
+    }
+    #endregion
+
+    $URI = "https://management.azure.com/subscriptions/$SubcriptionID/resourceGroups/$ResourceGroupName/providers/Microsoft.Automation/automationAccounts/$AutomationAccountName/runbooks/$($RunbookName)?api-version=2023-11-01"
+    try {
+        # Invoke the REST API
+        $Response = Invoke-RestMethod -Method GET -Headers $authHeader -ContentType "application/json" -Uri $URI -ErrorVariable ResponseError
+    }
+    catch [System.Net.WebException] {   
+        # Dig into the exception to get the Response details.
+        # Note that value__ is not a typo.
+        Write-Warning -Message "StatusCode: $($_.Exception.Response.StatusCode.value__ )"
+        Write-Warning -Message "StatusDescription: $($_.Exception.Response.StatusDescription)"
+        $respStream = $_.Exception.Response.GetResponseStream()
+        $reader = New-Object System.IO.StreamReader($respStream)
+        $Response = $reader.ReadToEnd() | ConvertFrom-Json
+        if (-not([string]::IsNullOrEmpty($Response.message))) {
+            Write-Warning -Message $Response.message
+        }
+    }
+    finally {
+    }
+    return $Response
+}
+
+#From https://learn.microsoft.com/en-us/rest/api/automation/runbook/create-or-update?view=rest-automation-2023-11-01&tabs=HTTP#create-or-update-runbook-and-publish-it
+function New-AzAPIAutomationPowerShellRunbook {
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+        [string]$ResourceGroupName,
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+        [string]$AutomationAccountName,
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+        [string]$RunbookName,
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+        [string]$Location
+    )
+    #region Azure Context
+    # Log in first with Connect-AzAccount if not using Cloud Shell
+
+    $azContext = Get-AzContext
+    $SubcriptionID = $azContext.Subscription.Id
+    $azProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile
+    $profileClient = New-Object -TypeName Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient -ArgumentList ($azProfile)
+    $token = $profileClient.AcquireAccessToken($azContext.Subscription.TenantId)
+    $authHeader = @{
+        'Content-Type'  = 'application/json'
+        'Authorization' = 'Bearer ' + $token.AccessToken
+    }
+    #endregion
+
+    $wc = [System.Net.WebClient]::new()
+    $RunBookPowerShellScriptURI = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Automation%20Account/runbk-StartAzureVirtualMachine.ps1"
+    $ContentHash = Get-FileHash -InputStream ($wc.OpenRead($RunBookPowerShellScriptURI)) -Algorithm SHA256
+
+    $Body = [ordered]@{ 
+        properties = [ordered]@{
+            description        = "PowerShell Azure Automation Runbook for Starting Azure Virtual Machines" 
+            logVerbose         = $false
+            logProgress        = $false
+            logActivityTrace   = 0
+            runbookType        = "PowerShell"
+            publishContentLink = @{
+                uri         = $RunBookPowerShellScriptURI
+                contentHash = [ordered]@{
+                    "algorithm" = $ContentHash.Algorithm
+                    "value"     = $ContentHash.Hash
+                }
+            }
+            parameters         = [ordered] @{
+                TagName  = "AutoStart-Enabled"
+                TagValue = "Enabled"
+                Shutdown = $false
+            }
+        }
+        name       = $RunbookName
+        location   = $Location
+    }
+
+    $URI = "https://management.azure.com/subscriptions/$SubcriptionID/resourceGroups/$ResourceGroupName/providers/Microsoft.Automation/automationAccounts/$AutomationAccountName/runbooks/$($RunbookName)?api-version=2023-11-01"
+    try {
+        # Invoke the REST API
+        $Response = Invoke-RestMethod -Method PUT -Headers $authHeader -Body $($Body | ConvertTo-Json -Depth 100) -ContentType "application/json" -Uri $URI -ErrorVariable ResponseError
+    }
+    catch [System.Net.WebException] {   
+        # Dig into the exception to get the Response details.
+        # Note that value__ is not a typo.
+        Write-Warning -Message "StatusCode: $($_.Exception.Response.StatusCode.value__ )"
+        Write-Warning -Message "StatusDescription: $($_.Exception.Response.StatusDescription)"
+        $respStream = $_.Exception.Response.GetResponseStream()
+        $reader = New-Object System.IO.StreamReader($respStream)
+        $Response = $reader.ReadToEnd() | ConvertFrom-Json
+        if (-not([string]::IsNullOrEmpty($Response.message))) {
+            Write-Warning -Message $Response.message
+        }
+    }
+    finally {
+    }
+    return $Response
+}
 #endregion
 
 Clear-Host
@@ -106,7 +230,7 @@ $AutomationAccountPrefix = "aa"
 $Project = "automation"
 $Role = "startvm"
 $DigitNumber = 3
-$Instance = 10
+$Instance = 1
 
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $AutomationAccountName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $AutomationAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
@@ -134,19 +258,16 @@ New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefi
 #region Schedule
 $TimeZone = ([System.TimeZoneInfo]::Local).Id
 $StartTime = Get-Date "07:30:00"
-if ($(Get-Date) -gt $StartTime)
-{
+if ($(Get-Date) -gt $StartTime) {
     $StartTime = $StartTime.AddDays(1)
 }
-$Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Machine - Daily Start" -StartTime $StartTime -WeekInterval 1 -DaysOfWeek "Monday","Tuesday","Wednesday","Thursday","Friday" -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
+$Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Machine - Daily Start" -StartTime $StartTime -WeekInterval 1 -DaysOfWeek "Monday", "Tuesday", "Wednesday", "Thursday", "Friday" -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
 #endregion
 
 #region RunBook
 $RunBookName = "{0}-StopStartAzureVirtualMachine" -f $RunBookPrefix
-$Runbook = New-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName -Type PowerShell
-
-# Update the runbook definition
-Set-AzAutomationRunbookDefinition -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName -Path $scriptPath
+#$Runbook = New-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName -Type PowerShell
+$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -Verbose
 
 # Create a new variable
 $VariableName = "AbstractApiKey "
@@ -159,4 +280,4 @@ Publish-AzAutomationRunbook -AutomationAccountName $AutomationAccount.Automation
 #endregion 
 
 # Link the schedule to the runbook
-Register-AzAutomationScheduledRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ScheduleName $Schedule.Name -ResourceGroupName $ResourceGroupName -Parameters @{"TagName"="AutoStart-Enabled";"TagValue"="Enabled";"Shutdown"=$false}
+Register-AzAutomationScheduledRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ScheduleName $Schedule.Name -ResourceGroupName $ResourceGroupName -Parameters @{"TagName" = "AutoStart-Enabled"; "TagValue" = "Enabled"; "Shutdown" = $false }
