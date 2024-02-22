@@ -263,7 +263,8 @@ At the end of the deployment, the following deliverables are available (the foll
 
 - We will use the Virtual Network used for the Domain Controller. It is not recommended to use the same Virtual Network for the Domain Controller and the Session Hosts. It is recommended to use a dedicated Virtual Network for the Session Hosts. This is not implemented in the script for the moment.
 - I'm not using Application Security Group (only Network Security Groups).
-- I have only implemeted AD Domain joined for the Pooled HostPool (no Azure AD/Microsoft Entra ID joined).
+- I have only implemeted AD Domain joined for the Pooled HostPools (no Azure AD/Microsoft Entra ID joined).
+- FSLogix and MSIX features are only available for Pooled HostPools
 
 ### What's next ?
 
