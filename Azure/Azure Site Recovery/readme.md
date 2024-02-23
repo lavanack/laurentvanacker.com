@@ -31,7 +31,7 @@ The cleanup of the resources is commented at the end of script. If you want to c
 
 ## Azure Site Recovery - VM Replication via Azure Policy.ps1
 
-The script [Azure Site Recovery - VM Replication via Azure Policy.ps1](./Azure%20Site%20Recovery%20-%20VM%20Replication.ps1) is based on [https://learn.microsoft.com/en-us/azure/site-recovery/azure-to-azure-powershell](https://learn.microsoft.com/en-us/azure/site-recovery/.azure-to-azure-powershell).
+The script [Azure Site Recovery - VM Replication via Azure Policy.ps1](<Azure Site Recovery - VM Replication via Azure Policy.ps1>) is based on [https://learn.microsoft.com/en-us/azure/site-recovery/azure-to-azure-powershell](https://learn.microsoft.com/en-us/azure/site-recovery/.azure-to-azure-powershell).
 
 It will mainly do the following:
 
