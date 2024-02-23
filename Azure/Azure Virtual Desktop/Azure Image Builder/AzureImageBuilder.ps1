@@ -15,7 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.ImageBuilder, Az.ManagedServiceIdentity, Az.Resources -RunAsAdministrator 
+#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.ImageBuilder, Az.ManagedServiceIdentity, Az.Resources
 
 #region Function definitions
 #FROM https://github.com/Azure/azvmimagebuilder/tree/main/solutions/14_Building_Images_WVD
@@ -158,7 +158,7 @@ function New-AzureComputeGallery {
 	#region Download and configure the template
 	#$templateUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/14_Building_Images_WVD/armTemplateWVD.json"
 	#$templateFilePath = "armTemplateWVD.json"
-	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVDvNext.json"
+	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVD.json"
 	$templateFilePath = Join-Path -Path $CurrentDir -ChildPath $(Split-Path $templateUrl -Leaf)
 	#Generate a unique file name 
 	$templateFilePath = $templateFilePath -replace ".json$", "_$timeInt.json"

@@ -242,10 +242,10 @@ function New-AzureComputeGallery {
 
 	# Image template and definition names
 	#AVD MultiSession Session Image Market Place Image + customizations: VSCode
-	$imageDefName01 = "win10-22h2-ent-g2-arm-vscode"
+	$imageDefName01 = "win11-23h2-ent-avd-custom-vscode"
 	$imageTemplateName01 = $imageDefName01 + "-template-" + $timeInt
 	#AVD MultiSession + Microsoft 365 Market Place Image + customizations: VSCode
-	$imageDefName02 = "win10-22h2-ent-g2-posh-vscode"
+	$imageDefName02 = "win11-23h2-ent-avd-m365-vscode"
 	$imageTemplateName02 = $imageDefName02 + "-template-" + $timeInt
 	Write-Verbose -Message "`$imageDefName01: $imageDefName01"
 	Write-Verbose -Message "`$imageTemplateName01: $imageTemplateName01"

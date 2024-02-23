@@ -48,8 +48,8 @@
                 "source": {
                     "type": "PlatformImage",
                     "publisher": "MicrosoftWindowsDesktop",
-                    "offer": "Windows-10",
-                    "sku": "win10-22h2-ent-g2",
+                    "offer": "Windows-11",
+                    "sku": "win11-23h2-avd",
                     "version": "latest"
                 },
                 "customize": [
@@ -106,13 +106,11 @@
                         "galleryImageId": "/subscriptions/<subscriptionID>/resourceGroups/<rgName>/providers/Microsoft.Compute/galleries/<sharedImageGalName>/images/<imageDefName>/versions/<version>",
                         "runOutputName": "<runOutputName>",
                         "artifactTags": {
-                            "source": "win10-22h2-ent-g2-arm-vscode",
-                            "baseosimg": "windows10"
+							"publisher": "MicrosoftWindowsDesktop",
+                            "offer": "Windows-11",
+                            "sku": "win11-23h2-avd"
                         },
-                        "replicationRegions": [
-                            "<region1>"
-
-                        ]
+                        "targetRegions": <targetRegions>
                     }
                 ]
             }

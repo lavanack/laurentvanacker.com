@@ -25,7 +25,9 @@ function New-AzureComputeGallery {
 		[Parameter(Mandatory = $false)]
 		[string]$Location = "EastUS",
 		[Parameter(Mandatory = $false)]
-		[string[]]$ReplicationRegions = "EastUS2"
+		[string[]]$targetRegions = @($Location,"EastUS2"),
+		[Parameter(Mandatory = $false)]
+		[int]$ReplicaCount = 1
 	)
 
 	#region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
@@ -45,12 +47,17 @@ function New-AzureComputeGallery {
 	$ResourceGroupPrefix = "rg"
 
 	# Location (see possible locations in the main docs)
-	#$Location = "EastUS"
 	Write-Verbose -Message "`$Location: $Location"
 	$LocationShortName = $shortNameHT[$Location].shortName
 	Write-Verbose -Message "`$LocationShortName: $LocationShortName"
-	#$ReplicationRegions = "EastUS2"
-	Write-Verbose -Message "`$ReplicationRegions: $($ReplicationRegions -join ', ')"
+    if ($Location -notin $targetRegions) {
+        $targetRegions += $Location
+    }
+	Write-Verbose -Message "`$targetRegions: $($targetRegions -join ', ')"
+    [array] $targetRegionSettings = foreach ($CurrentTargetRegion in $targetRegions)
+    {
+        @{"name"=$CurrentTargetRegion;"replicaCount"=$ReplicaCount;"storageAccountType"="Premium_LRS"}
+    }
 
 	$Project = "avd"
 	$Role = "aib"
@@ -60,12 +67,13 @@ function New-AzureComputeGallery {
 	$ResourceGroupName = $ResourceGroupName.ToLower()
 	Write-Verbose -Message "`$ResourceGroupName: $ResourceGroupName"
 
+
 	# Image template and definition names
 	#AVD MultiSession Session Image Market Place Image + customizations: VSCode
-	$imageDefName01 = "win11-22h2-ent-avd-custom-vscode"
+	$imageDefName01 = "win11-23h2-ent-avd-custom-vscode"
 	$imageTemplateName01 = $imageDefName01 + "-template-" + $timeInt
 	#AVD MultiSession + Microsoft 365 Market Place Image + customizations: VSCode
-	$imageDefName02 = "win11-22h2-ent-avd-m365-vscode"
+	$imageDefName02 = "win11-23h2-ent-avd-m365-vscode"
 	$imageTemplateName02 = $imageDefName02 + "-template-" + $timeInt
 	Write-Verbose -Message "`$imageDefName01: $imageDefName01"
 	Write-Verbose -Message "`$imageTemplateName01: $imageTemplateName01"
@@ -130,7 +138,7 @@ function New-AzureComputeGallery {
 		$RoleAssignment = New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $ResourceGroup.ResourceId -ErrorAction Ignore #-Debug
 	} While ($null -eq $RoleAssignment)
   
-    #endregion
+	#endregion
 
 	#region Create an Azure Compute Gallery
 	$GalleryName = "{0}_{1}_{2}_{3}" -f $AzureComputeGalleryPrefix, $Project, $LocationShortName, $timeInt
@@ -160,19 +168,19 @@ function New-AzureComputeGallery {
 
     ((Get-Content -path $templateFilePath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $templateFilePath
-    #((Get-Content -path $templateFilePath -Raw) -replace '<region>',$location) | Set-Content -Path $templateFilePath
+	#((Get-Content -path $templateFilePath -Raw) -replace '<region>',$location) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<runOutputName>', $runOutputName01) | Set-Content -Path $templateFilePath
 
     ((Get-Content -path $templateFilePath -Raw) -replace '<imageDefName>', $imageDefName01) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<sharedImageGalName>', $GalleryName) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<region1>', $replicationRegions) | Set-Content -Path $templateFilePath
+    ((Get-Content -path $templateFilePath -Raw) -replace '<targetRegions>', $($targetRegionSettings | ConvertTo-Json)) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<imgBuilderId>', $AssignedIdentity.Id) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<version>', $version) | Set-Content -Path $templateFilePath
 	#endregion
 
 	#region Submit the template
 	Write-Verbose -Message "Starting Resource Group Deployment from '$templateFilePath' ..."
-	$ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2020-02-14" } -imageTemplateName $imageTemplateName01 -svclocation $location
+	$ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2022-07-01"; "imageTemplateName" = $imageTemplateName01; "svclocation" = $location}
 
 	#region Build the image
 	Write-Verbose -Message "Starting Image Builder Template from '$imageTemplateName01' (As Job) ..."
@@ -202,7 +210,7 @@ function New-AzureComputeGallery {
 		PlatformImageSource = $true
 		Publisher           = 'MicrosoftWindowsDesktop'
 		Offer               = 'Office-365'    
-		Sku                 = 'win11-22h2-avd-m365'  
+		Sku                 = 'win11-23h2-avd-m365'  
 		Version             = 'latest'
 	}
 	Write-Verbose -Message "Creating Azure Image Builder Template Source Object  ..."
@@ -217,7 +225,7 @@ function New-AzureComputeGallery {
 		#ReplicationRegion = $location
 
 		# 2. Uncomment following line if the custom image should be replicated to another region(s).
-		ReplicationRegion      = @($location) + $replicationRegions
+		TargetRegion           = $targetRegionSettings
 
 		RunOutputName          = $runOutputName02
 		ExcludeFromLatest      = $false
@@ -268,7 +276,7 @@ function New-AzureComputeGallery {
 	$VSCodeCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgVSCodePowerShellCustomizerParams 
 
 	Write-Verbose -Message "Creating Azure Image Builder Template WindowsUpdate Customizer Object ..."
-    $WindowsUpdateCustomizer = New-AzImageBuilderTemplateCustomizerObject -WindowsUpdateCustomizer -Name 'WindowsUpdate' -Filter @('exclude:$_.Title -like ''*Preview*''', 'include:$true') -SearchCriterion "IsInstalled=0" -UpdateLimit 40
+	$WindowsUpdateCustomizer = New-AzImageBuilderTemplateCustomizerObject -WindowsUpdateCustomizer -Name 'WindowsUpdate' -Filter @('exclude:$_.Title -like ''*Preview*''', 'include:$true') -SearchCriterion "IsInstalled=0" -UpdateLimit 40
 
 	$ImgDisableAutoUpdatesPowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
@@ -397,8 +405,10 @@ $Jobs | Remove-Job -Force
 
 $AzureComputeGallery = New-AzureComputeGallery -Verbose
 $AzureComputeGallery
+
 $EndTime = Get-Date
 $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
 Write-Host -Object "Total Processing Time: $($TimeSpan.ToString())"
+
 #Remove-AzResourceGroup -Name $AzureComputeGallery.ResourceGroupName -Force -AsJob
 #endregion
