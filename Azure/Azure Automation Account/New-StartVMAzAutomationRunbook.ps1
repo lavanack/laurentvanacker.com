@@ -267,6 +267,9 @@ $Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.A
 #region RunBook
 $RunBookName = "{0}-StopStartAzureVirtualMachine" -f $RunBookPrefix
 #$Runbook = New-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName -Type PowerShell
+# Publish the runbook
+#Publish-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName
+
 $Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -Verbose
 
 # Create a new variable
@@ -275,8 +278,6 @@ $VariableName = "AbstractApiKey "
 $VariableValue = "00000000-0000-0000-0000-00000000"
 $Variable = New-AzAutomationVariable -AutomationAccountName $AutomationAccount.AutomationAccountName-Name $VariableName -Value $VariableValue -Encrypted $false -ResourceGroupName $ResourceGroupName -Description "Abstract (https://www.abstractapi.com) API Key, used by the runbook to check if the Date matches a FR Public Holiday"
 
-# Publish the runbook
-Publish-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName
 #endregion 
 
 # Link the schedule to the runbook
