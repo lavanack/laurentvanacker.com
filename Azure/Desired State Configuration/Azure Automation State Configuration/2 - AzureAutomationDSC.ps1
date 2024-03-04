@@ -62,9 +62,8 @@ foreach ($module in (Get-Item $modulePath))
    $archiveName = '{0}_{1}.zip' -f $module.BaseName, $versionedFolder.BaseName
    Compress-Archive -Path "$($versionedFolder.FullName)/*" -DestinationPath $archiveName -Update
    $content = Set-AzStorageBlobContent -File $archiveName -CloudBlobContainer $container.CloudBlobContainer -Blob $archiveName -Context $storageAccount.Context -Force -ErrorAction Stop
-   $token = New-AzStorageBlobSASToken -CloudBlob $content.ICloudBlob -StartTime (Get-Date) -ExpiryTime (Get-Date).AddYears(5) -Protocol HttpsOnly -Context $storageAccount.Context -Permission r -ErrorAction Stop
-   $uri = '{4}://{3}.blob.core.windows.net/{0}/{1}{2}' -f $container.Name, $archiveName, $token, $StorageAccountName, 'https'
-   $uri
+   $uri = New-AzStorageBlobSASToken -CloudBlob $content.ICloudBlob -StartTime (Get-Date) -ExpiryTime (Get-Date).AddYears(5) -Protocol HttpsOnly -Context $storageAccount.Context -Permission r -FullUri -ErrorAction Stop
+
    New-AzAutomationModule -Name $module.BaseName -ContentLinkUri $uri -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName -Verbose
 }
 
