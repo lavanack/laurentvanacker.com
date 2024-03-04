@@ -8,8 +8,8 @@
 #>
 <#
 #Cleaning up previous tests 
-Get-AzResourceGroup -Name dscagc* | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyRemediation | Remove-AzPolicyRemediation -AllowStop -AsJob -Verbose | Wait-Job
-Get-AzResourceGroup -Name dscagc* | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyAssignment  | Where-Object -FilterScript { $_.ResourceGroupName -like '*dscagc*' } | Remove-AzPolicyAssignment -Verbose #-Whatif
+Get-AzResourceGroup -Name rg-dsc-amc* | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyRemediation | Remove-AzPolicyRemediation -AllowStop -AsJob -Verbose | Wait-Job
+Get-AzResourceGroup -Name rg-dsc-amc* | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyAssignment  | Where-Object -FilterScript { $_.ResourceGroupName -like 'rg-dsc-amc*' } | Remove-AzPolicyAssignment -Verbose #-Whatif
 Get-AzPolicyDefinition | Where-Object -filterScript {$_.Properties.metadata.category -eq "Guest Configuration" -and $_.Properties.DisplayName -like "*CreateAdminUserDSCConfiguration*"} | Remove-AzPolicyDefinition -Verbose -Force #-WhatIf
 #>
 
