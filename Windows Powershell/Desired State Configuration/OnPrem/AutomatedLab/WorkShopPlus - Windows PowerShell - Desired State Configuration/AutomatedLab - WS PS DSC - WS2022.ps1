@@ -97,9 +97,9 @@ $PSDefaultParameterValues = @{
 }
 
 $PULLNetAdapter = @()
-$PULLNetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $PULLIPv4Address -InterfaceName Corp
+$PULLNetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $PULLIPv4Address -InterfaceName Corp -RegisterInDNS $true
 #Adding an Internet Connection on the DC (Required for PowerShell Gallery)
-$PULLNetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp -InterfaceName Internet
+$PULLNetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp -InterfaceName Internet -RegisterInDNS $false
 
 #region server definitions
 #Domain controller + Certificate Authority
