@@ -43,7 +43,7 @@ function New-AAD-Hybrid-Lab {
         [string] $ADDomainName = "contoso.local",
         [parameter(Mandatory = $false, HelpMessage = 'This needs to be specified in order to have a uniform logon experience within AVD')]
         [ValidatePattern("\w+\.\w+")] 
-        [string] $CustomUPNSuffix = $((Get-AzTenant -TenantId (Get-AzContext).Tenant.Id).Domains[-1]),
+        [string] $CustomUPNSuffix = $((Get-AzTenant).DefaultDomain),
         [parameter(Mandatory = $false, HelpMessage = 'The address range of the new virtual network in CIDR format')]
         [ValidatePattern("\d{1,3}\.\d{1,3}.\d{1,3}.\d{1,3}/\d{2}")] 
         [string] $VNetAddressRange = '10.0.0.0/16',
