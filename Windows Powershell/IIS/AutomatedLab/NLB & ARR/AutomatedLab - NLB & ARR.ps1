@@ -119,6 +119,8 @@ $ARRWebSiteName="$ARRNetBiosName.$FQDNDomainName"
 $ARRIPv4Address = '10.0.0.101'
 
 $MSEdgeEntUri = "http://go.microsoft.com/fwlink/?LinkID=2093437"
+$MSEdgePolicyTemplatesURI = "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/0e9e0ed2-5c51-4668-9733-fffcdddc9559/MicrosoftEdgePolicyTemplates.cab"
+
 $LabName = 'NLBARRLab'
 #endregion
 
@@ -183,60 +185,29 @@ Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 #region Installing Required Windows Features
 $machines = Get-LabVM -All
 $Job = @()
-$Job += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools -AsJob
-Install-LabWindowsFeature -FeatureName FS-DFS-Replication, Web-Server, Web-Asp-Net45, Web-Request-Monitor -ComputerName IISNODE01, IISNODE02, ARRNODE01, ARRNODE02 -IncludeManagementTools
-Install-LabWindowsFeature -FeatureName NLB, Web-CertProvider -ComputerName ARRNODE01, ARRNODE02 -IncludeManagementTools
-Install-LabWindowsFeature -FeatureName Web-Windows-Auth -ComputerName IISNODE01, IISNODE02 -IncludeManagementTools
+$Job += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools -PassThru -AsJob
+$Job += Install-LabWindowsFeature -FeatureName FS-DFS-Replication, Web-Server, Web-Asp-Net45, Web-Request-Monitor -ComputerName IISNODE01, IISNODE02, ARRNODE01, ARRNODE02 -IncludeManagementTools -PassThru -AsJob
+$Job += Install-LabWindowsFeature -FeatureName NLB, Web-CertProvider -ComputerName ARRNODE01, ARRNODE02 -IncludeManagementTools -PassThru -AsJob
+$Job += Install-LabWindowsFeature -FeatureName Web-Windows-Auth -ComputerName IISNODE01, IISNODE02 -IncludeManagementTools -PassThru -AsJob
 #endregion
 
 $MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru -Force
-$Job += Install-LabSoftwarePackage -ComputerName $machines -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob
+$MSEdgePolicyTemplates = Get-LabInternetFile -Uri $MSEdgePolicyTemplatesURI -Path $labSources\SoftwarePackages -PassThru -Force
+$LocalMSEdgePolicyTemplates = Copy-LabFileItem -Path $MSEdgePolicyTemplates.FullName -DestinationFolderPath C:\ -ComputerName DC01 -PassThru
+
+$Job += Install-LabSoftwarePackage -ComputerName $machines -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -PassThru -AsJob
+$Job | Wait-Job | Out-Null
 
 Invoke-LabCommand -ActivityName "Disabling IE ESC and Adding $ARRWebSiteName to the IE intranet zone" -ComputerName $machines -ScriptBlock {
     #region Disabling IE ESC
-    $AdminKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
-    $UserKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}"
+    $AdminKey = "HKLM:\Software\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
+    $UserKey = "HKLM:\Software\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}"
     Set-ItemProperty -Path $AdminKey -Name "IsInstalled" -Value 0
     Set-ItemProperty -Path $UserKey -Name "IsInstalled" -Value 0
     Stop-Process -Name Explorer
     #Write-Host "IE Enhanced Security Configuration (ESC) has been disabled." -ForegroundColor Green
     #endregion 
-
-    #region IE Settings
-    $MainKey = 'HKCU:\Software\Microsoft\Internet Explorer\Main'
-    Remove-ItemProperty -Path $MainKey -Name 'First Home Page' -Force -ErrorAction Ignore
-    Set-ItemProperty -Path $MainKey -Name 'Default_Page_URL' -Value "http://$using:ARRWebSiteName" -Force
-    Set-ItemProperty -Path $MainKey -Name 'Start Page' -Value "http://$using:ARRWebSiteName" -Force
-
-    #Setting arr.contoso.com (and optionally all nodes) in the Local Intranet Zone for all servers : mandatory for Kerberos authentication       
-    $null = New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:ARRWebSiteName" -Force
-    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:ARRWebSiteName" -Name http -Value 1 -Type DWord -Force
-    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:ARRWebSiteName" -Name https -Value 1 -Type DWord -Force
-    $null = New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\IISNODE01.$using:FQDNDomainName" -Force
-    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\IISNODE01.$using:FQDNDomainName" -Name http -Value 1 -Type DWord -Force
-    #Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\IISNODE01.$using:FQDNDomainName" -Name https -Value 1 -Type DWord -Force
-    $null = New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\IISNODE02.$using:FQDNDomainName" -Force
-    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\IISNODE02.$using:FQDNDomainName" -Name http -Value 1 -Type DWord -Force
-    #Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\IISNODE02.$using:FQDNDomainName" -Name https -Value 1 -Type DWord -Force
-    $null = New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\ARRNODE01.$using:FQDNDomainName" -Force
-    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\ARRNODE01.$using:FQDNDomainName" -Name http -Value 1 -Type DWord -Force
-    #Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\ARRNODE01.$using:FQDNDomainName" -Name https -Value 1 -Type DWord -Force
-    $null = New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\ARRNODE02.$using:FQDNDomainName" -Force
-    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\ARRNODE02.$using:FQDNDomainName" -Name http -Value 1 -Type DWord -Force
-    #Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\ARRNODE02.$using:FQDNDomainName" -Name https -Value 1 -Type DWord -Force
-
-    #Changing the start page for IE
-    $path = "HKCU:\Software\Microsoft\Internet Explorer\Main\"
-    $name = "start page"
-    $value = "https://$using:ARRWebSiteName/"
-    Set-ItemProperty -Path $path -Name $name -Value $value -Force
-    #Bonus : To open all the available websites accross all nodes
-    $name = "Secondary Start Pages"
-    $value = "https://ARRNODE01.$using:FQDNDomainName", "https://ARRNODE02.$using:FQDNDomainName", "http://iisnode01.$using:FQDNDomainName", "http://iisnode02.$using:FQDNDomainName"
-    New-ItemProperty -Path $path -PropertyType MultiString -Name $name -Value $value -Force
-    #endregion 
 }
-
 
 #Installing and setting up DFS-R on DC for replicated folder on ARR Servers for shared confguration
 Invoke-LabCommand -ActivityName 'DNS Setup on DC' -ComputerName DC01 -ScriptBlock {
@@ -253,6 +224,68 @@ Invoke-LabCommand -ActivityName 'DNS Setup on DC' -ComputerName DC01 -ScriptBloc
 
     #region Setting SPN on the Application Pool Identity
     Set-ADUser -Identity "$Using:IISAppPoolUser" -ServicePrincipalNames @{Add="HTTP/$using:ARRWebSiteName", "HTTP/$using:ARRNetBiosName", "HTTP/IISNODE01.$using:FQDNDomainName", "HTTP/IISNODE01", "HTTP/IISNODE02.$using:FQDNDomainName", "HTTP/IISNODE02", "HTTP/ARRNODE01.$using:FQDNDomainName", "HTTP/ARRNODE01", "HTTP/ARRNODE02.$using:FQDNDomainName", "HTTP/ARRNODE02"}
+    #endregion
+}
+
+
+Checkpoint-LabVM -SnapshotName BeforeGPO -All -Verbose
+#Restore-LabVMSnapshot -SnapshotName 'BeforeGPO' -All -Verbose
+
+Invoke-LabCommand -ActivityName 'GPO Setup on DC' -ComputerName DC01 -ScriptBlock {
+    #region Installing MS Edge GPO Settings
+    if (-not(Test-Path -Path $env:SystemRoot\policyDefinitions\en-US\msedge.adml -PathType Leaf) -or -not(Test-Path -Path $env:SystemRoot\policyDefinitions\msedge.admx -PathType Leaf)) {
+        $MSEdgePolicyTemplatesLatestDir = New-Item -Path $env:Temp\MSEdgePolicyTemplatesLatest -ItemType Directory -Force
+        Start-Process -FilePath $env:ComSpec -ArgumentList "/c", "extrac32 $using:LocalMSEdgePolicyTemplates /Y" -WorkingDirectory $MSEdgePolicyTemplatesLatestDir -Wait 
+        $ZipFiles = Get-ChildItem -Path $MSEdgePolicyTemplatesLatestDir -Filter *.zip -File 
+        $ZipFiles | Expand-Archive -DestinationPath $MSEdgePolicyTemplatesLatestDir -Force
+        Remove-Item -Path $ZipFiles.FullName, $using:LocalMSEdgePolicyTemplates -Force
+
+        Copy-Item -Path $MSEdgePolicyTemplatesLatestDir\windows\admx\en-US\msedge.adml $env:SystemRoot\policyDefinitions\en-US
+        Copy-Item -Path $MSEdgePolicyTemplatesLatestDir\windows\admx\msedge.admx $env:SystemRoot\policyDefinitions
+        Remove-Item -Path $MSEdgePolicyTemplatesLatestDir -Recurse -Force
+    }
+    #endregion
+
+    $DefaultNamingContext = (Get-ADRootDSE).defaultNamingContext
+    #region Edge Settings
+    $GPO = New-GPO -Name "Edge Settings" | New-GPLink -Target $DefaultNamingContext
+    # https://devblogs.microsoft.com/powershell-community/how-to-change-the-start-page-for-the-edge-browser/
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\Software\Policies\Microsoft\Edge' -ValueName "RestoreOnStartup" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 4
+
+    #Bonus : To open the ARR website on all machines
+    $StartPage = "https://$using:ARRWebSiteName/"
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\Software\Policies\Microsoft\Edge\RestoreOnStartupURLs' -ValueName 0 -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "$StartPage"
+    #https://admx.help/?Category=Windows_10_2016&Policy=Microsoft.Policies.MicrosoftEdge::PreventFirstRunPage
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\Software\Policies\Microsoft\MicrosoftEdge\Main' -ValueName "PreventFirstRunPage" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
+
+    #Hide the First-run experience and splash screen on Edge : https://docs.microsoft.com/en-us/deployedge/microsoft-edge-policies#hidefirstrunexperience
+    #https://admx.help/?Category=EdgeChromium&Policy=Microsoft.Policies.Edge::HideFirstRunExperience
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Edge' -ValueName "HideFirstRunExperience" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
+    #endregion
+
+    #region IE Settings
+    $GPO = New-GPO -Name "IE Settings" | New-GPLink -Target $DefaultNamingContext
+    #Setting arr.contoso.com (and optionally all nodes) in the Local Intranet Zone for all servers : mandatory for Kerberos authentication       
+    #Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKLM\Software\Policies\Microsoft\Windows\CurrentVersion\Internet Settings" -ValueName Security_HKLM_only -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::Dword)
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKLM\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\Internet Settings" -ValueName "ListBox_Support_ZoneMapKey" -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKLM\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap" -ValueName "AutoDetect" -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKLM\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMapKey" -ValueName "https://$using:ARRWebSiteName" -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::String)
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKLM\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMapKey" -ValueName "https://IISNODE01.$using:FQDNDomainName" -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::String)
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKLM\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMapKey" -ValueName "https://IISNODE02.$using:FQDNDomainName" -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::String)
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKLM\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMapKey" -ValueName "https://ARRNODE01.$using:FQDNDomainName" -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::String)
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKLM\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMapKey" -ValueName "https://ARRNODE02.$using:FQDNDomainName" -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::String)
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKLM\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:FQDNDomainName\$using:ARRNetBiosName" -ValueName "https" -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKLM\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:FQDNDomainName\IISNODE01" -ValueName "https" -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKLM\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:FQDNDomainName\IISNODE02" -ValueName "https" -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKLM\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:FQDNDomainName\ARRNODE01" -ValueName "https" -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKLM\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:FQDNDomainName\ARRNODE02" -ValueName "https" -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    #endregion
+
+    #region WireShark : (Pre)-Master-Secret Log Filename
+    $GPO = New-GPO -Name "(Pre)-Master-Secret Log Filename" | New-GPLink -Target $DefaultNamingContext
+    #For decrypting SSL traffic via network tools : https://support.f5.com/csp/article/K50557518
+    $SSLKeysFile = '%USERPROFILE%\AppData\Local\WireShark\ssl-keys.log'
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Environment' -ValueName "SSLKEYLOGFILE" -Type ([Microsoft.Win32.RegistryValueKind]::ExpandString) -Value $SSLKeysFile
     #endregion
 }
 
@@ -631,6 +664,10 @@ Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration' -ComputerNam
         Start-Sleep -Seconds 10
     }
     Enable-IISSharedConfig  -PhysicalPath C:\ARRSharedConfiguration -KeyEncryptionPassword $Using:SecurePassword -Force
+}
+
+Invoke-LabCommand -ActivityName 'GPUpdate' -ComputerName $machines -ScriptBlock {
+    gpupdate /force /wait:-1
 }
 
 #Waiting for background jobs
