@@ -162,7 +162,7 @@ Invoke-LabCommand -ActivityName 'DNS, AD Setup & GPO Settings on DC' -ComputerNa
 
     #Hide the First-run experience and splash screen on Edge : https://docs.microsoft.com/en-us/deployedge/microsoft-edge-policies#hidefirstrunexperience
     #https://admx.help/?Category=EdgeChromium&Policy=Microsoft.Policies.Edge::HideFirstRunExperience
-    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Microsoft\Edge' -ValueName "HideFirstRunExperience " -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Edge' -ValueName "HideFirstRunExperience" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
     #endregion
 
     #region WireShark : (Pre)-Master-Secret Log Filename
