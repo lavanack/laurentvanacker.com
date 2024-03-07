@@ -103,7 +103,7 @@ $MSEdgeEntUri = "http://go.microsoft.com/fwlink/?LinkID=2093437"
 
 #Wireshark Download URI
 $WireSharkDownloadHome = "https://www.wireshark.org/download/win64/"
-$WiresharkLatestX64 = (Invoke-WebRequest -Uri $TopURI).Links | Where-Object -FilterScript { $_.innerText -match "-latest-x64.exe" } | Sort-Object -Descending
+$WiresharkLatestX64 = (Invoke-WebRequest -Uri $WireSharkDownloadHome).Links | Where-Object -FilterScript { $_.innerText -match "-latest-x64.exe" } | Sort-Object -Descending
 $WiresharkWin64LatestExeUri = "{0}{1}" -f $WireSharkDownloadHome, $WiresharkLatestX64.href
 
 #IIS Crypto Cli Download URI
