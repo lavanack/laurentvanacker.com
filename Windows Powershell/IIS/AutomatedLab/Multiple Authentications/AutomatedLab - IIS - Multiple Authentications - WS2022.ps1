@@ -157,7 +157,7 @@ Add-LabMachineDefinition -Name CA01 -Roles CARoot -IpAddress $CA01IPv4Address
 #IIS front-end server
 Add-LabMachineDefinition -Name IIS01 -IpAddress $IIS01IPv4Address
 #Client
-Add-LabMachineDefinition -Name CLIENT01 -IpAddress $CLIENT01IPv4Address -OperatingSystem 'Windows Server 2019 Datacenter (Desktop Experience)'
+Add-LabMachineDefinition -Name CLIENT01 -IpAddress $CLIENT01IPv4Address
 Add-LabMachineDefinition -Name CLIENT02 -IpAddress $CLIENT02IPv4Address
 #endregion
 
@@ -187,10 +187,20 @@ $LocalIISCryptoCliExe = Copy-LabFileItem -Path $IISCryptoCliExe.FullName -Destin
 $LocalIISCryptoCliExe = $LocalIISCryptoCliExe | Select-Object -First 1
 
 
-Invoke-LabCommand -ActivityName 'SCHANNEL Hardening to support only TLS 1.2 and strongest Cipher Suites' -ComputerName $machines -ScriptBlock {
+$Job += Invoke-LabCommand -ActivityName 'SCHANNEL Hardening to support only TLS 1.2 and strongest Cipher Suites' -ComputerName $machines -ScriptBlock {
     #Following Strict Template from IISCrypto https://www.nartac.com/Products/IISCrypto
     Start-Process -FilePath "$using:LocalIISCryptoCliExe" -ArgumentList "/template strict" -Wait
-}
+
+    #region Disabling TLS 1.3
+    Write-Host "Disabling TLS 1.3 at the server level"
+    New-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Server' -Force
+    New-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Client' -Force
+    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Server' -Name 'Enabled' -Value 0 -PropertyType DWORD
+    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Server' -Name 'DisabledByDefault' -Value 1 -PropertyType DWORD
+    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Client' -Name 'Enabled' -Value 0 -PropertyType DWORD
+    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Client' -Name 'DisabledByDefault' -Value 1 -PropertyType DWORD
+    #endregion 
+} -AsJob
 
 #Waiting for background jobs
 $Job | Wait-Job | Out-Null
