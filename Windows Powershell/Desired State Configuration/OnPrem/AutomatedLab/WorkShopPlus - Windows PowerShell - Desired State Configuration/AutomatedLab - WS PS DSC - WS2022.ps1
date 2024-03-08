@@ -117,7 +117,7 @@ Install-Lab -Verbose
 #Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 
 #region Installing Required Windows Features
-$AllLabVMs = Get-LabVM
+$AllLabVMs = Get-LabVM -All
 $DesktopMachines = $AllLabVMs | Where-Object -FilterScript { $_.OperatingSystem -match "Desktop|GUI"}
 $Job = @()
 
@@ -147,6 +147,21 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $DesktopMachine
     Rename-NetAdapter -Name "Ethernet" -NewName 'Corp' -PassThru -ErrorAction SilentlyContinue
     Rename-NetAdapter -Name "Default Switch 0" -NewName 'Internet' -PassThru -ErrorAction SilentlyContinue
 }
+
+Invoke-LabCommand -ActivityName "Disabling TLS 1.3" -ComputerName $DesktopMachines -ScriptBlock {
+    #region Disabling TLS 1.3
+    Write-Host "Disabling TLS 1.3 at the server level"
+    New-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Server' -Force
+    New-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Client' -Force
+    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Server' -Name 'Enabled' -Value 0 -PropertyType DWORD
+    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Server' -Name 'DisabledByDefault' -Value 1 -PropertyType DWORD
+    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Client' -Name 'Enabled' -Value 0 -PropertyType DWORD
+    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Client' -Name 'DisabledByDefault' -Value 1 -PropertyType DWORD
+    #endregion 
+}
+
+#Restarting the IIS Server to take the SCHANNEL hardening into consideration
+Restart-LabVM -ComputerName $AllLabVMs -Wait
 
 #Installing and setting up DNS
 Invoke-LabCommand -ActivityName 'DNS, AD Setup on DC' -ComputerName DC -ScriptBlock {
