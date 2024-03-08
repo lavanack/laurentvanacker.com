@@ -36,8 +36,9 @@ $DSCFilePath                    = Join-Path -Path $CurrentDir -ChildPath $DSCFil
 $ConfigurationName              = "WebServer"
 $ConfigurationDataFileName      = "configurationdata.psd1"
 $ConfigurationDataFilePath      = Join-Path -Path $CurrentDir -ChildPath $ConfigurationDataFileName
+$Modules                        = "WebAdministrationDsc"
 
-$modulePath = [string[]](Get-InstalledModule -Name WebAdministrationDsc).InstalledLocation | Split-Path -Parent
+$modulePath = [string[]](Get-InstalledModule -Name $Modules).InstalledLocation | Split-Path -Parent
 
 $AutomationAccount = Get-AzAutomationAccount -Name $AutomationAccountName -ResourceGroupName $ResourceGroupName -ErrorAction SilentlyContinue
 if (-not($AutomationAccount))
