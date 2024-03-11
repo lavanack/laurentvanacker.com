@@ -59,7 +59,7 @@ $remediation = $Jobs | Wait-Job | Receive-Job #-Keep
 $remediation
 
 Write-Host -Object "Starting Compliance Scan for '$ResourceGroupName' Resource Group ..."
-Start-AzPolicyComplianceScan -ResourceGroupName $ResourceGroupName
+$Job = Start-AzPolicyComplianceScan -ResourceGroupName $ResourceGroupName -AsJob
 #endregion
 
 
@@ -68,8 +68,11 @@ Start-AzPolicyComplianceScan -ResourceGroupName $ResourceGroupName
 
 # Create a guest configuration package for Azure Policy GCS
 $GuestConfigurationPackage = New-GuestConfigurationPackage -Name $ConfigurationName -Configuration './CreateAdminUser/localhost.mof' -Type AuditAndSet -Force
+# Testing the configuration
+Get-GuestConfigurationPackageComplianceStatus -Path $GuestConfigurationPackage.Path
 #Set-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -AllowBlobPublicAccess $true
-
+# Applying the Machine Configuration Package locally
+#Start-GuestConfigurationPackageRemediation -Path $GuestConfigurationPackage.Path -Verbose
 
 # Creates a new container
 if (-not($storageAccount | Get-AzStorageContainer -Name $StorageContainerName -ErrorAction Ignore)) {
@@ -138,3 +141,5 @@ Get-AzPolicyState -ResourceGroupName $ResourceGroupName -PolicyAssignmentName $P
 Get-AzPolicyStateSummary -ResourceGroupName $ResourceGroupName | Select-Object -ExpandProperty PolicyAssignments 
 #endregion
 #endregion
+
+$Job | Receive-Job -Wait
