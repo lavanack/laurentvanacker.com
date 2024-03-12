@@ -148,7 +148,7 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $DesktopMachine
     Rename-NetAdapter -Name "Default Switch 0" -NewName 'Internet' -PassThru -ErrorAction SilentlyContinue
 }
 
-Invoke-LabCommand -ActivityName "Disabling TLS 1.3" -ComputerName $DesktopMachines -ScriptBlock {
+Invoke-LabCommand -ActivityName "Disabling TLS 1.3" -ComputerName $AllLabVMs -ScriptBlock {
     #region Disabling TLS 1.3
     Write-Host "Disabling TLS 1.3 at the server level"
     New-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Server' -Force
