@@ -49,7 +49,7 @@ $DOCKER01IPv4Address = '10.0.0.11'
 $IISSetupFileName = 'IISSetup.ps1'
 
 $IISDockerFileContentWithPowershellCommandLines = @"
-FROM mcr.microsoft.com/windows/servercore/iis
+FROM mcr.microsoft.com/windows/servercore/iis:windowsservercore-ltsc2022
 SHELL [ "powershell" ]
 
 #setup ASP.Net and Remote IIS management
@@ -64,7 +64,7 @@ RUN New-LocalUser -Name IISAdmin -Password `$(ConvertTo-SecureString -String $Cl
 "@
 
 $IISDockerFileContentCallingPowershellScript = @"
-FROM mcr.microsoft.com/windows/servercore/iis
+FROM mcr.microsoft.com/windows/servercore/iis:windowsservercore-ltsc2022
 COPY $IISSetupFileName C:\\
 SHELL [ "powershell" ]
 #File for a custom IIS setup
@@ -141,9 +141,9 @@ Start-LabVM -All -Wait
 #endregion
 
 #region Installing Required Windows Features
-$machines = Get-LabVM
+$machines = Get-LabVM -All
 $Jobs = @()
-$Jobs += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools -AsJob
+$Jobs += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools -PassThru -AsJob
 #endregion
 
 #Installing and setting up DNS
@@ -156,7 +156,14 @@ Invoke-LabCommand -ActivityName 'DNS, AD Setup & GPO Settings on DC' -ComputerNa
     #region Edge Settings
     $GPO = New-GPO -Name "Edge Settings" | New-GPLink -Target $DefaultNamingContext
     # https://devblogs.microsoft.com/powershell-community/how-to-change-the-start-page-for-the-edge-browser/
-    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Edge' -ValueName "RestoreOnStartup" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 4
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\Software\Policies\Microsoft\Edge' -ValueName "RestoreOnStartup" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 4
+
+    #https://admx.help/?Category=Windows_10_2016&Policy=Microsoft.Policies.MicrosoftEdge::PreventFirstRunPage
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\Software\Policies\Microsoft\MicrosoftEdge\Main' -ValueName "PreventFirstRunPage" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
+
+    #Hide the First-run experience and splash screen on Edge : https://docs.microsoft.com/en-us/deployedge/microsoft-edge-policies#hidefirstrunexperience
+    #https://admx.help/?Category=EdgeChromium&Policy=Microsoft.Policies.Edge::HideFirstRunExperience
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Edge' -ValueName "HideFirstRunExperience" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
 
     #Bonus : To open all the available websites accross all nodes
     $i=0
@@ -178,7 +185,7 @@ Invoke-LabCommand -ActivityName 'DNS, AD Setup & GPO Settings on DC' -ComputerNa
 }
 
 #Install-LabWindowsFeature -FeatureName Containers, Hyper-V, Web-Mgmt-Console -ComputerName DOCKER01 -IncludeManagementTools
-Install-LabWindowsFeature -FeatureName Web-Mgmt-Console -ComputerName DOCKER01 -IncludeManagementTools
+$Jobs += Install-LabWindowsFeature -FeatureName Web-Mgmt-Console -ComputerName DOCKER01 -IncludeManagementTools -PassThru -AsJob
 
 #Checkpoint-LabVM -SnapshotName BeforeDockerSetup -All
 #Restore-LabVMSnapshot -SnapshotName BeforeDockerSetup -All -Verbose
@@ -214,7 +221,7 @@ else
 Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -ScriptBlock {
     Start-Service Docker
     #Pulling IIS image
-    #docker pull mcr.microsoft.com/windows/servercore/iis
+    #docker pull mcr.microsoft.com/windows/servercore/iis:windowsservercore-ltsc2022
 
     #Stopping all previously running containers if any
     if ($(docker ps -a -q))
@@ -252,7 +259,8 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -S
         Set-Location -Path $ContainerLocalRootFolder
         docker build -t iis-website .
         #Mapping the remote IIS log files directory locally for every container for easier management
-        docker run -d -p "$($CurrentIISWebSiteHostPort):80" -v $ContainerLocalLogFolder\:C:\inetpub\logs\LogFiles -v $ContainerLocalContentFolder\:C:\inetpub\wwwroot --name $Name iis-website --restart unless-stopped #--rm
+        #docker run -d -p "$($CurrentIISWebSiteHostPort):80" -v $ContainerLocalLogFolder\:C:\inetpub\logs\LogFiles -v $ContainerLocalContentFolder\:C:\inetpub\wwwroot --name $Name iis-website --restart unless-stopped #--rm
+        docker run -d -p "$($CurrentIISWebSiteHostPort):80" -v $ContainerLocalLogFolder\:C:\inetpub\logs\LogFiles -v $ContainerLocalContentFolder\:C:\inetpub\wwwroot --name $Name iis-website --restart always #--rm
         #Getting the IP v4 address of the container
         $ContainerIPv4Address = (docker inspect -f "{{ .NetworkSettings.Networks.nat.IPAddress }}" $Name | Out-String) -replace "`n"
         Write-Host "The internal IPv4 address for the container [$Name] is [$ContainerIPv4Address]" -ForegroundColor Yellow
@@ -270,6 +278,8 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -S
     #docker inspect $(docker ps -a -q) | ConvertFrom-Json
     #To delete all containers
     #docker rm -f $(docker ps -a -q)
+    #docker update --restart unless-stopped $(docker ps -q)
+    docker update --restart always $(docker ps -q)
 } -Verbose
 
 Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName DOCKER01 -ScriptBlock {
@@ -278,6 +288,9 @@ Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName
 
 #Waiting for background jobs
 $Jobs | Wait-Job | Out-Null
+
+#For updating the GPO
+Restart-LabVM -ComputerName $machines -Wait
 
 Show-LabDeploymentSummary -Detailed
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
