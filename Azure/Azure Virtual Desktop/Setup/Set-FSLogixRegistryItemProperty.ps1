@@ -18,6 +18,7 @@ of the Sample Code.
 
 #requires -Version 5 -RunAsAdministrator 
 
+[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
     [alias('StorageAccountName')]
@@ -104,4 +105,4 @@ Write-Verbose -Message "Setting some 'FSLogix' related registry values ..."
 Set-ItemProperty -Path 'HKLM:\SOFTWARE\FSLogix\Profiles' -Name 'VHDLocations' -Type ([Microsoft.Win32.RegistryValueKind]::MultiString) -Value "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles"
 #Use Redirections.xml. Be careful : https://twitter.com/JimMoyle/status/1247843511413755904w
 Set-ItemProperty -Path 'HKLM:\SOFTWARE\FSLogix\Profiles' -Name 'RedirXMLSourceFolder' -Type ([Microsoft.Win32.RegistryValueKind]::MultiString) -Value "\\$CurrentHostPoolStorageAccountName.file.$StorageEndpointSuffix\profiles"
-
+#endregion
