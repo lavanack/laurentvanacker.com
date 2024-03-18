@@ -57,6 +57,7 @@ $StandardUser = 'ericlang'
 $NetworkID = '10.0.0.0/16' 
 $DCIPv4Address = '10.0.0.1'
 $PULLIPv4Address = '10.0.0.11'
+$BUILDIPv4Address = '10.0.0.21'
 $MS1IPv4Address = '10.0.0.101'
 $MS2IPv4Address = '10.0.0.102'
 
@@ -92,18 +93,24 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:MaxMemory'       = 4GB
     'Add-LabMachineDefinition:Memory'          = 4GB
     'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2022 Datacenter (Desktop Experience)'
-    #'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2012 R2 Datacenter (Server with a GUI)'
     'Add-LabMachineDefinition:Processors'      = 2
 }
 
+$BUILDNetAdapter = @()
+$BUILDNetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $BUILDIPv4Address -InterfaceName Corp -RegisterInDNS $true
+#Adding an Internet Connection on the server (Required for PowerShell Gallery)
+$BUILDNetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp -InterfaceName Internet -RegisterInDNS $false
+
 $PULLNetAdapter = @()
 $PULLNetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $PULLIPv4Address -InterfaceName Corp -RegisterInDNS $true
-#Adding an Internet Connection on the DC (Required for PowerShell Gallery)
+#Adding an Internet Connection on the server (Required for PowerShell Gallery)
 $PULLNetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp -InterfaceName Internet -RegisterInDNS $false
 
 #region server definitions
 #Domain controller + Certificate Authority
 Add-LabMachineDefinition -Name DC -Roles RootDC, CARoot -IpAddress $DCIPv4Address
+#BUILD Server
+Add-LabMachineDefinition -Name BUILD -NetworkAdapter $BUILDNetAdapter #-Memory 4GB -MinMemory 2GB -MaxMemory 4GB #-Processors 4
 #PULL Server
 Add-LabMachineDefinition -Name PULL -NetworkAdapter $PULLNetAdapter #-Memory 4GB -MinMemory 2GB -MaxMemory 4GB #-Processors 4
 #Member server
@@ -171,6 +178,27 @@ Invoke-LabCommand -ActivityName 'DNS, AD Setup on DC' -ComputerName DC -ScriptBl
 
     #Creating AD Users
     New-ADUser -Name $Using:StandardUser -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -CannotChangePassword $True -Enabled $true
+    $DefaultNamingContext = (Get-ADRootDSE).defaultNamingContext
+    
+    #region Edge Settings
+    $GPO = New-GPO -Name "Edge Settings" | New-GPLink -Target $DefaultNamingContext
+    # https://devblogs.microsoft.com/powershell-community/how-to-change-the-start-page-for-the-edge-browser/
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\Software\Policies\Microsoft\Edge' -ValueName "RestoreOnStartup" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 4
+
+    #https://admx.help/?Category=Windows_10_2016&Policy=Microsoft.Policies.MicrosoftEdge::PreventFirstRunPage
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\Software\Policies\Microsoft\MicrosoftEdge\Main' -ValueName "PreventFirstRunPage" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
+
+    #Hide the First-run experience and splash screen on Edge : https://docs.microsoft.com/en-us/deployedge/microsoft-edge-policies#hidefirstrunexperience
+    #https://admx.help/?Category=EdgeChromium&Policy=Microsoft.Policies.Edge::HideFirstRunExperience
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Edge' -ValueName "HideFirstRunExperience" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
+    #endregion
+
+    #region WireShark : (Pre)-Master-Secret Log Filename
+    $GPO = New-GPO -Name "(Pre)-Master-Secret Log Filename" | New-GPLink -Target $DefaultNamingContext
+    #For decrypting SSL traffic via network tools : https://support.f5.com/csp/article/K50557518
+    $SSLKeysFile = '%USERPROFILE%\AppData\Local\WireShark\ssl-keys.log'
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Environment' -ValueName "SSLKEYLOGFILE" -Type ([Microsoft.Win32.RegistryValueKind]::ExpandString) -Value $SSLKeysFile
+    #endregion
 }
 
 #region Certification Authority : Creation and SSL Certificate Generation
@@ -182,6 +210,7 @@ New-LabCATemplate -TemplateName WebServer5Years -DisplayName 'WebServer5Years' -
 New-LabCATemplate -TemplateName DocumentEncryption5Years -DisplayName 'DocumentEncryption5Years' -SourceTemplateName CEPEncryption -ApplicationPolicy 'Document Encryption' -KeyUsage KEY_ENCIPHERMENT, DATA_ENCIPHERMENT -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -SamAccountName 'Domain Computers' -ValidityPeriod $CertValidityPeriod -ComputerName $CertificationAuthority -ErrorAction Stop
 
 $PULLWebSiteSSLCert = Request-LabCertificate -Subject "CN=pull.$FQDNDomainName" -SAN "pull", "pull.$FQDNDomainName" -TemplateName WebServer5Years -ComputerName PULL -PassThru -ErrorAction Stop
+$BUILDDocumentEncryptionCert = Request-LabCertificate -Subject "CN=build.$FQDNDomainName" -SAN "build", "build.$FQDNDomainName" -TemplateName DocumentEncryption5Years -ComputerName BUILD -PassThru -ErrorAction Stop
 $PULLDocumentEncryptionCert = Request-LabCertificate -Subject "CN=pull.$FQDNDomainName" -SAN "pull", "pull.$FQDNDomainName" -TemplateName DocumentEncryption5Years -ComputerName PULL -PassThru -ErrorAction Stop
 $DCDocumentEncryptionCert = Request-LabCertificate -Subject "CN=dc.$FQDNDomainName" -SAN "dc", "dc.$FQDNDomainName" -TemplateName DocumentEncryption5Years -ComputerName DC -PassThru -ErrorAction Stop
 $MS1DocumentEncryptionCert = Request-LabCertificate -Subject "CN=ms1.$FQDNDomainName" -SAN "ms1", "ms1.$FQDNDomainName" -TemplateName DocumentEncryption5Years -ComputerName MS1 -PassThru -ErrorAction Stop
@@ -193,15 +222,17 @@ Invoke-LabCommand -ActivityName 'Requesting and Exporting Document Encryption Ce
     $DocumentEncryption5YearsCert = Get-ChildItem Cert:\LocalMachine\My -DocumentEncryptionCert | Select-Object -Last 1    
     New-Item -Path \\pull\c$\PublicKeys\ -ItemType Directory -Force
     Export-Certificate -Cert $DocumentEncryption5YearsCert -FilePath "\\pull\c$\PublicKeys\$env:COMPUTERNAME.cer" -Force
+    Export-Certificate -Cert $DocumentEncryption5YearsCert -FilePath "\\build\c$\PublicKeys\$env:COMPUTERNAME.cer" -Force
 
     $null = New-Item -ItemType Directory -Path C:\PShell\Demos -ErrorAction SilentlyContinue -Force
+    Set-WinUserLanguageList -LanguageList fr-fr -Force
 } 
 #endregion
 
-Copy-LabFileItem -Path C:\PoshDSC\Demos -DestinationFolder C:\PShell\ -ComputerName $AllLabVMs -Recurse
+Copy-LabFileItem -Path C:\PoshDSC\Demos, "C:\PoshDSC\Demos - Old" -DestinationFolder C:\PShell\ -ComputerName $AllLabVMs -Recurse
 
-$Job += Invoke-LabCommand -ActivityName 'Downloading prerequisites' -ComputerName PULL -ScriptBlock {
-    & "C:\PShell\Demos\Install-xModule.ps1" 
+$Job += Invoke-LabCommand -ActivityName 'Downloading prerequisites' -ComputerName PULL, BUILD -ScriptBlock {
+    & "C:\PShell\Demos\Install-DscModule.ps1" 
 } -AsJob -PassThru
 
 Invoke-LabCommand -ActivityName 'Generating CSV file for listing certificate data' -ComputerName PULL -ScriptBlock {
