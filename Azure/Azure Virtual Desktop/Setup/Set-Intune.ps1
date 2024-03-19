@@ -19,6 +19,39 @@ of the Sample Code.
 #requires -Version 5 -Modules Az.Accounts, Az.Resources, Microsoft.Graph.Authentication
 
 #region Intune Management
+Function Remove-IntuneItem {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]] $HostPoolName,
+        [Parameter(Mandatory = $true)]
+        [string[]] $SessionHostName
+    )
+
+    #region deviceManagementScripts and groupPolicyConfigurations
+    $Topics = "deviceManagementScripts", "groupPolicyConfigurations"
+    foreach($CurrentHostPoolName in $HostPoolName) {
+        foreach($CurrentTopic in $Topics) {
+            Write-Verbose "Processing '$($CurrentTopic)' ..."
+            $URI = "https://graph.microsoft.com/beta/deviceManagement/$($CurrentTopic)?`$filter=startswith(displayName,+'[$CurrentHostPoolName]')&`$select=id,displayname"
+            $deviceManagementScripts = Invoke-MgGraphRequest -Uri $URI -Method GET -OutputType PSObject
+            foreach ($CurrentValue in $deviceManagementScripts.Value) {
+                Write-Verbose -Message "Deleting the previously '$($CurrentValue.displayName)' $CurrentTopic (id: '$($CurrentValue.id)')..."
+                Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/$CurrentTopic/$($CurrentValue.id)" -Method DELETE -OutputType PSObject
+            }
+        }
+    }
+    #endregion
+
+    #region Devices
+    Write-Verbose -Message "Removing Intune Enrolled Devices : $($SessionHostName -join ', ')"
+    Get-MgDeviceManagementManagedDevice -All | Where-Object -FilterScript {$_.DeviceName -in $SessionHostName } | ForEach-Object -Process { 
+        Write-Verbose -Message "Removing Intune Enrolled Device : $($_.DeviceName)"
+        Remove-MgDeviceManagementManagedDevice -ManagedDeviceId $_.Id 
+    }
+    #endregion
+}
+
 #From https://learn.microsoft.com/en-us/graph/api/intune-shared-devicemanagementscript-create?view=graph-rest-beta
 Function New-IntunePowerShellScript {
     [CmdletBinding()]
@@ -511,8 +544,11 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
 #region Function calls
 $HostPoolName = "hp-np-ei-poc-mp-use-73"
+$SessionHostName = "nepcmuse73-0", "nepcmuse73-1", "nepcmuse73-2"
+
 New-FSLogixIntuneConfigurationProfile -CurrentHostPoolStorageAccountName fslhpnpeipocmpuse73 -HostPoolName $HostPoolName -Verbose
 New-AVDIntuneConfigurationProfile -HostPoolName $HostPoolName -Verbose
-
 New-IntunePowerShellScript -ScriptURI 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Setup/Enable-NewPerformanceCounter.ps1' -HostPoolName $HostPoolName -Verbose
+
+Remove-IntuneItem -HostPoolName $HostPoolName -SessionHostName $SessionHostName -Verbose
 #endregion
