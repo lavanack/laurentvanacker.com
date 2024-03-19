@@ -510,8 +510,9 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
 #region Function calls
-New-FSLogixIntuneConfigurationProfile -CurrentHostPoolStorageAccountName fslhpnpeipocmpuse73 -HostPoolName hp-np-ei-poc-mp-use-73 -Verbose
-New-AVDIntuneConfigurationProfile -HostPoolName hp-np-ei-poc-mp-use-73 -Verbose
+$HostPoolName = "hp-np-ei-poc-mp-use-73"
+New-FSLogixIntuneConfigurationProfile -CurrentHostPoolStorageAccountName fslhpnpeipocmpuse73 -HostPoolName $HostPoolName -Verbose
+New-AVDIntuneConfigurationProfile -HostPoolName $HostPoolName -Verbose
 
-New-IntunePowerShellScript -ScriptURI 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Setup/Enable-NewPerformanceCounter.ps1' -HostPoolName hp-np-ei-poc-mp-use-73 -Verbose
+New-IntunePowerShellScript -ScriptURI 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Setup/Enable-NewPerformanceCounter.ps1' -HostPoolName $HostPoolName -Verbose
 #endregion
