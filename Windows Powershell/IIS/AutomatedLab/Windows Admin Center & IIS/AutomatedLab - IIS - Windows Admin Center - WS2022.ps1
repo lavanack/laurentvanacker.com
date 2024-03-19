@@ -26,7 +26,7 @@ trap {
     break
 } 
 Import-Module -Name AutomatedLab -Verbose
-try {while (Stop-Transcript) {}} catch {}
+try { while (Stop-Transcript) {} } catch {}
 Clear-Host
 
 $PreviousVerbosePreference = $VerbosePreference
@@ -154,7 +154,7 @@ Invoke-LabCommand -ActivityName 'DNS, AD Setup & GPO Settings on DC' -ComputerNa
     # https://devblogs.microsoft.com/powershell-community/how-to-change-the-start-page-for-the-edge-browser/
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\Software\Policies\Microsoft\Edge' -ValueName "RestoreOnStartup" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 4
 
-    #Bonus : To open the .net core website on all machines
+    #Bonus : To open WAC on all machines
     $StartPage = "https://WAC01"
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\Software\Policies\Microsoft\Edge\RestoreOnStartupURLs' -ValueName 0 -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "$StartPage"
     #https://admx.help/?Category=Windows_10_2016&Policy=Microsoft.Policies.MicrosoftEdge::PreventFirstRunPage
@@ -165,6 +165,14 @@ Invoke-LabCommand -ActivityName 'DNS, AD Setup & GPO Settings on DC' -ComputerNa
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Edge' -ValueName "HideFirstRunExperience" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
     #endregion
 
+    #region Disabling TLS 1.3 Settings
+    $GPO = New-GPO -Name "Disabling TLS 1.3" | New-GPLink -Target $DefaultNamingContext
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Server' -ValueName 'Enabled' -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Server' -ValueName 'DisabledByDefault' -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Client' -ValueName 'Enabled' -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0 
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Client' -ValueName 'DisabledByDefault' -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
+    #endregion
+
     #region WireShark : (Pre)-Master-Secret Log Filename
     $GPO = New-GPO -Name "(Pre)-Master-Secret Log Filename" | New-GPLink -Target $DefaultNamingContext
     #For decrypting SSL traffic via network tools : https://support.f5.com/csp/article/K50557518
@@ -172,6 +180,20 @@ Invoke-LabCommand -ActivityName 'DNS, AD Setup & GPO Settings on DC' -ComputerNa
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Environment' -ValueName "SSLKEYLOGFILE" -Type ([Microsoft.Win32.RegistryValueKind]::ExpandString) -Value $SSLKeysFile
     #endregion
 }
+
+<#
+Invoke-LabCommand -ActivityName "Disabling TLS 1.3" -ComputerName $AllLabVMs -ScriptBlock {
+    #region Disabling TLS 1.3
+    Write-Host "Disabling TLS 1.3 at the server level"
+    New-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Server' -Force
+    New-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Client' -Force
+    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Server' -Name 'Enabled' -Value 0 -PropertyType DWORD
+    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Server' -Name 'DisabledByDefault' -Value 1 -PropertyType DWORD
+    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Client' -Name 'Enabled' -Value 0 -PropertyType DWORD
+    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Client' -Name 'DisabledByDefault' -Value 1 -PropertyType DWORD
+    #endregion 
+}
+#>
 
 #region Certification Authority : Creation and SSL Certificate Generation
 #Get the CA
@@ -186,7 +208,7 @@ $WACDownload = Get-LabInternetFile -Uri $WACDownloadURI -Path $labSources\Softwa
 #Self-Signed Certificate
 #$Job += Install-LabSoftwarePackage -ComputerName WAC01 -Path $WACDownload.FullName -CommandLine "/qn /L*V $env:SystemDrive\WindowsAdminCenter-Install.log ENABLE_CHK_REDIRECT_PORT_80=1 SME_AUTO_UPDATE=1 SME_PORT=443 SSL_CERTIFICATE_OPTION=generate MS_UPDATE_OPT_IN='yes' SET_TRUSTED_HOSTS=`"`"" -AsJob -PassThru
 #Internal PKI Certificate, Redirection HTTP/80=>443, Enabling autoupdate, No trusted Hosts 
-$Job += Install-LabSoftwarePackage -ComputerName WAC01 -Path $WACDownload.FullName -CommandLine "/qn /L*V $env:SystemDrive\WindowsAdminCenter-Install.log ENABLE_CHK_REDIRECT_PORT_80=1 SME_AUTO_UPDATE=1 SME_PORT=443 SME_THUMBPRINT=$($WAC01WebServerSSLCert.Thumbprint) SSL_CERTIFICATE_OPTION=installed MS_UPDATE_OPT_IN='yes' SET_TRUSTED_HOSTS=`"`"" -Verbose -AsJob -PassThru 
+$Job += Install-LabSoftwarePackage -ComputerName WAC01 -Path $WACDownload.FullName -CommandLine "/qn /L*V $env:SystemDrive\WindowsAdminCenter-Install.log ENABLE_CHK_REDIRECT_PORT_80=1 SME_AUTO_UPDATE=1 SME_PORT=443 SME_THUMBPRINT=$($WAC01WebServerSSLCert.Thumbprint) SSL_CERTIFICATE_OPTION=installed MS_UPDATE_OPT_IN='yes' SET_TRUSTED_HOSTS=`"`"" -AsJob -PassThru 
 #endregion 
 
 #Waiting for background jobs
@@ -211,14 +233,14 @@ Invoke-LabCommand -ActivityName 'Adding WAC Connections' -ComputerName WAC01 -Sc
         [PSCustomObject] @{
             name    = $_.FQDN
             type    = "msft.sme.connection-type.server"
-            tags    = @($FQDNDomainName ,"HyperV","IIS","WS2022") -join ('|')
+            tags    = @($FQDNDomainName , "HyperV", "IIS", "WS2022") -join ('|')
             groupId = "global"
         }
     }
     $WACConnection | Export-Csv $WACConnectionCSVFile -NoTypeInformation
     Import-Connection $WACURI -fileName $WACConnectionCSVFile
     Remove-Item -Path $WACConnectionCSVFile -Force
-} -Variable (Get-Variable -Name IISServers, FQDNDomainName)   
+} -Variable (Get-Variable -Name IISServers, FQDNDomainName) -Verbose  
 
 Invoke-LabCommand -ActivityName 'Updating & Installing WAC Extensions' -ComputerName WAC01 -ScriptBlock {
     # WAC URI
@@ -236,18 +258,21 @@ Invoke-LabCommand -ActivityName 'Updating & Installing WAC Extensions' -Computer
 
     #Updating Installed Extensions
     $InstalledExtensions = Get-Extension -GatewayEndpoint $WACURI | Where-Object -FilterScript { $_.status -eq 'Installed' } 
-    $InstalledExtensions | ForEach-Object -Process { Write-Host "Updating $($_.title) [$($_.id)]"; Update-Extension -GatewayEndpoint $WACURI -ExtensionId $_.id -Verbose}
+    $InstalledExtensions | ForEach-Object -Process { Write-Host "Updating $($_.title) [$($_.id)]"; Update-Extension -GatewayEndpoint $WACURI -ExtensionId $_.id -Verbose }
 
     #Installing all MSFT WAC entensions (not already installed)
     $MSFTExtensionsToInstall = Get-Extension -GatewayEndpoint $WACURI | Where-Object -FilterScript { $_.id -match "^msft|^microsoft" }
-    $MSFTExtensionsToInstall | Where-Object -FilterScript {$_.id -notin $InstalledExtensions.id} | ForEach-Object -Process { Write-Host "Installing $($_.title) [$($_.id)]"; Install-Extension -GatewayEndpoint $WACURI -ExtensionId $_.id -Verbose}
+    $MSFTExtensionsToInstall | Where-Object -FilterScript { $_.id -notin $InstalledExtensions.id } | ForEach-Object -Process { Write-Host "Installing $($_.title) [$($_.id)]"; Install-Extension -GatewayEndpoint $WACURI -ExtensionId $_.id -Verbose }
 }
 
 #Waiting for background jobs
 $Job | Wait-Job | Out-Null
 
 #Restart is needed after the WAC installation for securing the communications
-Restart-LabVM -ComputerName WAC01 -Wait
+#Restart-LabVM -ComputerName WAC01 -Wait
+
+#Restarting the IIS Server to take the SCHANNEL hardening into consideration
+Restart-LabVM -ComputerName $AllLabVMs -Wait
 
 Show-LabDeploymentSummary -Detailed
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
