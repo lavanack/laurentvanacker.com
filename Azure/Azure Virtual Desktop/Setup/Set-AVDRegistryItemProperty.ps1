@@ -16,7 +16,7 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 
-#requires -Version 5 -RunAsAdministrator 
+#requires -Version 5 -Modules Az.Accounts, Az.Resources, Microsoft.Graph.Authentication 
 
 [CmdletBinding()]
 param(
