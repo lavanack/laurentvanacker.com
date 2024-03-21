@@ -42,15 +42,17 @@ While (-not(Get-AzContext)) {
 #region Getting Eligible assignements for Azure Resource
 $scope = "/subscriptions/{0}" -f $($(Get-AzContext).Subscription.Id)
 $Principal = (Get-AzADUser -ObjectId (Get-AzContext).Account)
+#Filtering the role we want to activate
 if ($Filter) {
     $AzRoleEligibilitySchedule = Get-AzRoleEligibilitySchedule -Scope $scope -Filter "asTarget()" | Select-Object -Property * | Out-GridView -PassThru
 }
+#Activating all roles
 else {
     $AzRoleEligibilitySchedule = Get-AzRoleEligibilitySchedule -Scope $scope -Filter "asTarget()"
 }
 #endregion
 
-#region Activating Eligible assignements for Azure Resource
+#region Activating eligible assignements for Azure Resource
 $Justification = "'{0}' script run by '{1} for {2}'" -f $CurrentScriptName, $(whoami), $Principal.UserPrincipalName
 $ExpirationDuration = "PT{0}H" -f $Hour
 $AzRoleEligibilitySchedule | ForEach-Object -Process {
