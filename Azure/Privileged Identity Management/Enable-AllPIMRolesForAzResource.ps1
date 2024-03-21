@@ -34,9 +34,6 @@ $CurrentScriptName = Split-Path -Path $CurrentScript -Leaf
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
-#region Defining variables 
-$SubscriptionName = "Cloud Solution Architect"
-
 # Login to your Azure subscription.
 While (-not(Get-AzContext)) {
     Connect-AzAccount
