@@ -57,7 +57,6 @@ $Justification = "'{0}' script run by '{1} for {2}'" -f $CurrentScriptName, $(wh
 $ExpirationDuration = "PT{0}H" -f $Hour
 $AzRoleEligibilitySchedule | ForEach-Object -Process {
     Write-Host "[$($Principal.UserPrincipalName)] Activating '$($_.RoleDefinitionDisplayName)' Role on '$($_.ScopeDisplayName)' Azure Resource for $Hour hours ..."
-    $startTime = Get-Date -Format o 
     try {
         $null = New-AzRoleAssignmentScheduleRequest -Name $((New-Guid).Guid) -Scope $_.ScopeId -ExpirationDuration $ExpirationDuration -ExpirationType AfterDuration -PrincipalId $Principal.Id -RequestType SelfActivate -RoleDefinitionId $_.RoleDefinitionId -Justification $Justification -TicketNumber $null -TicketSystem $null -ErrorAction Stop
     }
