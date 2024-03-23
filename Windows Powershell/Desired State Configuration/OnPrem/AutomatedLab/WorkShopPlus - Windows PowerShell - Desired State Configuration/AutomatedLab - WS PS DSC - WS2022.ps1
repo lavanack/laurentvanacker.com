@@ -155,21 +155,6 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $DesktopMachine
     Rename-NetAdapter -Name "Default Switch 0" -NewName 'Internet' -PassThru -ErrorAction SilentlyContinue
 }
 
-Invoke-LabCommand -ActivityName "Disabling TLS 1.3" -ComputerName $AllLabVMs -ScriptBlock {
-    #region Disabling TLS 1.3
-    Write-Host "Disabling TLS 1.3 at the server level"
-    New-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Server' -Force
-    New-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Client' -Force
-    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Server' -Name 'Enabled' -Value 0 -PropertyType DWORD
-    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Server' -Name 'DisabledByDefault' -Value 1 -PropertyType DWORD
-    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Client' -Name 'Enabled' -Value 0 -PropertyType DWORD
-    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Client' -Name 'DisabledByDefault' -Value 1 -PropertyType DWORD
-    #endregion 
-}
-
-#Restarting the IIS Server to take the SCHANNEL hardening into consideration
-Restart-LabVM -ComputerName $AllLabVMs -Wait
-
 #Installing and setting up DNS
 Invoke-LabCommand -ActivityName 'DNS, AD Setup on DC' -ComputerName DC -ScriptBlock {
     #region DNS management
@@ -193,6 +178,14 @@ Invoke-LabCommand -ActivityName 'DNS, AD Setup on DC' -ComputerName DC -ScriptBl
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Edge' -ValueName "HideFirstRunExperience" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
     #endregion
 
+    #region Disabling TLS 1.3 Settings
+    $GPO = New-GPO -Name "Disabling TLS 1.3" | New-GPLink -Target $DefaultNamingContext
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Server' -ValueName 'Enabled' -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Server' -ValueName 'DisabledByDefault' -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Client' -ValueName 'Enabled' -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 0 
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Client' -ValueName 'DisabledByDefault' -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
+    #endregion
+
     #region WireShark : (Pre)-Master-Secret Log Filename
     $GPO = New-GPO -Name "(Pre)-Master-Secret Log Filename" | New-GPLink -Target $DefaultNamingContext
     #For decrypting SSL traffic via network tools : https://support.f5.com/csp/article/K50557518
@@ -200,6 +193,22 @@ Invoke-LabCommand -ActivityName 'DNS, AD Setup on DC' -ComputerName DC -ScriptBl
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Environment' -ValueName "SSLKEYLOGFILE" -Type ([Microsoft.Win32.RegistryValueKind]::ExpandString) -Value $SSLKeysFile
     #endregion
 }
+
+<#
+Invoke-LabCommand -ActivityName "Disabling TLS 1.3" -ComputerName $AllLabVMs -ScriptBlock {
+    #region Disabling TLS 1.3
+    Write-Host "Disabling TLS 1.3 at the server level"
+    New-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Server' -Force
+    New-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Client' -Force
+    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Server' -Name 'Enabled' -Value 0 -PropertyType DWORD
+    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Server' -Name 'DisabledByDefault' -Value 1 -PropertyType DWORD
+    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Client' -Name 'Enabled' -Value 0 -PropertyType DWORD
+    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Client' -Name 'DisabledByDefault' -Value 1 -PropertyType DWORD
+    #endregion 
+}
+#>
+#Restarting the IIS Server to take the SCHANNEL hardening into consideration
+Restart-LabVM -ComputerName $AllLabVMs -Wait
 
 #region Certification Authority : Creation and SSL Certificate Generation
 #Get the CA
