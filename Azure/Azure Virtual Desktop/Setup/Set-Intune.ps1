@@ -16,7 +16,7 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 
-#requires -Version 5 -Modules Az.Accounts, Az.Resources, Microsoft.Graph.Authentication
+#requires -Version 5 -Modules Az.Accounts, Az.Resources, Microsoft.Graph.Authentication, Microsoft.Graph.Beta.DeviceManagement, Microsoft.Graph.Beta.DeviceManagement.Actions, Microsoft.Graph.Beta.DeviceManagement.Administration, Microsoft.Graph.DeviceManagement
 
 #region Intune Management
 #region Graph API
@@ -25,14 +25,14 @@ Function Remove-IntuneItemViaGraphAPI {
     param(
         [Parameter(Mandatory = $true)]
         [string[]] $HostPoolName,
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $false)]
         [string[]] $SessionHostName
     )
 
     #region deviceManagementScripts and groupPolicyConfigurations
     $Topics = "deviceManagementScripts", "groupPolicyConfigurations"
-    foreach ($CurrentHostPoolName in $HostPoolName) {
-        foreach ($CurrentTopic in $Topics) {
+    foreach($CurrentHostPoolName in $HostPoolName) {
+        foreach($CurrentTopic in $Topics) {
             Write-Verbose "Processing '$($CurrentTopic)' ..."
             $URI = "https://graph.microsoft.com/beta/deviceManagement/$($CurrentTopic)?`$filter=startswith(displayName,+'[$CurrentHostPoolName]')&`$select=id,displayname"
             $deviceManagementScripts = Invoke-MgGraphRequest -Uri $URI -Method GET -OutputType PSObject
@@ -46,7 +46,7 @@ Function Remove-IntuneItemViaGraphAPI {
     #region Devices
     Write-Verbose -Message "Removing Intune Enrolled Devices : $($SessionHostName -join ', ')"
     $AllDevices = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices" -Method GET -OutputType PSObject
-    $FilteredDevices = $AllDevices.value | Where-Object -FilterScript { $_.DeviceName -in $SessionHostName }
+    $FilteredDevices = $AllDevices.value | Where-Object -FilterScript {$_.DeviceName -in $SessionHostName }
     $FilteredDevices | ForEach-Object -Process { 
         Write-Verbose -Message "Removing Intune Enrolled Device : $($_.value.DeviceName)"
         $RemovedDevices = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices/$($_.id)" -Method DELETE -OutputType PSObject
@@ -235,7 +235,8 @@ function Import-FSLogixADMXViaGraphAPI {
 
     Write-Verbose -Message "Uploading the ADMX and ADML files ..."
     $GroupPolicyUploadedDefinitionFile = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/Beta/deviceManagement/groupPolicyUploadedDefinitionFiles" -Method POST -Body $($Body | ConvertTo-Json -Depth 100) -OutputType PSObject
-    if ($Wait) {
+    if ($Wait)
+    {
         $GroupPolicyUploadedDefinitionFileId = $GroupPolicyUploadedDefinitionFile.id
         While ($GroupPolicyUploadedDefinitionFile.value.status -eq 'uploadInProgress') {
             $GroupPolicyUploadedDefinitionFile = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyUploadedDefinitionFiles?`$filter=id+eq+'$GroupPolicyUploadedDefinitionFileId'" -Method GET -OutputType PSObject
@@ -316,7 +317,7 @@ function Set-GroupPolicyDefinitionSettingViaGraphAPI {
     }
     
     $Body = @{
-        added      = @(
+        added = @(
             @{
                 "definition@odata.bind" = "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions('$($GroupPolicyDefinition.id)')"
                 "enabled"               = $($psCmdlet.ParameterSetName -eq 'Enable')
@@ -592,19 +593,19 @@ Function Remove-IntuneItemViaCmdlet {
     param(
         [Parameter(Mandatory = $true)]
         [string[]] $HostPoolName,
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $false)]
         [string[]] $SessionHostName
     )
 
     #region PowerShell Cmdlets
     #region deviceManagementScripts and groupPolicyConfigurations
-    Get-MgBetaDeviceManagementGroupPolicyConfiguration -Filter "startswith(displayName,'[$CurrentHostPoolName]')" | Remove-MgBetaDeviceManagementGroupPolicyConfiguration
-    Get-MgBetaDeviceManagementScript -Filter "startswith(displayName,+'[$CurrentHostPoolName]')" | Remove-MgBetaDeviceManagementScript
+    Get-MgBetaDeviceManagementGroupPolicyConfiguration -Filter "startswith(displayName,'[$HostPoolName]')" | Remove-MgBetaDeviceManagementGroupPolicyConfiguration
+    Get-MgBetaDeviceManagementScript -Filter "startswith(displayName,'[$HostPoolName]')" | Remove-MgBetaDeviceManagementScript
     #endregion
 
     #region Devices
     Write-Verbose -Message "Removing Intune Enrolled Devices : $($SessionHostName -join ', ')"
-    Get-MgDeviceManagementManagedDevice -All | Where-Object -FilterScript { $_.DeviceName -in $SessionHostName } | ForEach-Object -Process { 
+    Get-MgDeviceManagementManagedDevice -All | Where-Object -FilterScript {$_.DeviceName -in $SessionHostName } | ForEach-Object -Process { 
         Write-Verbose -Message "Removing Intune Enrolled Device : $($_.DeviceName)"
         Remove-MgDeviceManagementManagedDevice -ManagedDeviceId $_.Id 
     }
@@ -641,7 +642,7 @@ Function New-IntunePowerShellScriptViaCmdlet {
     $DisplayName = "[{0}] {1}" -f $HostPoolName, $FileName
     #Checking if the script is already present (with the same naming convention)
     Write-Verbose -Message "Deleting the previously imported PowerShell Script file if any ..."
-    Get-MgBetaDeviceManagementScript -Filter "startswith(displayName,+'[$CurrentHostPoolName]')" | Remove-MgBetaDeviceManagementScript
+    Get-MgBetaDeviceManagementScript -Filter "startswith(displayName,'[$HostPoolName]')" | Remove-MgBetaDeviceManagementScript
 
     $AddedScript = New-MgBetaDeviceManagementScript -DisplayName $DisplayName -FileName $FileName -RoleScopeTagIds @("0") -RunAsAccount 'system'-ScriptContentInputFile $ScriptContentInputFile
     if ($ScriptURI) {
@@ -655,14 +656,14 @@ Function New-IntunePowerShellScriptViaCmdlet {
     $DeviceAzADGroup = Get-AzADGroup -DisplayName $DeviceAzADGroupName
     Write-Verbose -Message "Assigning the '$FileName' PowerShell script to '$DeviceAzADGroupName' ..."
     $BodyParameter = @{
-        deviceManagementScriptAssignments = @(
-            @{
-                target = @{
-                    "@odata.type" = "#microsoft.graph.groupAssignmentTarget"
-                    groupId       = $DeviceAzADGroup.Id
-                }
-            }
-        )
+	    deviceManagementScriptAssignments = @(
+		    @{
+			    target = @{
+				    "@odata.type" = "#microsoft.graph.groupAssignmentTarget"
+				    groupId = $DeviceAzADGroup.Id
+			    }
+		    }
+	    )
     }
     Set-MgBetaDeviceManagementScript -DeviceManagementScriptId $AddedScript.Id -BodyParameter $BodyParameter
     #endregion
@@ -733,14 +734,14 @@ function Import-FSLogixADMXViaCmdlet {
     $Now = Get-Date -Format o 
     Write-Verbose -Message "Uploading the ADMX and ADML files ..."
     $GroupPolicyUploadedLanguageFiles = @(
-        @{
-            "fileName"     = $ADMLFileName
-            "languageCode" = "en-US"
-            "content"      = $ADMLFileContent
-            #"id" = (New-Guid).Guid
-            #"lastModifiedDateTime" = $Now
-        }
-    )
+            @{
+                "fileName"     = $ADMLFileName
+                "languageCode" = "en-US"
+                "content"      = $ADMLFileContent
+                #"id" = (New-Guid).Guid
+                #"lastModifiedDateTime" = $Now
+            }
+        )
     New-MgBetaDeviceManagementGroupPolicyUploadedDefinitionFile -LanguageCodes @("en-US") -TargetPrefix $("FSLogix{0}" -f $GUID) -TargetNamespace "FSLogix.Policies" -policyType 'admxIngested' -FileName $ADMXFileName -ContentInputFile $ADMXFileContent -GroupPolicyUploadedLanguageFiles $GroupPolicyUploadedLanguageFiles
     $GroupPolicyUploadedDefinitionFileId = $GroupPolicyUploadedDefinitionFile.id
     While ($GroupPolicyUploadedDefinitionFile.status -eq 'uploadInProgress') {
@@ -819,7 +820,7 @@ function Set-GroupPolicyDefinitionSettingViaCmdlet {
     }
 
     $BodyParameter = @{
-        added      = @(
+        added = @(
             @{
                 "definition@odata.bind" = "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions('$($GroupPolicyDefinition.id)')"
                 "enabled"               = $($psCmdlet.ParameterSetName -eq 'Enable')
@@ -1069,6 +1070,16 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 #region Function calls
 $HostPoolName = "hp-np-ei-poc-mp-use-73"
 $SessionHostName = "nepcmuse73-0", "nepcmuse73-1", "nepcmuse73-2"
+
+#region Azure AD group
+$DeviceAzADGroupName = "{0} - Devices" -f $HostPoolName
+if (-not(Get-AzADGroup -DisplayName $DeviceAzADGroupName)) {
+    $Description = "Dynamic device group for our AVD hosts for the {0} HostPool." -f $HostPoolName
+    $MailNickname = $($DeviceAzADGroupName -replace "\s").ToLower()
+    $DeviceAzADGroup = New-AzADGroup -DisplayName $DeviceAzADGroupName -Description $Description -MailNickname $MailNickname -SecurityEnabled
+}
+#endregion
+
 
 #Set-PSBreakpoint -Command Invoke-MgGraphRequest
 
