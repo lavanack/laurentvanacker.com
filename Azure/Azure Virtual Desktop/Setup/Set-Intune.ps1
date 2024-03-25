@@ -599,8 +599,15 @@ Function Remove-IntuneItemViaCmdlet {
 
     #region PowerShell Cmdlets
     #region deviceManagementScripts and groupPolicyConfigurations
-    Get-MgBetaDeviceManagementGroupPolicyConfiguration -Filter "startswith(displayName,'[$HostPoolName]')" | Remove-MgBetaDeviceManagementGroupPolicyConfiguration
-    Get-MgBetaDeviceManagementScript -Filter "startswith(displayName,'[$HostPoolName]')" | Remove-MgBetaDeviceManagementScript
+    #The pipeline has been stopped ==> Get-MgBetaDeviceManagementGroupPolicyConfiguration -Filter "startswith(displayName,'[$HostPoolName]')" | Remove-MgBetaDeviceManagementGroupPolicyConfiguration
+    Get-MgBetaDeviceManagementGroupPolicyConfiguration -Filter "startswith(displayName,'[$HostPoolName]')" | ForEach-Object -Process {
+        Remove-MgBetaDeviceManagementGroupPolicyConfiguration -GroupPolicyConfigurationId $_.Id
+    }
+
+    #The pipeline has been stopped ==> Get-MgBetaDeviceManagementScript -Filter "startswith(displayName,'[$HostPoolName]')" | Remove-MgBetaDeviceManagementScript
+    Get-MgBetaDeviceManagementScript -Filter "startswith(displayName,'[$HostPoolName]')" | ForEach-Object -Process {
+        Remove-MgBetaDeviceManagementScript -DeviceManagementScriptId $_.Id
+    }
     #endregion
 
     #region Devices
