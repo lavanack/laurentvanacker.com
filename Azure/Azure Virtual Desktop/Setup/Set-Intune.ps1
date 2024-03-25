@@ -71,6 +71,13 @@ Function New-IntunePowerShellScriptViaGraphAPI {
     )
 
     #region Graph API
+    $DeviceAzADGroupName = "$HostPoolName - Devices"
+    $DeviceAzADGroup = Get-AzADGroup -DisplayName $DeviceAzADGroupName
+    if ($null -eq $DeviceAzADGroup) {
+        Write-Error -Message "The '$DeviceAzADGroupName' doesn't exist !"
+        return $null
+    }
+
     #region Uploading Powershell Script
     if ($ScriptURI) {
         $ScriptURIContent = Invoke-RestMethod -Uri $ScriptURI
@@ -113,8 +120,6 @@ Function New-IntunePowerShellScriptViaGraphAPI {
     #endregion
 
     #region Assign
-    $DeviceAzADGroupName = "$HostPoolName - Devices"
-    $DeviceAzADGroup = Get-AzADGroup -DisplayName $DeviceAzADGroupName
     $Body = @{
         deviceManagementScriptAssignments = @(
             @{
@@ -351,6 +356,15 @@ function New-FSLogixIntuneConfigurationProfileViaGraphAPI {
         [string] $StorageEndpointSuffix = 'core.windows.net'
     )
     #region Graph API
+    #region Devices Azure AD group 
+    $DeviceAzADGroupName = "$HostPoolName - Devices"
+    $DeviceAzADGroup = Get-AzADGroup -DisplayName $DeviceAzADGroupName
+    if ($null -eq $DeviceAzADGroup) {
+        Write-Error -Message "The '$DeviceAzADGroupName' doesn't exist !"
+        return $null
+    }
+    #endregion
+
     #region groupPolicyConfigurations
     $GroupPolicyConfigurationName = "[{0}] FSLogix Policy" -f $HostPoolName
     #$Now = $(Get-Date -Format "yyyy-MM-ddTHH:mm:ssK")
@@ -378,8 +392,6 @@ function New-FSLogixIntuneConfigurationProfileViaGraphAPI {
     #endregion
 
     #region Assign
-    $DeviceAzADGroupName = "$HostPoolName - Devices"
-    $DeviceAzADGroup = Get-AzADGroup -DisplayName $DeviceAzADGroupName
     $Body = @{
         assignments = @(
             @{
@@ -465,6 +477,16 @@ function New-AzAvdIntuneConfigurationProfileViaGraphAPI {
         [string]$HostPoolName
     )
 
+    #region Graph API
+    #region Devices Azure AD group 
+    $DeviceAzADGroupName = "$HostPoolName - Devices"
+    $DeviceAzADGroup = Get-AzADGroup -DisplayName $DeviceAzADGroupName
+    if ($null -eq $DeviceAzADGroup) {
+        Write-Error -Message "The '$DeviceAzADGroupName' doesn't exist !"
+        return $null
+    }
+    #endregion
+
     #region groupPolicyConfigurations
     $GroupPolicyConfigurationName = "[{0}] AVD Policy" -f $HostPoolName
     #$Now = $(Get-Date -Format "yyyy-MM-ddTHH:mm:ssK")
@@ -492,8 +514,6 @@ function New-AzAvdIntuneConfigurationProfileViaGraphAPI {
     #endregion
 
     #region Assign
-    $DeviceAzADGroupName = "$HostPoolName - Devices"
-    $DeviceAzADGroup = Get-AzADGroup -DisplayName $DeviceAzADGroupName
     $Body = @{
         assignments = @(
             @{
@@ -583,6 +603,7 @@ function New-AzAvdIntuneConfigurationProfileViaGraphAPI {
         default { Write-Verbose -Message "'$($_.FullPath)' not modified ..." }  
     }
     #endregion
+    #endregion
 
 }
 #endregion
@@ -634,6 +655,15 @@ Function New-IntunePowerShellScriptViaCmdlet {
         [string]$ScriptPath
     )
     #region PowerShell Cmdlets
+    #region Devices Azure AD group 
+    $DeviceAzADGroupName = "$HostPoolName - Devices"
+    $DeviceAzADGroup = Get-AzADGroup -DisplayName $DeviceAzADGroupName
+    if ($null -eq $DeviceAzADGroup) {
+        Write-Error -Message "The '$DeviceAzADGroupName' doesn't exist !"
+        return $null
+    }
+    #endregion
+
     #region Uploading Powershell Script
     if ($ScriptURI) {
         Write-Verbose -Message "Adding the '$ScriptURI' script ..."
@@ -659,8 +689,6 @@ Function New-IntunePowerShellScriptViaCmdlet {
     #endregion
 
     #region Assign
-    $DeviceAzADGroupName = "$HostPoolName - Devices"
-    $DeviceAzADGroup = Get-AzADGroup -DisplayName $DeviceAzADGroupName
     Write-Verbose -Message "Assigning the '$FileName' PowerShell script to '$DeviceAzADGroupName' ..."
     $BodyParameter = @{
 	    deviceManagementScriptAssignments = @(
@@ -856,7 +884,17 @@ function New-FSLogixIntuneConfigurationProfileViaCmdlet {
         [Parameter(Mandatory = $false)]
         [string] $StorageEndpointSuffix = 'core.windows.net'
     )
+
     #region PowerShell Cmdlets
+    #region Devices Azure AD group 
+    $DeviceAzADGroupName = "$HostPoolName - Devices"
+    $DeviceAzADGroup = Get-AzADGroup -DisplayName $DeviceAzADGroupName
+    if ($null -eq $DeviceAzADGroup) {
+        Write-Error -Message "The '$DeviceAzADGroupName' doesn't exist !"
+        return $null
+    }
+    #endregion
+
     #region groupPolicyConfigurations
     $GroupPolicyConfigurationName = "[{0}] FSLogix Policy" -f $HostPoolName
     #$Now = $(Get-Date -Format "yyyy-MM-ddTHH:mm:ssK")
@@ -871,8 +909,6 @@ function New-FSLogixIntuneConfigurationProfileViaCmdlet {
     #endregion
 
     #region Assign
-    $DeviceAzADGroupName = "$HostPoolName - Devices"
-    $DeviceAzADGroup = Get-AzADGroup -DisplayName $DeviceAzADGroupName
     Write-Verbose -Message "Assigning the '$GroupPolicyConfigurationName' Group Policy Configuration to '$DeviceAzADGroupName' ..."
     $BodyParameter = @{
         target = @{
@@ -954,8 +990,17 @@ function New-AzAvdIntuneConfigurationProfileViaCmdlet {
         [Parameter(Mandatory = $true)]
         [string]$HostPoolName
     )
-    #To be completed
+
     #region PowerShell Cmdlets
+    #region Devices Azure AD group 
+    $DeviceAzADGroupName = "$HostPoolName - Devices"
+    $DeviceAzADGroup = Get-AzADGroup -DisplayName $DeviceAzADGroupName
+    if ($null -eq $DeviceAzADGroup) {
+        Write-Error -Message "The '$DeviceAzADGroupName' doesn't exist !"
+        return $null
+    }
+    #endregion
+
     #region groupPolicyConfigurations
     $GroupPolicyConfigurationName = "[{0}] AVD Policy" -f $HostPoolName
     #$Now = $(Get-Date -Format "yyyy-MM-ddTHH:mm:ssK")
@@ -971,8 +1016,6 @@ function New-AzAvdIntuneConfigurationProfileViaCmdlet {
 
 
     #region Assign
-    $DeviceAzADGroupName = "$HostPoolName - Devices"
-    $DeviceAzADGroup = Get-AzADGroup -DisplayName $DeviceAzADGroupName
     Write-Verbose -Message "Assigning the '$GroupPolicyConfigurationName' Group Policy Configuration to '$DeviceAzADGroupName' ..."
     $BodyParameter = @{
         target = @{
