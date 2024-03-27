@@ -17,9 +17,36 @@ of the Sample Code.
 #>
 
 #requires -Version 5 -Modules Az.Accounts, Az.Resources, Microsoft.Graph.Authentication, Microsoft.Graph.Beta.DeviceManagement, Microsoft.Graph.Beta.DeviceManagement.Actions, Microsoft.Graph.Beta.DeviceManagement.Administration, Microsoft.Graph.DeviceManagement
-
+trap {
+    $VerbosePreference = [System.Management.Automation.ActionPreference]::SilentlyContinue
+    $DebugPreference = [System.Management.Automation.ActionPreference]::SilentlyContinue
+    $ErrorActionPreference = [System.Management.Automation.ActionPreference]::Continue
+    Write-Host "Stopping Transcript ..."
+    Stop-Transcript
+    [console]::beep(3000, 750)
+    break
+} 
 #region Intune Management
 #region Graph API
+
+#From https://github.com/andrew-s-taylor/public/blob/main/Powershell%20Scripts/Intune/function-getallpagination.ps1
+function Get-MgGraphObject {
+    [CmdletBinding()]
+    param (
+        [ValidateScript({ $_ -match '^https?://' })]
+        [string] $Uri
+    )
+
+    $GraphRequestUri = $Uri
+    $MgGraphObject = Do {
+        $Result = (Invoke-MgGraphRequest -Uri $GraphRequestUri -Method GET -OutputType PSObject)
+        $GraphRequestUri = $Result."@odata.nextLink"
+        $Result.value
+    } While ($null -ne $GraphRequestUri)
+    
+    return $MgGraphObject
+}
+
 Function Remove-IntuneItemViaGraphAPI {
     [CmdletBinding()]
     param(
@@ -35,20 +62,20 @@ Function Remove-IntuneItemViaGraphAPI {
         foreach($CurrentTopic in $Topics) {
             Write-Verbose "Processing '$($CurrentTopic)' ..."
             $URI = "https://graph.microsoft.com/beta/deviceManagement/$($CurrentTopic)?`$filter=startswith(displayName,+'[$CurrentHostPoolName]')&`$select=id,displayname"
-            $deviceManagementScripts = Invoke-MgGraphRequest -Uri $URI -Method GET -OutputType PSObject
-            foreach ($CurrentValue in $deviceManagementScripts.Value) {
-                Write-Verbose -Message "Deleting the previously '$($CurrentValue.displayName)' $CurrentTopic (id: '$($CurrentValue.id)') ..."
-                Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/$CurrentTopic/$($CurrentValue.id)" -Method DELETE -OutputType PSObject
+            $DeviceManagementScripts = Get-MgGraphObject -Uri $URI
+            foreach ($CurrentDeviceManagementScripts in $DeviceManagementScripts) {
+                Write-Verbose -Message "Deleting the previously '$($CurrentDeviceManagementScripts.displayName)' $CurrentTopic (id: '$($CurrentDeviceManagementScripts.id)') ..."
+                Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/$CurrentTopic/$($CurrentDeviceManagementScripts.id)" -Method DELETE -OutputType PSObject
             }
         }
     }
 
     #region Devices
     Write-Verbose -Message "Removing Intune Enrolled Devices : $($SessionHostName -join ', ')"
-    $AllDevices = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices" -Method GET -OutputType PSObject
-    $FilteredDevices = $AllDevices.value | Where-Object -FilterScript {$_.DeviceName -in $SessionHostName }
+    $AllDevices = Get-MgGraphObject -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices"
+    $FilteredDevices = $AllDevices | Where-Object -FilterScript {$_.DeviceName -in $SessionHostName }
     $FilteredDevices | ForEach-Object -Process { 
-        Write-Verbose -Message "Removing Intune Enrolled Device : $($_.value.DeviceName)"
+        Write-Verbose -Message "Removing Intune Enrolled Device : $($_.DeviceName)"
         $RemovedDevices = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices/$($_.id)" -Method DELETE -OutputType PSObject
     }
     #endregion
@@ -94,11 +121,11 @@ Function New-IntunePowerShellScriptViaGraphAPI {
 
     $DisplayName = "[{0}] {1}" -f $HostPoolName, $FileName
     #Checking if the script is already present (with the same naming convention)
-    $AddedScript = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceManagementScripts?`$filter=displayName+eq+'$DisplayName'" -Method GET -OutputType PSObject
+    $AddedScript = Get-MgGraphObject -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceManagementScripts?`$filter=displayName+eq+'$DisplayName'"
     #If present
-    if ($AddedScript.Value) {
+    if ($AddedScript) {
         Write-Verbose -Message "Deleting the previously imported PowerShell Script file ..."
-        $AddedScript = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceManagementScripts/$($AddedScript.value.id)" -Method DELETE
+        $AddedScript = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceManagementScripts/$($AddedScript.id)" -Method DELETE
         if ($AddedScript.Value.status -eq 'removalFailed') {
             Write-Error -Message "Removal Failed ..."
             return $AddedScript
@@ -139,21 +166,21 @@ Function New-IntunePowerShellScriptViaGraphAPI {
 function Get-GroupPolicyDefinitionPresentationViaGraphAPI {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $true)]
         [array] $GroupPolicyDefinition
     )
     #region Graph API
     $GroupPolicyDefinitionPresentationHT = @{}
     foreach ($CurrentGroupPolicyDefinition in $GroupPolicyDefinition) {
-        $GroupPolicyDefinitionPresentation = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/Beta/deviceManagement/groupPolicyDefinitions/$($CurrentGroupPolicyDefinition.id)/presentations" -Method GET -OutputType PSObject
+        $CurrentGroupPolicyDefinitionPresentation = Get-MgGraphObject -Uri "https://graph.microsoft.com/Beta/deviceManagement/groupPolicyDefinitions/$($CurrentGroupPolicyDefinition.id)/presentations"
         $Key = "{0} (version: {1})" -f $CurrentGroupPolicyDefinition.displayName, $CurrentGroupPolicyDefinition.version
         if ($CurrentGroupPolicyDefinition.supportedOn) {
             Write-Verbose -Message "Processing '$Key' (Supported On: $($CurrentGroupPolicyDefinition.supportedOn)) ..."
-            $GroupPolicyDefinitionPresentationHT.Add($("{0} (Supported On: {1})" -f $Key, $CurrentGroupPolicyDefinition.supportedOn) , $GroupPolicyDefinitionPresentation.Value)
+            $GroupPolicyDefinitionPresentationHT.Add($("{0} (Supported On: {1})" -f $Key, $CurrentGroupPolicyDefinition.supportedOn) , $CurrentGroupPolicyDefinitionPresentation.Value)
         }
         else {
             Write-Verbose -Message "Processing '$Key' ..."
-            $GroupPolicyDefinitionPresentationHT.Add($Key, $GroupPolicyDefinitionPresentation.Value)
+            $GroupPolicyDefinitionPresentationHT.Add($Key, $CurrentGroupPolicyDefinitionPresentation.Value)
         }
     }
     $GroupPolicyDefinitionPresentationHT
@@ -163,20 +190,19 @@ function Get-GroupPolicyDefinitionPresentationViaGraphAPI {
 function Import-FSLogixADMXViaGraphAPI {
     [CmdletBinding()]
     param (
-        [switch] $Wait
     )
     #region Graph API
     #Checking if the ADMX is already present -
-    $GroupPolicyUploadedDefinitionFile = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyUploadedDefinitionFiles?`$filter=fileName+eq+'fslogix.admx'" -Method GET -OutputType PSObject
+    $GroupPolicyUploadedDefinitionFile = Get-MgGraphObject -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyUploadedDefinitionFiles?`$filter=fileName+eq+'fslogix.admx'"
     #If present
-    if ($GroupPolicyUploadedDefinitionFile.Value) {
-        if ($GroupPolicyUploadedDefinitionFile.Value.status -eq 'available') {
+    if ($GroupPolicyUploadedDefinitionFile) {
+        if ($GroupPolicyUploadedDefinitionFile.status -eq 'available') {
             Write-Verbose -Message "Returning the previously imported ADMX file ..."
             return $GroupPolicyUploadedDefinitionFile
         }
         else {
             Write-Verbose -Message "Deleting the previously imported ADMX file ..."
-            $GroupPolicyUploadedDefinitionFile = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyUploadedDefinitionFiles/$($GroupPolicyUploadedDefinitionFile.value.id)" -Method DELETE
+            $GroupPolicyUploadedDefinitionFile = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyUploadedDefinitionFiles/$($GroupPolicyUploadedDefinitionFile.id)" -Method DELETE
             if ($GroupPolicyUploadedDefinitionFile.Value.status -eq 'removalFailed') {
                 Write-Error -Message "Removal Failed ..."
                 return $GroupPolicyUploadedDefinitionFile
@@ -239,17 +265,17 @@ function Import-FSLogixADMXViaGraphAPI {
     }
 
     Write-Verbose -Message "Uploading the ADMX and ADML files ..."
-    $GroupPolicyUploadedDefinitionFile = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/Beta/deviceManagement/groupPolicyUploadedDefinitionFiles" -Method POST -Body $($Body | ConvertTo-Json -Depth 100) -OutputType PSObject
-    if ($Wait)
-    {
-        $GroupPolicyUploadedDefinitionFileId = $GroupPolicyUploadedDefinitionFile.id
-        While ($GroupPolicyUploadedDefinitionFile.value.status -eq 'uploadInProgress') {
-            $GroupPolicyUploadedDefinitionFile = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyUploadedDefinitionFiles?`$filter=id+eq+'$GroupPolicyUploadedDefinitionFileId'" -Method GET -OutputType PSObject
-            Write-Verbose -Message "Waiting the upload completes. Sleeping 10 seconds ..."
-            Start-Sleep -Seconds 10
-        } 
-        Write-Verbose -Message "Final status: $($GroupPolicyUploadedDefinitionFile.value.status)"
-    }
+    $GroupPolicyUploadedDefinitionFile = (Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/Beta/deviceManagement/groupPolicyUploadedDefinitionFiles" -Method POST -Body $($Body | ConvertTo-Json -Depth 100) -OutputType PSObject).value
+    
+    #Waiting for the import completion
+    $GroupPolicyUploadedDefinitionFileId = $GroupPolicyUploadedDefinitionFile.id
+    While ($GroupPolicyUploadedDefinitionFile.status -eq 'uploadInProgress') {
+        $GroupPolicyUploadedDefinitionFile = Get-MgGraphObject -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyUploadedDefinitionFiles?`$filter=id+eq+'$GroupPolicyUploadedDefinitionFileId'"
+        Write-Verbose -Message "Waiting the upload completes. Sleeping 10 seconds ..."
+        Start-Sleep -Seconds 10
+    } 
+    Write-Verbose -Message "Final status: $($GroupPolicyUploadedDefinitionFile.status)"
+
     Remove-Item -Path $OutFile, $DestinationPath -Recurse -Force
     return $GroupPolicyUploadedDefinitionFile
     #endregion
@@ -277,13 +303,13 @@ function Set-GroupPolicyDefinitionSettingViaGraphAPI {
     Write-Verbose -Message "Parameter Set: $($psCmdlet.ParameterSetName) ..."
     Write-Verbose -Message "[$($GroupPolicyConfiguration.displayName)] Processing '$($GroupPolicyDefinition.categoryPath)\$($GroupPolicyDefinition.displayName)' ..."
     Write-Verbose -Message "`$Value: $Value"
-    $GroupPolicyDefinitionPresentation = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/Beta/deviceManagement/groupPolicyDefinitions/$($GroupPolicyDefinition.id)/presentations" -Method GET -OutputType PSObject
-    if ($GroupPolicyDefinitionPresentation.value.count -gt 1) {
+    $GroupPolicyDefinitionPresentation = Get-MgGraphObject -Uri "https://graph.microsoft.com/Beta/deviceManagement/groupPolicyDefinitions/$($GroupPolicyDefinition.id)/presentations"
+    if ($GroupPolicyDefinitionPresentation.count -gt 1) {
         #When multiple Group Policy Definition Presentations are returned we keep only the one(s) with a 'required' property
-        $GroupPolicyDefinitionPresentationValues = $GroupPolicyDefinitionPresentation.value | Where-Object -FilterScript { "required" -in $_.psobject.Properties.Name }
+        $GroupPolicyDefinitionPresentationValues = $GroupPolicyDefinitionPresentation | Where-Object -FilterScript { "required" -in $_.psobject.Properties.Name }
     }
     else {
-        $GroupPolicyDefinitionPresentationValues = $GroupPolicyDefinitionPresentation.value
+        $GroupPolicyDefinitionPresentationValues = $GroupPolicyDefinitionPresentation
     }
     Write-Verbose "`$GroupPolicyDefinitionPresentationValues:`r`n$($GroupPolicyDefinitionPresentationValues | Out-String)"
     if ($GroupPolicyDefinitionPresentationValues) {
@@ -381,9 +407,9 @@ function New-FSLogixIntuneConfigurationProfileViaGraphAPI {
     }
 
     #Checking if the groupPolicyConfigurations is already present
-    $GroupPolicyConfiguration = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyConfigurations?`$filter=displayName+eq+'$GroupPolicyConfigurationName'" -Method GET -OutputType PSObject
-    if ($GroupPolicyConfiguration.Value) {
-        foreach ($CurrentValue in $GroupPolicyConfiguration.Value) {
+    $GroupPolicyConfiguration = Get-MgGraphObject -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyConfigurations?`$filter=displayName+eq+'$GroupPolicyConfigurationName'"
+    if ($GroupPolicyConfiguration) {
+        foreach ($CurrentValue in $GroupPolicyConfiguration) {
             Write-Verbose -Message "Deleting the previously '$($CurrentValue.displayName)' groupPolicyConfigurations (id: '$($CurrentValue.id)') ..."
             Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyConfigurations/$($CurrentValue.id)" -Method DELETE -OutputType PSObject
         }
@@ -407,22 +433,16 @@ function New-FSLogixIntuneConfigurationProfileViaGraphAPI {
     $Assign = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/Beta/deviceManagement/groupPolicyConfigurations/$($GroupPolicyConfiguration.id)/assign" -Method POST -Body $($Body | ConvertTo-Json -Depth 100) -OutputType PSObject
     #endregion
 
-    #region FSLogix Profile Containers Settings
-    #$FSLogixSettings = (Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=contains(categoryPath,'FSLogix')" -Method GET -OutputType PSObject).Value
-    $FSLogixProfileContainersGroupPolicyDefinitions = (Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\FSLogix\Profile Containers')" -Method GET -OutputType PSObject).Value
-
+    #region ADMX Management
+    $FSLogixProfileContainersGroupPolicyDefinitions = Get-MgGraphObject -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\FSLogix\Profile Containers')"
     if (-not($FSLogixProfileContainersGroupPolicyDefinitions)) {
-        $GroupPolicyUploadedDefinitionFile = Import-FSLogixADMXViaGraphAPI -Wait -Verbose
-        #If -NoWait is not specified
-        #$GroupPolicyUploadedDefinitionFileId = $GroupPolicyUploadedDefinitionFile.id
-        #While ($GroupPolicyUploadedDefinitionFile.value.status -eq 'uploadInProgress') {
-        #    $GroupPolicyUploadedDefinitionFile = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyUploadedDefinitionFiles?`$filter=id+eq+'$GroupPolicyUploadedDefinitionFileId'" -Method GET -OutputType PSObject
-        #    Write-Verbose -Message "Waiting the upload completes. Sleeping 10 seconds ..."
-        #    Start-Sleep -Seconds 10
-        #} 
-        #Write-Verbose -Message "Final status: $($GroupPolicyUploadedDefinitionFile.value.status)"
-        $FSLogixProfileContainersGroupPolicyDefinitions = (Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\FSLogix\Profile Containers')" -Method GET -OutputType PSObject).Value
+        $GroupPolicyUploadedDefinitionFile = Import-FSLogixADMXViaGraphAPI -Verbose
     }
+    #endregion
+
+
+    #region FSLogix Profile Containers Settings
+    $FSLogixProfileContainersGroupPolicyDefinitions = Get-MgGraphObject -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\FSLogix\Profile Containers')"
     #Adding a displayName Property
     $FSLogixProfileContainersGroupPolicyDefinitions = $FSLogixProfileContainersGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($FSLogixProfileContainersGroupPolicyDefinitions) {
@@ -444,22 +464,7 @@ function New-FSLogixIntuneConfigurationProfileViaGraphAPI {
     #endregion
 
     #region FSLogix Logging Settings
-    #$FSLogixSettings = (Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=contains(categoryPath,'FSLogix')" -Method GET -OutputType PSObject).Value
-    $FSLogixLoggingGroupPolicyDefinitions = (Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\FSLogix\Logging')" -Method GET -OutputType PSObject).Value
-
-    if (-not($FSLogixLoggingGroupPolicyDefinitions)) {
-        $GroupPolicyUploadedDefinitionFile = Import-FSLogixADMXViaGraphAPI -Wait -Verbose
-        #If -NoWait is not specified
-        #$GroupPolicyUploadedDefinitionFileId = $GroupPolicyUploadedDefinitionFile.id
-        #While ($GroupPolicyUploadedDefinitionFile.value.status -eq 'uploadInProgress') {
-        #    $GroupPolicyUploadedDefinitionFile = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyUploadedDefinitionFiles?`$filter=id+eq+'$GroupPolicyUploadedDefinitionFileId'" -Method GET -OutputType PSObject
-        #    Write-Verbose -Message "Waiting the upload completes. Sleeping 10 seconds ..."
-        #    Start-Sleep -Seconds 10
-        #} 
-        #Write-Verbose -Message "Final status: $($GroupPolicyUploadedDefinitionFile.value.status)"
-        $FSLogixLoggingGroupPolicyDefinitions = (Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\FSLogix\Logging')" -Method GET -OutputType PSObject).Value
-    }
-    #Adding a displayName Property
+    $FSLogixLoggingGroupPolicyDefinitions = Get-MgGraphObject -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\FSLogix\Logging')"
     $FSLogixLoggingGroupPolicyDefinitions = $FSLogixLoggingGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($FSLogixLoggingGroupPolicyDefinitions) {
         { $_.FullPath -eq '\FSLogix\Logging\Log Keeping Period' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 10 -Verbose }
@@ -503,9 +508,9 @@ function New-AzAvdIntuneConfigurationProfileViaGraphAPI {
     }
 
     #Checking if the groupPolicyConfigurations is already present
-    $GroupPolicyConfiguration = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyConfigurations?`$filter=displayName+eq+'$GroupPolicyConfigurationName'" -Method GET -OutputType PSObject
-    if ($GroupPolicyConfiguration.Value) {
-        foreach ($CurrentGroupPolicyConfiguration in $GroupPolicyConfiguration.Value) {
+    $GroupPolicyConfiguration = Get-MgGraphObject -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyConfigurations?`$filter=displayName+eq+'$GroupPolicyConfigurationName'"
+    if ($GroupPolicyConfiguration) {
+        foreach ($CurrentGroupPolicyConfiguration in $GroupPolicyConfiguration) {
             Write-Verbose -Message "Deleting the previously '$($CurrentGroupPolicyConfiguration.displayName)' groupPolicyConfigurations (id: '$($CurrentGroupPolicyConfiguration.id)') ..."
             Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyConfigurations/$($CurrentGroupPolicyConfiguration.id)" -Method DELETE -OutputType PSObject
         }
@@ -529,7 +534,7 @@ function New-AzAvdIntuneConfigurationProfileViaGraphAPI {
     #endregion
 
     #region Network\Background Intelligent Transfer Service (BITS) Settings
-    $NetworkBITSGroupPolicyDefinitions = (Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\Network\Background Intelligent Transfer Service (BITS)')" -Method GET -OutputType PSObject).Value
+    $NetworkBITSGroupPolicyDefinitions = Get-MgGraphObject -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\Network\Background Intelligent Transfer Service (BITS)')"
     $NetworkBITSGroupPolicyDefinitions = $NetworkBITSGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($NetworkBITSGroupPolicyDefinitions) {
         { $_.FullPath -eq '\Network\Background Intelligent Transfer Service (BITS)\Do not allow the BITS client to use Windows Branch Cache' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Verbose; continue }  
@@ -538,7 +543,7 @@ function New-AzAvdIntuneConfigurationProfileViaGraphAPI {
     #endregion
 
     #region Network\BranchCache Settings
-    $NetworkBranchCacheGroupPolicyDefinitions = (Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\Network\BranchCache')" -Method GET -OutputType PSObject).Value
+    $NetworkBranchCacheGroupPolicyDefinitions = Get-MgGraphObject -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\Network\BranchCache')"
     $NetworkBranchCacheGroupPolicyDefinitions = $NetworkBranchCacheGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($NetworkBranchCacheGroupPolicyDefinitions) {
         { $_.FullPath -eq '\Network\BranchCache\Enable Hotspot Authentication' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Disable -Verbose; continue }  
@@ -547,7 +552,7 @@ function New-AzAvdIntuneConfigurationProfileViaGraphAPI {
     #endregion
 
     #region Network\Hotspot Authentication Settings
-    $NetworkHotspotAuthenticationGroupPolicyDefinitions = (Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\Network\Hotspot Authentication')" -Method GET -OutputType PSObject).Value
+    $NetworkHotspotAuthenticationGroupPolicyDefinitions = Get-MgGraphObject -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\Network\Hotspot Authentication')"
     $NetworkHotspotAuthenticationGroupPolicyDefinitions = $NetworkHotspotAuthenticationGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($NetworkHotspotAuthenticationGroupPolicyDefinitions) {
         { $_.FullPath -eq '\Network\Hotspot Authentication\Enable Hotspot Authentication' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Disable -Verbose; continue }  
@@ -556,7 +561,7 @@ function New-AzAvdIntuneConfigurationProfileViaGraphAPI {
     #endregion
 
     #region Network\Microsoft Peer-to-Peer Networking Services Settings
-    $NetworkP2PGroupPolicyDefinitions = (Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\Network\Microsoft Peer-to-Peer Networking Services')" -Method GET -OutputType PSObject).Value
+    $NetworkP2PGroupPolicyDefinitions = Get-MgGraphObject -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\Network\Microsoft Peer-to-Peer Networking Services')"
     switch ($NetworkP2PGroupPolicyDefinitions) {
         { $_.FullPath -eq '\Network\Microsoft Peer-to-Peer Networking Services\Turn off Microsoft Peer-to-Peer Networking Services' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Verbose; continue }  
         default { Write-Verbose -Message "'$($_.FullPath)' not modified ..." }  
@@ -564,7 +569,7 @@ function New-AzAvdIntuneConfigurationProfileViaGraphAPI {
     #endregion
 
     #region Network\Offline Files Settings
-    $NetworkOfflineFilesGroupPolicyDefinitions = (Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\Network\Offline Files')" -Method GET -OutputType PSObject).Value
+    $NetworkOfflineFilesGroupPolicyDefinitions = Get-MgGraphObject -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\Network\Offline Files')"
     $NetworkOfflineFilesGroupPolicyDefinitions = $NetworkOfflineFilesGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($NetworkOfflineFilesGroupPolicyDefinitions) {
         { $_.FullPath -eq '\Network\Offline Files\Allow or Disallow use of the Offline Files feature' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Disable -Verbose; continue }  
@@ -573,7 +578,7 @@ function New-AzAvdIntuneConfigurationProfileViaGraphAPI {
     #endregion
 
     #region Remote Desktop Services Settings
-    $RDSSessionTimeLimitsGroupPolicyDefinitions = (Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits')" -Method GET -OutputType PSObject).Value
+    $RDSSessionTimeLimitsGroupPolicyDefinitions = Get-MgGraphObject -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits')"
     $RDSSessionTimeLimitsGroupPolicyDefinitions = $RDSSessionTimeLimitsGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($RDSSessionTimeLimitsGroupPolicyDefinitions) {
         { $_.FullPath -eq '\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits\Set time limit for active but idle Remote Desktop Services sessions' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value "900000" -Verbose; continue }  
@@ -585,7 +590,7 @@ function New-AzAvdIntuneConfigurationProfileViaGraphAPI {
     #endregion
 
     #region Remote Desktop Services Settings
-    $RDSAVDGroupPolicyDefinitions = (Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Azure Virtual Desktop')" -Method GET -OutputType PSObject).Value
+    $RDSAVDGroupPolicyDefinitions = Get-MgGraphObject -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Azure Virtual Desktop')"
     $RDSAVDGroupPolicyDefinitions = $RDSAVDGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     $GroupPolicyDefinitionPresentation = Get-GroupPolicyDefinitionPresentationViaGraphAPI -GroupPolicyDefinition $RDSAVDGroupPolicyDefinitions -Verbose
     switch ($RDSAVDGroupPolicyDefinitions) {
@@ -621,21 +626,21 @@ Function Remove-IntuneItemViaCmdlet {
     #region PowerShell Cmdlets
     #region deviceManagementScripts and groupPolicyConfigurations
     #The pipeline has been stopped ==> Get-MgBetaDeviceManagementGroupPolicyConfiguration -Filter "startswith(displayName,'[$HostPoolName]')" | Remove-MgBetaDeviceManagementGroupPolicyConfiguration
-    Get-MgBetaDeviceManagementGroupPolicyConfiguration -Filter "startswith(displayName,'[$HostPoolName]')" | ForEach-Object -Process {
+    Get-MgBetaDeviceManagementGroupPolicyConfiguration -Filter "startswith(displayName,'[$HostPoolName]')" -All | ForEach-Object -Process {
         Remove-MgBetaDeviceManagementGroupPolicyConfiguration -GroupPolicyConfigurationId $_.Id
     }
 
     #The pipeline has been stopped ==> Get-MgBetaDeviceManagementScript -Filter "startswith(displayName,'[$HostPoolName]')" | Remove-MgBetaDeviceManagementScript
-    Get-MgBetaDeviceManagementScript -Filter "startswith(displayName,'[$HostPoolName]')" | ForEach-Object -Process {
+    Get-MgBetaDeviceManagementScript -Filter "startswith(displayName,'[$HostPoolName]')" -All | ForEach-Object -Process {
         Remove-MgBetaDeviceManagementScript -DeviceManagementScriptId $_.Id
     }
     #endregion
 
     #region Devices
     Write-Verbose -Message "Removing Intune Enrolled Devices : $($SessionHostName -join ', ')"
-    Get-MgDeviceManagementManagedDevice -All | Where-Object -FilterScript {$_.DeviceName -in $SessionHostName } | ForEach-Object -Process { 
+    Get-MgBetaDeviceManagementManagedDevice -All | Where-Object -FilterScript {$_.DeviceName -in $SessionHostName } | ForEach-Object -Process { 
         Write-Verbose -Message "Removing Intune Enrolled Device : $($_.DeviceName)"
-        Remove-MgDeviceManagementManagedDevice -ManagedDeviceId $_.Id 
+        Remove-MgBetaDeviceManagementManagedDevice -ManagedDeviceId $_.Id 
     }
     #endregion
     #endregion
@@ -666,12 +671,14 @@ Function New-IntunePowerShellScriptViaCmdlet {
 
     #region Uploading Powershell Script
     if ($ScriptURI) {
+        $FileName = Split-Path $ScriptURI -Leaf
         Write-Verbose -Message "Adding the '$ScriptURI' script ..."
-        #$ScriptContentInputFile = Join-Path -Path $env:TEMP -ChildPath (Split-Path -Path $ScriptURI -Leaf)
-        $ScriptContentInputFile = [System.IO.Path]::GetRandomFileName()
+        $ScriptContentInputFile = Join-Path -Path $env:TEMP -ChildPath $FileName
+        #$ScriptContentInputFile = Join-Path -Path $env:TEMP -ChildPath [System.IO.Path]::GetRandomFileName()
         $ScriptContent = Invoke-RestMethod -Uri $ScriptURI -OutFile $ScriptContentInputFile
     }
     else {
+        $FileName = Split-Path $ScriptPath -Leaf
         Write-Verbose -Message "Adding the '$ScriptPath' script ..."
         $ScriptContentInputFile = $ScriptPath
     }
@@ -679,7 +686,7 @@ Function New-IntunePowerShellScriptViaCmdlet {
     $DisplayName = "[{0}] {1}" -f $HostPoolName, $FileName
     #Checking if the script is already present (with the same naming convention)
     Write-Verbose -Message "Deleting the previously imported PowerShell Script file if any ..."
-    Get-MgBetaDeviceManagementScript -Filter "startswith(displayName,'[$HostPoolName]')" | Remove-MgBetaDeviceManagementScript
+    Get-MgBetaDeviceManagementScript -Filter "startswith(displayName,'[$HostPoolName]')" -All | Remove-MgBetaDeviceManagementScript
 
     $AddedScript = New-MgBetaDeviceManagementScript -DisplayName $DisplayName -FileName $FileName -RoleScopeTagIds @("0") -RunAsAccount 'system'-ScriptContentInputFile $ScriptContentInputFile
     if ($ScriptURI) {
@@ -709,7 +716,7 @@ Function New-IntunePowerShellScriptViaCmdlet {
 function Get-GroupPolicyDefinitionPresentationViaCmdlet {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $true)]
         [array] $GroupPolicyDefinition
     )
     #region Powershell Cmdlets
@@ -727,8 +734,8 @@ function Get-GroupPolicyDefinitionPresentationViaCmdlet {
         }
     }
     #endregion
-
 }
+
 
 function Import-FSLogixADMXViaCmdlet {
     [CmdletBinding()]
@@ -737,7 +744,7 @@ function Import-FSLogixADMXViaCmdlet {
     )
     #region Powershell Cmdlets
     #Checking if the ADMX is already present
-    Get-MgBetaDeviceManagementGroupPolicyUploadedDefinitionFile -Filter "fileName eq 'fslogix.admx'" | Remove-MgBetaDeviceManagementGroupPolicyUploadedDefinitionFile
+    Get-MgBetaDeviceManagementGroupPolicyUploadedDefinitionFile -Filter "fileName eq 'fslogix.admx'" -All | Remove-MgBetaDeviceManagementGroupPolicyUploadedDefinitionFile
 
     #Always get the latest version of FSLogix
     $FSLogixLatestURI = ((Invoke-WebRequest -Uri "https://aka.ms/fslogix-latest").Links | Where-Object -FilterScript { $_.innerText -eq "Download" }).href
@@ -780,7 +787,7 @@ function Import-FSLogixADMXViaCmdlet {
     New-MgBetaDeviceManagementGroupPolicyUploadedDefinitionFile -LanguageCodes @("en-US") -TargetPrefix $("FSLogix{0}" -f $GUID) -TargetNamespace "FSLogix.Policies" -policyType 'admxIngested' -FileName $ADMXFileName -ContentInputFile $ADMXFileContent -GroupPolicyUploadedLanguageFiles $GroupPolicyUploadedLanguageFiles
     $GroupPolicyUploadedDefinitionFileId = $GroupPolicyUploadedDefinitionFile.id
     While ($GroupPolicyUploadedDefinitionFile.status -eq 'uploadInProgress') {
-        $GroupPolicyUploadedDefinitionFile = Get-MgBetaDeviceManagementGroupPolicyUploadedDefinitionFile -Filter "id eq '$GroupPolicyUploadedDefinitionFileId'"
+        $GroupPolicyUploadedDefinitionFile = Get-MgBetaDeviceManagementGroupPolicyUploadedDefinitionFile -Filter "id eq '$GroupPolicyUploadedDefinitionFileId'" -All
         Write-Verbose -Message "Waiting the upload completes. Sleeping 10 seconds ..."
         Start-Sleep -Seconds 10
     } 
@@ -810,7 +817,7 @@ function Set-GroupPolicyDefinitionSettingViaCmdlet {
     Write-Verbose -Message "Parameter Set: $($psCmdlet.ParameterSetName) ..."
     Write-Verbose -Message "[$($GroupPolicyConfiguration.displayName)] Processing '$($GroupPolicyDefinition.categoryPath)\$($GroupPolicyDefinition.displayName)' ..."
     Write-Verbose -Message "`$Value: $Value"
-    $GroupPolicyDefinitionPresentation = Get-MgBetaDeviceManagementGroupPolicyDefinitionPresentation -GroupPolicyDefinitionId $GroupPolicyDefinition.id
+    $GroupPolicyDefinitionPresentation = Get-MgBetaDeviceManagementGroupPolicyDefinitionPresentation -GroupPolicyDefinitionId $GroupPolicyDefinition.id -All
     if ($GroupPolicyDefinitionPresentation.count -gt 1) {
         #When multiple Group Policy Definition Presentations are returned we keep only the one(s) with a 'required' property
         $GroupPolicyDefinitionPresentationValues = $GroupPolicyDefinitionPresentation | Where-Object -FilterScript { "required" -in $_.psobject.Properties.Name }
@@ -901,8 +908,8 @@ function New-FSLogixIntuneConfigurationProfileViaCmdlet {
     $Now = Get-Date -Format o 
     Write-Verbose -Message "Creating the '$GroupPolicyConfigurationName' Group Policy Configuration ..."
     #Removing the groupPolicyConfigurations if already present
-    #The pipeline has been stopped ==> Get-MgBetaDeviceManagementGroupPolicyConfiguration -Filter "displayName eq '$GroupPolicyConfigurationName'" | Remove-MgBetaDeviceManagementGroupPolicyConfiguration
-    Get-MgBetaDeviceManagementGroupPolicyConfiguration -Filter "displayName eq '$GroupPolicyConfigurationName'" | ForEach-Object -Process {
+    #The pipeline has been stopped ==> Get-MgBetaDeviceManagementGroupPolicyConfiguration -Filter "displayName eq '$GroupPolicyConfigurationName'" -All | Remove-MgBetaDeviceManagementGroupPolicyConfiguration
+    Get-MgBetaDeviceManagementGroupPolicyConfiguration -Filter "displayName eq '$GroupPolicyConfigurationName'" -All | ForEach-Object -Process {
         Remove-MgBetaDeviceManagementGroupPolicyConfiguration -GroupPolicyConfigurationId  $_.Id
     }
     $GroupPolicyConfiguration = New-MgBetaDeviceManagementGroupPolicyConfiguration -DisplayName $GroupPolicyConfigurationName
@@ -919,23 +926,15 @@ function New-FSLogixIntuneConfigurationProfileViaCmdlet {
     $Assign = New-MgBetaDeviceManagementGroupPolicyConfigurationAssignment -GroupPolicyConfigurationId $GroupPolicyConfiguration.Id -BodyParameter $BodyParameter
     #endregion
 
-    #region FSLogix Profile Containers Settings
-    #$FSLogixSettings = (Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=contains(categoryPath,'FSLogix')" -Method GET -OutputType PSObject).Value
-    $FSLogixProfileContainersGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\FSLogix\Profile Containers')"
+    #region ADMX Management
+    $FSLogixProfileContainersGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\FSLogix\Profile Containers')" -All
     if (-not($FSLogixProfileContainersGroupPolicyDefinitions)) {
-        $GroupPolicyUploadedDefinitionFile = Import-FSLogixADMXViaCmdlet -Wait -Verbose
-        <#
-        #If -NoWait is not specified
-        $GroupPolicyUploadedDefinitionFileId = $GroupPolicyUploadedDefinitionFile.id
-        While ($GroupPolicyUploadedDefinitionFile.value.status -eq 'uploadInProgress') {
-            $GroupPolicyUploadedDefinitionFile = Get-MgBetaDeviceManagementGroupPolicyUploadedDefinitionFile -Filter "id eq '$GroupPolicyUploadedDefinitionFileId'"
-            Write-Verbose -Message "Waiting the upload completes. Sleeping 10 seconds ..."
-            Start-Sleep -Seconds 10
-        } 
-        Write-Verbose -Message "Final status: $($GroupPolicyUploadedDefinitionFile.status)"
-        #>
-        $FSLogixProfileContainersGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\FSLogix\Profile Containers')"
+        $GroupPolicyUploadedDefinitionFile = Import-FSLogixADMXViaCmdlet -Verbose
     }
+    #endregion
+
+    #region FSLogix Profile Containers Settings
+    $FSLogixProfileContainersGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\FSLogix\Profile Containers')" -All
     #Adding a displayName Property
     $FSLogixProfileContainersGroupPolicyDefinitions = $FSLogixProfileContainersGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($FSLogixProfileContainersGroupPolicyDefinitions) {
@@ -957,22 +956,7 @@ function New-FSLogixIntuneConfigurationProfileViaCmdlet {
     #endregion
 
     #region FSLogix Logging Settings
-    #$FSLogixSettings = (Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=contains(categoryPath,'FSLogix')" -Method GET -OutputType PSObject).Value
-    $FSLogixLoggingGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\FSLogix\Logging')"
-    if (-not($FSLogixLoggingGroupPolicyDefinitions)) {
-        $GroupPolicyUploadedDefinitionFile = Import-FSLogixADMXViaCmdlet -Wait -Verbose
-        <#
-        #If -NoWait is not specified
-        $GroupPolicyUploadedDefinitionFileId = $GroupPolicyUploadedDefinitionFile.id
-        While ($GroupPolicyUploadedDefinitionFile.value.status -eq 'uploadInProgress') {
-            $GroupPolicyUploadedDefinitionFile = Get-MgBetaDeviceManagementGroupPolicyUploadedDefinitionFile -Filter "id eq '$GroupPolicyUploadedDefinitionFileId'"
-            Write-Verbose -Message "Waiting the upload completes. Sleeping 10 seconds ..."
-            Start-Sleep -Seconds 10
-        } 
-        Write-Verbose -Message "Final status: $($GroupPolicyUploadedDefinitionFile.status)"
-        #>
-        $FSLogixLoggingGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\FSLogix\Logging')"
-    }
+    $FSLogixLoggingGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\FSLogix\Logging')" -All
     #Adding a displayName Property
     $FSLogixLoggingGroupPolicyDefinitions = $FSLogixLoggingGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($FSLogixLoggingGroupPolicyDefinitions) {
@@ -1008,7 +992,7 @@ function New-AzAvdIntuneConfigurationProfileViaCmdlet {
     Write-Verbose -Message "Creating the '$GroupPolicyConfigurationName' Group Policy Configuration ..."
     #Removing any existing groupPolicyConfigurations with the same name (if any)
     Write-Verbose -Message "Deleting the previously '$GroupPolicyConfigurationName' groupPolicyConfigurations ..."
-    $GroupPolicyConfiguration = Get-MgBetaDeviceManagementGroupPolicyConfiguration -Filter "displayName eq '$GroupPolicyConfigurationName'" | Remove-MgBetaDeviceManagementGroupPolicyConfiguration
+    $GroupPolicyConfiguration = Get-MgBetaDeviceManagementGroupPolicyConfiguration -Filter "displayName eq '$GroupPolicyConfigurationName'" -All | Remove-MgBetaDeviceManagementGroupPolicyConfiguration
     Write-Verbose -Message "Creating the '$GroupPolicyConfigurationName' groupPolicyConfigurations ..."
     $GroupPolicyConfiguration = New-MgBetaDeviceManagementGroupPolicyConfiguration -DisplayName $GroupPolicyConfigurationName
     #endregion
@@ -1027,7 +1011,7 @@ function New-AzAvdIntuneConfigurationProfileViaCmdlet {
     #endregion
 
     #region Network\Background Intelligent Transfer Service (BITS) Settings
-    $NetworkBITSGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\Network\Background Intelligent Transfer Service (BITS)')"
+    $NetworkBITSGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\Network\Background Intelligent Transfer Service (BITS)')" -All
     $NetworkBITSGroupPolicyDefinitions = $NetworkBITSGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($NetworkBITSGroupPolicyDefinitions) {
         { $_.FullPath -eq '\Network\Background Intelligent Transfer Service (BITS)\Do not allow the BITS client to use Windows Branch Cache' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Verbose; continue }  
@@ -1036,7 +1020,7 @@ function New-AzAvdIntuneConfigurationProfileViaCmdlet {
     #endregion
 
     #region Network\BranchCache Settings
-    $NetworkBranchCacheGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\Network\BranchCache')"
+    $NetworkBranchCacheGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\Network\BranchCache')" -All
     $NetworkBranchCacheGroupPolicyDefinitions = $NetworkBranchCacheGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($NetworkBranchCacheGroupPolicyDefinitions) {
         { $_.FullPath -eq '\Network\BranchCache\Enable Hotspot Authentication' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Disable -Verbose; continue }  
@@ -1045,7 +1029,7 @@ function New-AzAvdIntuneConfigurationProfileViaCmdlet {
     #endregion
 
     #region Network\Hotspot Authentication Settings
-    $NetworkHotspotAuthenticationGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\Network\Hotspot Authentication')"
+    $NetworkHotspotAuthenticationGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\Network\Hotspot Authentication')" -All
     $NetworkHotspotAuthenticationGroupPolicyDefinitions = $NetworkHotspotAuthenticationGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($NetworkHotspotAuthenticationGroupPolicyDefinitions) {
         { $_.FullPath -eq '\Network\Hotspot Authentication\Enable Hotspot Authentication' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Disable -Verbose; continue }  
@@ -1054,7 +1038,7 @@ function New-AzAvdIntuneConfigurationProfileViaCmdlet {
     #endregion
 
     #region Network\Microsoft Peer-to-Peer Networking Services Settings
-    $NetworkP2PGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\Network\Microsoft Peer-to-Peer Networking Services')"
+    $NetworkP2PGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\Network\Microsoft Peer-to-Peer Networking Services')" -All
     switch ($NetworkP2PGroupPolicyDefinitions) {
         { $_.FullPath -eq '\Network\Microsoft Peer-to-Peer Networking Services\Turn off Microsoft Peer-to-Peer Networking Services' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Verbose; continue }  
         default { Write-Verbose -Message "'$($_.FullPath)' not modified ..." }  
@@ -1062,7 +1046,7 @@ function New-AzAvdIntuneConfigurationProfileViaCmdlet {
     #endregion
 
     #region Network\Offline Files Settings
-    $NetworkOfflineFilesGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\Network\Offline Files')"
+    $NetworkOfflineFilesGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\Network\Offline Files')" -All
     $NetworkOfflineFilesGroupPolicyDefinitions = $NetworkOfflineFilesGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($NetworkOfflineFilesGroupPolicyDefinitions) {
         { $_.FullPath -eq '\Network\Offline Files\Allow or Disallow use of the Offline Files feature' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Disable -Verbose; continue }  
@@ -1071,7 +1055,7 @@ function New-AzAvdIntuneConfigurationProfileViaCmdlet {
     #endregion
 
     #region Remote Desktop Services Settings
-    $RDSSessionTimeLimitsGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits')"
+    $RDSSessionTimeLimitsGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits')" -All
     $RDSSessionTimeLimitsGroupPolicyDefinitions = $RDSSessionTimeLimitsGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($RDSSessionTimeLimitsGroupPolicyDefinitions) {
         { $_.FullPath -eq '\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits\Set time limit for active but idle Remote Desktop Services sessions' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value "900000" -Verbose; continue }  
@@ -1083,7 +1067,7 @@ function New-AzAvdIntuneConfigurationProfileViaCmdlet {
     #endregion
 
     #region Remote Desktop Services Settings
-    $RDSAVDGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Azure Virtual Desktop')"
+    $RDSAVDGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Azure Virtual Desktop')" -All
     $RDSAVDGroupPolicyDefinitions = $RDSAVDGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     $GroupPolicyDefinitionPresentation = Get-GroupPolicyDefinitionPresentationViaCmdlet -GroupPolicyDefinition $RDSAVDGroupPolicyDefinitions -Verbose
     switch ($RDSAVDGroupPolicyDefinitions) {
@@ -1107,15 +1091,21 @@ function New-AzAvdIntuneConfigurationProfileViaCmdlet {
 #endregion
 
 Clear-Host
-$VerbosePreference = [System.Management.Automation.ActionPreference]::Continue
-#$DebugPreference = [System.Management.Automation.ActionPreference]::Continue
-$DebugPreference = [System.Management.Automation.ActionPreference]::SilentlyContinue
-$Error.Clear()
-Connect-MgGraph -NoWelcome -Scopes Device.Read.All, Device.ReadWrite.All, DeviceManagementConfiguration.Read.All, DeviceManagementConfiguration.ReadWrite.All, DeviceManagementManagedDevices.Read.All, DeviceManagementManagedDevices.ReadWrite.All, Directory.AccessAsUser.All, Directory.Read.All, Directory.ReadWrite.All
 
+$Error.Clear()
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
+Set-Location -Path $CurrentDir
+$TranscriptFile = $CurrentScript -replace ".ps1$", $("_{0:yyyyMMddHHmmss}.txt" -f $(Get-Date))
+Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader #-Verbose
+
+$VerbosePreference = [System.Management.Automation.ActionPreference]::Continue
+#$DebugPreference = [System.Management.Automation.ActionPreference]::Continue
+$DebugPreference = [System.Management.Automation.ActionPreference]::SilentlyContinue
+$ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop
+$Error.Clear()
+Connect-MgGraph -NoWelcome -Scopes Device.Read.All, Device.ReadWrite.All, DeviceManagementConfiguration.Read.All, DeviceManagementConfiguration.ReadWrite.All, DeviceManagementManagedDevices.Read.All, DeviceManagementManagedDevices.ReadWrite.All, Directory.AccessAsUser.All, Directory.Read.All, Directory.ReadWrite.All
 
 #region Function calls
 $HostPoolName = "hp-np-ei-poc-mp-use-73"
@@ -1123,7 +1113,8 @@ $SessionHostName = "nepcmuse73-0", "nepcmuse73-1", "nepcmuse73-2"
 
 #region Azure AD group
 $DeviceAzADGroupName = "{0} - Devices" -f $HostPoolName
-if (-not(Get-AzADGroup -DisplayName $DeviceAzADGroupName)) {
+$DeviceAzADGroup = Get-AzADGroup -DisplayName $DeviceAzADGroupName
+if (-not($DeviceAzADGroup)) {
     $Description = "Dynamic device group for our AVD hosts for the {0} HostPool." -f $HostPoolName
     $MailNickname = $($DeviceAzADGroupName -replace "\s").ToLower()
     $DeviceAzADGroup = New-AzADGroup -DisplayName $DeviceAzADGroupName -Description $Description -MailNickname $MailNickname -SecurityEnabled
@@ -1131,7 +1122,7 @@ if (-not(Get-AzADGroup -DisplayName $DeviceAzADGroupName)) {
 #endregion
 
 
-#Set-PSBreakpoint -Command Invoke-MgGraphRequest
+#Set-PSBreakpoint -Command Write-Verbose
 
 #region Graph API
 New-FSLogixIntuneConfigurationProfileViaGraphAPI -CurrentHostPoolStorageAccountName fslhpnpeipocmpuse73 -HostPoolName $HostPoolName -Verbose
@@ -1149,10 +1140,15 @@ New-IntunePowerShellScriptViaCmdlet -ScriptURI 'https://raw.githubusercontent.co
 Remove-IntuneItemViaCmdlet -HostPoolName $HostPoolName -SessionHostName $SessionHostName -Verbose
 #endregion
 
-#Get-PSBreakpoint -Command Invoke-MgGraphRequest | Remove-PSBreakpoint
+#Get-PSBreakpoint -Command Write-Verbose | Remove-PSBreakpoint
 
 #endregion
 
 
 $VerbosePreference = [System.Management.Automation.ActionPreference]::SilentlyContinue
 $DebugPreference = [System.Management.Automation.ActionPreference]::SilentlyContinue
+$ErrorActionPreference = [System.Management.Automation.ActionPreference]::Continue
+
+Stop-Transcript
+
+psedit $TranscriptFile
