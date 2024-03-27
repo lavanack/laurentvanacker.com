@@ -91,7 +91,7 @@ $StorageAccountPrefix = "sa"
 $VirtualMachinePrefix = "vm"
 $NetworkSecurityGroupPrefix = "nsg"
 $VirtualNetworkPrefix = "vnet"
-$SubnetPrefix = "vnets"
+$SubnetPrefix = "snet"
 $DiskEncryptionSetPrefix = "des"
 $DiskEncryptionKeyPrefix = "dek"
 

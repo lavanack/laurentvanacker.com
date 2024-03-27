@@ -46,7 +46,7 @@ function New-AzureSoftwareContainer {
     $StorageAccountPrefix = "sa"
     $NetworkSecurityGroupPrefix = "nsg"
     $VirtualNetworkPrefix = "vnet"
-    $SubnetPrefix = "vnets"
+    $SubnetPrefix = "snet"
 
 	# Location (see possible locations in the main docs)
 	#$Location = "EastUS"

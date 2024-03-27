@@ -94,7 +94,7 @@ $VirtualMachinePrefix = "vm"
 $PrivateDnsVirtualNetworkLinkPrefix = "pdvnl" 
 $NetworkSecurityGroupPrefix = "nsg"
 $VirtualNetworkPrefix = "vnet"
-$SubnetPrefix = "vnets"
+$SubnetPrefix = "snet"
 $LogAnalyticsWorkSpacePrefix = "opiw"
 
 $Project = "kv"

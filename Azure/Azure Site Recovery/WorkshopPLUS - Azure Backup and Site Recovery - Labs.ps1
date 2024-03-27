@@ -595,7 +595,7 @@ $StorageAccountPrefix = "sa"
 $VirtualMachinePrefix = "vm"
 $NetworkSecurityGroupPrefix = "nsg"
 $VirtualNetworkPrefix = "vnet"
-$SubnetPrefix = "vnets"
+$SubnetPrefix = "snet"
 $Project = "bcdr"
 $Role = "dr"
 

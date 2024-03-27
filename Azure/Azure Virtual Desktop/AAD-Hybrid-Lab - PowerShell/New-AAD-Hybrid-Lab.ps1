@@ -94,7 +94,7 @@ function New-AAD-Hybrid-Lab {
     $VirtualMachinePrefix = "vm"
     $NetworkSecurityGroupPrefix = "nsg"
     $VirtualNetworkPrefix = "vnet"
-    $SubnetPrefix = "vnets"
+    $SubnetPrefix = "snet"
                          
     $StorageAccountName = '{0}{1}{2}{3}{4:D3}' -f $StorageAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
     $VMName = '{0}{1}{2}{3}{4:D3}' -f $VirtualMachinePrefix, $Project, $Role, $LocationShortName, $Instance                       
