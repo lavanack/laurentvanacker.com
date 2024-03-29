@@ -94,7 +94,7 @@ $SubnetPrefix = "snet"
 $Project = "dsc"
 $Role = "ext"
 #$DigitNumber = 4
-$DigitNumber = $AzureVMNameMaxLength-($VirtualMachinePrefix+$Project+$Role+$LocationShortName).Length
+$DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role + $LocationShortName).Length
 
 Do {
     $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
@@ -307,10 +307,37 @@ Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 #region Setting up the DSC extension
 
 # Publishing DSC Configuration for AutomatedLab via Hyper-V (Nested Virtualization)
-Publish-AzVMDscConfiguration $DSCFilePath -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Force -Verbose
+[string] $ModuleLocation = Publish-AzVMDscConfiguration $DSCFilePath -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Force -Verbose
+
+$StartTime = Get-Date
+$ExpiryTime = $StartTime.AddDays(1)
+$SasToken = Get-AzStorageAccount -StorageAccountName $StorageAccountName -ResourceGroupName $ResourceGroupName | Get-AzStorageContainer | Get-AzStorageBlob | New-AzStorageBlobSASToken -Permission rl -StartTime $StartTime -ExpiryTime $ExpiryTime #-FullUri 
 
 try {
+    <#
+    # Short Version
     Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$DSCFileName.zip" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $ConfigurationName -Version "2.80" -Location $Location -AutoUpdate -Verbose #-ErrorAction Ignore
+    #>
+
+    # Long Version When we configure the configuration mode.
+    #From https://learn.microsoft.com/en-us/azure/virtual-machines/extensions/dsc-template#default-configuration-script
+    $ExtensionName = "DSC"
+    $ExtensionPublisher = "Microsoft.Powershell"
+    $ExtensionVersion = "2.80"
+    $ExtensionSetting = @{
+        SasToken               = "?{0}" -f $SasToken
+        modulesUrl             = $ModuleLocation
+        ConfigurationFunction  = "WebServerDSC.ps1\WebServerConfiguration"
+        configurationArguments = @{
+            ConfigurationMode = "ApplyandAutoCorrect"
+        }
+        Properties             = @{
+        }
+    }
+    Write-Verbose -Message "Applying the DSC Extension on '$VMName' ..."
+    $result = Set-AzVMExtension -VMName $VMName -ResourceGroupName $ResourceGroupName -Location $Location -TypeHandlerVersion $ExtensionVersion -Publisher $ExtensionPublisher -ExtensionType $ExtensionName -Name $ExtensionName -Settings $ExtensionSetting
+    Write-Verbose -Message "Result: `r`n$($result | Out-String)"
+
 }
 catch {}
 $VM | Update-AzVM -Verbose
