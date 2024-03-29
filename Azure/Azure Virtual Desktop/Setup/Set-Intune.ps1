@@ -685,8 +685,8 @@ Function New-IntunePowerShellScriptViaCmdlet {
 
     $DisplayName = "[{0}] {1}" -f $HostPoolName, $FileName
     #Checking if the script is already present (with the same naming convention)
-    Write-Verbose -Message "Deleting the previously imported PowerShell Script file if any ..."
-    Get-MgBetaDeviceManagementScript -Filter "startswith(displayName,'[$HostPoolName]')" -All | Remove-MgBetaDeviceManagementScript
+    Write-Verbose -Message "Deleting the previously imported PowerShell Script file(s) if any ..."
+    Get-MgBetaDeviceManagementScript -Filter "displayName eq '$DisplayName'" -All | Remove-MgBetaDeviceManagementScript
 
     $AddedScript = New-MgBetaDeviceManagementScript -DisplayName $DisplayName -FileName $FileName -RoleScopeTagIds @("0") -RunAsAccount 'system'-ScriptContentInputFile $ScriptContentInputFile
     if ($ScriptURI) {
