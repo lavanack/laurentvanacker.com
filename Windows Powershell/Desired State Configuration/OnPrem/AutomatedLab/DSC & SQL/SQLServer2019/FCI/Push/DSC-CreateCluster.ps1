@@ -277,7 +277,7 @@ Configuration CreateClusterWithTwoNodes {
             DependsOn = '[WaitForAll]JoinAdditionalServerNodeToCluster'
         }
 
-        #Waiting all nodes be up and running before validating the cluster.
+        #Waiting all nodes be up and running before adding the cluster disk.
         WaitForAll JoinAdditionalServerNodeToCluster
         {
             ResourceName      = '[Cluster]JoinNodeToCluster'
