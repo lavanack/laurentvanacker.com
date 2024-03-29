@@ -139,7 +139,7 @@ $MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePa
 $Jobs += Install-LabSoftwarePackage -ComputerName $AllLabVMs -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob -PassThru
 #Installing PowerBI Desktop on the SQL Server (or any machine in the lab)
 $PBIDesktopX64 = Get-LabInternetFile -Uri $PBIDesktopX64Uri -Path $labSources\SoftwarePackages -PassThru -Force
-$Jobs += Install-LabSoftwarePackage -ComputerName SQL01 -Path $PBIDesktopX64.FullName -CommandLine "-quiet -norestart LANGUAGE=en-us ACCEPT_EULA=1 INSTALLDESKTOPSHORTCUT=0" -AsJob -PassThru
+$Jobs += Install-LabSoftwarePackage -ComputerName SQL -Path $PBIDesktopX64.FullName -CommandLine "-quiet -norestart LANGUAGE=en-us ACCEPT_EULA=1 INSTALLDESKTOPSHORTCUT=0" -AsJob -PassThru
 #region Installing SQL Management Studio on the SQL Server Nodes
 $SQLServerManagementStudio = Get-LabInternetFile -Uri $SQLServerManagementStudioURI -Path $labSources\SoftwarePackages -FileName 'SSMS-Setup-ENU.exe' -PassThru -Force
 $Jobs += Install-LabSoftwarePackage -ComputerName SQL -Path $SQLServerManagementStudio.FullName -CommandLine "/install /passive /norestart" -AsJob -PassThru
