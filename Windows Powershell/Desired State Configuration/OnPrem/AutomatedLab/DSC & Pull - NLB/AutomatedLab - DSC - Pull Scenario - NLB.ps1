@@ -83,7 +83,7 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:MinMemory'       = 1GB
     'Add-LabMachineDefinition:MaxMemory'       = 2GB
     'Add-LabMachineDefinition:Memory'          = 2GB
-    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Standard (Desktop Experience)'
+    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Datacenter (Desktop Experience)'
     #'Add-LabMachineDefinition:Processors'      = $LabMachineDefinitionProcessors
 }
 
@@ -121,9 +121,9 @@ Add-LabMachineDefinition -Name PULL02 -Roles $role -NetworkAdapter $netAdapter
 #DSC Pull Clients
 Add-LabMachineDefinition -Name SERVER01 -IpAddress $SERVER01IPv4Address
 
-Install-Lab
+Install-Lab -Verbose
 
-$AllMachines = Get-LabVM
+$AllMachines = Get-LabVM -All
 $PullServers = Get-LabVM -Role DSCPullServer
 $DSCClients = Get-LabVM | Where-Object -FilterScript { -not($_.Roles) -and -not($_.Name -like 'BUILD*')}
 $DomainControllers = Get-LabVM -Role DC, RootDC
@@ -178,7 +178,7 @@ Invoke-LabCommand -ActivityName 'Creating junction to DSC Modules and Configurat
 }
 
 Invoke-LabCommand -ActivityName 'DFS-R Setup on DC' -ComputerName DC01 -Verbose -ScriptBlock {
-    #region for IIS
+    #region for DSC
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin RG Delete /Rgname:`"DSC Module Path`"" -Wait
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin RG New /Rgname:`"DSC Module Path`"" -Wait
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c dfsradmin rf New /Rgname:`"DSC Module Path`" /rfname:`"DSCModulePath`"" -Wait
