@@ -89,12 +89,18 @@ while($null -eq $CompilationJob.EndTime -and $null -eq $CompilationJob.Exception
 $CompilationJob | Get-AzAutomationDscCompilationJobOutput –Stream Any
 #endregion
 
+#Verifying that the compilation was successful 
+$AzAutomationDscNodeConfiguration = Get-AzAutomationDscNodeConfiguration -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName
+$AzAutomationDscNodeConfiguration
+
 #region Setting up the LCM and applying the configuration
+#Version 1
+#$node = Get-AzAutomationDscNode -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName | Set-AzAutomationDscNode -NodeConfigurationName "$ConfigurationName.$env:COMPUTERNAME" -Force
+
 #Alternative: https://docs.microsoft.com/en-us/azure/automation/automation-dsc-onboarding#generate-dsc-metaconfigurations-using-a-dsc-configuration
 Get-AzAutomationDscOnboardingMetaconfig -ComputerName $env:COMPUTERNAME -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName -OutputFolder . -Force
 Set-DscLocalConfigurationManager -Path ./DscMetaConfigs -Force
-#Register-AzAutomationDscNode -AzureVMName $env:COMPUTERNAME -ResourceGroupName $ResourceGroupName  -AutomationAccountName $AutomationAccountName -NodeConfigurationName $ConfigurationName.$env:COMPUTERNAME -ConfigurationMode ApplyAndAutocorrect
-$node = Get-AzAutomationDscNode -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName | Set-AzAutomationDscNode -NodeConfigurationName "$ConfigurationName.$env:COMPUTERNAME" -Force
+Register-AzAutomationDscNode -AutomationAccountName  $AutomationAccountName -AzureVMName $env:COMPUTERNAME -ResourceGroupName $ResourceGroupName -NodeConfigurationName $AzAutomationDscNodeConfiguration.Name -ConfigurationMode ApplyAndAutocorrect -RebootNodeIfNeeded $true
 
 Start-Sleep -Second 15
 Update-DscConfiguration -Wait -Verbose
