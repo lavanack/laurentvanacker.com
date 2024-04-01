@@ -51,17 +51,26 @@ $ClearTextPassword = 'P@ssw0rd'
 $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
 $NetBiosDomainName = 'CONTOSO'
 $FQDNDomainName = 'contoso.com'
-
+$PSWSAppPoolUsr = 'PSWSAppPoolUsr'
 $StandardUser = 'ericlang'
+
+#SQL Server
+$SQLServer2019EnterpriseISO = "$labSources\ISOs\en_sql_server_2019_enterprise_x64_dvd_5e1ecc6b.iso"
 
 $NetworkID = '10.0.0.0/16' 
 $DCIPv4Address = '10.0.0.1'
 $PULLIPv4Address = '10.0.0.11'
-$BUILDIPv4Address = '10.0.0.21'
+$BUILDIPv4Address = '10.0.0.31'
+$SQLIPv4Address = '10.0.0.21'
 $MS1IPv4Address = '10.0.0.101'
 $MS2IPv4Address = '10.0.0.102'
 
+#URI for the PowerBI Desktop
+$PBIDesktopX64Uri = "https://download.microsoft.com/download/8/8/0/880BCA75-79DD-466A-927D-1ABF1F5454B0/PBIDesktopSetup_x64.exe"
+#URI for MS Edge
 $MSEdgeEntUri = 'http://go.microsoft.com/fwlink/?LinkID=2093437'
+#SQL Server Management Studio
+$SQLServerManagementStudioURI = 'https://aka.ms/ssmsfullsetup'
 
 $LabName = 'PSDSCWS'
 #endregion
@@ -91,7 +100,7 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:DomainName'      = $FQDNDomainName
     'Add-LabMachineDefinition:MinMemory'       = 2GB
     'Add-LabMachineDefinition:MaxMemory'       = 4GB
-    'Add-LabMachineDefinition:Memory'          = 4GB
+    'Add-LabMachineDefinition:Memory'          = 3GB
     'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2022 Datacenter (Desktop Experience)'
     'Add-LabMachineDefinition:Processors'      = 2
 }
@@ -110,31 +119,46 @@ $PULLNetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switc
 #Domain controller + Certificate Authority
 Add-LabMachineDefinition -Name DC -Roles RootDC, CARoot -IpAddress $DCIPv4Address
 #BUILD Server
-Add-LabMachineDefinition -Name BUILD -NetworkAdapter $BUILDNetAdapter #-Memory 4GB -MinMemory 2GB -MaxMemory 4GB #-Processors 4
+Add-LabMachineDefinition -Name BUILD -NetworkAdapter $BUILDNetAdapter 
 #PULL Server
-Add-LabMachineDefinition -Name PULL -NetworkAdapter $PULLNetAdapter #-Memory 4GB -MinMemory 2GB -MaxMemory 4GB #-Processors 4
+Add-LabMachineDefinition -Name PULL -NetworkAdapter $PULLNetAdapter
 #Member server
 Add-LabMachineDefinition -Name MS1 -IpAddress $MS1IPv4Address
 #Member server
 Add-LabMachineDefinition -Name MS2 -IpAddress $MS2IPv4Address 
+#SQL Server
+$SQLServer2019Role = Get-LabMachineRoleDefinition -Role SQLServer2019
+Add-LabIsoImageDefinition -Name SQLServer2019 -Path $SQLServer2019EnterpriseISO
+Add-LabMachineDefinition -Name SQL -Roles $SQLServer2019Role -IpAddress $SQLIPv4Address -Processors 4 #-Memory 4GB -MinMemory 2GB -MaxMemory 4GB
 #endregion
 
 #Installing servers
-Install-Lab -Verbose
-#Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
+Install-Lab #-Verbose
+Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
+#Restore-LabVMSnapshot -SnapshotName FreshInstall -All -Verbose
 
 #region Installing Required Windows Features
 $AllLabVMs = Get-LabVM -All
-$DesktopMachines = $AllLabVMs | Where-Object -FilterScript { $_.OperatingSystem -match "Desktop|GUI"}
-$Job = @()
+$TargetNodes = $AllLabVMs | Where-Object -FilterScript { -not($_.Roles) -and ($_.Name -notmatch 'BUILD|PULL|SQL')}
 
-$Job += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $AllLabVMs -IncludeManagementTools -AsJob -PassThru
+
+$Jobs = @()
+$Jobs += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $AllLabVMs -IncludeManagementTools -AsJob -PassThru
 $MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru -Force
-$Job += Install-LabSoftwarePackage -ComputerName $AllLabVMs -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob -PassThru
-
+$Jobs += Install-LabSoftwarePackage -ComputerName $AllLabVMs -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob -PassThru
+#region Installing SQL Management Studio on the SQL Server Nodes
+$SQLServerManagementStudio = Get-LabInternetFile -Uri $SQLServerManagementStudioURI -Path $labSources\SoftwarePackages -FileName 'SSMS-Setup-ENU.exe' -PassThru -Force
+$Jobs += Install-LabSoftwarePackage -ComputerName SQL -Path $SQLServerManagementStudio.FullName -CommandLine "/install /passive /norestart" -AsJob -PassThru
 #endregion
 
-Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $DesktopMachines -ScriptBlock {
+#cf. https://docs.microsoft.com/en-us/archive/blogs/fieldcoding/visualize-dsc-reporting-with-powerbi#powerbi---the-interesting-part
+#Copying the DSC Dashboard on the machine where you have installed PowerBI Desktop 
+Copy-LabFileItem -Path "$CurrentDir\DSC Dashboard.pbix" -ComputerName PULL
+#Coping the PowerShell Script to have a local report of the DSC deployments
+Copy-LabFileItem -Path "$CurrentDir\Get-DSC*.ps1" -ComputerName $TargetNodes
+#endregion
+
+Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $AllLabVMs -ScriptBlock {
     #Disabling IE ESC
     $AdminKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}'
     $UserKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}'
@@ -155,21 +179,28 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $DesktopMachine
     Rename-NetAdapter -Name "Default Switch 0" -NewName 'Internet' -PassThru -ErrorAction SilentlyContinue
 }
 
-#Installing and setting up DNS
-Invoke-LabCommand -ActivityName 'DNS, AD Setup on DC' -ComputerName DC -ScriptBlock {
+Invoke-LabCommand -ActivityName 'DNS, AD Setup & GPO Settings on DC' -ComputerName DC -ScriptBlock {
     #region DNS management
     #Reverse lookup zone creation
     Add-DnsServerPrimaryZone -NetworkID $using:NetworkID -ReplicationScope 'Forest' 
+    #endregion
 
-    #Creating AD Users
+    #region Creating AD Users
+    #Creating standard user for future tests
     New-ADUser -Name $Using:StandardUser -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -CannotChangePassword $True -Enabled $true
+
+    #Creating user for the PSWS application pool used for the Pull web site to replace localsystem by this user
+    New-ADUser -Name $Using:PSWSAppPoolUsr -AccountPassword $using:SecurePassword -PasswordNeverExpires $true -CannotChangePassword $True -Enabled $true -Description "PSWS Application Pool User"
+    #endregion
+
     $DefaultNamingContext = (Get-ADRootDSE).defaultNamingContext
-    
     #region Edge Settings
     $GPO = New-GPO -Name "Edge Settings" | New-GPLink -Target $DefaultNamingContext
     # https://devblogs.microsoft.com/powershell-community/how-to-change-the-start-page-for-the-edge-browser/
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\Software\Policies\Microsoft\Edge' -ValueName "RestoreOnStartup" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 4
 
+    $StartPage = "https://pull.$($using:FQDNDomainName)/PSDSCPullServer.svc/`$metadata"
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\Software\Policies\Microsoft\Edge\RestoreOnStartupURLs' -ValueName 0 -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "$StartPage"
     #https://admx.help/?Category=Windows_10_2016&Policy=Microsoft.Policies.MicrosoftEdge::PreventFirstRunPage
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\Software\Policies\Microsoft\MicrosoftEdge\Main' -ValueName "PreventFirstRunPage" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
 
@@ -194,19 +225,10 @@ Invoke-LabCommand -ActivityName 'DNS, AD Setup on DC' -ComputerName DC -ScriptBl
     #endregion
 }
 
-<#
-Invoke-LabCommand -ActivityName "Disabling TLS 1.3" -ComputerName $AllLabVMs -ScriptBlock {
-    #region Disabling TLS 1.3
-    Write-Host "Disabling TLS 1.3 at the server level"
-    New-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Server' -Force
-    New-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Client' -Force
-    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Server' -Name 'Enabled' -Value 0 -PropertyType DWORD
-    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Server' -Name 'DisabledByDefault' -Value 1 -PropertyType DWORD
-    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Client' -Name 'Enabled' -Value 0 -PropertyType DWORD
-    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.3\Client' -Name 'DisabledByDefault' -Value 1 -PropertyType DWORD
-    #endregion 
-}
-#>
+Copy-LabFileItem -Path $CurrentDir\CreateDscSqlDatabase.ps1 -DestinationFolderPath C:\Temp -ComputerName SQL
+Invoke-LabCommand -ActivityName 'Add Permissions to SQL Database for DSC Reporting' -ComputerName SQL -ScriptBlock {
+    C:\Temp\CreateDscSqlDatabase.ps1 -DomainAndComputerName $using:NetBiosDomainName\$using:PSWSAppPoolUsr
+} -Verbose
 
 #region Certification Authority : Creation and SSL Certificate Generation
 #Get the CA
@@ -217,32 +239,35 @@ New-LabCATemplate -TemplateName WebServer5Years -DisplayName 'WebServer5Years' -
 New-LabCATemplate -TemplateName DocumentEncryption5Years -DisplayName 'DocumentEncryption5Years' -SourceTemplateName CEPEncryption -ApplicationPolicy 'Document Encryption' -KeyUsage KEY_ENCIPHERMENT, DATA_ENCIPHERMENT -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -SamAccountName 'Domain Computers' -ValidityPeriod $CertValidityPeriod -ComputerName $CertificationAuthority -ErrorAction Stop
 
 $PULLWebSiteSSLCert = Request-LabCertificate -Subject "CN=pull.$FQDNDomainName" -SAN "pull", "pull.$FQDNDomainName" -TemplateName WebServer5Years -ComputerName PULL -PassThru -ErrorAction Stop
-$BUILDDocumentEncryptionCert = Request-LabCertificate -Subject "CN=build.$FQDNDomainName" -SAN "build", "build.$FQDNDomainName" -TemplateName DocumentEncryption5Years -ComputerName BUILD -PassThru -ErrorAction Stop
-$PULLDocumentEncryptionCert = Request-LabCertificate -Subject "CN=pull.$FQDNDomainName" -SAN "pull", "pull.$FQDNDomainName" -TemplateName DocumentEncryption5Years -ComputerName PULL -PassThru -ErrorAction Stop
-$DCDocumentEncryptionCert = Request-LabCertificate -Subject "CN=dc.$FQDNDomainName" -SAN "dc", "dc.$FQDNDomainName" -TemplateName DocumentEncryption5Years -ComputerName DC -PassThru -ErrorAction Stop
-$MS1DocumentEncryptionCert = Request-LabCertificate -Subject "CN=ms1.$FQDNDomainName" -SAN "ms1", "ms1.$FQDNDomainName" -TemplateName DocumentEncryption5Years -ComputerName MS1 -PassThru -ErrorAction Stop
-$MS2DocumentEncryptionCert = Request-LabCertificate -Subject "CN=ms2.$FQDNDomainName" -SAN "ms2", "ms2.$FQDNDomainName" -TemplateName DocumentEncryption5Years -ComputerName MS2 -PassThru -ErrorAction Stop
+
+$DocumentEncryptionCerts = foreach ($CurrentVM in $AllLabVMs) {
+    Request-LabCertificate -Subject "CN=$($CurrentVM.Name).$FQDNDomainName" -SAN $($CurrentVM.Name), "$($CurrentVM.Name).$FQDNDomainName" -TemplateName DocumentEncryption5Years -ComputerName $($CurrentVM.Name) -PassThru -ErrorAction Stop
+}
+
+Invoke-LabCommand -ActivityName 'Creating PublicKeys directory' -ComputerName PULL, BUILD -ScriptBlock {
+    New-Item -Path C:\PublicKeys -ItemType Directory -Force
+}
 
 Invoke-LabCommand -ActivityName 'Requesting and Exporting Document Encryption Certificate & Disabling Windows Update service' -ComputerName $AllLabVMs -ScriptBlock {
     Stop-Service WUAUSERV -PassThru | Set-Service -StartupType Disabled
     
     $DocumentEncryption5YearsCert = Get-ChildItem Cert:\LocalMachine\My -DocumentEncryptionCert | Select-Object -Last 1    
-    New-Item -Path \\build\c$\PublicKeys\, \\pull\c$\PublicKeys\ -ItemType Directory -Force
     Export-Certificate -Cert $DocumentEncryption5YearsCert -FilePath "\\pull\c$\PublicKeys\$env:COMPUTERNAME.cer" -Force
     Export-Certificate -Cert $DocumentEncryption5YearsCert -FilePath "\\build\c$\PublicKeys\$env:COMPUTERNAME.cer" -Force
 
-    $null = New-Item -ItemType Directory -Path C:\PShell\Demos -ErrorAction SilentlyContinue -Force
+    $null = New-Item -ItemType Directory -Path C:\PShell -ErrorAction SilentlyContinue -Force
     Set-WinUserLanguageList -LanguageList fr-fr -Force
-} 
+    #Start-Process -FilePath "$env:comspec" -ArgumentList '/c', "gpupdate /force /wait:-1" -Wait
+} -Verbose
 #endregion
 
 Copy-LabFileItem -Path C:\PoshDSC\Demos, "C:\PoshDSC\Demos - Old" -DestinationFolder C:\PShell\ -ComputerName $AllLabVMs -Recurse
 
-$Job += Invoke-LabCommand -ActivityName 'Downloading prerequisites' -ComputerName PULL, BUILD -ScriptBlock {
+$Jobs += Invoke-LabCommand -ActivityName 'Downloading prerequisites' -ComputerName PULL, BUILD -ScriptBlock {
     & "C:\PShell\Demos\Install-DscModule.ps1" 
 } -AsJob -PassThru
 
-Invoke-LabCommand -ActivityName 'Generating CSV file for listing certificate data' -ComputerName PULL -ScriptBlock {
+Invoke-LabCommand -ActivityName 'Generating CSV file for listing certificate data' -ComputerName PULL, BUILD -ScriptBlock {
     $PublicKeysFolder = "C:\PublicKeys"
     $CSVFile = Join-Path -Path $PublicKeysFolder -ChildPath "index.csv"
     $CertificateFiles = Get-ChildItem -Path $PublicKeysFolder -Filter *.cer -File
@@ -258,15 +283,105 @@ Invoke-LabCommand -ActivityName 'Generating CSV file for listing certificate dat
             $Node=$_.BaseName
         }
         $Thumbprint = $CurrentCertificate.Thumbprint
-        $GUID = (New-Guid).Guid
-        [PSCustomObject]@{Node=$Node;Path=$Path;Thumbprint=$Thumbprint;GUID=$GUID}
+        [PSCustomObject]@{Node=$Node;Path=$Path;Thumbprint=$Thumbprint}
     }
     $CSVData | Export-Csv -Path $CSVFile -NoTypeInformation -Encoding UTF8
 } 
+#endregion
 
-$Job | Wait-Job | Out-Null
+Invoke-LabCommand -ActivityName 'Installing preprequisites for PULL server' -ComputerName PULL -ScriptBlock {
+    #Adding TLS 1.2 to the supported protocol list
+    Get-PackageProvider -Name Nuget -ForceBootstrap -Force
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+    Install-Module -Name xPSDesiredStateConfiguration -Force -Verbose
+    Install-WindowsFeature -Name Web-Server -IncludeManagementTools 
+}
 
-#Restarting the IIS Server to take the SCHANNEL hardening into consideration
+#Checkpoint-LabVM -SnapshotName BeforePullSetup -All -Verbose
+#Restore-LabVMSnapshot -SnapshotName 'BeforePullSetup' -All -Verbose
+
+Invoke-LabCommand -ActivityName 'Setting up the HTTPS Pull Server' -ComputerName PULL -ScriptBlock {
+    Get-Website -Name "Default Web Site" | Remove-Website
+    Configuration CreateHTTPSPullServer
+    {
+	    param
+	    (
+		    [string[]] $ComputerName = 'localhost',
+            [string] $RegistrationKey = $((New-Guid).Guid),
+            [Parameter(Mandatory = $true)]
+            [string] $CertificateThumbPrint
+	    )
+
+	    Import-DSCResource -ModuleName PSDesiredStateConfiguration
+	    Import-DSCResource -ModuleName xPSDesiredStateConfiguration
+
+	    Node $ComputerName
+	    {
+		    WindowsFeature DSCServiceFeature
+		    {
+			    Ensure = 'Present'
+			    Name   = 'DSC-Service'
+		    }
+            WindowsFeature IISConsole {
+                Ensure    = 'Present'
+                Name      = 'Web-Mgmt-Console'
+                DependsOn = '[WindowsFeature]DSCServiceFeature'
+            }
+		    xDscWebService PSDSCPullServer
+		    {
+			    Ensure                       = 'Present'
+			    EndpointName                 = 'PSDSCPullServer'
+			    Port                         = 443
+			    PhysicalPath                 = "$env:SystemDrive\inetpub\wwwroot\PSDSCPullServer"
+			    CertificateThumbPrint        = $CertificateThumbPrint
+			    ModulePath                   = "$env:PROGRAMFILES\WindowsPowerShell\DscService\Modules"
+			    ConfigurationPath            = "$env:PROGRAMFILES\WindowsPowerShell\DscService\Configuration"
+			    State                        = 'Started'
+			    DependsOn                    = '[WindowsFeature]DSCServiceFeature'
+			    UseSecurityBestPractices     = $false
+                AcceptSelfSignedCertificates = $false
+                SqlProvider                  = $true
+                SqlConnectionString          = "Provider=SQLOLEDB.1;Integrated Security=SSPI;Persist Security Info=False;Initial Catalog=master;Data Source=SQL"
+            }
+            File RegistrationKeyFile {
+                Ensure = "Present"
+                Type = "File"
+                DestinationPath = "C:\Program Files\WindowsPowerShell\DscService\RegistrationKeys.txt"
+                Contents = $RegistrationKey
+                DependsOn = "[xDscWebService]PSDSCPullServer"
+            }
+	    }
+    }
+
+    # Build the MOF
+    CreateHTTPSPullServer -CertificateThumbPrint $PULLWebSiteSSLCert.Thumbprint
+
+    # Apply the configuration.
+    Start-DscConfiguration .\CreateHTTPSPullServer -Wait -Verbose -Force
+
+    #Changing the application pool identity from localsystem to a domain account
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.applicationHost/applicationPools/add[@name='PSWS']/processModel" -name "identityType" -value "SpecificUser"
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.applicationHost/applicationPools/add[@name='PSWS']/processModel" -name "userName" -value "$using:NetBiosDomainName\$using:PSWSAppPoolUsr"
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.applicationHost/applicationPools/add[@name='PSWS']/processModel" -name "password" -value $using:ClearTextPassword
+    Stop-WebAppPool -Name PSWS -ErrorAction Ignore
+    Start-WebAppPool -Name PSWS
+    
+    <#
+    #Disabling TLS 1.3 at the website level
+    #Import-Module -Name IISAdministration
+    [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.Web.Administration") | Out-Null
+    Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.applicationHost/sites/site[@name='PSDSCPullServer']/bindings/binding[@protocol='https' and @bindingInformation='*:443:']" -name "sslFlags" -value $([Microsoft.Web.Administration.SslFlags]::DisableTLS13)
+    #Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.applicationHost/sites/site[@name='PSDSCPullServer']/bindings/binding[@protocol='https' and @bindingInformation='*:443:']" -name "sslFlags" -value 32
+    #>
+} -Variable (Get-Variable -Name PULLWebSiteSSLCert) -Verbose
+
+#Installing PowerBI Desktop on the PULL Server (or any machine in the lab)
+$PBIDesktopX64 = Get-LabInternetFile -Uri $PBIDesktopX64Uri -Path $labSources\SoftwarePackages -PassThru -Force
+$Jobs += Install-LabSoftwarePackage -ComputerName PULL -Path $PBIDesktopX64.FullName -CommandLine "-quiet -norestart LANGUAGE=en-us ACCEPT_EULA=1 INSTALLDESKTOPSHORTCUT=1" -AsJob -PassThru
+
+$Jobs | Wait-Job | Out-Null
+
+#Restarting VM to update the GPO(s) and to take the SCHANNEL hardening into consideration
 Restart-LabVM -ComputerName $AllLabVMs -Wait
 
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
