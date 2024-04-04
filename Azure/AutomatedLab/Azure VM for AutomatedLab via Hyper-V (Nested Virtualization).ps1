@@ -309,9 +309,20 @@ Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 # Publishing DSC Configuration for AutomatedLab via Hyper-V (Nested Virtualization)
 Publish-AzVMDscConfiguration -ConfigurationPath $ConfigurationFilePath -ConfigurationDataPath $ConfigurationDataFilePath -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Force -Verbose
 
+
 try {
+    #region Getting the Azure Storage Explorer Version via an online request
+    $Response = (Invoke-WebRequest -Uri https://github.com/microsoft/AzureStorageExplorer/releases/latest)
+    if ($Response.ParsedHtml.title -match "v(?<Version>\d+\.\d+.\d+)") {
+        $AzureStorageExplorerVersion = $Matches['Version']
+    } else {
+        #Latest version in April 2024
+        $AzureStorageExplorerVersion = '1.33.0'
+    }
+    #endregion
     $ConfigurationArgument = @{
         Credential = $Credential
+        AzureStorageExplorerVersion = $AzureStorageExplorerVersion
     }
     Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$ConfigurationFileName.zip" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $ConfigurationName -ConfigurationData $ConfigurationDataFileName -ConfigurationArgument $ConfigurationArgument  -Version "2.80" -Location $Location -AutoUpdate -Verbose #-ErrorAction Ignore
 }
