@@ -81,7 +81,7 @@ $AzureVMNameMaxLength = 15
 $RDPPort = 3389
 $JitPolicyTimeInHours = 3
 $JitPolicyName = "Default"
-$Location = "westus3"
+$Location = "eastus"
 $VMSize = "Standard_D4s_v5"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
@@ -135,7 +135,7 @@ if ($ResourceGroup) {
     #Step 0: Remove previously existing Azure Resource Group with the same name
     $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
 }
-$MyPublicIp = (Invoke-WebRequest -uri "https://ipv4.seeip.org").Content
+$MyPublicIp = (Invoke-WebRequest -Uri "https://ipv4.seeip.org").Content
 
 
 #region Define Variables needed for Virtual Machine
@@ -169,7 +169,7 @@ if ($VMName.Length -gt $AzureVMNameMaxLength) {
 elseif (-not($LocationShortName)) {
     Write-Error "No location short name found for '$Location'" -ErrorAction Stop
 }
-elseif ($null -eq (Get-AZVMSize -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
+elseif ($null -eq (Get-AzVMSize -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
     Write-Error "The '$VMSize' is not available in the '$Location' location ..." -ErrorAction Stop
 }
 
@@ -206,7 +206,7 @@ $Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $Vi
 
 
 #Step 6: Create Azure Public Address
-$PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $ResourceGroupName -Location $Location -AlLocationMethod Static -DomainNameLabel $VMName.ToLower()
+$PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $ResourceGroupName -Location $Location -AllocationMethod Static -DomainNameLabel $VMName.ToLower()
 #Setting up the DNS Name
 #$PublicIP.DnsSettings.Fqdn = $FQDN
 
