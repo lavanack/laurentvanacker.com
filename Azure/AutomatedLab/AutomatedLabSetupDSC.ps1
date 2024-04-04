@@ -309,7 +309,7 @@ Configuration AutomatedLabSetupDSC {
             Ensure    = "Present"
             Path      = "$env:SystemDrive\Temp\StorageExplorer.exe"
             Arguments = '/SILENT /CLOSEAPPLICATIONS /ALLUSERS'
-            Name      = "Microsoft Azure Storage Explorer version 1.31.1"
+            Name      = "Microsoft Azure Storage Explorer version 1.33.0"
             ProductId = ""
             DependsOn = "[xRemoteFile]DownloadStorageExplorer"
         }
