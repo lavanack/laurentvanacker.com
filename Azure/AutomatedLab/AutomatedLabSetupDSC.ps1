@@ -37,10 +37,11 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Configuration AutomatedLabSetupDSC {
     param(
         [Parameter(Mandatory = $true)]
-        [PSCredential]
-        $Credential,
+        [PSCredential] $Credential,
         [ValidateScript({$_ -match "^[E-Z]$"})]
-        [string] $DriveLetter = 'F'
+        [string] $DriveLetter = 'F',
+        [Parameter(Mandatory = $true)]
+        [string] $AzureStorageExplorerVersion
     )
 
     #Import-DscResource -ModuleName 'PSDesiredStateConfiguration'
@@ -309,7 +310,7 @@ Configuration AutomatedLabSetupDSC {
             Ensure    = "Present"
             Path      = "$env:SystemDrive\Temp\StorageExplorer.exe"
             Arguments = '/SILENT /CLOSEAPPLICATIONS /ALLUSERS'
-            Name      = "Microsoft Azure Storage Explorer version 1.33.0"
+            Name      = "Microsoft Azure Storage Explorer version $AzureStorageExplorerVersion"
             ProductId = ""
             DependsOn = "[xRemoteFile]DownloadStorageExplorer"
         }
