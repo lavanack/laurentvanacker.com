@@ -2,7 +2,7 @@
 Get-PackageProvider -Name Nuget -ForceBootstrap -Force
 #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 Install-Module -Name Az.Accounts, Az.Compute, Az.PolicyInsights, Az.Resources, Az.Storage, PSDscResources -Force
-Install-Module -Name Microsoft.PowerShell.GraphicalTools -Force
+#Install-Module -Name Microsoft.PowerShell.GraphicalTools -Force
 Install-Module -Name GuestConfiguration -Force
 
 #Connection to Azure and Subscription selection
