@@ -57,6 +57,11 @@ function New-RandomPassword {
 Clear-Host
 $Error.Clear()
 
+$SSHPublicKeyProfilePath = Join-Path -Path $HOME -ChildPath '.ssh\id_rsa.pub'
+if (([string]::IsNullOrEmpty($SSHPublicKeyPath)) -and (-not(Test-Path -Path $SSHPublicKeyProfilePath -PathType Leaf))) {
+    Write-Error -Message "No SSH PublicKey Path specified or not found in '$SSHPublicKeyProfilePath'. STOP !" -ErrorAction Stop
+}
+
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
@@ -140,8 +145,8 @@ $MyPublicIp = (Invoke-WebRequest -uri "https://ipv4.seeip.org").Content
 
 #region Define Variables needed for Virtual Machine
 $ImagePublisherName = "canonical"
-$ImageOffer = "0001-com-ubuntu-server-focal"
-$ImageSku = "20_04-lts-gen2"
+$ImageOffer = "0001-com-ubuntu-server-jammy"
+$ImageSku = "22_04-lts-gen2"
 $PublicIPName = "pip-$VMName" 
 $NICName = "nic-$VMName"
 $OSDiskName = '{0}_OSDisk' -f $VMName
@@ -189,9 +194,9 @@ $SecurityRules = @(
     #RDP only for my public IP address
     New-AzNetworkSecurityRuleConfig -Name RDPRule -Description "Allow RDP" -Access Allow -Protocol Tcp -Direction Inbound -Priority 301 -SourceAddressPrefix $MyPublicIp -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange $RDPPort
     #HTTP only for my public IP address
-    #New-AzNetworkSecurityRuleConfig -Name HTTPRule -Description "Allow HTTP" -Access Allow -Protocol Tcp -Direction Inbound -Priority 302 -SourceAddressPrefix $MyPublicIp -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 80
+    New-AzNetworkSecurityRuleConfig -Name HTTPRule -Description "Allow HTTP" -Access Allow -Protocol Tcp -Direction Inbound -Priority 302 -SourceAddressPrefix $MyPublicIp -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 80
     #HTTPS only for my public IP address
-    #New-AzNetworkSecurityRuleConfig -Name HTTPSRule -Description "Allow HTTPS" -Access Allow -Protocol Tcp -Direction Inbound -Priority 303 -SourceAddressPrefix $MyPublicIp -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 443
+    New-AzNetworkSecurityRuleConfig -Name HTTPSRule -Description "Allow HTTPS" -Access Allow -Protocol Tcp -Direction Inbound -Priority 303 -SourceAddressPrefix $MyPublicIp -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange 443
     #endregion
 )
 
@@ -214,9 +219,9 @@ $PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $Resour
 $NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -PublicIpAddressId $PublicIP.Id #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
 
 <# Optional : Step 8: Get Virtual Machine publisher, Image Offer, Sku and Image
-$ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq "MicrosoftWindowsDesktop"}
-$ImageOffer = Get-AzVMImageOffer -Location $Location -publisher $ImagePublisherName.PublisherName | Where-Object -FilterScript { $_.Offer  -eq "Windows-11"}
-$ImageSku = Get-AzVMImageSku -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer | Where-Object -FilterScript { $_.Skus  -eq "win11-21h2-pro"}
+$ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq "canonical"}
+$ImageOffer = Get-AzVMImageOffer -Location $Location -publisher $ImagePublisherName.PublisherName | Where-Object -FilterScript { $_.Offer  -eq "0001-com-ubuntu-server-jammy"}
+$ImageSku = Get-AzVMImageSku -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer | Where-Object -FilterScript { $_.Skus  -eq "22_04-lts-gen2"}
 $image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer -sku $ImageSku.Skus | Sort-Object -Property Version -Descending | Select-Object -First 1
 #>
 
@@ -226,7 +231,7 @@ $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -Max
 #region Defining SSH Public Key 
 if ([string]::IsNullOrEmpty($SSHPublicKeyPath)) {
     #If a SSH Public Key has not been specified, we build a path to test in the current user profile
-    $SSHPublicKeyPath = Join-Path -Path $HOME -ChildPath '.ssh\id_rsa.pub'
+    $SSHPublicKeyPath = $SSHPublicKeyProfilePath
 }
 if (Test-Path -Path $SSHPublicKeyPath -PathType Leaf) {
     # Set VM operating system parameters
@@ -342,22 +347,27 @@ Restart-AzVM -ResourceGroupName $ResourceGroupName -Name $VMName
 #region Installing and configuring xrdp to use Remote Desktop with Ubuntu
 #From https://learn.microsoft.com/en-us/azure/virtual-machines/linux/use-remote-desktop?tabs=azure-powershell
 Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -Name $VMName -CommandId 'RunShellScript' -ScriptString 'sudo DEBIAN_FRONTEND=noninteractive apt-get -y install xfce4 && sudo apt install xfce4-session'
-#Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -Name $VMName -CommandId 'RunShellScript' -ScriptString 'sudo update-alternatives --config x-session-manager '
+#For allowing RDP session with the same user logged in
+Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -Name $VMName -CommandId 'RunShellScript' -ScriptString "echo '3' | sudo update-alternatives --config x-session-manager"
 Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -Name $VMName -CommandId 'RunShellScript' -ScriptString 'sudo apt-get -y install xrdp && sudo systemctl enable xrdp && sudo adduser xrdp ssl-cert && echo xfce4-session >~/.xsession && sudo service xrdp restart'
 Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -Name $VMName -CommandId 'RunShellScript' -ScriptString 'sudo ufw allow 3389'
 $SSHConnection = "{0}@{1}" -f $($Credential.UserName), $FQDN
 #Setting the password for the user
-Start-Process -FilePath "$env:comspec" -ArgumentList '/c', "ssh -o StrictHostKeyChecking=no $SSHConnection ""echo -e '$($Credential.GetNetworkCredential().Password)\n$($Credential.GetNetworkCredential().Password)' | sudo passwd $($Credential.UserName)""" -Wait
+#Start-Process -FilePath "$env:comspec" -ArgumentList '/c', "ssh -o StrictHostKeyChecking=no $SSHConnection ""echo -e '$($Credential.GetNetworkCredential().Password)\n$($Credential.GetNetworkCredential().Password)' | sudo passwd $($Credential.UserName)""" -Wait
+Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -Name $VMName -CommandId 'RunShellScript' -ScriptString "echo '$($Credential.GetNetworkCredential().Password)\n$($Credential.GetNetworkCredential().Password)' | sudo passwd $($Credential.UserName)"
 Restart-AzVM -ResourceGroupName $ResourceGroupName -Name $VMName
 
 #Step 12: Start RDP Session
 mstsc /v $FQDN
 #endregion
 
-#Step 13: Start SSH Session
+
 Write-Host -Object "Your SSH/RDP credentials (login/password) are $($Credential.UserName)/$($Credential.GetNetworkCredential().Password)" -ForegroundColor Green
 #If no SSH Public Key, creating a connection by passing the user name
 Start-Process -FilePath "$env:comspec" -ArgumentList '/c', "scp -o StrictHostKeyChecking=no -r ExampleConfiguration *.ps1 *.sh $($SSHConnection):~" -Wait
 Start-Process -FilePath "$env:comspec" -ArgumentList '/c', "ssh -o StrictHostKeyChecking=no $SSHConnection chmod +x *.sh" -Wait
-#Start-Process -FilePath "$env:comspec" -ArgumentList '/k', "ssh -o StrictHostKeyChecking=no $SSHConnection './2 - Prerequisites.sh'"
+#Start-Process -FilePath "$env:comspec" -ArgumentList '/k', "ssh -o StrictHostKeyChecking=no $SSHConnection sudo './2 - Prerequisites.sh'"
 Start-Process -FilePath "$env:comspec" -ArgumentList '/c', "ssh -o StrictHostKeyChecking=no $SSHConnection"
+
+#Browsing to the hosted website
+Start-Process -FilePath "http://$FQDN"
