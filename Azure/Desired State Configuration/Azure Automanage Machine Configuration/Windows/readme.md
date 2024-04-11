@@ -11,7 +11,7 @@ The [1 - AzureVMWithAzureAutomanageMachineConfiguration](1%20-%20AzureVMWithAzur
 ### Setup
 
 * Run the [1 - AzureVMWithAzureAutomanageMachineConfiguration](1%20-%20AzureVMWithAzureAutomanageMachineConfiguration.ps1) script (PowerShell 5.1 needed) wait for completion (~10 minutes).
-* Copy the current folder (Azure Automanage Machine Configuration)  on the Azure VM (wherever you want).
+* Copy the 'Azure Automanage Machine Configuration' folder on the Azure VM (wherever you want) and go to the 'Windows' subfolder.
 * Run the [2 - Prerequisites.ps1](2%20-%20Prerequisites.ps1) script from the Azure VM to install some prerequisites (Powershell modules, [PowerShell 7+](https://github.com/PowerShell/powershell/releases), [Visual Studio Code](https://code.visualstudio.com/), ...).  The script ends by opening **Visual Studio Code** in the current directory
 * After run the [3 - AzureAutomanageMachineConfiguration.ps1](3%20-%20AzureAutomanageMachineConfiguration.ps1) from the opened **Visual Studio Code** instance (inside the Azure VM). This script will start by applying the [Deploy prerequisites to enable Guest Configuration policies on virtual machines](https://github.com/Azure/azure-policy/blob/master/built-in-policies/policySetDefinitions/Guest%20Configuration/GuestConfiguration_Prerequisites.json) initiative and will deploy your Desired State Configuration (Rogue Administrator creation) just after.
 
