@@ -8,9 +8,9 @@
 #>
 <#
 #Cleaning up previous tests 
-C:\PoshDSC\Labs\M05 - DSC PushC:\PoshDSC\Labs\M05 - DSC PushGet-AzResourceGroup -Name rg-dsc-amc* | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyRemediation | Remove-AzPolicyRemediation -AllowStop -AsJob -Verbose | Wait-Job
+Get-AzResourceGroup -Name rg-dsc-amc* | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyRemediation | Remove-AzPolicyRemediation -AllowStop -AsJob -Verbose | Wait-Job
 Get-AzResourceGroup -Name rg-dsc-amc* | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyAssignment  | Where-Object -FilterScript { $_.ResourceGroupName -like 'rg-dsc-amc*' } | Remove-AzPolicyAssignment -Verbose #-Whatif
-Get-AzPolicyDefinition | Where-Object -filterScript {$_.Properties.metadata.category -eq "Guest Configuration" -and $_.Properties.DisplayName -like "*CreateAdminUserDSCConfiguration*"} | Remove-AzPolicyDefinition -Verbose -Force #-WhatIf
+Get-AzPolicyDefinition | Where-Object -filterScript {$_.Properties.metadata.category -eq "Guest Configuration" -and $_.Properties.DisplayName -like "*ExampleConfiguration*"} | Remove-AzPolicyDefinition -Verbose -Force #-WhatIf
 #>
 
 
@@ -26,7 +26,7 @@ $ResourceGroupName = $AzVM.ResourceGroupName
 $StorageAccount = Get-AzStorageAccount -ResourceGroupName $resourceGroupName
 $StorageAccountName = $StorageAccount.StorageAccountName
 $StorageContainerName = "guestconfiguration"
-$ConfigurationName = "CreateAdminUserDSCConfiguration"
+$ConfigurationName = "ExampleConfiguration"
 $GuestConfigurationPackageName = "$ConfigurationName.zip"
 #$GuestConfigurationPackageFullName  = "$CurrentDir\$ConfigurationName\$GuestConfigurationPackageName"
 
@@ -67,12 +67,12 @@ $Job = Start-AzPolicyComplianceScan -ResourceGroupName $ResourceGroupName -AsJob
 #& "$PSScriptRoot\$ConfigurationName.ps1"
 
 # Create a guest configuration package for Azure Policy GCS
-$GuestConfigurationPackage = New-GuestConfigurationPackage -Name $ConfigurationName -Configuration './CreateAdminUser/localhost.mof' -Type AuditAndSet -Force
+$GuestConfigurationPackage = New-GuestConfigurationPackage -Name $ConfigurationName -Configuration './ExampleConfiguration/localhost.mof' -Type AuditAndSet -Force
 # Testing the configuration
 Get-GuestConfigurationPackageComplianceStatus -Path $GuestConfigurationPackage.Path
 #Set-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -AllowBlobPublicAccess $true
 # Applying the Machine Configuration Package locally
-#Start-GuestConfigurationPackageRemediation -Path $GuestConfigurationPackage.Path -Verbose
+Start-GuestConfigurationPackageRemediation -Path $GuestConfigurationPackage.Path -Verbose
 
 # Creates a new container
 if (-not($storageAccount | Get-AzStorageContainer -Name $StorageContainerName -ErrorAction Ignore)) {

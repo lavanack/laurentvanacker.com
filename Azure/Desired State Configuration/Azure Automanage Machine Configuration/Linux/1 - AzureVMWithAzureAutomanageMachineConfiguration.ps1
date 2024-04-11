@@ -226,7 +226,7 @@ $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -Max
 #region Defining SSH Public Key 
 if ([string]::IsNullOrEmpty($SSHPublicKeyPath)) {
     #If a SSH Public Key has not been specified, we build a path to test in the current user profile
-    $SSHPublicKeyPath = Join-Path -Path $([System.Environment]::GetEnvironmentVariable("USERPROFILE")) -ChildPath '.ssh\id_rsa.pub'
+    $SSHPublicKeyPath = Join-Path -Path $HOME -ChildPath '.ssh\id_rsa.pub'
 }
 if (Test-Path -Path $SSHPublicKeyPath -PathType Leaf) {
     # Set VM operating system parameters
@@ -342,6 +342,7 @@ Restart-AzVM -ResourceGroupName $ResourceGroupName -Name $VMName
 #region Installing and configuring xrdp to use Remote Desktop with Ubuntu
 #From https://learn.microsoft.com/en-us/azure/virtual-machines/linux/use-remote-desktop?tabs=azure-powershell
 Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -Name $VMName -CommandId 'RunShellScript' -ScriptString 'sudo DEBIAN_FRONTEND=noninteractive apt-get -y install xfce4 && sudo apt install xfce4-session'
+#Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -Name $VMName -CommandId 'RunShellScript' -ScriptString 'sudo update-alternatives --config x-session-manager '
 Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -Name $VMName -CommandId 'RunShellScript' -ScriptString 'sudo apt-get -y install xrdp && sudo systemctl enable xrdp && sudo adduser xrdp ssl-cert && echo xfce4-session >~/.xsession && sudo service xrdp restart'
 Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -Name $VMName -CommandId 'RunShellScript' -ScriptString 'sudo ufw allow 3389'
 $SSHConnection = "{0}@{1}" -f $($Credential.UserName), $FQDN
@@ -351,12 +352,12 @@ Restart-AzVM -ResourceGroupName $ResourceGroupName -Name $VMName
 
 #Step 12: Start RDP Session
 mstsc /v $FQDN
-Write-Host -Object "Your SSH/RDP credentials (login/password) are $($Credential.UserName)/$($Credential.GetNetworkCredential().Password)" -ForegroundColor Green
 #endregion
 
 #Step 13: Start SSH Session
+Write-Host -Object "Your SSH/RDP credentials (login/password) are $($Credential.UserName)/$($Credential.GetNetworkCredential().Password)" -ForegroundColor Green
 #If no SSH Public Key, creating a connection by passing the user name
-Start-Process -FilePath "$env:comspec" -ArgumentList '/c', "scp -o StrictHostKeyChecking=no -r CreateAdminUser *.ps1 *.sh $($SSHConnection):~" -Wait
+Start-Process -FilePath "$env:comspec" -ArgumentList '/c', "scp -o StrictHostKeyChecking=no -r ExampleConfiguration *.ps1 *.sh $($SSHConnection):~" -Wait
 Start-Process -FilePath "$env:comspec" -ArgumentList '/c', "ssh -o StrictHostKeyChecking=no $SSHConnection chmod +x *.sh" -Wait
 #Start-Process -FilePath "$env:comspec" -ArgumentList '/k', "ssh -o StrictHostKeyChecking=no $SSHConnection './2 - Prerequisites.sh'"
 Start-Process -FilePath "$env:comspec" -ArgumentList '/c', "ssh -o StrictHostKeyChecking=no $SSHConnection"

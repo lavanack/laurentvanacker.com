@@ -1,0 +1,21 @@
+
+instance of nxFile as $nxFile1ref
+{
+ResourceID = "[nxFile]ExampleFile";
+ Ensure = "Present";
+ ModuleName = "nxtools";
+ DestinationPath = "/tmp/example";
+ ModuleVersion = "1.4.0";
+ Type = "File";
+ SourceInfo = "C:\\Users\\lavanack\\OneDrive - Microsoft\\Source Control\\GitHub\\laurentvanacker.com\\Azure\\Desired State Configuration\\Azure Automanage Machine Configuration\\Linux\\ExampleConfiguration.ps1::9::3::nxFile";
+ Contents = "hello world \n";
+ ConfigurationName = "ExampleConfiguration";
+};
+
+instance of OMI_ConfigurationDocument
+{
+ Version="2.0.0";
+ MinimumCompatibleVersion = "1.0.0";
+ CompatibleVersionAdditionalProperties= {"Omi_BaseResource:ConfigurationName"};
+ Name="ExampleConfiguration";
+};
