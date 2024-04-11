@@ -135,7 +135,7 @@ if ($ResourceGroup) {
     #Step 0: Remove previously existing Azure Resource Group with the same name
     $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
 }
-$MyPublicIp = (Invoke-WebRequest -uri "https://ipv4.seeip.org").Content
+$MyPublicIp = (Invoke-WebRequest -Uri "https://ipv4.seeip.org").Content
 $DSCFileName = "WebServerDSC.ps1"
 $DSCFilePath = Join-Path -Path $CurrentDir -ChildPath $DSCFileName
 $ConfigurationName = "WebServerConfiguration"
@@ -172,7 +172,7 @@ if ($VMName.Length -gt $AzureVMNameMaxLength) {
 elseif (-not($LocationShortName)) {
     Write-Error "No location short name found for '$Location'" -ErrorAction Stop
 }
-elseif ($null -eq (Get-AZVMSize -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
+elseif ($null -eq (Get-AzVMSize -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
     Write-Error "The '$VMSize' is not available in the '$Location' location ..." -ErrorAction Stop
 }
 
@@ -208,7 +208,7 @@ $Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $Vi
 
 
 #Step 6: Create Azure Public Address
-$PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $ResourceGroupName -Location $Location -AlLocationMethod Static -DomainNameLabel $VMName.ToLower()
+$PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $ResourceGroupName -Location $Location -AllocationMethod Static -DomainNameLabel $VMName.ToLower()
 #Setting up the DNS Name
 #$PublicIP.DnsSettings.Fqdn = $FQDN
 
@@ -354,8 +354,8 @@ Write-Verbose -Message "Result: `r`n$($result | Out-String)"
 #region Event Logs
 #Levels : 1 = Critical, 2 = Error, 3 = Warning
 $EventLogs = @(
-    @{EventLogName = 'Application'; Levels = 1,2,3 }
-    @{EventLogName = 'System'; Levels = 2,3 }
+    @{EventLogName = 'Application'; Levels = 1, 2, 3 }
+    @{EventLogName = 'System'; Levels = 2, 3 }
 )
 #Building the XPath for each event log
 $XPathQuery = foreach ($CurrentEventLog in $EventLogs) {
@@ -389,8 +389,7 @@ $PerformanceCouters = @(
 #Building and Hashtable for each Performance Counters where the key is the sample interval
 $PerformanceCoutersHT = $PerformanceCouters | Group-Object -Property IntervalSeconds -AsHashTable -AsString
 
-$PerformanceCounters = foreach ($CurrentKey in $PerformanceCoutersHT.Keys)
-{
+$PerformanceCounters = foreach ($CurrentKey in $PerformanceCoutersHT.Keys) {
     $Name = "PerformanceCounters{0}" -f $CurrentKey
     #Building the Performance Counter paths for each Performance Counter
     $CounterSpecifier = foreach ($CurrentCounter in $PerformanceCoutersHT[$CurrentKey]) {
@@ -406,7 +405,7 @@ $DataCollectionEndpoint = New-AzDataCollectionEndpoint -Name $DataCollectionEndp
 $DataCollectionRuleName = "DCR-{0}" -f $LogAnalyticsWorkSpace.Name
 $DataFlow = New-AzDataFlowObject -Stream Microsoft-Perf, Microsoft-Event -Destination $LogAnalyticsWorkSpace.Name
 $DestinationLogAnalytic = New-AzLogAnalyticsDestinationObject -Name $LogAnalyticsWorkSpace.Name -WorkspaceResourceId $LogAnalyticsWorkSpace.ResourceId
-$DataCollectionRule = New-AzDataCollectionRule -Name $DataCollectionRuleName -ResourceGroupName $ResourceGroupName -Location $Location -Dataflow $DataFlow -DataSourcePerformanceCounter $PerformanceCounters -DataSourceWindowsEventLog $WindowsEventLogs -DestinationLogAnalytic $DestinationLogAnalytic #-DataCollectionEndpointId $DataCollectionEndpoint.Id
+$DataCollectionRule = New-AzDataCollectionRule -Name $DataCollectionRuleName -ResourceGroupName $ResourceGroupName -Location $Location -DataFlow $DataFlow -DataSourcePerformanceCounter $PerformanceCounters -DataSourceWindowsEventLog $WindowsEventLogs -DestinationLogAnalytic $DestinationLogAnalytic #-DataCollectionEndpointId $DataCollectionEndpoint.Id
 #endregion
 
 #region Adding Data Collection Rule Association for the VM
@@ -423,14 +422,14 @@ Write-Verbose -Message "`$AssociationName: $AssociationName"
 New-AzDataCollectionRuleAssociation -ResourceUri $VM.Id -AssociationName $AssociationName -DataCollectionRuleId $DataCollectionRule.Id
 #endregion
 
-#region Querying the latest Performance Counter and Event Log entry sent
+#region Querying the latest HeartBeat, Performance Counter and Event Log entry sent
 [string[]] $Queries = @("Heartbeat | order by TimeGenerated desc | limit 1", "Perf | order by TimeGenerated desc | limit 1", "Event | order by TimeGenerated desc | limit 1")
 $Results = foreach ($CurrentQuery in $Queries) {
     Write-Verbose -Message "`$CurrentQuery: $CurrentQuery"
 
     # Run the query
     $Result = Invoke-AzOperationalInsightsQuery -WorkspaceId $LogAnalyticsWorkSpace.CustomerId -Query $CurrentQuery
-    [PSCustomObject]@{LogAnalyticsWorkspaceName = $LogAnalyticsWorkSpace.Name ; Query = $CurrentQuery; Results = $($Result.Results | Select-Object -Property *, @{Name = "LocalTimeGenerated"; Expression = {Get-Date $_.TimeGenerated}}) }
+    [PSCustomObject]@{LogAnalyticsWorkspaceName = $LogAnalyticsWorkSpace.Name ; Query = $CurrentQuery; Results = $($Result.Results | Select-Object -Property *, @{Name = "LocalTimeGenerated"; Expression = { Get-Date $_.TimeGenerated } }) }
 }
-$Results.Results | ogv
+$Results.Results | Out-GridView
 #endregion
