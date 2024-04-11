@@ -394,7 +394,7 @@ $PerformanceCounters = foreach ($CurrentKey in $PerformanceCoutersHT.Keys)
     $Name = "PerformanceCounters{0}" -f $CurrentKey
     #Building the Performance Counter paths for each Performance Counter
     $CounterSpecifier = foreach ($CurrentCounter in $PerformanceCoutersHT[$CurrentKey]) {
-        "\\{0}({1})\{2}" -f $CurrentCounter.ObjectName, $CurrentCounter.InstanceName, $CurrentCounter.CounterName
+        "\{0}({1})\{2}" -f $CurrentCounter.ObjectName, $CurrentCounter.InstanceName, $CurrentCounter.CounterName
     }
     New-AzPerfCounterDataSourceObject -Name $Name -Stream Microsoft-Perf -CounterSpecifier $CounterSpecifier -SamplingFrequencyInSecond $CurrentKey
 }
@@ -424,12 +424,13 @@ New-AzDataCollectionRuleAssociation -ResourceUri $VM.Id -AssociationName $Associ
 #endregion
 
 #region Querying the latest Performance Counter and Event Log entry sent
-[string[]] $Queries = @("Perf  | order by TimeGenerated desc | limit 1", "Event | order by TimeGenerated desc | limit 1")
-foreach ($CurrentQuery in $Queries) {
+[string[]] $Queries = @("Heartbeat | order by TimeGenerated desc | limit 1", "Perf | order by TimeGenerated desc | limit 1", "Event | order by TimeGenerated desc | limit 1")
+$Results = foreach ($CurrentQuery in $Queries) {
     Write-Verbose -Message "`$CurrentQuery: $CurrentQuery"
 
     # Run the query
     $Result = Invoke-AzOperationalInsightsQuery -WorkspaceId $LogAnalyticsWorkSpace.CustomerId -Query $CurrentQuery
     [PSCustomObject]@{LogAnalyticsWorkspaceName = $LogAnalyticsWorkSpace.Name ; Query = $CurrentQuery; Results = $($Result.Results | Select-Object -Property *, @{Name = "LocalTimeGenerated"; Expression = {Get-Date $_.TimeGenerated}}) }
 }
+$Results.Results | ogv
 #endregion
