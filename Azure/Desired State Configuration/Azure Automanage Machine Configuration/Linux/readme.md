@@ -38,3 +38,5 @@ The [1 - AzureVMWithAzureAutomanageMachineConfiguration](1%20-%20AzureVMWithAzur
 - The password (for RDP connection) is randomly generated and displayed at the beginning and copied into your clipboard. The account name used is the same you are currently using (cf. the Username environment variable - so almost different for everyone). In addition these credentials will also be displayed at the end of the deployment process (in green) and added in the Credential Manager for an automatic connection in the upcoming RDP session (next point).
 - The SSH connection is done via a SSH Public Key. You can specify the Path of this Key via the `SSHPublicKeyPath` parameter. If you omit it, we will look for this Key in your profile/home directory
 - A SSH and a RDP sessions will be automatically opened at the end of the deployment process.
+- After the DSC configuration is applied you can open a browser to the VM IP or FQDN and see NGinx has been installed.
+![NGINX](docs/nginx.jpg)
