@@ -1,4 +1,4 @@
-﻿Configuration CreateAdminUser
+﻿Configuration CreateAdminUserDSCConfiguration
 {
     param (
         [System.Management.Automation.PSCredential]
@@ -41,4 +41,4 @@ $ClearTextPassword = 'P@ssw0rd'
 $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
 
 $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList ($Username, $SecurePassword)
-CreateAdminUser -Credential $Credential -ConfigurationData $ConfigurationData
+CreateAdminUserDSCConfiguration -Credential $Credential -ConfigurationData $ConfigurationData
