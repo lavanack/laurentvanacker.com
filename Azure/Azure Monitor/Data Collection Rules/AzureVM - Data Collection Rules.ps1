@@ -20,6 +20,10 @@ of the Sample Code.
 [CmdletBinding()]
 param
 (
+    [ValidateScript({ (Test-Path -Path $_ -PathType Leaf) -and ($_ -match "\.csv$") })]
+    [string] $PerformanceCountersFilePath,
+    [ValidateScript({ (Test-Path -Path $_ -PathType Leaf) -and ($_ -match "\.csv$") })]
+    [string] $EventLogsFilePath
 )
 
 
@@ -92,7 +96,7 @@ $VirtualMachinePrefix = "vm"
 $NetworkSecurityGroupPrefix = "nsg"
 $VirtualNetworkPrefix = "vnet"
 $SubnetPrefix = "snet"
-$Project = "log"
+$Project = "ama"
 $Role = "dcr"
 #$DigitNumber = 4
 $DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role + $LocationShortName).Length
@@ -352,11 +356,32 @@ Write-Verbose -Message "Result: `r`n$($result | Out-String)"
 
 #region Data Collection Rules
 #region Event Logs
-#Levels : 1 = Critical, 2 = Error, 3 = Warning
-$EventLogs = @(
-    @{EventLogName = 'Application'; Levels = 1, 2, 3 }
-    @{EventLogName = 'System'; Levels = 2, 3 }
-)
+#From https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.tracing.eventlevel?view=net-8.0
+#Levels : 1 = Critical, 2 = Error, 3 = Warning. 
+#If we specify an input file
+if ($EventLogsFilePath) {
+    $EventLogs = Import-Csv -Path $EventLogsFilePath
+    $LevelsHT = @{
+        "LogAlways"    = 0	
+        "Critical"     = 1	
+        "Error"        = 2	
+        "Warning"      = 3
+        "Informationa" = 4	
+        "Verbose"      = 5	
+    }
+    $EventLogs = foreach ($CurrentEventLog in $EventLogs) {
+        $CurrentEventLogLevels = foreach ($CurrentEventLogLevel in $CurrentEventLog.Levels -split ',') {
+            $LevelsHT[$CurrentEventLogLevel.Trim()]
+        }
+        [PSCustomObject] @{EventLogName = $CurrentEventLog.EventLogName; Levels = $CurrentEventLogLevels }
+    }
+}
+else {
+    $EventLogs = @(
+        [PSCustomObject] @{EventLogName = 'Application'; Levels = 1, 2, 3 }
+        [PSCustomObject] @{EventLogName = 'System'; Levels = 2, 3 }
+    )
+}
 #Building the XPath for each event log
 $XPathQuery = foreach ($CurrentEventLog in $EventLogs) {
     #Building the required level for each event log
@@ -368,41 +393,55 @@ $XPathQuery = foreach ($CurrentEventLog in $EventLogs) {
 $WindowsEventLogs = New-AzWindowsEventLogDataSourceObject -Name WindowsEventLogsDataSource -Stream Microsoft-Event -XPathQuery $XPathQuery
 #endregion
 
-#region Performance Couters
-$PerformanceCouters = @(
-    [PSCustomObject] @{ObjectName = 'LogicalDisk'; CounterName = '% Free Space'; InstanceName = 'C:'; IntervalSeconds = 60 }
-    [PSCustomObject] @{ObjectName = 'LogicalDisk'; CounterName = 'Avg. Disk Queue Length'; InstanceName = 'C:'; IntervalSeconds = 30 }
-    [PSCustomObject] @{ObjectName = 'LogicalDisk'; CounterName = 'Avg. Disk sec/Transfer'; InstanceName = 'C:'; IntervalSeconds = 60 }
-    [PSCustomObject] @{ObjectName = 'LogicalDisk'; CounterName = 'Current Disk Queue Length'; InstanceName = 'C:'; IntervalSeconds = 30 }
-    [PSCustomObject] @{ObjectName = 'Memory'; CounterName = 'Available Mbytes'; InstanceName = '*'; IntervalSeconds = 30 }
-    [PSCustomObject] @{ObjectName = 'Memory'; CounterName = 'Page Faults/sec'; InstanceName = '*'; IntervalSeconds = 30 }
-    [PSCustomObject] @{ObjectName = 'Memory'; CounterName = 'Pages/sec'; InstanceName = '*'; IntervalSeconds = 30 }
-    [PSCustomObject] @{ObjectName = 'Memory'; CounterName = '% Committed Bytes In Use'; InstanceName = '*'; IntervalSeconds = 30 }
-    [PSCustomObject] @{ObjectName = 'PhysicalDisk'; CounterName = 'Avg. Disk sec/Read'; InstanceName = '*'; IntervalSeconds = 30 }
-    [PSCustomObject] @{ObjectName = 'PhysicalDisk'; CounterName = 'Avg. Disk sec/Transfer'; InstanceName = '*'; IntervalSeconds = 30 }
-    [PSCustomObject] @{ObjectName = 'PhysicalDisk'; CounterName = 'Avg. Disk sec/Write'; InstanceName = '*'; IntervalSeconds = 30 }
-    [PSCustomObject] @{ObjectName = 'PhysicalDisk'; CounterName = 'Avg. Disk Queue Length'; InstanceName = '*'; IntervalSeconds = 30 }
-    [PSCustomObject] @{ObjectName = 'Processor Information'; CounterName = '% Processor Time'; InstanceName = '_Total'; IntervalSeconds = 30 }
-    [PSCustomObject] @{ObjectName = 'User Input Delay per Process'; CounterName = 'Max Input Delay'; InstanceName = '*'; IntervalSeconds = 30 }
-    [PSCustomObject] @{ObjectName = 'User Input Delay per Session'; CounterName = 'Max Input Delay'; InstanceName = '*'; IntervalSeconds = 30 }
-)
-#Building and Hashtable for each Performance Counters where the key is the sample interval
-$PerformanceCoutersHT = $PerformanceCouters | Group-Object -Property IntervalSeconds -AsHashTable -AsString
-
-$PerformanceCounters = foreach ($CurrentKey in $PerformanceCoutersHT.Keys) {
-    $Name = "PerformanceCounters{0}" -f $CurrentKey
-    #Building the Performance Counter paths for each Performance Counter
-    $CounterSpecifier = foreach ($CurrentCounter in $PerformanceCoutersHT[$CurrentKey]) {
-        "\{0}({1})\{2}" -f $CurrentCounter.ObjectName, $CurrentCounter.InstanceName, $CurrentCounter.CounterName
+#region Performance Counters
+#If we specify an input file
+if ($PerformanceCountersFilePath) {
+    $PerformanceCounters = Import-Csv -Path $PerformanceCountersFilePath
+    #Building and Hashtable for each Performance Counters where the key is the sample interval
+    $PerformanceCountersHT = $PerformanceCounters | Group-Object -Property IntervalSeconds -AsHashTable -AsString
+    $PerformanceCounters = foreach ($CurrentKey in $PerformanceCountersHT.Keys) {
+        $Name = "PerformanceCounters{0}" -f $CurrentKey
+        #Building the Performance Counter paths for each Performance Counter
+        $CounterSpecifier = $PerformanceCountersHT[$CurrentKey].Counter
+        New-AzPerfCounterDataSourceObject -Name $Name -Stream Microsoft-Perf -CounterSpecifier $CounterSpecifier -SamplingFrequencyInSecond $CurrentKey
     }
-    New-AzPerfCounterDataSourceObject -Name $Name -Stream Microsoft-Perf -CounterSpecifier $CounterSpecifier -SamplingFrequencyInSecond $CurrentKey
+}
+else {
+    $PerformanceCounters = @(
+        [PSCustomObject] @{ObjectName = 'LogicalDisk'; CounterName = '% Free Space'; InstanceName = 'C:'; IntervalSeconds = 60 }
+        [PSCustomObject] @{ObjectName = 'LogicalDisk'; CounterName = 'Avg. Disk Queue Length'; InstanceName = 'C:'; IntervalSeconds = 30 }
+        [PSCustomObject] @{ObjectName = 'LogicalDisk'; CounterName = 'Avg. Disk sec/Transfer'; InstanceName = 'C:'; IntervalSeconds = 60 }
+        [PSCustomObject] @{ObjectName = 'LogicalDisk'; CounterName = 'Current Disk Queue Length'; InstanceName = 'C:'; IntervalSeconds = 30 }
+        [PSCustomObject] @{ObjectName = 'Memory'; CounterName = 'Available Mbytes'; InstanceName = '*'; IntervalSeconds = 30 }
+        [PSCustomObject] @{ObjectName = 'Memory'; CounterName = 'Page Faults/sec'; InstanceName = '*'; IntervalSeconds = 30 }
+        [PSCustomObject] @{ObjectName = 'Memory'; CounterName = 'Pages/sec'; InstanceName = '*'; IntervalSeconds = 30 }
+        [PSCustomObject] @{ObjectName = 'Memory'; CounterName = '% Committed Bytes In Use'; InstanceName = '*'; IntervalSeconds = 30 }
+        [PSCustomObject] @{ObjectName = 'PhysicalDisk'; CounterName = 'Avg. Disk sec/Read'; InstanceName = '*'; IntervalSeconds = 30 }
+        [PSCustomObject] @{ObjectName = 'PhysicalDisk'; CounterName = 'Avg. Disk sec/Transfer'; InstanceName = '*'; IntervalSeconds = 30 }
+        [PSCustomObject] @{ObjectName = 'PhysicalDisk'; CounterName = 'Avg. Disk sec/Write'; InstanceName = '*'; IntervalSeconds = 30 }
+        [PSCustomObject] @{ObjectName = 'PhysicalDisk'; CounterName = 'Avg. Disk Queue Length'; InstanceName = '*'; IntervalSeconds = 30 }
+        [PSCustomObject] @{ObjectName = 'Processor Information'; CounterName = '% Processor Time'; InstanceName = '_Total'; IntervalSeconds = 30 }
+        [PSCustomObject] @{ObjectName = 'User Input Delay per Process'; CounterName = 'Max Input Delay'; InstanceName = '*'; IntervalSeconds = 30 }
+        [PSCustomObject] @{ObjectName = 'User Input Delay per Session'; CounterName = 'Max Input Delay'; InstanceName = '*'; IntervalSeconds = 30 }
+    )
+    #Building and Hashtable for each Performance Counters where the key is the sample interval
+    $PerformanceCountersHT = $PerformanceCounters | Group-Object -Property IntervalSeconds -AsHashTable -AsString
+    $PerformanceCounters = foreach ($CurrentKey in $PerformanceCountersHT.Keys) {
+        $Name = "PerformanceCounters{0}" -f $CurrentKey
+        #Building the Performance Counter paths for each Performance Counter
+        $CounterSpecifier = foreach ($CurrentCounter in $PerformanceCountersHT[$CurrentKey]) {
+            "\{0}({1})\{2}" -f $CurrentCounter.ObjectName, $CurrentCounter.InstanceName, $CurrentCounter.CounterName
+        }
+        New-AzPerfCounterDataSourceObject -Name $Name -Stream Microsoft-Perf -CounterSpecifier $CounterSpecifier -SamplingFrequencyInSecond $CurrentKey
+    }
+
 }
 #endregion
 <#
-$DataCollectionEndpointName = "DCE-{0}" -f $LogAnalyticsWorkSpace.Name
+$DataCollectionEndpointName = "dce-{0}" -f $LogAnalyticsWorkSpace.Name
 $DataCollectionEndpoint = New-AzDataCollectionEndpoint -Name $DataCollectionEndpointName -ResourceGroupName $ResourceGroupName -Location $Location -NetworkAclsPublicNetworkAccess Enabled
 #>
-$DataCollectionRuleName = "DCR-{0}" -f $LogAnalyticsWorkSpace.Name
+$DataCollectionRuleName = "dcr-{0}" -f $LogAnalyticsWorkSpace.Name
 $DataFlow = New-AzDataFlowObject -Stream Microsoft-Perf, Microsoft-Event -Destination $LogAnalyticsWorkSpace.Name
 $DestinationLogAnalytic = New-AzLogAnalyticsDestinationObject -Name $LogAnalyticsWorkSpace.Name -WorkspaceResourceId $LogAnalyticsWorkSpace.ResourceId
 $DataCollectionRule = New-AzDataCollectionRule -Name $DataCollectionRuleName -ResourceGroupName $ResourceGroupName -Location $Location -DataFlow $DataFlow -DataSourcePerformanceCounter $PerformanceCounters -DataSourceWindowsEventLog $WindowsEventLogs -DestinationLogAnalytic $DestinationLogAnalytic #-DataCollectionEndpointId $DataCollectionEndpoint.Id
