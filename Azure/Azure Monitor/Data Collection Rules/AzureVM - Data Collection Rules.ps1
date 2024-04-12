@@ -337,7 +337,7 @@ Start-Sleep -Seconds 30
 #endregion
 
 #region Installing Azure Monitor Windows Agent on Virtual Machine(s)
-Write-Verbose -Message "Install AzureMonitorWindowsAgent on the '$($VM.Name)' Virtual Machine (in the '$CurrentHostPoolResourceGroupName' Resource Group) (As A Job) ..."
+Write-Verbose -Message "Installing AzureMonitorWindowsAgent on the '$($VM.Name)' Virtual Machine (in the '$ResourceGroupName' Resource Group) ..."
 $ExtensionName = "AzureMonitorWindowsAgent_$("{0:yyyyMMddHHmmss}" -f (Get-Date))"
 $Params = @{
     Name                   = $ExtensionName 
@@ -360,6 +360,8 @@ Write-Verbose -Message "Result: `r`n$($result | Out-String)"
 #Levels : 1 = Critical, 2 = Error, 3 = Warning. 
 #If we specify an input file
 if ($EventLogsFilePath) {
+    $EventLogsFilePath = (Resolve-Path -Path $EventLogsFilePath).Path
+    Write-Verbose -Message "Using the '$EventLogsFilePath' CSV file for Event Logs ..."
     $EventLogs = Import-Csv -Path $EventLogsFilePath
     $LevelsHT = @{
         "LogAlways"    = 0	
@@ -377,6 +379,7 @@ if ($EventLogsFilePath) {
     }
 }
 else {
+    Write-Verbose -Message "Using the default values for Event Logs ..."
     $EventLogs = @(
         [PSCustomObject] @{EventLogName = 'Application'; Levels = 1, 2, 3 }
         [PSCustomObject] @{EventLogName = 'System'; Levels = 2, 3 }
@@ -396,6 +399,8 @@ $WindowsEventLogs = New-AzWindowsEventLogDataSourceObject -Name WindowsEventLogs
 #region Performance Counters
 #If we specify an input file
 if ($PerformanceCountersFilePath) {
+    $PerformanceCountersFilePath = (Resolve-Path -Path $PerformanceCountersFilePath).Path
+    Write-Verbose -Message "Using the '$PerformanceCountersFilePath' CSV file for Performance Counters ..."
     $PerformanceCounters = Import-Csv -Path $PerformanceCountersFilePath
     #Building and Hashtable for each Performance Counters where the key is the sample interval
     $PerformanceCountersHT = $PerformanceCounters | Group-Object -Property IntervalSeconds -AsHashTable -AsString
@@ -407,6 +412,7 @@ if ($PerformanceCountersFilePath) {
     }
 }
 else {
+    Write-Verbose -Message "Using the default values for Performance Counters ..."
     $PerformanceCounters = @(
         [PSCustomObject] @{ObjectName = 'LogicalDisk'; CounterName = '% Free Space'; InstanceName = 'C:'; IntervalSeconds = 60 }
         [PSCustomObject] @{ObjectName = 'LogicalDisk'; CounterName = 'Avg. Disk Queue Length'; InstanceName = 'C:'; IntervalSeconds = 30 }
