@@ -71,7 +71,7 @@ The script is around 6000 lines of code and is divided into differents regions a
 
 At the start of the script, you'll see I created a PowerShell class for each HostPool type (Personal vs. Pooled). The both classes (PooledHostPool and PersonalHostPool) inherits from a base class (HostPool). The base class contains the common properties and methods for both HostPool types.
 > [!NOTE]
->> All details for these classes are available [here](./HostPoolClasses.md).
+> All details for these classes are available [here](./HostPoolClasses.md).
 
 The class defintions are loaded at the beginning of the script.
 
@@ -148,7 +148,7 @@ This scenario is covered and the AVD, FSLogix and MSIX settings are managed via 
 
 This scenario is covered and the AVD and FSLogix settings are either via Registry Keys (take a look to the [Set-AVDRegistryItemProperty.ps1](Set-AVDRegistryItemProperty.ps1) and [Set-FSLogixRegistryItemProperty.ps1](Set-FSLogixRegistryItemProperty.ps1) files) or via Intune if you enable it (via the `EnableIntune` function of the `HostPool` Powershell Class as explained [here](HostPoolClasses.md). The Intune settings are managed via the `New-FSLogixIntuneConfigurationProfileViaCmdlet`, `New-AzAvdIntuneConfigurationProfileViaCmdlet` and `New-IntunePowerShellScriptViaCmdlet` functions and the [Enable-NewPerformanceCounter.ps1](Enable-NewPerformanceCounter.ps1) script.
 > [!NOTE]
->> MSIX is not supported with EntraID as explained [here](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=msix-app-attach).
+> MSIX is not supported with EntraID as explained [here](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=msix-app-attach).
 
 #### Hybrid
 
@@ -159,7 +159,7 @@ This scenario is not covered for the moment
 If you have already deployed an Azure Virtual Desktop environment with the [New-AzAvdHostPoolSetup.ps1](New-AzAvdHostPoolSetup.ps1) script and want to perform a cleanup of the existing environment, you can use the `Remove-AzAvdHostPoolSetup` function. This function takes either a `$HostPool` array as parameter (so set the parameter values you used for the already deployed environement) or a JSON file. It will remove the previously generated resources (HostPool, Session Hosts, Application Groups, Workspace, etc.) based on the `$HostPool` array or the JSON file. A cleanup is also done in the Active Directory domain (removing the computer accounts of the Session Hosts and the Azure File Shares ...), Microsoft Entra ID, Intune and the Windows Credential Manager.
 You can also use the `Remove-AzAvdHostPoolSetup` function after the deployment to remove the environment if you are not satisfied with the result or to save costs after testing the deployed resources.
 > [!NOTE]
->> The JSON file is generated (in the script directory) as a backup or history file at every run (look for a call to the `GetPropertyForJSON()` function at the bottom of the script) and uses the following naming convention `HostPool_yyyyMMddHHmmss.json`).
+> The JSON file is generated (in the script directory) as a backup or history file at every run (look for a call to the `GetPropertyForJSON()` function at the bottom of the script) and uses the following naming convention `HostPool_yyyyMMddHHmmss.json`).
 
 ## Deployment
 
@@ -167,14 +167,14 @@ The `New-AzAvdHostPoolSetup` function is the main function of the script. It tak
 
 This function has a `-AsJob` parameter. When this switch is specified, the ressources will be deployed in parallel (via the [Start-ThreadJob](https://learn.microsoft.com/en-us/powershell/module/threadjob/start-threadjob?view=powershell-7.4&viewFallbackFrom=powershell-5.1) cmdlet) instead of sequentially. The processing time is greatly reduced from 4.5 hours to 1.5 hours (including the Azure Compute Gallery Setup if needed - without the Azure Compute Gallery Setup, the processing time are 3h30 sequentially  and 45 minutes in parallel). Nevertheless, sometimes the setup fails in parallel mode (some random errors occur) so I disencourage you to use this mode (The sequential mode is the default mode).
 > [!NOTE]
->> The impacted ressources by the parallel mode are only the HostPools. The Session Hosts are created in parallel (per Host Pool). The Job Management is done at the end of the `New-AzAvdHostPoolSetup` function.
+> The impacted ressources by the parallel mode are only the HostPools. The Session Hosts are created in parallel (per Host Pool). The Job Management is done at the end of the `New-AzAvdHostPoolSetup` function.
 
 > [!NOTE]
->> Before calling the `New-AzAvdHostPoolSetup` function, The `$HostPool` array is stored as JSON in a HostPool_yyyyMMddHHmmss.json file in the script folder. You can reuse this file as a reminder of your previous HostPool(s) configurations or for removing the previously deployed Azure resources (via a call to the `Remove-AzAvdHostPoolSetup` function.).
+> Before calling the `New-AzAvdHostPoolSetup` function, The `$HostPool` array is stored as JSON in a HostPool_yyyyMMddHHmmss.json file in the script folder. You can reuse this file as a reminder of your previous HostPool(s) configurations or for removing the previously deployed Azure resources (via a call to the `Remove-AzAvdHostPoolSetup` function.).
 
 > [!NOTE]
->> Some Tags are added to every deployed AVD Host Pool with related information about the underlying configuration.
->
+> Some Tags are added to every deployed AVD Host Pool with related information about the underlying configuration.
+
 ## Remote Desktop Connection Manager
 
 At the end of the deployment an RDCMan (\<domain name\>.rdg) file generated on the Desktop will all information to connect to the deployed Azure VMs. You can use this file with the [Remote Desktop Connection Manager](https://download.sysinternals.com/files/RDCMan.zip) tool to connect to the Session Hosts. For the Azure AD/Microsoft Entra ID joined VM, the local admin credentials are stored in this file for an easier connection. For the AD Domain joined VM, the current logged in user is used. You just have to fill the password. Right click on the AVD section, go to the "Logon Credentials" tab, uncheck "Inherit from parent" and fill the password. It will be inherited at the lower levels.
@@ -217,8 +217,9 @@ This function is called by the `New-AzAvdHostPoolSetup` function for every HostP
 - The ADJoin user (The related credentials are stored in the Azure Key Vault) is created if not already present and receives the required rights to add computer accounts to the Active Directory domain (via the `Grant-ADJoinPermission` function - more details [here](#azure-key-vault-for-credentials)).
 - If FSLogix is required:
   - A FSLogix file share (called `profiles`) is created in a dedicated Storage Account (the naming convention `fsl<HostPoolName without dashes and in lowercase>` is used via the `GetFSLogixStorageAccountName` of the `PooledHostPool` Powershell Class) on the dedicated resource group, the [required NTFS permissions](https://learn.microsoft.com/en-us/fslogix/how-to-configure-storage-permissions#recommended-acls) are set. Depending of Identity Provider configured (AD vs. EntraID with or without Intune) some additional configuration settings are also enabled (via respectively GPO Settings, Registry Keys or Intune configuration profiles and platform scripts - more details here). The credentials for the storage account are stored in Windows Credential Manager. A [redirections.xml](https://learn.microsoft.com/fr-fr/fslogix/tutorial-redirections-xml) file is also created in the file share. If Entra ID is used as identity provider, the MFA is disabled for the Storage Account (via the `New-NoMFAUserEntraIDGroup` and `New-MFAForAllUsersConditionalAccessPolicy` functions and a dedicated `[AVD] Require multifactor authentication for all users` (defaut value) Conditional Access Policy and a `No-MFA Users` (default value) Entra ID group for excluded users)
+  
   > [!NOTE]
-  >> An `odfc` fileshare is also created for the Office Container but it is not used for the moment.
+  > An `odfc` fileshare is also created for the Office Container but it is not used for the moment.
   - A Private Endpoint is created for the Storage Account and the required DNS configuration is also created.
   - If Active Directory is set as identity provider:
     - 3 dedicated AD security groups are created and the required role assignments are done
