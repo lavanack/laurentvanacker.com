@@ -16,7 +16,7 @@ The [AzureVM - Data Collection Rules.ps1](<AzureVM - Data Collection Rules.ps1>)
 
 ### Parameters
 
-The following paramteres are optional. When omitted, default values are used.
+The following parameters are optional. When omitted, default values are used (hard-coded in the [AzureVM - Data Collection Rules.ps1](<AzureVM - Data Collection Rules.ps1>) PowerShell script).
 
 #### PerformanceCountersFilePath
 
