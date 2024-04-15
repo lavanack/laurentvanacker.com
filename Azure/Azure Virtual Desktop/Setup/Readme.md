@@ -30,7 +30,7 @@
     - [What's next ?](#whats-next-)
 
 > [!IMPORTANT]
->> The [New-AzAvdHostPoolSetup.ps1](New-AzAvdHostPoolSetup.ps1) script is my version of an Azure Virtual Desktop (AVD) Proof Of Concept (POC) and is not intended to be used in production. It is provided "AS IS" without warranty of any. It was written during my rampup on AVD and to summarize in one location some best practices. It covers OnPrem and Azure setups in one PowerShell script.
+> The [New-AzAvdHostPoolSetup.ps1](New-AzAvdHostPoolSetup.ps1) script is my version of an Azure Virtual Desktop (AVD) Proof Of Concept (POC) and is not intended to be used in production. It is provided "AS IS" without warranty of any. It was written during my rampup on AVD and to summarize in one location some best practices. It covers OnPrem and Azure setups in one PowerShell script.
 > If you want to deploy a Microsoft supported version I recommend to use The Azure Virtual Desktop (AVD) Landing Zone Accelerator (LZA) available [here](https://github.com/Azure/avdaccelerator) (Covers only the Azure part)
 
 ## Prerequisites
@@ -42,7 +42,7 @@ Before continuing, make sure you have a domain controller (Windows Server with t
 - [https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell) (Only the New-AAD-Hybrid-Lab.ps1: Step-by-step guide is needed - the rest is optional)
 
 > [!IMPORTANT]
->> The [New-AzAvdHostPoolSetup.ps1](New-AzAvdHostPoolSetup.ps1) script has to be run from the Domain Controller (from any local folder) from an account with the domain administrator privileges. Azure privilege role is also required (Global Administrator for instance) to deploy the Azure resources.
+> The [New-AzAvdHostPoolSetup.ps1](New-AzAvdHostPoolSetup.ps1) script has to be run from the Domain Controller (from any local folder) from an account with the domain administrator privileges. Azure privilege role is also required (Global Administrator for instance) to deploy the Azure resources.
 
 ## What this script does ?
 
@@ -94,13 +94,13 @@ There are some use cases for every kind of HostPool type at the end of the scrip
 
 This class is used to defined the HostPool objects you want to deploy in Azure and the code will do the rest for you.
 > [!IMPORTANT]
->> These sample lines are the only lines you have to modify to deploy your own HostPool environment(s). You can also add more HostPools by adding more lines (with the same syntax) in the script ... or simply remove some lines if you don't want to deploy some HostPools. Feel free to customize the HostPool objects to your needs !
+> These sample lines are the only lines you have to modify to deploy your own HostPool environment(s). You can also add more HostPools by adding more lines (with the same syntax) in the script ... or simply remove some lines if you don't want to deploy some HostPools. Feel free to customize the HostPool objects to your needs !
 
 ### Required PowerShell Modules
 
 The script requires some PowerShell modules to be installed on the machine (ADDS Domain Controller) where you'll run the script. The script will check if the modules are installed and if not, it will install them for you.
 > [!WARNING]
->> In November 2023, I filled a bug (more details [here](https://github.com/Azure/azure-powershell/issues/23560)) on the 7+ version of the Az.Compute module preventing the successful run of the Azure Compute Gallery. When writing this documentation (March 2024), the bug was fixed in the version 7.1.2. I encourage you to use the 7.1.2 version (or later) of the Az.Compute module (and to uninstall all other versions). You can install it with the following PowerShell command line (from an elevated PowerShell Host):  
+> In November 2023, I filled a bug (more details [here](https://github.com/Azure/azure-powershell/issues/23560)) on the 7+ version of the Az.Compute module preventing the successful run of the Azure Compute Gallery. When writing this documentation (March 2024), the bug was fixed in the version 7.1.2. I encourage you to use the 7.1.2 version (or later) of the Az.Compute module (and to uninstall all other versions). You can install it with the following PowerShell command line (from an elevated PowerShell Host):  
 
 ```powershell:
 Uninstall-Module -Name Az.compute -AllVersions -Verbose
@@ -126,7 +126,7 @@ The `New-AzHostPoolSessionCredentialKeyVault` waits for two optional PSCredentia
 For `LocalAdminCredential`: If you don't specify it, `localadmin` will be used as the sAMAccountName and the password will be randomly generated (via the `New-RandomPassword` function).
 For `ADJoinCredential`: If you don't specify it, `adjoin` will be used as the sAMAccountName and the password will also be randomly generated (via the `New-RandomPassword` function).
 > [!IMPORTANT]
->> If you specify the `ADJoinCredential` parameter and the account doesn't exist in the Active Directory, it will be created later in the script processing (in the `Grant-ADJoinPermission` function). But if the account already exists in the Active Directory, you have to specify the current sAMAccountNAme and password for this account.
+> If you specify the `ADJoinCredential` parameter and the account doesn't exist in the Active Directory, it will be created later in the script processing (in the `Grant-ADJoinPermission` function). But if the account already exists in the Active Directory, you have to specify the current sAMAccountNAme and password for this account.
 
 ### Azure Compute Gallery
 
