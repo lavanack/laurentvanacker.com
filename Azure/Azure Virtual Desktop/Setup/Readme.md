@@ -202,8 +202,10 @@ Ths function is the core function of the script. It proceeds as follows:
   - Enabling and using the new [performance counters](https://learn.microsoft.com/en-us/training/modules/install-configure-apps-session-host/10-troubleshoot-application-issues-user-input-delay)
 - The `AVD/PersonalDesktops` and `AVD/PooledDesktops` OUs are also created
 - The following Starter GPOs `Group Policy Reporting Firewall Ports` and `Group Policy Remote Update Firewall Ports` are also created and linked to the `AVD` OU
+- Two starter GPOs (`Group Policy Reporting Firewall Ports` and `Group Policy Reporting Firewall Ports`) are also imported.
 - The `Desktop Virtualization Power On Off Contributor` role-based access control (RBAC) role is assigned to the Azure Virtual Desktop service principal with your Azure subscription as the assignable scope. More details [here](https://learn.microsoft.com/en-us/azure/virtual-desktop/start-virtual-machine-connect?tabs=azure-portal#assign-the-desktop-virtualization-power-on-contributor-role-with-the-azure-portal).
 - Every HostPool is processed based on its type (more details [here](HostPoolClasses.md)) by calling either the `New-AzAvdPersonalHostPoolSetup` or the `New-AzAvdPooledHostPoolSetup` function (sequentially or via a parallel processing if the `-AsJob` switch is specified - but not recommended as explained above !).
+- The same random number is used for the Index for the Personal and Pooled host pool index to minimize the risk of name collisions per Azure region.
 
 ### New-AzAvdPooledHostPoolSetup
 
@@ -313,7 +315,7 @@ Some helper functions are also available in the script and are documented here :
 - `Get-AzVMCompute`:
 - `New-AzAvdSessionHost`: Creates a Session Host
 - `Add-AzAvdSessionHost`: Adds a Session Host to a HostPool
-- `Copy-MSIXDemoAppAttachPackage`: Copy some MSIX artifacts from my [GitHub](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/MSIX) to the dedicated storage account.
+- `Copy-MSIXDemoAppAttachPackage`: Copy some MSIX artifacts (Notepad++) from my [GitHub](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/MSIX) to the dedicated storage account.
 - `Copy-MSIXDemoPFXFile`: Copied the PFX file from my [GitHub](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/MSIX) to the session hosts.
 - `Wait-PSSession`: Waits for a PowerShell session to be available on the specified hosts (via the [New-PSSession](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/new-pssession) cmdlet)
 - `Wait-AzVMPowerShell`: Waits for a session is ready for a Powershell Session (via the [Invoke-AzVMRunCommand](https://learn.microsoft.com/en-us/powershell/module/az.compute/invoke-azvmruncommand) cmdlet).
@@ -358,6 +360,14 @@ At the end of the deployment, the following deliverables are available (the foll
 - Some AD Computers Objects
   
 ![ADDS Computers](docs/ADDSComputers.jpg)
+
+- Intune
+  - Devices
+![Intune Devices](docs/IntuneDevices.jpg)
+  - Configuration Profiles
+![Intune Configuration Profiles](docs/IntuneConfigurationProfiles.jpg)
+  - Platform Scripts
+![Intune Configuration Profiles](docs/IntunePlatformScripts.jpg)
 
 ### Limitations
 
