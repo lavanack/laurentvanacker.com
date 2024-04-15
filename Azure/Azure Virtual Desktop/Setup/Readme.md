@@ -220,22 +220,23 @@ This function is called by the `New-AzAvdHostPoolSetup` function for every HostP
 - If FSLogix is required:
   - A FSLogix file share (called `profiles`) is created in a dedicated Storage Account (the naming convention `fsl<HostPoolName without dashes and in lowercase>` is used via the `GetFSLogixStorageAccountName` of the `PooledHostPool` Powershell Class) on the dedicated resource group, the [required NTFS permissions](https://learn.microsoft.com/en-us/fslogix/how-to-configure-storage-permissions#recommended-acls) are set. Depending of Identity Provider configured (AD vs. EntraID with or without Intune) some additional configuration settings are also enabled (via respectively GPO Settings, Registry Keys or Intune configuration profiles and platform scripts - more details here). The credentials for the storage account are stored in Windows Credential Manager. A [redirections.xml](https://learn.microsoft.com/fr-fr/fslogix/tutorial-redirections-xml) file is also created in the file share. If Entra ID is used as identity provider, the MFA is disabled for the Storage Account (via the `New-NoMFAUserEntraIDGroup` and `New-MFAForAllUsersConditionalAccessPolicy` functions and a dedicated `[AVD] Require multifactor authentication for all users` (defaut value) Conditional Access Policy and a `No-MFA Users` (default value) Entra ID group for excluded users)
   
-  > [!NOTE]
-  > An `odfc` fileshare is also created for the Office Container but it is not used for the moment.
-  - A Private Endpoint is created for the Storage Account and the required DNS configuration is also created.
-  - If Active Directory is set as identity provider:
-    - 3 dedicated AD security groups are created and the required role assignments are done
-      - `<HostPoolName> - FSLogix Contributor` (`Storage File Data SMB Share Contributor` role assignment on the Azure File Share): This AD group will contain the end-users that will have a FSLogix Profile Container (all test users - via the `AVD Users` AD security Group).
-      - `<HostPoolName> - FSLogix Elevated Contributor` (`Storage File Data SMB Share Elevated Contributor` role assignment on the Azure File Share)
-      - `<HostPoolName> - FSLogix Reader` (`Storage File Data SMB Share Reader` role assignment on the Azure File Share)
-    - A GPO is also created (name: `<HostPoolName> - FSLogix Settings`) with some settings for:
-      - [Profile Container](https://learn.microsoft.com/en-us/fslogix/tutorial-configure-profile-containers#profile-container-configuration)
-      - [Timezone redirection](https://learn.microsoft.com/en-us/azure/virtual-desktop/set-up-customize-master-image#set-up-time-zone-redirection)
-      - [Disabling automatic updates](https://learn.microsoft.com/en-us/azure/virtual-desktop/set-up-customize-master-image#disable-automatic-updates)
-      - [Disabling Storage Sense](https://learn.microsoft.com/en-us/azure/virtual-desktop/set-up-customize-master-image#disable-storage-sense)
-      - [Setting antivirus exclusions](https://learn.microsoft.com/en-us/fslogix/overview-prerequisites#configure-antivirus-file-and-folder-exclusions)
-      - A FSLogix Profile Container exclusion is set for the `Domain Admins` AD group
-  - If Entra ID is set as identity provider, the above settings are managed via a dedicated configuration profile (The naming convention `[<HostPool Name>] AVD Policy` is used)
+> [!NOTE]
+> An `odfc` fileshare is also created for the Office Container but it is not used for the moment.
+  
+- A Private Endpoint is created for the Storage Account and the required DNS configuration is also created.
+- If Active Directory is set as identity provider:
+  - 3 dedicated AD security groups are created and the required role assignments are done
+    - `<HostPoolName> - FSLogix Contributor` (`Storage File Data SMB Share Contributor` role assignment on the Azure File Share): This AD group will contain the end-users that will have a FSLogix Profile Container (all test users - via the `AVD Users` AD security Group).
+    - `<HostPoolName> - FSLogix Elevated Contributor` (`Storage File Data SMB Share Elevated Contributor` role assignment on the Azure File Share)
+    - `<HostPoolName> - FSLogix Reader` (`Storage File Data SMB Share Reader` role assignment on the Azure File Share)
+  - A GPO is also created (name: `<HostPoolName> - FSLogix Settings`) with some settings for:
+    - [Profile Container](https://learn.microsoft.com/en-us/fslogix/tutorial-configure-profile-containers#profile-container-configuration)
+    - [Timezone redirection](https://learn.microsoft.com/en-us/azure/virtual-desktop/set-up-customize-master-image#set-up-time-zone-redirection)
+    - [Disabling automatic updates](https://learn.microsoft.com/en-us/azure/virtual-desktop/set-up-customize-master-image#disable-automatic-updates)
+    - [Disabling Storage Sense](https://learn.microsoft.com/en-us/azure/virtual-desktop/set-up-customize-master-image#disable-storage-sense)
+    - [Setting antivirus exclusions](https://learn.microsoft.com/en-us/fslogix/overview-prerequisites#configure-antivirus-file-and-folder-exclusions)
+    - A FSLogix Profile Container exclusion is set for the `Domain Admins` AD group
+- If Entra ID is set as identity provider, the above settings are managed via a dedicated configuration profile (The naming convention `[<HostPool Name>] AVD Policy` is used)
 - If MSIX is required (only supported with Active Directory as Identity Provider):
   - A MSIX file share (called `msix`) is created in a dedicated Storage Account (the naming convention `msix<HostPoolName without dashes and in lowercase>`) on the dedicated resource group, the [required NTFS permissions](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=msix-app-attach#permissions) are set and the account is registered in the Active Directory Domain. The credentials for the storage account are stored in Windows Credential Manager.
   - A Private Endpoint is created for the Storage Account and the required DNS configuration is also created.
