@@ -20,9 +20,9 @@ of the Sample Code.
 [CmdletBinding()]
 param
 (
-    [ValidateScript({ (Test-Path -Path $_ -PathType Leaf) -and ($_ -match "\.csv$") })]
+    [ValidateScript({ (Test-Path -Path $_ -PathType Leaf) -and ($_ -match "\.csv$|\.json$") })]
     [string] $PerformanceCountersFilePath,
-    [ValidateScript({ (Test-Path -Path $_ -PathType Leaf) -and ($_ -match "\.csv$") })]
+    [ValidateScript({ (Test-Path -Path $_ -PathType Leaf) -and ($_ -match "\.csv$|\.json$") })]
     [string] $EventLogsFilePath
 )
 
@@ -140,10 +140,6 @@ if ($ResourceGroup) {
     $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
 }
 $MyPublicIp = (Invoke-WebRequest -Uri "https://ipv4.seeip.org").Content
-$DSCFileName = "WebServerDSC.ps1"
-$DSCFilePath = Join-Path -Path $CurrentDir -ChildPath $DSCFileName
-$ConfigurationName = "WebServerConfiguration"
-
 
 #region Define Variables needed for Virtual Machine
 $ImagePublisherName = "MicrosoftWindowsServer"
@@ -183,6 +179,7 @@ elseif ($null -eq (Get-AzVMSize -Location $Location | Where-Object -FilterScript
 #Step 1: Create Azure Resource Group
 # Create Resource Groups
 $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
+
 
 #Step 2: Create Azure Storage Account
 $StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true
@@ -361,8 +358,6 @@ Write-Verbose -Message "Result: `r`n$($result | Out-String)"
 #If we specify an input file
 if ($EventLogsFilePath) {
     $EventLogsFilePath = (Resolve-Path -Path $EventLogsFilePath).Path
-    Write-Verbose -Message "Using the '$EventLogsFilePath' CSV file for Event Logs ..."
-    $EventLogs = Import-Csv -Path $EventLogsFilePath
     $LevelsHT = @{
         "LogAlways"    = 0	
         "Critical"     = 1	
@@ -370,6 +365,14 @@ if ($EventLogsFilePath) {
         "Warning"      = 3
         "Informationa" = 4	
         "Verbose"      = 5	
+    }
+    if ($EventLogsFilePath -match "\.csv$") {
+        Write-Verbose -Message "Using the '$EventLogsFilePath' CSV file for Event Logs ..."
+        $EventLogs = Import-Csv -Path $EventLogsFilePath
+    }
+    else {
+        Write-Verbose -Message "Using the '$EventLogsFilePath' JSON file for Event Logs ..."
+        $EventLogs = Get-content -Path $EventLogsFilePath -Raw | ConvertFrom-Json -Verbose 
     }
     $EventLogs = foreach ($CurrentEventLog in $EventLogs) {
         $CurrentEventLogLevels = foreach ($CurrentEventLogLevel in $CurrentEventLog.Levels -split ',') {
@@ -400,8 +403,14 @@ $WindowsEventLogs = New-AzWindowsEventLogDataSourceObject -Name WindowsEventLogs
 #If we specify an input file
 if ($PerformanceCountersFilePath) {
     $PerformanceCountersFilePath = (Resolve-Path -Path $PerformanceCountersFilePath).Path
-    Write-Verbose -Message "Using the '$PerformanceCountersFilePath' CSV file for Performance Counters ..."
-    $PerformanceCounters = Import-Csv -Path $PerformanceCountersFilePath
+    if ($PerformanceCountersFilePath -match "\.csv$") {
+        Write-Verbose -Message "Using the '$PerformanceCountersFilePath' CSV file for Performance Counters ..."
+        $PerformanceCounters = Import-Csv -Path $PerformanceCountersFilePath
+    }
+    else {
+        Write-Verbose -Message "Using the '$PerformanceCountersFilePath' JSON file for Performance Counters ..."
+        $PerformanceCounters = Get-content -Path $PerformanceCountersFilePath -Raw | ConvertFrom-Json -Verbose 
+    }
     #Building and Hashtable for each Performance Counters where the key is the sample interval
     $PerformanceCountersHT = $PerformanceCounters | Group-Object -Property IntervalSeconds -AsHashTable -AsString
     $PerformanceCounters = foreach ($CurrentKey in $PerformanceCountersHT.Keys) {

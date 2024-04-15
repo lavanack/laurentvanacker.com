@@ -1,7 +1,7 @@
 "Counter", "IntervalSeconds"
 "\LogicalDisk(C:)\% Free Space", "60"
 "\LogicalDisk(C:)\Avg. Disk Queue Length", "30"
-"\LogicalDisk(C:)\Avg. Disk sec/Transfer", "30"
+"\LogicalDisk(C:)\Avg. Disk sec/Transfer", "60"
 "\LogicalDisk(C:)\Current Disk Queue Length", "30"
 "\Memory(*)\Available Mbytes", "30"
 "\Memory(*)\Page Faults/sec", "30"
