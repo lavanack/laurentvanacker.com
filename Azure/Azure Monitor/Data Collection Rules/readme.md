@@ -12,7 +12,7 @@
 
 ### Purpose
 
-The [AzureVM - Data Collection Rules.ps1](<AzureVM - Data Collection Rules.ps1>) PowerShell script creates an Azure Virtual machine running `Windows Server 20222 - DataCenter` with the [Azure Monitor Agent](https://learn.microsoft.com/en-us/azure/azure-monitor/agents/agents-overview) extension installed. A [Data collection Rule](https://learn.microsoft.com/en-us/azure/azure-monitor/essentials/data-collection-rule-overview) is also created to collect some Windows Event Logs and Performance Counters.
+The [AzureVM - Data Collection Rules.ps1](<AzureVM - Data Collection Rules.ps1>) PowerShell script creates an Azure Virtual machine running `Windows Server 20222 - DataCenter` with the [Azure Monitor Agent](https://learn.microsoft.com/en-us/azure/azure-monitor/agents/agents-overview) extension installed. A [Data collection Rule](https://learn.microsoft.com/en-us/azure/azure-monitor/essentials/data-collection-rule-overview) is also created to collect some Windows Event Logs and Performance Counters and send them to a dedicated Log Analytics Workspace.
 
 ### Parameters
 
