@@ -377,6 +377,9 @@ At the end of the deployment, the following deliverables are available (the foll
   - Platform Scripts
   ![Intune Configuration Profiles](docs/IntunePlatformScripts.jpg)
 
+- Workspaces
+  ![Workspaces](docs/Workspaces.jpg)
+
 ### Limitations
 
 - We will use the Virtual Network used for the Domain Controller. It is not recommended to use the same Virtual Network for the Domain Controller and the Session Hosts. It is recommended to use a dedicated Virtual Network for the Session Hosts. This is not implemented in the script for the moment.
@@ -404,9 +407,9 @@ The script will deploy the following Azure resources (ordered by alphabetical or
   - Session Hosts (Azure Virtual Machines, Azure Disk, Azure Network Interface, Azure Virtual Machine Extension)
   - Scaling Plans
 - Data Collection Rules
-- EntraID Security Groups
-- EntraID Dynamic Groups
 - EntraID Conditional Access Policies
+- EntraID Dynamic Groups
+- EntraID Security Groups
 - Intune
   - Devices
   - Intune Configuration Profiles
