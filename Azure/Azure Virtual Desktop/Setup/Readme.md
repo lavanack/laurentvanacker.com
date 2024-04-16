@@ -1,6 +1,6 @@
 # Azure Virtual Desktop -Proof Of Concept - PowerShell version
 
-- [Azure Virtual Desktop -Proof Of Concept - PowerShell version](#azure-virtual-desktop--proof-of-concept---powershell-version)
+- [Azure Virtual Desktop - Proof Of Concept - PowerShell version](#azure-virtual-desktop--proof-of-concept---powershell-version)
   - [Prerequisites](#prerequisites)
   - [What this script does ?](#what-this-script-does-)
   - [TL;DR](#tldr)
