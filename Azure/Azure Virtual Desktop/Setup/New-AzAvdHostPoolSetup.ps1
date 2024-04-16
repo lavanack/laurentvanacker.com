@@ -6084,7 +6084,7 @@ $HostPools = @(
     [PooledHostPool]::new($HostPoolSessionCredentialKeyVault).EnableIntune()
     # Use case 4: Deploy a Personal HostPool with 4 Session Hosts (AD Domain joined and without FSLogix and MSIX - Not necessary for Personal Desktops)
     [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault).SetVMNumberOfInstances(4)
-    # Use case 5: Deploy a Personal HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined and without FSLogix and MSIX - Not necessary for Personal Desktops)
+    # Use case 5: Deploy a Personal HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined and without FSLogix and MSIX - Not necessary for Personal Desktops) and Hibernation enabled
     [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableHibernation()
 )
 
