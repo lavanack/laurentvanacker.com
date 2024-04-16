@@ -27,33 +27,34 @@
       - [Others](#others)
     - [Deliverables](#deliverables)
     - [Limitations](#limitations)
+    - [Azure Resources](#azure-resources)
     - [What's next ?](#whats-next-)
 
 > [!IMPORTANT]
-> The [New-AzAvdHostPoolSetup.ps1](New-AzAvdHostPoolSetup.ps1) script is my version of an Azure Virtual Desktop (AVD) Proof Of Concept (POC) and is not intended to be used in production. It is provided "AS IS" without warranty of any. It was written during my rampup on AVD and to summarize in one location some best practices. It covers OnPrem and Azure setups in one PowerShell script.
-> If you want to deploy a Microsoft supported version I recommend to use The Azure Virtual Desktop (AVD) Landing Zone Accelerator (LZA) available [here](https://github.com/Azure/avdaccelerator) (Covers only the Azure part)
+> The script [New-AzAvdHostPoolSetup.ps1](Azure/Azure Virtual Desktop/New-AzAvdHostPoolSetup.ps1) is my take on an Azure Virtual Desktop (AVD) Proof Of Concept (POC). It's not designed for production use and comes with no guarantees. I created it during my learning phase with AVD, aiming to consolidate some best practices. The script encompasses both OnPrem and Azure configurations in a single PowerShell script.
+> For a Microsoft-supported version deployment, I suggest using the Azure Virtual Desktop (AVD) Landing Zone Accelerator (LZA), which is available [here](https://github.com/Azure/avdaccelerator). Please note that this only covers the Azure component.
 
 ## Prerequisites
 
-Before continuing, make sure you have a domain controller (Windows Server with the Active Directory Directory Services role installed and configured) available in your Azure subscription. If not, you can use one of the following links to create these resources (from the least preferred to the most preferred option):
+Before proceeding, ensure that a domain controller is present in your Azure subscription. This requires a Windows Server with the Active Directory Directory Services role installed and configured. If this is not already set up, you can use the following links to create these resources. The options are listed from least to most preferred:
 
 - [https://aka.ms/m365avdws](https://aka.ms/m365avdws)
 - [https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab)
 - [https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell) (Only the New-AAD-Hybrid-Lab.ps1: Step-by-step guide is needed - the rest is optional)
 
 > [!IMPORTANT]
-> The [New-AzAvdHostPoolSetup.ps1](New-AzAvdHostPoolSetup.ps1) script has to be run from the Domain Controller (from any local folder) from an account with the domain administrator privileges. Azure privilege role is also required (Global Administrator for instance) to deploy the Azure resources.
-
+> The [New-AzAvdHostPoolSetup.ps1](New-AzAvdHostPoolSetup.ps1) script has to be executed from the Domain Controller (from any local folder) using an account with domain administrator privileges. An Azure privilege role (for example, Global Administrator) is also necessary to deploy the Azure resources.
+>
 ## What this script does ?
 
-The goal of this script is to deploy multiple full Azure Virtual Desktop environments in a few minutes (or hours). The script is based on the Microsoft documentation and best practices.
-Every script execution will generate a timestamped transcript in the script directory.
+This script is designed to quickly deploy multiple full Azure Virtual Desktop environments, in minutes to hours. It adheres to Microsoft documentation and recommended practices.
+Each time the script is run, a transcription with a timestamp will be created in the script directory.
 
 ## TL;DR
 
 If you don't want to continue reading, here is the [TL;DR](https://dictionary.cambridge.org/dictionary/english/tldr) version:
 
-- The script, with its default values, will deploy 7 HostPools (5 Pooled and 2 Personal). Modify the HostPool objects to deploy your own HostPools by modifying the lines in the following region:
+- By default, this script will set up 7 HostPools (5 Pooled and 2 Personal). You can customize the HostPools that are deployed by altering the lines in the specified region:
 
 ```powershell:
 #region Creating Host Pools
@@ -69,13 +70,14 @@ The script is around 6000 lines of code and is divided into differents regions a
 
 ### HostPool PowerShell Classes
 
-At the start of the script, you'll see I created a PowerShell class for each HostPool type (Personal vs. Pooled). The both classes (PooledHostPool and PersonalHostPool) inherits from a base class (HostPool). The base class contains the common properties and methods for both HostPool types.
+At the beginning of the script, you'll notice that I've established a PowerShell class for each type of HostPool (Personal and Pooled). Both these classes (PooledHostPool and PersonalHostPool) are derived from a base class (HostPool). This base class encapsulates the properties and methods that are common to both types of HostPools.
+
 > [!NOTE]
 > All details for these classes are available [here](./HostPoolClasses.md).
 
-The class defintions are loaded at the beginning of the script.
+The script initiates by loading the class definitions.
 
-There are some use cases for every kind of HostPool type at the end of the script to define the HostPool type you want to deploy:
+At the end of the script, there are examples for each type of HostPool. These examples can help you determine the type of HostPool you wish to deploy:
 
 ```powershell:
 # Use case 1: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with FSLogix
@@ -94,11 +96,12 @@ There are some use cases for every kind of HostPool type at the end of the scrip
 
 This class is used to defined the HostPool objects you want to deploy in Azure and the code will do the rest for you.
 > [!IMPORTANT]
-> These sample lines are the only lines you have to modify to deploy your own HostPool environment(s). You can also add more HostPools by adding more lines (with the same syntax) in the script ... or simply remove some lines if you don't want to deploy some HostPools. Feel free to customize the HostPool objects to your needs !
+> The only lines you need to change to set up your own HostPool environments are these sample lines. If you want to add more HostPools, just include more lines following the same format in the script. Conversely, you can delete lines if you don't want to deploy certain HostPools. You're encouraged to tailor the HostPool objects to suit your requirements!
 
 ### Required PowerShell Modules
 
-The script requires some PowerShell modules to be installed on the machine (ADDS Domain Controller) where you'll run the script. The script will check if the modules are installed and if not, it will install them for you.
+The script requires certain PowerShell modules to be present on the machine (ADDS Domain Controller) where the script will be executed. The script is designed to verify the presence of these modules and will automatically install them if they are not found.
+
 > [!WARNING]
 > In November 2023, I filled a bug (more details [here](https://github.com/Azure/azure-powershell/issues/23560)) on the 7+ version of the Az.Compute module preventing the successful run of the Azure Compute Gallery. When writing this documentation (March 2024), the bug was fixed in the version 7.1.2. I encourage you to use the 7.1.2 version (or later) of the Az.Compute module (and to uninstall all other versions). You can install it with the following PowerShell command line (from an elevated PowerShell Host):  
 
@@ -138,6 +141,9 @@ $AzureComputeGallery = Get-AzGallery ...
 $GalleryImageDefinition = Get-AzGalleryImageDefinition -GalleryName ...
 ```
 
+> [!NOTE]
+> Each run will generate a new Azure Compute Gallery and increase the processing time by around  45 minutes.= if you don't comment the call to the `New-AzComputeGallery` function.
+
 ### Identity Providers
 
 #### Active Directory
@@ -165,7 +171,8 @@ You can also use the `Remove-AzAvdHostPoolSetup` function after the deployment t
 
 The `New-AzAvdHostPoolSetup` function is the main function of the script. It takes an `$HostPool` array as parameter (so set the parameter values you want for the HostPool(s) you want to deploy). It will deploy all the resources needed for the HostPool(s) based on the `$HostPool` array. All information on configuring the HostPool(s) can be found [here](#hostpool-powershell-classes).
 
-This function has a `-AsJob` parameter. When this switch is specified, the ressources will be deployed in parallel (via the [Start-ThreadJob](https://learn.microsoft.com/en-us/powershell/module/threadjob/start-threadjob?view=powershell-7.4&viewFallbackFrom=powershell-5.1) cmdlet) instead of sequentially. The processing time is greatly reduced from 4.5 hours to 1.5 hours (including the Azure Compute Gallery Setup if needed - without the Azure Compute Gallery Setup, the processing time are 3h30 sequentially  and 45 minutes in parallel). Nevertheless, sometimes the setup fails in parallel mode (some random errors occur) so I disencourage you to use this mode (The sequential mode is the default mode).
+> [!WARNING]
+> This function has a `-AsJob` parameter. When this switch is specified, the ressources will be deployed in parallel (via the [Start-ThreadJob](https://learn.microsoft.com/en-us/powershell/module/threadjob/start-threadjob?view=powershell-7.4&viewFallbackFrom=powershell-5.1) cmdlet) instead of sequentially. The processing time is greatly reduced from 4.5 hours to 1.5 hours (including the Azure Compute Gallery Setup if needed - without the Azure Compute Gallery Setup, the processing time are 3h30 sequentially  and 45 minutes in parallel). Nevertheless, sometimes the setup fails in parallel mode (some random errors occur) so I disencourage you to use this mode (The sequential mode is the default mode).
 > [!NOTE]
 > The impacted ressources by the parallel mode are only the HostPools. The Session Hosts are created in parallel (per Host Pool). The Job Management is done at the end of the `New-AzAvdHostPoolSetup` function.
 
@@ -183,18 +190,18 @@ At the end of the deployment an RDCMan (\<domain name\>.rdg) file generated on t
 
 ## Testing
 
-After a successful deployment, you can connect by using either [Remote Desktop Web Client](https://client.wvd.microsoft.com/arm/webclient/index.html), [Windows 365](https://windows365.microsoft.com/) or the [windows App](https://www.microsoft.com/store/productId/9N1F85V9T8BN?ocid=pdpshare) site and use one the of the test users (available in the `OrgUsers` OU).
+After a successful deployment, you can connect by using either [Remote Desktop Web Client](https://client.wvd.microsoft.com/arm/webclient/index.html), [Windows 365](https://windows365.microsoft.com/) or the [windows App](https://www.microsoft.com/store/productId/9N1F85V9T8BN?ocid=pdpshare) site and use one of the test users (available in `AVD Users` AD group in the `OrgUsers` OU).
 
 ## Technical Details
 
-If you want to know more about the `New-AzAvdHostPooledPoolSetup`, `New-AzAvdHostPersonalPoolSetup` and `New-AzAvdHostPoolSetup` main functions, you can read the paragraph else happy testing ;)
+If you want to know more about the `New-AzAvdHostPooledPoolSetup`, `New-AzAvdHostPersonalPoolSetup` and `New-AzAvdHostPoolSetup` main functions, you can read the paragraph otherwise good test ;)
 
 ### New-AzAvdHostPoolSetup
 
-Ths function is the core function of the script. It proceeds as follows:
+This function serves as the backbone of the script and operates in the following manner:
 
 - The required DNS forwarders are created in the Active Directory DNS (if not already present) for the Azure File Shared and the Azure Key Vaults.
-- The `AVD` Organization Unit (OU) is created in the Active Directory domain (if not already present). A GPO is created and linked to this OU is Active Directory is configured as the identity provider. If EntraID is choosen a deidcated Intune Configuration profile is created (The naming convention `[<HostPool Name>] AVD Policy` is used ). The following settings are configured:
+- The `AVD` Organization Unit (OU) is created in the Active Directory domain (if not already present). A GPO is created and linked to this OU if Active Directory is configured as the identity provider. If EntraID is choosen, a dedicated Intune Configuration profile is created (The naming convention `[<HostPool Name>] AVD Policy` is used ). The following settings are configured:
   - Network Settings
   - Session Time Settings
   - Enabing [Screen Capture Protection](https://learn.microsoft.com/en-us/azure/virtual-desktop/screen-capture-protection)
@@ -218,7 +225,7 @@ This function is called by the `New-AzAvdHostPoolSetup` function for every HostP
 - A dedicated Azure Resource Group is created for the HostPool (the naming convention `rg-avd-<HostPoolName>` is used via the `GetResourceGroupName()` function of the `HostPool` Powershell Class as explained [here](HostPoolClasses.md))
 - The ADJoin user (The related credentials are stored in the Azure Key Vault) is created if not already present and receives the required rights to add computer accounts to the Active Directory domain (via the `Grant-ADJoinPermission` function - more details [here](#azure-key-vault-for-credentials)).
 - If FSLogix is required:
-  - A FSLogix file share (called `profiles`) is created in a dedicated Storage Account (the naming convention `fsl<HostPoolName without dashes and in lowercase>` is used via the `GetFSLogixStorageAccountName` of the `PooledHostPool` Powershell Class) on the dedicated resource group, the [required NTFS permissions](https://learn.microsoft.com/en-us/fslogix/how-to-configure-storage-permissions#recommended-acls) are set. Depending of Identity Provider configured (AD vs. EntraID with or without Intune) some additional configuration settings are also enabled (via respectively GPO Settings, Registry Keys or Intune configuration profiles and platform scripts - more details here). The credentials for the storage account are stored in Windows Credential Manager. A [redirections.xml](https://learn.microsoft.com/fr-fr/fslogix/tutorial-redirections-xml) file is also created in the file share. If Entra ID is used as identity provider, the MFA is disabled for the Storage Account (via the `New-NoMFAUserEntraIDGroup` and `New-MFAForAllUsersConditionalAccessPolicy` functions and a dedicated `[AVD] Require multifactor authentication for all users` (defaut value) Conditional Access Policy and a `No-MFA Users` (default value) Entra ID group for excluded users)
+  - A FSLogix file share (called `profiles`) is created in a dedicated Storage Account (the naming convention `fsl<HostPoolName without dashes and in lowercase>` is used via the `GetFSLogixStorageAccountName()` function of the `PooledHostPool` Powershell Class) on the dedicated resource group, the [required NTFS permissions](https://learn.microsoft.com/en-us/fslogix/how-to-configure-storage-permissions#recommended-acls) are set. Depending of Identity Provider configured (AD vs. EntraID with or without Intune) some additional configuration settings are also enabled (via respectively GPO Settings, Registry Keys or Intune configuration profiles and platform scripts). The credentials for the storage account are stored in Windows Credential Manager. A [redirections.xml](https://learn.microsoft.com/fr-fr/fslogix/tutorial-redirections-xml) file is also created in the file share. If Entra ID is used as identity provider, the MFA is disabled for the Storage Account (via the `New-NoMFAUserEntraIDGroup` and `New-MFAForAllUsersConditionalAccessPolicy` functions and a dedicated `[AVD] Require multifactor authentication for all users` (defaut value) Conditional Access Policy and a `No-MFA Users` (default value) Entra ID group for the excluded users)
   
 > [!NOTE]
 > An `odfc` fileshare is also created for the Office Container but it is not used for the moment.
@@ -236,7 +243,7 @@ This function is called by the `New-AzAvdHostPoolSetup` function for every HostP
     - [Disabling Storage Sense](https://learn.microsoft.com/en-us/azure/virtual-desktop/set-up-customize-master-image#disable-storage-sense)
     - [Setting antivirus exclusions](https://learn.microsoft.com/en-us/fslogix/overview-prerequisites#configure-antivirus-file-and-folder-exclusions)
     - A FSLogix Profile Container exclusion is set for the `Domain Admins` AD group
-- If Entra ID is set as identity provider, the above settings are managed via a dedicated configuration profile (The naming convention `[<HostPool Name>] AVD Policy` is used)
+- If Entra ID is set as identity provider, the above settings are managed via a dedicated Intune configuration profile (The naming convention `[<HostPool Name>] AVD Policy` is used)
 - If MSIX is required (only supported with Active Directory as Identity Provider):
   - A MSIX file share (called `msix`) is created in a dedicated Storage Account (the naming convention `msix<HostPoolName without dashes and in lowercase>`) on the dedicated resource group, the [required NTFS permissions](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=msix-app-attach#permissions) are set and the account is registered in the Active Directory Domain. The credentials for the storage account are stored in Windows Credential Manager.
   - A Private Endpoint is created for the Storage Account and the required DNS configuration is also created.
@@ -251,10 +258,10 @@ This function is called by the `New-AzAvdHostPoolSetup` function for every HostP
 - An Azure Key Vault is also created (with the naming convention `kv-<HostPoolName without dashes and in lowercase>` via the `GetKeyVaultName()` function of the `$HostPool` PowerShell class) on the dedicated resource group. This KeyVault is secured via a Private Endpoint and the required DNS configuration is also created. This KeyVault is deployed for testing purpose only and is not used for the moment.
 - A Pooled Hostpool is also created.
 - A Desktop Application Group is also created (with the naming convention `<HostPoolName>- DAG`) and the `Desktop Virtualization User` RBAC role is assigned to the `<HostPoolName> - Desktop Application Group Users` AD security group.
-- A Remote Application Group is also created (with the naming convention `<HostPoolName>-RAG`) and the `Desktop Virtualization User` RBAC role is assigned to the `<HostPoolName> - Desktop Application Group Users` AD security group. Two random applications from the Start Menu are added to this Aplication Group.
+- A Remote Application Group is also created (with the naming convention `<HostPoolName>- RAG`) and the `Desktop Virtualization User` RBAC role is assigned to the `<HostPoolName> - Desktop Application Group Users` AD security group. Two random applications from the Start Menu are added to this Aplication Group.
 - A Workspace is also created (with the naming convention `ws-<HostPoolName>` via the `GetAzAvdWorkSpaceName()` function of the `$HostPool` PowerShell class)
 - The Session Hosts are added to the HostPool and are either AD Domain joined or EntraID joined (depending of the identity provider configured). If Entra ID is the used identity provider a dynamic group is created with the following naming convention :  `<HostPoolName> - Devices`
-- A Log Analytics Workspace is also deployed (with the naming convention `log-<HostPoolName>`) and the Session Hosts are connected to it. More details can be found [here](https://learn.microsoft.com/en-us/training/modules/monitor-manage-performance-health/3-log-analytics-workspace-for-azure-monitor) and [here](https://www.rozemuller.com/deploy-azure-monitor-for-windows-virtual-desktop-automated/#update-25-03-2021).
+- A Log Analytics Workspace is also deployed (with the naming convention `log-<HostPoolName>`via the `GetLogAnalyticsWorkSpaceName()` function of the `$HostPool` PowerShell class) and the Session Hosts are connected to it. More details can be found [here](https://learn.microsoft.com/en-us/training/modules/monitor-manage-performance-health/3-log-analytics-workspace-for-azure-monitor) and [here](https://www.rozemuller.com/deploy-azure-monitor-for-windows-virtual-desktop-automated/#update-25-03-2021).
 - The [Azure Monitor Agent](https://learn.microsoft.com/en-us/azure/azure-monitor/agents/agents-overview) is also installed on the Session Hosts and the configured event logs and performance counters are collected via a dedicated [Data Collection Rule](https://learn.microsoft.com/en-us/azure/azure-monitor/essentials/data-collection-rule-overview?tabs=portal).
 
 ### New-AzAvdPersonalHostPoolSetup
@@ -271,7 +278,7 @@ This function is called by the `New-AzAvdHostPoolSetup` function for every HostP
 - A Desktop Application Group is also created (with the naming convention `<HostPoolName>- DAG`) and the `Desktop Virtualization User` RBAC role is assigned to the `<HostPoolName> - Desktop Application Group Users` AD security group.
 - A Workspace is also created (with the naming convention `ws-<HostPoolName>` via the `GetAzAvdWorkSpaceName()` function of the `$HostPool` PowerShell class)
 - The Session Hosts are added to the HostPool and are either AD Domain joined or EntraID joined (depending of the identity provider configured). If Entra ID is the used identity provider a dynamic group is created with the following naming convention :  `<HostPoolName> - Devices`
-- A Log Analytics Workspace is also deployed (with the naming convention `log-<HostPoolName>`) and the Session Hosts are connected to it. More details can be found [here](https://learn.microsoft.com/en-us/training/modules/monitor-manage-performance-health/3-log-analytics-workspace-for-azure-monitor) and [here](https://www.rozemuller.com/deploy-azure-monitor-for-windows-virtual-desktop-automated/#update-25-03-2021).
+- A Log Analytics Workspace is also deployed (with the naming convention `log-<HostPoolName>`via the `GetLogAnalyticsWorkSpaceName()` function of the `$HostPool` PowerShell class) and the Session Hosts are connected to it. More details can be found [here](https://learn.microsoft.com/en-us/training/modules/monitor-manage-performance-health/3-log-analytics-workspace-for-azure-monitor) and [here](https://www.rozemuller.com/deploy-azure-monitor-for-windows-virtual-desktop-automated/#update-25-03-2021).
 - The [Azure Monitor Agent](https://learn.microsoft.com/en-us/azure/azure-monitor/agents/agents-overview) is also installed on the Session Hosts and the configured event logs and performance counters are collected via a dedicated [Data Collection Rule](https://learn.microsoft.com/en-us/azure/azure-monitor/essentials/data-collection-rule-overview?tabs=portal).
 
 ### Helpers functions
@@ -309,11 +316,11 @@ Some helper functions are also available in the script and are documented here :
 - `Test-AzAvdKeyVaultNameAvailability`: Tests if the Key Vault name is available in Azure.
 - `New-AzHostPoolSessionCredentialKeyVault`: Create the Azure Key Vault for the Session Hosts credentials
 - `New-RandomPassword`: Generates a random password (used for the `localadmin` user password)
-- `Get-AzKeyVaultNameAvailability`:
-- `Expand-AzAvdMSIXImage`
+- `Get-AzKeyVaultNameAvailability`: coded as an alterative to the  `Test-AzKeyVaultNameAvailability` cmdlet (for testing purpose - no more used in this script)
+- `Expand-AzAvdMSIXImage`: coded as an alterative to the  `Expand-AzWvdMsixImage` cmdlet (for testing purpose - no more used in this script)
 - `Grant-ADJoinPermission`: Grants the required permissions to the ADJoin user
 - `New-AzComputeGallery`: Creates an Azure Compute Gallery with two images (more details [here](../Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder#azureimagebuilderps1))
-- `Get-AzVMCompute`:
+- `Get-AzVMCompute`: Gets The Azure VM Compute Object for the VM executing this function
 - `New-AzAvdSessionHost`: Creates a Session Host
 - `Add-AzAvdSessionHost`: Adds a Session Host to a HostPool
 - `Copy-MSIXDemoAppAttachPackage`: Copy some MSIX artifacts (Notepad++) from my [GitHub](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/MSIX) to the dedicated storage account.
@@ -374,8 +381,37 @@ At the end of the deployment, the following deliverables are available (the foll
 
 - We will use the Virtual Network used for the Domain Controller. It is not recommended to use the same Virtual Network for the Domain Controller and the Session Hosts. It is recommended to use a dedicated Virtual Network for the Session Hosts. This is not implemented in the script for the moment.
 - I'm not using Application Security Group (only Network Security Groups).
-- I have only implemeted AD Domain joined for the Pooled HostPools (no Azure AD/Microsoft Entra ID joined).
 - FSLogix and MSIX features are only available for Pooled HostPools
+
+### Azure Resources
+
+The script will deploy the following Azure resources (ordered by alphabetical order):
+
+- Azure Compute Gallery
+  - Image Definition
+  - Image Version
+- Azure File Share (for FSLogix and MSIX)
+- Azure Key Vault
+- Azure Private Endpoint (for Azure File Share and Azure Key Vault)
+- Azure Resource Group
+- Azure Private DNS Zone (for Azure File Share and Azure Key Vault)
+  - Virtual Network Link
+- Azure Storage Account
+- Azure Virtual Desktop
+  - Host Pools
+  - Application Groups
+  - Workspaces
+  - Session Hosts (Azure Virtual Machines, Azure Disk, Azure Network Interface, Azure Virtual Machine Extension)
+  - Scaling Plans
+- Data Collection Rules
+- EntraID Security Groups
+- EntraID Dynamic Groups
+- EntraID Conditional Access Policies
+- Intune
+  - Devices
+  - Intune Configuration Profiles
+  - Intune Platform Scripts
+- Log Analytics Workspace
 
 ### What's next ?
 
