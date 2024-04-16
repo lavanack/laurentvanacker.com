@@ -31,7 +31,7 @@
     - [What's next ?](#whats-next-)
 
 > [!IMPORTANT]
-> The script [New-AzAvdHostPoolSetup.ps1](Azure/Azure Virtual Desktop/New-AzAvdHostPoolSetup.ps1) is my take on an Azure Virtual Desktop (AVD) Proof Of Concept (POC). It's not designed for production use and comes with no guarantees. I created it during my learning phase with AVD, aiming to consolidate some best practices. The script encompasses both OnPrem and Azure configurations in a single PowerShell script.
+> The script [New-AzAvdHostPoolSetup.ps1](New-AzAvdHostPoolSetup.ps1) is my take on an Azure Virtual Desktop (AVD) Proof Of Concept (POC). It's not designed for production use and comes with no guarantees. I created it during my learning phase with AVD, aiming to consolidate some best practices. The script encompasses both OnPrem and Azure configurations in a single PowerShell script.
 > For a Microsoft-supported version deployment, I suggest using the Azure Virtual Desktop (AVD) Landing Zone Accelerator (LZA), which is available [here](https://github.com/Azure/avdaccelerator). Please note that this only covers the Azure component.
 
 ## Prerequisites
