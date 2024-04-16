@@ -17,7 +17,7 @@ of the Sample Code.
 #>
 
 #The line below is commented because we will process to the installation of the required modules (if not present) at the beginning of the script.
-##requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.DesktopVirtualization, Az.ImageBuilder, Az.Insights, Az.ManagedServiceIdentity, Az.KeyVault, Az.Monitor, Az.Network, Az.OperationalInsights, Az.PrivateDns, Az.Profile, Az.Resources, Az.Storage, Microsoft.Graph.Authentication, Microsoft.Graph.Beta.DeviceManagement, Microsoft.Graph.Beta.DeviceManagement.Actions, Microsoft.Graph.Beta.DeviceManagement.Administration, Microsoft.Graph.Beta.Identity.DirectoryManagement, ThreadJob -RunAsAdministrator 
+##requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.DesktopVirtualization, Az.ImageBuilder, Az.Insights, Az.ManagedServiceIdentity, Az.KeyVault, Az.Monitor, Az.Network, Az.OperationalInsights, Az.PrivateDns, Az.Profile, Az.Resources, Az.Storage, Microsoft.Graph.Authentication, Microsoft.Graph.Beta.DeviceManagement, Microsoft.Graph.Beta.DeviceManagement.Actions, Microsoft.Graph.Beta.DeviceManagement.Administration, Microsoft.Graph.Beta.Groups, Microsoft.Graph.Beta.Identity.DirectoryManagement, Microsoft.Graph.Beta.Identity.SignIns, ThreadJob -RunAsAdministrator 
 
 <#
 # Due to Bug : https://github.com/Azure/azure-powershell/issues/23560
@@ -100,7 +100,7 @@ $ClassDefinitionScriptBlock = {
         }
 
         [object] GetPropertyForJSON() {
-            return $this | Select-Object -Property *, @{Name="IsMicrosoftEntraIdJoined"; Expression = {$_.IsMicrosoftEntraIdJoined()}}, @{Name="IsIntuneEnrolled"; Expression = {$_.IsIntuneEnrolled()}}, @{Name="ResourceGroupName"; Expression = {$_.GetResourceGroupName()}}, @{Name="KeyVaultName"; Expression = {$_.GetKeyVaultName()}}, @{Name="LogAnalyticsWorkSpaceName"; Expression = {$_.GetLogAnalyticsWorkSpaceName()}} -ExcludeProperty "KeyVault"
+            return $this | Select-Object -Property *, @{Name = "IsMicrosoftEntraIdJoined"; Expression = { $_.IsMicrosoftEntraIdJoined() } }, @{Name = "IsIntuneEnrolled"; Expression = { $_.IsIntuneEnrolled() } }, @{Name = "ResourceGroupName"; Expression = { $_.GetResourceGroupName() } }, @{Name = "KeyVaultName"; Expression = { $_.GetKeyVaultName() } }, @{Name = "LogAnalyticsWorkSpaceName"; Expression = { $_.GetLogAnalyticsWorkSpaceName() } } -ExcludeProperty "KeyVault"
         }
 
 
@@ -397,7 +397,7 @@ function New-NoMFAUserEntraIDGroup {
     $MailNickname = $($NoMFAEntraIDGroupName -replace "\s" -replace "\W").ToLower()
     if (-not($NoMFAEntraIDGroup)) {
         Write-Verbose -Message "Creating '$NoMFAEntraIDGroupName' Entra ID Group ..."
-        $NoMFAEntraIDGroup = New-MgGroup -DisplayName $NoMFAEntraIDGroupName -MailEnabled:$False -MailNickname $MailNickname -SecurityEnabled
+        $NoMFAEntraIDGroup = New-MgBetaGroup -DisplayName $NoMFAEntraIDGroupName -MailEnabled:$False -MailNickname $MailNickname -SecurityEnabled
     }
     $NoMFAEntraIDGroup
 }
@@ -408,6 +408,7 @@ function New-MFAForAllUsersConditionalAccessPolicy {
         [string[]] $ExcludeGroupName = 'No-MFA Users',
         [string] $DisplayName = "[AVD] Require multifactor authentication for all users"
     )
+    $DirectorySynchronizationAccountsRole = Get-MgBetaDirectoryRole -Filter "DisplayName eq 'Directory Synchronization Accounts'"
     $ExcludeGroups = foreach ($CurrentExcludeGroupName in $ExcludeGroupName) {
         Get-MgBetaGroup -Filter "displayName eq '$CurrentExcludeGroupName'"
     }
@@ -416,26 +417,27 @@ function New-MFAForAllUsersConditionalAccessPolicy {
     if (-not($MFAForAllUsersConditionalAccessPolicy)) {
         # Define the policy properties
         $policyProperties = @{
-            DisplayName = $DisplayName
-            State = "Enabled"
-            Conditions = @{
+            DisplayName   = $DisplayName
+            State         = "Enabled"
+            Conditions    = @{
                 Applications = @{
                     IncludeApplications = @("All")
                 }
-                Users = @{
-                    IncludeUsers = @("All")
+                Users        = @{
+                    IncludeUsers  = @("All")
                     ExcludeGroups = $ExcludeGroups.Id
+                    ExcludeRoles  = $DirectorySynchronizationAccountsRole.RoleTemplateId 
                 }
             }
             GrantControls = @{
                 BuiltInControls = @("Mfa")
-                Operator = "OR"
+                Operator        = "OR"
             }
         }
 
         # Create the policy
         Write-Verbose -Message "Creating '$DisplayName' Conditional Access Policy ..."
-        $MFAForAllUsersConditionalAccessPolicy = New-MgIdentityConditionalAccessPolicy -BodyParameter $policyProperties -Verbose
+        $MFAForAllUsersConditionalAccessPolicy = New-MgBetaIdentityConditionalAccessPolicy -BodyParameter $policyProperties -Verbose
     }
     $MFAForAllUsersConditionalAccessPolicy
 }
@@ -473,8 +475,8 @@ Function Remove-IntuneItemViaGraphAPI {
 
     #region deviceManagementScripts and groupPolicyConfigurations
     $Topics = "deviceManagementScripts", "groupPolicyConfigurations"
-    foreach($CurrentHostPoolName in $HostPoolName) {
-        foreach($CurrentTopic in $Topics) {
+    foreach ($CurrentHostPoolName in $HostPoolName) {
+        foreach ($CurrentTopic in $Topics) {
             Write-Verbose "Processing '$($CurrentTopic)' ..."
             $URI = "https://graph.microsoft.com/beta/deviceManagement/$($CurrentTopic)?`$filter=startswith(displayName,+'[$CurrentHostPoolName]')&`$select=id,displayname"
             $DeviceManagementScripts = Get-MgGraphObject -Uri $URI
@@ -488,7 +490,7 @@ Function Remove-IntuneItemViaGraphAPI {
     #region Devices
     Write-Verbose -Message "Removing Intune Enrolled Devices : $($SessionHostName -join ', ')"
     $AllDevices = Get-MgGraphObject -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices"
-    $FilteredDevices = $AllDevices | Where-Object -FilterScript {$_.DeviceName -in $SessionHostName }
+    $FilteredDevices = $AllDevices | Where-Object -FilterScript { $_.DeviceName -in $SessionHostName }
     $FilteredDevices | ForEach-Object -Process { 
         Write-Verbose -Message "Removing Intune Enrolled Device : $($_.DeviceName)"
         $RemovedDevices = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices/$($_.id)" -Method DELETE -OutputType PSObject
@@ -631,7 +633,7 @@ function Import-FSLogixADMXViaGraphAPI {
     $FSLogixLatestURI = ((Invoke-WebRequest -Uri "https://aka.ms/fslogix-latest").Links | Where-Object -FilterScript { $_.innerText -eq "Download" }).href
     $OutFile = Join-Path -Path $env:Temp -ChildPath $(Split-Path -Path $FSLogixLatestURI -Leaf)
     Write-Verbose -Message "Downloading from '$FSLogixLatestURI' to '$OutFile' ..."
-    Start-BitsTransfer $FSLogixLatestURI -destination $OutFile
+    Start-BitsTransfer $FSLogixLatestURI -Destination $OutFile
     $DestinationPath = Join-Path -Path $env:Temp -ChildPath "FSLogixLatest"
     Write-Verbose -Message "Unzipping '$OutFile' into '$DestinationPath' ..."
     Expand-Archive -Path $OutFile -DestinationPath $DestinationPath -Force
@@ -765,7 +767,7 @@ function Set-GroupPolicyDefinitionSettingViaGraphAPI {
     }
     
     $Body = @{
-        added = @(
+        added      = @(
             @{
                 "definition@odata.bind" = "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions('$($GroupPolicyDefinition.id)')"
                 "enabled"               = $($psCmdlet.ParameterSetName -eq 'Enable')
@@ -863,20 +865,48 @@ function New-FSLogixIntuneConfigurationProfileViaGraphAPI {
     #Adding a displayName Property
     $FSLogixProfileContainersGroupPolicyDefinitions = $FSLogixProfileContainersGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($FSLogixProfileContainersGroupPolicyDefinitions) {
-        { $_.FullPath -eq '\FSLogix\Profile Containers\Enabled' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Verbose; continue }  
-        { $_.FullPath -eq '\FSLogix\Profile Containers\Delete Local Profile When VHD Should Apply' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Verbose; continue } 
-        { $_.FullPath -eq '\FSLogix\Profile Containers\Container and Directory Naming\Flip Flop Profile Directory Name' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Verbose; continue } 
-        { $_.FullPath -eq '\FSLogix\Profile Containers\Locked Retry Count' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 3 -Verbose; continue }  
-        { $_.FullPath -eq '\FSLogix\Profile Containers\Locked Retry Interval' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 15 -Verbose }
-        { $_.FullPath -eq '\FSLogix\Profile Containers\Profile Type' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value "0" -Verbose }
-        { $_.FullPath -eq '\FSLogix\Profile Containers\ReAttach Interval' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 15 -Verbose }
-        { $_.FullPath -eq '\FSLogix\Profile Containers\ReAttach Count' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 3 -Verbose }
-        { $_.FullPath -eq '\FSLogix\Profile Containers\Size In MBs' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 30000 -Verbose }
-        { $_.FullPath -eq '\FSLogix\Profile Containers\Prevent Login With Failure' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 1 -Verbose; continue } 
-        { $_.FullPath -eq '\FSLogix\Profile Containers\Prevent Login With Temp Profile' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 1 -Verbose; continue }   
-        { $_.FullPath -eq '\FSLogix\Profile Containers\Container and Directory Naming\Volume Type (VHD or VHDX)' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 'VHDX' -Verbose }
-        { $_.FullPath -eq '\FSLogix\Profile Containers\Is Dynamic (VHD)' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 1 -Verbose; continue } 
-        default { Write-Verbose -Message "'$($_.FullPath)' not modified ..." }  
+        { $_.FullPath -eq '\FSLogix\Profile Containers\Enabled' } {
+            Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Verbose; continue 
+        }  
+        { $_.FullPath -eq '\FSLogix\Profile Containers\Delete Local Profile When VHD Should Apply' } {
+            Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Verbose; continue 
+        } 
+        { $_.FullPath -eq '\FSLogix\Profile Containers\Container and Directory Naming\Flip Flop Profile Directory Name' } {
+            Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Verbose; continue 
+        } 
+        { $_.FullPath -eq '\FSLogix\Profile Containers\Locked Retry Count' } {
+            Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 3 -Verbose; continue 
+        }  
+        { $_.FullPath -eq '\FSLogix\Profile Containers\Locked Retry Interval' } {
+            Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 15 -Verbose 
+        }
+        { $_.FullPath -eq '\FSLogix\Profile Containers\Profile Type' } {
+            Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value "0" -Verbose 
+        }
+        { $_.FullPath -eq '\FSLogix\Profile Containers\ReAttach Interval' } {
+            Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 15 -Verbose 
+        }
+        { $_.FullPath -eq '\FSLogix\Profile Containers\ReAttach Count' } {
+            Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 3 -Verbose 
+        }
+        { $_.FullPath -eq '\FSLogix\Profile Containers\Size In MBs' } {
+            Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 30000 -Verbose 
+        }
+        { $_.FullPath -eq '\FSLogix\Profile Containers\Prevent Login With Failure' } {
+            Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 1 -Verbose; continue 
+        } 
+        { $_.FullPath -eq '\FSLogix\Profile Containers\Prevent Login With Temp Profile' } {
+            Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 1 -Verbose; continue 
+        }   
+        { $_.FullPath -eq '\FSLogix\Profile Containers\Container and Directory Naming\Volume Type (VHD or VHDX)' } {
+            Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 'VHDX' -Verbose 
+        }
+        { $_.FullPath -eq '\FSLogix\Profile Containers\Is Dynamic (VHD)' } {
+            Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 1 -Verbose; continue 
+        } 
+        default {
+            Write-Verbose -Message "'$($_.FullPath)' not modified ..." 
+        }  
     }
     #endregion
 
@@ -884,8 +914,12 @@ function New-FSLogixIntuneConfigurationProfileViaGraphAPI {
     $FSLogixLoggingGroupPolicyDefinitions = Get-MgGraphObject -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\FSLogix\Logging')"
     $FSLogixLoggingGroupPolicyDefinitions = $FSLogixLoggingGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($FSLogixLoggingGroupPolicyDefinitions) {
-        { $_.FullPath -eq '\FSLogix\Logging\Log Keeping Period' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 10 -Verbose }
-        default { Write-Verbose -Message "'$($_.FullPath)' not modified ..." }  
+        { $_.FullPath -eq '\FSLogix\Logging\Log Keeping Period' } {
+            Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 10 -Verbose 
+        }
+        default {
+            Write-Verbose -Message "'$($_.FullPath)' not modified ..." 
+        }  
     }
     #endregion
 
@@ -954,8 +988,12 @@ function New-AzAvdIntuneConfigurationProfileViaGraphAPI {
     $NetworkBITSGroupPolicyDefinitions = Get-MgGraphObject -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\Network\Background Intelligent Transfer Service (BITS)')"
     $NetworkBITSGroupPolicyDefinitions = $NetworkBITSGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($NetworkBITSGroupPolicyDefinitions) {
-        { $_.FullPath -eq '\Network\Background Intelligent Transfer Service (BITS)\Do not allow the BITS client to use Windows Branch Cache' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Verbose; continue }  
-        default { Write-Verbose -Message "'$($_.FullPath)' not modified ..." }  
+        { $_.FullPath -eq '\Network\Background Intelligent Transfer Service (BITS)\Do not allow the BITS client to use Windows Branch Cache' } {
+            Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Verbose; continue 
+        }  
+        default {
+            Write-Verbose -Message "'$($_.FullPath)' not modified ..." 
+        }  
     }
     #endregion
 
@@ -963,8 +1001,12 @@ function New-AzAvdIntuneConfigurationProfileViaGraphAPI {
     $NetworkBranchCacheGroupPolicyDefinitions = Get-MgGraphObject -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\Network\BranchCache')"
     $NetworkBranchCacheGroupPolicyDefinitions = $NetworkBranchCacheGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($NetworkBranchCacheGroupPolicyDefinitions) {
-        { $_.FullPath -eq '\Network\BranchCache\Enable Hotspot Authentication' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Disable -Verbose; continue }  
-        default { Write-Verbose -Message "'$($_.FullPath)' not modified ..." }  
+        { $_.FullPath -eq '\Network\BranchCache\Enable Hotspot Authentication' } {
+            Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Disable -Verbose; continue 
+        }  
+        default {
+            Write-Verbose -Message "'$($_.FullPath)' not modified ..." 
+        }  
     }
     #endregion
 
@@ -972,16 +1014,24 @@ function New-AzAvdIntuneConfigurationProfileViaGraphAPI {
     $NetworkHotspotAuthenticationGroupPolicyDefinitions = Get-MgGraphObject -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\Network\Hotspot Authentication')"
     $NetworkHotspotAuthenticationGroupPolicyDefinitions = $NetworkHotspotAuthenticationGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($NetworkHotspotAuthenticationGroupPolicyDefinitions) {
-        { $_.FullPath -eq '\Network\Hotspot Authentication\Enable Hotspot Authentication' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Disable -Verbose; continue }  
-        default { Write-Verbose -Message "'$($_.FullPath)' not modified ..." }  
+        { $_.FullPath -eq '\Network\Hotspot Authentication\Enable Hotspot Authentication' } {
+            Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Disable -Verbose; continue 
+        }  
+        default {
+            Write-Verbose -Message "'$($_.FullPath)' not modified ..." 
+        }  
     }
     #endregion
 
     #region Network\Microsoft Peer-to-Peer Networking Services Settings
     $NetworkP2PGroupPolicyDefinitions = Get-MgGraphObject -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\Network\Microsoft Peer-to-Peer Networking Services')"
     switch ($NetworkP2PGroupPolicyDefinitions) {
-        { $_.FullPath -eq '\Network\Microsoft Peer-to-Peer Networking Services\Turn off Microsoft Peer-to-Peer Networking Services' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Verbose; continue }  
-        default { Write-Verbose -Message "'$($_.FullPath)' not modified ..." }  
+        { $_.FullPath -eq '\Network\Microsoft Peer-to-Peer Networking Services\Turn off Microsoft Peer-to-Peer Networking Services' } {
+            Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Verbose; continue 
+        }  
+        default {
+            Write-Verbose -Message "'$($_.FullPath)' not modified ..." 
+        }  
     }
     #endregion
 
@@ -989,8 +1039,12 @@ function New-AzAvdIntuneConfigurationProfileViaGraphAPI {
     $NetworkOfflineFilesGroupPolicyDefinitions = Get-MgGraphObject -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\Network\Offline Files')"
     $NetworkOfflineFilesGroupPolicyDefinitions = $NetworkOfflineFilesGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($NetworkOfflineFilesGroupPolicyDefinitions) {
-        { $_.FullPath -eq '\Network\Offline Files\Allow or Disallow use of the Offline Files feature' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Disable -Verbose; continue }  
-        default { Write-Verbose -Message "'$($_.FullPath)' not modified ..." }  
+        { $_.FullPath -eq '\Network\Offline Files\Allow or Disallow use of the Offline Files feature' } {
+            Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Disable -Verbose; continue 
+        }  
+        default {
+            Write-Verbose -Message "'$($_.FullPath)' not modified ..." 
+        }  
     }
     #endregion
 
@@ -998,11 +1052,21 @@ function New-AzAvdIntuneConfigurationProfileViaGraphAPI {
     $RDSSessionTimeLimitsGroupPolicyDefinitions = Get-MgGraphObject -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions?`$filter=startsWith(categoryPath,'\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits')"
     $RDSSessionTimeLimitsGroupPolicyDefinitions = $RDSSessionTimeLimitsGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($RDSSessionTimeLimitsGroupPolicyDefinitions) {
-        { $_.FullPath -eq '\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits\Set time limit for active but idle Remote Desktop Services sessions' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value "900000" -Verbose; continue }  
-        { $_.FullPath -eq '\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits\Set time limit for disconnected sessions' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value "900000" -Verbose; continue }  
-        { $_.FullPath -eq '\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits\Set time limit for active Remote Desktop Services sessions' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value "0" -Verbose; continue }  
-        { $_.FullPath -eq '\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits\End session when time limits are reached' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 0 -Verbose; continue }  
-        default { Write-Verbose -Message "'$($_.FullPath)' not modified ..." }  
+        { $_.FullPath -eq '\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits\Set time limit for active but idle Remote Desktop Services sessions' } {
+            Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value "900000" -Verbose; continue 
+        }  
+        { $_.FullPath -eq '\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits\Set time limit for disconnected sessions' } {
+            Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value "900000" -Verbose; continue 
+        }  
+        { $_.FullPath -eq '\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits\Set time limit for active Remote Desktop Services sessions' } {
+            Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value "0" -Verbose; continue 
+        }  
+        { $_.FullPath -eq '\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits\End session when time limits are reached' } {
+            Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 0 -Verbose; continue 
+        }  
+        default {
+            Write-Verbose -Message "'$($_.FullPath)' not modified ..." 
+        }  
     }
     #endregion
 
@@ -1011,7 +1075,9 @@ function New-AzAvdIntuneConfigurationProfileViaGraphAPI {
     $RDSAVDGroupPolicyDefinitions = $RDSAVDGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     $GroupPolicyDefinitionPresentation = Get-GroupPolicyDefinitionPresentationViaGraphAPI -GroupPolicyDefinition $RDSAVDGroupPolicyDefinitions -Verbose
     switch ($RDSAVDGroupPolicyDefinitions) {
-        { $_.FullPath -eq '\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Azure Virtual Desktop\Enable screen capture protection' } { Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value "2" -Verbose; continue }  
+        { $_.FullPath -eq '\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Azure Virtual Desktop\Enable screen capture protection' } {
+            Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value "2" -Verbose; continue 
+        }  
         { ($_.FullPath -eq '\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Azure Virtual Desktop\Enable watermarking') -and ($_.version -eq '2.0') } { 
             $Value = @{
                 "QR code bitmap scale factor"                                     = 4
@@ -1022,7 +1088,9 @@ function New-AzAvdIntuneConfigurationProfileViaGraphAPI {
             }
             Set-GroupPolicyDefinitionSettingViaGraphAPI -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value $Value -Verbose; continue 
         }
-        default { Write-Verbose -Message "'$($_.FullPath)' not modified ..." }  
+        default {
+            Write-Verbose -Message "'$($_.FullPath)' not modified ..." 
+        }  
     }
     #endregion
     #endregion
@@ -1056,7 +1124,7 @@ Function Remove-IntuneItemViaCmdlet {
     #region Devices
     if ($SessionHostName) {
         Write-Verbose -Message "Removing Intune Enrolled Devices : $($SessionHostName -join ', ')"
-        Get-MgBetaDeviceManagementManagedDevice -All | Where-Object -FilterScript {$_.DeviceName -in $SessionHostName } | ForEach-Object -Process { 
+        Get-MgBetaDeviceManagementManagedDevice -All | Where-Object -FilterScript { $_.DeviceName -in $SessionHostName } | ForEach-Object -Process { 
             Write-Verbose -Message "Removing Intune Enrolled Device : $($_.DeviceName)"
             Remove-MgBetaDeviceManagementManagedDevice -ManagedDeviceId $_.Id 
         }
@@ -1119,14 +1187,14 @@ Function New-IntunePowerShellScriptViaCmdlet {
     #region Assign
     Write-Verbose -Message "Assigning the '$FileName' PowerShell script to '$DeviceAzADGroupName' ..."
     $BodyParameter = @{
-	    deviceManagementScriptAssignments = @(
-		    @{
-			    target = @{
-				    "@odata.type" = "#microsoft.graph.groupAssignmentTarget"
-				    groupId = $DeviceAzADGroup.Id
-			    }
-		    }
-	    )
+        deviceManagementScriptAssignments = @(
+            @{
+                target = @{
+                    "@odata.type" = "#microsoft.graph.groupAssignmentTarget"
+                    groupId       = $DeviceAzADGroup.Id
+                }
+            }
+        )
     }
     Set-MgBetaDeviceManagementScript -DeviceManagementScriptId $AddedScript.Id -BodyParameter $BodyParameter
     #endregion
@@ -1171,7 +1239,7 @@ function Import-FSLogixADMXViaCmdlet {
     $FSLogixLatestURI = ((Invoke-WebRequest -Uri "https://aka.ms/fslogix-latest").Links | Where-Object -FilterScript { $_.innerText -eq "Download" }).href
     $OutFile = Join-Path -Path $env:Temp -ChildPath $(Split-Path -Path $FSLogixLatestURI -Leaf)
     Write-Verbose -Message "Downloading from '$FSLogixLatestURI' to '$OutFile' ..."
-    Start-BitsTransfer $FSLogixLatestURI -destination $OutFile
+    Start-BitsTransfer $FSLogixLatestURI -Destination $OutFile
     $DestinationPath = Join-Path -Path $env:Temp -ChildPath "FSLogixLatest"
     Write-Verbose -Message "Unzipping '$OutFile' into '$DestinationPath' ..."
     Expand-Archive -Path $OutFile -DestinationPath $DestinationPath -Force
@@ -1197,15 +1265,15 @@ function Import-FSLogixADMXViaCmdlet {
     $Now = Get-Date -Format o 
     Write-Verbose -Message "Uploading the ADMX and ADML files ..."
     $GroupPolicyUploadedLanguageFiles = @(
-            @{
-                "fileName"     = $ADMLFileName
-                "languageCode" = "en-US"
-                "content"      = $ADMLFileContent
-                #"id" = (New-Guid).Guid
-                #"lastModifiedDateTime" = $Now
-            }
-        )
-    New-MgBetaDeviceManagementGroupPolicyUploadedDefinitionFile -LanguageCodes @("en-US") -TargetPrefix $("FSLogix{0}" -f $GUID) -TargetNamespace "FSLogix.Policies" -policyType 'admxIngested' -FileName $ADMXFileName -ContentInputFile $ADMXFileContent -GroupPolicyUploadedLanguageFiles $GroupPolicyUploadedLanguageFiles
+        @{
+            "fileName"     = $ADMLFileName
+            "languageCode" = "en-US"
+            "content"      = $ADMLFileContent
+            #"id" = (New-Guid).Guid
+            #"lastModifiedDateTime" = $Now
+        }
+    )
+    New-MgBetaDeviceManagementGroupPolicyUploadedDefinitionFile -LanguageCodes @("en-US") -TargetPrefix $("FSLogix{0}" -f $GUID) -TargetNamespace "FSLogix.Policies" -PolicyType 'admxIngested' -FileName $ADMXFileName -ContentInputFile $ADMXFileContent -GroupPolicyUploadedLanguageFiles $GroupPolicyUploadedLanguageFiles
     $GroupPolicyUploadedDefinitionFileId = $GroupPolicyUploadedDefinitionFile.id
     While ($GroupPolicyUploadedDefinitionFile.status -eq 'uploadInProgress') {
         $GroupPolicyUploadedDefinitionFile = Get-MgBetaDeviceManagementGroupPolicyUploadedDefinitionFile -Filter "id eq '$GroupPolicyUploadedDefinitionFileId'" -All
@@ -1283,7 +1351,7 @@ function Set-GroupPolicyDefinitionSettingViaCmdlet {
     }
 
     $BodyParameter = @{
-        added = @(
+        added      = @(
             @{
                 "definition@odata.bind" = "https://graph.microsoft.com/beta/deviceManagement/groupPolicyDefinitions('$($GroupPolicyDefinition.id)')"
                 "enabled"               = $($psCmdlet.ParameterSetName -eq 'Enable')
@@ -1359,20 +1427,48 @@ function New-FSLogixIntuneConfigurationProfileViaCmdlet {
     #Adding a displayName Property
     $FSLogixProfileContainersGroupPolicyDefinitions = $FSLogixProfileContainersGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($FSLogixProfileContainersGroupPolicyDefinitions) {
-        { $_.FullPath -eq '\FSLogix\Profile Containers\Enabled' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Verbose; continue }  
-        { $_.FullPath -eq '\FSLogix\Profile Containers\Delete Local Profile When VHD Should Apply' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Verbose; continue } 
-        { $_.FullPath -eq '\FSLogix\Profile Containers\Container and Directory Naming\Flip Flop Profile Directory Name' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Verbose; continue } 
-        { $_.FullPath -eq '\FSLogix\Profile Containers\Locked Retry Count' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 3 -Verbose; continue }  
-        { $_.FullPath -eq '\FSLogix\Profile Containers\Locked Retry Interval' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 15 -Verbose }
-        { $_.FullPath -eq '\FSLogix\Profile Containers\Profile Type' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value "0" -Verbose }
-        { $_.FullPath -eq '\FSLogix\Profile Containers\ReAttach Interval' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 15 -Verbose }
-        { $_.FullPath -eq '\FSLogix\Profile Containers\ReAttach Count' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 3 -Verbose }
-        { $_.FullPath -eq '\FSLogix\Profile Containers\Size In MBs' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 30000 -Verbose }
-        { $_.FullPath -eq '\FSLogix\Profile Containers\Prevent Login With Failure' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 1 -Verbose; continue } 
-        { $_.FullPath -eq '\FSLogix\Profile Containers\Prevent Login With Temp Profile' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 1 -Verbose; continue }   
-        { $_.FullPath -eq '\FSLogix\Profile Containers\Container and Directory Naming\Volume Type (VHD or VHDX)' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 'VHDX' -Verbose }
-        { $_.FullPath -eq '\FSLogix\Profile Containers\Is Dynamic (VHD)' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 1 -Verbose; continue } 
-        default { Write-Verbose -Message "'$($_.FullPath)' not modified ..." }  
+        { $_.FullPath -eq '\FSLogix\Profile Containers\Enabled' } {
+            Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Verbose; continue 
+        }  
+        { $_.FullPath -eq '\FSLogix\Profile Containers\Delete Local Profile When VHD Should Apply' } {
+            Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Verbose; continue 
+        } 
+        { $_.FullPath -eq '\FSLogix\Profile Containers\Container and Directory Naming\Flip Flop Profile Directory Name' } {
+            Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Verbose; continue 
+        } 
+        { $_.FullPath -eq '\FSLogix\Profile Containers\Locked Retry Count' } {
+            Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 3 -Verbose; continue 
+        }  
+        { $_.FullPath -eq '\FSLogix\Profile Containers\Locked Retry Interval' } {
+            Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 15 -Verbose 
+        }
+        { $_.FullPath -eq '\FSLogix\Profile Containers\Profile Type' } {
+            Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value "0" -Verbose 
+        }
+        { $_.FullPath -eq '\FSLogix\Profile Containers\ReAttach Interval' } {
+            Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 15 -Verbose 
+        }
+        { $_.FullPath -eq '\FSLogix\Profile Containers\ReAttach Count' } {
+            Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 3 -Verbose 
+        }
+        { $_.FullPath -eq '\FSLogix\Profile Containers\Size In MBs' } {
+            Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 30000 -Verbose 
+        }
+        { $_.FullPath -eq '\FSLogix\Profile Containers\Prevent Login With Failure' } {
+            Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 1 -Verbose; continue 
+        } 
+        { $_.FullPath -eq '\FSLogix\Profile Containers\Prevent Login With Temp Profile' } {
+            Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 1 -Verbose; continue 
+        }   
+        { $_.FullPath -eq '\FSLogix\Profile Containers\Container and Directory Naming\Volume Type (VHD or VHDX)' } {
+            Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 'VHDX' -Verbose 
+        }
+        { $_.FullPath -eq '\FSLogix\Profile Containers\Is Dynamic (VHD)' } {
+            Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 1 -Verbose; continue 
+        } 
+        default {
+            Write-Verbose -Message "'$($_.FullPath)' not modified ..." 
+        }  
     }
     #endregion
 
@@ -1381,8 +1477,12 @@ function New-FSLogixIntuneConfigurationProfileViaCmdlet {
     #Adding a displayName Property
     $FSLogixLoggingGroupPolicyDefinitions = $FSLogixLoggingGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($FSLogixLoggingGroupPolicyDefinitions) {
-        { $_.FullPath -eq '\FSLogix\Logging\Log Keeping Period' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 10 -Verbose }
-        default { Write-Verbose -Message "'$($_.FullPath)' not modified ..." }  
+        { $_.FullPath -eq '\FSLogix\Logging\Log Keeping Period' } {
+            Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 10 -Verbose 
+        }
+        default {
+            Write-Verbose -Message "'$($_.FullPath)' not modified ..." 
+        }  
     }
     #endregion
 
@@ -1435,8 +1535,12 @@ function New-AzAvdIntuneConfigurationProfileViaCmdlet {
     $NetworkBITSGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\Network\Background Intelligent Transfer Service (BITS)')" -All
     $NetworkBITSGroupPolicyDefinitions = $NetworkBITSGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($NetworkBITSGroupPolicyDefinitions) {
-        { $_.FullPath -eq '\Network\Background Intelligent Transfer Service (BITS)\Do not allow the BITS client to use Windows Branch Cache' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Verbose; continue }  
-        default { Write-Verbose -Message "'$($_.FullPath)' not modified ..." }  
+        { $_.FullPath -eq '\Network\Background Intelligent Transfer Service (BITS)\Do not allow the BITS client to use Windows Branch Cache' } {
+            Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Verbose; continue 
+        }  
+        default {
+            Write-Verbose -Message "'$($_.FullPath)' not modified ..." 
+        }  
     }
     #endregion
 
@@ -1444,8 +1548,12 @@ function New-AzAvdIntuneConfigurationProfileViaCmdlet {
     $NetworkBranchCacheGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\Network\BranchCache')" -All
     $NetworkBranchCacheGroupPolicyDefinitions = $NetworkBranchCacheGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($NetworkBranchCacheGroupPolicyDefinitions) {
-        { $_.FullPath -eq '\Network\BranchCache\Enable Hotspot Authentication' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Disable -Verbose; continue }  
-        default { Write-Verbose -Message "'$($_.FullPath)' not modified ..." }  
+        { $_.FullPath -eq '\Network\BranchCache\Enable Hotspot Authentication' } {
+            Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Disable -Verbose; continue 
+        }  
+        default {
+            Write-Verbose -Message "'$($_.FullPath)' not modified ..." 
+        }  
     }
     #endregion
 
@@ -1453,16 +1561,24 @@ function New-AzAvdIntuneConfigurationProfileViaCmdlet {
     $NetworkHotspotAuthenticationGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\Network\Hotspot Authentication')" -All
     $NetworkHotspotAuthenticationGroupPolicyDefinitions = $NetworkHotspotAuthenticationGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($NetworkHotspotAuthenticationGroupPolicyDefinitions) {
-        { $_.FullPath -eq '\Network\Hotspot Authentication\Enable Hotspot Authentication' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Disable -Verbose; continue }  
-        default { Write-Verbose -Message "'$($_.FullPath)' not modified ..." }  
+        { $_.FullPath -eq '\Network\Hotspot Authentication\Enable Hotspot Authentication' } {
+            Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Disable -Verbose; continue 
+        }  
+        default {
+            Write-Verbose -Message "'$($_.FullPath)' not modified ..." 
+        }  
     }
     #endregion
 
     #region Network\Microsoft Peer-to-Peer Networking Services Settings
     $NetworkP2PGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\Network\Microsoft Peer-to-Peer Networking Services')" -All
     switch ($NetworkP2PGroupPolicyDefinitions) {
-        { $_.FullPath -eq '\Network\Microsoft Peer-to-Peer Networking Services\Turn off Microsoft Peer-to-Peer Networking Services' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Verbose; continue }  
-        default { Write-Verbose -Message "'$($_.FullPath)' not modified ..." }  
+        { $_.FullPath -eq '\Network\Microsoft Peer-to-Peer Networking Services\Turn off Microsoft Peer-to-Peer Networking Services' } {
+            Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Verbose; continue 
+        }  
+        default {
+            Write-Verbose -Message "'$($_.FullPath)' not modified ..." 
+        }  
     }
     #endregion
 
@@ -1470,8 +1586,12 @@ function New-AzAvdIntuneConfigurationProfileViaCmdlet {
     $NetworkOfflineFilesGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\Network\Offline Files')" -All
     $NetworkOfflineFilesGroupPolicyDefinitions = $NetworkOfflineFilesGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($NetworkOfflineFilesGroupPolicyDefinitions) {
-        { $_.FullPath -eq '\Network\Offline Files\Allow or Disallow use of the Offline Files feature' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Disable -Verbose; continue }  
-        default { Write-Verbose -Message "'$($_.FullPath)' not modified ..." }  
+        { $_.FullPath -eq '\Network\Offline Files\Allow or Disallow use of the Offline Files feature' } {
+            Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Disable -Verbose; continue 
+        }  
+        default {
+            Write-Verbose -Message "'$($_.FullPath)' not modified ..." 
+        }  
     }
     #endregion
 
@@ -1479,11 +1599,21 @@ function New-AzAvdIntuneConfigurationProfileViaCmdlet {
     $RDSSessionTimeLimitsGroupPolicyDefinitions = Get-MgBetaDeviceManagementGroupPolicyDefinition -Filter "startsWith(categoryPath,'\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits')" -All
     $RDSSessionTimeLimitsGroupPolicyDefinitions = $RDSSessionTimeLimitsGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     switch ($RDSSessionTimeLimitsGroupPolicyDefinitions) {
-        { $_.FullPath -eq '\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits\Set time limit for active but idle Remote Desktop Services sessions' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value "900000" -Verbose; continue }  
-        { $_.FullPath -eq '\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits\Set time limit for disconnected sessions' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value "900000" -Verbose; continue }  
-        { $_.FullPath -eq '\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits\Set time limit for active Remote Desktop Services sessions' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value "0" -Verbose; continue }  
-        { $_.FullPath -eq '\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits\End session when time limits are reached' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 0 -Verbose; continue }  
-        default { Write-Verbose -Message "'$($_.FullPath)' not modified ..." }  
+        { $_.FullPath -eq '\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits\Set time limit for active but idle Remote Desktop Services sessions' } {
+            Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value "900000" -Verbose; continue 
+        }  
+        { $_.FullPath -eq '\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits\Set time limit for disconnected sessions' } {
+            Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value "900000" -Verbose; continue 
+        }  
+        { $_.FullPath -eq '\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits\Set time limit for active Remote Desktop Services sessions' } {
+            Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value "0" -Verbose; continue 
+        }  
+        { $_.FullPath -eq '\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits\End session when time limits are reached' } {
+            Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value 0 -Verbose; continue 
+        }  
+        default {
+            Write-Verbose -Message "'$($_.FullPath)' not modified ..." 
+        }  
     }
     #endregion
 
@@ -1492,7 +1622,9 @@ function New-AzAvdIntuneConfigurationProfileViaCmdlet {
     $RDSAVDGroupPolicyDefinitions = $RDSAVDGroupPolicyDefinitions | Select-Object -Property *, @{Name = "FullPath"; Expression = { Join-Path -Path $_.categoryPath -ChildPath $_.displayName } }
     $GroupPolicyDefinitionPresentation = Get-GroupPolicyDefinitionPresentationViaCmdlet -GroupPolicyDefinition $RDSAVDGroupPolicyDefinitions -Verbose
     switch ($RDSAVDGroupPolicyDefinitions) {
-        { $_.FullPath -eq '\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Azure Virtual Desktop\Enable screen capture protection' } { Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value "2" -Verbose; continue }  
+        { $_.FullPath -eq '\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Azure Virtual Desktop\Enable screen capture protection' } {
+            Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value "2" -Verbose; continue 
+        }  
         { ($_.FullPath -eq '\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Azure Virtual Desktop\Enable watermarking') -and ($_.version -eq '2.0') } { 
             $Value = @{
                 "QR code bitmap scale factor"                                     = 4
@@ -1503,7 +1635,9 @@ function New-AzAvdIntuneConfigurationProfileViaCmdlet {
             }
             Set-GroupPolicyDefinitionSettingViaCmdlet -GroupPolicyConfiguration $GroupPolicyConfiguration -GroupPolicyDefinition $_ -Value $Value -Verbose; continue 
         }
-        default { Write-Verbose -Message "'$($_.FullPath)' not modified ..." }  
+        default {
+            Write-Verbose -Message "'$($_.FullPath)' not modified ..." 
+        }  
     }
     #endregion
     #endregion
@@ -1531,7 +1665,7 @@ function Invoke-AzAvdOperationalInsightsQuery {
 
             # Run the query
             $Result = Invoke-AzOperationalInsightsQuery -WorkspaceId $CurrentLogAnalyticsWorkspace.CustomerId -Query $CurrentQuery
-            [PSCustomObject]@{LogAnalyticsWorkspaceName = $CurrentLogAnalyticsWorkspaceName ; Query = $CurrentQuery; Results = $($Result.Results | Select-Object -Property *, @{Name = "LocalTimeGenerated"; Expression = {Get-Date $_.TimeGenerated}}) }
+            [PSCustomObject]@{LogAnalyticsWorkspaceName = $CurrentLogAnalyticsWorkspaceName ; Query = $CurrentQuery; Results = $($Result.Results | Select-Object -Property *, @{Name = "LocalTimeGenerated"; Expression = { Get-Date $_.TimeGenerated } }) }
         }
     }
 }
@@ -2153,9 +2287,9 @@ function New-AzureComputeGallery {
     # Download the config
     Invoke-WebRequest -Uri $aibRoleImageCreationUrl -OutFile $aibRoleImageCreationPath -UseBasicParsing
 
-    ((Get-Content -path $aibRoleImageCreationPath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $aibRoleImageCreationPath
-    ((Get-Content -path $aibRoleImageCreationPath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $aibRoleImageCreationPath
-    ((Get-Content -path $aibRoleImageCreationPath -Raw) -replace 'Azure Image Builder Service Image Creation Role', $imageRoleDefName) | Set-Content -Path $aibRoleImageCreationPath
+    ((Get-Content -Path $aibRoleImageCreationPath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $aibRoleImageCreationPath
+    ((Get-Content -Path $aibRoleImageCreationPath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $aibRoleImageCreationPath
+    ((Get-Content -Path $aibRoleImageCreationPath -Raw) -replace 'Azure Image Builder Service Image Creation Role', $imageRoleDefName) | Set-Content -Path $aibRoleImageCreationPath
 
     # Create a role definition
     Write-Verbose -Message "Creating '$imageRoleDefName' Role Definition ..."
@@ -2197,16 +2331,16 @@ function New-AzureComputeGallery {
 
     Invoke-WebRequest -Uri $templateUrl -OutFile $templateFilePath -UseBasicParsing
 
-    ((Get-Content -path $templateFilePath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $templateFilePath
     #((Get-Content -path $templateFilePath -Raw) -replace '<region>',$location) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<runOutputName>', $runOutputName01) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<runOutputName>', $runOutputName01) | Set-Content -Path $templateFilePath
 
-    ((Get-Content -path $templateFilePath -Raw) -replace '<imageDefName>', $imageDefName01) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<sharedImageGalName>', $GalleryName) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<targetRegions>', $($targetRegionSettings | ConvertTo-Json)) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<imgBuilderId>', $AssignedIdentity.Id) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<version>', $version) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<imageDefName>', $imageDefName01) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<sharedImageGalName>', $GalleryName) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<targetRegions>', $($targetRegionSettings | ConvertTo-Json)) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<imgBuilderId>', $AssignedIdentity.Id) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<version>', $version) | Set-Content -Path $templateFilePath
     #endregion
 
     #region Submit the template
@@ -2449,7 +2583,7 @@ function New-AzAvdSessionHost {
     $ThisDomainControllerVirtualNetworkId = $split[0..($split.Count - 3)] -join "/"
     $ThisDomainControllerVirtualNetwork = Get-AzResource -ResourceId $ThisDomainControllerVirtualNetworkId | Get-AzVirtualNetwork
 
-    if ($null -eq (Get-AZVMSize -Location $ThisDomainControllerVirtualNetwork.Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
+    if ($null -eq (Get-AzVMSize -Location $ThisDomainControllerVirtualNetwork.Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
         Stop-Transcript
         Write-Error "The '$VMSize' is not available in the '$($ThisDomainControllerVirtualNetwork.Location)' location ..." -ErrorAction Stop
     }
@@ -2590,7 +2724,7 @@ function New-AzAvdSessionHost {
             #From https://rozemuller.com/how-to-join-azure-ad-automated/
             #From https://virtuallyflatfeet.com/category/intune/
             Write-Verbose -Message "Adding '$VMName' as a device into 'Microsoft Entra ID' and enrolled with Intune ..."
-            $domainJoinSettings  = @{
+            $domainJoinSettings = @{
                 mdmId = "0000000a-0000-0000-c000-000000000000"
             }
 
@@ -2795,7 +2929,7 @@ function Copy-MSIXDemoPFXFile {
     #Copying the PFX to all session hosts
     $Session | ForEach-Object -Process { Copy-Item -Path $DownloadedPFXFiles.FullName -Destination C:\ -ToSession $_ -Force }
 
-    Invoke-command -Session $Session -ScriptBlock {
+    Invoke-Command -Session $Session -ScriptBlock {
         $using:DownloadedPFXFiles | ForEach-Object -Process { 
             $LocalFile = $(Join-Path -Path C: -ChildPath $_.Name)
             #Adding the self-signed certificate to the Trusted Root Certification Authorities (To validate this certificate)
@@ -2872,7 +3006,7 @@ function Wait-AzVMPowerShell {
         Write-Verbose -Message "Infinite Loop Mode Enabled ..."  
     }
     $Loop = 0
-    $SessionHosts = Get-AzWvdSessionHost -HostpoolName $HostPoolName -ResourceGroupName $ResourceGroupName
+    $SessionHosts = Get-AzWvdSessionHost -HostPoolName $HostPoolName -ResourceGroupName $ResourceGroupName
     #Write-Verbose -Message "Session Hosts (Nb: $($SessionHosts.Count)): $($SessionHosts.Name -replace "^.*/" -join ', ')"
     Write-Verbose -Message "Session Hosts (Nb: $($SessionHosts.Count)): $($SessionHosts.Name -replace "^.*/" -replace "\..*$" -join ', ')"
     Do {
@@ -2944,7 +3078,7 @@ function Remove-AzAvdHostPoolSetup {
         $HostPools = Get-Content -Path $FullName | ConvertFrom-Json
     }
     else {
-        $HostPools = $HostPool | Select-Object -Property *, @{Name="IsMicrosoftEntraIdJoined"; Expression = {$_.IsMicrosoftEntraIdJoined()}}, @{Name="IsIntuneEnrolled"; Expression = {$_.IsIntuneEnrolled()}}, @{Name="ResourceGroupName"; Expression = {$_.GetResourceGroupName()}} -ExcludeProperty "KeyVault"
+        $HostPools = $HostPool | Select-Object -Property *, @{Name = "IsMicrosoftEntraIdJoined"; Expression = { $_.IsMicrosoftEntraIdJoined() } }, @{Name = "IsIntuneEnrolled"; Expression = { $_.IsIntuneEnrolled() } }, @{Name = "ResourceGroupName"; Expression = { $_.GetResourceGroupName() } } -ExcludeProperty "KeyVault"
     }
     Write-Verbose "Cleaning up the '$($HostPools.Name -join ', ')' Host Pools ..."
     #region Cleanup of the previously existing resources
@@ -2962,7 +3096,8 @@ function Remove-AzAvdHostPoolSetup {
                     Remove-DnsServerResourceRecord -ZoneName $DomainName -RRType "A" -Name "$_" -Force -ErrorAction Ignore
                 }
             } 
-            catch {} 
+            catch {
+            } 
         }
     }
     #endregion
@@ -2977,7 +3112,9 @@ function Remove-AzAvdHostPoolSetup {
 
     #region Azure AD/Microsoft Entra ID cleanup
     $MicrosoftEntraIDHostPools = $HostPools | Where-Object -FilterScript { $_.IsMicrosoftEntraIdJoined }
-    $MicrosoftEntraIDSessionHostNames = foreach ($CurrentMicrosoftEntraIDHostPool in $MicrosoftEntraIDHostPools) { (Get-AzWvdSessionHost -HostPoolName $CurrentMicrosoftEntraIDHostPool.Name -ResourceGroupName $CurrentMicrosoftEntraIDHostPool.ResourceGroupName -ErrorAction Ignore).ResourceId -replace ".*/" | Where-Object -FilterScript { -not([string]::IsNullOrEmpty($_)) } }
+    $MicrosoftEntraIDSessionHostNames = foreach ($CurrentMicrosoftEntraIDHostPool in $MicrosoftEntraIDHostPools) {
+ (Get-AzWvdSessionHost -HostPoolName $CurrentMicrosoftEntraIDHostPool.Name -ResourceGroupName $CurrentMicrosoftEntraIDHostPool.ResourceGroupName -ErrorAction Ignore).ResourceId -replace ".*/" | Where-Object -FilterScript { -not([string]::IsNullOrEmpty($_)) } 
+    }
     if ($MicrosoftEntraIDSessionHostNames) {
         Write-Verbose -Message "Removing Microsoft Entra ID Devices : $($MicrosoftEntraIDSessionHostNames -join ', ')"
         Get-MgBetaDevice -All | Where-Object -FilterScript { $_.DisplayName -in $MicrosoftEntraIDSessionHostNames } | ForEach-Object -Process { 
@@ -2995,7 +3132,9 @@ function Remove-AzAvdHostPoolSetup {
     #region Intune Cleanup
     #From https://therandomadmin.com/2024/03/04/get-intune-devices-with-powershell-2/
     $IntuneHostPools = $HostPools | Where-Object -FilterScript { $_.IsIntuneEnrolled }
-    $IntuneSessionHostNames = foreach ($CurrentIntuneHostPool in $IntuneHostPools) { (Get-AzWvdSessionHost -HostPoolName $CurrentIntuneHostPool.Name -ResourceGroupName $CurrentIntuneHostPool.ResourceGroupName -ErrorAction Ignore).ResourceId -replace ".*/" | Where-Object -FilterScript { -not([string]::IsNullOrEmpty($_)) } }
+    $IntuneSessionHostNames = foreach ($CurrentIntuneHostPool in $IntuneHostPools) {
+ (Get-AzWvdSessionHost -HostPoolName $CurrentIntuneHostPool.Name -ResourceGroupName $CurrentIntuneHostPool.ResourceGroupName -ErrorAction Ignore).ResourceId -replace ".*/" | Where-Object -FilterScript { -not([string]::IsNullOrEmpty($_)) } 
+    }
     if ($IntuneHostPools) {
         Remove-IntuneItemViaCmdlet -HostPoolName $IntuneHostPools.Name -SessionHostName $IntuneSessionHostNames
     }
@@ -3015,13 +3154,13 @@ function Remove-AzAvdHostPoolSetup {
     $ResourceGroup = Get-AzResourceGroup | Where-Object -FilterScript { ($_.ResourceGroupName -in $ResourceGroupName) }
 
     Write-Verbose "Removing Azure Delete Lock (if any) on Resource Group(s): $($ResourceGroup.ResourceGroupName -join, ', ') ..."
-    $ResourceGroup | Foreach-Object -Process { Get-AzResourceLock -ResourceGroupName $_.ResourceGroupName -AtScope | Where-Object -FilterScript { $_.Properties.level -eq 'CanNotDelete' } } | Remove-AzResourceLock -Force -ErrorAction Ignore
+    $ResourceGroup | ForEach-Object -Process { Get-AzResourceLock -ResourceGroupName $_.ResourceGroupName -AtScope | Where-Object -FilterScript { $_.Properties.level -eq 'CanNotDelete' } } | Remove-AzResourceLock -Force -ErrorAction Ignore
 
     #region Windows Credential Manager Cleanup
     Write-Verbose -Message "Removing Credentials from Windows Credential Manager ..."
     $StorageAccountName = ($ResourceGroup | Get-AzStorageAccount).StorageAccountName
     $Pattern = $StorageAccountName -join "|"
-    $StorageAccountCredentials = cmdkey /list | Select-string -Pattern "(?<Target>Target: (?<Domain>Domain:target=(?<FQDN>(?<Pattern>$Pattern)\.file\.core\.windows\.net)))" -AllMatches
+    $StorageAccountCredentials = cmdkey /list | Select-String -Pattern "(?<Target>Target: (?<Domain>Domain:target=(?<FQDN>(?<Pattern>$Pattern)\.file\.core\.windows\.net)))" -AllMatches
     if ($StorageAccountCredentials.Matches) {
         $StorageAccountCredentials.Matches | ForEach-Object -Process { 
             $FQDN = $_.Groups['FQDN']
@@ -3393,18 +3532,18 @@ function New-AzAvdPersonalHostPoolSetup {
                 #We propagate the AsJob context to the child function
                 Add-AzAvdSessionHost -HostPoolId $CurrentAzWvdHostPool.Id -NamePrefix $CurrentHostPool.NamePrefix -VMNumberOfInstances $CurrentHostPool.VMNumberOfInstances -KeyVault $CurrentHostPool.KeyVault -RegistrationInfoToken $RegistrationInfoToken.Token -DomainName $DomainName -OUPath $CurrentHostPoolOU.DistinguishedName -VMSize $CurrentHostPool.VMSize -ImagePublisherName $CurrentHostPool.ImagePublisherName -ImageOffer $CurrentHostPool.ImageOffer -ImageSku $CurrentHostPool.ImageSku -Tag $Tag -IsMicrosoftEntraIdJoined:$CurrentHostPool.IsMicrosoftEntraIdJoined() -Spot:$CurrentHostPool.Spot -HibernationEnabled:$CurrentHostPool.HibernationEnabled -Intune:$CurrentHostPool.Intune -AsJob #:$AsJob
             }
-            $SessionHosts = Get-AzWvdSessionHost -HostpoolName $CurrentHostPool.Name -ResourceGroupName $CurrentHostPoolResourceGroupName
+            $SessionHosts = Get-AzWvdSessionHost -HostPoolName $CurrentHostPool.Name -ResourceGroupName $CurrentHostPoolResourceGroupName
             $SessionHostNames = $SessionHosts.ResourceId -replace ".*/"
             #endregion 
 
             if ($CurrentHostPool.IsMicrosoftEntraIdJoined()) {
-                    #region Creating a dynamic device group for our AVD hosts
-                    $DisplayName = "{0} - Devices" -f $CurrentHostPool.Name
-                    $Description = "Dynamic device group for our AVD hosts for the {0} HostPool." -f $CurrentHostPool.Name
-                    $MailNickname = $($DisplayName -replace "\s").ToLower()
-                    $MembershipRule = "(device.displayName -startsWith ""$($CurrentHostPool.NamePrefix)-"")"
-                    $AzADDeviceDynamicGroup = New-AzADGroup -DisplayName $DisplayName -Description $Description -MembershipRule $MembershipRule -MembershipRuleProcessingState "On" -GroupType "DynamicMembership" -MailNickname $MailNickname -SecurityEnabled
-                    #endregion
+                #region Creating a dynamic device group for our AVD hosts
+                $DisplayName = "{0} - Devices" -f $CurrentHostPool.Name
+                $Description = "Dynamic device group for our AVD hosts for the {0} HostPool." -f $CurrentHostPool.Name
+                $MailNickname = $($DisplayName -replace "\s").ToLower()
+                $MembershipRule = "(device.displayName -startsWith ""$($CurrentHostPool.NamePrefix)-"")"
+                $AzADDeviceDynamicGroup = New-AzADGroup -DisplayName $DisplayName -Description $Description -MembershipRule $MembershipRule -MembershipRuleProcessingState "On" -GroupType "DynamicMembership" -MailNickname $MailNickname -SecurityEnabled
+                #endregion
             }
 
             #region Restarting the Session Hosts
@@ -3492,12 +3631,12 @@ function New-AzAvdPersonalHostPoolSetup {
             #From https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.tracing.eventlevel?view=net-8.0
             #Levels : 1 = Critical, 2 = Error, 3 = Warning
             $EventLogs = @(
-                [PSCustomObject] @{EventLogName = 'Application'; Levels = 1,2,3 }
-                [PSCustomObject] @{EventLogName = 'Microsoft-Windows-TerminalServices-LocalSessionManager/Operational'; Levels = 1,2,3 }
-                [PSCustomObject] @{EventLogName = 'Microsoft-Windows-TerminalServices-RemoteConnectionManager/Admin'; Levels = 1,2,3 }
-                [PSCustomObject] @{EventLogName = 'System'; Levels = 2,3 }
-                [PSCustomObject] @{EventLogName = 'Microsoft-FSLogix-Apps/Operational' ; Levels = 1,2,3 }
-                [PSCustomObject] @{EventLogName = 'Microsoft-FSLogix-Apps/Admin' ; Levels = 1,2,3 }
+                [PSCustomObject] @{EventLogName = 'Application'; Levels = 1, 2, 3 }
+                [PSCustomObject] @{EventLogName = 'Microsoft-Windows-TerminalServices-LocalSessionManager/Operational'; Levels = 1, 2, 3 }
+                [PSCustomObject] @{EventLogName = 'Microsoft-Windows-TerminalServices-RemoteConnectionManager/Admin'; Levels = 1, 2, 3 }
+                [PSCustomObject] @{EventLogName = 'System'; Levels = 2, 3 }
+                [PSCustomObject] @{EventLogName = 'Microsoft-FSLogix-Apps/Operational' ; Levels = 1, 2, 3 }
+                [PSCustomObject] @{EventLogName = 'Microsoft-FSLogix-Apps/Admin' ; Levels = 1, 2, 3 }
             )
             #Building the XPath for each event log
             $XPathQuery = foreach ($CurrentEventLog in $EventLogs) {
@@ -3536,8 +3675,7 @@ function New-AzAvdPersonalHostPoolSetup {
             #Building and Hashtable for each Performance Counters where the key is the sample interval
             $PerformanceCountersHT = $PerformanceCounters | Group-Object -Property IntervalSeconds -AsHashTable -AsString
 
-            $PerformanceCounters = foreach ($CurrentKey in $PerformanceCountersHT.Keys)
-            {
+            $PerformanceCounters = foreach ($CurrentKey in $PerformanceCountersHT.Keys) {
                 $Name = "PerformanceCounters{0}" -f $CurrentKey
                 #Building the Performance Counter paths for each Performance Counter
                 $CounterSpecifier = foreach ($CurrentCounter in $PerformanceCountersHT[$CurrentKey]) {
@@ -3881,7 +4019,7 @@ function New-AzAvdPooledHostPoolSetup {
                     #region GPT.INI Management
                     $GPTINIGPOFilePath = "\\{0}\SYSVOL\{0}\Policies\{{{1}}}\GPT.INI" -f $DomainName, $($CurrentHostPoolFSLogixGPO.Id)
                     Write-Verbose -Message "Processing '$GPTINIGPOFilePath' ..."
-                    $result = Select-string -Pattern "(Version)=(\d+)" -AllMatches -Path $GPTINIGPOFilePath
+                    $result = Select-String -Pattern "(Version)=(\d+)" -AllMatches -Path $GPTINIGPOFilePath
                     #Getting current version
                     [int]$VersionNumber = $result.Matches.Groups[-1].Value
                     Write-Verbose -Message "Version Number: $VersionNumber"
@@ -3936,7 +4074,7 @@ function New-AzAvdPooledHostPoolSetup {
                         if (-not(Get-Module -Name AzFilesHybrid -ListAvailable)) {
                             $AzFilesHybridZipName = 'AzFilesHybrid.zip'
                             $OutFile = Join-Path -Path $env:TEMP -ChildPath $AzFilesHybridZipName
-                            Start-BitsTransfer https://github.com/Azure-Samples/azure-files-samples/releases/latest/download/AzFilesHybrid.zip -destination $OutFile
+                            Start-BitsTransfer https://github.com/Azure-Samples/azure-files-samples/releases/latest/download/AzFilesHybrid.zip -Destination $OutFile
                             Expand-Archive -Path $OutFile -DestinationPath $env:TEMP\AzFilesHybrid -Force
                             Push-Location -Path $env:TEMP\AzFilesHybrid
                             .\CopyToPSPath.ps1
@@ -4327,7 +4465,7 @@ function New-AzAvdPooledHostPoolSetup {
                     if (-not(Get-Module -Name AzFilesHybrid -ListAvailable)) {
                         $AzFilesHybridZipName = 'AzFilesHybrid.zip'
                         $OutFile = Join-Path -Path $env:TEMP -ChildPath $AzFilesHybridZipName
-                        Start-BitsTransfer https://github.com/Azure-Samples/azure-files-samples/releases/latest/download/AzFilesHybrid.zip -destination $OutFile
+                        Start-BitsTransfer https://github.com/Azure-Samples/azure-files-samples/releases/latest/download/AzFilesHybrid.zip -Destination $OutFile
                         Expand-Archive -Path $OutFile -DestinationPath $env:TEMP\AzFilesHybrid -Force
                         Push-Location -Path $env:TEMP\AzFilesHybrid
                         .\CopyToPSPath.ps1
@@ -4835,7 +4973,7 @@ function New-AzAvdPooledHostPoolSetup {
                 #We propagate the AsJob context to the child function
                 Add-AzAvdSessionHost -HostPoolId $CurrentAzWvdHostPool.Id -NamePrefix $CurrentHostPool.NamePrefix -VMNumberOfInstances $CurrentHostPool.VMNumberOfInstances -KeyVault $CurrentHostPool.KeyVault -RegistrationInfoToken $RegistrationInfoToken.Token -DomainName $DomainName -OUPath $CurrentHostPoolOU.DistinguishedName -VMSize $CurrentHostPool.VMSize -ImagePublisherName $CurrentHostPool.ImagePublisherName -ImageOffer $CurrentHostPool.ImageOffer -ImageSku $CurrentHostPool.ImageSku -Tag $Tag -IsMicrosoftEntraIdJoined:$CurrentHostPool.IsMicrosoftEntraIdJoined() -Spot:$CurrentHostPool.Spot -HibernationEnabled:$CurrentHostPool.HibernationEnabled -Intune:$CurrentHostPool.Intune -AsJob #:$AsJob
             }
-            $SessionHosts = Get-AzWvdSessionHost -HostpoolName $CurrentHostPool.Name -ResourceGroupName $CurrentHostPoolResourceGroupName
+            $SessionHosts = Get-AzWvdSessionHost -HostPoolName $CurrentHostPool.Name -ResourceGroupName $CurrentHostPoolResourceGroupName
             $SessionHostNames = $SessionHosts.ResourceId -replace ".*/"
             #endregion 
 
@@ -5076,12 +5214,12 @@ function New-AzAvdPooledHostPoolSetup {
             #region Event Logs
             #Levels : 1 = Critical, 2 = Error, 3 = Warning
             $EventLogs = @(
-                @{EventLogName = 'Application'; Levels = 1,2,3 }
-                @{EventLogName = 'Microsoft-Windows-TerminalServices-LocalSessionManager/Operational'; Levels = 1,2,3 }
-                @{EventLogName = 'Microsoft-Windows-TerminalServices-RemoteConnectionManager/Admin'; Levels = 1,2,3 }
-                @{EventLogName = 'System'; Levels = 2,3 }
-                @{EventLogName = 'Microsoft-FSLogix-Apps/Operational' ; Levels = 1,2,3 }
-                @{EventLogName = 'Microsoft-FSLogix-Apps/Admin' ; Levels = 1,2,3 }
+                @{EventLogName = 'Application'; Levels = 1, 2, 3 }
+                @{EventLogName = 'Microsoft-Windows-TerminalServices-LocalSessionManager/Operational'; Levels = 1, 2, 3 }
+                @{EventLogName = 'Microsoft-Windows-TerminalServices-RemoteConnectionManager/Admin'; Levels = 1, 2, 3 }
+                @{EventLogName = 'System'; Levels = 2, 3 }
+                @{EventLogName = 'Microsoft-FSLogix-Apps/Operational' ; Levels = 1, 2, 3 }
+                @{EventLogName = 'Microsoft-FSLogix-Apps/Admin' ; Levels = 1, 2, 3 }
             )
             #Building the XPath for each event log
             $XPathQuery = foreach ($CurrentEventLog in $EventLogs) {
@@ -5120,8 +5258,7 @@ function New-AzAvdPooledHostPoolSetup {
             #Building and Hashtable for each Performance Counters where the key is the sample interval
             $PerformanceCountersHT = $PerformanceCounters | Group-Object -Property IntervalSeconds -AsHashTable -AsString
 
-            $PerformanceCounters = foreach ($CurrentKey in $PerformanceCountersHT.Keys)
-            {
+            $PerformanceCounters = foreach ($CurrentKey in $PerformanceCountersHT.Keys) {
                 $Name = "PerformanceCounters{0}" -f $CurrentKey
                 #Building the Performance Counter paths for each Performance Counter
                 $CounterSpecifier = foreach ($CurrentCounter in $PerformanceCountersHT[$CurrentKey]) {
@@ -5572,7 +5709,7 @@ function New-AzAvdRdcMan {
         #$Machines = Get-ADComputer -SearchBase $CurrentOU -Properties DNSHostName -Filter 'DNSHostName -like "*"' -SearchScope OneLevel
         $Machines = Get-ADComputer -SearchBase $CurrentOU -Properties DNSHostName -Filter 'DNSHostName -like "*"' -SearchScope OneLevel | Select-Object -Property Name
         if ($null -eq $Machines) {
-            $SessionHosts = Get-AzWvdSessionHost -HostpoolName $CurrentHostPool.Name -ResourceGroupName $ResourceGroupName
+            $SessionHosts = Get-AzWvdSessionHost -HostPoolName $CurrentHostPool.Name -ResourceGroupName $ResourceGroupName
             if ($null -ne $SessionHosts) {
                 $SessionHostNames = $SessionHosts.ResourceId -replace ".*/"
                 $Machines = foreach ($CurrentSessionHostName in $SessionHostNames) {
@@ -5790,7 +5927,7 @@ function New-AzAvdRdcManV2 {
             "{0}-{1}" -f $CurrentHostPool.NamePrefix, $index
         }
         if ($null -eq $Machines) {
-            $SessionHosts = Get-AzWvdSessionHost -HostpoolName $CurrentHostPool.Name -ResourceGroupName $ResourceGroupName
+            $SessionHosts = Get-AzWvdSessionHost -HostPoolName $CurrentHostPool.Name -ResourceGroupName $ResourceGroupName
             if ($null -ne $SessionHosts) {
                 $SessionHostNames = $SessionHosts.ResourceId -replace ".*/"
                 $Machines = foreach ($CurrentSessionHostName in $SessionHostNames) {
@@ -5966,7 +6103,7 @@ $Error.Clear()
 #For installing required modules if needed
 #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 $null = Get-PackageProvider -Name NuGet -Force
-$RequiredModules = 'Az.Accounts', 'Az.Compute', 'Az.DesktopVirtualization', 'Az.ImageBuilder', 'Az.Insights', 'Az.ManagedServiceIdentity', 'Az.KeyVault', 'Az.Monitor', 'Az.Network', 'Az.OperationalInsights', 'Az.PrivateDns', 'Az.Profile', 'Az.Resources', 'Az.Storage', 'Microsoft.Graph.Authentication', 'Microsoft.Graph.Beta.DeviceManagement', 'Microsoft.Graph.Beta.DeviceManagement.Actions', 'Microsoft.Graph.Beta.DeviceManagement.Administration', 'Microsoft.Graph.Beta.Identity.DirectoryManagement', 'ThreadJob'
+$RequiredModules = 'Az.Accounts', 'Az.Compute', 'Az.DesktopVirtualization', 'Az.ImageBuilder', 'Az.Insights', 'Az.ManagedServiceIdentity', 'Az.KeyVault', 'Az.Monitor', 'Az.Network', 'Az.OperationalInsights', 'Az.PrivateDns', 'Az.Profile', 'Az.Resources', 'Az.Storage', 'Microsoft.Graph.Authentication', 'Microsoft.Graph.Beta.DeviceManagement', 'Microsoft.Graph.Beta.DeviceManagement.Actions', 'Microsoft.Graph.Beta.DeviceManagement.Administration', 'Microsoft.Graph.Beta.Groups', 'Microsoft.Graph.Beta.Identity.DirectoryManagement', 'Microsoft.Graph.Beta.Identity.SignIns', 'ThreadJob'
 $InstalledModule = Get-InstalledModule -Name $RequiredModules -ErrorAction Ignore
 if (-not([String]::IsNullOrEmpty($InstalledModule))) {
     $MissingModules = (Compare-Object -ReferenceObject $RequiredModules -DifferenceObject $InstalledModule.Name).InputObject
@@ -6028,7 +6165,7 @@ if (-not(Test-Path -Path $env:SystemRoot\policyDefinitions\en-US\fslogix.adml -P
     $FSLogixLatestURI = ((Invoke-WebRequest -Uri "https://aka.ms/fslogix-latest").Links | Where-Object -FilterScript { $_.innerText -eq "Download" }).href
     $OutFile = Join-Path -Path $env:Temp -ChildPath $(Split-Path -Path $FSLogixLatestURI -Leaf)
     Write-Verbose -Message "Downloading from '$FSLogixLatestURI' to '$OutFile' ..."
-    Start-BitsTransfer $FSLogixLatestURI -destination $OutFile
+    Start-BitsTransfer $FSLogixLatestURI -Destination $OutFile
     $DestinationPath = Join-Path -Path $env:Temp -ChildPath "FSLogixLatest"
     Write-Verbose -Message "Unzipping '$OutFile' into '$DestinationPath'..."
     Expand-Archive -Path $OutFile -DestinationPath $DestinationPath -Force
@@ -6147,7 +6284,9 @@ New-AzAvdRdcMan -HostPool $HostPools -Install -Open -Verbose
 #Remove-AzResourceGroup -Name $AzureComputeGallery.ResourceGroupName -Force -AsJob
 
 #region Restarting all session hosts
-$SessionHostNames = foreach ($CurrentHostPool in $HostPools) { (Get-AzWvdSessionHost -HostPoolName $CurrentHostPool.Name -ResourceGroupName $CurrentHostPool.GetResourceGroupName() -ErrorAction Ignore).ResourceId -replace ".*/" | Where-Object -FilterScript { -not([string]::IsNullOrEmpty($_)) } }
+$SessionHostNames = foreach ($CurrentHostPool in $HostPools) {
+ (Get-AzWvdSessionHost -HostPoolName $CurrentHostPool.Name -ResourceGroupName $CurrentHostPool.GetResourceGroupName() -ErrorAction Ignore).ResourceId -replace ".*/" | Where-Object -FilterScript { -not([string]::IsNullOrEmpty($_)) } 
+}
 
 $Jobs = foreach ($CurrentSessionHostName in $SessionHostNames) {
     Write-Host -Object "Restarting '$CurrentSessionHostName' Azure VM ..."
@@ -6167,7 +6306,7 @@ Start-MicrosoftEntraIDConnectSync -Verbose
 $Results = Invoke-AzAvdOperationalInsightsQuery -HostPool $HostPools #-Verbose
 $Results.Results | Sort-Object -Property LocalTimeGenerated | Out-GridView
 #For getting all Data Collection Rule Associations
-$DataCollectionRuleAssociations = $HostPools.GetResourceGroupName() | ForEach-Object -Process { Get-AzVM -ResourceGroupName $_ } | ForEach-Object -Process { Get-AzDataCollectionRuleAssociation -ResourceUri $_.Id} #| Out-GridView
+$DataCollectionRuleAssociations = $HostPools.GetResourceGroupName() | ForEach-Object -Process { Get-AzVM -ResourceGroupName $_ } | ForEach-Object -Process { Get-AzDataCollectionRuleAssociation -ResourceUri $_.Id } #| Out-GridView
 #$DataCollectionRuleAssociations | Out-GridView
 #endregion
 
