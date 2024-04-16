@@ -1,6 +1,6 @@
 # Azure Virtual Desktop -Proof Of Concept - PowerShell version
 
-- [Azure Virtual Desktop - Proof Of Concept - PowerShell version](#azure-virtual-desktop--proof-of-concept---powershell-version)
+- [Azure Virtual Desktop -Proof Of Concept - PowerShell version](#azure-virtual-desktop--proof-of-concept---powershell-version)
   - [Prerequisites](#prerequisites)
   - [What this script does ?](#what-this-script-does-)
   - [TL;DR](#tldr)
@@ -371,13 +371,11 @@ At the end of the deployment, the following deliverables are available (the foll
 
 - Intune
   - Devices
-![Intune Devices](docs/IntuneDevices.jpg)
-
+  ![Intune Devices](docs/IntuneDevices.jpg)
   - Configuration Profiles
-![Intune Configuration Profiles](docs/IntuneConfigurationProfiles.jpg)
-
+  ![Intune Configuration Profiles](docs/IntuneConfigurationProfiles.jpg)
   - Platform Scripts
-![Intune Configuration Profiles](docs/IntunePlatformScripts.jpg)
+  ![Intune Configuration Profiles](docs/IntunePlatformScripts.jpg)
 
 ### Limitations
 
