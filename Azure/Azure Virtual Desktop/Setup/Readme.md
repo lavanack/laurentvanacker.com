@@ -378,7 +378,7 @@ At the end of the deployment, the following deliverables are available (the foll
   ![Intune Configuration Profiles](docs/IntunePlatformScripts.jpg)
 
 - Workspaces
-  ![Workspaces](docs/Workspaces.jpg)
+![Workspaces](docs/Workspaces.jpg)
 
 ### Limitations
 
