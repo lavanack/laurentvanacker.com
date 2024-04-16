@@ -371,7 +371,7 @@ At the end of the deployment, the following deliverables are available (the foll
 
 - Intune
   - Devices
-  ![Intune Configuration Profiles](docs/IntuneConfigurationProfiles.jpg)
+  ![Intune Devices](docs/IntuneDevices.jpg)
   - Configuration Profiles
   ![Intune Configuration Profiles](docs/IntuneConfigurationProfiles.jpg)
   - Platform Scripts
