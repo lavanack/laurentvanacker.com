@@ -425,3 +425,4 @@ I will probably integrate the following features in the script (when time permit
 - Hybrid Joined AVD Session Hosts
 - [Use Azure Private Link to connect networks to Azure Monitor](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/private-link-security)
 - Write a PowerShell 7+ version of the script (I'm using PowerShell 5.1 for the moment)
+- Create a PowerShell module for an easier use.
