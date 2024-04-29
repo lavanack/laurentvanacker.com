@@ -33,6 +33,7 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 $TranscriptFile = $CurrentScript -replace ".ps1$", "$("_{0}.txt" -f (Get-Date -Format 'yyyyMMddHHmmss'))"
+Set-Location -Path $CurrentDir
 Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 
 #region Global variables definition
@@ -124,7 +125,7 @@ $DOCKER01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default S
 #region server definitions
 #Domain controller + Certificate Authority
 Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress $DC01IPv4Address
-#IIS front-end server
+#DOCKER
 Add-LabMachineDefinition -Name DOCKER01 -NetworkAdapter $DOCKER01NetAdapter -MinMemory 6GB -MaxMemory 6GB -Memory 6GB -Processors 2
 #endregion
 
@@ -166,7 +167,7 @@ Invoke-LabCommand -ActivityName 'DNS, AD Setup & GPO Settings on DC' -ComputerNa
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Edge' -ValueName "HideFirstRunExperience" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
 
     #Bonus : To open all the available websites accross all nodes
-    $i=0
+    $i = 0
     $using:IISWebSitePort | ForEach-Object -Process {
         $CurrentIISWebSiteHostPort = $_
         $StartPage = "http://DOCKER01:$CurrentIISWebSiteHostPort"
@@ -190,7 +191,7 @@ $Jobs += Install-LabWindowsFeature -FeatureName Web-Mgmt-Console -ComputerName D
 #Checkpoint-LabVM -SnapshotName BeforeDockerSetup -All
 #Restore-LabVMSnapshot -SnapshotName BeforeDockerSetup -All -Verbose
 
-1..2 | Foreach-Object -Process {
+1..2 | ForEach-Object -Process {
     #We have to run twice : 1 run form the HyperV and containers setup (reboot required) and 1 run for the docker setup
     Invoke-LabCommand -ActivityName 'Docker Setup' -ComputerName DOCKER01 -ScriptBlock {
         #From https://learn.microsoft.com/en-us/virtualization/windowscontainers/quick-start/set-up-environment?tabs=dockerce#windows-server-1
@@ -208,13 +209,11 @@ $Jobs += Install-LabWindowsFeature -FeatureName Web-Mgmt-Console -ComputerName D
 Checkpoint-LabVM -SnapshotName DockerSetup -All
 
 #If an IISSetup.ps1 file is present in the same folder than this script, we copy it on the DOCKER01 VM for a customized IIS setup, else we use a simple docker file
-If (Test-Path -Path $IISSetupPowerShellScriptFile)
-{
+If (Test-Path -Path $IISSetupPowerShellScriptFile) {
     $IsIISSetupPowerShellScriptPresent = $true
     Copy-LabFileItem -Path $IISSetupPowerShellScriptFile -DestinationFolderPath $DockerIISRootFolder -ComputerName DOCKER01
 }
-else
-{
+else {
     $IsIISSetupPowerShellScriptPresent = $false
 }
 
@@ -224,8 +223,7 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -S
     #docker pull mcr.microsoft.com/windows/servercore/iis:windowsservercore-ltsc2022
 
     #Stopping all previously running containers if any
-    if ($(docker ps -a -q))
-    {
+    if ($(docker ps -a -q)) {
         docker stop 
         #To delete all containers
         docker rm -f $(docker ps -a -q)
@@ -234,7 +232,7 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -S
     $using:IISWebSitePort | ForEach-Object {
         $CurrentIISWebSiteHostPort = $_
         $TimeStamp = $("{0:yyyyMMddHHmmss}" -f (Get-Date))
-        $Name="MyRunningWebSite_$($TimeStamp)"
+        $Name = "MyRunningWebSite_$($TimeStamp)"
         $ContainerLocalRootFolder = Join-Path -Path $using:DockerIISRootFolder -ChildPath "$Name"
         $ContainerLocalContentFolder = Join-Path -Path $ContainerLocalRootFolder -ChildPath "Content"
         $ContainerLocalLogFolder = Join-Path -Path $ContainerLocalRootFolder -ChildPath "LogFiles"
@@ -242,22 +240,20 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -S
         $null = New-Item -Path $ContainerLocalContentFolder, $ContainerLocalLogFolder -ItemType Directory -Force
         
         #If an IISSetup.ps1 file is present in the same folder than this script, we use it on the DOCKER01 VM for a customized IIS setup, else we use a simple docker file
-        if ($using:IsIISSetupPowerShellScriptPresent)
-        {
+        if ($using:IsIISSetupPowerShellScriptPresent) {
             #Customizing default page
             "<html><title>Docker Test Page</title><body>This page was generated at $(Get-Date) via Powershell.<BR>Current Time is <%=Now%> (via ASP.Net).<BR>Your are listening on port <b>$CurrentIISWebSiteHostPort</b>.<BR>You are using a <b>PowerShell script</b> for setting up IIS</body></html>" | Out-File -FilePath $(Join-Path -Path $ContainerLocalContentFolder -ChildPath "default.aspx")
             $null = New-Item -Path $ContainerLocalDockerFile -ItemType File -Value $using:IISDockerFileContentCallingPowershellScript -Force
             Copy-Item -Path $(Join-Path -Path $using:DockerIISRootFolder -ChildPath $using:IISSetupFileName) -Destination $ContainerLocalRootFolder -Force -Recurse
         }
-        else
-        {
+        else {
             #Customizing default page
             "<html><title>Docker Test Page</title><body>This page was generated at $(Get-Date) via Powershell.<BR>Current Time is <%=Now%> (via ASP.Net).<BR>Your are listening on port <b>$CurrentIISWebSiteHostPort</b>.<BR>You are only using a <b>Docker file</b> for setting up IIS</body></html>" | Out-File -FilePath $(Join-Path -Path $ContainerLocalContentFolder -ChildPath "default.aspx")
             $null = New-Item -Path $ContainerLocalDockerFile -ItemType File -Value $using:IISDockerFileContentWithPowershellCommandLines -Force
         }
         
         Set-Location -Path $ContainerLocalRootFolder
-        docker build -t iis-website .
+        docker build -t iis-website:latest  -t iis-website:1.0.0 .
         #Mapping the remote IIS log files directory locally for every container for easier management
         #docker run -d -p "$($CurrentIISWebSiteHostPort):80" -v $ContainerLocalLogFolder\:C:\inetpub\logs\LogFiles -v $ContainerLocalContentFolder\:C:\inetpub\wwwroot --name $Name iis-website --restart unless-stopped #--rm
         docker run -d -p "$($CurrentIISWebSiteHostPort):80" -v $ContainerLocalLogFolder\:C:\inetpub\logs\LogFiles -v $ContainerLocalContentFolder\:C:\inetpub\wwwroot --name $Name iis-website --restart always #--rm
@@ -265,7 +261,7 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -S
         $ContainerIPv4Address = (docker inspect -f "{{ .NetworkSettings.Networks.nat.IPAddress }}" $Name | Out-String) -replace "`n"
         Write-Host "The internal IPv4 address for the container [$Name] is [$ContainerIPv4Address]" -ForegroundColor Yellow
         #Generating traffic : 10 web requests to have some entries in the IIS log files
-        1..10 | ForEach-Object -Process {$null = Invoke-WebRequest -uri http://localhost:$CurrentIISWebSiteHostPort}
+        1..10 | ForEach-Object -Process { $null = Invoke-WebRequest -Uri http://localhost:$CurrentIISWebSiteHostPort }
     }
     #Pulling ASP.Net Sample image
     #docker run -d -p 8080:80 --name aspnet_sample --rm -it mcr.microsoft.com/dotnet/framework/samples:aspnetapp
