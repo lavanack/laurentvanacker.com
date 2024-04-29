@@ -207,6 +207,7 @@ $Jobs += Install-LabWindowsFeature -FeatureName Web-Mgmt-Console -ComputerName D
 }
 
 Checkpoint-LabVM -SnapshotName DockerSetup -All
+#Restore-LabVMSnapshot -SnapshotName 'DockerSetup' -All -Verbose
 
 #If an IISSetup.ps1 file is present in the same folder than this script, we copy it on the DOCKER01 VM for a customized IIS setup, else we use a simple docker file
 If (Test-Path -Path $IISSetupPowerShellScriptFile) {
@@ -218,6 +219,8 @@ else {
 }
 
 Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -ScriptBlock {
+    Set-WinUserLanguageList fr-fr -Force
+
     Start-Service Docker
     #Pulling IIS image
     #docker pull mcr.microsoft.com/windows/servercore/iis:windowsservercore-ltsc2022
@@ -253,7 +256,7 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -S
         }
         
         Set-Location -Path $ContainerLocalRootFolder
-        docker build -t iis-website:latest  -t iis-website:1.0.0 .
+        docker build -t iis-website .
         #Mapping the remote IIS log files directory locally for every container for easier management
         #docker run -d -p "$($CurrentIISWebSiteHostPort):80" -v $ContainerLocalLogFolder\:C:\inetpub\logs\LogFiles -v $ContainerLocalContentFolder\:C:\inetpub\wwwroot --name $Name iis-website --restart unless-stopped #--rm
         docker run -d -p "$($CurrentIISWebSiteHostPort):80" -v $ContainerLocalLogFolder\:C:\inetpub\logs\LogFiles -v $ContainerLocalContentFolder\:C:\inetpub\wwwroot --name $Name iis-website --restart always #--rm
@@ -282,6 +285,14 @@ Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName
     Stop-Service WUAUSERV -PassThru | Set-Service -StartupType Disabled
 } 
 
+
+<#
+Invoke-LabCommand -ActivityName 'Pushing Docker images' -ComputerName DOCKER01 -ScriptBlock {
+    docker login --username lavanack --password ...
+    docker tag iis-website lavanack/iis-website
+    docker push lavanack/iis-website
+}
+#>
 #Waiting for background jobs
 $Jobs | Wait-Job | Out-Null
 
