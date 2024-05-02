@@ -18,7 +18,7 @@ The [1 - AzureVMWithAzureAutomanageMachineConfiguration](1%20-%20AzureVMWithAzur
 - Run the [1 - AzureVMWithAzureAutomanageMachineConfiguration.ps1](1%20-%20AzureVMWithAzureAutomanageMachineConfiguration.ps1) script (PowerShell 5.1 needed) wait for completion (~10 minutes).
 - The required scripts (Shell Unix and Powershell) are copied on the newly created VM.
 - A Shell session to the VM will open
-- Run the [2 - Prerequisites.sh](2%20-%20Prerequisites.sh) script from the Azure VM to install some prerequisites and useful tools (Powershell modules, [PowerShell 7+](https://github.com/PowerShell/powershell/releases), [Visual Studio Code](https://code.visualstudio.com/), ...).  
+- Run the [2 - Prerequisites.sh](2%20-%20Prerequisites.sh) script from this shell session to install some prerequisites and useful tools (Powershell modules, [PowerShell 7+](https://github.com/PowerShell/powershell/releases), [Visual Studio Code](https://code.visualstudio.com/), ...).  
 - The [2 - Prerequisites.sh](2%20-%20Prerequisites.sh) script will also call the [3 - AzureAutomanageMachineConfiguration.ps1](3%20-%20AzureAutomanageMachineConfiguration.ps1) to apply the [Deploy prerequisites to enable Guest Configuration policies on virtual machines](https://github.com/Azure/azure-policy/blob/master/built-in-policies/policySetDefinitions/Guest%20Configuration/GuestConfiguration_Prerequisites.json) initiative and will deploy your Desired State Configuration just after.
 
 **Notes:**
