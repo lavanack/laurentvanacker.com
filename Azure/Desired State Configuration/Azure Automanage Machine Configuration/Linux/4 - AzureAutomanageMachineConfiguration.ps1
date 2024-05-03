@@ -10,7 +10,8 @@
 #Cleaning up previous tests 
 Get-AzResourceGroup -Name rg-dsc-amc* | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyRemediation | Remove-AzPolicyRemediation -AllowStop -AsJob -Verbose | Wait-Job
 Get-AzResourceGroup -Name rg-dsc-amc* | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyAssignment  | Where-Object -FilterScript { $_.ResourceGroupName -like 'rg-dsc-amc*' } | Remove-AzPolicyAssignment -Verbose #-Whatif
-Get-AzPolicyDefinition | Where-Object -filterScript {$_.Properties.metadata.category -eq "Guest Configuration" -and $_.Properties.DisplayName -like "*ExampleConfiguration*"} | Remove-AzPolicyDefinition -Verbose -Force #-WhatIf
+Get-AzPolicyDefinition | Where-Object -filterScript {$_.Properties.metadata.category -eq "Guest Configuration" -and $_.Properties.DisplayName -like "*ExampleConfiguration*"} | Remove-AzPolicyDefinition -Force -Verbose #-WhatIf
+Get-AzResourceGroup -Name rg-dsc-amc* | Remove-AzResourceGroup -AsJob -Force -Verbose 
 #>
 
 
@@ -18,6 +19,13 @@ Clear-Host
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
+
+
+#region #Connection to Azure and Subscription selection
+if (-not(Get-AzContext)) {
+    Connect-AzAccount -UseDeviceAuthentication
+    #Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
+}
 
 $VMName = $(hostname)
 $AzVM = Get-AzVM -Name $VMName 
@@ -27,10 +35,10 @@ $StorageAccount = Get-AzStorageAccount -ResourceGroupName $resourceGroupName
 $StorageAccountName = $StorageAccount.StorageAccountName
 $StorageContainerName = "guestconfiguration"
 $ConfigurationName = "ExampleConfiguration"
-$GuestConfigurationPackageName = "$ConfigurationName.zip"
-#$GuestConfigurationPackageFullName  = "$CurrentDir\$ConfigurationName\$GuestConfigurationPackageName"
+$GuestConfigurationPackageFileName = "$ConfigurationName.zip"
+$GuestConfigurationPackageFilePath = Join-Path -Path $CurrentDir -ChildPath $GuestConfigurationPackageFileName -Resolve
+#endregion
 
-#region From PowerShell
 #region Deploy prerequisites to enable Guest Configuration policies on virtual machines
 
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName
@@ -64,15 +72,11 @@ $Job = Start-AzPolicyComplianceScan -ResourceGroupName $ResourceGroupName -AsJob
 
 
 #region Our Guest Policy
-#& "$PSScriptRoot\$ConfigurationName.ps1"
-
-# Create a guest configuration package for Azure Policy GCS
-$GuestConfigurationPackage = New-GuestConfigurationPackage -Name $ConfigurationName -Configuration './ExampleConfiguration/localhost.mof' -Type AuditAndSet -Force
 # Testing the configuration
-Get-GuestConfigurationPackageComplianceStatus -Path $GuestConfigurationPackage.Path
+Get-GuestConfigurationPackageComplianceStatus -Path $GuestConfigurationPackageFilePath
 #Set-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -AllowBlobPublicAccess $true
 # Applying the Machine Configuration Package locally
-Start-GuestConfigurationPackageRemediation -Path $GuestConfigurationPackage.Path -Verbose
+Start-GuestConfigurationPackageRemediation -Path $GuestConfigurationPackageFilePath -Verbose
 
 # Creates a new container
 if (-not($storageAccount | Get-AzStorageContainer -Name $StorageContainerName -ErrorAction Ignore)) {
@@ -81,11 +85,11 @@ if (-not($storageAccount | Get-AzStorageContainer -Name $StorageContainerName -E
 $StorageAccountKey = (($storageAccount | Get-AzStorageAccountKey) | Where-Object -FilterScript { $_.KeyName -eq "key1" }).Value
 $Context = New-AzStorageContext -ConnectionString "DefaultEndpointsProtocol=https;AccountName=$StorageAccountName;AccountKey=$StorageAccountKey"
 
-Set-AzStorageBlobContent -Container $StorageContainerName -File $GuestConfigurationPackage.Path -Blob $GuestConfigurationPackageName -Context $Context -Force
+Set-AzStorageBlobContent -Container $StorageContainerName -File $GuestConfigurationPackageFilePath -Blob $GuestConfigurationPackageFileName -Context $Context -Force
 #Adding a 3-year expiration time from now for the SAS Token
 $StartTime = Get-Date
 $ExpiryTime = $StartTime.AddYears(3)
-$ContentURI = New-AzStorageBlobSASToken -Context $Context -FullUri -Container $StorageContainerName -Blob $GuestConfigurationPackageName -Permission rwd -StartTime $StartTime -ExpiryTime $ExpiryTime      
+$ContentURI = New-AzStorageBlobSASToken -Context $Context -FullUri -Container $StorageContainerName -Blob $GuestConfigurationPackageFileName -Permission rwd -StartTime $StartTime -ExpiryTime $ExpiryTime      
 
 # Create a Policy Id
 $PolicyId = (New-Guid).Guid  
@@ -139,7 +143,6 @@ Get-AzPolicyState -ResourceGroupName $ResourceGroupName -PolicyAssignmentName $P
 
 #Get latest non-compliant policy states summary in resource group scope
 Get-AzPolicyStateSummary -ResourceGroupName $ResourceGroupName | Select-Object -ExpandProperty PolicyAssignments 
-#endregion
 #endregion
 
 $Job | Receive-Job -Wait

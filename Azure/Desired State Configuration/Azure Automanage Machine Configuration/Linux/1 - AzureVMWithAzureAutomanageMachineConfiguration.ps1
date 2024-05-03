@@ -15,7 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources
+#requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources -RunAsAdministrator
 
 [CmdletBinding()]
 param
@@ -361,12 +361,32 @@ Restart-AzVM -ResourceGroupName $ResourceGroupName -Name $VMName
 mstsc /v $FQDN
 #endregion
 
+#region Registering Azure Resource Providers
+#From https://docs.microsoft.com/en-us/azure/governance/policy/assign-policy-powershell
+Register-AzResourceProvider -ProviderNamespace Microsoft.GuestConfiguration
+Register-AzResourceProvider -ProviderNamespace Microsoft.PolicyInsights
+#Important: Wait until RegistrationState is set to Registered. 
+While (Get-AzResourceProvider -ProviderNamespace Microsoft.GuestConfiguration, Microsoft.PolicyInsights | Where-Object -FilterScript { $_.RegistrationState -ne 'Registered' }) {
+    Start-Sleep -Seconds 10
+}
+#endregion
+
+#region Installing/Updating PowerShell 7+ locally (required for creating the Guest Configuration Package)
+#Installing Powershell 7+ : Silent Install
+Invoke-Expression -Command "& { $(Invoke-RestMethod https://aka.ms/install-powershell.ps1) } -UseMSI -Quiet"
+#endregion
+
+#region Creating the Guest Configuration Package locally
+$NewGuestConfigurationPackageScriptFilePath = Join-Path -Path $CurrentDir -ChildPath '2 - NewGuestConfigurationPackage.ps1'
+Start-Process -FilePath "$env:comspec" -ArgumentList '/c', "pwsh -File ""$NewGuestConfigurationPackageScriptFilePath""" -Wait
+#endregion
 
 Write-Host -Object "Your SSH/RDP credentials (login/password) are $($Credential.UserName)/$($Credential.GetNetworkCredential().Password)" -ForegroundColor Green
 #If no SSH Public Key, creating a connection by passing the user name
-Start-Process -FilePath "$env:comspec" -ArgumentList '/c', "scp -o StrictHostKeyChecking=no -r ExampleConfiguration *.ps1 *.sh $($SSHConnection):~" -Wait
+Start-Process -FilePath "$env:comspec" -ArgumentList '/c', "scp -o StrictHostKeyChecking=no ExampleConfiguration.zip 3*.sh 4*.ps1 $($SSHConnection):~" -Wait
 Start-Process -FilePath "$env:comspec" -ArgumentList '/c', "ssh -o StrictHostKeyChecking=no $SSHConnection chmod +x *.sh" -Wait
-#Start-Process -FilePath "$env:comspec" -ArgumentList '/k', "ssh -o StrictHostKeyChecking=no $SSHConnection sudo './2 - Prerequisites.sh'"
+#Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -Name $VMName -CommandId 'RunShellScript' -ScriptPath '3 - Prerequisites.sh'
+#Start-Process -FilePath "$env:comspec" -ArgumentList '/k', "ssh -o StrictHostKeyChecking=no $SSHConnection sudo './3 - Prerequisites.sh'"
 Start-Process -FilePath "$env:comspec" -ArgumentList '/c', "ssh -o StrictHostKeyChecking=no $SSHConnection"
 
 #Browsing to the hosted website

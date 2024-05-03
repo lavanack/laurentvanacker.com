@@ -1,6 +1,6 @@
 # Azure Automage Machine Configuration
 
-The [1 - AzureVMWithAzureAutomanageMachineConfiguration](1%20-%20AzureVMWithAzureAutomanageMachineConfiguration.ps1) script creates a Linux Azure VM. After, you'll have to run the [2 - Prerequisites.sh](2%20-%20Prerequisites.sh) script from the newly created Azure VM to deploy some DSC resources (Package, User, Group ...). The DSC configuration used is the `AzureArcJumpstart_Linux` configuration you can find [here](https://azurearcjumpstart.com/azure_arc_jumpstart/azure_arc_servers/day2/arc_automanage/arc_automanage_machine_configuration_custom_linux#custom-configuration-for-linux).
+The [1 - AzureVMWithAzureAutomanageMachineConfiguration](1%20-%20AzureVMWithAzureAutomanageMachineConfiguration.ps1) script creates a Linux Azure VM. After, you'll have to run the [3 - Prerequisites.sh](3%20-%20Prerequisites.sh) script from the newly created Azure VM to deploy some DSC resources (Package, User, Group ...). The DSC configuration used is the `AzureArcJumpstart_Linux` configuration you can find [here](https://azurearcjumpstart.com/azure_arc_jumpstart/azure_arc_servers/day2/arc_automanage/arc_automanage_machine_configuration_custom_linux#custom-configuration-for-linux).
 
 ## Table of Contents
 
@@ -15,15 +15,16 @@ The [1 - AzureVMWithAzureAutomanageMachineConfiguration](1%20-%20AzureVMWithAzur
 
 ### Setup
 
-- Run the [1 - AzureVMWithAzureAutomanageMachineConfiguration.ps1](1%20-%20AzureVMWithAzureAutomanageMachineConfiguration.ps1) script (PowerShell 5.1 needed) wait for completion (~10 minutes).
+- Run the [1 - AzureVMWithAzureAutomanageMachineConfiguration.ps1](1%20-%20AzureVMWithAzureAutomanageMachineConfiguration.ps1) script (PowerShell 5.1 needed) wait for completion (~10 minutes). [PowerShell 7+](https://github.com/PowerShell/powershell/releases) will be installed on your machine (the running machine from you run the script) to compile the DSC configuration and create the guest configuration package.  
 - The required scripts (Shell Unix and Powershell) are copied on the newly created VM.
 - A Shell session to the VM will open
-- Run the [2 - Prerequisites.sh](2%20-%20Prerequisites.sh) script from this shell session to install some prerequisites and useful tools (Powershell modules, [PowerShell 7+](https://github.com/PowerShell/powershell/releases), [Visual Studio Code](https://code.visualstudio.com/), ...).  
-- The [2 - Prerequisites.sh](2%20-%20Prerequisites.sh) script will also call the [3 - AzureAutomanageMachineConfiguration.ps1](3%20-%20AzureAutomanageMachineConfiguration.ps1) to apply the [Deploy prerequisites to enable Guest Configuration policies on virtual machines](https://github.com/Azure/azure-policy/blob/master/built-in-policies/policySetDefinitions/Guest%20Configuration/GuestConfiguration_Prerequisites.json) initiative and will deploy your Desired State Configuration just after.
+- Run the [3 - Prerequisites.sh](3%20-%20Prerequisites.sh) script from this shell session to install required [PowerShell 7+](https://github.com/PowerShell/powershell/releases) modules.  
+- The [3 - Prerequisites.sh](3%20-%20Prerequisites.sh) script will also call the [4 - AzureAutomanageMachineConfiguration.ps1](3%20-%20AzureAutomanageMachineConfiguration.ps1) to apply the [Deploy prerequisites to enable Guest Configuration policies on virtual machines](https://github.com/Azure/azure-policy/blob/master/built-in-policies/policySetDefinitions/Guest%20Configuration/GuestConfiguration_Prerequisites.json) initiative and will deploy your Desired State Configuration just after.
 
 **Notes:**
 
-- If you are already connected (via [Connect-Azaccount](https://learn.microsoft.com/en-us/powershell/module/az.accounts/connect-azaccount)) to Azure, you will be prompted to connect.
+- As explained [here](https://azurearcjumpstart.com/azure_arc_jumpstart/azure_arc_servers/day2/arc_automanage/arc_automanage_machine_configuration_custom_linux#custom-configuration-for-linux), the DSC configuration compilation and the Guest configuration package creation occur on your machine (not the Azure VM). For that [PowerShell 7+](https://github.com/PowerShell/powershell/releases) will be locally installed (Your machine is acting as a build server/authoring node).
+- You will be prompted to connect to Azure from the Azure VM.
 - The Azure VM will run the latest version of 'Ubuntu 22.04 LTS' Generation 2 in a [Standard_D4s_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/dv5-dsv5-series) Azure VM.
 - The Azure VM will be a [Spot Instance](https://learn.microsoft.com/en-us/azure/virtual-machines/spot-vms) with a 'Deallocate' [eviction policy](https://learn.microsoft.com/en-us/azure/architecture/guide/spot/spot-eviction#eviction-policy) based on capacity (not price) to save money. You can disable that if you want (around line 185 in the [1 - AzureVMWithAzureAutomanageMachineConfiguration.ps1](1%20-%20AzureVMWithAzureAutomanageMachineConfiguration.ps1) script).
 - The VM will be deployed on the eastus region (You can use the non Microsoft <https://cloudprice.net/> web site to compare cost in different regions for cost savings) . You can change  that if you want (around line 79 in the [[1 - AzureVMWithAzureAutomanageMachineConfiguration.ps1](1%20-%20AzureVMWithAzureAutomanageMachineConfiguration.ps1) script).
