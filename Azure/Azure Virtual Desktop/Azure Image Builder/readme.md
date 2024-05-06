@@ -8,6 +8,7 @@
   - [AzureImageBuilder-v3.ps1](#azureimagebuilder-v3ps1)
   - [AzureImageBuilder-v4.ps1](#azureimagebuilder-v4ps1)
   - [AzureImageBuilder-v5.ps1](#azureimagebuilder-v5ps1)
+  - [AzureImageBuilder-v6.ps1](#azureimagebuilder-v6ps1)
   - [AzureImageBuilder with CMK.ps1](#azureimagebuilder-with-cmkps1)
   - [New-AzureComputeGalleryVM.ps1](#new-azurecomputegalleryvmps1)
   - [Get-AzureVMImageBuilderCustomizationLog.ps1](#get-azurevmimagebuildercustomizationlogps1)
@@ -64,6 +65,10 @@ The main difference is [Storage Explorer](https://azure.microsoft.com/en-us/prod
 > [!NOTE]
 > The file customizer is only suitable for small file downloads, < 20MB. For larger file downloads, use a script or inline command, then use code to download files, such as, Linux wget or curl, Windows, Invoke-WebRequest.
 > The [Storage Explorer](https://azure.microsoft.com/en-us/products/storage/storage-explorer) setup file exceeds the 20MB limit so we need to use an alternative solution as mentionned above. I have chosen to use [AZCopy](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10) to download the setup file from the Azure Container.
+
+## AzureImageBuilder-v6.ps1
+
+The [AzureImageBuilder-v6.ps1](AzureImageBuilder-v6.ps1) script is almost the same than the [AzureImageBuilder-v2.ps1](AzureImageBuilder-v2.ps1) script but adds a [Windows restart customizer](<https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-json?tabs=json%2Cazure-powershell#windows-restart-customizer>) to restart the VM after the installation of Visual Studio Code as an example how to use this customizer.
 
 ## AzureImageBuilder with CMK.ps1
 
