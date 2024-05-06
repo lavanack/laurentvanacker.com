@@ -25,7 +25,7 @@ function New-AzureComputeGallery {
 		[Parameter(Mandatory = $false)]
 		[string]$Location = "EastUS",
 		[Parameter(Mandatory = $false)]
-		[string[]]$targetRegions = @($Location,"EastUS2"),
+		[string[]]$targetRegions = @($Location, "EastUS2"),
 		[Parameter(Mandatory = $false)]
 		[int]$ReplicaCount = 1
 	)
@@ -50,14 +50,13 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "`$Location: $Location"
 	$LocationShortName = $shortNameHT[$Location].shortName
 	Write-Verbose -Message "`$LocationShortName: $LocationShortName"
-    if ($Location -notin $targetRegions) {
-        $targetRegions += $Location
-    }
+	if ($Location -notin $targetRegions) {
+		$targetRegions += $Location
+	}
 	Write-Verbose -Message "`$targetRegions: $($targetRegions -join ', ')"
-    [array] $targetRegionSettings = foreach ($CurrentTargetRegion in $targetRegions)
-    {
-        @{"name"=$CurrentTargetRegion;"replicaCount"=$ReplicaCount;"storageAccountType"="Premium_LRS"}
-    }
+	[array] $targetRegionSettings = foreach ($CurrentTargetRegion in $targetRegions) {
+		@{"name" = $CurrentTargetRegion; "replicaCount" = $ReplicaCount; "storageAccountType" = "Premium_LRS" }
+	}
 
 	$Project = "avd"
 	$Role = "aib"
@@ -122,9 +121,9 @@ function New-AzureComputeGallery {
 	# Download the config
 	Invoke-WebRequest -Uri $aibRoleImageCreationUrl -OutFile $aibRoleImageCreationPath -UseBasicParsing
 
-    ((Get-Content -path $aibRoleImageCreationPath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $aibRoleImageCreationPath
-    ((Get-Content -path $aibRoleImageCreationPath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $aibRoleImageCreationPath
-    ((Get-Content -path $aibRoleImageCreationPath -Raw) -replace 'Azure Image Builder Service Image Creation Role', $imageRoleDefName) | Set-Content -Path $aibRoleImageCreationPath
+    ((Get-Content -Path $aibRoleImageCreationPath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $aibRoleImageCreationPath
+    ((Get-Content -Path $aibRoleImageCreationPath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $aibRoleImageCreationPath
+    ((Get-Content -Path $aibRoleImageCreationPath -Raw) -replace 'Azure Image Builder Service Image Creation Role', $imageRoleDefName) | Set-Content -Path $aibRoleImageCreationPath
 
 	# Create a role definition
 	Write-Verbose -Message "Creating '$imageRoleDefName' Role Definition ..."
@@ -166,21 +165,21 @@ function New-AzureComputeGallery {
 
 	Invoke-WebRequest -Uri $templateUrl -OutFile $templateFilePath -UseBasicParsing
 
-    ((Get-Content -path $templateFilePath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $templateFilePath
 	#((Get-Content -path $templateFilePath -Raw) -replace '<region>',$location) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<runOutputName>', $runOutputName01) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<runOutputName>', $runOutputName01) | Set-Content -Path $templateFilePath
 
-    ((Get-Content -path $templateFilePath -Raw) -replace '<imageDefName>', $imageDefName01) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<sharedImageGalName>', $GalleryName) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<targetRegions>', $($targetRegionSettings | ConvertTo-Json)) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<imgBuilderId>', $AssignedIdentity.Id) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<version>', $version) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<imageDefName>', $imageDefName01) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<sharedImageGalName>', $GalleryName) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<targetRegions>', $($targetRegionSettings | ConvertTo-Json)) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<imgBuilderId>', $AssignedIdentity.Id) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<version>', $version) | Set-Content -Path $templateFilePath
 	#endregion
 
 	#region Submit the template
 	Write-Verbose -Message "Starting Resource Group Deployment from '$templateFilePath' ..."
-	$ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2022-07-01"; "imageTemplateName" = $imageTemplateName01; "svclocation" = $location}
+	$ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2022-07-01"; "imageTemplateName" = $imageTemplateName01; "svclocation" = $location }
 
 	#region Build the image
 	Write-Verbose -Message "Starting Image Builder Template from '$imageTemplateName01' (As Job) ..."
@@ -234,10 +233,10 @@ function New-AzureComputeGallery {
 	$disSharedImg = New-AzImageBuilderTemplateDistributorObject @disObjParams
 
 	$ImgCopyInstallLanguagePacksFileCustomizerParams = @{  
-		FileCustomizer       = $true  
-		Name                 = 'CopyInstallLanguagePacks'  
-		sourceUri            = 'https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-11-20/InstallLanguagePacks.ps1'
-        destination          = "C:\AVDImage\installLanguagePacks.ps1"
+		FileCustomizer = $true  
+		Name           = 'CopyInstallLanguagePacks'  
+		sourceUri      = 'https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-11-20/InstallLanguagePacks.ps1'
+		destination    = "C:\AVDImage\installLanguagePacks.ps1"
 	}
 
 	Write-Verbose -Message "Creating Azure Image Builder Template Customizer Object for copying 'InstallLanguagePacks.ps1' from the RDS-Templates Github repository ..."
@@ -248,7 +247,7 @@ function New-AzureComputeGallery {
 		Name                 = 'InstallLanguagePacks'  
 		RunElevated          = $true  
 		runAsSystem          = $true
-        inline               = "C:\AVDImage\installLanguagePacks.ps1 -LanguageList 'German (Germany)','French (France)'"
+		inline               = "C:\AVDImage\installLanguagePacks.ps1 -LanguageList 'German (Germany)','French (France)'"
 	}
 	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for running 'InstallLanguagePacks.ps1' ..."
 	$InstallLanguagePacksCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgInstallLanguagePacksFileCustomizerParams 
@@ -276,11 +275,11 @@ function New-AzureComputeGallery {
 	$VSCodeCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgVSCodePowerShellCustomizerParams 
 
 	$ImgWindowsRestartCustomizerParams = @{  
-		RestartCustomizer    = $true  
-		Name                 = 'WindowsRestart'
-        RestartCommand       = 'powershell -command "& {Write-Output "restarted."}"'
-        RestartCheckCommand  = 'shutdown /f /r /t 0 /c \"WindowsRestart Customizer Example\"'
-        RestartTimeout       = '10m'
+		RestartCustomizer   = $true  
+		Name                = 'WindowsRestart'
+		RestartCommand      = 'powershell -command "& {Write-Output "restarted."}"'
+		RestartCheckCommand = 'shutdown /f /r /t 0 /c \"WindowsRestart Customizer Example\"'
+		RestartTimeout      = '10m'
 	}
 
 	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgWindowsRestartCustomizerParams.Name)' ..."
@@ -301,7 +300,7 @@ function New-AzureComputeGallery {
 	$DisableAutoUpdatesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgDisableAutoUpdatesPowerShellCustomizerParams 
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
-    $Customize = $CopyInstallLanguagePacksCustomizer, $InstallLanguagePacksCustomizer, $TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsRestartCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
+	$Customize = $CopyInstallLanguagePacksCustomizer, $InstallLanguagePacksCustomizer, $TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsRestartCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
 	$ImgTemplateParams = @{
 		ImageTemplateName      = $imageTemplateName02
 		ResourceGroupName      = $ResourceGroupName

@@ -85,7 +85,7 @@
                         "type": "WindowsRestart",
                         "name": "WindowsRestart",
                         "restartCommand": "shutdown /f /r /t 0 /c \"WindowsRestart Customizer Example\"",
-                        "restartCheckCommand": "powershell -command \"& {Write-Output 'restarted.'}\",
+                        "restartCheckCommand": "powershell -command \"& {Write-Output 'restarted.'}\"",
                         "restartTimeout": "10m"
                     },
                     {
@@ -112,7 +112,7 @@
                         "galleryImageId": "/subscriptions/<subscriptionID>/resourceGroups/<rgName>/providers/Microsoft.Compute/galleries/<sharedImageGalName>/images/<imageDefName>/versions/<version>",
                         "runOutputName": "<runOutputName>",
                         "artifactTags": {
-							"publisher": "MicrosoftWindowsDesktop",
+                            "publisher": "MicrosoftWindowsDesktop",
                             "offer": "Windows-11",
                             "sku": "win11-23h2-avd"
                         },
