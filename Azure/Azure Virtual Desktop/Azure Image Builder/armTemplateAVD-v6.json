@@ -82,6 +82,13 @@
                         "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/Install-VSCode.ps1"
                     },
                     {
+                        "type": "WindowsRestart",
+                        "name": "WindowsRestart",
+                        "restartCommand": "shutdown /f /r /t 0 /c \"WindowsRestart Customizer Example\"",
+                        "restartCheckCommand": "powershell -command \"& {Write-Output 'restarted.'}\",
+                        "restartTimeout": "10m"
+                    },
+                    {
                         "type": "WindowsUpdate",
                         "searchCriteria": "IsInstalled=0",
                         "filters": [
@@ -105,13 +112,11 @@
                         "galleryImageId": "/subscriptions/<subscriptionID>/resourceGroups/<rgName>/providers/Microsoft.Compute/galleries/<sharedImageGalName>/images/<imageDefName>/versions/<version>",
                         "runOutputName": "<runOutputName>",
                         "artifactTags": {
-                            "source": "avd-win11",
-                            "baseosimg": "windows11"
+							"publisher": "MicrosoftWindowsDesktop",
+                            "offer": "Windows-11",
+                            "sku": "win11-23h2-avd"
                         },
-                        "replicationRegions": [
-                            "<region1>"
-
-                        ]
+                        "targetRegions": <targetRegions>
                     }
                 ]
             }
