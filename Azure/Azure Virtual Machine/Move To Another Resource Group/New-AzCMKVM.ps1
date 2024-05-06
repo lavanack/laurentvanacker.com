@@ -20,7 +20,8 @@ of the Sample Code.
 [CmdletBinding()]
 param
 (
-    [int] $VMNumber = 25
+    [int] $VMNumber = 25,
+    [switch] $JIT
 )
 
 #region function definitions 
@@ -161,8 +162,6 @@ if ($ResourceGroup) {
     $DestinationResourceGroup | Remove-AzResourceGroup -Force -Verbose
 }
 
-
-
 $MyPublicIp = (Invoke-WebRequest -Uri "https://ipv4.seeip.org").Content
 
 #region Define Variables needed for Virtual Machine
@@ -235,8 +234,11 @@ $AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $keyVaultName -ObjectId $D
 #$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -UserPrincipalName $UserPrincipalName -PermissionsToSecrets Get,Delete,List,Set -PassThru
 #endregion 
 
-
+$Index=0
 $Jobs = foreach ($CurrentVMName in $VMNames) {
+    $Index++
+    $PercentComplete = $Index/$VMNames.Count*100
+    Write-Progress -Activity "[$($Index)/$($VMNames.Count)] Creating VMs ..." -CurrentOperation "Processing '$CurrentVMName' VM ..." -Status $('{0:N0}%' -f $PercentComplete) -PercentComplete $PercentComplete
     $NICName = "nic-$CurrentVMName"
     $OSDiskName = '{0}_OSDisk' -f $CurrentVMName
     $DataDiskName = '{0}_DataDisk' -f $CurrentVMName
@@ -291,9 +293,19 @@ $Jobs = foreach ($CurrentVMName in $VMNames) {
 }
 
 $Jobs | Receive-Job -Wait | Out-Null
+$Jobs | Remove-Job -Force
+# Complete the progress bar
+Write-Progress -Completed -Activity "Completed"
 
-$Jobs = foreach ($CurrentVMName in $VMNames) {
+#Read more: https://www.sharepointdiary.com/2021/11/progress-bar-in-powershell.html#ixzz8ZSpM7IHS
+
+$Index=0
+foreach ($CurrentVMName in $VMNames) {
     $FQDN = "$CurrentVMName.$Location.cloudapp.azure.com".ToLower()
+    $Index++
+    $PercentComplete = $Index/$VMNames.Count*100
+    Write-Progress -Activity "[$($Index)/$($VMNames.Count)] Post-Creation activities ..." -CurrentOperation "Processing '$CurrentVMName' VM ..." -Status $('{0:N0}%' -f $PercentComplete) -PercentComplete $PercentComplete
+
     Write-Verbose "`$FQDN: $FQDN"
     $VM = Get-AzVM -ResourceGroup $ResourceGroupName -Name $CurrentVMName
     #Assign privilege to VM so it can access Azure key Vault. We do that by using VM’s System managed identity.
@@ -301,42 +313,43 @@ $Jobs = foreach ($CurrentVMName in $VMNames) {
     $AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -ObjectId $VM.Identity.PrincipalId -PermissionsToSecrets all -PermissionsToKeys all -PermissionsToCertificates all -PassThru
 
     #region JIT Access Management
-    #region Enabling JIT Access
-    $NewJitPolicy = (@{
-            id    = $VM.Id
-            ports = (@{
-                    number                     = $RDPPort;
-                    protocol                   = "*";
-                    allowedSourceAddressPrefix = "*";
-                    maxRequestAccessDuration   = "PT$($JitPolicyTimeInHours)H"
-                })   
-        })
+    if ($JIT) {
+        #region Enabling JIT Access
+        $NewJitPolicy = (@{
+                id    = $VM.Id
+                ports = (@{
+                        number                     = $RDPPort;
+                        protocol                   = "*";
+                        allowedSourceAddressPrefix = "*";
+                        maxRequestAccessDuration   = "PT$($JitPolicyTimeInHours)H"
+                    })   
+            })
 
-    Write-Host "Get Existing JIT Policy. You can Ignore the error if not found."
-    $ExistingJITPolicy = (Get-AzJitNetworkAccessPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -ErrorAction Ignore).VirtualMachines
-    $UpdatedJITPolicy = $ExistingJITPolicy.Where{ $_.id -ne "$($VM.Id)" } # Exclude existing policy for $CurrentVMName
-    $UpdatedJITPolicy.Add($NewJitPolicy)
+        Write-Host "Get Existing JIT Policy. You can Ignore the error if not found."
+        $ExistingJITPolicy = (Get-AzJitNetworkAccessPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -ErrorAction Ignore).VirtualMachines
+        $UpdatedJITPolicy = $ExistingJITPolicy.Where{ $_.id -ne "$($VM.Id)" } # Exclude existing policy for $CurrentVMName
+        $UpdatedJITPolicy.Add($NewJitPolicy)
 	
-    # Enable Access to the VM including management Port, and Time Range in Hours
-    Write-Host "Enabling Just in Time VM Access Policy for ($CurrentVMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
-    $JitNetworkAccessPolicy = Set-AzJitNetworkAccessPolicy -VirtualMachine $UpdatedJITPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -Kind "Basic"
-    Start-Sleep -Seconds 5
-    #endregion
+        # Enable Access to the VM including management Port, and Time Range in Hours
+        Write-Host "Enabling Just in Time VM Access Policy for ($CurrentVMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
+        $JitNetworkAccessPolicy = Set-AzJitNetworkAccessPolicy -VirtualMachine $UpdatedJITPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -Kind "Basic"
+        Start-Sleep -Seconds 5
+        #endregion
 
-    #region Requesting Temporary Access : 3 hours
-    $JitPolicy = (@{
-            id    = $VM.Id
-            ports = (@{
-                    number                     = $RDPPort;
-                    endTimeUtc                 = (Get-Date).AddHours(3).ToUniversalTime()
-                    allowedSourceAddressPrefix = @($MyPublicIP) 
-                })
-        })
-    $ActivationVM = @($JitPolicy)
-    Write-Host "Requesting Temporary Acces via Just in Time for $($VM.Name) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
-    $null = Start-AzJitNetworkAccessPolicy -ResourceGroupName $($VM.ResourceGroupName) -Location $VM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM
-    #endregion
-
+        #region Requesting Temporary Access : 3 hours
+        $JitPolicy = (@{
+                id    = $VM.Id
+                ports = (@{
+                        number                     = $RDPPort;
+                        endTimeUtc                 = (Get-Date).AddHours(3).ToUniversalTime()
+                        allowedSourceAddressPrefix = @($MyPublicIP) 
+                    })
+            })
+        $ActivationVM = @($JitPolicy)
+        Write-Host "Requesting Temporary Acces via Just in Time for $($VM.Name) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
+        $null = Start-AzJitNetworkAccessPolicy -ResourceGroupName $($VM.ResourceGroupName) -Location $VM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM
+        #endregion
+    }
     #endregion
 
     #region Enabling auto-shutdown at 11:00 PM in the user time zome
@@ -362,13 +375,14 @@ $Jobs = foreach ($CurrentVMName in $VMNames) {
     #Step 13: Start RDP Session
     #mstsc /v $PublicIP.IpAddress
     #mstsc /v $FQDN
-    Stop-AzVM -Name $CurrentVMName -ResourceGroupName $ResourceGroupName -Force -AsJob
 }
 
 Write-Host -Object "Your RDP credentials (login/password) are $($Credential.UserName)/$($Credential.GetNetworkCredential().Password)" -ForegroundColor Green
 $Jobs | Receive-Job -Wait | Out-Null
+# Complete the progress bar
+Write-Progress -Completed -Activity "Completed"
 
-Start-Sleep -Second 60
+Start-Sleep -Second 120
 
 $MoveAzResourceToAnotherResourceGroupScriptFilePath = Join-Path -Path $CurrentDir -ChildPath "Move-AzResourceScript.ps1"
-& "$MoveAzResourceToAnotherResourceGroupScriptFilePath" -SourceResourceGroupName $ResourceGroupName -DestinationResourceGroupName $DestinationResourceGroupName
+& "$MoveAzResourceToAnotherResourceGroupScriptFilePath" -SourceResourceGroupName $ResourceGroupName -DestinationResourceGroupName $DestinationResourceGroupName -Start

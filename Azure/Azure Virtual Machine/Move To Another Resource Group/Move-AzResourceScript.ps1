@@ -25,7 +25,8 @@ param
     [Parameter(Mandatory = $true)]
     [string] $SourceResourceGroupName,
     [Parameter(Mandatory = $true)]
-    [string] $DestinationResourceGroupName
+    [string] $DestinationResourceGroupName,
+    [switch] $Start
 )
 
 Clear-Host
@@ -48,16 +49,36 @@ $Parameters = @{
     resources           = $Resource.Id; # Wrap in an @() array if providing a single resource ID string.
     targetResourceGroup = $DestinationResourceGroup.ResourceId
 }
+
+#region Stopping the VMs
+$Jobs = $VM | Stop-AzVM -Force -AsJob
+Write-Host -Object "Stopping the VMs to move (As Job) ..."
+$Jobs | Wait-Job | Out-Null
+Write-Host -Object "VMs stopped !"
+#endregion
+    
 try {
-    #Validation
+    #region Validation
     Invoke-AzResourceAction -Action validateMoveResources -ResourceId $SourceResourceGroup.ResourceId -Parameters $Parameters -Force -ErrorAction Stop
     Write-Host -Object "Validation succeeds ..." -ForegroundColor Green
     Write-Host -Object "Starting to move the VMs from '$SourceResourceGroupName' to '$DestinationResourceGroupName' ..."
-    #Move (if validation succeeds)
+    #endregion
+
+    #region Move (if validation succeeds)
     $StartTime = Get-Date
     Move-AzResource -DestinationResourceGroupName $DestinationResourceGroupName -ResourceId $Resource.Id -Force
     $EndTime = Get-Date
     Write-Host -Object "Move completed in $(New-TimeSpan -Start $StartTime -End $EndTime) ..." -ForegroundColor Green
+    #endregion
+
+    #region Starting the VMs (if specified)
+    if ($Start) {
+        $Jobs = Get-AzVM -ResourceGroupName $DestinationResourceGroupName | Where-Object -FilterScript { $_.Name -in $VM.Name} | Start-AzVM -AsJob
+        Write-Host -Object "Starting the moved VMs (As Job) ..."
+        $Jobs | Wait-Job | Out-Null
+        Write-Host -Object "VMs started !"
+    }
+    #endregion
 }
 catch {
     throw $_
