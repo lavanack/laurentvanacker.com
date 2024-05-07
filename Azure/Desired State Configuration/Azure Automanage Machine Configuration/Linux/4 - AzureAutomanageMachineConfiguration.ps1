@@ -76,7 +76,7 @@ $Job = Start-AzPolicyComplianceScan -ResourceGroupName $ResourceGroupName -AsJob
 Get-GuestConfigurationPackageComplianceStatus -Path $GuestConfigurationPackageFilePath
 #Set-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -AllowBlobPublicAccess $true
 # Applying the Machine Configuration Package locally
-Start-GuestConfigurationPackageRemediation -Path $GuestConfigurationPackageFilePath -Verbose
+#Start-GuestConfigurationPackageRemediation -Path $GuestConfigurationPackageFilePath -Verbose
 
 # Creates a new container
 if (-not($storageAccount | Get-AzStorageContainer -Name $StorageContainerName -ErrorAction Ignore)) {
