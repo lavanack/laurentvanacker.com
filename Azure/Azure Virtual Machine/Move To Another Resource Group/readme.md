@@ -26,6 +26,9 @@ There are two mandatory parameters and an optional one (switch)
 - `Start`: If present, the VMs will be automatically started after the move
 
 > [!NOTE]
-> A validation test is done prioro the move to ensure that the move is possible (like the [Azure Resource Mover tools](https://azure.microsoft.com/products/resource-mover/)).
+> The VMs are deallocated before the move.
+>
+> A validation test is done before the move to ensure that the move is possible (like the [Azure Resource Mover](https://azure.microsoft.com/products/resource-mover/) tool).
 >
 > The 25 VMS are moved in less than 5 minutes as shown in the following screenshot.
+![Moving Azure VMs](docs/Move-AzResourceScript.jpg)
