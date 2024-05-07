@@ -382,7 +382,9 @@ $Jobs | Receive-Job -Wait | Out-Null
 # Complete the progress bar
 Write-Progress -Completed -Activity "Completed"
 
+#Waiting 2 arbitrary minutes to be sure no operations are in progress ...
 Start-Sleep -Second 120
 
 $MoveAzResourceToAnotherResourceGroupScriptFilePath = Join-Path -Path $CurrentDir -ChildPath "Move-AzResourceScript.ps1"
+#Moving the VM to a destination resource group and restarting them after.
 & "$MoveAzResourceToAnotherResourceGroupScriptFilePath" -SourceResourceGroupName $ResourceGroupName -DestinationResourceGroupName $DestinationResourceGroupName -Start
