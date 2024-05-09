@@ -256,7 +256,11 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -S
         }
         
         Set-Location -Path $ContainerLocalRootFolder
-        docker build -t iis-website .
+        #Building the image only once
+        if ($(docker image ls) -notmatch "\s*iis-website\s*") {
+            Write-Verbose -Message "Building the Docker image ..."
+            docker build -t iis-website .
+        }
         #Mapping the remote IIS log files directory locally for every container for easier management
         #docker run -d -p "$($CurrentIISWebSiteHostPort):80" -v $ContainerLocalLogFolder\:C:\inetpub\logs\LogFiles -v $ContainerLocalContentFolder\:C:\inetpub\wwwroot --name $Name iis-website --restart unless-stopped #--rm
         docker run -d -p "$($CurrentIISWebSiteHostPort):80" -v $ContainerLocalLogFolder\:C:\inetpub\logs\LogFiles -v $ContainerLocalContentFolder\:C:\inetpub\wwwroot --name $Name iis-website --restart always #--rm
