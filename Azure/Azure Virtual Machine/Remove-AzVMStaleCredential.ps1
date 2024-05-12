@@ -28,14 +28,18 @@ function Remove-AzVMStaleCredential {
         Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
     }
     Clear-Host
-    $AzureCredentials = cmdkey /list | Select-string -Pattern "=(?<termsrv>TERMSRV/)?(?<dnsname>(?<vmname>.*)\.(?<location>.*)\.cloudapp\.azure\.com)" -AllMatches
+    $AzureCredentials = cmdkey /list | Select-String -Pattern "=(?<termsrv>TERMSRV/)?(?<dnsname>(?<vmname>.*)\.(?<location>.*)\.cloudapp\.azure\.com)" -AllMatches
     if ($AzureCredentials.Matches) {
+        $Index = 0
         $AzureCredentials.Matches | ForEach-Object -Process { 
             $TERMSRV = $($_.Groups['termsrv'].Value)
             $DNSName = $_.Groups['dnsname'].Value
             $VMName = $_.Groups['vmname'].Value
             $Location = $_.Groups['location'].Value
             $AzVM = Get-AzVM -Name $VMName 
+            $Index++
+            $PercentComplete = $Index / $AzureCredentials.Matches.Count * 100
+            Write-Progress -Activity "[$($Index)/$($AzureCredentials.Matches.Count)] Cleaning VM credentials ..." -CurrentOperation "Processing '$VMName' Credentials ..." -Status $('{0:N0}%' -f $PercentComplete) -PercentComplete $PercentComplete
             if (($AzVM) -and ($AzVM.Location -eq $Location)) {
                 Write-Verbose -Message "$VMName ($DNSName) Azure VM exists. The related credentials will stay into the Windows Credential Manager"
             }
@@ -43,10 +47,18 @@ function Remove-AzVMStaleCredential {
                 If ($pscmdlet.ShouldProcess($DNSName, 'Removing Credentials from the Windows Credential Manager')) {
                     Write-Warning -Message "$VMName ($DNSName) Azure VM doesn't exist. The related credentials will be removed from the Windows Credential Manager"
                     Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /delete:$TERMSRV$DNSName" -NoNewWindow #-Wait
+                    #Certificate: Registry cleaning
+                    $HKCUPath = "HKCU:\Software\Microsoft\Terminal Server Client\Servers\$DNSName"
+                    if (Test-Path -Path $HKCUPath) {
+                        Write-Verbose -Message "Removing '$HKCUPath' ..."
+                        Remove-Item -Path $HKCUPath -Force
+                    }
                 }
             }
         }
+        Write-Progress -Completed -Activity "Completed"
     }
 }
 
+Get-ChildItem -Path "HKCU:\Software\Microsoft\Terminal Server Client\Servers" -Include *.cloudapp.azure.com -Recurse | Remove-Item -Force -WhatIf
 Remove-AzVMStaleCredential -Verbose -Confirm:$false #-WhatIf
