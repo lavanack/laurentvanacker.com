@@ -85,14 +85,14 @@ function Add-RDPCredential {
         $hwnd = $MSTSCProcess.MainWindowHandle
         $null = $type::ShowWindow($hwnd, 5)
         $null = $type::SetForegroundWindow($hwnd) 
-        Start-Sleep -Seconds 1
+        Start-Sleep -Seconds 3
         #endregion
         #region Sending Keystrokes for 'Don't ...' and 'yes'
         $wshell = New-Object -ComObject wscript.shell;
         #$null = $wshell.AppActivate((Get-Process -Id $MSTSCProcess.Id -ErrorAction Stop).MainWindowtitle, $true)
-        #Start-Sleep -Milliseconds 100
+        Start-Sleep -Milliseconds 100
         $wshell.SendKeys('d')
-        #Start-Sleep -Milliseconds 100
+        Start-Sleep -Milliseconds 100
         $wshell.SendKeys('y')
         #endregion
     }
@@ -362,6 +362,11 @@ $RoleAssignment
 1..2 | ForEach-Object -Process {
     $null = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -Name $VMName -CommandId 'RunPowerShellScript' -ScriptString 'Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/microsoft/Windows-Containers/Main/helpful_tools/Install-DockerCE/install-docker-ce.ps1) } -HyperV -Verbose"'
 }
+#endregion
+
+#region Propagate the local timezone
+$TimeZone = Get-TimeZone
+$null = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -Name $VMName -CommandId 'RunPowerShellScript' -ScriptString '$Using:TimeZone | Set-Timezone'
 #endregion
 
 #region Docker + IIS Configurations 
