@@ -69,7 +69,12 @@ function Add-RDPCredential {
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$ComputerName /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
     Write-Host -Object "Your RDP credentials (login/password) are $($Credential.UserName)/$($Credential.GetNetworkCredential().Password)" -ForegroundColor Green
     if ($Connect) {
-        $MSTSCProcess = Start-Process -FilePath "mstsc " -ArgumentList "/v:$ComputerName" -NoNewWindow -PassThru
+        $MSTSCProcess = Start-Process -FilePath "mstsc" -ArgumentList "/v:$ComputerName /f" -PassThru -WindowStyle Normal
+        Do {
+            Start-Sleep -Seconds 1
+            $MSTSCProcess = Get-Process -Id $MSTSCProcess.Id -ErrorAction Stop
+        } While ([string]::IsNullOrEmpty($MSTSCProcess.MainWindowtitle)) 
+        #Start-Sleep -Seconds 3
         #Region Bringing Process windows in the foreground
         $signature = '
         [DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
@@ -78,15 +83,18 @@ function Add-RDPCredential {
         '
         $type = Add-Type -MemberDefinition $signature -Name xShowWindow -PassThru
         $hwnd = $MSTSCProcess.MainWindowHandle
-        $null = $type::ShowWindowAsync($hwnd, 5)
+        $null = $type::ShowWindow($hwnd, 5)
         $null = $type::SetForegroundWindow($hwnd) 
+        Start-Sleep -Seconds 1
         #endregion
+        #region Sending Keystrokes for 'Don't ...' and 'yes'
         $wshell = New-Object -ComObject wscript.shell;
-        $null = $wshell.AppActivate($MSTSCProcess.MainWindowTitle, $true)
-        Start-Sleep -Milliseconds 100
+        #$null = $wshell.AppActivate((Get-Process -Id $MSTSCProcess.Id -ErrorAction Stop).MainWindowtitle, $true)
+        #Start-Sleep -Milliseconds 100
         $wshell.SendKeys('d')
-        Start-Sleep -Milliseconds 100
+        #Start-Sleep -Milliseconds 100
         $wshell.SendKeys('y')
+        #endregion
     }
 }
 #endregiony
@@ -133,7 +141,7 @@ $ContainerRegistryPrefix = "cr"
 $Project = "dkr"
 $Role = "acr"
 #$DigitNumber = 4
-$DigitNumber = $AzureVMNameMaxLength-($VirtualMachinePrefix+$Project+$Role+$LocationShortName).Length
+$DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role + $LocationShortName).Length
 
 Do {
     $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
@@ -173,7 +181,7 @@ if ($ResourceGroup) {
     #Step 0: Remove previously existing Azure Resource Group with the same name
     $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
 }
-$MyPublicIp = (Invoke-WebRequest -uri "https://ipv4.seeip.org").Content
+$MyPublicIp = (Invoke-WebRequest -Uri "https://ipv4.seeip.org").Content
 
 
 #region Define Variables needed for Virtual Machine
@@ -207,7 +215,7 @@ if ($VMName.Length -gt $AzureVMNameMaxLength) {
 elseif (-not($LocationShortName)) {
     Write-Error "No location short name found for '$Location'" -ErrorAction Stop
 }
-elseif ($null -eq (Get-AZVMSize -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
+elseif ($null -eq (Get-AzVMSize -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
     Write-Error "The '$VMSize' is not available in the '$Location' location ..." -ErrorAction Stop
 }
 
@@ -242,7 +250,7 @@ $Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $Vi
 
 
 #Step 6: Create Azure Public Address
-$PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $ResourceGroupName -Location $Location -AlLocationMethod Static -DomainNameLabel $VMName.ToLower()
+$PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $ResourceGroupName -Location $Location -AllocationMethod Static -DomainNameLabel $VMName.ToLower()
 #Setting up the DNS Name
 #$PublicIP.DnsSettings.Fqdn = $FQDN
 
@@ -358,9 +366,7 @@ $RoleAssignment
 
 #region Docker + IIS Configurations 
 $DockerSetupPowerShellScriptFilePath = Join-Path -Path $CurrentDir -ChildPath "DockerSetup.ps1"
-#$DebugPreference = "Continue"
-$Result = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -Name $VMName -CommandId 'RunPowerShellScript' -ScriptPath $DockerSetupPowerShellScriptFilePath -Parameter @{IISWebSitePort = $($IISWebSitePort | ConvertTo-Json -Compress) ; ImageName = $ImageName; ContainerRegistryName=$ContainerRegistryName} -Verbose #-Debug 
-#$DebugPreference = "SilentlyContinue"
+$Result = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -Name $VMName -CommandId 'RunPowerShellScript' -ScriptPath $DockerSetupPowerShellScriptFilePath -Parameter @{IISWebSitePort = $($IISWebSitePort | ConvertTo-Json -Compress) ; ImageName = $ImageName; ContainerRegistryName = $ContainerRegistryName } -Verbose #-Debug 
 #endregion
 
 Start-Sleep -Seconds 15
@@ -371,7 +377,5 @@ Start-Sleep -Seconds 15
 Add-RDPCredential -ComputerName $FQDN -Credential $Credential -Connect
 
 foreach ($CurrentIISWebSitePort in $IISWebSitePort) {
-    start $("http://{0}:{1}" -f $FQDN, $CurrentIISWebSitePort)
+    Start-Process $("http://{0}:{1}" -f $FQDN, $CurrentIISWebSitePort)
 }
-
-#"C:\Packages\Plugins\Microsoft.CPlat.Core.RunCommandWindows\1.1.18\Downloads\script2.ps1 -ContainerRegistryName crdkracruse0886 -IISWebSitePort @(80..82) -ImageName iis-website"

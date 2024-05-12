@@ -31,7 +31,7 @@ Param (
 )
 
 trap {
-    Write-Host "Stopping Transcript ..."
+    Write-Output -InputObject "Stopping Transcript ..."
     Stop-Transcript
 } 
 Clear-Host
@@ -58,11 +58,10 @@ Remove-Item -Path C:\$IISSetupFileName -Force
 $DockerFileName = 'DockerFile'
 
 #We want to customize the IIS setup we will use this Powershell script
-$IISSetupPowerShellScriptFile = Join-Path -Path $env:SystemDrive -ChildPath $IISSetupFileName
 $DockerIISRootFolder = "$env:SystemDrive\Docker\IIS"
-Invoke-RestMethod -Uri $IISSetupPowerShellScriptFileURI  -OutFile $IISSetupPowerShellScriptFile
 $null = New-Item -Path $DockerIISRootFolder -ItemType Directory -Force
-Copy-Item -Path $IISSetupPowerShellScriptFile -Destination $DockerIISRootFolder -Force
+$IISSetupPowerShellScriptFile = Join-Path -Path $DockerIISRootFolder -ChildPath $IISSetupFileName
+Invoke-RestMethod -Uri $IISSetupPowerShellScriptFileURI  -OutFile $IISSetupPowerShellScriptFile
 #endregion
 
 #Installing required PowerShell modules.
@@ -109,7 +108,7 @@ $($IISWebSitePort | ConvertFrom-Json) | ForEach-Object {
     docker run -d -p "$($CurrentIISWebSiteHostPort):80" -v $ContainerLocalLogFolder\:C:\inetpub\logs\LogFiles -v $ContainerLocalContentFolder\:C:\inetpub\wwwroot --name $Name $ImageName --restart always #--rm
     #Getting the IP v4 address of the container
     $ContainerIPv4Address = (docker inspect -f "{{ .NetworkSettings.Networks.nat.IPAddress }}" $Name | Out-String) -replace "`n|`r"
-    Write-Host "The internal IPv4 address for the container [$Name] is [$ContainerIPv4Address]" -ForegroundColor Yellow
+    Write-Output -InputObject "The internal IPv4 address for the container [$Name] is [$ContainerIPv4Address]"
     #Generating traffic : 10 web requests to have some entries in the IIS log files
     1..10 | ForEach-Object -Process { $null = Invoke-RestMethod -Uri http://localhost:$CurrentIISWebSiteHostPort }
 }
@@ -142,20 +141,12 @@ if ($Result -ne 'Login Succeeded') {
 
 Get-AzContext
 
-Write-Host "***************************************************"
 $Destination = "{0}.azurecr.io/samples/{1}" -f $ContainerRegistryName, $ImageName
-Write-Output -InputObject "docker tag $ImageName $Destination"
-Write-Output -InputObject "docker push $Destination"
-
-$(docker tag $ImageName $Destination)
-Get-Date
-$(docker push $Destination)
-Get-Date
-Write-Host "***************************************************"
+docker tag $ImageName $Destination
+docker push $Destination
 
 #endregion
 
 Write-Output -InputObject "`$TranscriptFile: $TranscriptFile"
-
 Stop-Transcript
-Copy-Item -Path $TranscriptFile -Destination $env:SystemDrive
+Get-Content -Path $TranscriptFile -Raw
