@@ -59,12 +59,14 @@ Write-Host -Object "VMs stopped !"
     
 try {
     #region Validation
+    $StartTime = Get-Date
     Invoke-AzResourceAction -Action validateMoveResources -ResourceId $SourceResourceGroup.ResourceId -Parameters $Parameters -Force -ErrorAction Stop
-    Write-Host -Object "Validation succeeds ..." -ForegroundColor Green
-    Write-Host -Object "Starting to move the VMs from '$SourceResourceGroupName' to '$DestinationResourceGroupName' ..."
+    $EndTime = Get-Date
+    Write-Host -Object "Validation completed in $(New-TimeSpan -Start $StartTime -End $EndTime) ..." -ForegroundColor Green
     #endregion
 
     #region Move (if validation succeeds)
+    Write-Host -Object "Starting to move the VMs from '$SourceResourceGroupName' to '$DestinationResourceGroupName' ..."
     $StartTime = Get-Date
     Move-AzResource -DestinationResourceGroupName $DestinationResourceGroupName -ResourceId $Resource.Id -Force
     $EndTime = Get-Date
