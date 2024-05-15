@@ -64,8 +64,7 @@ This script is the same the one you can find [here](/Windows%20Powershell/IIS/Au
 > - A just-in-time access policy (3-hour long) is also set for RDP access.
 ![JIT](docs/jit.jpg)
 > - The HTTP and HTTPS connections (TCP/80, TCP/81, TCP/82 and TCP/443) are accessible from everywhere.  Based on the ports you have chosen for the IIS websites (`$IISWebSitePort` parameter), the associated NSG rule is customized.
->
-> The password (for RDP connection) is randomly generated and displayed at the beginning and copied into your clipboard. The account name used is the same you are currently using (cf. the Username environment variable - so almost different for everyone). In addition these credentials will also be displayed at the end of the deployment process (in green) and added in the Credential Manager for an automatic connection in the upcoming RDP session (next point).
+> - The password (for RDP connection) is randomly generated and displayed at the beginning and copied into your clipboard. The account name used is the same you are currently using (cf. the Username environment variable - so almost different for everyone). In addition these credentials will also be displayed at the end of the deployment process (in green) and added in the Credential Manager for an automatic connection in the upcoming RDP session (next point).
 >
 > - A RDP session will be automatically opened at the end of the deployment process.
 > - A browser session will be automatically opened at the end of the deployment process with a connection to the containers via the Public IP of the Azure VM (Docker host).
