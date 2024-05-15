@@ -11,7 +11,7 @@ The [New-AzCMKVM.ps1](New-AzCMKVM.ps1) script creates 25 (By default) Azure VMs 
 There are two optional parameters
 
 - `$VMNumber`: The number of VMs to create (Default is 25 - Standard_D2s_v5 VM size is used - beware of you quota)
-- `JIT`: If present, the Just-In-Time (JIT) VM Access is enabled for RDP access to the VMs
+- `$JIT`: If present, the Just-In-Time (JIT) VM Access is enabled for RDP access to the VMs
 
 At the end of the script, the [Move-AzResourceScript.ps1](Move-AzResourceScript.ps1) script is called to move all the VMs to another resource group (which is also created during the processing of the [New-AzCMKVM.ps1](New-AzCMKVM.ps1) script).
 
