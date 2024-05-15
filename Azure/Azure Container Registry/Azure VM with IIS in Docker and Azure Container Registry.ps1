@@ -371,7 +371,7 @@ $null = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -Name $VMNam
 
 #region Docker + IIS Configurations 
 $DockerSetupPowerShellScriptFilePath = Join-Path -Path $CurrentDir -ChildPath "DockerSetup.ps1"
-$Result = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -Name $VMName -CommandId 'RunPowerShellScript' -ScriptPath $DockerSetupPowerShellScriptFilePath -Parameter @{IISWebSitePort = $($IISWebSitePort | ConvertTo-Json -Compress) ; ImageName = $ImageName; ContainerRegistryName = $ContainerRegistryName } -Verbose #-Debug 
+$Result = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -Name $VMName -CommandId 'RunPowerShellScript' -ScriptPath $DockerSetupPowerShellScriptFilePath -Parameter @{IISWebSitePort = $($IISWebSitePort | ConvertTo-Json -Compress) ; ImageName = $ImageName; ContainerRegistryName = $ContainerRegistryName } #-Verbose #-Debug 
 #endregion
 
 Start-Sleep -Seconds 15
