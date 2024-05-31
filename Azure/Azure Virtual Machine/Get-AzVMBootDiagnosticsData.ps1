@@ -25,17 +25,22 @@ function Get-AzVMBootDiagnosticsDataSetting {
     Param()
     Get-AzVM | ForEach-Object -Process {
         $VMName = $_.Name
-        $_.DiagnosticsProfile.BootDiagnostics | Select-Object -Property @{Name = "VMName"; Expression = { $VMName } }, *
+        $_.DiagnosticsProfile.BootDiagnostics | Select-Object -Property @{Name="VMName"; Expression={$VMName}}, *
     }
 }
 
 function Get-AzVMBootDiagnosticsDataItem {
     [CmdletBinding()]
     Param(
-        [string] $LocalPath = $(Join-Path -Path $env:TEMP -ChildPath "BootDiagnostics")
+        [string] $LocalPath = $(Join-Path -Path $env:TEMP -ChildPath "BootDiagnostics"),
+        [switch] $Open
     )
     $null = New-Item -Path $LocalPath -ItemType Directory -Force
+    Write-Verbose "`$LocalPath: $LocalPath"
     Get-AzVM | Where-Object -FilterScript { ($_.OSProfile.WindowsConfiguration) -and ($_.DiagnosticsProfile.BootDiagnostics.Enabled) } | Get-AzVMBootDiagnosticsData -Windows -LocalPath $LocalPath
+    if ($Open) {
+        start $LocalPath
+    }
 }
 
 function Get-AzVMBootDiagnosticsDataBlobUri {
@@ -78,12 +83,12 @@ function Get-AzVMBootDiagnosticsDataBlobUri {
         }
         finally {
         }
-        $Response | Select-Object -Property @{Name = "VMName"; Expression = { $CurrentAzVM.Name } }, *
+        $Response | Select-Object -Property @{Name="VMName"; Expression = {$CurrentAzVM.Name} }, *
     }
     $AzVMBootDiagnosticsDataBlobUri 
 }
 #endregion
 
-#Get-AzVMBootDiagnosticsDataSetting -Verbose
-#Get-AzVMBootDiagnosticsDataItem -Verbose
+Get-AzVMBootDiagnosticsDataSetting -Verbose
 Get-AzVMBootDiagnosticsDataBlobUri -Verbose | Format-List -Property * -Force
+Get-AzVMBootDiagnosticsDataItem -Open -Verbose
