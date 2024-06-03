@@ -22,73 +22,114 @@ of the Sample Code.
 #region Function definitions
 function Get-AzVMBootDiagnosticsDataSetting {
     [CmdletBinding()]
-    Param()
-    Get-AzVM | ForEach-Object -Process {
-        $VMName = $_.Name
-        $_.DiagnosticsProfile.BootDiagnostics | Select-Object -Property @{Name="VMName"; Expression={$VMName}}, *
+    Param(
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $false)]
+        [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachineList[]] $VM
+    )
+    begin {}
+    process {
+        foreach ($CurrentVM in $VM) {
+            Write-Verbose -Message "Processing '$($CurrentVM.Name)' Azure VM"
+            $CurrentVM.DiagnosticsProfile.BootDiagnostics | Select-Object -Property @{Name="VMName"; Expression={$CurrentVM.Name}}, *
+            if (-not($CurrentVM.DiagnosticsProfile.BootDiagnostics)) {
+                Write-Verbose -Message "Boot Diagnostics is NOT enabled for the '$($CurrentVM.Name)' Azure VM"
+            }
+        }
     }
+    end {}
 }
 
 function Get-AzVMBootDiagnosticsDataItem {
     [CmdletBinding()]
     Param(
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $false)]
+        [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachineList[]] $VM,
         [string] $LocalPath = $(Join-Path -Path $env:TEMP -ChildPath "BootDiagnostics"),
         [switch] $Open
     )
-    $null = New-Item -Path $LocalPath -ItemType Directory -Force
-    Write-Verbose "`$LocalPath: $LocalPath"
-    Get-AzVM | Where-Object -FilterScript { ($_.OSProfile.WindowsConfiguration) -and ($_.DiagnosticsProfile.BootDiagnostics.Enabled) } | Get-AzVMBootDiagnosticsData -Windows -LocalPath $LocalPath
-    if ($Open) {
-        start $LocalPath
+    begin {
+        $null = New-Item -Path $LocalPath -ItemType Directory -Force
+        Write-Verbose "`$LocalPath: $LocalPath"
+    }
+    process {
+        foreach ($CurrentVM in $VM) {
+            Write-Verbose -Message "Processing '$($CurrentVM.Name)' Azure VM"
+            if (-not($CurrentVM.DiagnosticsProfile.BootDiagnostics)) {
+                Write-Verbose -Message "Boot Diagnostics is NOT enabled for the '$($CurrentVM.Name)' Azure VM"
+            }
+            else {
+                $CurrentVM | Get-AzVMBootDiagnosticsData -Windows -LocalPath $LocalPath
+            }
+        }
+    }
+    end {
+        if ($Open) {
+            start $LocalPath
+        }
     }
 }
 
 function Get-AzVMBootDiagnosticsDataBlobUri {
     [CmdletBinding()]
     Param(
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $false)]
+        [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachineList[]] $VM
     )
-    #region Azure Context
-    # Log in first with Connect-AzAccount if not using Cloud Shell
 
-    $azContext = Get-AzContext
-    $SubcriptionID = $azContext.Subscription.Id
-    $azProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile
-    $profileClient = New-Object -TypeName Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient -ArgumentList ($azProfile)
-    $token = $profileClient.AcquireAccessToken($azContext.Subscription.TenantId)
-    $authHeader = @{
-        'Content-Type'  = 'application/json'
-        'Authorization' = 'Bearer ' + $token.AccessToken
+    begin {
+        #region Azure Context
+        # Log in first with Connect-AzAccount if not using Cloud Shell
+
+        $azContext = Get-AzContext
+        $SubcriptionID = $azContext.Subscription.Id
+        $azProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile
+        $profileClient = New-Object -TypeName Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient -ArgumentList ($azProfile)
+        $token = $profileClient.AcquireAccessToken($azContext.Subscription.TenantId)
+        $authHeader = @{
+            'Content-Type'  = 'application/json'
+            'Authorization' = 'Bearer ' + $token.AccessToken
+        }
+        #endregion
     }
-    #endregion
-    $AzVMWithBootDiagnostics = Get-AzVM | Where-Object -FilterScript { ($_.DiagnosticsProfile.BootDiagnostics.Enabled) }
-    $AzVMBootDiagnosticsDataBlobUri = foreach ($CurrentAzVM in $AzVMWithBootDiagnostics) {
-        Write-Verbose -Message "Processing '$($CurrentAzVM.Name)' Azure VM"
-        $URI = "https://management.azure.com/subscriptions/$SubcriptionID/resourceGroups/$($CurrentAzVM.ResourceGroupName)/providers/Microsoft.Compute/virtualMachines/$($CurrentAzVM.Name)/retrieveBootDiagnosticsData?api-version=2024-03-01"
-        Write-Verbose -Message "`$URI: $URI"
-        try {
-            # Invoke the REST API
-            $Response = Invoke-RestMethod -Method POST -Headers $authHeader -ContentType "application/json" -Uri $URI -ErrorVariable ResponseError
+    process {
+        foreach ($CurrentVM in $VM) {
+            Write-Verbose -Message "Processing '$($CurrentVM.Name)' Azure VM"
+            if (-not($CurrentVM.DiagnosticsProfile.BootDiagnostics)) {
+                    Write-Verbose -Message "Boot Diagnostics is NOT enabled for the '$($CurrentVM.Name)' Azure VM"
+                    continue
+                }
+            else {
+                    $URI = "https://management.azure.com/subscriptions/$SubcriptionID/resourceGroups/$($CurrentVM.ResourceGroupName)/providers/Microsoft.Compute/virtualMachines/$($CurrentVM.Name)/retrieveBootDiagnosticsData?api-version=2024-03-01"
+                    Write-Verbose -Message "`$URI: $URI"
+                    try {
+                        # Invoke the REST API
+                        $Response = Invoke-RestMethod -Method POST -Headers $authHeader -ContentType "application/json" -Uri $URI -ErrorVariable ResponseError
+                    }
+                    catch [System.Net.WebException] {   
+                        # Dig into the exception to get the Response details.
+                        # Note that value__ is not a typo.
+                        Write-Warning -Message "StatusCode: $($_.Exception.Response.StatusCode.value__ )"
+                        Write-Warning -Message "StatusDescription: $($_.Exception.Response.StatusDescription)"
+                        $respStream = $_.Exception.Response.GetResponseStream()
+                        $reader = New-Object System.IO.StreamReader($respStream)
+                        $Response = $reader.ReadToEnd() | ConvertFrom-Json
+                        if (-not([string]::IsNullOrEmpty($Response.message))) {
+                            Write-Warning -Message $Response.message
+                        }
+                    }
+                    finally {
+                    }
+                    $Response | Select-Object -Property @{Name="VMName"; Expression = {$CurrentVM.Name} }, *
+                }  
         }
-        catch [System.Net.WebException] {   
-            # Dig into the exception to get the Response details.
-            # Note that value__ is not a typo.
-            Write-Warning -Message "StatusCode: $($_.Exception.Response.StatusCode.value__ )"
-            Write-Warning -Message "StatusDescription: $($_.Exception.Response.StatusDescription)"
-            $respStream = $_.Exception.Response.GetResponseStream()
-            $reader = New-Object System.IO.StreamReader($respStream)
-            $Response = $reader.ReadToEnd() | ConvertFrom-Json
-            if (-not([string]::IsNullOrEmpty($Response.message))) {
-                Write-Warning -Message $Response.message
-            }
-        }
-        finally {
-        }
-        $Response | Select-Object -Property @{Name="VMName"; Expression = {$CurrentAzVM.Name} }, *
     }
-    $AzVMBootDiagnosticsDataBlobUri 
+    end {
+    }
 }
 #endregion
 
-Get-AzVMBootDiagnosticsDataSetting -Verbose
-Get-AzVMBootDiagnosticsDataBlobUri -Verbose | Format-List -Property * -Force
-Get-AzVMBootDiagnosticsDataItem -Open -Verbose
+Clear-Host
+Remove-Item -Path C:\Temp\AzVMBootDiagnosticsDataItem -Force -Recurse -ErrorAction Ignore
+Get-AzVM | Get-AzVMBootDiagnosticsDataSetting -Verbose
+Get-AzVM | Get-AzVMBootDiagnosticsDataItem -LocalPath C:\Temp\AzVMBootDiagnosticsDataItem -Open -Verbose
+Get-AzVM | Get-AzVMBootDiagnosticsDataBlobUri -Verbose | Format-List -Property * -Force
