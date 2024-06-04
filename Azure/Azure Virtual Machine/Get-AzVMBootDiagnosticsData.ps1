@@ -129,7 +129,17 @@ function Get-AzVMBootDiagnosticsDataBlobUri {
 #endregion
 
 Clear-Host
+$CurrentScript = $MyInvocation.MyCommand.Path
+#Getting the current directory (where this script file resides)
+$CurrentDir = Split-Path -Path $CurrentScript -Parent
+$AzVMBootDiagnosticsDataBlobUriCSVFile = Join-Path -Path $CurrentDir -ChildPath $("AzVMBootDiagnosticsDataBlobUri_{0}.csv" -f (Get-Date -Format 'yyyyMMddHHmmss'))
+
+
 Remove-Item -Path C:\Temp\AzVMBootDiagnosticsDataItem -Force -Recurse -ErrorAction Ignore
+
 Get-AzVM | Get-AzVMBootDiagnosticsDataSetting -Verbose
+$AzVMBootDiagnosticsDataBlobUri = Get-AzVM | Get-AzVMBootDiagnosticsDataBlobUri -Verbose 
+$AzVMBootDiagnosticsDataBlobUri| Format-List -Property * -Force
+$AzVMBootDiagnosticsDataBlobUri| Export-Csv -Path $AzVMBootDiagnosticsDataBlobUriCSVFile -NoTypeInformation
+& $AzVMBootDiagnosticsDataBlobUriCSVFile
 Get-AzVM | Get-AzVMBootDiagnosticsDataItem -LocalPath C:\Temp\AzVMBootDiagnosticsDataItem -Open -Verbose
-Get-AzVM | Get-AzVMBootDiagnosticsDataBlobUri -Verbose | Format-List -Property * -Force
