@@ -139,7 +139,7 @@ Remove-Item -Path C:\Temp\AzVMBootDiagnosticsDataItem -Force -Recurse -ErrorActi
 
 Get-AzVM | Get-AzVMBootDiagnosticsDataSetting -Verbose
 $AzVMBootDiagnosticsDataBlobUri = Get-AzVM | Get-AzVMBootDiagnosticsDataBlobUri -Verbose 
-$AzVMBootDiagnosticsDataBlobUri| Format-List -Property * -Force
-$AzVMBootDiagnosticsDataBlobUri| Export-Csv -Path $AzVMBootDiagnosticsDataBlobUriCSVFile -NoTypeInformation
+$AzVMBootDiagnosticsDataBlobUri | Format-List -Property * -Force
+$AzVMBootDiagnosticsDataBlobUri | Export-Csv -Path $AzVMBootDiagnosticsDataBlobUriCSVFile -NoTypeInformation
 & $AzVMBootDiagnosticsDataBlobUriCSVFile
 Get-AzVM | Get-AzVMBootDiagnosticsDataItem -LocalPath C:\Temp\AzVMBootDiagnosticsDataItem -Open -Verbose
