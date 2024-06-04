@@ -137,10 +137,11 @@ $LocalPath = "C:\Temp\AzVMBootDiagnosticsDataItem"
 
 Remove-Item -Path (Join-Path -Path $LocalPath -ChildPath "*") -Force -Recurse -ErrorAction Ignore
 
-Get-AzVM | Get-AzVMBootDiagnosticsDataSetting -Verbose
-$AzVMBootDiagnosticsDataBlobUri = Get-AzVM | Get-AzVMBootDiagnosticsDataBlobUri -Verbose 
+$VM = Get-AzVM
+$VM | Get-AzVMBootDiagnosticsDataSetting -Verbose
+$AzVMBootDiagnosticsDataBlobUri = $VM | Get-AzVMBootDiagnosticsDataBlobUri -Verbose 
 $AzVMBootDiagnosticsDataBlobUri | Format-List -Property * -Force
 $AzVMBootDiagnosticsDataBlobUri | Export-Csv -Path $AzVMBootDiagnosticsDataBlobUriCSVFile -NoTypeInformation
 & $AzVMBootDiagnosticsDataBlobUriCSVFile
-Get-AzVM | Get-AzVMBootDiagnosticsDataItem -LocalPath $LocalPath -Open -Verbose
-start $LocalPath
+$VM | Get-AzVMBootDiagnosticsDataItem -LocalPath $LocalPath -Open -Verbose
+Start-Process -FilePath $LocalPath
