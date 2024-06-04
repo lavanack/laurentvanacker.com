@@ -143,3 +143,4 @@ $AzVMBootDiagnosticsDataBlobUri | Format-List -Property * -Force
 $AzVMBootDiagnosticsDataBlobUri | Export-Csv -Path $AzVMBootDiagnosticsDataBlobUriCSVFile -NoTypeInformation
 & $AzVMBootDiagnosticsDataBlobUriCSVFile
 Get-AzVM | Get-AzVMBootDiagnosticsDataItem -LocalPath $LocalPath -Open -Verbose
+start $LocalPath
