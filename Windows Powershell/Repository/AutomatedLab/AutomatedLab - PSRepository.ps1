@@ -181,18 +181,18 @@ Invoke-LabCommand -ActivityName 'Creating a Test PowerShell Module' -ComputerNam
     $FunctionToExport = 'Test-Function1', 'Test-Function2', 'Test-Function3'
 
     $moduleSettings = @{
-        Path = $ModuleManifestFilePath
-        Author= $(whoami)
-        PowerShellVersion = '5.1'
-        FunctionsToExport = $FunctionToExport
-        Description = 'Test Module'
-        ModuleVersion = $ModuleVersion
-        Tags = 'Test'
-        RootModule = Split-Path -Path $ModuleFilePath -Leaf
-        CompatiblePSEditions = 'Desktop'
-        Copyright = $(Get-Date -Format yyyy)
+        Path                   = $ModuleManifestFilePath
+        Author                 = $(whoami)
+        PowerShellVersion      = '5.1'
+        FunctionsToExport      = $FunctionToExport
+        Description            = 'Test Module'
+        ModuleVersion          = $ModuleVersion
+        Tags                   = 'Test'
+        RootModule             = Split-Path -Path $ModuleFilePath -Leaf
+        CompatiblePSEditions   = 'Desktop'
+        Copyright              = $(Get-Date -Format yyyy)
         DotNetFrameworkVersion = '4.0'
-        CLRVersion = '4.0'
+        CLRVersion             = '4.0'
     }
 
     $FunctionPattern = @'
@@ -242,9 +242,9 @@ Invoke-LabCommand -ActivityName 'Setting up SMB Share Repository' -ComputerName 
 
     $URI = "\\{0}\$Name" -f $env:COMPUTERNAME
     $Parameters = @{
-        Name = $Name
-        SourceLocation = $URI
-        PublishLocation = $URI
+        Name               = $Name
+        SourceLocation     = $URI
+        PublishLocation    = $URI
         InstallationPolicy = 'Trusted'
     }
     Register-PSRepository @Parameters
@@ -290,9 +290,9 @@ Invoke-LabCommand -ActivityName 'Setting up IIS Repository' -ComputerName PSREPO
 
     $URI = 'http://psrepo01/NuGetRepository/nuget'
     $Parameters = @{
-        Name = 'IISPSRepository'
-        SourceLocation = $URI
-        PublishLocation = $URI
+        Name               = 'IISPSRepository'
+        SourceLocation     = $URI
+        PublishLocation    = $URI
         InstallationPolicy = 'Trusted'
     }
 
@@ -366,8 +366,8 @@ Invoke-LabCommand -ActivityName 'Setting up Github Repository' -ComputerName PSR
     Install-Module -Name Microsoft.PowerShell.PSResourceGet -Scope AllUsers -Force -Verbose
     $URI = "https://nuget.pkg.github.com/$UserName/index.json"
     $Parameters = @{
-        Name = 'GitHubPSRepository'
-        URI = $URI
+        Name    = 'GitHubPSRepository'
+        URI     = $URI
         Trusted = $true
     }
 
