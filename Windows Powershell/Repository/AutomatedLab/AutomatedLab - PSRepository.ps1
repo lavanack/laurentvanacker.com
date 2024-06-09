@@ -16,6 +16,10 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 #requires -Version 5 -Modules AutomatedLab -RunAsAdministrator 
+[CmdletBinding()]
+Param(
+)
+
 trap {
     Write-Host "Stopping Transcript ..."
     Stop-Transcript
@@ -23,8 +27,62 @@ trap {
     $ErrorActionPreference = $PreviousErrorActionPreference
     [console]::beep(3000, 750)
     Send-ALNotification -Activity 'Lab started' -Message ('Lab deployment failed !') -Provider (Get-LabConfigurationItem -Name Notifications.SubscribedProviders)
+    break
 } 
 Clear-Host
+Import-Module -Name AutomatedLab
+try { while (Stop-Transcript) {} } catch {}
+
+#region Helper functions
+# Adding certificate exception and TLS 1.2 
+add-type @"
+    using System.Net;
+    using System.Security.Cryptography.X509Certificates;
+    public class TrustAllCertsPolicy : ICertificatePolicy {
+        public bool CheckValidationResult(
+            ServicePoint srvPoint, X509Certificate certificate,
+            WebRequest request, int certificateProblem) {
+            return true;
+        }
+    }
+"@
+[System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+function Invoke-Process {
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory = $true)]
+        [string]$CommandLine,
+        [Parameter(Mandatory = $false)]
+        [string]$LogDir,
+        [switch]$Stdout
+    )
+    
+    Write-Verbose "Running: $CommandLine"
+    if ($LogDir) {
+        $TimeStamp = "{0:yyyyMMddHHmmss}" -f (Get-Date)
+        $StdErrFile = $(Join-Path -Path $LogDir -ChildPath $("{0}_stderr.txt" -f $TimeStamp))
+        $StdOutFile = $(Join-Path -Path $LogDir -ChildPath $("{0}_stdout.txt" -f $TimeStamp))
+        Write-Verbose "`$StdErrFile: $StdErrFile"
+        Write-Verbose "`$StdOutFile: $StdOutFile"
+        Start-Process -FilePath $env:ComSpec -ArgumentList "/c", $CommandLine -Wait -RedirectStandardOutput $StdOutFile -RedirectStandardError $StdErrFile
+        if ($Stdout) {
+            Write-Verbose -Message "`r`n$(Get-Content -Path $StdOutFile -Raw)"
+        }
+        if ((Test-Path -Path $StdErrFile -PathType Leaf) -and ((Get-Item -Path $StdErrFile).Length -gt 0)) {
+            Write-Warning -Message "$StdErrFile is not empty. The command line was : $CommandLine"
+            Write-Warning -Message "`r`n$(Get-Content -Path $StdErrFile -Raw)"
+        }
+    }
+    else {
+        #You'll have to close the prompt Windows by yourself by using [X] at the top right.
+        Start-Process -FilePath $env:ComSpec -ArgumentList "/k", $CommandLine -Wait
+    }
+}
+#endregion
+
+
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
 $PreviousErrorActionPreference = $ErrorActionPreference
@@ -36,7 +94,7 @@ $TranscriptFile = $CurrentScript -replace ".ps1$", "$("_{0}.txt" -f (Get-Date -F
 Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 
 #region Global variables definition
-$Logon = 'Administrator'
+$Logon = 'administrator'
 $ClearTextPassword = 'P@ssw0rd'
 $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
 $NetBiosDomainName = 'CONTOSO'
@@ -45,7 +103,23 @@ $FQDNDomainName = 'contoso.com'
 $NetworkID = '10.0.0.0/16' 
 $DC01IPv4Address = '10.0.0.1'
 $PSREPO01IPv4Address = '10.0.0.11'
+$PSREPO02IPv4Address = '10.0.0.12'
 
+
+$MSEdgeEntUri = 'http://go.microsoft.com/fwlink/?LinkID=2093437'
+
+$UserHome = (Join-Path -Path $env:HOMEDRIVE -ChildPath $env:HOMEPATH)
+#Run ssh-keygen to generate keys if needed
+$SSHPublicKeyPath = Join-Path -Path $UserHome -Child "\.ssh\id_rsa.pub"
+$SSHPrivateKeyPath = Join-Path -Path $UserHome -Child "\.ssh\id_rsa"
+
+If (-Not(Test-Path -Path $SSHPublicKeyPath -PathType Leaf)) {
+    Write-Error -Exception "The $SSHPublicKeyPath (Public key file) doesn't exist" -ErrorAction Stop
+}
+
+If (-Not(Test-Path -Path $SSHPrivateKeyPath -PathType Leaf)) {
+    Write-Error -Exception "The $SSHPrivateKeyPath (Private key file) doesn't exist" -ErrorAction Stop
+}
 $LabName = 'PSRepository'
 
 #endregion
@@ -76,8 +150,10 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:Network'         = $LabName
     'Add-LabMachineDefinition:DomainName'      = $FQDNDomainName
     'Add-LabMachineDefinition:MinMemory'       = 1GB
-    'Add-LabMachineDefinition:MaxMemory'       = 2GB
+    'Add-LabMachineDefinition:MaxMemory'       = 4GB
     'Add-LabMachineDefinition:Memory'          = 2GB
+    'Add-LabMachineDefinition:DnsServer1'      = $DC01IPv4Address
+    #'Add-LabMachineDefinition:Gateway'         = $DC01IPv4Address
     'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2022 Datacenter (Desktop Experience)'
     #'Add-LabMachineDefinition:Processors'      = 4
 }
@@ -86,30 +162,62 @@ $PSREPO01NetAdapter = @()
 $PSREPO01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $PSREPO01IPv4Address -InterfaceName 'Corp'
 $PSREPO01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp -InterfaceName 'Internet'
 
+$PSREPO02NetAdapter = @()
+$PSREPO02NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $PSREPO02IPv4Address -InterfaceName Corp
+$PSREPO02NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp -InterfaceName Internet
+
 #region server definitions
 #Domain controller + Certificate Authority
 Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress $DC01IPv4Address
-#IIS front-end server
-Add-LabMachineDefinition -Name PSREPO01 -NetworkAdapter $PSREPO01NetAdapter -MinMemory 6GB -MaxMemory 6GB -Memory 6GB -Processors 2
+#Servers for PS Repository
+Add-LabMachineDefinition -Name PSREPO01 -NetworkAdapter $PSREPO01NetAdapter
+Add-LabMachineDefinition -Name PSREPO02 -OperatingSystem 'CentOS Stream 9' -DomainName contoso.com -NetworkAdapter $PSREPO02NetAdapter -MinMemory 5GB -MaxMemory 5GB -Memory 5GB -SshPublicKeyPath $SSHPublicKeyPath -SshPrivateKeyPath $SSHPrivateKeyPaths
 #endregion
 
 #Installing servers
 Install-Lab -Verbose
-Checkpoint-LabVM -SnapshotName FreshInstall -All
+Do {
+    Write-Verbose -Message "Sleeping for 1 minute (Waiting PSREPO02 be available on SSH port (TCP/22)) ..." -Verbose
+    Start-Sleep -Seconds 60
+} While (-Not((Test-NetConnection -ComputerName PSREPO02 -Port 22 -InformationLevel "Detailed").TcpTestSucceeded))
+
+Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 #Restore-LabVMSnapshot -SnapshotName 'FreshInstall' -All -Verbose
 
-#region Enabling Nested Virtualization on PSREPO01
-#Restarting all VMs
-Stop-LabVM -All -Wait
-Set-VMProcessor -VMName PSREPO01 -ExposeVirtualizationExtensions $true
-Start-LabVM -All -Wait
+#region Installing Required Windows Features
+$machines = Get-LabVM -IncludeLinux
+$WindowsServers = $machines | Where-Object -FilterScript { $_.OperatingSystem -like "Windows*" }
+$WindowsServerGroupMembers = $WindowsServers | Where-Object -FilterScript { $_.Name -notin "DC01" }
+$LinuxServerGroupMembers = $machines | Where-Object -FilterScript { $_ -notin $WindowsServers }
+
+$Jobs = @()
+$Jobs += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $WindowsServers -IncludeManagementTools -PassThru -AsJob
 #endregion
 
-#region Installing Required Windows Features
-$machines = Get-LabVM -All
-$Jobs = @()
-$Jobs += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools -PassThru -AsJob
-#endregion
+
+$MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru -Force
+$Jobs += Install-LabSoftwarePackage -ComputerName $WindowsServers -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob -PassThru
+
+Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $WindowsServers -ScriptBlock {
+    #Disabling IE ESC
+    $AdminKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
+    $UserKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}"
+    Set-ItemProperty -Path $AdminKey -Name "IsInstalled" -Value 0
+    Set-ItemProperty -Path $UserKey -Name "IsInstalled" -Value 0
+    Stop-Process -Name Explorer
+    #Write-Host "IE Enhanced Security Configuration (ESC) has been disabled." -ForegroundColor Green
+
+    #Setting the Keyboard to French
+    Set-WinUserLanguageList -LanguageList "fr-FR" -Force
+
+    #Renaming the main NIC adapter to Corp (used in the Security lab)
+    Rename-NetAdapter -Name "$using:labName 0" -NewName 'Corp' -PassThru -ErrorAction SilentlyContinue
+    Rename-NetAdapter -Name "Ethernet" -NewName 'Corp' -PassThru -ErrorAction SilentlyContinue
+    Rename-NetAdapter -Name "Default Switch 0" -NewName 'Internet' -PassThru -ErrorAction SilentlyContinue
+    
+    #Changing the default Edit action for .ps1 file to open in Powershell ISE
+    #Set-ItemProperty -Path Microsoft.PowerShell.Core\Registry::HKEY_CLASSES_ROOT\Microsoft.PowerShellScript.1\Shell\Edit\Command -Name "(Default)" -Value "$env:windir\System32\WindowsPowerShell\v1.0\powershell_ise.exe"  -Force
+}
 
 #Installing and setting up DNS
 Invoke-LabCommand -ActivityName 'DNS, AD Setup & GPO Settings on DC' -ComputerName DC01 -ScriptBlock {
@@ -141,33 +249,6 @@ Invoke-LabCommand -ActivityName 'DNS, AD Setup & GPO Settings on DC' -ComputerNa
 }
 
 Install-LabWindowsFeature -FeatureName Web-Server, Web-Mgmt-Console, Web-Asp-Net45 -ComputerName PSREPO01 -IncludeManagementTools -PassThru
-
-Invoke-LabCommand -ActivityName 'French KeyBoard Setup' -ComputerName $machines -ScriptBlock {
-    Set-WinUserLanguageList fr-fr -Force
-}
-
-<#
-Checkpoint-LabVM -SnapshotName BeforeDockerSetup -All
-#Restore-LabVMSnapshot -SnapshotName BeforeDockerSetup -All -Verbose
-
-1..2 | ForEach-Object -Process {
-    #We have to run twice : 1 run form the HyperV and containers setup (reboot required) and 1 run for the docker setup
-    Invoke-LabCommand -ActivityName 'Docker Setup' -ComputerName PSREPO01 -ScriptBlock {
-        #From https://learn.microsoft.com/en-us/virtualization/windowscontainers/quick-start/set-up-environment?tabs=dockerce#windows-server-1
-        Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/microsoft/Windows-Containers/Main/helpful_tools/Install-DockerCE/install-docker-ce.ps1) } -HyperV -NoRestart -Verbose"
-
-        Set-Location -Path $env:Temp
-        ##Invoke-WebRequest -UseBasicParsing "https://raw.githubusercontent.com/microsoft/Windows-Containers/Main/helpful_tools/Install-DockerCE/install-docker-ce.ps1" -OutFile install-docker-ce.ps1
-        #.\install-docker-ce.ps1 -HyperV -Force -Verbose
-        #.\install-docker-ce.ps1 -NoRestart -HyperV
-
-    } -Verbose
-    Restart-LabVM -ComputerName PSREPO01 -Wait
-}
-
-Checkpoint-LabVM -SnapshotName DockerSetup -All
-#Restore-LabVMSnapshot -SnapshotName 'DockerSetup' -All -Verbose
-#>
 
 Invoke-LabCommand -ActivityName 'Creating a Test PowerShell Module' -ComputerName PSREPO01 -ScriptBlock {
     Get-PackageProvider -Name Nuget -ForceBootstrap -Force
@@ -388,73 +469,63 @@ Invoke-LabCommand -ActivityName 'Setting up Github Repository' -ComputerName PSR
 
 #endregion
 
-<# TO BE COMPLETED ==> Work only with Linux containers
-#region Docker PowerShell Repository
-Checkpoint-LabVM -SnapshotName BeforeDockerRepo -All
-#Restore-LabVMSnapshot -SnapshotName 'BeforeDockerRepo' -All -Verbose
-
-#From https://powershellexplained.com/2018-03-03-Powershell-Using-a-NuGet-server-for-a-PSRepository/?utm_source=blog&utm_medium=blog&utm_content=psscriptrepo
-Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName PSREPO01 -ScriptBlock {
-
-    #region Setting up PowerShell Repository
-    Start-Service Docker
-    #Pulling IIS image
-    #docker pull mcr.microsoft.com/windows/servercore/iis:windowsservercore-ltsc2022
-
-    #Stopping all previously running containers if any
-    if ($(docker ps -a -q)) {
-        docker stop 
-        #To delete all containers
-        docker rm -f $(docker ps -a -q)
-    }
-
-    $null = New-Item -Path C:\Images\nuget\database, C:\Images\nuget\packages -ItemType Directory -Force
-    $APIKey = New-Guid
-    $arguments = @(
-        'run'
-        '--detach=true'
-        '--publish 80:80'
-        '--env', "NUGET_API_KEY=$APIKey"
-        '--volume', 'C:\Images\nuget\database:/var/www/db'
-        '--volume', 'C:\Images\nuget\packages:/var/www/packagefiles'
-        '--name', 'nuget-server'
-        'sunside/simple-nuget-server'
-        '--restart always'
-    )
-
-    Start-Process Docker -ArgumentList $arguments -NoNewWindow
-
-    #Getting the IP v4 address of the container
-    $ContainerIPv4Address = (docker inspect -f "{{ .NetworkSettings.Networks.nat.IPAddress }}" $Name | Out-String) -replace "`n"
-    Write-Host "The internal IPv4 address for the container [$Name] is [$ContainerIPv4Address]" -ForegroundColor Yellow
-
-    docker update --restart always $(docker ps -q)
-    #endregion
-
-    #region Publishing Module(s)
-    $URI = 'http://localhost'
-    $Parameters = @{
-        Name = 'DockerPSRepository'
-        SourceLocation = $URI
-        PublishLocation = $URI
-        InstallationPolicy = 'Trusted'
-    }
-    Register-PSRepository @Parameters
-    Publish-Module -Name TestModule -Repository $Parameters['Name'] -NuGetApiKey $APIKey -Force -Verbose
-    #endregion
-} -Verbose
-#endregion
-#>
 
 Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName PSREPO01 -ScriptBlock {
     Stop-Service WUAUSERV -PassThru | Set-Service -StartupType Disabled
 } 
 
+#region Docker PowerShell Repository
+#Invoke-Process -CommandLine "ssh -l root PSREPO02 -vvv"
+#Switch to french keyboard
+Invoke-Process -CommandLine "ssh -o StrictHostKeyChecking=no root@PSREPO02 sudo localectl set-keymap fr" -LogDir $CurrentDir -Stdout -Verbose
+
+#region Docker Setup
+#From https://docs.docker.com/engine/install/centos/
+Invoke-Process -CommandLine "ssh -o StrictHostKeyChecking=no root@PSREPO02 sudo yum install -y yum-utils" -LogDir $CurrentDir -Stdout -Verbose
+Invoke-Process -CommandLine "ssh -o StrictHostKeyChecking=no root@PSREPO02 sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo" -LogDir $CurrentDir -Stdout -Verbose
+Invoke-Process -CommandLine "ssh -o StrictHostKeyChecking=no root@PSREPO02 sudo yum install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y" -LogDir $CurrentDir -Stdout -Verbose
+Invoke-Process -CommandLine "ssh -o StrictHostKeyChecking=no root@PSREPO02 sudo systemctl start docker" -LogDir $CurrentDir -Stdout -Verbose
+Invoke-Process -CommandLine "ssh -o StrictHostKeyChecking=no root@PSREPO02 sudo docker run hello-world" -LogDir $CurrentDir -Stdout -Verbose
+Invoke-Process -CommandLine "ssh -o StrictHostKeyChecking=no root@PSREPO02 sudo pwsh -Command 'if (`$(docker ps -a -q)) { docker rm -f `$(docker ps -a -q) }'" -LogDir $CurrentDir -Stdout -Verbose
+#endregion
+
+#region Setting up PowerShell Repository
+$APIKey = (New-Guid).Guid
+Invoke-Process -CommandLine "ssh -o StrictHostKeyChecking=no root@PSREPO02 sudo docker run --detach=true --publish 5000:80 --env NUGET_API_KEY=$APIKey --volume /srv/docker/nuget/database:/var/www/db --volume /srv/docker/nuget/packages:/var/www/packagefiles --name nuget-server sunside/simple-nuget-server" -LogDir $CurrentDir -Stdout -Verbose
+
+Invoke-Process -CommandLine "ssh -o StrictHostKeyChecking=no root@PSREPO02 sudo pwsh -Command 'docker update --restart always `$(docker ps -q)'" -LogDir $CurrentDir -Stdout -Verbose
+
+Start-Sleep -Seconds 60
+
+Invoke-LabCommand -ActivityName 'Registering Docker PS repository' -ComputerName PSREPO01 -ScriptBlock {
+    $uri = 'http://PSREPO02:5000'
+    $Parameters = @{
+        Name               = 'DockerPSRepository'
+        SourceLocation     = $uri
+        PublishLocation    = $uri
+        InstallationPolicy = 'Trusted'
+    }
+    Register-PSRepository @Parameters
+
+    #region Publishing Module(s)
+    Publish-Module -Name TestModule -Repository $Parameters['Name'] -NuGetApiKey $using:APIKey -Force -Verbose    
+    #endregion
+}
+
+#Please allow few minutes for the module(s) to show up in the search results.
+Start-Sleep -Seconds 600
+Invoke-LabCommand -ActivityName "Finding the 'TestModule' PowerShell module in the 'DockerPSrepository' PowerShell Repository" -ComputerName PSREPO01 -ScriptBlock {
+    Find-Module -Name TestModule -Repository 'DockerPSRepository'
+} -PassThru
+
+#endregion
+#endregion
+
 #Waiting for background jobs
 $Jobs | Wait-Job | Out-Null
 
 #For updating the GPO
-Restart-LabVM -ComputerName $machines -Wait
+#Restart-LabVM -ComputerName $machines -Wait
 
 Show-LabDeploymentSummary -Detailed
 
