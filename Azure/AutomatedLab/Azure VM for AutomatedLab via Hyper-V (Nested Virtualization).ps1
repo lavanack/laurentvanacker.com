@@ -15,11 +15,12 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources
+#requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources, ComputerManagementDsc, HyperVDsc, PSDscResources, StorageDsc, xPSDesiredStateConfiguration
 
 [CmdletBinding()]
 param
 (
+    [switch] $Spot
 )
 
 
@@ -222,7 +223,14 @@ $image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.Publi
 #>
 
 # Step 9: Create a virtual machine configuration file (As a Spot Intance)
-$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1
+
+if ($Spot) {
+    #Create a virtual machine configuration file (As a Spot Intance for saving costs . DON'T DO THAT IN A PRODUCTION ENVIRONMENT !!!)
+    $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -SecurityType Standard -IdentityType SystemAssigned -Priority "Spot" -MaxPrice -1
+}
+else {
+    $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -SecurityType Standard -IdentityType SystemAssigned -HibernationEnabled
+}
 
 Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 
@@ -315,13 +323,14 @@ try {
     $Response = (Invoke-WebRequest -Uri https://github.com/microsoft/AzureStorageExplorer/releases/latest)
     if ($Response.ParsedHtml.title -match "v(?<Version>\d+\.\d+.\d+)") {
         $AzureStorageExplorerVersion = $Matches['Version']
-    } else {
-        #Latest version in April 2024
-        $AzureStorageExplorerVersion = '1.33.0'
+    }
+    else {
+        #Latest version in June 2024
+        $AzureStorageExplorerVersion = '1.34.0'
     }
     #endregion
     $ConfigurationArgument = @{
-        Credential = $Credential
+        Credential                  = $Credential
         AzureStorageExplorerVersion = $AzureStorageExplorerVersion
     }
     Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$ConfigurationFileName.zip" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $ConfigurationName -ConfigurationData $ConfigurationDataFileName -ConfigurationArgument $ConfigurationArgument  -Version "2.80" -Location $Location -AutoUpdate -Verbose #-ErrorAction Ignore
