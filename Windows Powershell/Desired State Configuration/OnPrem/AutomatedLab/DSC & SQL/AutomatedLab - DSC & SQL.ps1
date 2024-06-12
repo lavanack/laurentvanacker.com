@@ -61,9 +61,9 @@ $SQLServerManagementStudioURI = 'https://aka.ms/ssmsfullsetup'
 #region SQL Server 2019
 $SQLServer2019EnterpriseISO = "$labSources\ISOs\en_sql_server_2019_enterprise_x64_dvd_5e1ecc6b.iso"
 #SQL Server 2019 Latest GDR: KB4583458 when writing/updating this script (January 2024)
-$SQLServer2019LatestGDRURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=102618 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "click here to download manually"}).href
+$SQLServer2019LatestGDRURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=102618 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"}).href
 #SQL Server 2019 Latest Cumulative Update: KB5031908 when writing/updating this script (January 2024)
-$SQLServer2019LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=100809 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "click here to download manually"}).href
+$SQLServer2019LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=100809 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"}).href
 #endregion
 
 #region SQL Server 2022
