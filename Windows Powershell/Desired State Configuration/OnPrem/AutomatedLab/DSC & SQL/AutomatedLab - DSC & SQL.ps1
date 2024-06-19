@@ -61,17 +61,17 @@ $SQLServerManagementStudioURI = 'https://aka.ms/ssmsfullsetup'
 #region SQL Server 2019
 $SQLServer2019EnterpriseISO = "$labSources\ISOs\en_sql_server_2019_enterprise_x64_dvd_5e1ecc6b.iso"
 #SQL Server 2019 Latest GDR: KB4583458 when writing/updating this script (January 2024)
-$SQLServer2019LatestGDRURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=102618 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"}).href
+$SQLServer2019LatestGDRURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=102618 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"} | Select-Object -Unique).href
 #SQL Server 2019 Latest Cumulative Update: KB5031908 when writing/updating this script (January 2024)
-$SQLServer2019LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=100809 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"}).href
+$SQLServer2019LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=100809 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"} | Select-Object -Unique).href
 #endregion
 
 #region SQL Server 2022
-$SQLServer2022EnterpriseISO = "$labSources\ISOs\enu_sql_server_2022_enterprise_edition_x64_dvd_aa36de9e"
+$SQLServer2022EnterpriseISO = "$labSources\ISOs\enu_sql_server_2022_enterprise_edition_x64_dvd_aa36de9e.iso"
 #SQL Server 2022 Latest GDR: KB5021522 when writing/updating this script (January 2024)
-$SQLServer2022LatestGDRURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/details.aspx?id=105003 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"}).href
+$SQLServer2022LatestGDRURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=105003 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"} | Select-Object -Unique).href
 #SQL Server 2022 Latest Cumulative Update: KB5032679 when writing/updating this script (January 2024)
-$SQLServer2022LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/details.aspx?id=105013 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"}).href
+$SQLServer2022LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=105013 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"} | Select-Object -Unique).href
 #endregion
 #endregion
 
@@ -198,7 +198,7 @@ Invoke-LabCommand -ActivityName 'DNS, AD & GPO Settings on DC' -ComputerName DC0
 
     #region DNS management
     #Reverse lookup zone creation
-    Add-DnsServerPrimaryZone -NetworkID $using:NetworkID -ReplicationScope 'Forest' 
+    #Add-DnsServerPrimaryZone -NetworkID $using:NetworkID -ReplicationScope 'Forest' 
     #endregion
 
     #Creating a GPO at the domain level for certificate autoenrollment
@@ -234,6 +234,7 @@ Invoke-LabCommand -ActivityName 'DNS, AD & GPO Settings on DC' -ComputerName DC0
     $ADGroup = New-ADGroup -Name "$using:ClusterNameObjectsADGroup" -SamAccountName $using:ClusterNameObjectsADGroup -GroupCategory Security -GroupScope Global -DisplayName "$using:ClusterNameObjectsADGroup" -Path "CN=Computers,DC=$($using:FQDNDomainName -split "\." -join ",DC=")" -Description "Cluster Name Objects AD Group" -PassThru
 
     #Configuring key distribution service (KDS)
+    #From https://learn.microsoft.com/en-us/windows-server/security/group-managed-service-accounts/create-the-key-distribution-services-kds-root-key#to-create-the-kds-root-key-using-the-add-kdsrootkey-cmdlet
     $KdsRootKey = Add-KdsRootKey -EffectiveTime ((Get-Date).AddHours(-10))
 
     #Creating a new group managed service account
@@ -264,6 +265,10 @@ $Job += Install-LabSoftwarePackage -ComputerName $AllLabVMs -Path $MSEdgeEnt.Ful
 $SQLServerManagementStudio = Get-LabInternetFile -Uri $SQLServerManagementStudioURI -Path $labSources\SoftwarePackages -FileName 'SSMS-Setup-ENU.exe' -PassThru -Force
 $Job += Install-LabSoftwarePackage -ComputerName $SQLServerNodes -Path $SQLServerManagementStudio.FullName -CommandLine "/install /passive /norestart" -AsJob -PassThru
 #endregion
+
+#Taking a snapshot/checkpoint
+Checkpoint-LabVM -SnapshotName BeforeStorage -All -Verbose
+#Restore-LabVMSnapshot -SnapshotName 'BeforeStorage' -All -Verbose
 
 Invoke-LabCommand -ActivityName 'Configuring Storage & Copying SQL Server 2019 and 2022 ISOs & Tools' -ComputerName FS01 -ScriptBlock {
     <#
@@ -353,7 +358,7 @@ Invoke-LabCommand -ActivityName 'Configuring Storage & Copying SQL Server 2019 a
 
     #Creating a dedicated file share
     New-SmbShare -Name $($using:SourcesFolderName) -Path $SourcesFolder.FullName -ReadAccess "$using:SQLServerSADGroup" -FullAccess "Administrators"
-    #region Creating dedicated folders for SQL, Windows binairies and Powershell module
+    #region Creating dedicated folders for SQL Server, Windows binairies and Powershell modules
     $PowerShellModules = New-Item -Path $SourcesFolder -Name "PowerShellModules" -ItemType Directory -Force
     $SQLServerTools = New-Item -Path $SourcesFolder -Name "SQLServerTools" -ItemType Directory -Force
     $SQLScripts = New-Item -Path $SourcesFolder -Name "SQLScripts" -ItemType Directory -Force    
@@ -373,6 +378,7 @@ Invoke-LabCommand -ActivityName 'Configuring Storage & Copying SQL Server 2019 a
     Copy-Item -Path $SQLServer2019ISOContent -Destination $SQLServer2019Folder -Recurse -Force
     Copy-Item -Path $SQLServer2022ISOContent -Destination $SQLServer2022Folder -Recurse -Force
 
+
     #Copying Sources\Sxs folder from the OS ISO
     #Copy-Item -Path $WindowsServer2019ISOContent -Destination $WindowsServer2019SourcesFolder -Recurse -Force
     #Copy-Item -Path $WindowsServer2022ISOContent -Destination $WindowsServer2022SourcesFolder -Recurse -Force
@@ -382,12 +388,12 @@ Invoke-LabCommand -ActivityName 'Configuring Storage & Copying SQL Server 2019 a
     #Invoke-WebRequest -Uri $using:SQLServerManagementStudioURI -OutFile $SQLServerManagementStudioInstaller -Verbose
     #Start-BitsTransfer -Source $using:SQLServerManagementStudioURI -Destination $SQLServerManagementStudioInstaller -Verbose
 
-    #SQL Server 2019 Latest GDR: KB4583458 when writing
+    #SQL Server 2019 Latest GDR
     $SQLServer2019LatestGDRInstaller = Join-Path -Path $SQLServer2019UpdatesFolder -ChildPath $(Split-Path -Path $using:SQLServer2019LatestGDRURI -Leaf)
     #Invoke-WebRequest -Uri $using:SQLServer2019LatestGDRURI -OutFile $SQLServer2019LatestGDRInstaller -Verbose
     #Start-BitsTransfer -Source $using:SQLServer2019LatestGDRURI -Destination $SQLServer2019LatestGDRInstaller -Verbose
 
-    #SQL Server 2019 Latest Cumulative Update: KB5017593 - Cumulative Update 18 when writing/updating this script (October 2022)
+    #SQL Server 2019 Latest Cumulative Update
     $SQLServer2019LatestCUInstaller = Join-Path -Path $SQLServer2019UpdatesFolder -ChildPath $(Split-Path -Path $using:SQLServer2019LatestCUURI -Leaf)
     #Invoke-WebRequest -Uri $using:SQLServer2019LatestCUURI -OutFile $SQLServer2019LatestCUInstaller -Verbose
     #Start-BitsTransfer -Source $using:SQLServer2019LatestCUURI -Destination $SQLServer2019LatestCUInstaller -Verbose
@@ -403,6 +409,8 @@ Invoke-LabCommand -ActivityName 'Configuring Storage & Copying SQL Server 2019 a
     #Start-BitsTransfer -Source $using:SQLServer2022LatestCUURI -Destination $SQLServer2022LatestCUInstaller -Verbose
 
     Start-BitsTransfer -Source $using:SQLServerManagementStudioURI, $using:SQLServer2019LatestGDRURI, $using:SQLServer2019LatestCUURI, $using:SQLServer2022LatestGDRURI, $using:SQLServer2022LatestCUURI  -Destination $SQLServerManagementStudioInstaller, $SQLServer2019LatestGDRInstaller, $SQLServer2019LatestCUInstaller, $SQLServer2022LatestGDRInstaller, $SQLServer2022LatestCUInstaller -Verbose  
+
+
 
     #Installing required PowerShell modules from PowerShell Gallery
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force

@@ -65,17 +65,17 @@ $SQLServerManagementStudioURI = 'https://aka.ms/ssmsfullsetup'
 #region SQL Server 2019
 $SQLServer2019EnterpriseISO = "$labSources\ISOs\en_sql_server_2019_enterprise_x64_dvd_5e1ecc6b.iso"
 #SQL Server 2019 Latest GDR: KB4583458 when writing/updating this script (January 2024)
-$SQLServer2019LatestGDRURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=102618 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"}).href
+$SQLServer2019LatestGDRURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=102618 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"} | Select-Object -Unique).href
 #SQL Server 2019 Latest Cumulative Update: KB5031908 when writing/updating this script (January 2024)
-$SQLServer2019LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=100809 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"}).href
+$SQLServer2019LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=100809 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"} | Select-Object -Unique).href
 #endregion
 
 #region SQL Server 2022
 $SQLServer2022EnterpriseISO = "$labSources\ISOs\enu_sql_server_2022_enterprise_edition_x64_dvd_aa36de9e.iso"
 #SQL Server 2022 Latest GDR: KB5021522 when writing/updating this script (January 2024)
-$SQLServer2022LatestGDRURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/details.aspx?id=105003 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"}).href
+$SQLServer2022LatestGDRURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=105003 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"} | Select-Object -Unique).href
 #SQL Server 2022 Latest Cumulative Update: KB5032679 when writing/updating this script (January 2024)
-$SQLServer2022LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/details.aspx?id=105013 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"}).href
+$SQLServer2022LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=105013 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"} | Select-Object -Unique).href
 #endregion
 #endregion
 
@@ -99,7 +99,7 @@ $PBIDesktopX64Uri = "https://download.microsoft.com/download/8/8/0/880BCA75-79DD
 $SQLServerManagementStudioURI = 'https://aka.ms/ssmsfullsetup'
 
 #For Job tracking
-$Jobs = @()
+$Job = @()
 
 $LabName = 'SQLDSCSQLReporting'
 $iSCSIVirtualDiskNumber = 3 
@@ -191,20 +191,20 @@ Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 #region Installing Required Windows Features
 $SQLServerNodes = $AllLabVMs | Where-Object -FilterScript { $_.Name -match "^SQL"}
 $SQLServerTargetNodes = $AllLabVMs | Where-Object -FilterScript { $_.Name -match "^SQLNode"}
-$Jobs += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $AllLabVMs -IncludeManagementTools -AsJob -PassThru
+$Job += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $AllLabVMs -IncludeManagementTools -AsJob -PassThru
 
 #region Installing Edge on all machines
 $PBIDesktopX64 = Get-LabInternetFile -Uri $PBIDesktopX64Uri -Path $labSources\SoftwarePackages -PassThru -Force
-#$Jobs += Install-LabSoftwarePackage -ComputerName PULL -Path $PBIDesktopX64.FullName -CommandLine "-quiet -norestart LANGUAGE=en-us ACCEPT_EULA=1 INSTALLDESKTOPSHORTCUT=0" -AsJob -PassThru
+#$Job += Install-LabSoftwarePackage -ComputerName PULL -Path $PBIDesktopX64.FullName -CommandLine "-quiet -norestart LANGUAGE=en-us ACCEPT_EULA=1 INSTALLDESKTOPSHORTCUT=0" -AsJob -PassThru
 Install-LabSoftwarePackage -ComputerName PULL -Path $PBIDesktopX64.FullName -CommandLine "-quiet -norestart LANGUAGE=en-us ACCEPT_EULA=1 INSTALLDESKTOPSHORTCUT=0" -PassThru
 $MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru -Force
-$Jobs += Install-LabSoftwarePackage -ComputerName $AllLabVMs -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob -PassThru
+$Job += Install-LabSoftwarePackage -ComputerName $AllLabVMs -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob -PassThru
 #endregion
 #region Installing PowerBI Desktop on the SQL Server (or any machine in the lab)
 #endregion
 #region Installing SQL Management Studio on the SQL Server Nodes
 $SQLServerManagementStudio = Get-LabInternetFile -Uri $SQLServerManagementStudioURI -Path $labSources\SoftwarePackages -FileName 'SSMS-Setup-ENU.exe' -PassThru -Force
-$Jobs += Install-LabSoftwarePackage -ComputerName $SQLServerNodes -Path $SQLServerManagementStudio.FullName -CommandLine "/install /passive /norestart" -AsJob -PassThru
+$Job += Install-LabSoftwarePackage -ComputerName $SQLServerNodes -Path $SQLServerManagementStudio.FullName -CommandLine "/install /passive /norestart" -AsJob -PassThru
 #endregion
 
 #cf. https://docs.microsoft.com/en-us/archive/blogs/fieldcoding/visualize-dsc-reporting-with-powerbi#powerbi---the-interesting-part
@@ -498,7 +498,7 @@ Invoke-LabCommand -ActivityName 'Configuring Storage & Copying SQL Server 2019 a
 }
 
 #Enabling AD Windows feature for the target servers
-$Jobs += Install-LabWindowsFeature -FeatureName RSAT-AD-PowerShell -ComputerName $SQLServerTargetNodes -IncludeManagementTools -AsJob -PassThru
+$Job += Install-LabWindowsFeature -FeatureName RSAT-AD-PowerShell -ComputerName $SQLServerTargetNodes -IncludeManagementTools -AsJob -PassThru
 
 #Enabling iSCSI Target with Admin Tools
 Install-LabWindowsFeature -FeatureName FS-iSCSITarget-Server -ComputerName FS01 -IncludeManagementTools
@@ -657,7 +657,7 @@ Invoke-LabCommand -ActivityName 'Setting up the HTTPS Pull Server' -ComputerName
     #>
 } -Variable (Get-Variable -Name PULLWebSiteSSLCert) -Verbose
 
-$Jobs | Wait-Job | Out-Null
+$Job | Wait-Job | Out-Null
 
 Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName $AllLabVMs -ScriptBlock {
     Stop-Service WUAUSERV -PassThru | Set-Service -StartupType Disabled
