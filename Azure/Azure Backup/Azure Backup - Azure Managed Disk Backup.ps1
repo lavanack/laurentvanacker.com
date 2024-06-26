@@ -224,7 +224,7 @@ $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -Max
 $null = Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 
 # Set VM operating system parameters
-$null = Set-AzVMOperatingSystem -VM $VMConfig -Windows -ComputerName $VMName -Credential $Credential -ProvisionVMAgent
+$null = Set-AzVMOperatingSystem -VM $VMConfig -Windows -ComputerName $VMName -Credential $Credential -ProvisionVMAgent -EnableAutoUpdate -PatchMode "AutomaticByPlatform"
 
 # Set boot diagnostic storage account
 # Set boot diagnostic to managed storage account
