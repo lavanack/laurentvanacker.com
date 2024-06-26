@@ -235,7 +235,7 @@ if ([string]::IsNullOrEmpty($SSHPublicKeyPath)) {
 }
 if (Test-Path -Path $SSHPublicKeyPath -PathType Leaf) {
     # Set VM operating system parameters
-    Set-AzVMOperatingSystem -VM $VMConfig -Linux -ComputerName $VMName -Credential $Credential -DisablePasswordAuthentication
+    Set-AzVMOperatingSystem -VM $VMConfig -Linux -ComputerName $VMName -Credential $Credential -DisablePasswordAuthentication -ProvisionVMAgent -EnableAutoUpdate -PatchMode "AutomaticByPlatform"
     $SSHPublicKey = Get-Content -Path $SSHPublicKeyPath
     Add-AzVMSshPublicKey -VM $VMConfig -KeyData $SSHPublicKey -Path "/home/$($Credential.UserName)/.ssh/authorized_keys"
 }

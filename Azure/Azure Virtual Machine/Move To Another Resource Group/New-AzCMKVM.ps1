@@ -267,7 +267,7 @@ $Jobs = foreach ($CurrentVMName in $VMNames) {
     $null = Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 
     # Set VM operating system parameters
-    $null = Set-AzVMOperatingSystem -VM $VMConfig -Windows -ComputerName $CurrentVMName -Credential $Credential -ProvisionVMAgent
+    $null = Set-AzVMOperatingSystem -VM $VMConfig -Windows -ComputerName $CurrentVMName -Credential $Credential -ProvisionVMAgent -EnableAutoUpdate -PatchMode "AutomaticByPlatform"
 
     # Set boot diagnostic storage account
     #Set-AzVMBootDiagnostic -Enable -ResourceGroupName $ResourceGroupName -VM $VMConfig -StorageAccountName $StorageAccountName    
