@@ -32,6 +32,7 @@
 
 > [!IMPORTANT]
 > The script [New-AzAvdHostPoolSetup.ps1](New-AzAvdHostPoolSetup.ps1) is my take on an Azure Virtual Desktop (AVD) Proof Of Concept (POC). It's not designed for production use and comes with no guarantees. I created it during my learning phase with AVD, aiming to consolidate some best practices. The script encompasses both OnPrem and Azure configurations in a single PowerShell script.
+>
 > For a Microsoft-supported version deployment, I suggest using the Azure Virtual Desktop (AVD) Landing Zone Accelerator (LZA), which is available [here](https://github.com/Azure/avdaccelerator). Please note that this only covers the Azure component.
 
 ## Prerequisites
@@ -45,6 +46,8 @@ Before proceeding, ensure that a domain controller is present in your Azure subs
 > [!IMPORTANT]
 > The [New-AzAvdHostPoolSetup.ps1](New-AzAvdHostPoolSetup.ps1) script has to be executed from the Domain Controller (from any local folder) using an account with domain administrator privileges. An Azure privilege role (for example, Global Administrator) is also necessary to deploy the Azure resources.
 >
+> You can call it by specifying the `-AsJob` switch. When specified, the HostPools  will be deployed in parallel (via the [Start-ThreadJob](https://learn.microsoft.com/en-us/powershell/module/threadjob/start-threadjob?view=powershell-7.4&viewFallbackFrom=powershell-5.1) cmdlet) instead of sequentially. The processing time is greatly reduced from 4.5 hours to 1.5 hours (including the Azure Compute Gallery Setup if needed - without the Azure Compute Gallery Setup, the processing time are 3h30 sequentially  and 45 minutes in parallel) for the proposed HostPool 7 configurations. Of course, the fewer configurations you define, the shorter the processing time will be. Nevertheless, sometimes the setup fails in parallel mode (some random errors occur) so I disencourage you to use this mode (The sequential mode is the default mode).
+
 ## What this script does ?
 
 This script is designed to quickly deploy multiple full Azure Virtual Desktop environments, in minutes to hours. It adheres to Microsoft documentation and recommended practices.
@@ -170,9 +173,6 @@ You can also use the `Remove-AzAvdHostPoolSetup` function after the deployment t
 ## Deployment
 
 The `New-AzAvdHostPoolSetup` function is the main function of the script. It takes an `$HostPool` array as parameter (so set the parameter values you want for the HostPool(s) you want to deploy). It will deploy all the resources needed for the HostPool(s) based on the `$HostPool` array. All information on configuring the HostPool(s) can be found [here](#hostpool-powershell-classes).
-
-> [!WARNING]
-> This function has a `-AsJob` parameter. When this switch is specified, the ressources will be deployed in parallel (via the [Start-ThreadJob](https://learn.microsoft.com/en-us/powershell/module/threadjob/start-threadjob?view=powershell-7.4&viewFallbackFrom=powershell-5.1) cmdlet) instead of sequentially. The processing time is greatly reduced from 4.5 hours to 1.5 hours (including the Azure Compute Gallery Setup if needed - without the Azure Compute Gallery Setup, the processing time are 3h30 sequentially  and 45 minutes in parallel). Nevertheless, sometimes the setup fails in parallel mode (some random errors occur) so I disencourage you to use this mode (The sequential mode is the default mode).
 
 > [!NOTE]
 > The impacted ressources by the parallel mode are only the HostPools. The Session Hosts are created in parallel (per Host Pool). The Job Management is done at the end of the `New-AzAvdHostPoolSetup` function.
@@ -419,7 +419,7 @@ The script will deploy the following Azure resources (ordered by alphabetical or
 
 ### What's next ?
 
-I will probably integrate the following features in the script (when time permits):
+I will probably integrate the following features in the script (when time permits and not necessarily in this order):
 
 - BCDR strategy for the AVD environment. A BCDR strategy is already scripted [here](https://github.com/lavanack/laurentvanacker.com/blob/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell/New-AAD-Hybrid-BCDR-Lab.ps1) for the Domain Controller.
 - Implementing the FSLogix [Cloud Cache](https://learn.microsoft.com/en-us/fslogix/tutorial-cloud-cache-containers) feature
