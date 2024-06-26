@@ -55,11 +55,12 @@ Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Se
 #From https://admx.help/?Category=Windows_10_2016&Policy=Microsoft.Policies.TerminalServer::TS_SESSIONS_Limits_2
 Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' -Name "MaxConnectionTime" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 0
 #From https://admx.help/?Category=Windows_10_2016&Policy=Microsoft.Policies.TerminalServer::TS_Session_End_On_Limit_2
-Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' -Name "fResetBroken" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 0
+Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' -Name "fResetBroken" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 1
 #endregion
 
 #region Enable Screen Capture Protection
 #From https://learn.microsoft.com/en-us/training/modules/manage-access/5-configure-screen-capture-protection-for-azure-virtual-desktop
+#From https://admx.help/?Category=EdgeChromium&Policy=Microsoft.Policies.Edge::ScreenCaptureAllowed
 #Value 2 is for blocking screen capture on client and server.
 Write-Verbose -Message "Setting some 'Enable Screen Capture Protection' related registry values ..."
 Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' -Name "fEnableScreenCaptureProtection" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 2
