@@ -58,13 +58,15 @@ Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Se
 Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' -Name "fResetBroken" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 1
 #endregion
 
+<#
 #region Enable Screen Capture Protection
 #From https://learn.microsoft.com/en-us/training/modules/manage-access/5-configure-screen-capture-protection-for-azure-virtual-desktop
 #From https://admx.help/?Category=EdgeChromium&Policy=Microsoft.Policies.Edge::ScreenCaptureAllowed
 #Value 2 is for blocking screen capture on client and server.
 Write-Verbose -Message "Setting some 'Enable Screen Capture Protection' related registry values ..."
-Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' -Name "fEnableScreenCaptureProtection" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 2
+Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' -Name "fEnableScreenCaptureProtection" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 1
 #endregion
+#>
 
 #region Enable Watermarking
 #From https://learn.microsoft.com/en-us/azure/virtual-desktop/watermarking#enable-watermarking
