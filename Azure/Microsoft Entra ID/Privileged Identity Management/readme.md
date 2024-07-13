@@ -1,6 +1,6 @@
 # Enable-AllPIMRolesForAzResource.ps1
 
-This PowerShell script is designed to activate all Privileged Identity Management (PIM) roles for a the connected Azure account. It was requeted by a customer or mine. 
+This PowerShell script is designed to activate all Privileged Identity Management (PIM) roles for a the connected Azure account. It was requeted by a customer or mine.
 
 ## Prerequisites
 
@@ -10,8 +10,8 @@ This PowerShell script is designed to activate all Privileged Identity Managemen
 ## Usage
 
 1. Open PowerShell.
-2. Navigate to the directory containing `Enable-allPIMRolesForAzResource.ps1`.
-3. Run the script using the command `.\Enable-allPIMRolesForAzResource.ps1`.
+2. Navigate to the directory containing `Enable-AllPIMRolesForAzResource.ps1`.
+3. Run the script using the command `.\Enable-AllPIMRolesForAzResource.ps1`.
 4. Follow the prompts to specify the Azure resource for which you want to enable PIM roles.
 
 ## Functionality
