@@ -44,6 +44,9 @@ $scope = "/subscriptions/{0}" -f $($(Get-AzContext).Subscription.Id)
 $Principal = (Get-AzADUser -ObjectId (Get-AzContext).Account)
 # Getting all eligible assignements for Azure Resource
 $AzRoleEligibilitySchedule = Get-AzRoleEligibilitySchedule -Scope $scope -Filter "asTarget()"
+#Getting all PIM roles that we are already JIT'd into..."
+#$azRoleAssignmentScheduleRequests = Get-AzRoleAssignmentScheduleRequest -Scope $scope -Filter "asTarget()"
+
 #Filtering the role(s) we want to activate
 if ($Filter) {
     $AzRoleEligibilitySchedule = $AzRoleEligibilitySchedule | Select-Object -Property * | Out-GridView -PassThru
