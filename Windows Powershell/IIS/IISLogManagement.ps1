@@ -1,6 +1,6 @@
-#requires -version 2 -Module WebAdministration -RunAsAdministrator
+#requires -version 5 -Module WebAdministration -RunAsAdministrator
 
-#region Importing the Module WebAdministration for Windows 2008 R2
+#region Importing the Module WebAdministration
 Import-Module -Name WebAdministration
 #endregion
 
@@ -132,8 +132,8 @@ function New-IISLogFile {
 		[String]$Encoding,
 		
 		[Parameter(Mandatory = $False, ParameterSetName = "Size")]
-		[ValidateRange(1, 100MB)]
-		[int]$Size = 1MB,
+		[ValidateRange(1, 5GB)]
+		[long]$Size = 1MB,
 		
 		[Parameter(Mandatory = $False, ParameterSetName = "Content")]
 		[switch]$Content,
@@ -594,44 +594,52 @@ function Compress-FileV5 {
 #endregion
 
 Clear-Host
-# Generates 100 fake log files (one log file per day) with custom content (adding custom fields) for every hosted web sites.
-# $NewIISLogFiles = Get-Website | New-IISLogFile -Verbose -Days 100 -Custom
+# Generates 365 fake log files (one log file per day) with custom content (adding custom fields) for every hosted web sites.
+# $NewIISLogFiles = Get-Website | New-IISLogFile -Days 365 -Custom -Verbose 
 
-# The 11 following lines are a good example to show you how to keep an history of the 30 newest IIS log files (an IIS log file per day/site): the 10 newest are in the orginal clear text format and the others are compressed.
-# Returns a collection of files contained in the IIS log folder (*.*) older than 30 days for every hosted web sites.
-$IISLogFiles = Get-Website | Get-IISLogFile -All -Verbose -OlderThanXDays 30
+# Generates 365 fake log files (one log file per day) for every hosted web sites with a file size of 10 MB.
+$NewIISLogFiles = Get-Website | New-IISLogFile -Days 365 -Size 10MB -Verbose 
+
+# Generates 30 fake log files (one log file per day) for every hosted web sites with a file size of 2.5 GB.
+$NewIISLogFiles = Get-Website | New-IISLogFile -Days 30 -Size 2.5GB -Force -Verbose 
+
+# The 11 following lines are a good example to show you how to keep an history of the 180 newest IIS log files (an IIS log file per day/site): the 10 newest are in the orginal clear text format and the others are compressed.
+# Returns a collection of files contained in the IIS log folder (*.*) older than 180 days for every hosted web sites.
+$IISLogFiles = Get-Website | Get-IISLogFile -All -OlderThanXDays 180 -Verbose 
 # Remove these files
 $IISLogFiles | Remove-Item -Force -Verbose 
 
 # Returns a collection of IIS log files (*.log only) older than 10 days for every hosted web sites.
 $IISLogFiles = Get-Website | Get-IISLogFile -Verbose -OlderThanXDays 10
 # Compresses these files, set the last write time of the compressed file to the last write time of the source file and returns a collection of the compressed files
-$CompressedFiles = $IISLogFiles | Compress-File -Force -Verbose -PreserveLastWriteTime
+$CompressedFiles = $IISLogFiles | Compress-File -Force -PreserveLastWriteTime -Verbose 
 # Removes the non-compressed files (to keep only those compressed at the previous line)
-$IISLogFiles | Remove-Item -Force -Verbose 
+# $IISLogFiles | Remove-Item -Force -Verbose 
+# To remove only the files where we are sure we have the related archive
+$CompressedFiles.FullName -replace "\.zip", ".log" | Remove-Item -Force -Verbose
 
 
 # Generates 100 fake log files (one log file per day) for the "Default Web site", "www.contoso.com" web sites with the ANSI encoding in verbose mode. Previously existing log files will be overwritten
 # $NewIISLogFiles = New-IISLogFile -Days 100 -Encoding ANSI -WebSite "Default Web site", "www.contoso.com" -Force -Verbose 
 
 # Generates 30 fake log files (one log file per day) for the "Default Web site" web site. The size of every log file will be set to 10MB
-# $NewIISLogFiles = New-IISLogFile -Force -Verbose -Days 30 -WebSite "Default Web site" -Size 10MB
+# $NewIISLogFiles = New-IISLogFile -Force -Days 30 -WebSite "Default Web site" -Size 10MB -Verbose 
 
 # Returns a collection of files contained in the IIS log folder (*.*) older than 2 months ago for every hosted web sites.
-# $IISLogFiles = Get-Website | Get-IISLogFile -All -Verbose -OlderThanThisDate $((Get-Date).AddMonths(-2))
+# $IISLogFiles = Get-Website | Get-IISLogFile -All -OlderThanThisDate $((Get-Date).AddMonths(-2)) -Verbose 
 
 # Compresses these files with a timeout of 5 minutes (300 seconds) and a sleeping time of 10 seconds between each check, sets the last write time of the compressed file to the last write time of the source file and returns a collection of the compressed files
-# $CompressedFiles = $IISLogFiles | Compress-File -Force -Verbose -TimeoutSec 300 -SleepingTimeSec 10 -PreserveLastWriteTime
+# $CompressedFiles = $IISLogFiles | Compress-File -Force -TimeoutSec 300 -SleepingTimeSec 10 -PreserveLastWriteTime -Verbose
 
 # Compresses these files by using the built-in feature available since PowerShell 5.0
 # $CompressedFiles = $IISLogFiles | Compress-FileV5 -Force -Verbose
 
 # Returns a collection of IIS log files (*.log only) older than the date "05/18/2016 01:40:00" for "Default Web Site" web site.
-# $IISLogFiles = Get-Website -Name "Default Web Site" | Get-IISLogFile -Verbose -OlderThanThisDate "05/18/2016 01:40:00"
+# $IISLogFiles = Get-Website -Name "Default Web Site" | Get-IISLogFile -OlderThanThisDate "05/18/2016 01:40:00" -Verbose
 # Compresses these files and overwrite previously existing .zip files, set the last write time of the compressed file to the last write time of the source file and returns a collection of the compressed files
-# $CompressedFiles = $IISLogFiles | Compress-File -Force -Verbose -PreserveLastWriteTime
+# $CompressedFiles = $IISLogFiles | Compress-File -Force -PreserveLastWriteTime -Verbose
 
 # Returns a collection of IIS log files (*.log only) older than the date "05/18/2016 01:40:00" for "Default Web Site" and "www.contoso.com" web sites.
-# $IISLogFiles = "Default Web Site", "www.contoso.com" | Get-IISLogFile -Verbose -OlderThanThisDate "05/18/2016 01:40:00"
+# $IISLogFiles = "Default Web Site", "www.contoso.com" | Get-IISLogFile -OlderThanThisDate "05/18/2016 01:40:00" -Verbose
 # Compresses these files and overwrite previously existing .zip files in whatif mode (the returned collection will be empty)
-# $CompressedFiles = $IISLogFiles | Compress-File -Force -Verbose -WhatIf
+# $CompressedFiles = $IISLogFiles | Compress-File -Force -WhatIf -Verbose
