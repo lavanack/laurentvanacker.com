@@ -180,7 +180,7 @@ Invoke-LabCommand -ActivityName 'Requesting and Exporting Document Encryption Ce
 Copy-LabFileItem -Path C:\PoshDSC\Demos -DestinationFolder C:\PShell\ -ComputerName $Machines -Recurse
 Invoke-LabCommand -ActivityName 'Downloading prerequisites' -ComputerName PULL -ScriptBlock {
     & "C:\PShell\Demos\Install-xModule.ps1" 
-} -AsJob
+} #-AsJob
 
 Invoke-LabCommand -ActivityName 'Generating CSV file for listing certificate data' -ComputerName PULL -ScriptBlock {
     $PublicKeysFolder = "C:\PublicKeys"
