@@ -15,8 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-##requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources -RunAsAdministrator 
-#requires -Version 5 -RunAsAdministrator 
+#requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources 
 
 #region Function definition
 function New-AAD-Hybrid-Lab {
@@ -37,7 +36,7 @@ function New-AAD-Hybrid-Lab {
         [string] $Project = "avd",
         [parameter(Mandatory = $false, HelpMessage = 'Please specify the role')]
         [ValidateLength(2, 4)] 
-        [string] $Role = "adds",
+        [string] $Role = "dc",
         [parameter(Mandatory = $false, HelpMessage = 'IMPORTANT: Two-part internal AD name - short/NB name will be first part ("contoso"). The short name will be reused and should be unique when deploying this template in your selected region. If a name is reused, DNS name collisions may occur.')]
         [ValidatePattern("\w+\.\w+")] 
         [string] $ADDomainName = "contoso.local",
@@ -128,7 +127,7 @@ function New-AAD-Hybrid-Lab {
         #Step 0: Remove previously existing Azure Resource Group with the same name
         $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
     }
-    $MyPublicIp = (Invoke-WebRequest -uri "https://ipv4.seeip.org").Content
+    $MyPublicIp = (Invoke-WebRequest -Uri "https://ipv4.seeip.org").Content
 
     #region Define Variables needed for Virtual Machine
     $ImagePublisherName = "MicrosoftWindowsServer"
@@ -177,7 +176,7 @@ function New-AAD-Hybrid-Lab {
     elseif (-not(Test-AzDnsAvailability -DomainNameLabel $VMName -Location $Location)) {
         Write-Error "$FQDN is NOT available" -ErrorAction Stop
     }
-    elseif ($null -eq (Get-AZVMSize -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
+    elseif ($null -eq (Get-AzVMSize -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
         Write-Error "The '$VMSize' is not available in the '$Location' location ..." -ErrorAction Stop
     }
 
@@ -281,7 +280,7 @@ function New-AAD-Hybrid-Lab {
         $BastionNetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $BastionNetworkSecurityGroupName -SecurityRules $BastionSecurityRules -Force
 
         Add-AzVirtualNetworkSubnetConfig -Name "AzureBastionSubnet" -VirtualNetwork $vNetwork -AddressPrefix $BastionSubnetAddressRange -NetworkSecurityGroupId $BastionNetworkSecurityGroup.Id | Set-AzVirtualNetwork
-        $publicip = New-AzPublicIpAddress -ResourceGroupName $ResourceGroupName -name "$VirtualNetworkName-ip" -location "EastUS" -AllocationMethod Static -Sku Standard
+        $publicip = New-AzPublicIpAddress -ResourceGroupName $ResourceGroupName -Name "$VirtualNetworkName-ip" -Location "EastUS" -AllocationMethod Static -Sku Standard
         $BastionVirtualNetworkName = '{0}-bastion-{1}-{2}-{3}-{4:D3}' -f $VirtualNetworkPrefix, $Project, $Role, $LocationShortName, $Instance                       
         $BastionVirtualNetworkName = $BastionVirtualNetworkName.ToLower()
         $BastionJob = New-AzBastion -ResourceGroupName $ResourceGroupName -Name $BastionVirtualNetworkName -PublicIpAddressRgName $ResourceGroupName -PublicIpAddressName "$VirtualNetworkName-ip" -VirtualNetworkRgName $ResourceGroupName -VirtualNetworkName $VirtualNetworkName -Sku "Basic" -AsJob
@@ -294,11 +293,11 @@ function New-AAD-Hybrid-Lab {
         #SSH
         Get-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Name $NetworkSecurityGroupName | `
             Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_SSH -Description "Allow SSH Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange 22 -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 102 -Direction Inbound | `
-        Set-AzNetworkSecurityGroup
+            Set-AzNetworkSecurityGroup
     }
     
     #Step 6: Create Azure Public Address
-    $PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $ResourceGroupName -Location $Location -AlLocationMethod Static -DomainNameLabel $VMName.ToLower()
+    $PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $ResourceGroupName -Location $Location -AllocationMethod Static -DomainNameLabel $VMName.ToLower()
     #Setting up the DNS Name
     #$PublicIP.DnsSettings.Fqdn = $FQDN
 
@@ -426,7 +425,8 @@ function New-AAD-Hybrid-Lab {
         try {
             Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$(Split-Path -Path $DSCConfigurationZipFileURI -Leaf)" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $DSCConfigurationName -ConfigurationArgument $DSCConfigurationArguments -Version "2.80" -Location $Location -AutoUpdate -Verbose #-ErrorAction Ignore
         }
-        catch {}
+        catch {
+        }
         $VM | Update-AzVM -Verbose
         Remove-Item -Path $DSCZipLocalFilePath -Force
         Remove-Item -Path $DestinationFolder -Recurse -Force
@@ -496,14 +496,14 @@ $Parameters = @{
     "VMSize"               = "Standard_D2s_v5"
     "OSDiskType"           = "Premium_LRS"
     "Project"              = "avd"
-    "Role"                 = "adds"
+    "Role"                 = "ad"
     "ADDomainName"         = "csa.fr"
     #"CustomUPNSuffix"      = "cloudsolutionarchitect.fr"
     "VNetAddressRange"     = '10.0.0.0/16'
     "ADSubnetAddressRange" = '10.0.1.0/24'
     "DomainControllerIP"   = '10.0.1.4'
-    "Instance"             = 1
-    "Location"             = "eastus"
+    "Instance"             = 2
+    "Location"             = "eastus2"
     "Spot"                 = $false
     "Bastion"              = $false
     "Verbose"              = $true
