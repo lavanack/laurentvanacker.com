@@ -15,7 +15,8 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources, Az.KeyVault
+#requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources
+#requires -Modules @{ ModuleName="Az.KeyVault"; ModuleVersion="6.0.1" }
 
 [CmdletBinding()]
 param
@@ -213,7 +214,7 @@ $image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.Publi
 #region Setting up the Key Vault for HTTPS and WinRM
 
 #Create an Azure Key Vault
-$Vault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $location -EnabledForDeployment -EnabledForTemplateDeployment #-EnablePurgeProtection
+$Vault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $location -EnabledForDeployment -EnabledForTemplateDeployment -DisableRbacAuthorization #-EnablePurgeProtection 
 #As the owner of the key vault, you automatically have access to create secrets. If you need to let another user create secrets, use:
 #$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -UserPrincipalName $UserPrincipalName -PermissionsToSecrets Get,Delete,List,Set -PassThru
 
