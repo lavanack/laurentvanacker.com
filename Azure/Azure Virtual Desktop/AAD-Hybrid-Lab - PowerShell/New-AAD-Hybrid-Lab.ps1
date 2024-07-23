@@ -36,7 +36,7 @@ function New-AAD-Hybrid-Lab {
         [string] $Project = "avd",
         [parameter(Mandatory = $false, HelpMessage = 'Please specify the role')]
         [ValidateLength(2, 4)] 
-        [string] $Role = "dc",
+        [string] $Role = "ad",
         [parameter(Mandatory = $false, HelpMessage = 'IMPORTANT: Two-part internal AD name - short/NB name will be first part ("contoso"). The short name will be reused and should be unique when deploying this template in your selected region. If a name is reused, DNS name collisions may occur.')]
         [ValidatePattern("\w+\.\w+")] 
         [string] $ADDomainName = "contoso.local",
@@ -502,7 +502,7 @@ $Parameters = @{
     "VNetAddressRange"     = '10.0.0.0/16'
     "ADSubnetAddressRange" = '10.0.1.0/24'
     "DomainControllerIP"   = '10.0.1.4'
-    "Instance"             = 2
+    "Instance"             = 1
     "Location"             = "eastus2"
     "Spot"                 = $false
     "Bastion"              = $false

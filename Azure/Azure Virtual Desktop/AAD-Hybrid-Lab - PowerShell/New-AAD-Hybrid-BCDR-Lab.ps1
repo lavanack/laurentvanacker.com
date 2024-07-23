@@ -35,7 +35,7 @@ function New-AAD-Hybrid-BCDR-Lab {
         [string] $Project = "avd",
         [parameter(Mandatory = $false, HelpMessage = 'Please specify the role')]
         [ValidateLength(2, 4)] 
-        [string] $Role = "adds",
+        [string] $Role = "ad",
         [parameter(Mandatory = $false, HelpMessage = 'IMPORTANT: Two-part internal AD name - short/NB name will be first part ("contoso"). The short name will be reused and should be unique when deploying this template in your selected region. If a name is reused, DNS name collisions may occur.')]
         [ValidatePattern("\w+\.\w+")] 
         [string] $ADDomainName = "contoso.local",
@@ -495,9 +495,9 @@ $Parameters = @{
     "VMSize"               = "Standard_D2s_v5"
     "OSDiskType"           = "Premium_LRS"
     "Project"              = "avd"
-    "Role"                 = "adds"
+    "Role"                 = "ad"
     "ADDomainName"         = "csa.fr"
-    "RemoteVNetName"       = "vnet-avd-adds-eu-001"
+    "RemoteVNetName"       = "vnet-avd-ad-eu-001"
     "VNetAddressRange"     = '10.1.0.0/16'
     "ADSubnetAddressRange" = '10.1.1.0/24'
     "FirstDCIP"            = '10.0.1.4'
