@@ -304,6 +304,10 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "'$imageTemplateName01' LastRunStatusRunState: $($getStatus01.LastRunStatusRunState) "
 	Write-Verbose -Message "'$imageTemplateName01' LastRunStatusMessage: $($getStatus01.LastRunStatusMessage) "
 	Write-Verbose -Message "'$imageTemplateName01' LastRunStatusRunSubState: $($getStatus01.LastRunStatusRunSubState) "
+    if ($getStatus01.LastRunStatusRunState -eq "Failed")
+    {
+        Write-Error -Message "The Image Builder Template for '$imageTemplateName01' has failed:\r\n$($getStatus01.LastRunStatusMessage)"
+    }
 	Write-Verbose -Message "Removing Azure Image Builder Template for '$imageTemplateName01' ..."
 	#$Jobs += $getStatus01 | Remove-AzImageBuilderTemplate -AsJob
 	$getStatus01 | Remove-AzImageBuilderTemplate -NoWait
@@ -322,8 +326,10 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "'$imageTemplateName02' LastRunStatusRunState: $($getStatus02.LastRunStatusRunState) "
 	Write-Verbose -Message "'$imageTemplateName02' LastRunStatusMessage: $($getStatus02.LastRunStatusMessage) "
 	Write-Verbose -Message "'$imageTemplateName02' LastRunStatusRunSubState: $($getStatus02.LastRunStatusRunSubState) "
-	#endregion
-
+    if ($getStatus02.LastRunStatusRunState -eq "Failed")
+    {
+        Write-Error -Message "The Image Builder Template for '$imageTemplateName02' has failed:\r\n$($getStatus02.LastRunStatusMessage)"
+    }
 	Write-Verbose -Message "Removing Azure Image Builder Template for '$imageTemplateName02' ..."
 	#$Jobs += $getStatus02 | Remove-AzImageBuilderTemplate -AsJob
 	$getStatus02 | Remove-AzImageBuilderTemplate -NoWait

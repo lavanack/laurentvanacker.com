@@ -286,6 +286,10 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "'$imageTemplateName' LastRunStatusRunState: $($getStatus.LastRunStatusRunState) "
 	Write-Verbose -Message "'$imageTemplateName' LastRunStatusMessage: $($getStatus.LastRunStatusMessage) "
 	Write-Verbose -Message "'$imageTemplateName' LastRunStatusRunSubState: $($getStatus.LastRunStatusRunSubState) "
+    if ($getStatus01.LastRunStatusRunState -eq "Failed")
+    {
+        Write-Error -Message "The Image Builder Template for '$imageTemplateName01' has failed:\r\n$($getStatus01.LastRunStatusMessage)"
+    }
 	#endregion
 
 	Write-Verbose -Message "Removing Azure Image Builder Template for '$imageTemplateName' ..."
