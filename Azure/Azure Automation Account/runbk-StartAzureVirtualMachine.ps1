@@ -32,7 +32,7 @@ IF ($null -ne $Holidays.name)
 }
 ELSE 
 {
-  Write-Output -Message 'No holiday today. The Virtual Machine(s) will be started.'
+  Write-Output -InputObject 'No holiday today. The Virtual Machine(s) will be started.'
 
   # Ensures you do not inherit an AzContext in your runbook
   Disable-AzContextAutosave -Scope Process
