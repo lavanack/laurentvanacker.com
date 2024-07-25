@@ -21,7 +21,7 @@ $Date  = [System.TimeZoneInfo]::ConvertTimeFromUtc($tDate, $tz)
 
 
 $API = Get-AutomationVariable -Name AbstractApiKey
-$Holiday = Invoke-WebRequest -Uri ('https://holidays.abstractapi.com/v1/?api_key={0}&country={1}&year={2}&month={3}&day={4}' -f $API, $CountryCode, $Date.Year, $Date.Month, $Date.Day)
+$Holiday = Invoke-WebRequest -Uri ('https://holidays.abstractapi.com/v1/?api_key={0}&country={1}&year={2}&month={3}&day={4}' -f $API, $CountryCode, $Date.Year, $Date.Month, $Date.Day) -UseBasicParsing
 
 $Holidays = $Holiday.Content
 $Holidays = $Holidays | ConvertFrom-Json
