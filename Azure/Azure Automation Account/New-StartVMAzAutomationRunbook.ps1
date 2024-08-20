@@ -257,7 +257,7 @@ New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefi
 
 #region Schedule
 $TimeZone = ([System.TimeZoneInfo]::Local).Id
-$StartTime = Get-Date "07:30:00"
+$StartTime = Get-Date "07:00:00"
 if ($(Get-Date) -gt $StartTime) {
     $StartTime = $StartTime.AddDays(1)
 }
