@@ -14,7 +14,7 @@ foreach ($CurrentHostPool in Get-AzWvdHostPool)
     $CurrentHostPoolResourceGroupName = ((Get-AzWvdHostPool).Id -split "/")[4]
     $SessionHosts = Get-AzWvdSessionHost -HostpoolName $CurrentHostPool.Name -ResourceGroupName $CurrentHostPoolResourceGroupName
     $SessionHostNames = $SessionHosts.ResourceId -replace ".*/"
-    #region Configure the clients to disable FSLogix
+    #region Configure the clients to enable or disable FSLogix
     $Jobs = foreach ($CurrentSessionHostName in $SessionHostNames) {
         Write-Host "Processing '$CurrentSessionHostName' ..."
         $ScriptString = "Set-ItemProperty -Path 'HKLM:\SOFTWARE\FSLogix\Profiles' -Name 'Enabled' -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value $RegistryValue"
@@ -31,5 +31,5 @@ foreach ($CurrentHostPool in Get-AzWvdHostPool)
         Restart-AzVM -Name $CurrentSessionHostName -ResourceGroupName $CurrentHostPoolResourceGroupName -Confirm:$false -AsJob
     }
     $Jobs | Wait-Job | Out-Null
-    $Jobs | Remove-Job -Force}
-    #endregion
+    $Jobs | Remove-Job -Force
+}
