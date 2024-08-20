@@ -25,15 +25,16 @@ function Set-AzVMHibernateExtension {
         [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $false)]
         [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachineList[]] $CurrentVM
     )
-    begin {}
-    process {
+    begin {
         $RunningVMs = @()
+    }
+    process {
         foreach ($CurrentVM in $CurrentVM) {
             Write-Verbose -Message "Processing '$($CurrentVM.Name)' Azure VM"
             if (($CurrentVM | Get-AzVMExtension).ExtensionType -notcontains "WindowsHibernateExtension") {
 
                 if ($CurrentVM.Priority -eq "Spot") {
-                    Write-Warning -Message "The '$($CurrentVM.Name)' is a Spot Azure VM. Skipping it. Hibernation capability is not supported for Spot VMs. For more information, see https://aka.ms/hibernate-resume/errors."
+                    Write-<Warning -Message "The '$($CurrentVM.Name)' is a Spot Azure VM. Skipping it. Hibernation capability is not supported for Spot VMs. For more information, see https://aka.ms/hibernate-resume/errors."
                 }
                 else {
                     Write-Verbose -Message "The 'WindowsHibernateExtension' extension is NOT installed on the '$($CurrentVM.Name)' Azure VM"
@@ -71,7 +72,8 @@ function Set-AzVMHibernateExtension {
         }
         #endregion
     }
-    end {}
+    end {
+    }
 }
 
 Clear-Host
