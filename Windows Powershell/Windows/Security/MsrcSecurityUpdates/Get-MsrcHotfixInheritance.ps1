@@ -210,8 +210,22 @@ $Hotfix | ConvertTo-Json | Set-Content -Path $HotfixJSONFile
 #For line below cf. https://stackoverflow.com/questions/20848507/why-does-powershell-give-different-result-in-one-liner-than-two-liner-when-conve/38212718#38212718
 Remove-TypeData System.Array -ErrorAction Ignore
 
-#Building the hotfix supececence and successor chain (supercedence and succession by inheritance) for all updates
+#Building the hotfix supercecence and successor chain (supercedence and succession by inheritance) for all updates
+$HotfixInheritance = Get-MsrcHotfixInheritance -HotfixSupercedence $HotfixInheritedSupercedence -HotfixSuccessor $HotfixInheritedSuccessor -Verbose
+
+#Building the hotfix supercecence and successor chain (supercedence and succession by inheritance) for all updates
 $HotfixInheritance = Get-MsrcHotfixInheritance -HotFix $HotFix -Verbose
 $HotfixInheritance | Select-Object -Property *, @{Name = "SupercedenceList"; Expression = { $_.Supercedences -join ', ' } }, @{Name = "SupercedenceCount "; Expression = { $_.Supercedences.Count } }, @{Name = "SuccessorList"; Expression = { $_.Successors -join ', ' } }, @{Name = "SucessorCount "; Expression = { $_.Successors.Count } } -ExcludeProperty Supercedences, Successors | Export-Csv -Path $HotfixInheritanceCSVFile -NoTypeInformation
 $HotfixInheritance | ConvertTo-Json | Set-Content -Path $HotfixInheritanceJSONFile
 #$HotfixInheritance = Get-Content -Path $HotfixInheritanceJSONFile | ConvertFrom-Json
+
+#Building the hotfix supercedence chain (supercedence by inheritance) for all updates
+$HotfixInheritedSupercedence = Get-MsrcHotfixInheritedSupercedence -HotfixSupercedence $HotfixSupercedence -Verbose
+$HotfixInheritedSupercedence | Select-Object -Property * -ExcludeProperty Supercedences | Export-Csv -Path $HotfixInheritedSupercedenceCSVFile -NoTypeInformation
+#$HotfixInheritedSupercedence | ConvertTo-Json | Set-Content -Path $HotfixInheritedSupercedenceJSONFile
+
+#Building the hotfix successor chain (succession by inheritance) for all updates
+$HotfixInheritedSuccessor = Get-MsrcHotfixInheritedSuccessor -HotfixSupercedence $HotfixSupercedence -Verbose
+$HotfixInheritedSuccessor | Select-Object -Property * -ExcludeProperty Successors | Export-Csv -Path $HotfixInheritedSuccessorCSVFile -NoTypeInformation
+#$HotfixInheritedSuccessor | ConvertTo-Json | Set-Content -Path $HotfixInheritedSuccessorJSONFile
+
