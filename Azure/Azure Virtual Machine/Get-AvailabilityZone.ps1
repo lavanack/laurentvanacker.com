@@ -129,8 +129,10 @@ function Get-LessBusyAvailabilityZone {
     )
     Write-Verbose -Message "`$Location: $Location"
     Write-Verbose -Message "`$SKU: $SKU"
+    #Getting the Availability Zones for a specified SKU for a given Azure Region
     $SKUAvailabilityZone = Get-AvailabilityZone -Location $Location -SKU $SKU
 
+    #Getting the distribution data per Availability Zone
     $Data = Get-AzVM -Location $Location | Where-Object -FilterScript {$_.HardwareProfile.VmSize -eq $SKU} | Select-Object -Property @{Name="Zone"; Expression={if ($_.Zones) {$_.Zones} else {"unknown"}}}  | Group-Object -Property Zone -NoElement
     Write-Verbose -Message "`$Data:`r`n$($Data | Out-String)"
 
@@ -146,6 +148,7 @@ function Get-LessBusyAvailabilityZone {
         }
     }
     else {
+        #Getting the Less Busy Availability Zone
         $LessBusyAvailabilityZone = ($Data | Sort-Object -Property Count | Select-Object -First 1).Name
     }
     Write-Verbose -Message "The less busy Availability Zone in '$Location' for '$SKU' is: $LessBusyAvailabilityZone"
@@ -181,13 +184,18 @@ $SKUAvailabilityZone = Get-AvailabilityZone -Location $Location, "eastus" -SKU @
 $SKUAvailabilityZone
 #>
 
+#region Getting the Availability Zones for a specified SKU for a given Azure Region
 $SKUAvailabilityZone = Get-AvailabilityZone -Location $Location -SKU $SKU -Verbose
 $SKUAvailabilityZone | ConvertTo-Json -Depth 100
 $SKUAvailabilityZone.ZoneRestriction.AvailableInZone
+#endregion
 
+#region Getting VM Number per Azure Region, SKU and Availability Zone
 $AzVMNumberPerAvailabilityZone = Get-AzVMNumberPerAvailabilityZone -Verbose
 $AzVMNumberPerAvailabilityZone | Format-List -Property Name, Count -Force
+#endregion
 
+#region Generating 10 Azure VM to illustrate the round-robin mecanism we put in place for Availability Zone
 $VMNumber = 10
 1..$VMNumber | ForEach-Object -Process {
     $VMIndex = $_
@@ -198,3 +206,4 @@ $VMNumber = 10
     .\New-AzVMInAvailabilityZone.ps1 -AvailabilityZone $LessBusyAvailabilityZone -Location $Location -VMSize $SKU -Verbose
 }
 Write-Progress -Activity "Completed" -Completed
+#endregion 
