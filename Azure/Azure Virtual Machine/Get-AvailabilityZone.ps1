@@ -22,7 +22,7 @@ Clear-Host
 function Get-AvailabilityZone {
     [CmdletBinding()]
     Param (
-        [ValidateScript({$_ -in (Get-AzLocation).Location})]
+        [ValidateScript({ $_ -in (Get-AzLocation).Location })]
         [string[]] $Location = "francecentral",
         [string[]] $SKU
     )
@@ -64,13 +64,14 @@ function Get-AvailabilityZone {
             $apiEndpoint = "https://management.azure.com/subscriptions/$subscriptionId/providers/Microsoft.Resources/checkZonePeers/?api-version=2022-12-01"
             $response = Invoke-RestMethod -Method Post -Uri $apiEndpoint -Body $body -Headers $headers
             $zones = $response.AvailabilityZonePeers.AvailabilityZone
-            [PSCustomObject]@{Location=$CurrentLocation; Zone=$Zones}
+            [PSCustomObject]@{Location = $CurrentLocation; Zone = $Zones }
             Write-Verbose -Message "The region '$CurrentLocation' supports availability zones: $($zones -join ', ')"
-        } catch {
+        }
+        catch {
             Write-Verbose -Message "The region '$CurrentLocation' doesn't support availability zones!"
             [PSCustomObject] @{
-                Location=$CurrentLocation
-                Zone=$null
+                Location = $CurrentLocation
+                Zone     = $null
             }
         }
     }
@@ -89,7 +90,7 @@ function Get-AvailabilityZone {
                 $LocRestriction = if ($CurrentVMSKURestrictionType.Contains("Location")) {
                     "NotAvailableInRegion"
                 }
-                else{
+                else {
                     "Available - No region restrictions applied"
                 }
 
@@ -97,21 +98,21 @@ function Get-AvailabilityZone {
                     $NotAvailableInZone = ((($CurrentVMSKU.Restrictions.RestrictionInfo.Zones) | Where-Object -FilterScript { $_ } | Sort-Object))
                     [PSCustomObject] @{
                         NotAvailableInZone = $NotAvailableInZone
-                        AvailableInZone = (Compare-Object -ReferenceObject $LocationAvailabilityZoneHT[$CurrentLocation].Zone -DifferenceObject $NotAvailableInZone).InputObject
+                        AvailableInZone    = (Compare-Object -ReferenceObject $LocationAvailabilityZoneHT[$CurrentLocation].Zone -DifferenceObject $NotAvailableInZone).InputObject
                     }
                 }
                 else {
                     [PSCustomObject] @{
                         NotAvailableInZone = $null
-                        AvailableInZone = $CurrentVMSKU.LocationInfo.Zones
+                        AvailableInZone    = $CurrentVMSKU.LocationInfo.Zones
                     }
                 }
                 [PSCustomObject] @{
-                    "Name" = $SkuName
-                    "Location" = $CurrentLocation
+                    "Name"                    = $SkuName
+                    "Location"                = $CurrentLocation
                     "AppliesToSubscriptionID" = $SubId
                     "SubscriptionRestriction" = $LocRestriction
-                    "ZoneRestriction" = $ZoneRestriction
+                    "ZoneRestriction"         = $ZoneRestriction
                 }
             }
         }
@@ -123,7 +124,7 @@ function Get-AvailabilityZone {
 function Get-LessBusyAvailabilityZone {
     [CmdletBinding()]
     Param (
-        [ValidateScript({$_ -in (Get-AzLocation).Location})]
+        [ValidateScript({ $_ -in (Get-AzLocation).Location })]
         [string] $Location = "francecentral",
         [string] $SKU
     )
@@ -133,7 +134,13 @@ function Get-LessBusyAvailabilityZone {
     $SKUAvailabilityZone = Get-AvailabilityZone -Location $Location -SKU $SKU
 
     #Getting the distribution data per Availability Zone
-    $Data = Get-AzVM -Location $Location | Where-Object -FilterScript {$_.HardwareProfile.VmSize -eq $SKU} | Select-Object -Property @{Name="Zone"; Expression={if ($_.Zones) {$_.Zones} else {"unknown"}}}  | Group-Object -Property Zone -NoElement
+    $Data = Get-AzVM -Location $Location | Where-Object -FilterScript { $_.HardwareProfile.VmSize -eq $SKU } | Select-Object -Property @{Name = "Zone"; Expression = { if ($_.Zones) {
+                $_.Zones
+            }
+            else {
+                "unknown"
+            } }
+    }  | Group-Object -Property Zone -NoElement
     Write-Verbose -Message "`$Data:`r`n$($Data | Out-String)"
 
     #All Availability Zones are not used for the moment
@@ -142,8 +149,7 @@ function Get-LessBusyAvailabilityZone {
         if ($null -eq $Data) {
             $LessBusyAvailabilityZone = $SKUAvailabilityZone.ZoneRestriction.AvailableInZone | Get-Random
         }
-        else
-        {
+        else {
             $LessBusyAvailabilityZone = (Compare-Object -ReferenceObject $Data.Name -DifferenceObject $SKUAvailabilityZone.ZoneRestriction.AvailableInZone).InputObject | Get-Random
         }
     }
@@ -160,7 +166,13 @@ function Get-AzVMNumberPerAvailabilityZone {
     [CmdletBinding()]
     Param (
     )
-    Get-AzVM | Select-Object -Property Location, @{Name="VMSize"; Expression={$_.HardwareProfile.VmSize}}, @{Name="Zone"; Expression={if ($_.Zones) {$_.Zones} else {"unknown"}}}  | Group-Object -Property Location, VMSize, Zone -NoElement
+    Get-AzVM | Select-Object -Property Location, @{Name = "VMSize"; Expression = { $_.HardwareProfile.VmSize } }, @{Name = "Zone"; Expression = { if ($_.Zones) {
+                $_.Zones
+            }
+            else {
+                "unknown"
+            } }
+    }  | Group-Object -Property Location, VMSize, Zone -NoElement
 }
 #endregion
 
@@ -195,7 +207,7 @@ $AzVMNumberPerAvailabilityZone = Get-AzVMNumberPerAvailabilityZone -Verbose
 $AzVMNumberPerAvailabilityZone | Format-List -Property Name, Count -Force
 #endregion
 
-#region Generating 10 Azure VM to illustrate the round-robin mecanism we put in place for Availability Zone
+#region Generating 10 Azure VM to illustrate the round-robin mechanism we put in place for Availability Zone
 $VMNumber = 10
 1..$VMNumber | ForEach-Object -Process {
     $VMIndex = $_
