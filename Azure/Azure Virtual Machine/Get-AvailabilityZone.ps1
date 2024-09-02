@@ -121,7 +121,7 @@ function Get-AvailabilityZone {
 }
 
 #This function returns the less busy Availablity Zone for an Azure VM Size in an Azure Region
-function Get-LessBusyAvailabilityZone {
+function Get-LeastBusyAvailabilityZone {
     [CmdletBinding()]
     Param (
         [ValidateScript({ $_ -in (Get-AzLocation).Location })]
@@ -147,18 +147,18 @@ function Get-LessBusyAvailabilityZone {
     if ($Data.Count -lt $SKUAvailabilityZone.ZoneRestriction.AvailableInZone.Count) {
         #We pick up a non-used Availability Zone
         if ($null -eq $Data) {
-            $LessBusyAvailabilityZone = $SKUAvailabilityZone.ZoneRestriction.AvailableInZone | Get-Random
+            $LeastBusyAvailabilityZone = $SKUAvailabilityZone.ZoneRestriction.AvailableInZone | Get-Random
         }
         else {
-            $LessBusyAvailabilityZone = (Compare-Object -ReferenceObject $Data.Name -DifferenceObject $SKUAvailabilityZone.ZoneRestriction.AvailableInZone).InputObject | Get-Random
+            $LeastBusyAvailabilityZone = (Compare-Object -ReferenceObject $Data.Name -DifferenceObject $SKUAvailabilityZone.ZoneRestriction.AvailableInZone).InputObject | Get-Random
         }
     }
     else {
         #Getting the Less Busy Availability Zone
-        $LessBusyAvailabilityZone = ($Data | Sort-Object -Property Count | Select-Object -First 1).Name
+        $LeastBusyAvailabilityZone = ($Data | Sort-Object -Property Count | Select-Object -First 1).Name
     }
-    Write-Verbose -Message "The less busy Availability Zone in '$Location' for '$SKU' is: $LessBusyAvailabilityZone"
-    return $LessBusyAvailabilityZone
+    Write-Verbose -Message "The less busy Availability Zone in '$Location' for '$SKU' is: $LeastBusyAvailabilityZone"
+    return $LeastBusyAvailabilityZone
 }
 
 #This function returns the number of VMs deployed per VM Size, Azure Region and Availablity Zone 
@@ -211,11 +211,11 @@ $AzVMNumberPerAvailabilityZone | Format-List -Property Name, Count -Force
 $VMNumber = 10
 1..$VMNumber | ForEach-Object -Process {
     $VMIndex = $_
-    $LessBusyAvailabilityZone = Get-LessBusyAvailabilityZone -Location $Location -SKU $SKU -Verbose
-    $LessBusyAvailabilityZone
-    Write-Progress -Activity "[$VMIndex/$VMNumber] Creating a '$SKU' VM in '$Location' Azure Region in the '$LessBusyAvailabilityZone' Availability Zone" -Status "Percent : $('{0:N0}' -f $($VMIndex/$VMNumber * 100)) %" -PercentComplete ($VMIndex / $VMNumber * 100)
+    $LeastBusyAvailabilityZone = Get-LeastBusyAvailabilityZone -Location $Location -SKU $SKU -Verbose
+    $LeastBusyAvailabilityZone
+    Write-Progress -Activity "[$VMIndex/$VMNumber] Creating a '$SKU' VM in '$Location' Azure Region in the '$LeastBusyAvailabilityZone' Availability Zone" -Status "Percent : $('{0:N0}' -f $($VMIndex/$VMNumber * 100)) %" -PercentComplete ($VMIndex / $VMNumber * 100)
 
-    .\New-AzVMInAvailabilityZone.ps1 -AvailabilityZone $LessBusyAvailabilityZone -Location $Location -VMSize $SKU -Verbose
+    .\New-AzVMInAvailabilityZone.ps1 -AvailabilityZone $LeastBusyAvailabilityZone -Location $Location -VMSize $SKU -Verbose
 }
 Write-Progress -Activity "Completed" -Completed
 #endregion 
