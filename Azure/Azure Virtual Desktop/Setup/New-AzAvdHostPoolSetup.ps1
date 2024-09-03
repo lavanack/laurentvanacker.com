@@ -111,15 +111,15 @@ $HostPools = @(
     # Use case 1: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with FSLogix
     [PooledHostPool]::new($HostPoolSessionCredentialKeyVault)#.EnableSpotInstance()
     # Use case 2: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with FSLogix, Ephemeral OS Disk (ResourceDisk mode) and a Standard_DS3_v2 size (compatible with Ephemeral OS Disk)
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault).SetVMSize('Standard_D8ds_v5').EnableEphemeralOSDisk([DiffDiskPlacement]::ResourceDisk)#.EnableSpotInstance()
-    # Use case 3: Deploy a Pooled HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined) with FSLogix and Spot Instance VMs
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableSpotInstance()
-    # Use case 4: Deploy a Pooled HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined and enrolled with Intune) with FSLogix
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault).EnableIntune().DisableScalingPlan()#.SetVMNumberOfInstances(1).EnableSpotInstance()
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault).SetVMSize('Standard_D8ds_v5').EnableEphemeralOSDisk([DiffDiskPlacement]::ResourceDisk)
+    # Use case 3: Deploy a Pooled HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined) with FSLogix and Spot Instance VMs and setting the LoadBalancer Type to DepthFirst
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableSpotInstance().SetLoadBalancerType([Microsoft.Azure.PowerShell.Cmdlets.DesktopVirtualization.Support.LoadBalancerType]::DepthFirst)
+    # Use case 4: Deploy a Pooled HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined, enrolled with Intune) with FSLogix and a Scaling Plan
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault).EnableIntune()#.EnableScalingPlan()#.SetVMNumberOfInstances(1).EnableSpotInstance()
     # Use case 5: Deploy a Personal HostPool with 2 Session Hosts (AD Domain joined and without FSLogix and MSIX - Not necessary for Personal Desktops) 
     [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault).SetVMNumberOfInstances(2)
-    # Use case 6: Deploy a Personal HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined and without FSLogix and MSIX - Not necessary for Personal Desktops) and Hibernation enabled
-    [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableHibernation()#.EnableSpotInstance()
+    # Use case 6: Deploy a Personal HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined and without FSLogix and MSIX - Not necessary for Personal Desktops), Hibernation enabled and a Scaling Plan 
+    [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableHibernation().EnableScalingPlan()
 )
 
 #region Creating a new Pooled Host Pool for every image definition in the Azure Compute Gallery
@@ -131,7 +131,7 @@ $Index = [PooledHostPool]::Index
 foreach ($CurrentGalleryImageDefinition in $GalleryImageDefinition) {
     #$LatestCurrentGalleryImageVersion = Get-AzGalleryImageVersion -GalleryName $AzureComputeGallery.Name -ResourceGroupName $AzureComputeGallery.ResourceGroupName -GalleryImageDefinitionName $CurrentGalleryImageDefinition.Name | Sort-Object -Property Id | Select-Object -Last 1
     # Use case 7 and more: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with an Image coming from an Azure Compute Gallery and without FSLogix and MSIX
-    $PooledHostPool = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault).SetVMSourceImageId($CurrentGalleryImageDefinition.Id).DisableFSLogix().DisableMSIX()#.EnableSpotInstance()
+    $PooledHostPool = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault).SetVMSourceImageId($CurrentGalleryImageDefinition.Id).DisableFSLogix().DisableMSIX()
     Write-Verbose -Message "VM Source Image Id for the ACG Host Pool: $LatestCurrentGalleryImageVersion (MSIX: $($PooledHostPool.MSIX) / FSlogix: $($PooledHostPool.FSlogix))"
     # $HostPools += $PooledHostPool
 }
@@ -181,12 +181,15 @@ New-PsAvdScalingPlan -HostPool $HostPools
 #Starting a Windows Explorer instance per FSLogix profiles share
 Get-PsAvdFSLogixProfileShare -HostPool $HostPools
 
-#Running RDCMan to connect to all Session Hosts (for administration purpose if needed)
-New-PsAvdRdcMan -HostPool $HostPools -Install -Open
+#Starting a Windows Explorer instance per MSIX profiles share
+Get-PsAvdMSIXProfileShare -HostPool $HostPools
 
 #region Restarting all session hosts
 Restart-PsAvdSessionHost -HostPool $HostPools -Wait
 #endregion
+
+#Running RDCMan to connect to all Session Hosts (for administration purpose if needed)
+New-PsAvdRdcMan -HostPool $HostPools -Install -Open
 
 #region Adding Test Users (under the OrgUsers OU) as HostPool Users (for all HostPools)
 $AVDUserGroupName = 'AVD Users'
@@ -196,10 +199,10 @@ Start-MicrosoftEntraIDConnectSync
 #endregion
 
 #region Checking data sent to the Log Analytics Workspace(s)
-$Results = Invoke-PsAvdOperationalInsightsQuery -HostPool $HostPools #-Verbose
-$Results.Results | Sort-Object -Property LocalTimeGenerated #| Out-GridView
+#$Results = Get-PsAvdLatestOperationalInsightsData -HostPool $HostPools #-Verbose
+#$Results | Sort-Object -Property Computer | Out-GridView
 #For getting all Data Collection Rule Associations
-$DataCollectionRuleAssociations = $HostPools.GetResourceGroupName() | ForEach-Object -Process { Get-AzVM -ResourceGroupName $_ } | ForEach-Object -Process { Get-AzDataCollectionRuleAssociation -ResourceUri $_.Id } #| Out-GridView
+#$DataCollectionRuleAssociations = $HostPools.GetResourceGroupName() | ForEach-Object -Process { Get-AzVM -ResourceGroupName $_ } | ForEach-Object -Process { Get-AzDataCollectionRuleAssociation -ResourceUri $_.Id} #| Out-GridView
 #$DataCollectionRuleAssociations | Out-GridView
 #endregion
 
@@ -243,8 +246,13 @@ $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
 Write-Host -Object "Overall Processing Time: $($TimeSpan.ToString())"
 #endregion
 
-#$VerbosePreference = $PreviousVerbosePreference
-Stop-Transcript
 #endregion
 
-#$HostPools.GetFSLogixStorageAccountName() | ForEach-Object -Process { start $("\\{0}.file.core.windows.net\profiles" -f $_) }
+#$VerbosePreference = $PreviousVerbosePreference
+Stop-Transcript
+Invoke-PsAvdErrorLogFilePester -LogDir $CurrentLogDir
+
+<#
+Write-Host -Object "Error number per log file :"
+Get-ChildItem -Path $CurrentLogDir -Filter *.txt -File | Select-String -Pattern "~~~" | Group-Object -Property Path -NoElement | Format-Table -AutoSize
+#>
