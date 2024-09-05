@@ -24,52 +24,51 @@ Clear-Host
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
+#$LogDir = "~\Documents\"
+$LogDir = [Environment]::GetFolderPath("MyDocuments")
 Set-Location -Path $CurrentDir
 
 $Global:MaximumFunctionCount = 32768
-try {
-    while (Stop-Transcript) {
-    } 
-}
-catch {
-}
+try { while (Stop-Transcript) {} } catch {}
 #Get-Job | Remove-Job -Force
-Get-Job | Where-Object -FilterScript { $_.PSJobTypeName -eq "ThreadJob" } | Remove-Job -Force -Verbose
+Get-Job | Where-Object -FilterScript {$_.PSJobTypeName -eq "ThreadJob"} | Remove-Job -Force -Verbose
 $null = Remove-Module -Name PSAzureVirtualDesktop -Force -ErrorAction Ignore
-Import-Module -Name PSAzureVirtualDesktop -Force
+Import-Module -Name PSAzureVirtualDesktop -Force #-Verbose
 
 <#
 #>
 Connect-MgGraph -NoWelcome
 try { 
     $null = Get-AzAccessToken -ErrorAction Stop
-}
-catch {
+} catch {
     Connect-AzAccount
     Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
 }
 try {
-    Get-ChildItem -Path ~\Documents\ -Filter HostPool_* -Directory | Remove-Item -Force -Recurse -ErrorAction Stop
+    Get-ChildItem -Path $LogDir -Filter HostPool_* -Directory | Remove-Item -Force -Recurse -ErrorAction Stop
 }
 catch {
     Stop-Process -Name notepad, powershell* -Force -ErrorAction Ignore
 }
-Get-AzResourceGroup | Where-Object -FilterScript { $_.ResourceGroupName -match 'poc|kv|amc|ama' } | Remove-AzResourceGroup -AsJob -Force -Verbose
+Get-AzResourceGroup | Where-Object -FilterScript { $_.ResourceGroupName -match '^rg-avd-.*-(poc)-.*-\d+'} | Remove-AzResourceGroup -AsJob -Force -Verbose
 Get-MgBetaGroup -Filter "DisplayName eq 'No-MFA Users'" | ForEach-Object -Process { Remove-MgBetaGroup -GroupId $_.Id -Verbose }
 
 Get-MgBetaIdentityConditionalAccessPolicy -Filter "displayName eq '[AVD] Require multifactor authentication for all users'" | ForEach-Object -Process { Remove-MgBetaIdentityConditionalAccessPolicy -ConditionalAccessPolicyId $_.Id -Verbose }
-& '.\New-AzAvdHostPoolSetup.ps1' -Verbose -AsJob
+
+& '.\New-AzAvdHostPoolSetup.ps1' -LogDir $LogDir -Verbose -AsJob
 
 <#
+#region for openning the fileshares for FSLogix and MSIX
 $storageAccounts = Get-AzStorageAccount
 # Loop through each storage account
 foreach ($storageAccount in $storageAccounts)
 {
     # Get the list of file shares in the storage account
     $AzStorageShare = Get-AzStorageShare -Context $storageAccount.Context -ErrorAction Ignore
-    $profilesStorageShare = $AzStorageShare | Where-Object  -FilterScript {$_.Name -eq "profiles"}
-    if ($null -ne $profilesStorageShare) {
-        start $("\\{0}.file.{1}\{2}" -f $profilesStorageShare.context.StorageAccountName, ($profilesStorageShare.context.EndPointSuffix -replace "/"), $profilesStorageShare.Name)
+    $StorageShare = $AzStorageShare | Where-Object  -FilterScript {$_.Name -in "profiles", "msix"}
+    if ($null -ne $StorageShare) {
+        start $("\\{0}.file.{1}\{2}" -f $StorageShare.context.StorageAccountName, ($StorageShare.context.EndPointSuffix -replace "/"), $StorageShare.Name)
     }
 }
+#endregion
 #> 
