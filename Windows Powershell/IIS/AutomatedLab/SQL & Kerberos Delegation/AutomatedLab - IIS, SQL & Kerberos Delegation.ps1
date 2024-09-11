@@ -28,7 +28,7 @@ Clear-Host
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
 $PreviousErrorActionPreference = $ErrorActionPreference
-$ErrorActionPreference = 'Stop'
+#$ErrorActionPreference = 'Stop'
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
@@ -43,7 +43,7 @@ $NetBiosDomainName = 'CONTOSO'
 $FQDNDomainName = 'contoso.com'
 $IISAppPoolUser = 'IISAppPoolUser'
 
-$NetworkID='10.0.0.0/16' 
+$NetworkID = '10.0.0.0/16' 
 $DC01IPv4Address = '10.0.0.1'
 $SQL01IPv4Address = '10.0.0.11'
 $IIS01IPv4Address = '10.0.0.21'
@@ -55,20 +55,20 @@ $WideWorldImportersWebSiteName = "$WideWorldImportersNetBiosName.$FQDNDomainName
 #From https://github.com/mytecbits/MyTecBits-MVC5-Bootstrap3-EF6-DatabaseFirst
 $WideWorldImportersFilesZipPath = Join-Path -Path $CurrentDir -ChildPath "WideWorldImporters.zip"
 
-$WebPIUri = "https://go.microsoft.com/fwlink/?LinkId=287166"
-$WebPIX64MSIFileName = "WebPlatformInstaller_x64_en-US.msi"
-$WebPIX64MSIPath = Join-Path -Path $CurrentDir -ChildPath $WebPIX64MSIFileName
+$WebDeployUri = "https://download.visualstudio.microsoft.com/download/pr/e1828da1-907a-46fe-a3cf-f3b9ea1c485c/035860f3c0d2bab0458e634685648385/webdeploy_amd64_en-us.msi"
+$WebDeployMSIFileName = Split-Path -Path $WebDeployUri -Leaf
+$WebDeployMSIFilePath = Join-Path -Path $CurrentDir -ChildPath $WebDeployMSIFileName
 
 #Using half of the logical processors to speed up the deployement
-[int]$LabMachineDefinitionProcessors = [math]::Max(1, (Get-CimInstance -ClassName Win32_Processor).NumberOfLogicalProcessors)
+[int]$LabMachineDefinitionProcessors = [math]::Max(1, (Get-CimInstance -ClassName Win32_Processor).NumberOfLogicalProcessors / 2)
+#[int]$LabMachineDefinitionProcessors = 4
 
 $LabName = 'IISSQLKerbDeleg'
 #endregion
 
 #Cleaning previously existing lab
-if ($LabName -in (Get-Lab -List))
-{
-    Remove-Lab -name $LabName -confirm:$false -ErrorAction SilentlyContinue
+if ($LabName -in (Get-Lab -List)) {
+    Remove-Lab -Name $LabName -Confirm:$false -ErrorAction SilentlyContinue
 }
 
 #create an empty lab template and define where the lab XML files and the VMs will be stored
@@ -91,8 +91,8 @@ Set-LabInstallationCredential -Username $Logon -Password $ClearTextPassword
 $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:Network'         = $LabName
     'Add-LabMachineDefinition:DomainName'      = $FQDNDomainName
-    'Add-LabMachineDefinition:MinMemory'       = 1GB
-    'Add-LabMachineDefinition:MaxMemory'       = 2GB
+    'Add-LabMachineDefinition:MinMemory'       = 2GB
+    'Add-LabMachineDefinition:MaxMemory'       = 4GB
     'Add-LabMachineDefinition:Memory'          = 2GB
     'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Datacenter (Desktop Experience)'
     'Add-LabMachineDefinition:Processors'      = $LabMachineDefinitionProcessors
@@ -109,7 +109,7 @@ $SQL01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Swit
 
 #SQL Server
 $SQLServer2019Role = Get-LabMachineRoleDefinition -Role SQLServer2019 -Properties @{ Features = 'SQL,Tools' }
-Add-LabIsoImageDefinition -Name SQLServer2019 -Path $labSources\ISOs\en_sql_server_2019_standard_x64_dvd_cdcd4b9f.iso
+Add-LabIsoImageDefinition -Name SQLServer2019 -Path $labSources\ISOs\en_sql_server_2019_enterprise_x64_dvd_5e1ecc6b.iso
 
 #region server definitions
 #Domain controller
@@ -123,7 +123,7 @@ Add-LabMachineDefinition -Name CLIENT01 -IpAddress $CLIENT01IPv4Address
 #endregion
 
 #Installing servers
-Install-Lab
+Install-Lab #-Verbose
 
 #region Installing Required Windows Features
 $machines = Get-LabVM
@@ -170,7 +170,7 @@ Invoke-LabCommand -ActivityName 'DNS, AD & GPO Settings on DC' -ComputerName DC0
     $AppPoolUser | Set-ADObject -Add @{"msDS-AllowedToDelegateTo" = "MSSQLSvc/SQL01.$($using:FQDNDomainName):1433" }
     $AppPoolUser | Set-ADAccountControl -TrustedForDelegation $true   
     #region Setting SPN on the Application Pool Identity for kerberos authentication
-    $AppPoolUser | Set-ADUser -ServicePrincipalNames @{Add="HTTP/$using:WideWorldImportersWebSiteName", "HTTP/$using:WideWorldImportersNetBiosName"}
+    $AppPoolUser | Set-ADUser -ServicePrincipalNames @{Add = "HTTP/$using:WideWorldImportersWebSiteName", "HTTP/$using:WideWorldImportersNetBiosName" }
     #endregion
 
     #Creating a GPO at the domain level for certificate autoenrollment
@@ -217,15 +217,23 @@ Invoke-LabCommand -ActivityName 'Adding some users to the SQL sysadmin group' -C
     $SQLLogin.AddToRole("sysadmin")
 }
 
+Invoke-LabCommand -ActivityName 'Changing the $PSDefaultParameterValues for the Invoke-Sqlcmd cmdlet to set TrustServerCertificate=$true' -ComputerName SQL01 -ScriptBlock {        
+    $PSDefaultParameterValues = @{
+        'Invoke-Sqlcmd:TrustServerCertificate' = $true
+    }
+}
 #Installing SQL Server Sample databases
-Install-LabSqlSampleDatabases -Machine $(Get-LabVM -ComputerName SQL01)
+Install-LabSqlSampleDatabases -Machine $(Get-LabVM -ComputerName SQL01) -Verbose
 
 #Downloading Microsoft Web Platform Installer and copying the on the IIS Server 
-Invoke-WebRequest -Uri $WebPIUri -OutFile $WebPIX64MSIPath
-$LocalWebPIInstaller = Copy-LabFileItem -Path $WebPIX64MSIPath -DestinationFolderPath C:\Temp -ComputerName IIS01 -PassThru
+Invoke-WebRequest -Uri $WebDeployUri -OutFile $WebDeployMSIFilePath
+$LocalWebDeployInstaller = Copy-LabFileItem -Path $WebDeployMSIFilePath -DestinationFolderPath C:\Temp -ComputerName IIS01 -PassThru
 
 #Copying web content on the IIS server
 $LocalWideWorldImportersFilesZipPath = Copy-LabFileItem -Path $WideWorldImportersFilesZipPath -ComputerName IIS01 -DestinationFolderPath C:\Temp -PassThru
+
+#Checkpoint-LabVM -SnapshotName 'BeforeIIS' -All
+#Restore-LabVMSnapshot -SnapshotName 'BeforeIIS' -All -Verbose
 
 Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the IIS websites' -ComputerName IIS01 -ScriptBlock {        
     
@@ -239,7 +247,7 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #Creating directory tree for hosting web sites
     $WebSiteRootPath = New-Item -Path C:\WebSites -ItemType Directory -Force
     #Applying the required ACL (via PowerShell Copy and Paste)
-    Get-ACl C:\inetpub\wwwroot | Set-Acl $WebSiteRootPath.FullName
+    Get-Acl C:\inetpub\wwwroot | Set-Acl $WebSiteRootPath.FullName
     $WideWorldImportersWebSitePath = Join-Path -Path $WebSiteRootPath.FullName -ChildPath $using:WideWorldImportersWebSiteName
     $null = New-Item -Path $WideWorldImportersWebSitePath -ItemType Directory -Force
 
@@ -270,8 +278,8 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     New-WebSite -Name "$using:WideWorldImportersWebSiteName" -IPAddress $using:WideWorldImportersIPv4Address -Port 80 -PhysicalPath $WideWorldImportersWebSitePath -ApplicationPool "$using:WideWorldImportersWebSiteName" -Force
 
     #region Web Deploy management
-    Start-Process -FilePath $using:LocalWebPIInstaller -Argument "/passive" -Wait
-    Start-Process "$env:ProgramFiles\Microsoft\Web Platform Installer\WebPICMD.exe"-Argument "/Install /Products:WDeploy36 /AcceptEULA" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "msiexec /i $using:LocalWebDeployInstaller ADDLOCAL=ALL /qn /norestart LicenseAccepted='0'" -Wait
+
     Start-Process "$env:ProgramFiles\IIS\Microsoft Web Deploy V3\msdeploy" -Argument @"
 -verb:sync -source:package='$using:LocalWideWorldImportersFilesZipPath' -dest:auto -setparam:name='IIS Web Application Name',value='$using:WideWorldImportersWebSiteName/' -setparam:name='WideWorldImportersEntities-Web.config Connection String',value='metadata=res://*/Models.WideWorldImportersModel.csdl|res://*/Models.WideWorldImportersModel.ssdl|res://*/Models.WideWorldImportersModel.msl;provider=System.Data.SqlClient;provider connection string="data source=SQL01;initial catalog=WideWorldImporters;integrated security=True;MultipleActiveResultSets=True;App=EntityFramework" '
 "@ -Wait
@@ -294,7 +302,6 @@ Invoke-LabCommand -ActivityName 'Unzipping Web Site Content and Setting up the I
     #endregion
 }
 
-
 Invoke-LabCommand -ActivityName 'Cleanup on SQL Server' -ComputerName SQL01 -ScriptBlock {
     Remove-Item -Path "C:\vcredist_x*.*" -Force
     Remove-Item -Path "C:\SSMS-Setup-ENU.exe" -Force
@@ -309,7 +316,7 @@ Get-VM -Name 'IIS01' | Remove-VMNetworkAdapter -Name 'Default Switch' -ErrorActi
 #Get-LabVM -All | Where-Object -FilterScript {'Default Switch' -in $_.Network } | Get-VM | Remove-VMNetworkAdapter -Name 'Default Switch'
 
 #Setting processor number to 1 for all VMs (The AL deployment fails with 1 CPU)
-Get-LabVM -All | Stop-VM -Passthru | Set-VMProcessor -Count 1
+Get-LabVM -All | Stop-VM -Passthru -Force | Set-VMProcessor -Count 1
 Get-LabVM -All | Start-VM
 
 Show-LabDeploymentSummary -Detailed
