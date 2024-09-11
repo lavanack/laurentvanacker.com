@@ -66,6 +66,12 @@ $WebDeployMSIFilePath = Join-Path -Path $CurrentDir -ChildPath $WebDeployMSIFile
 $LabName = 'IISSQLKerbDeleg'
 #endregion
 
+#region Tools to download and install
+#Microsoft Edge : Latest version
+$MSEdgeEntUri = "http://go.microsoft.com/fwlink/?LinkID=2093437"
+#endregion
+
+
 #Cleaning previously existing lab
 if ($LabName -in (Get-Lab -List)) {
     Remove-Lab -Name $LabName -Confirm:$false -ErrorAction SilentlyContinue
@@ -94,7 +100,7 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:MinMemory'       = 2GB
     'Add-LabMachineDefinition:MaxMemory'       = 4GB
     'Add-LabMachineDefinition:Memory'          = 2GB
-    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Datacenter (Desktop Experience)'
+    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2022 Datacenter (Desktop Experience)'
     'Add-LabMachineDefinition:Processors'      = $LabMachineDefinitionProcessors
 }
 
@@ -108,14 +114,14 @@ $SQL01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv
 $SQL01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp
 
 #SQL Server
-$SQLServer2019Role = Get-LabMachineRoleDefinition -Role SQLServer2019 -Properties @{ Features = 'SQL,Tools' }
-Add-LabIsoImageDefinition -Name SQLServer2019 -Path $labSources\ISOs\en_sql_server_2019_enterprise_x64_dvd_5e1ecc6b.iso
+$SQLServer2022Role = Get-LabMachineRoleDefinition -Role SQLServer2022 -Properties @{ Features = 'SQL,Tools' }
+Add-LabIsoImageDefinition -Name SQLServer2022 -Path $labSources\ISOs\enu_sql_server_2022_enterprise_edition_x64_dvd_aa36de9e.iso
 
 #region server definitions
 #Domain controller
 Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress $DC01IPv4Address
 #SQL Server
-Add-LabMachineDefinition -Name SQL01 -Roles $SQLServer2019Role -NetworkAdapter $SQL01NetAdapter
+Add-LabMachineDefinition -Name SQL01 -Roles $SQLServer2022Role -NetworkAdapter $SQL01NetAdapter
 #IIS front-end server
 Add-LabMachineDefinition -Name IIS01 -NetworkAdapter $IIS01NetAdapter
 #IIS front-end server
@@ -125,31 +131,26 @@ Add-LabMachineDefinition -Name CLIENT01 -IpAddress $CLIENT01IPv4Address
 #Installing servers
 Install-Lab #-Verbose
 
-#region Installing Required Windows Features
-$machines = Get-LabVM
-Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools
+$machines = Get-LabVM -All
+
+$Jobs = @()
+#region Installing Microsoft Edge
+#Updating MS Edge on all machines (because even the latest OS build ISO doesn't necessary contain the latest MSEdge version)
+#-Force is used to be sure to download the latest MS Edge version 
+$MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru -Force
+$Jobs += Install-LabSoftwarePackage -ComputerName $machines -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob -PassThru
 #endregion
 
-Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $machines -ScriptBlock {
-    #Disabling IE ESC
-    $AdminKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}'
-    $UserKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}'
-    Set-ItemProperty -Path $AdminKey -Name 'IsInstalled' -Value 0 -Force
-    Set-ItemProperty -Path $UserKey -Name 'IsInstalled' -Value 0 -Force
-    Rundll32 iesetup.dll, IEHardenLMSettings
-    Rundll32 iesetup.dll, IEHardenUser
-    Rundll32 iesetup.dll, IEHardenAdmin
-    Remove-Item -Path $AdminKey -Force
-    Remove-Item -Path $UserKey -Force
-    #Setting the Keyboard to French
-    Set-WinUserLanguageList -LanguageList "fr-FR" -Force
+#region Installing Required Windows Features
+$Jobs += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools -AsJob -PassThru
+#endregion
 
+Invoke-LabCommand -ActivityName "Renaming NICs" -ComputerName $machines -ScriptBlock {
     #Renaming the main NIC adapter to Corp (used in the Security lab)
     Rename-NetAdapter -Name "$using:labName 0" -NewName 'Corp' -PassThru -ErrorAction SilentlyContinue
     Rename-NetAdapter -Name "Ethernet" -NewName 'Corp' -PassThru -ErrorAction SilentlyContinue
     Rename-NetAdapter -Name "Default Switch 0" -NewName 'Internet' -PassThru -ErrorAction SilentlyContinue
 }
-
 
 #Installing and setting up DNS
 Invoke-LabCommand -ActivityName 'DNS, AD & GPO Settings on DC' -ComputerName DC01 -ScriptBlock {
@@ -160,7 +161,6 @@ Invoke-LabCommand -ActivityName 'DNS, AD & GPO Settings on DC' -ComputerName DC0
     #DNS Host entries for the websites 
     Add-DnsServerResourceRecordA -Name "$using:WideWorldImportersNetBiosName" -ZoneName "$using:FQDNDomainName" -IPv4Address "$using:WideWorldImportersIPv4Address" -CreatePtr
     #endregion
-
 
     #Creating AD Users
     #Application Pool User
@@ -181,25 +181,47 @@ Invoke-LabCommand -ActivityName 'DNS, AD & GPO Settings on DC' -ComputerName DC0
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Cryptography\AutoEnrollment' -ValueName AEPolicy -Type Dword -value 0x00000007 
     #endregion
 
+    #region Edge Settings
+    $GPO = New-GPO -Name "Edge Settings" | New-GPLink -Target $DefaultNamingContext
+    # https://devblogs.microsoft.com/powershell-community/how-to-change-the-start-page-for-the-edge-browser/
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\Software\Policies\Microsoft\Edge' -ValueName "RestoreOnStartup" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 4
+
+    #https://admx.help/?Category=Windows_10_2016&Policy=Microsoft.Policies.MicrosoftEdge::PreventFirstRunPage
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\Software\Policies\Microsoft\MicrosoftEdge\Main' -ValueName "PreventFirstRunPage" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
+
+    #Hide the First-run experience and splash screen on Edge : https://docs.microsoft.com/en-us/deployedge/microsoft-edge-policies#hidefirstrunexperience
+    #https://admx.help/?Category=EdgeChromium&Policy=Microsoft.Policies.Edge::HideFirstRunExperience
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Edge' -ValueName "HideFirstRunExperience" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
+
+    #Bonus : To open all the available websites accross all nodes
+    $StartPages = "http://$using:WideWorldImportersWebSiteName"
+    $i=0
+    $StartPages | ForEach-Object -Process {
+        Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Edge\RestoreOnStartupURLs' -ValueName ($i++) -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "$_"
+    }
+    #endregion
+
     #region IE Settings
     $GPO = New-GPO -Name "IE Settings" | New-GPLink -Target $DefaultNamingContext
     #Disabling IE ESC
-    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}' -ValueName IsInstalled -Type Dword -value 1
-    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}' -ValueName IsInstalled -Type Dword -value 1
-    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap' -ValueName IEHarden -Type Dword -value 0
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}' -ValueName IsInstalled -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -value 1
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}' -ValueName IsInstalled -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -value 1
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap' -ValueName IEHarden -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -value 0
 
     #Setting WideWorldImporters.contoso.com in the Local Intranet Zone for all servers : mandatory for WideWorldImporters authentication       
     #1 for Intranet Zone, 2 for Trusted Sites, 3 for Internet Zone and 4 for Restricted Sites Zone.
-    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:WideWorldImportersWebSiteName" -ValueName http -Type Dword -value 1
-
-    #Changing the start page for IE
-    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Microsoft\Internet Explorer\Main' -ValueName "Start Page" -Type String -Value "http://$using:WideWorldImportersWebSiteName"
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKLM\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\Internet Settings" -ValueName "ListBox_Support_ZoneMapKey" -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKLM\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap" -ValueName "AutoDetect" -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKLM\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMapKey" -ValueName "http://$using:WideWorldImportersWebSiteName" -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::String)
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKLM\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMapKey" -ValueName "http://IIS01.$using:FQDNDomainName" -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::String)
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKLM\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:FQDNDomainName\$using:WideWorldImportersNetBiosName" -ValueName "http" -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKLM\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$using:FQDNDomainName\IIS01" -ValueName "http" -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
     #endregion
 
     #region WireShark : (Pre)-Master-Secret Log Filename
     $GPO = New-GPO -Name "(Pre)-Master-Secret Log Filename" | New-GPLink -Target $DefaultNamingContext
     #For decrypting SSL traffic via network tools : https://support.f5.com/csp/article/K50557518
-    $SSLKeysFile = '%USERPROFILE%\AppData\Local\ssl-keys.log'
+    $SSLKeysFile = '%USERPROFILE%\AppData\Local\WireShark\ssl-keys.log'
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Environment' -ValueName "SSLKEYLOGFILE" -Type ([Microsoft.Win32.RegistryValueKind]::ExpandString) -Value $SSLKeysFile
     #endregion
 
@@ -318,6 +340,9 @@ Get-VM -Name 'IIS01' | Remove-VMNetworkAdapter -Name 'Default Switch' -ErrorActi
 #Setting processor number to 1 for all VMs (The AL deployment fails with 1 CPU)
 Get-LabVM -All | Stop-VM -Passthru -Force | Set-VMProcessor -Count 1
 Get-LabVM -All | Start-VM
+
+#Waiting for background jobs
+$Jobs | Wait-Job | Out-Null
 
 Show-LabDeploymentSummary -Detailed
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
