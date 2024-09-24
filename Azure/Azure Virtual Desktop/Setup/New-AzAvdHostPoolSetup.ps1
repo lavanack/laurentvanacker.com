@@ -55,8 +55,6 @@ if (-not(Test-Domaincontroller)) {
     Stop-Transcript
 }
 
-#Install-RequiredModule
-
 #From https://aka.ms/azps-changewarnings: Disabling breaking change warning messages in Azure PowerShell
 #$null = Update-AzConfig -DisplayBreakingChangeWarning $false
 
@@ -68,11 +66,21 @@ Install-PsAvdAvdGpoSettings #-Force
 
 #region ADJoin User
 $AdJoinUserName = 'adjoin'
-$ClearTextPassword = 'I@m@JediLikeMyF@therB4Me'
-$AdJoinPassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
-$AdJoinCredential = New-Object System.Management.Automation.PSCredential -ArgumentList ($AdJoinUserName, $AdJoinPassword)
+$AdJoinUserClearTextPassword = 'I@m@JediLikeMyF@therB4Me'
+$AdJoinUserPassword = ConvertTo-SecureString -String $AdJoinUserClearTextPassword -AsPlainText -Force
+$AdJoinCredential = New-Object System.Management.Automation.PSCredential -ArgumentList ($AdJoinUserName, $AdJoinUserPassword)
+#endregion
+
+<#
+#region ADJoin User
+$AzFileShareACEManagerUserName = 'azfileshareacemgr'
+$AzFileShareACEManagerUserClearTextPassword = '4ACEManagement'
+$AzFileShareACEManagerUserPassword = ConvertTo-SecureString -String $AzFileShareACEManagerUserClearTextPassword -AsPlainText -Force
+$AzFileShareACEManagerCredential = New-Object System.Management.Automation.PSCredential -ArgumentList ($AzFileShareACEManagerUserName, $AzFileShareACEManagerUserPassword)
+#endregion
+#>
 #region Azure Key Vault for stroing ADJoin Credentials
-$HostPoolSessionCredentialKeyVault = New-PsAvdHostPoolSessionHostCredentialKeyVault -ADJoinCredential $ADJoinCredential
+$HostPoolSessionCredentialKeyVault = New-PsAvdHostPoolSessionHostCredentialKeyVault -ADJoinCredential $ADJoinCredential #-AzFileShareACEManagerCredential $AzFileShareACEManagerCredential
 #endregion
 #endregion
 
@@ -85,41 +93,23 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 [PooledHostPool]::Index = $RandomNumber
 [PersonalHostPool]::Index = $RandomNumber
 
-<#
-#region Getting the location of this Azure VM
-$ThisDomainController = Get-AzVMCompute | Get-AzVM
-# Get the VM's network interface
-$ThisDomainControllerNetworkInterfaceId = $ThisDomainController.NetworkProfile.NetworkInterfaces[0].Id
-$ThisDomainControllerNetworkInterface = Get-AzNetworkInterface -ResourceId $ThisDomainControllerNetworkInterfaceId
-# Get the subnet ID
-$ThisDomainControllerSubnetId = $ThisDomainControllerNetworkInterface.IpConfigurations[0].Subnet.Id
-$ThisDomainControllerSubnet = Get-AzVirtualNetworkSubnetConfig -ResourceId $ThisDomainControllerSubnetId
-# Get the vnet ID
-$ThisDomainControllerVirtualNetworkId = $ThisDomainControllerSubnetId -replace "/subnets/.*$"
-$ThisDomainControllerVirtualNetwork = Get-AzResource -ResourceId $ThisDomainControllerVirtualNetworkId | Get-AzVirtualNetwork
-$Location = $ThisDomainControllerVirtualNetwork.Location
-
-if ($null -eq $Location) {
-    Write-Error -Message "Unable to determine the current Azure Location" -ErrorAction Stop
-}
-#Listing all Azure Ephemeral Os Disk Skus for the specified Azure location 
-$AzureEphemeralOsDiskSku = [HostPool]::GetAzureEphemeralOsDiskSku($Location)
-#endregion
-#>
+#required for internal MCAPS subscription
+#[HostPool]::UseKeyVaultForStorageAccountKey($true)
+#[HostPool]::UseKeyVaultForStorageAccountKey()
 
 $HostPools = @(
     # Use case 1: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with FSLogix
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault)#.EnableSpotInstance()
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault).SetPreferredAppGroupType([Microsoft.Azure.PowerShell.Cmdlets.DesktopVirtualization.Support.PreferredAppGroupType]::RailApplications)#.EnableSpotInstance()
     # Use case 2: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with FSLogix, Ephemeral OS Disk (ResourceDisk mode) and a Standard_DS3_v2 size (compatible with Ephemeral OS Disk)
     [PooledHostPool]::new($HostPoolSessionCredentialKeyVault).SetVMSize('Standard_D8ds_v5').EnableEphemeralOSDisk([DiffDiskPlacement]::ResourceDisk)
     # Use case 3: Deploy a Pooled HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined) with FSLogix and Spot Instance VMs and setting the LoadBalancer Type to DepthFirst
     [PooledHostPool]::new($HostPoolSessionCredentialKeyVault).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableSpotInstance().SetLoadBalancerType([Microsoft.Azure.PowerShell.Cmdlets.DesktopVirtualization.Support.LoadBalancerType]::DepthFirst)
     # Use case 4: Deploy a Pooled HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined, enrolled with Intune) with FSLogix and a Scaling Plan
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault).EnableIntune()#.EnableScalingPlan()#.SetVMNumberOfInstances(1).EnableSpotInstance()
-    # Use case 5: Deploy a Personal HostPool with 2 Session Hosts (AD Domain joined and without FSLogix and MSIX - Not necessary for Personal Desktops) 
-    [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault).SetVMNumberOfInstances(2)
-    # Use case 6: Deploy a Personal HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined and without FSLogix and MSIX - Not necessary for Personal Desktops), Hibernation enabled and a Scaling Plan 
-    [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableHibernation().EnableScalingPlan()
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault).EnableIntune().EnableScalingPlan()#.SetVMNumberOfInstances(1).EnableSpotInstance()
+    # Use case 5: Deploy a Personal HostPool with 2 Session Hosts (AD Domain joined and without FSLogix and MSIX - Not necessary for Personal Desktops) and Hibernation enabled 
+    [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault).SetVMNumberOfInstances(2).EnableHibernation()
+    # Use case 6: Deploy a Personal HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined and without FSLogix and MSIX - Not necessary for Personal Desktops) and a Scaling Plan 
+    [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableScalingPlan()
 )
 
 #region Creating a new Pooled Host Pool for every image definition in the Azure Compute Gallery
@@ -193,7 +183,7 @@ New-PsAvdRdcMan -HostPool $HostPools -Install -Open
 
 #region Adding Test Users (under the OrgUsers OU) as HostPool Users (for all HostPools)
 $AVDUserGroupName = 'AVD Users'
-Get-ADGroup -Filter "Name -like 'hp*-*Users'" | Add-ADGroupMember -Members $AVDUserGroupName
+Get-ADGroup -Filter "Name -like 'hp*-*Application Group Users'" | Add-ADGroupMember -Members $AVDUserGroupName
 Start-MicrosoftEntraIDConnectSync
 #endregion
 #endregion
