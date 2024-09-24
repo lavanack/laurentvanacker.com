@@ -106,4 +106,4 @@ Function ConvertTo-PDF {
 Clear-Host
 # To get the directory of this script
 $CurrentDir = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
-Get-ChildItem -Path "C:\AzurePaaS\InstructorSource" -File -Filter '*.pptx' -Recurse | ConvertTo-PDF -Verbose -Visible -Force
+Get-ChildItem -Path $CurrentDir -File -Filter '*.pptx' -Recurse | ConvertTo-PDF -Verbose -Visible -Force
