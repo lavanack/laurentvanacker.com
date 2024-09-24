@@ -33,7 +33,7 @@ try { while (Stop-Transcript) {} } catch {}
 #Get-Job | Remove-Job -Force
 Get-Job | Where-Object -FilterScript {$_.PSJobTypeName -eq "ThreadJob"} | Remove-Job -Force -Verbose
 $null = Remove-Module -Name PSAzureVirtualDesktop -Force -ErrorAction Ignore
-Import-Module -Name PSAzureVirtualDesktop -Force #-Verbose
+Import-Module -Name PSAzureVirtualDesktop -Force -Verbose
 
 <#
 #>
@@ -44,18 +44,26 @@ try {
     Connect-AzAccount
     Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
 }
+
+#region Dirty Cleanup
 try {
     Get-ChildItem -Path $LogDir -Filter HostPool_* -Directory | Remove-Item -Force -Recurse -ErrorAction Stop
 }
 catch {
     Stop-Process -Name notepad, powershell* -Force -ErrorAction Ignore
+    Get-ChildItem -Path $LogDir -Filter HostPool_* -Directory | Remove-Item -Force -Recurse -ErrorAction Stop
 }
+
 Get-AzResourceGroup | Where-Object -FilterScript { $_.ResourceGroupName -match '^rg-avd-.*-(poc)-.*-\d+'} | Remove-AzResourceGroup -AsJob -Force -Verbose
 Get-MgBetaGroup -Filter "DisplayName eq 'No-MFA Users'" | ForEach-Object -Process { Remove-MgBetaGroup -GroupId $_.Id -Verbose }
-
 Get-MgBetaIdentityConditionalAccessPolicy -Filter "displayName eq '[AVD] Require multifactor authentication for all users'" | ForEach-Object -Process { Remove-MgBetaIdentityConditionalAccessPolicy -ConditionalAccessPolicyId $_.Id -Verbose }
+Get-AzKeyVault -InRemovedState | Remove-AzKeyVault -InRemovedState -AsJob -Force
+& '.\Clear-WindowsCredentials.ps1' -Verbose
+#endregion
 
+#$DebugPreference = "Continue"
 & '.\New-AzAvdHostPoolSetup.ps1' -LogDir $LogDir -Verbose -AsJob
+#$DebugPreference = "SilentlyContinue"
 
 <#
 #region for openning the fileshares for FSLogix and MSIX
