@@ -24,14 +24,15 @@ Clear-Host
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
+$ParentDir = Split-Path -Path $CurrentDir -Parent
 $StartTime = Get-Date
-$BackupDir = Join-Path -Path $CurrentDir -ChildPath "Backup"
+$BackupDir = Join-Path -Path $ParentDir -ChildPath "Backup"
 $BackupDir = Join-Path -Path $BackupDir -ChildPath $("CodeBackup_{0:yyyyMMddHHmmss}" -f $StartTime)
 
-Set-Location -Path $CurrentDir
+Set-Location -Path $ParentDir
 $null = New-Item -Path $BackupDir -ItemType Directory -Force
 #Backing up all powershell scripts
-Get-ChildItem -Path $CurrentDir -Filter *.ps1 -File | Copy-Item -Destination $BackupDir -Force
+Get-ChildItem -Path $ParentDir -Filter *.ps1 -File | Copy-Item -Destination $BackupDir -Force
 #Backing up all PSAzureVirtualDesktop module versions
 Split-Path -Path (Get-Module -Name PSAzureVirtualDesktop -ListAvailable).ModuleBase -Parent | Select-Object -Unique | Copy-Item -Destination $BackupDir -Recurse -Force
 #Compressing files and folders
