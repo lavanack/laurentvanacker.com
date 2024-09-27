@@ -95,7 +95,7 @@ The [New-PsAvdHostPoolSessionHostCredentialKeyVault](https://github.com/lavanack
 
 ### Azure Compute Gallery
 
-I also create an Azure Compute Gallery with the [New-AzureComputeGallery](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/New-AzureComputeGallery) function. All details are [here](../Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder#azureimagebuilderps1) (AzureImageBuilder.ps1 paragraph only - nevertheless you can read all the article to see  some posibilities an Azure Compute Gallery can offer). If you prefer to use your own Azure Compute Gallery images, you can comment the call to [New-AzureComputeGallery](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/New-AzureComputeGallery) function and adjust the Azure Compute Gallery to use in the lines starting with:
+I also create an Azure Compute Gallery with the [New-AzureComputeGallery](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/New-AzureComputeGallery) function. All details are [here](../Azure%20Image%20Builder#azureimagebuilderps1) (AzureImageBuilder.ps1 paragraph only - nevertheless you can read all the article to see  some posibilities an Azure Compute Gallery can offer). If you prefer to use your own Azure Compute Gallery images, you can comment the call to [New-AzureComputeGallery](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/New-AzureComputeGallery) function and adjust the Azure Compute Gallery to use in the lines starting with:
   
   ```powershell
 $AzureComputeGallery = Get-AzGallery ...
