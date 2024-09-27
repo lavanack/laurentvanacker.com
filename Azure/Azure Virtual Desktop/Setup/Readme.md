@@ -104,7 +104,7 @@ $GalleryImageDefinition = Get-AzGalleryImageDefinition -GalleryName ...
 ```
 
 > [!NOTE]
-> Each run will generate a new Azure Compute Gallery and increase the processing time by around  45 minutes. If you don't comment the call to the [New-AzureComputeGallery](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/New-AzureComputeGallery) function.
+> Each run will generate a new Azure Compute Gallery and increase the processing time by around  45 minutes if you don't comment the call to the [New-AzureComputeGallery](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/New-AzureComputeGallery) function.
 
 
 > [!WARNING]
@@ -118,25 +118,25 @@ The [New-AzAvdHostPoolSetup](https://github.com/lavanack/PSAzureVirtualDesktop/w
 > The impacted ressources by the parallel mode are only the HostPools. The Session Hosts are created in parallel (per Host Pool). The Job Management is done at the end of the [New-AzAvdHostPoolSetup](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/New-PsAvdHostPoolSetup)  function.
 
 > [!NOTE]
-> Before calling the [New-AzAvdHostPoolSetup](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/New-PsAvdHostPoolSetup)  function, The `$HostPool` array is stored as JSON in a HostPool_yyyyMMddHHmmss.json file in the dedicated `Backup` folder (in the script folder). You can reuse this file as a reminder of your previous HostPool(s) configurations or for removing the previously deployed Azure resources (via a call to the [Remove-AzAvdHostPoolSetup](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Remove-PsAvdHostPoolSetup)  function.).
+> Before calling the [New-AzAvdHostPoolSetup](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/New-PsAvdHostPoolSetup)  function, The `$HostPool` array is stored as JSON in a `HostPool_yyyyMMddHHmmss.json` file in the dedicated `Backup` subfolder in the script directory. You can reuse this file as a reminder of your previous HostPool(s) configurations or for removing the previously deployed Azure resources (via a call to the [Remove-AzAvdHostPoolSetup](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Remove-PsAvdHostPoolSetup)  function.).
 
 > [!NOTE]
 > Some Tags are added to every deployed AVD Host Pool with related information about the underlying configuration.
 
 ## Remote Desktop Connection Manager
 
-At the end of the deployment an RDCMan (\<domain name\>.rdg) file generated on the Desktop will all information to connect to the deployed Azure VMs. You can use this file with the [Remote Desktop Connection Manager](https://download.sysinternals.com/files/RDCMan.zip) tool to connect to the Session Hosts. For the Azure AD/Microsoft Entra ID joined VM, the local admin credentials are stored in this file for an easier connection. For the AD Domain joined VM, the current logged in user is used. You just have to fill the password. Right click on the AVD section, go to the "Logon Credentials" tab, uncheck "Inherit from parent" and fill the password. It will be inherited at the lower levels.
+At the end of the deployment an RDCMan file (named \<domain name\>.rdg) generated on the Desktop with all information to connect to the deployed Azure VMs. You can use this file with the [Remote Desktop Connection Manager](https://download.sysinternals.com/files/RDCMan.zip) tool to connect to the Session Hosts. For the Azure AD/Microsoft Entra ID joined VM, the local admin credentials are stored in this file for an easier connection. For the AD Domain joined VM, the current logged in user is used. You just have to fill the password. Right click on the AVD section, go to the "Logon Credentials" tab, uncheck "Inherit from parent" and fill the password. It will be inherited at the lower levels.
 
 ![Remote Desktop Connection Manager](docs/rdcman.jpg)
 
 ## Testing
 
-After a successful deployment, you can connect by using either [Remote Desktop Web Client](https://client.wvd.microsoft.com/arm/webclient/index.html), [Windows 365](https://windows365.microsoft.com/) or the [windows App](https://www.microsoft.com/store/productId/9N1F85V9T8BN?ocid=pdpshare) site and use one of the test users (available in `AVD Users` AD group in the `OrgUsers` OU).
+After a successful deployment, you can connect by using either [Remote Desktop Web Client](https://client.wvd.microsoft.com/arm/webclient/index.html), [Windows 365](https://windows365.microsoft.com/) or the [Windows App](https://www.microsoft.com/store/productId/9N1F85V9T8BN?ocid=pdpshare) site and use one of the test users (available in `AVD Users` AD group in the `OrgUsers` OU).
 
 ## Technical Details
 
 
-If you want to know more about the [New-AzAvdHostPooledPoolSetup](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/New-AzAvdHostPooledPoolSetup), [New-AzAvdHostPersonalPoolSetup](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/New-AzAvdHostPersonalPoolSetup) and [New-AzAvdHostPoolSetup](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/New-PsAvdHostPoolSetup) main functions, you can read the paragraph otherwise good test ;)
+If you want to know more about the [New-PsAzAvdHostPooledPoolSetup](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/New-PsAzAvdHostPooledPoolSetup), [New-PsAzAvdHostPersonalPoolSetup](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/New-PsAvdPersonalHostPoolSetup) and [New-PsAzAvdHostPoolSetup](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/New-PsAvdHostPoolSetup) main functions, you can read the paragraph otherwise good test ;)
 
 
 ### Deliverables
@@ -181,13 +181,14 @@ At the end of the deployment, the following deliverables are available (the foll
   ![Intune Configuration Profiles](docs/IntunePlatformScripts.jpg)
 
 - Workspaces
+
 ![Workspaces](docs/Workspaces.jpg)
 
 ### Limitations
 
-- We will use the Virtual Network used for the Domain Controller. It is not recommended to use the same Virtual Network for the Domain Controller and the Session Hosts. It is recommended to use a dedicated Virtual Network for the Session Hosts. This is not implemented in the script for the moment.
+- We will use the Virtual Network used for the Domain Controller. It is not recommended to use the same Virtual Network for the Domain Controller and the Session Hosts. It is recommended to use a dedicated Virtual Network for the Session Hosts. This is not implemented in the script (for the moment ?).
 - I'm not using Application Security Group (only Network Security Groups).
-- FSLogix and MSIX features are only available for Pooled HostPools
+- FSLogix and MSIX features are only implemented for Pooled HostPools
 
 ### Azure Resources
 
@@ -228,4 +229,4 @@ I will probably integrate the following features in the script (when time permit
 - Hybrid Joined AVD Session Hosts
 - [Use Azure Private Link to connect networks to Azure Monitor](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/private-link-security)
 - Write a PowerShell 7+ version of the script (I'm using PowerShell 5.1 for the moment)
-- Implementing App Attach V2
+- Implementing [App Attach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=app-attach)
