@@ -27,7 +27,12 @@ trap {
 } 
 Clear-Host
 Import-Module -Name AutomatedLab
-try {while (Stop-Transcript) {}} catch {}
+try {
+    while (Stop-Transcript) {
+    }
+}
+catch {
+}
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
 $PreviousErrorActionPreference = $ErrorActionPreference
@@ -45,19 +50,21 @@ $ClearTextPassword = 'P@ssw0rd'
 $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
 $NetBiosDomainName = 'CONTOSO'
 $FQDNDomainName = 'contoso.com'
-$NetworkID='10.0.0.0/16' 
+$NetworkID = '10.0.0.0/16' 
 
 $DC01IPv4Address = '10.0.0.1'
 $MSIXIPv4Address = '10.0.0.10'
 
 $LabName = 'MSIX'
+
+$MSIXPackageURL = "https://download.microsoft.com/download/d/0/0/d0043667-b1db-4060-9c82-eaee1fa619e8/493b543c21624db8832da8791ebf98f3.msixbundle"
+$PsfToolPackageURL = "https://www.tmurgent.com/AppV/Tools/PsfTooling/PsfTooling-6.3.0.0-x64.msix"
 #endregion
 
 
 #Cleaning previously existing lab
-if ($LabName -in (Get-Lab -List))
-{
-    Remove-Lab -name $LabName -confirm:$false -ErrorAction SilentlyContinue
+if ($LabName -in (Get-Lab -List)) {
+    Remove-Lab -Name $LabName -Confirm:$false -ErrorAction SilentlyContinue
 }
 
 #endregion
@@ -100,7 +107,7 @@ Install-Lab -Verbose
 Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 #Restore-LabVMSnapshot -SnapshotName 'FreshInstall' -All -Verbose
 
-$Client = (Get-LabVM -All | Where-Object -FilterScript { $_.Name -eq "MSIX"}).Name
+$Client = (Get-LabVM -All | Where-Object -FilterScript { $_.Name -eq "MSIX" }).Name
 #Installing required PowerShell features for VHD Management
 Install-LabWindowsFeature -FeatureName Microsoft-Hyper-V-Management-PowerShell -ComputerName $Client -IncludeAllSubFeature
 <#
@@ -115,19 +122,40 @@ Invoke-LabCommand -ActivityName "Installing required PowerShell features for VHD
 Copy-LabFileItem -Path $CurrentDir\MSIX -ComputerName $Client -DestinationFolderPath C:\ -Recurse
 Restart-LabVM $Client -Wait
 
-Invoke-LabCommand -ActivityName "Installing winget and 'MSIX Packaging Tool'" -ComputerName $Client -ScriptBlock {
-    #region Installing winget via the WingetTools Powershell module
-    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-    Install-Module -Name WingetTools -Force -Verbose
-    Install-WinGet -Preview -PassThru -Verbose
-    #endregion
+#From https://github.com/Azure/avdaccelerator/blob/main/workload/scripts/appAttachToolsVM/AppAttachVMConfig.ps1
+Invoke-LabCommand -ActivityName "Installing 'MSIX Packaging Tool' and 'PSFTooling'" -ComputerName $Client -ScriptBlock {
+    #Installing MSIX Packaging Tool
+    Invoke-WebRequest -Uri $Using:MSIXPackageURL -OutFile "C:\MSIX\MsixPackagingTool.msixbundle"
+    Add-AppPackage -Path "C:\MSIX\MSIXPackagingTool.msixbundle"
 
-    $CommandLine = 'winget install "MSIX Packaging Tool" --source msstore --accept-source-agreements --accept-package-agreements'
-    Start-Process -FilePath $env:ComSpec -ArgumentList "/c", $CommandLine -Wait
+
+    #Installing PSFTooling Tool
+    Invoke-WebRequest -Uri $Using:PsfToolPackageURL -OutFile "C:\MSIX\PsfTooling-x64.msix"
+    Add-AppPackage -Path "C:\MSIX\PsfTooling-x64.msix"
+
+    # Stops the Shell HW Detection service to prevent the format disk popup
+    #Stop-Service -Name ShellHWDetection -Force
+    #set-service -Name ShellHWDetection -StartupType Disabled
+
+    #region Turn off auto updates
+    #reg add HKLM\Software\Policies\Microsoft\WindowsStore /v AutoDownload /t REG_DWORD /d 0 /f
+    #Schtasks /Change /Tn "\Microsoft\Windows\WindowsUpdate\Scheduled Start" /Disable
+    $RegistryPath = "HKLM:\Software\Policies\Microsoft\WindowsStore"
+    $null = New-Item -Path $RegistryPath -Force
+    Set-ItemProperty -Path $RegistryPath -Name "AutoDownload" -Value 0 -Type "DWORD" -Force
+
+    # Define the task name
+    # Disable the scheduled task
+    $task = Get-ScheduledTask -TaskPath "\Microsoft\Windows\WindowsUpdate\" -TaskName "Scheduled Start"
+    if ($task) {
+        $task | Disable-ScheduledTask
+    }
+    #endregion 
+
     Set-WinUserLanguageList -LanguageList fr-fr -Force
 
     #Customizing Taskbar
-    Invoke-Expression -Command "& { $((Invoke-RestMethod https://raw.githubusercontent.com/Ccmexec/PowerShell/master/Customize%20TaskBar%20and%20Start%20Windows%2011/CustomizeTaskbar.ps1) -replace "﻿") } -MoveStartLeft -RemoveWidgets -RemoveChat -RemoveSearch -RunForExistingUsers" -Verbose
+    #Invoke-Expression -Command "& { $((Invoke-RestMethod https://raw.githubusercontent.com/Ccmexec/PowerShell/master/Customize%20TaskBar%20and%20Start%20Windows%2011/CustomizeTaskbar.ps1) -replace "﻿") } -MoveStartLeft -RemoveWidgets -RemoveChat -RemoveSearch -RunForExistingUsers" -Verbose
 }
 
 Show-LabDeploymentSummary -Detailed
