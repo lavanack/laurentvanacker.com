@@ -20,7 +20,7 @@ of the Sample Code.
 [CmdletBinding()]
 param
 (
-    [ValidateScript({$_ -in (Get-AzLocation).Location})]
+    [ValidateScript({ $_ -in (Get-AzLocation).Location })]
     [string] $Location = "EastUS2",
     [string] $VMSize = "Standard_D4S_v5" 
 )
@@ -134,12 +134,9 @@ if ($ResourceGroup) {
     #Step 0: Remove previously existing Azure Resource Group with the same name
     $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
 }
-$MyPublicIp = (Invoke-WebRequest -uri "https://ipv4.seeip.org").Content
+$MyPublicIp = (Invoke-WebRequest -Uri "https://ipv4.seeip.org").Content
 
 #region Define Variables needed for Virtual Machine
-$ImagePublisherName = "MicrosoftWindowsServer"
-$ImageOffer = "WindowsServer"
-$ImageSku = "2022-datacenter-g2"
 $StorageAccountSkuName = "Standard_LRS"
 
 Write-Verbose "`$VMName: $VMName"
@@ -158,7 +155,7 @@ if ($VMName.Length -gt $AzureVMNameMaxLength) {
 elseif (-not($LocationShortName)) {
     Write-Error "No location short name found for '$Location'" -ErrorAction Stop
 }
-elseif ($null -eq (Get-AZVMSize -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
+elseif ($null -eq (Get-AzVMSize -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
     Write-Error "The '$VMSize' is not available in the '$Location' location ..." -ErrorAction Stop
 }
 
@@ -193,23 +190,23 @@ $VirtualNetwork = Set-AzVirtualNetwork -VirtualNetwork $VirtualNetwork
 $Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork
 
 $Vnet = @{
-    "name" = $VirtualNetworkName
-    "id" =  $VirtualNetwork.Id
-    "location" =  $Location
-    "subscriptionName" =  $subscriptionName
+    "name"             = $VirtualNetworkName
+    "id"               = $VirtualNetwork.Id
+    "location"         = $Location
+    "subscriptionName" = $subscriptionName
 }
 
 $TemplateParameterObject = @{
-    "Location" = $Location
-    "adminUsername" = $Username
-    "adminPassUseKv" = $false
-    "adminPassword" = $ClearTextPassword
+    "Location"        = $Location
+    "adminUsername"   = $Username
+    "adminPassUseKv"  = $false
+    "adminPassword"   = $ClearTextPassword
     "publicIPAllowed" = $true
-    "OSoffer" = 'Windows-11'
-    "SubnetName" = $SubnetName
-    "vmDiskType" = 'StandardSSD_LRS'
-    "vmName" = $VMName
-    "VNet" = $Vnet
+    "OSoffer"         = 'Windows-11'
+    "SubnetName"      = $SubnetName
+    "vmDiskType"      = 'StandardSSD_LRS'
+    "vmName"          = $VMName
+    "VNet"            = $Vnet
 }
 
 New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateUri 'https://raw.githubusercontent.com/Azure/avdaccelerator/main/workload/arm/brownfield/deployAppAttachToolsVM.json' -TemplateParameterObject $TemplateParameterObject -Verbose
@@ -284,7 +281,7 @@ $publicIpId = $nic.IpConfigurations[0].PublicIpAddress.Id
 $publicIp = Get-AzPublicIpAddress -ResourceGroupName $resourceGroupName -Name (Split-Path -Leaf $publicIpId)
 
 # Set the DNS name label for the public IP address
-$publicIp.DnsSettings = @{"DomainNameLabel" = $VMName}
+$publicIp.DnsSettings = @{"DomainNameLabel" = $VMName }
 
 # Update the public IP address configuration
 Set-AzPublicIpAddress -PublicIpAddress $publicIp
