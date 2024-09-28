@@ -27,12 +27,7 @@ trap {
 } 
 Clear-Host
 Import-Module -Name AutomatedLab
-try {
-    while (Stop-Transcript) {
-    }
-}
-catch {
-}
+try {while (Stop-Transcript) {}} catch {}
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
 $PreviousErrorActionPreference = $ErrorActionPreference
@@ -50,7 +45,7 @@ $ClearTextPassword = 'P@ssw0rd'
 $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
 $NetBiosDomainName = 'CONTOSO'
 $FQDNDomainName = 'contoso.com'
-$NetworkID = '10.0.0.0/16' 
+$NetworkID='10.0.0.0/16' 
 
 $DC01IPv4Address = '10.0.0.1'
 $MSIXIPv4Address = '10.0.0.10'
@@ -63,8 +58,9 @@ $PsfToolPackageURL = "https://www.tmurgent.com/AppV/Tools/PsfTooling/PsfTooling-
 
 
 #Cleaning previously existing lab
-if ($LabName -in (Get-Lab -List)) {
-    Remove-Lab -Name $LabName -Confirm:$false -ErrorAction SilentlyContinue
+if ($LabName -in (Get-Lab -List))
+{
+    Remove-Lab -name $LabName -confirm:$false -ErrorAction SilentlyContinue
 }
 
 #endregion
@@ -107,7 +103,7 @@ Install-Lab -Verbose
 Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 #Restore-LabVMSnapshot -SnapshotName 'FreshInstall' -All -Verbose
 
-$Client = (Get-LabVM -All | Where-Object -FilterScript { $_.Name -eq "MSIX" }).Name
+$Client = (Get-LabVM -All | Where-Object -FilterScript { $_.Name -eq "MSIX"}).Name
 #Installing required PowerShell features for VHD Management
 Install-LabWindowsFeature -FeatureName Microsoft-Hyper-V-Management-PowerShell -ComputerName $Client -IncludeAllSubFeature
 <#
@@ -124,13 +120,14 @@ Restart-LabVM $Client -Wait
 
 #From https://github.com/Azure/avdaccelerator/blob/main/workload/scripts/appAttachToolsVM/AppAttachVMConfig.ps1
 Invoke-LabCommand -ActivityName "Installing 'MSIX Packaging Tool' and 'PSFTooling'" -ComputerName $Client -ScriptBlock {
+
     #Installing MSIX Packaging Tool
     Invoke-WebRequest -Uri $Using:MSIXPackageURL -OutFile "C:\MSIX\MsixPackagingTool.msixbundle"
     Add-AppPackage -Path "C:\MSIX\MSIXPackagingTool.msixbundle"
 
 
     #Installing PSFTooling Tool
-    Invoke-WebRequest -Uri $Using:PsfToolPackageURL -OutFile "C:\MSIX\PsfTooling-x64.msix"
+    Invoke-WebRequest -URI $Using:PsfToolPackageURL -OutFile "C:\MSIX\PsfTooling-x64.msix"
     Add-AppPackage -Path "C:\MSIX\PsfTooling-x64.msix"
 
     # Stops the Shell HW Detection service to prevent the format disk popup
@@ -155,8 +152,8 @@ Invoke-LabCommand -ActivityName "Installing 'MSIX Packaging Tool' and 'PSFToolin
     Set-WinUserLanguageList -LanguageList fr-fr -Force
 
     #Customizing Taskbar
-    #Invoke-Expression -Command "& { $((Invoke-RestMethod https://raw.githubusercontent.com/Ccmexec/PowerShell/master/Customize%20TaskBar%20and%20Start%20Windows%2011/CustomizeTaskbar.ps1) -replace "﻿") } -MoveStartLeft -RemoveWidgets -RemoveChat -RemoveSearch -RunForExistingUsers" -Verbose
-}
+    Invoke-Expression -Command "& { $((Invoke-RestMethod https://raw.githubusercontent.com/Ccmexec/PowerShell/master/Customize%20TaskBar%20and%20Start%20Windows%2011/CustomizeTaskbar.ps1) -replace "﻿") } -MoveStartLeft -RemoveWidgets -RemoveChat -RemoveSearch -RunForExistingUsers" -Verbose
+} -Verbose
 
 Show-LabDeploymentSummary -Detailed
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All -Verbose
