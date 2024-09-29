@@ -21,7 +21,8 @@ of the Sample Code.
 param
 (
     [ValidateScript({ $_ -in (Get-AzLocation).Location })]
-    [string] $Location = "EastUS2"
+    [string] $Location = "EastUS2",
+    [string] $VMSize = "Standard_D2s_v5" 
 )
 
 
@@ -83,7 +84,6 @@ $AzureVMNameMaxLength = 15
 $RDPPort = 3389
 $JitPolicyTimeInHours = 3
 $JitPolicyName = "Default"
-$VMSize = "Standard_D2s_v5"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
 $ResourceGroupPrefix = "rg"
@@ -202,10 +202,12 @@ $TemplateParameterObject = @{
     "adminPassword"   = $ClearTextPassword
     "publicIPAllowed" = $true
     "OSoffer"         = 'Windows-11'
+    "OSVersion"       = 'win11-23h2-ent'
     "SubnetName"      = $SubnetName
     "vmDiskType"      = 'StandardSSD_LRS'
     "vmName"          = $VMName
     "VNet"            = $Vnet
+    "vmSize"          = $VMSize
 }
 
 New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateUri 'https://raw.githubusercontent.com/Azure/avdaccelerator/main/workload/arm/brownfield/deployAppAttachToolsVM.json' -TemplateParameterObject $TemplateParameterObject -Verbose
