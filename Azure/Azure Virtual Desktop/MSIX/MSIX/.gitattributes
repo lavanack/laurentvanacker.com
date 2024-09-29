@@ -1,0 +1,2 @@
+*.msix filter=lfs diff=lfs merge=lfs -text
+*.vhdx filter=lfs diff=lfs merge=lfs -text
