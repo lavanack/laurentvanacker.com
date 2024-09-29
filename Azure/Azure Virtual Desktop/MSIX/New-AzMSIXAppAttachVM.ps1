@@ -64,21 +64,21 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
+#region Login to your Azure subscription.
+try { 
+    $null = Get-AzAccessToken -ErrorAction Stop
+}
+catch { 
+    Connect-AzAccount
+    #Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
+}
+#endregion 
+
 #region Defining variables 
-$SubscriptionName = "Cloud Solution Architect"
 #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
 $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
 $ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/main/src/repository/resourcelocations.json
 $shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @{Name = 'Location'; Expression = { $AzLocation[$_.name].Location } } | Where-Object -FilterScript { $_.Location } | Group-Object -Property Location -AsHashTable -AsString
-#endregion
-
-# Login to your Azure subscription.
-While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName)) {
-    Connect-AzAccount
-    Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
-    #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
-    #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
-}
 
 $AzureVMNameMaxLength = 15
 $RDPPort = 3389
@@ -119,6 +119,7 @@ $ResourceGroupName = $ResourceGroupName.ToLower()
 $VirtualNetworkAddressSpace = "10.10.0.0/16" # Format 10.10.0.0/16
 $SubnetIPRange = "10.10.1.0/24" # Format 10.10.1.0/24                         
 $FQDN = "$VMName.$Location.cloudapp.azure.com".ToLower()
+#endregion
 
 
 #region Defining credential(s)
@@ -193,7 +194,7 @@ $Vnet = @{
     "name"             = $VirtualNetworkName
     "id"               = $VirtualNetwork.Id
     "location"         = $Location
-    "subscriptionName" = $subscriptionName
+    "subscriptionName" = (Get-AzContext).Subscription.Name
 }
 
 $TemplateParameterObject = @{
