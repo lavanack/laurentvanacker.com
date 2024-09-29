@@ -21,8 +21,7 @@ of the Sample Code.
 param
 (
     [ValidateScript({ $_ -in (Get-AzLocation).Location })]
-    [string] $Location = "EastUS2",
-    [string] $VMSize = "Standard_D4S_v5" 
+    [string] $Location = "EastUS2"
 )
 
 
@@ -68,11 +67,11 @@ Set-Location -Path $CurrentDir
 try { 
     $null = Get-AzAccessToken -ErrorAction Stop
 }
-catch { 
+catch {
     Connect-AzAccount
     #Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
 }
-#endregion 
+#endregion
 
 #region Defining variables 
 #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
@@ -84,8 +83,7 @@ $AzureVMNameMaxLength = 15
 $RDPPort = 3389
 $JitPolicyTimeInHours = 3
 $JitPolicyName = "Default"
-#$Location = "eastus"
-#$VMSize = "Standard_D4s_v5"
+$VMSize = "Standard_D2s_v5"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
 $ResourceGroupPrefix = "rg"
