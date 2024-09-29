@@ -16,7 +16,7 @@ Add-AppPackage -Path "C:\MSIX\MSIXPackagingTool.msixbundle"
 #Installing PSFTooling Tool
 $PsfToolPackageURL = "https://www.tmurgent.com/AppV/Tools/PsfTooling/PsfTooling-6.3.0.0-x64.msix"
 Invoke-WebRequest -Uri $PsfToolPackageURL -OutFile "C:\MSIX\PsfTooling-x64.msix"
-Add-AppPackage -Path "C:\MSIX\PsfTooling-x64.msix" 
+Add-AppPackage -Path "C:\MSIX\PsfTooling-x64.msix"
 
 
 # Install only the PowerShell module to have VHD Management cmdlets
@@ -89,8 +89,10 @@ $LatestNotepadMSIXFilePath
 #Get-AppxPackage -Name "notepad*" | Remove-AppxPackage -Verbose
 Get-Package "notepad*" -ErrorAction Ignore | ForEach-Object -Process { Start-Process $($_.Meta.Attributes["UninstallString"]) }
 
-#To create a VHD
-$VHDXFileName = $("notepadplusplus_{0}.vhdx" -f [system.version]::Parse($NotepadPlusPlusVersion))
+<#
+#region VHDX: Old Way
+$Label = "NotepadPlusPlus_{0}" -f [system.version]::Parse($NotepadPlusPlusVersion)
+$VHDXFileName = "{0}.vhdx" -f $Label.ToLower()
 $MSIXVHD = Join-Path -Path $CurrentDir -ChildPath $VHDXFileName
 Remove-Item $MSIXVHD -Force -ErrorAction Ignore
 New-VHD -SizeBytes 1GB -Path $MSIXVHD -Dynamic -Confirm:$false
@@ -105,7 +107,7 @@ $disk = Initialize-Disk -PassThru -Number $vhdObject.Number
 $partition = New-Partition -AssignDriveLetter -UseMaximumSize -DiskNumber $disk.Number
 
 #To format the partition, run:
-Format-Volume -FileSystem NTFS -Confirm:$false -DriveLetter $partition.DriveLetter -NewFileSystemLabel "NotepadPlusPlus_$NotepadPlusPlusVersion"  -Force
+Format-Volume -FileSystem NTFS -Confirm:$false -DriveLetter $partition.DriveLetter -NewFileSystemLabel $Label -Force
 
 
 $MSIXMgrUri = "https://aka.ms/msixmgr"
@@ -117,6 +119,22 @@ If (-not(Test-Path -Path $Outfile)) {
 }
 Expand-Archive -Path .\msixmgr.zip -Force
 
-& "$CurrentDir\msixmgr\x64\msixmgr.exe" -Unpack -packagePath $LatestNotepadMSIXFilePath.FullName -destination "$($partition.DriveLetter):\$VHDXFileName" -applyacls -fileType VHDX
+& "$CurrentDir\msixmgr\x64\msixmgr.exe" -Unpack -packagePath $LatestNotepadMSIXFilePath.FullName -destination "$($partition.DriveLetter):\$Label" -applyacls -fileType VHDX
 
 Dismount-VHD -Path $MSIXVHD
+#endregion
+#>
+
+#region VHDX
+$VHDXFileName = "{0}.vhdx" -f $Label.ToLower() 
+$VHDXFilePath = Join-Path -Path $CurrentDir -ChildPath $VHDXFileName
+Remove-Item -Path $VHDXFilePath -Force -ErrorAction Ignore
+& "$CurrentDir\msixmgr\x64\msixmgr.exe" -Unpack -packagePath $LatestNotepadMSIXFilePath.FullName -destination $VHDXFilePath -applyacls -create -fileType VHDX -rootDirectory $Label -vhdSize 100
+#endregion
+
+#region CIM
+$CIMFileName = "{0}.cim" -f $Label.ToLower()
+$CIMFilePath = Join-Path -Path $CurrentDir -ChildPath $CIMFileName
+Remove-Item -Path $CIMFilePath -Force -ErrorAction Ignore
+& "$CurrentDir\msixmgr\x64\msixmgr.exe" -Unpack -packagePath $LatestNotepadMSIXFilePath.FullName -destination $CIMFilePath -applyacls -create -fileType CIM -rootDirectory $Label
+#endregion
