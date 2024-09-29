@@ -128,7 +128,8 @@ Invoke-LabCommand -ActivityName "Installing 'MSIX Packaging Tool' and 'PSFToolin
 
     #Installing PSFTooling Tool
     Invoke-WebRequest -URI $Using:PsfToolPackageURL -OutFile "C:\MSIX\PsfTooling-x64.msix"
-    Add-AppPackage -Path "C:\MSIX\PsfTooling-x64.msix"
+    #Using a Job because it hangs for a long time
+    Start-Job -ScriptBlock { Add-AppPackage -Path "C:\MSIX\PsfTooling-x64.msix" }
 
     # Stops the Shell HW Detection service to prevent the format disk popup
     #Stop-Service -Name ShellHWDetection -Force
