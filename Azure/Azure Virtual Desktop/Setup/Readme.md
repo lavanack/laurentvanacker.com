@@ -51,7 +51,7 @@ Before proceeding, ensure that a domain controller is present in your Azure subs
 > 
 ## What this script does ?
 
-This script is designed to quickly deploy multiple full Azure Virtual Desktop environments, in minutes to hours. It adheres to Microsoft documentation and recommended practices.
+This [script](New-AzAvdHostPoolSetup.ps1) is designed to quickly deploy multiple full Azure Virtual Desktop environments, in minutes to hours. It adheres to Microsoft documentation and recommended practices.
 Each time the script is run, a transcription with a timestamp will be created in the script directory.
 
 ## TL;DR
