@@ -10,14 +10,17 @@ Set-Location -Path $CurrentDir
 
 $MSIXPackageURL = "https://download.microsoft.com/download/d/0/0/d0043667-b1db-4060-9c82-eaee1fa619e8/493b543c21624db8832da8791ebf98f3.msixbundle"
 #Installing MSIX Packaging Tool
-Invoke-WebRequest -Uri $MSIXPackageURL -OutFile "C:\MSIX\MsixPackagingTool.msixbundle"
-Add-AppPackage -Path "C:\MSIX\MSIXPackagingTool.msixbundle"
+if (-not(Get-AppPackage -Name Microsoft.MSIXPackagingTool)) {
+    Invoke-WebRequest -Uri $MSIXPackageURL -OutFile "C:\MSIX\MsixPackagingTool.msixbundle"
+    Add-AppPackage -Path "C:\MSIX\MSIXPackagingTool.msixbundle"
+}
 
 #Installing PSFTooling Tool
-$PsfToolPackageURL = "https://www.tmurgent.com/AppV/Tools/PsfTooling/PsfTooling-6.3.0.0-x64.msix"
-Invoke-WebRequest -Uri $PsfToolPackageURL -OutFile "C:\MSIX\PsfTooling-x64.msix"
-Add-AppPackage -Path "C:\MSIX\PsfTooling-x64.msix"
-
+if (-not(Get-AppPackage -Name PsfTooling)) {
+    $PsfToolPackageURL = "https://www.tmurgent.com/AppV/Tools/PsfTooling/PsfTooling-6.3.0.0-x64.msix"
+    Invoke-WebRequest -Uri $PsfToolPackageURL -OutFile "C:\MSIX\PsfTooling-x64.msix"
+    Add-AppPackage -Path "C:\MSIX\PsfTooling-x64.msix"
+}
 
 # Install only the PowerShell module to have VHD Management cmdlets
 if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Management-PowerShell).State -ne 'Enabled') {
@@ -125,11 +128,24 @@ Dismount-VHD -Path $MSIXVHD
 #endregion
 #>
 
+#region Installing MSIX Manager
+$MSIXMgrUri = "https://aka.ms/msixmgr"
+$Outfile = Join-Path -Path $CurrentDir -ChildPath $(Split-Path -Path $MSIXMgrUri -Leaf)
+$Outfile += ".zip"
+If (-not(Test-Path -Path $Outfile)) {
+    Write-Verbose -Message "Downloading MSIX Mgr Tool ..."
+    Invoke-WebRequest -Uri $MSIXMgrUri -UseBasicParsing -OutFile $Outfile -Verbose
+}
+Expand-Archive -Path .\msixmgr.zip -Force
+#endregion
+
+$Label = "NotepadPlusPlus_{0}" -f [system.version]::Parse($NotepadPlusPlusVersion)
+
 #region VHDX
 $VHDXFileName = "{0}.vhdx" -f $Label.ToLower() 
 $VHDXFilePath = Join-Path -Path $CurrentDir -ChildPath $VHDXFileName
 Remove-Item -Path $VHDXFilePath -Force -ErrorAction Ignore
-& "$CurrentDir\msixmgr\x64\msixmgr.exe" -Unpack -packagePath $LatestNotepadMSIXFilePath.FullName -destination $VHDXFilePath -applyacls -create -fileType VHDX -rootDirectory $Label -vhdSize 100
+& "$CurrentDir\msixmgr\x64\msixmgr.exe" -Unpack -packagePath $LatestNotepadMSIXFilePath.FullName -destination $VHDXFilePath -applyacls -create -fileType VHDX -rootDirectory $Label #-vhdSize 100
 #endregion
 
 #region CIM
