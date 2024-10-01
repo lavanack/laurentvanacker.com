@@ -290,9 +290,11 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "Starting Image Builder Template from '$imageTemplateName02' (As Job) ..."
 	$Jobs += Start-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName02 -AsJob
 	#endregion
-
+	#endregion
+	
 	Write-Verbose -Message "Waiting for jobs to complete ..."
 	$Jobs | Wait-Job | Out-Null
+`	
 
 	#region imageTemplateName01 status 
 	#To determine whenever or not the template upload process was successful, run the following command.
@@ -363,16 +365,13 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 
-#region Defining variables 
-$SubscriptionName = "Cloud Solution Architect"
-#endregion
-
 #region Login to your Azure subscription.
-While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName)) {
-	Connect-AzAccount
-	Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
-	#$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
-	#Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
+try { 
+    $null = Get-AzAccessToken -ErrorAction Stop
+}
+catch {
+    Connect-AzAccount
+    #Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
 }
 #endregion
 
@@ -389,7 +388,7 @@ While (Get-AzResourceProvider -ProviderNamespace $RequiredResourceProviders | Wh
 $Jobs | Remove-Job -Force
 #endregion
 
-$AzureComputeGallery = New-AzureComputeGallery -Verbose
+$AzureComputeGallery = New-AzureComputeGallery -Location EastUS2 -targetRegions FranceCentral -Verbose
 $AzureComputeGallery
 
 $EndTime = Get-Date

@@ -123,16 +123,13 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 
-#region Defining variables 
-$SubscriptionName = "Cloud Solution Architect"
-#endregion
-
 #region Login to your Azure subscription.
-While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName)) {
-	Connect-AzAccount
-	Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
-	#$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
-	#Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
+try { 
+    $null = Get-AzAccessToken -ErrorAction Stop
+}
+catch {
+    Connect-AzAccount
+    #Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
 }
 #endregion
 
