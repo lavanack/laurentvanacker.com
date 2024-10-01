@@ -12,7 +12,7 @@ $Session = New-PSSession -ComputerName $MSIXHosts
 $Session | ForEach-Object -Process { Copy-Item -Path $CurrentDir\MSIXDigitalSignature.pfx -Destination C:\ -ToSession $_ -Force}
 Invoke-command -Session $Session -ScriptBlock {
     $SecurePassword = ConvertTo-SecureString "P@ssw0rd" -AsPlainText -Force
-    #Adding the self-signed certificate to the Trusted Root Certification Authorities (To validate this certificate)
+    #Adding the self-signed certificate to the Trusted People (To validate this certificate)
     Import-PfxCertificate C:\MSIXDigitalSignature.pfx -CertStoreLocation Cert:\LocalMachine\TrustedPeople\ -Password $SecurePassword
     #Removing the PFX file (useless now)
     Remove-Item -Path C:\MSIXDigitalSignature.pfx -Force
