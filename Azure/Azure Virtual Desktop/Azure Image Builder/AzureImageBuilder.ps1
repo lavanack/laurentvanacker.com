@@ -25,7 +25,7 @@ function New-AzureComputeGallery {
 		[Parameter(Mandatory = $false)]
 		[string]$Location = "EastUS",
 		[Parameter(Mandatory = $false)]
-		[string[]]$targetRegions = @($Location,"EastUS2"),
+		[string[]]$TargetRegions = @($Location),
 		[Parameter(Mandatory = $false)]
 		[int]$ReplicaCount = 1
 	)
@@ -50,11 +50,11 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "`$Location: $Location"
 	$LocationShortName = $shortNameHT[$Location].shortName
 	Write-Verbose -Message "`$LocationShortName: $LocationShortName"
-    if ($Location -notin $targetRegions) {
-        $targetRegions += $Location
+    if ($Location -notin $TargetRegions) {
+        $TargetRegions += $Location
     }
-	Write-Verbose -Message "`$targetRegions: $($targetRegions -join ', ')"
-    [array] $targetRegionSettings = foreach ($CurrentTargetRegion in $targetRegions)
+	Write-Verbose -Message "`$TargetRegions: $($TargetRegions -join ', ')"
+    [array] $TargetRegionsettings = foreach ($CurrentTargetRegion in $TargetRegions)
     {
         @{"name"=$CurrentTargetRegion;"replicaCount"=$ReplicaCount;"storageAccountType"="Premium_LRS"}
     }
@@ -173,7 +173,7 @@ function New-AzureComputeGallery {
 
     ((Get-Content -path $templateFilePath -Raw) -replace '<imageDefName>', $imageDefName01) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<sharedImageGalName>', $GalleryName) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<targetRegions>', $($targetRegionSettings | ConvertTo-Json)) | Set-Content -Path $templateFilePath
+    ((Get-Content -path $templateFilePath -Raw) -replace '<TargetRegions>', $(ConvertTo-Json -InputObject @($TargetRegionsettings))) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<imgBuilderId>', $AssignedIdentity.Id) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<version>', $version) | Set-Content -Path $templateFilePath
 	#endregion
@@ -225,7 +225,7 @@ function New-AzureComputeGallery {
 		#ReplicationRegion = $location
 
 		# 2. Uncomment following line if the custom image should be replicated to another region(s).
-		TargetRegion           = $targetRegionSettings
+		TargetRegion           = $TargetRegionsettings
 
 		RunOutputName          = $runOutputName02
 		ExcludeFromLatest      = $false
@@ -388,7 +388,8 @@ While (Get-AzResourceProvider -ProviderNamespace $RequiredResourceProviders | Wh
 $Jobs | Remove-Job -Force
 #endregion
 
-$AzureComputeGallery = New-AzureComputeGallery -Location EastUS2 -targetRegions FranceCentral -Verbose
+#$AzureComputeGallery = New-AzureComputeGallery -Location EastUS2 -TargetRegions FranceCentral -Verbose
+$AzureComputeGallery = New-AzureComputeGallery -Location EastUS2 -Verbose
 $AzureComputeGallery
 
 $EndTime = Get-Date

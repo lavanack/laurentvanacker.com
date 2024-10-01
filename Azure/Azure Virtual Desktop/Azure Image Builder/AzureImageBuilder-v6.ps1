@@ -25,7 +25,7 @@ function New-AzureComputeGallery {
 		[Parameter(Mandatory = $false)]
 		[string]$Location = "EastUS",
 		[Parameter(Mandatory = $false)]
-		[string[]]$targetRegions = @($Location, "EastUS2"),
+		[string[]]$TargetRegions = @($Location),
 		[Parameter(Mandatory = $false)]
 		[int]$ReplicaCount = 1
 	)
@@ -172,7 +172,7 @@ function New-AzureComputeGallery {
 
     ((Get-Content -Path $templateFilePath -Raw) -replace '<imageDefName>', $imageDefName01) | Set-Content -Path $templateFilePath
     ((Get-Content -Path $templateFilePath -Raw) -replace '<sharedImageGalName>', $GalleryName) | Set-Content -Path $templateFilePath
-    ((Get-Content -Path $templateFilePath -Raw) -replace '<targetRegions>', $($targetRegionSettings | ConvertTo-Json)) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<targetRegions>', $(ConvertTo-Json -InputObject @($TargetRegionsettings))) | Set-Content -Path $templateFilePath
     ((Get-Content -Path $templateFilePath -Raw) -replace '<imgBuilderId>', $AssignedIdentity.Id) | Set-Content -Path $templateFilePath
     ((Get-Content -Path $templateFilePath -Raw) -replace '<version>', $version) | Set-Content -Path $templateFilePath
 	#endregion
@@ -391,16 +391,13 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 
-#region Defining variables 
-$SubscriptionName = "Cloud Solution Architect"
-#endregion
-
 #region Login to your Azure subscription.
-While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName)) {
-	Connect-AzAccount
-	Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
-	#$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
-	#Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
+try { 
+    $null = Get-AzAccessToken -ErrorAction Stop
+}
+catch {
+    Connect-AzAccount
+    #Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
 }
 #endregion
 
