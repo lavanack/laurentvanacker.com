@@ -172,7 +172,7 @@ function New-AzureComputeGallery {
 
     ((Get-Content -Path $templateFilePath -Raw) -replace '<imageDefName>', $imageDefName01) | Set-Content -Path $templateFilePath
     ((Get-Content -Path $templateFilePath -Raw) -replace '<sharedImageGalName>', $GalleryName) | Set-Content -Path $templateFilePath
-    ((Get-Content -Path $templateFilePath -Raw) -replace '<targetRegions>', $(ConvertTo-Json -InputObject @($TargetRegionsettings))) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<targetRegions>', $(ConvertTo-Json -InputObject $TargetRegionsettings)) | Set-Content -Path $templateFilePath
     ((Get-Content -Path $templateFilePath -Raw) -replace '<imgBuilderId>', $AssignedIdentity.Id) | Set-Content -Path $templateFilePath
     ((Get-Content -Path $templateFilePath -Raw) -replace '<version>', $version) | Set-Content -Path $templateFilePath
 	#endregion
