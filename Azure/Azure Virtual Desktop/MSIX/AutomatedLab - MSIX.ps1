@@ -27,7 +27,12 @@ trap {
 } 
 Clear-Host
 Import-Module -Name AutomatedLab
-try {while (Stop-Transcript) {}} catch {}
+try {
+    while (Stop-Transcript) {
+    }
+}
+catch {
+}
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
 $PreviousErrorActionPreference = $ErrorActionPreference
@@ -45,22 +50,24 @@ $ClearTextPassword = 'P@ssw0rd'
 $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
 $NetBiosDomainName = 'CONTOSO'
 $FQDNDomainName = 'contoso.com'
-$NetworkID='10.0.0.0/16' 
+$NetworkID = '10.0.0.0/16' 
 
 $DC01IPv4Address = '10.0.0.1'
 $MSIXIPv4Address = '10.0.0.10'
-
+ 
+$MSIXCodeSigningTemplateName = "MSIXCodeSigning"
 $LabName = 'MSIX'
 
-$MSIXPackageURL = "https://download.microsoft.com/download/d/0/0/d0043667-b1db-4060-9c82-eaee1fa619e8/493b543c21624db8832da8791ebf98f3.msixbundle"
+$MsixPackagingTool = "https://download.microsoft.com/download/d/0/0/d0043667-b1db-4060-9c82-eaee1fa619e8/493b543c21624db8832da8791ebf98f3.msixbundle"
 $PsfToolPackageURL = "https://www.tmurgent.com/AppV/Tools/PsfTooling/PsfTooling-6.3.0.0-x64.msix"
+#From https://learn.microsoft.com/en-us/windows/msix/packaging-tool/disconnected-environment#example-of-offline-installation
+#$MsixPackagingToolDriverPackageURL = "https://download.microsoft.com/download/6/c/7/6c7d654b-580b-40d4-8502-f8d435ca125a/Msix-PackagingTool-Driver-Package%7E31bf3856ad364e35%7Eamd64%7E%7E1.cab"
 #endregion
 
 
 #Cleaning previously existing lab
-if ($LabName -in (Get-Lab -List))
-{
-    Remove-Lab -name $LabName -confirm:$false -ErrorAction SilentlyContinue
+if ($LabName -in (Get-Lab -List)) {
+    Remove-Lab -Name $LabName -Confirm:$false -ErrorAction SilentlyContinue
 }
 
 #endregion
@@ -84,13 +91,15 @@ Set-LabInstallationCredential -Username $Logon -Password $ClearTextPassword
 $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:Network'         = $LabName
     'Add-LabMachineDefinition:DomainName'      = $FQDNDomainName
-    'Add-LabMachineDefinition:Memory'          = 2GB
+    'Add-LabMachineDefinition:MinMemory'       = 2GB
+    'Add-LabMachineDefinition:Memory'          = 3GB
+    'Add-LabMachineDefinition:MaxMemory'       = 4GB
     'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2022 Datacenter (Desktop Experience)'
     'Add-LabMachineDefinition:Processors'      = 2
 }
 
 #Domain controller
-Add-LabMachineDefinition -Name DC01 -Roles RootDC -IpAddress $DC01IPv4Address
+Add-LabMachineDefinition -Name DC01 -Roles RootDC, CaRoot -IpAddress $DC01IPv4Address
 #region Client machine : 2 NICS for  (1 for server communications and 1 for Internet)
 $netAdapter = @()
 $netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $MSIXIPv4Address -InterfaceName Corp
@@ -103,33 +112,47 @@ Install-Lab -Verbose
 Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 #Restore-LabVMSnapshot -SnapshotName 'FreshInstall' -All -Verbose
 
-$Client = (Get-LabVM -All | Where-Object -FilterScript { $_.Name -eq "MSIX"}).Name
+#region Certification Authority : Creation and SSL Certificate Generation
+#Get the CA
+$CertificationAuthority = Get-LabIssuingCA
+#Generating a new template for Code Signing only for members of the PSCodeSigners AD group 
+New-LabCATemplate -TemplateName $MSIXCodeSigningTemplateName -DisplayName 'MSIX Code Signing' -SourceTemplateName CodeSigning -ApplicationPolicy 'Code Signing' -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ComputerName $CertificationAuthority -ErrorAction Stop
+#endregion
+
+
+$Client = (Get-LabVM -All | Where-Object -FilterScript { $_.Name -eq "MSIX" }).Name
 #Installing required PowerShell features for VHD Management
 Install-LabWindowsFeature -FeatureName Microsoft-Hyper-V-Management-PowerShell -ComputerName $Client -IncludeAllSubFeature
-<#
-Invoke-LabCommand -ActivityName "Installing required PowerShell features for VHD Management" -ComputerName $Client -ScriptBlock {
-    $Result = Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Management-PowerShell -All -NoRestart:$false
-    if ($Result.RestartNeeded) {
-        Restart-Computer -Force
-    }
-}
-#>
 
 Copy-LabFileItem -Path $CurrentDir\MSIX -ComputerName $Client -DestinationFolderPath C:\ -Recurse
 Restart-LabVM $Client -Wait
 
-#From https://github.com/Azure/avdaccelerator/blob/main/workload/scripts/appAttachToolsVM/AppAttachVMConfig.ps1
+Checkpoint-LabVM -SnapshotName BeforeMSIX -All -Verbose
+#Restore-LabVMSnapshot -SnapshotName 'BeforeMSIX' -All -Verbose
+
 Invoke-LabCommand -ActivityName "Installing 'MSIX Packaging Tool' and 'PSFTooling'" -ComputerName $Client -ScriptBlock {
-
     #Installing MSIX Packaging Tool
-    Invoke-WebRequest -Uri $Using:MSIXPackageURL -OutFile "C:\MSIX\MsixPackagingTool.msixbundle"
-    Add-AppPackage -Path "C:\MSIX\MSIXPackagingTool.msixbundle"
+    $OutFile = "C:\MSIX\MsixPackagingTool.msixbundle"
+    Invoke-WebRequest -Uri $Using:MsixPackagingTool -OutFile $OutFile
+    Add-AppPackage -Path $OutFile
 
+    #Installing MSIX Packaging Tool Driver Package
+    <#
+    $OutFile = "C:\MSIX\Msix-PackagingTool-Driver-Package~31bf3856ad364e35~amd64~~1.cab"
+    Invoke-WebRequest -Uri $Using:dsim -OutFile $OutFile
+    Add-AppPackage -Path $OutFile
+    #From https://www.manishbangia.com/how-to-install-msix-packaging-tool-driver/
+    #dism /online /add-package /packagepath:$OutFile
+    Add-WindowsPackage -Online -PackagePath $OutFile
+    Add-WindowsCapability -Online -Name "Msix.PackagingTool.Driver~~~~0.0.1.0" #-ErrorAction Ignore
+    #>
+    #dism /online /add-capability /capabilityname:Msix.PackagingTool.Driver~~~~0.0.1.0
 
     #Installing PSFTooling Tool
-    Invoke-WebRequest -URI $Using:PsfToolPackageURL -OutFile "C:\MSIX\PsfTooling-x64.msix"
+    $OutFile = "C:\MSIX\PsfTooling-x64.msix"
+    Invoke-WebRequest -Uri $Using:PsfToolPackageURL -OutFile $OutFile
     #Using a Job because it hangs for a long time
-    Start-Job -ScriptBlock { Add-AppPackage -Path "C:\MSIX\PsfTooling-x64.msix" }
+    Start-Job -ScriptBlock { Param($OutFile) Add-AppPackage -Path $OutFile } -ArgumentList $OutFile
 
     # Stops the Shell HW Detection service to prevent the format disk popup
     #Stop-Service -Name ShellHWDetection -Force
@@ -154,6 +177,8 @@ Invoke-LabCommand -ActivityName "Installing 'MSIX Packaging Tool' and 'PSFToolin
 
     #Customizing Taskbar
     Invoke-Expression -Command "& { $((Invoke-RestMethod https://raw.githubusercontent.com/Ccmexec/PowerShell/master/Customize%20TaskBar%20and%20Start%20Windows%2011/CustomizeTaskbar.ps1) -replace "﻿") } -MoveStartLeft -RemoveWidgets -RemoveChat -RemoveSearch -RunForExistingUsers" -Verbose
+    #Stopping and Disabling windows Update Service
+    #Stop-Service -Name wuauserv -PassThru | Set-Service -StartupType Disabled
 } -Verbose
 
 Show-LabDeploymentSummary -Detailed
