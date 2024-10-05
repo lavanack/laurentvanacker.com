@@ -15,7 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources
+#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.Network, Az.Resources, Az.Security, Az.Storage
 
 [CmdletBinding()]
 param
@@ -117,6 +117,8 @@ $ResourceGroupName = $ResourceGroupName.ToLower()
 $VirtualNetworkAddressSpace = "10.10.0.0/16" # Format 10.10.0.0/16
 $SubnetIPRange = "10.10.1.0/24" # Format 10.10.1.0/24                         
 $FQDN = "$VMName.$Location.cloudapp.azure.com".ToLower()
+$ScriptUri = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Virtual%20Desktop/MSIX/Add-MsixPackagingToolDriver.ps1"
+$scriptFileName = Split-Path -Path $ScriptUri -Leaf
 #endregion
 
 
@@ -264,13 +266,14 @@ $Properties.Add('targetResourceId', $VM.Id)
 New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Properties $Properties -Force
 #endregion
 
+#Set-AzVMCustomScriptExtension -VMName $VMName -ResourceGroupName $ResourceGroupName -Location $Location -FileUri $ScriptUri -Run $scriptFileName -Name "CustomSriptExtension"
+Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptString "Add-WindowsCapability -Online -Name 'Msix.PackagingTool.Driver~~~~0.0.1.0'"
+
 #Step 11: Start Azure Virtual Machine
 Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 
 # Adding Credentials to the Credential Manager (and escaping the password)
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDN /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
-
-Start-Sleep -Seconds 15
 
 #region Assigning a DNS Name to the Azure VM
 # Get the network interface associated with the VM
@@ -287,6 +290,8 @@ $publicIp.DnsSettings = @{"DomainNameLabel" = $VMName }
 # Update the public IP address configuration
 Set-AzPublicIpAddress -PublicIpAddress $publicIp
 #endregion
+
+Start-Sleep -Seconds 15
 
 #Step 12: Start RDP Session
 #mstsc /v $PublicIP.IpAddress

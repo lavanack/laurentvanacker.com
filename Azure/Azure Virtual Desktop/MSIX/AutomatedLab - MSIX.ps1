@@ -146,7 +146,7 @@ Invoke-LabCommand -ActivityName "Installing 'MSIX Packaging Tool' and 'PSFToolin
     Add-WindowsPackage -Online -PackagePath $OutFile
     Add-WindowsCapability -Online -Name "Msix.PackagingTool.Driver~~~~0.0.1.0" #-ErrorAction Ignore
     #>
-    #dism /online /add-capability /capabilityname:Msix.PackagingTool.Driver~~~~0.0.1.0
+    dism /online /add-capability /capabilityname:Msix.PackagingTool.Driver~~~~0.0.1.0
 
     #Installing PSFTooling Tool
     $OutFile = "C:\MSIX\PsfTooling-x64.msix"
