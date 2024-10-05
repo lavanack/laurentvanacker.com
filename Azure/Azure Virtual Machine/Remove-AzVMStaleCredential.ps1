@@ -22,11 +22,15 @@ function Remove-AzVMStaleCredential {
     Param
     (
     )
-    if (-not(Get-AzContext)) {
-        Write-Verbose -Message "No account connection to Azure detected ..."
-        Connect-AzAccount
-        Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
+    #region Login to your Azure subscription.
+    try { 
+        $null = Get-AzAccessToken -ErrorAction Stop
     }
+    catch {
+        Connect-AzAccount
+        #Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
+    }
+    #endregion
     Clear-Host
     $AzureCredentials = cmdkey /list | Select-String -Pattern "=(?<termsrv>TERMSRV/)?(?<dnsname>(?<vmname>.*)\.(?<location>.*)\.cloudapp\.azure\.com)" -AllMatches
     if ($AzureCredentials.Matches) {
