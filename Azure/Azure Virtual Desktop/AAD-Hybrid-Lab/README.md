@@ -16,7 +16,7 @@ This is lab is based on the the one available on [https://aka.ms/m365avdws](http
 
 ## Quick Start
 
-<a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Flavanack%2Flaurentvanacker.com%2Fmaster%2FAzure%2FAzure%20Virtual%20Desktop%2FAAD-Hybrid-Lab%2Fdeploy.json" target="_blank"><img src="http://azuredeploy.net/deploybutton.png"/></a>
+<a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Flavanack%2Flaurentvanacker.com%2Fmaster%2FAzure%2FAzure%20Virtual%20Desktop%2FAAD-Hybrid-Lab%2Fdeploy.json" target="_blank"><img src="https://aka.ms/deploytoazurebutton"/></a>
 
 ## Notes
 A PowerShell version is available on [https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell)
