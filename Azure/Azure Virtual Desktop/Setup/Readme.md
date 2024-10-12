@@ -153,7 +153,7 @@ At the end of the deployment, the following deliverables are available (the foll
 - Some GPOs
   - 'AVD Global Settings' GPO linked to the `AVD` OU
   - '`<HostPoolName>` - FSLogix Settings' GPO linked to the `<HostPoolName>` OU for the FSLogix Settings (if FSLogix is required) per HostPool
-  - '`<HostPoolName>` - MSIX Settings' GPO linked to the `<HostPoolName>` OU for the MSIX Settings (if MSIX is required) per HostPool
+  - '`<HostPoolName>` - MSIX Settings' GPO linked to the `<HostPoolName>` OU for the MSIX Settings (if MSIX or AppAttach is required) per HostPool
   - 2 starter GPOs linked to the `AVD` OU
     - 'Group Policy Reporting Firewall Ports'
     - 'Group Policy Remote Update Firewall Ports'
@@ -188,7 +188,7 @@ At the end of the deployment, the following deliverables are available (the foll
 
 - We will use the Virtual Network used for the Domain Controller. It is not recommended to use the same Virtual Network for the Domain Controller and the Session Hosts. It is recommended to use a dedicated Virtual Network for the Session Hosts. This is not implemented in the script (for the moment ?).
 - I'm not using Application Security Group (only Network Security Groups).
-- FSLogix and MSIX features are only implemented for Pooled HostPools
+- FSLogix, MSIX and AppAttach features are only implemented for Pooled HostPools
 
 ### Azure Resources
 
@@ -197,7 +197,7 @@ The script will deploy the following Azure resources (ordered by alphabetical or
 - Azure Compute Gallery
   - Image Definition
   - Image Version
-- Azure File Share (for FSLogix and MSIX)
+- Azure File Share (for FSLogix and MSIX/AppAttach)
 - Azure Key Vault
 - Azure Private Endpoint (for Azure File Share and Azure Key Vault)
 - Azure Resource Group
