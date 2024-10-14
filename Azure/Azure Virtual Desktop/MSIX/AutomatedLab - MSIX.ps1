@@ -144,7 +144,7 @@ Invoke-LabCommand -ActivityName "Installing 'MSIX Packaging Tool' and 'PSFToolin
     #From https://www.manishbangia.com/how-to-install-msix-packaging-tool-driver/
     #dism /online /add-package /packagepath:$OutFile
     Add-WindowsPackage -Online -PackagePath $OutFile
-    Add-WindowsCapability -Online -Name "Msix.PackagingTool.Driver~~~~0.0.1.0" #-ErrorAction Ignore
+    Add-WindowsCapability -Online -Name "Msix.PackagingTool.Driver~~~~0.0.1.0" -ErrorAction Ignore
     #>
     dism /online /add-capability /capabilityname:Msix.PackagingTool.Driver~~~~0.0.1.0
 
