@@ -9,6 +9,7 @@
   - [AzureImageBuilder-v4.ps1](#azureimagebuilder-v4ps1)
   - [AzureImageBuilder-v5.ps1](#azureimagebuilder-v5ps1)
   - [AzureImageBuilder-v6.ps1](#azureimagebuilder-v6ps1)
+  - [AzureImageBuilder-v7.ps1](#azureimagebuilder-v7ps1)
   - [AzureImageBuilder with CMK.ps1](#azureimagebuilder-with-cmkps1)
   - [New-AzureComputeGalleryVM.ps1](#new-azurecomputegalleryvmps1)
   - [Get-AzureVMImageBuilderCustomizationLog.ps1](#get-azurevmimagebuildercustomizationlogps1)
@@ -69,6 +70,10 @@ The main difference is [Storage Explorer](https://azure.microsoft.com/en-us/prod
 ## AzureImageBuilder-v6.ps1
 
 The [AzureImageBuilder-v6.ps1](AzureImageBuilder-v6.ps1) script is almost the same than the [AzureImageBuilder-v2.ps1](AzureImageBuilder-v2.ps1) script but adds a [Windows restart customizer](<https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-json?tabs=json%2Cazure-powershell#windows-restart-customizer>) to restart the VM after the installation of Visual Studio Code as an example how to use this customizer.
+
+## AzureImageBuilder-v7.ps1
+
+The [AzureImageBuilder-v7.ps1](AzureImageBuilder-v7.ps1) script is almost the same than the [AzureImageBuilder.ps1](AzureImageBuilder.ps1) script but the image used is a Windows Server 2022 DataCenter Azure Edition.
 
 ## AzureImageBuilder with CMK.ps1
 
