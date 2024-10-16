@@ -16,13 +16,19 @@ attorneys' fees,  that arise or result from the use or distribution
 of the Sample Code.
 #>
 #Installing MOMAgent
+Clear-Host
 $MicrosoftMonitoringAgentX64URI = "https://go.microsoft.com/fwlink/?LinkId=828603"
+$TempDir = Join-Path $env:Temp -ChildPath $([System.IO.Path]::GetRandomFileName())
 
-$OutFile = Join-Path $env:TEMP -ChildPath "MOMAgent.msi"
+$null = New-Item -Path $TempDir -ItemType Directory -Force
+$OutFile = Join-Path $TempDir -ChildPath "MMASetup-AMD64.exe"
+$MOMAgentMSIFilePath = Join-Path $TempDir -ChildPath "MOMAgent.msi"
+
 Invoke-WebRequest -Uri $MicrosoftMonitoringAgentX64URI -OutFile $OutFile -UseBasicParsing
+Start-Process -FilePath "$OutFile" -ArgumentList "/c", "/t:$($TempDir)"
 
 #From https://github.com/brianbar-MSFT/Install-MMA/blob/master/Install-MMA.ps1
 #From https://learn.microsoft.com/en-us/system-center/scom/manage-deploy-windows-agent-manually?view=sc-om-2022#deploy-the-operations-manager-agent-from-the-command-line
-Start-Process -FilePath "$env:systemroot\system32\msiexec.exe" -ArgumentList "/i", $OutFile, "/qn", "/l*v", "$OutFile.log", "NOAPM=1", "AcceptEndUserLicenseAgreement=1" -Wait -NoNewWindow
+Start-Process -FilePath $MOMAgentMSIFilePath -ArgumentList "/qn", "/l*v", "MOMAgentMSIFilePath.log", "NOAPM=1", "AcceptEndUserLicenseAgreement=1" -Wait
 
-Remove-Item -Path $OutFile -Force
+Remove-Item -Path $TempDir -Recurse -Force
