@@ -108,7 +108,7 @@ Add-LabMachineDefinition -Name MSIX -NetworkAdapter $netAdapter -OperatingSystem
 #endregion
 
 #Installing servers
-Install-Lab -Verbose
+Install-Lab #-Verbose
 Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 #Restore-LabVMSnapshot -SnapshotName 'FreshInstall' -All -Verbose
 
@@ -179,6 +179,11 @@ Invoke-LabCommand -ActivityName "Installing 'MSIX Packaging Tool' and 'PSFToolin
     Invoke-Expression -Command "& { $((Invoke-RestMethod https://raw.githubusercontent.com/Ccmexec/PowerShell/master/Customize%20TaskBar%20and%20Start%20Windows%2011/CustomizeTaskbar.ps1) -replace "﻿") } -MoveStartLeft -RemoveWidgets -RemoveChat -RemoveSearch -RunForExistingUsers" -Verbose
     #Stopping and Disabling windows Update Service
     #Stop-Service -Name wuauserv -PassThru | Set-Service -StartupType Disabled
+
+    #Importing the certificate locally for MSIX package testing purpose
+    $SecurePassword = ConvertTo-SecureString "P@ssw0rd" -AsPlainText -Force
+    #Adding the self-signed certificate to the Trusted People (To validate this certificate)
+    Import-PfxCertificate C:\MSIX\MSIXDigitalSignature.pfx -CertStoreLocation Cert:\LocalMachine\TrustedPeople\ -Password $SecurePassword
 } -Verbose
 
 Show-LabDeploymentSummary -Detailed

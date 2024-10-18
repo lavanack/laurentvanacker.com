@@ -140,6 +140,7 @@ Expand-Archive -Path .\msixmgr.zip -Force
 #endregion
 
 $Label = "NotepadPlusPlus_{0}" -f [system.version]::Parse($NotepadPlusPlusVersion)
+$Label
 
 #region VHDX
 $VHDXFileName = "{0}.vhdx" -f $Label.ToLower() 
