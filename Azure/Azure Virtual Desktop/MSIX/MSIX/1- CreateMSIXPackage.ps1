@@ -4,7 +4,7 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 #Timestamp URL server
-#http://timestamp.digicert.com
+"http://timestamp.digicert.com" | Set-Clipboard
 
 Set-Location -Path $CurrentDir
 
