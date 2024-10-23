@@ -135,7 +135,8 @@ Resize-VHD -Path $MSIXVHD -ToMinimumSize
 $VHDXFileName = "{0}_{1}.vhdx" -f $Label.ToLower() , $(Get-Date -Format 'yyyyMMddHHmmss')
 $VHDXFilePath = Join-Path -Path $CurrentDir -ChildPath $VHDXFileName
 Remove-Item -Path $VHDXFilePath -Force -ErrorAction Ignore
-& "$CurrentDir\msixmgr\x64\msixmgr.exe" -Unpack -packagePath $LatestNotepadMSIXFilePath.FullName -destination $VHDXFilePath -applyacls -create -fileType VHDX -rootDirectory $Label #-vhdSize 100
+& "$CurrentDir\msixmgr\x64\msixmgr.exe" -Unpack -packagePath $LatestNotepadMSIXFilePath.FullName -destination $VHDXFilePath -applyacls -create -fileType VHDX -rootDirectory $Label -vhdSize 100
+Resize-VHD -Path $VHDXFilePath -ToMinimumSize
 #endregion
 
 <#
