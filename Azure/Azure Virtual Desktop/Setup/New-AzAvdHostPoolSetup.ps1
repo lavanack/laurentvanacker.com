@@ -71,14 +71,6 @@ $AdJoinUserPassword = ConvertTo-SecureString -String $AdJoinUserClearTextPasswor
 $AdJoinCredential = New-Object System.Management.Automation.PSCredential -ArgumentList ($AdJoinUserName, $AdJoinUserPassword)
 #endregion
 
-<#
-#region ADJoin User
-$AzFileShareACEManagerUserName = 'azfileshareacemgr'
-$AzFileShareACEManagerUserClearTextPassword = '4ACEManagement'
-$AzFileShareACEManagerUserPassword = ConvertTo-SecureString -String $AzFileShareACEManagerUserClearTextPassword -AsPlainText -Force
-$AzFileShareACEManagerCredential = New-Object System.Management.Automation.PSCredential -ArgumentList ($AzFileShareACEManagerUserName, $AzFileShareACEManagerUserPassword)
-#endregion
-#>
 #region Azure Key Vault for stroing ADJoin Credentials
 $HostPoolSessionCredentialKeyVault = New-PsAvdHostPoolSessionHostCredentialKeyVault -ADJoinCredential $ADJoinCredential #-AzFileShareACEManagerCredential $AzFileShareACEManagerCredential
 #endregion
@@ -93,42 +85,46 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 [PooledHostPool]::Index = $RandomNumber
 [PersonalHostPool]::Index = $RandomNumber
 
-#required for internal MCAPS subscription
-#[HostPool]::UseKeyVaultForStorageAccountKey($true)
-#[HostPool]::UseKeyVaultForStorageAccountKey()
-
 $HostPools = @(
-    # Use case 1: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with FSLogix
+    # Use case 1: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with FSLogix and MSIX
     [PooledHostPool]::new($HostPoolSessionCredentialKeyVault).SetPreferredAppGroupType([Microsoft.Azure.PowerShell.Cmdlets.DesktopVirtualization.Support.PreferredAppGroupType]::RailApplications)#.EnableSpotInstance()
-    # Use case 2: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with FSLogix, Ephemeral OS Disk (ResourceDisk mode) and a Standard_DS3_v2 size (compatible with Ephemeral OS Disk)
+    # Use case 2: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with FSLogix, MSIX, Ephemeral OS Disk (ResourceDisk mode) and a Standard_D8ds_v5 size (compatible with Ephemeral OS Disk)
     [PooledHostPool]::new($HostPoolSessionCredentialKeyVault).SetVMSize('Standard_D8ds_v5').EnableEphemeralOSDisk([DiffDiskPlacement]::ResourceDisk)
-    # Use case 3: Deploy a Pooled HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined) with FSLogix and Spot Instance VMs and setting the LoadBalancer Type to DepthFirst
+    # Use case 3: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with FSLogix and AppAttach
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault).EnableAppAttach()
+    # Use case 4: Deploy a Pooled HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined) with FSLogix and Spot Instance VMs and setting the LoadBalancer Type to DepthFirst
     [PooledHostPool]::new($HostPoolSessionCredentialKeyVault).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableSpotInstance().SetLoadBalancerType([Microsoft.Azure.PowerShell.Cmdlets.DesktopVirtualization.Support.LoadBalancerType]::DepthFirst)
-    # Use case 4: Deploy a Pooled HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined, enrolled with Intune) with FSLogix and a Scaling Plan
+    # Use case 5: Deploy a Pooled HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined, enrolled with Intune) with FSLogix and a Scaling Plan
     [PooledHostPool]::new($HostPoolSessionCredentialKeyVault).EnableIntune().EnableScalingPlan()#.SetVMNumberOfInstances(1).EnableSpotInstance()
-    # Use case 5: Deploy a Personal HostPool with 2 Session Hosts (AD Domain joined and without FSLogix and MSIX - Not necessary for Personal Desktops) and Hibernation enabled 
+    # Use case 6: Deploy a Personal HostPool with 2 Session Hosts (AD Domain joined and without FSLogix and MSIX - Not necessary for Personal Desktops) and Hibernation enabled 
     [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault).SetVMNumberOfInstances(2).EnableHibernation()
-    # Use case 6: Deploy a Personal HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined and without FSLogix and MSIX - Not necessary for Personal Desktops) and a Scaling Plan 
+    # Use case 7: Deploy a Personal HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined and without FSLogix and MSIX - Not necessary for Personal Desktops) and a Scaling Plan 
     [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableScalingPlan()
 )
 
+#region Getting Current Azure location (based on the Subnet location of this DC) to deploy the Azure compute Gallery in the same location that the other resources
+$ThisDomainControllerVirtualNetwork = Get-AzVMVirtualNetwork
+$Location = $ThisDomainControllerVirtualNetwork.Location
+#endregion
+
 #region Creating a new Pooled Host Pool for every image definition in the Azure Compute Gallery
 $Index = [PooledHostPool]::Index
-#Bug: https://github.com/Azure/RDS-Templates/issues/793
-# $AzureComputeGallery = New-AzureComputeGallery
-# $AzureComputeGallery = Get-AzGallery | Sort-Object -Property Name -Descending | Select-Object -First 1
-# $GalleryImageDefinition = Get-AzGalleryImageDefinition -GalleryName $AzureComputeGallery.Name -ResourceGroupName $AzureComputeGallery.ResourceGroupName
+#$AzureComputeGallery = New-AzureComputeGallery -Location $Location -Verbose
+$AzureComputeGallery = Get-AzGallery | Sort-Object -Property Name -Descending | Select-Object -First 1
+$GalleryImageDefinition = Get-AzGalleryImageDefinition -GalleryName $AzureComputeGallery.Name -ResourceGroupName $AzureComputeGallery.ResourceGroupName
 foreach ($CurrentGalleryImageDefinition in $GalleryImageDefinition) {
     #$LatestCurrentGalleryImageVersion = Get-AzGalleryImageVersion -GalleryName $AzureComputeGallery.Name -ResourceGroupName $AzureComputeGallery.ResourceGroupName -GalleryImageDefinitionName $CurrentGalleryImageDefinition.Name | Sort-Object -Property Id | Select-Object -Last 1
-    # Use case 7 and more: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with an Image coming from an Azure Compute Gallery and without FSLogix and MSIX
+    # Use case 8 and more: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with an Image coming from an Azure Compute Gallery and without FSLogix and MSIX
     $PooledHostPool = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault).SetVMSourceImageId($CurrentGalleryImageDefinition.Id).DisableFSLogix().DisableMSIX()
     Write-Verbose -Message "VM Source Image Id for the ACG Host Pool: $LatestCurrentGalleryImageVersion (MSIX: $($PooledHostPool.MSIX) / FSlogix: $($PooledHostPool.FSlogix))"
-    # $HostPools += $PooledHostPool
+    #$HostPools += $PooledHostPool
 }
 #endregion
 #Removing $null object(s) if any.
 $HostPools = $HostPools | Where-Object -FilterScript { $null -ne $_ }
 #endregion
+
+$HostPools
 
 #region Removing previously existing resources
 #$LatestHostPoolJSONFile = Get-ChildItem -Path $CurrentDir -Filter "HostPool_*.json" -File | Sort-Object -Property Name -Descending | Select-Object -First 1
