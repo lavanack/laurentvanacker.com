@@ -58,7 +58,7 @@ $MSIXIPv4Address = '10.0.0.10'
 $MSIXCodeSigningTemplateName = "MSIXCodeSigning"
 $LabName = 'MSIX'
 
-$MsixPackagingTool = "https://download.microsoft.com/download/d/0/0/d0043667-b1db-4060-9c82-eaee1fa619e8/493b543c21624db8832da8791ebf98f3.msixbundle"
+$MsixPackagingTool = "https://download.microsoft.com/download/e/2/e/e2e923b2-7a3a-4730-969d-ab37001fbb5e/MSIXPackagingtoolv1.2024.405.0.msixbundle"
 $PsfToolPackageURL = "https://www.tmurgent.com/AppV/Tools/PsfTooling/PsfTooling-6.3.0.0-x64.msix"
 #From https://learn.microsoft.com/en-us/windows/msix/packaging-tool/disconnected-environment#example-of-offline-installation
 #$MsixPackagingToolDriverPackageURL = "https://download.microsoft.com/download/6/c/7/6c7d654b-580b-40d4-8502-f8d435ca125a/Msix-PackagingTool-Driver-Package%7E31bf3856ad364e35%7Eamd64%7E%7E1.cab"
@@ -132,9 +132,12 @@ Checkpoint-LabVM -SnapshotName BeforeMSIX -All -Verbose
 
 Invoke-LabCommand -ActivityName "Installing 'MSIX Packaging Tool' and 'PSFTooling'" -ComputerName $Client -ScriptBlock {
     #Installing MSIX Packaging Tool
+    <#
     $OutFile = "C:\MSIX\MsixPackagingTool.msixbundle"
     Invoke-WebRequest -Uri $Using:MsixPackagingTool -OutFile $OutFile
-    Add-AppPackage -Path $OutFile
+    #Add-AppPackage -Path $OutFile
+    #>
+    winget install "MSIX Packaging Tool" --accept-package-agreements --accept-source-agreements
 
     #Installing MSIX Packaging Tool Driver Package
     <#
@@ -152,12 +155,13 @@ Invoke-LabCommand -ActivityName "Installing 'MSIX Packaging Tool' and 'PSFToolin
     $OutFile = "C:\MSIX\PsfTooling-x64.msix"
     Invoke-WebRequest -Uri $Using:PsfToolPackageURL -OutFile $OutFile
     #Using a Job because it hangs for a long time
-    Start-Job -ScriptBlock { Param($OutFile) Add-AppPackage -Path $OutFile } -ArgumentList $OutFile
+    #Start-Job -ScriptBlock { Param($OutFile) Add-AppPackage -Path $OutFile } -ArgumentList $OutFile
 
     # Stops the Shell HW Detection service to prevent the format disk popup
-    #Stop-Service -Name ShellHWDetection -Force
-    #set-service -Name ShellHWDetection -StartupType Disabled
+    Stop-Service -Name ShellHWDetection -Force
+    Set-service -Name ShellHWDetection -StartupType Disabled
 
+    <#
     #region Turn off auto updates
     #reg add HKLM\Software\Policies\Microsoft\WindowsStore /v AutoDownload /t REG_DWORD /d 0 /f
     #Schtasks /Change /Tn "\Microsoft\Windows\WindowsUpdate\Scheduled Start" /Disable
@@ -172,11 +176,12 @@ Invoke-LabCommand -ActivityName "Installing 'MSIX Packaging Tool' and 'PSFToolin
         $task | Disable-ScheduledTask
     }
     #endregion 
+    #>
 
     Set-WinUserLanguageList -LanguageList fr-fr -Force
 
     #Customizing Taskbar
-    Invoke-Expression -Command "& { $((Invoke-RestMethod https://raw.githubusercontent.com/Ccmexec/PowerShell/master/Customize%20TaskBar%20and%20Start%20Windows%2011/CustomizeTaskbar.ps1) -replace "﻿") } -MoveStartLeft -RemoveWidgets -RemoveChat -RemoveSearch -RunForExistingUsers" -Verbose
+    #Invoke-Expression -Command "& { $((Invoke-RestMethod https://raw.githubusercontent.com/Ccmexec/PowerShell/master/Customize%20TaskBar%20and%20Start%20Windows%2011/CustomizeTaskbar.ps1) -replace "﻿") } -MoveStartLeft -RemoveWidgets -RemoveChat -RemoveSearch -RunForExistingUsers" -Verbose
     #Stopping and Disabling windows Update Service
     #Stop-Service -Name wuauserv -PassThru | Set-Service -StartupType Disabled
 

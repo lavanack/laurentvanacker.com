@@ -92,41 +92,6 @@ $LatestNotepadMSIXFilePath
 #Get-AppxPackage -Name "notepad*" | Remove-AppxPackage -Verbose
 Get-Package "notepad*" -ErrorAction Ignore | ForEach-Object -Process { Start-Process $($_.Meta.Attributes["UninstallString"]) }
 
-<#
-#region VHDX: Old Way
-$Label = "NotepadPlusPlus_{0}" -f [system.version]::Parse($NotepadPlusPlusVersion)
-$VHDXFileName = "{0}.vhdx" -f $Label.ToLower()
-$MSIXVHD = Join-Path -Path $CurrentDir -ChildPath $VHDXFileName
-Remove-Item $MSIXVHD -Force -ErrorAction Ignore
-New-VHD -SizeBytes 1GB -Path $MSIXVHD -Dynamic -Confirm:$false
-
-#To mount the newly created VHD, run:
-$vhdObject = Mount-VHD -Path $MSIXVHD -Passthru
-
-#To initialize the VHD, run:
-$disk = Initialize-Disk -PassThru -Number $vhdObject.Number
-
-#To create a new partition, run:
-$partition = New-Partition -AssignDriveLetter -UseMaximumSize -DiskNumber $disk.Number
-
-#To format the partition, run:
-Format-Volume -FileSystem NTFS -Confirm:$false -DriveLetter $partition.DriveLetter -NewFileSystemLabel $Label -Force
-
-
-$MSIXMgrUri = "https://aka.ms/msixmgr"
-$Outfile = Join-Path -Path $CurrentDir -ChildPath $(Split-Path -Path $MSIXMgrUri -Leaf)
-$Outfile += ".zip"
-If (-not(Test-Path -Path $Outfile)) {
-    Write-Verbose -Message "Downloading MSIX Mgr Tool ..."
-    Invoke-WebRequest -Uri $MSIXMgrUri -UseBasicParsing -OutFile $Outfile -Verbose
-}
-Expand-Archive -Path .\msixmgr.zip -Force
-
-& "$CurrentDir\msixmgr\x64\msixmgr.exe" -Unpack -packagePath $LatestNotepadMSIXFilePath.FullName -destination "$($partition.DriveLetter):\$Label" -applyacls -fileType VHDX
-
-Dismount-VHD -Path $MSIXVHD
-#endregion
-#>
 
 #region Installing MSIX Manager
 $MSIXMgrUri = "https://aka.ms/msixmgr"
@@ -142,16 +107,42 @@ Expand-Archive -Path .\msixmgr.zip -Force
 $Label = "NotepadPlusPlus_{0}" -f [system.version]::Parse($NotepadPlusPlusVersion)
 $Label
 
-#region VHDX
-$VHDXFileName = "{0}.vhdx" -f $Label.ToLower() 
+#region VHDX: Old Way
+$Label = "NotepadPlusPlus_{0}" -f [system.version]::Parse($NotepadPlusPlusVersion)
+$VHDXFileName = "{0}_{1}.vhdx" -f $Label.ToLower() , $(Get-Date -Format 'yyyyMMddHHmmss')
+$MSIXVHD = Join-Path -Path $CurrentDir -ChildPath $VHDXFileName
+Remove-Item $MSIXVHD -Force -ErrorAction Ignore
+New-VHD -SizeBytes 1GB -Path $MSIXVHD -Dynamic -Confirm:$false
+
+#To mount the newly created VHD, run:
+$vhdObject = Mount-VHD -Path $MSIXVHD -Passthru
+
+#To initialize the VHD, run:
+$disk = Initialize-Disk -PassThru -Number $vhdObject.Number
+
+#To create a new partition, run:
+$partition = New-Partition -AssignDriveLetter -UseMaximumSize -DiskNumber $disk.Number
+
+#To format the partition, run:
+Format-Volume -FileSystem NTFS -Confirm:$false -DriveLetter $partition.DriveLetter -NewFileSystemLabel $Label -Force
+& "$CurrentDir\msixmgr\x64\msixmgr.exe" -Unpack -packagePath $LatestNotepadMSIXFilePath.FullName -destination "$($partition.DriveLetter):\$Label" -applyacls -fileType VHDX
+
+Dismount-VHD -Path $MSIXVHD
+Resize-VHD -Path $MSIXVHD -ToMinimumSize
+#endregion
+
+#region VHDX: New Way
+$VHDXFileName = "{0}_{1}.vhdx" -f $Label.ToLower() , $(Get-Date -Format 'yyyyMMddHHmmss')
 $VHDXFilePath = Join-Path -Path $CurrentDir -ChildPath $VHDXFileName
 Remove-Item -Path $VHDXFilePath -Force -ErrorAction Ignore
 & "$CurrentDir\msixmgr\x64\msixmgr.exe" -Unpack -packagePath $LatestNotepadMSIXFilePath.FullName -destination $VHDXFilePath -applyacls -create -fileType VHDX -rootDirectory $Label #-vhdSize 100
 #endregion
 
+<#
 #region CIM
-$CIMFileName = "{0}.cim" -f $Label.ToLower()
+$CIMFileName = "{0}_{1}.cim" -f $Label.ToLower() , $(Get-Date -Format 'yyyyMMddHHmmss')
 $CIMFilePath = Join-Path -Path $CurrentDir -ChildPath $CIMFileName
 Remove-Item -Path $CIMFilePath -Force -ErrorAction Ignore
 & "$CurrentDir\msixmgr\x64\msixmgr.exe" -Unpack -packagePath $LatestNotepadMSIXFilePath.FullName -destination $CIMFilePath -applyacls -create -fileType CIM -rootDirectory $Label
 #endregion
+#>
