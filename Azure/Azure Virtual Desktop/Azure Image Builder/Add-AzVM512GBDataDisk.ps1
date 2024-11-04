@@ -23,13 +23,10 @@ function Get-AzVMCompute {
 }
 #endregion
 
-<#
 #region Powershell Pre-requisites
 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 Install-Module Az.Accounts, Az.Compute -Force -Verbose -AllowClobber
 #endregion
-#>
-
 
 #region Variable definitions
 $ThisVM = Get-AzVMCompute | Get-AzVM
