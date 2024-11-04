@@ -28,6 +28,8 @@ Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 Install-Module Az.Accounts, Az.Compute -Force -Verbose -AllowClobber
 #endregion
 
+Connect-AzAccount -Identity
+
 #region Variable definitions
 $ThisVM = Get-AzVMCompute | Get-AzVM
 $Location = $ThisVM.Location
