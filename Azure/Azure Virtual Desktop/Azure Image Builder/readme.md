@@ -10,6 +10,7 @@
   - [AzureImageBuilder-v5.ps1](#azureimagebuilder-v5ps1)
   - [AzureImageBuilder-v6.ps1](#azureimagebuilder-v6ps1)
   - [AzureImageBuilder-v7.ps1](#azureimagebuilder-v7ps1)
+  - [AzureImageBuilder-v8.ps1](#azureimagebuilder-v8ps1)
   - [AzureImageBuilder with CMK.ps1](#azureimagebuilder-with-cmkps1)
   - [New-AzureComputeGalleryVM.ps1](#new-azurecomputegalleryvmps1)
   - [Get-AzureVMImageBuilderCustomizationLog.ps1](#get-azurevmimagebuildercustomizationlogps1)
@@ -74,6 +75,10 @@ The [AzureImageBuilder-v6.ps1](AzureImageBuilder-v6.ps1) script is almost the sa
 ## AzureImageBuilder-v7.ps1
 
 The [AzureImageBuilder-v7.ps1](AzureImageBuilder-v7.ps1) script is almost the same than the [AzureImageBuilder.ps1](AzureImageBuilder.ps1) script but the image used is a Windows Server 2022 DataCenter Azure Edition.
+
+## AzureImageBuilder-v8.ps1
+
+The [AzureImageBuilder-v8.ps1](AzureImageBuilder-v8.ps1) script is an update of the [AzureImageBuilder.ps1](AzureImageBuilder.ps1) script because we also install the System Center Operations Manager agents.
 
 ## AzureImageBuilder with CMK.ps1
 
