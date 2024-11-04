@@ -298,22 +298,7 @@ function New-AzureComputeGallery {
 	#endregion
 	#endregion
 	
-	#region Template #3 via a image from the market place + customizations
-	# create gallery definition
-	$GalleryParams = @{
-		GalleryName       = $GalleryName
-		ResourceGroupName = $ResourceGroupName
-		Location          = $location
-		Name              = $imageDefName03
-		OsState           = 'generalized'
-		OsType            = 'Windows'
-		Publisher         = 'Contoso'
-		Offer             = 'Windows'
-		Sku               = 'avd-win11-m365-vscode-posh'
-		HyperVGeneration  = 'V2'
-	}
-	#Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefName03' (From A Market Place Image)..."
-	#$GalleryImageDefinition03 = New-AzGalleryImageDefinition @GalleryParams
+	#region Template #3 is an update of Template #2
     $GalleryImageDefinition03 = $GalleryImageDefinition02
     $version = "{0}1" -f $version
 

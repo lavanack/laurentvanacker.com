@@ -11,6 +11,7 @@
   - [AzureImageBuilder-v6.ps1](#azureimagebuilder-v6ps1)
   - [AzureImageBuilder-v7.ps1](#azureimagebuilder-v7ps1)
   - [AzureImageBuilder-v8.ps1](#azureimagebuilder-v8ps1)
+  - [AzureImageBuilder-v9.ps1](#azureimagebuilder-v9ps1)
   - [AzureImageBuilder with CMK.ps1](#azureimagebuilder-with-cmkps1)
   - [New-AzureComputeGalleryVM.ps1](#new-azurecomputegalleryvmps1)
   - [Get-AzureVMImageBuilderCustomizationLog.ps1](#get-azurevmimagebuildercustomizationlogps1)
@@ -79,6 +80,10 @@ The [AzureImageBuilder-v7.ps1](AzureImageBuilder-v7.ps1) script is almost the sa
 ## AzureImageBuilder-v8.ps1
 
 The [AzureImageBuilder-v8.ps1](AzureImageBuilder-v8.ps1) script is an update of the [AzureImageBuilder.ps1](AzureImageBuilder.ps1) script because we also install the System Center Operations Manager agents.
+
+## AzureImageBuilder-v9.ps1
+
+The [AzureImageBuilder-v9.ps1](AzureImageBuilder-v9.ps1) script is an update of the [AzureImageBuilder.ps1](AzureImageBuilder.ps1) script because we create two image versions of an image definition (we update the previous version by adding Powershell 7+ to the image).
 
 ## AzureImageBuilder with CMK.ps1
 
