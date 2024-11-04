@@ -42,8 +42,9 @@
                 "vmProfile": {
                     "vmSize": "Standard_D4s_v5",
                     "osDiskSizeGB": 127,
-                    "userAssignedIdentities": {
-                        "<imgBuilderId>": {}
+                    "userAssignedIdentities": [
+                        "<imgBuilderId>"
+                    ]
                 },
 
                 "source": {

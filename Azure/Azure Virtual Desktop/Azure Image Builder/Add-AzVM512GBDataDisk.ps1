@@ -42,7 +42,7 @@ $ResourceGroupName = $ThisVM.ResourceGroupName
 
 #region Azure connection
 #Works because the VM has only one User Managed Identity (else you have to specify -Body @{client_id=$identityClientId} in the Invoke-RestMethod call)
-$Token = Invoke-RestMethod -Uri "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2019-08-01&resource=https://management.azure.com/" -Method GET -Headers @{Metadata="true"}
+$Token = Invoke-RestMethod -Uri "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2019-08-01&resource=https://management.azure.com/" -Method GET -Headers @{Metadata="true"} -TimeoutSec 5
 Connect-AzAccount -AccessToken $Token.access_token -AccountId $Token.client_id
 #endregion
 
