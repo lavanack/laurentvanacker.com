@@ -28,7 +28,7 @@ Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 Install-Module Az.Accounts, Az.Compute -Force -Verbose -AllowClobber
 #endregion
 
-Connect-AzAccount -Identity
+#Connect-AzAccount -Identity
 
 #region Variable definitions
 $ThisVM = Get-AzVMCompute | Get-AzVM
@@ -38,6 +38,12 @@ $DataDiskSizeGB = 512
 #$OSDiskType = "Premium_LRS"
 $OSDiskType = $ThisVM.StorageProfile.OsDisk.ManagedDisk.StorageAccountType 
 $ResourceGroupName = $ThisVM.ResourceGroupName
+#endregion
+
+#region Azure connection
+#Works because the VM has only one User Managed Identity (else you have to specify -Body @{client_id=$identityClientId} in the Invoke-RestMethod call)
+$Token = Invoke-RestMethod -Uri "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2019-08-01&resource=https://management.azure.com/" -Method GET -Headers @{Metadata="true"}
+Connect-AzAccount -AccessToken $Token.access_token -AccountId $Token.client_id
 #endregion
 
 #region Adding Data Disk
