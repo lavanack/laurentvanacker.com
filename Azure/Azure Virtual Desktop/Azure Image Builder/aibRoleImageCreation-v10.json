@@ -14,7 +14,8 @@
     "Microsoft.Compute/disks/write",
     "Microsoft.Resources/subscriptions/resourceGroups/read",
     "Microsoft.Compute/virtualMachines/write",
-    "Microsoft.Compute/virtualMachines/read"
+    "Microsoft.Compute/virtualMachines/read",
+    "Microsoft.Network/networkInterfaces/join/action"
   ],
   "NotActions": [],
   "AssignableScopes": [
