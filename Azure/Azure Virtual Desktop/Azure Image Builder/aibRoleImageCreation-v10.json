@@ -15,7 +15,8 @@
     "Microsoft.Resources/subscriptions/resourceGroups/read",
     "Microsoft.Compute/virtualMachines/write",
     "Microsoft.Compute/virtualMachines/read",
-    "Microsoft.Network/networkInterfaces/join/action"
+    "Microsoft.Network/networkInterfaces/join/action",
+    "Microsoft.ManagedIdentity/userAssignedIdentities/assign/action"
   ],
   "NotActions": [],
   "AssignableScopes": [
