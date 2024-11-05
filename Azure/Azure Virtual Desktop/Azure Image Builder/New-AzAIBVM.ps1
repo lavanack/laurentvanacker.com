@@ -71,10 +71,15 @@ $ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/
 $shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @{Name = 'Location'; Expression = { $AzLocation[$_.name].Location } } | Where-Object -FilterScript { $_.Location } | Group-Object -Property Location -AsHashTable -AsString
 #endregion
 
-# Login to your Azure subscription.
-While (-not(Get-AzContext)) {
-    Connect-AzAccount
+#region Login to your Azure subscription.
+try { 
+    $null = Get-AzAccessToken -ErrorAction Stop
 }
+catch {
+    Connect-AzAccount
+    #Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
+}
+#endregion
 
 $AzureVMNameMaxLength = 15
 $RDPPort = 3389
