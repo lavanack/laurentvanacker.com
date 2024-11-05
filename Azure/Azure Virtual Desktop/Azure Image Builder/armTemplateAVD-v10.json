@@ -44,6 +44,9 @@
                     "osDiskSizeGB": 127,
                     "userAssignedIdentities": [
                         "<imgBuilderId>"
+                    ],
+                    "AdditionalDiskSize": [
+                        1024
                     ]
                 },
 
