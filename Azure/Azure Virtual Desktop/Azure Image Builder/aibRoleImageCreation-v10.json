@@ -10,6 +10,7 @@
     "Microsoft.Compute/images/write",
     "Microsoft.Compute/images/read",
     "Microsoft.Compute/images/delete",
+    "Microsoft.Compute/disks/read",
     "Microsoft.Compute/disks/write",
     "Microsoft.Resources/subscriptions/resourceGroups/read",
     "Microsoft.Compute/virtualMachines/write",
