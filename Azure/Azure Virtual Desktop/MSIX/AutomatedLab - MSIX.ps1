@@ -137,7 +137,7 @@ Invoke-LabCommand -ActivityName "Installing 'MSIX Packaging Tool' and 'PSFToolin
     Invoke-WebRequest -Uri $Using:MsixPackagingTool -OutFile $OutFile
     #Add-AppPackage -Path $OutFile
     #>
-    winget install "MSIX Packaging Tool" --accept-package-agreements --accept-source-agreements
+    winget install "MSIX Packaging Tool" --accept-package-agreements --accept-source-agreements --source msstore
 
     #Installing MSIX Packaging Tool Driver Package
     <#
