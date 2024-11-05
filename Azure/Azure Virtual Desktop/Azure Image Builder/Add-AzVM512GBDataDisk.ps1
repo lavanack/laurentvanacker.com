@@ -90,8 +90,8 @@ function Get-MyAzResourceGroup {
 #region Powershell Pre-requisites
 #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 Get-PackageProvider -Name Nuget -ForceBootstrap -Force
-#Install-Module Az.Accounts, Az.Compute -Force -Verbose -AllowClobber
-"Az.Accounts", "Az.Compute" |  Where-Object -FilterScript { $_ -notin $(Get-Module -ListAvailable).Name } | ForEach-Object -Process { Install-Module -Name $_ -Force -Verbose -AllowClobber }
+Install-Module Az.Accounts, Az.Compute -Force -Verbose -AllowClobber
+#"Az.Accounts", "Az.Compute" |  Where-Object -FilterScript { $_ -notin $(Get-Module -ListAvailable).Name } | ForEach-Object -Process { Install-Module -Name $_ -Force -Verbose -AllowClobber }
 #endregion
 
 #region Azure connection
@@ -121,4 +121,10 @@ $ThisVMDataDisk01 = New-AzDisk -DiskName $DataDiskName -Disk $ThisVMDataDisk01Co
 $ThisVM = Add-AzVMDataDisk -VM $ThisVM -Name $DataDiskName -Caching 'ReadWrite' -CreateOption Attach -ManagedDiskId $ThisVMDataDisk01.Id -Lun 0
 $ThisVM | Update-AzVM
 $Disk = Get-Disk -Number 1 | Where-Object PartitionStyle -EQ "RAW" | Initialize-Disk -PassThru | New-Partition -AssignDriveLetter -UseMaximumSize | Format-Volume -NewFileSystemLabel Data
+#endregion
+
+#region Generating Sample file
+$TimeStamp = Get-Date -Format "yyyyMMddHHmmss"
+$Path = "{0}:\{1}.txt" -f $Disk.DriveLetter, $TimeStamp
+New-Item -Path $Path -ItemType File -Value "This file has been generated at $TimeStamp"
 #endregion
