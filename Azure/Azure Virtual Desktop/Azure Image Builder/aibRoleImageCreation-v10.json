@@ -11,8 +11,7 @@
     "Microsoft.Compute/images/read",
     "Microsoft.Compute/images/delete",
     "Microsoft.Compute/disks/write",
-    "Microsoft.Compute/disks/read",
-    "Microsoft.Compute/disks/delete"
+    "Microsoft.Resources/subscriptions/resourceGroups/read"
   ],
   "NotActions": [],
   "AssignableScopes": [
