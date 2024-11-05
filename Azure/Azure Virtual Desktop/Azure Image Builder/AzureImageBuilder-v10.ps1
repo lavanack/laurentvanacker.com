@@ -283,15 +283,16 @@ function New-AzureComputeGallery {
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
 	$Customize = $TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $AddDataDiskCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
 	$ImgTemplateParams = @{
-		ImageTemplateName      = $imageTemplateName02
-		ResourceGroupName      = $ResourceGroupName
-		Source                 = $srcPlatform
-		Distribute             = $disSharedImg
-		Customize              = $Customize
-		Location               = $location
-		UserAssignedIdentityId = $AssignedIdentity.Id
-		VMProfileVmsize        = "Standard_D4s_v5"
-		VMProfileOsdiskSizeGb  = 127
+		ImageTemplateName              = $imageTemplateName02
+		ResourceGroupName              = $ResourceGroupName
+		Source                         = $srcPlatform
+		Distribute                     = $disSharedImg
+		Customize                      = $Customize
+		Location                       = $location
+		UserAssignedIdentityId         = $AssignedIdentity.Id
+		VMProfileVmsize                = "Standard_D4s_v5"
+		VMProfileOsdiskSizeGb          = 127
+        VMProfileUserAssignedIdentity  = $AssignedIdentity.Id
 	}
 	Write-Verbose -Message "Creating Azure Image Builder Template from '$imageTemplateName02' Image Template Name ..."
 	$ImageBuilderTemplate = New-AzImageBuilderTemplate @ImgTemplateParams
