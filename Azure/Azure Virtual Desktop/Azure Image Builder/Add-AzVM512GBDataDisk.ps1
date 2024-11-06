@@ -115,6 +115,9 @@ $OSDiskType = $ThisVM.StorageProfile.OsDisk.ManagedDisk.StorageAccountType
 $ResourceGroupName = $ThisVM.ResourceGroupName
 #endregion
 
+$ThisVM.StorageProfile.dataDisks
+
+<#
 #region Adding Data Disk
 $ThisVMDataDisk01Config = New-AzDiskConfig -SkuName $OSDiskType -Location $Location -CreateOption Empty -DiskSizeGB $DataDiskSizeGB
 $ThisVMDataDisk01 = New-AzDisk -DiskName $DataDiskName -Disk $ThisVMDataDisk01Config -ResourceGroupName $ResourceGroupName
@@ -128,3 +131,4 @@ $TimeStamp = Get-Date -Format "yyyyMMddHHmmss"
 $Path = "{0}:\{1}.txt" -f $Disk.DriveLetter, $TimeStamp
 New-Item -Path $Path -ItemType File -Value "This file has been generated at $TimeStamp"
 #endregion
+#>
