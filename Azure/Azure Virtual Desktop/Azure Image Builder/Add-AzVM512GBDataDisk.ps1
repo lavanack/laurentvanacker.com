@@ -115,7 +115,7 @@ $OSDiskType = $ThisVM.StorageProfile.OsDisk.ManagedDisk.StorageAccountType
 $ResourceGroupName = $ThisVM.ResourceGroupName
 #endregion
 
-$ThisVM.StorageProfile.dataDisks
+Write-Verbose -Message "dataDisks: $($ThisVM.StorageProfile.dataDisks | Out-String)"
 
 <#
 #region Adding Data Disk
