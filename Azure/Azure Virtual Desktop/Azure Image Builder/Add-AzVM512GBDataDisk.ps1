@@ -89,9 +89,23 @@ function Get-MyAzResourceGroup {
 
 #region Powershell Pre-requisites
 #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-Get-PackageProvider -Name Nuget -ForceBootstrap -Force
+$null = Get-PackageProvider -Name NuGet -Force -Verbose
+$RequiredModules = 'Az.Accounts', 'Az.Compute'
+$InstalledModule = Get-InstalledModule -Name $RequiredModules -ErrorAction Ignore
+if (-not([String]::IsNullOrEmpty($InstalledModule))) {
+    $MissingModules = (Compare-Object -ReferenceObject $RequiredModules -DifferenceObject (Get-InstalledModule -Name $RequiredModules -ErrorAction Ignore).Name).InputObject
+}
+else {
+    $MissingModules = $RequiredModules
+}
+if (-not([String]::IsNullOrEmpty($MissingModules))) {
+    Install-Module -Name $MissingModules -Force -Verbose
+}
+
+<#
 Install-Module Az.Accounts, Az.Compute -Force -Verbose -AllowClobber
-#"Az.Accounts", "Az.Compute" |  Where-Object -FilterScript { $_ -notin $(Get-Module -ListAvailable).Name } | ForEach-Object -Process { Install-Module -Name $_ -Force -Verbose -AllowClobber }
+"Az.Accounts", "Az.Compute" |  Where-Object -FilterScript { $_ -notin $(Get-Module -ListAvailable).Name } | ForEach-Object -Process { Install-Module -Name $_ -Force -Verbose -AllowClobber }
+#>
 #endregion
 
 #region Azure connection
