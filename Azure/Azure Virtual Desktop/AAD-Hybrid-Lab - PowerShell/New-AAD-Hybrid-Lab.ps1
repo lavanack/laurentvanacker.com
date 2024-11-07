@@ -490,10 +490,13 @@ if (-not([String]::IsNullOrEmpty($MissingModules))) {
 $AdminCredential = Get-Credential -Credential $env:USERNAME
 $UserCredential = Get-Credential -Credential "Only password is required"
 
+#$Instance = Get-Random -Minimum 1 -Maximum 1000
+$Instance = 1
+
 $Parameters = @{
     "AdminCredential"      = $AdminCredential
     "UserCredential"       = $UserCredential
-    "VMSize"               = "Standard_D2s_v5"
+    "VMSize"               = "Standard_D2s_v4"
     "OSDiskType"           = "Premium_LRS"
     "Project"              = "avd"
     "Role"                 = "ad"
@@ -502,8 +505,8 @@ $Parameters = @{
     "VNetAddressRange"     = '10.0.0.0/16'
     "ADSubnetAddressRange" = '10.0.1.0/24'
     "DomainControllerIP"   = '10.0.1.4'
-    "Instance"             = 1
-    "Location"             = "eastus2"
+    "Instance"             = 2
+    "Location"             = "westus2"
     "Spot"                 = $false
     "Bastion"              = $false
     "Verbose"              = $true
