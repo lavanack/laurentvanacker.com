@@ -32,17 +32,17 @@ function Get-AzResourceMinimumTlsVersion {
         [string[]] $ResourceType
     )
     if ($ResourceType) {
-        $AzResource = Get-AzResource -ExpandProperties | Where-Object { $_.ResourceType -in $ResourceType } | Select-Object -Property Id -ExpandProperty Properties
+        $AzResource = Get-AzResource -ExpandProperties -ErrorAction Ignore | Where-Object { $_.ResourceType -in $ResourceType } | Select-Object -Property Id -ExpandProperty Properties
     }
     else {
-        $AzResource = Get-AzResource -ExpandProperties | Select-Object -Property Id -ExpandProperty Properties
+        $AzResource = Get-AzResource -ExpandProperties -ErrorAction Ignore | Select-Object -Property Id -ExpandProperty Properties
     }
 
     foreach ($CurrentAzResource in $AzResource) {
         Write-Verbose "Processing '$($CurrentAzResource.Id)' ..."
         $TLSSetting = $CurrentAzResource.psobject.Properties | Where-Object -FilterScript { $_.Name -match "TLS" }
         if ($TLSSetting) {
-            $CurrentAzResource | Format-List -Property Id, $TLSSetting.Name -Force
+            $CurrentAzResource | Select-Object -Property Id, $TLSSetting.Name
         }
     }
 }
@@ -66,4 +66,4 @@ if (-not(Get-AzContext)) {
 
 $ResourceMinimumTlsVersion = Get-AzResourceMinimumTlsVersion -ResourceType $ResourceType #-Verbose
 #$ResourceMinimumTlsVersion = Get-AzResourceMinimumTlsVersion -ResourceType "Microsoft.Storage/storageAccounts" -Verbose
-$ResourceMinimumTlsVersion
+$ResourceMinimumTlsVersion | Format-List -Property * -Force
