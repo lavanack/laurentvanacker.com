@@ -1,0 +1,27 @@
+// Return the a list of the connections made by your users.
+WVDConnections 
+| project-away TenantId,SourceSystem 
+| summarize arg_max(TimeGenerated, *), StartTime =  min(iff(State== 'Started', TimeGenerated , datetime(null) )), ConnectTime = min(iff(State== 'Connected', TimeGenerated , datetime(null) ))   by CorrelationId 
+| join kind=leftouter ( 
+    WVDErrors 
+    |summarize Errors=makelist(pack('Code', Code, 'CodeSymbolic', CodeSymbolic, 'Time', TimeGenerated, 'Message', Message ,'ServiceError', ServiceError, 'Source', Source)) by CorrelationId 
+    ) on CorrelationId     
+| join kind=leftouter ( 
+   WVDCheckpoints 
+   | summarize Checkpoints=makelist(pack('Time', TimeGenerated, 'Name', Name, 'Parameters', Parameters, 'Source', Source)) by CorrelationId 
+   | mv-apply Checkpoints on 
+    ( 
+        order by todatetime(Checkpoints['Time']) asc 
+        | summarize Checkpoints=makelist(Checkpoints) 
+    ) 
+   ) on CorrelationId 
+| project-away CorrelationId1, CorrelationId2 
+| order by  TimeGenerated desc
+
+// Return the connection round-trip time and bandwidth for each user connection
+WVDConnectionNetworkData
+| join kind=inner  (WVDConnections) on CorrelationId
+| summarize ["Avg. RTT"]=avg(EstRoundTripTimeInMs),["Max. RTT"]=max(EstRoundTripTimeInMs),["P90 RTT"]=percentile(EstRoundTripTimeInMs,90),["Avg. Bandwidth"]=avg(EstAvailableBandwidthKBps),["Max. Bandwidth"]=max(EstAvailableBandwidthKBps),["P90 Bandwidth"]=percentile(EstAvailableBandwidthKBps,90) by UserName
+| order by ["Avg. RTT"] desc
+
+// Additional query examples are available at https://docs.microsoft.com/en-us/azure/virtual-desktop/diagnostics-log-analytics
