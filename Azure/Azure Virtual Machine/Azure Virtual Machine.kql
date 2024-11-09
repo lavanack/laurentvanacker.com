@@ -1,0 +1,28 @@
+// Query all performance data for the past 24 hours 
+Perf
+
+
+// Query all performance data from a particular computer:
+let ComputerName = "HP01-1.contoso.local";
+Perf | where Computer == ComputerName
+
+
+//Query performance data for a particular counter:
+Perf | where CounterName == "Current Disk Queue Length"
+
+
+// Query average CPU Utilization across all computers:
+Perf | where ObjectName == "Processor Information" and CounterName == "% Processor Time" and InstanceName == "_Total" | summarize AVGCPU = avg(CounterValue) by Computer
+
+
+// Query maximum CPU Utilization across all computers:
+Perf | where CounterName == "% Processor Time" | summarize AggregatedValue = max(CounterValue) by Computer
+
+
+// Query free space across all the instances of a given computer:
+let ComputerName = "HP01-1.contoso.local";
+Perf | where ObjectName == "LogicalDisk" and CounterName == "% Free Space" and Computer == ComputerName | summarize AggregatedValue = avg(CounterValue) by InstanceName
+
+
+//Query hourly average of CPU usage across all computers:
+Perf | where CounterName == "% Processor Time" and InstanceName == "_Total" | summarize AggregatedValue = avg(CounterValue) by bin(TimeGenerated, 1h), Computer
