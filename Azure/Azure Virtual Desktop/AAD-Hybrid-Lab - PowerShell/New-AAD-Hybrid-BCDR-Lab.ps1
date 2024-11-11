@@ -111,7 +111,7 @@ function New-AAD-Hybrid-BCDR-Lab {
     $VirtualNetworkName = $VirtualNetworkName.ToLower()
     $SubnetName = $SubnetName.ToLower()
     $ResourceGroupName = $ResourceGroupName.ToLower()
-                         
+
     $FQDN = "$VMName.$Location.cloudapp.azure.com".ToLower()
 
     $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
@@ -119,7 +119,7 @@ function New-AAD-Hybrid-BCDR-Lab {
         #Step 0: Remove previously existing Azure Resource Group with the same name
         $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
     }
-    $MyPublicIp = (Invoke-WebRequest -uri "https://ipv4.seeip.org").Content
+    $MyPublicIp = (Invoke-WebRequest -Uri "https://ipv4.seeip.org").Content
 
     #region Define Variables needed for Virtual Machine
     $ImagePublisherName = "MicrosoftWindowsServer"
@@ -166,7 +166,7 @@ function New-AAD-Hybrid-BCDR-Lab {
     elseif (-not(Test-AzDnsAvailability -DomainNameLabel $VMName -Location $Location)) {
         Write-Error "$FQDN is NOT available" -ErrorAction Stop
     }
-    elseif ($null -eq (Get-AZVMSize -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
+    elseif ($null -eq (Get-AzVMSize -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
         Write-Error "The '$VMSize' is not available in the '$Location' location ..." -ErrorAction Stop
     }
 
@@ -239,7 +239,7 @@ function New-AAD-Hybrid-BCDR-Lab {
         
         #Generation Bastion Subnet Address Range by getting the subnets and finding the third token available in the IP.
         $ThirdToken = (Get-AzVirtualNetwork -Name $VirtualNetworkName).Subnets.AddressPrefix -replace "\d+\.\d+\.(\d+)\.\d\/.*", '$1' | Sort-Object
-        $ThirdTokenAvailable = 1..254 | Where-Object -FilterScript {$_ -notin $ThirdToken}
+        $ThirdTokenAvailable = 1..254 | Where-Object -FilterScript { $_ -notin $ThirdToken }
         $BastionSubnetAddressRange = (Get-AzVirtualNetwork -Name $VirtualNetworkName).Subnets.AddressPrefix | Sort-Object | Select-Object -Last 1
         $BastionSubnetAddressRange -match '(\d+)\.(\d+)\.(\d+)\.(\d+)/(\d+)'
         #$BastionSubnetAddressRange = "{0}.{1}.{2}.0/26" -f $Matches[1], $Matches[2], ([int]$Matches[3]+1)
@@ -251,12 +251,12 @@ function New-AAD-Hybrid-BCDR-Lab {
             New-AzNetworkSecurityRuleConfig -Name AllowHttpsInBound -Description "Allow Https InBound" -Protocol Tcp -SourcePortRange * -DestinationPortRange 443 -SourceAddressPrefix 'Internet' -DestinationAddressPrefix * -Access Allow  -Priority 120 -Direction Inbound 
             New-AzNetworkSecurityRuleConfig -Name AllowGatewayManagerInBound -Description "Allow Gateway Manager InBound" -Protocol Tcp -SourcePortRange * -DestinationPortRange 443 -SourceAddressPrefix 'GatewayManager' -DestinationAddressPrefix * -Access Allow  -Priority 130 -Direction Inbound 
             New-AzNetworkSecurityRuleConfig -Name AllowAzureLoadBalancerInBound -Description "AllowAzureLoad Balancer InBound" -Protocol Tcp -SourcePortRange * -DestinationPortRange 443 -SourceAddressPrefix 'AzureLoadBalancer' -DestinationAddressPrefix * -Access Allow  -Priority 140 -Direction Inbound 
-            New-AzNetworkSecurityRuleConfig -Name AllowBastionHostcommunication -Description "Allow Azure LoadBalancer" -Protocol * -SourcePortRange * -DestinationPortRange 8080,5701 -SourceAddressPrefix 'VirtualNetwork' -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 150 -Direction Inbound 
+            New-AzNetworkSecurityRuleConfig -Name AllowBastionHostcommunication -Description "Allow Azure LoadBalancer" -Protocol * -SourcePortRange * -DestinationPortRange 8080, 5701 -SourceAddressPrefix 'VirtualNetwork' -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 150 -Direction Inbound 
             #endregion
             #region Outbound
-            New-AzNetworkSecurityRuleConfig -Name AllowSshRdpOutBound -Description 'Allow Ssh Rdp OutBound' -SourceAddressPrefix * -SourcePortRange * -DestinationAddressPrefix 'VirtualNetwork' -DestinationPortRange 22,3389 -Protocol * -Access Allow -Priority 100 -Direction Outbound 
+            New-AzNetworkSecurityRuleConfig -Name AllowSshRdpOutBound -Description 'Allow Ssh Rdp OutBound' -SourceAddressPrefix * -SourcePortRange * -DestinationAddressPrefix 'VirtualNetwork' -DestinationPortRange 22, 3389 -Protocol * -Access Allow -Priority 100 -Direction Outbound 
             New-AzNetworkSecurityRuleConfig -Name AllowAzureCloudOutBound -Description 'Allow Azure Cloud OutBound' -SourceAddressPrefix * -SourcePortRange * -DestinationAddressPrefix 'AzureCloud' -DestinationPortRange 443 -Protocol Tcp -Access Allow -Priority 110 -Direction Outbound 
-            New-AzNetworkSecurityRuleConfig -Name AllowBastionCommunication -Description 'Allow Bastion Communication' -SourceAddressPrefix 'VirtualNetwork' -SourcePortRange * -DestinationAddressPrefix 'VirtualNetwork' -DestinationPortRange 8080,5071 -Protocol * -Access Allow -Priority 120 -Direction Outbound 
+            New-AzNetworkSecurityRuleConfig -Name AllowBastionCommunication -Description 'Allow Bastion Communication' -SourceAddressPrefix 'VirtualNetwork' -SourcePortRange * -DestinationAddressPrefix 'VirtualNetwork' -DestinationPortRange 8080, 5071 -Protocol * -Access Allow -Priority 120 -Direction Outbound 
             New-AzNetworkSecurityRuleConfig -Name AllowGetSessionInformation -Description 'Allow Get Session Information' -SourceAddressPrefix * -SourcePortRange * -DestinationAddressPrefix 'Internet' -DestinationPortRange 80 -Protocol * -Access Allow -Priority 130 -Direction Outbound 
             #endregion
             #>
@@ -267,7 +267,7 @@ function New-AAD-Hybrid-BCDR-Lab {
         $BastionNetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $BastionNetworkSecurityGroupName -SecurityRules $BastionSecurityRules -Force
 
         Add-AzVirtualNetworkSubnetConfig -Name "AzureBastionSubnet" -VirtualNetwork $vNetwork -AddressPrefix $BastionSubnetAddressRange -NetworkSecurityGroupId $BastionNetworkSecurityGroup.Id | Set-AzVirtualNetwork
-        $publicip = New-AzPublicIpAddress -ResourceGroupName $ResourceGroupName -name "$VirtualNetworkName-ip" -location "EastUS" -AllocationMethod Static -Sku Standard
+        $publicip = New-AzPublicIpAddress -ResourceGroupName $ResourceGroupName -Name "$VirtualNetworkName-ip" -Location "EastUS" -AllocationMethod Static -Sku Standard
         $BastionVirtualNetworkName = '{0}-bastion-{1}-{2}-{3}-{4:D3}' -f $VirtualNetworkPrefix, $Project, $Role, $LocationShortName, $Instance                       
         $BastionVirtualNetworkName = $BastionVirtualNetworkName.ToLower()
         $BastionJob = New-AzBastion -ResourceGroupName $ResourceGroupName -Name $BastionVirtualNetworkName -PublicIpAddressRgName $ResourceGroupName -PublicIpAddressName "$VirtualNetworkName-ip" -VirtualNetworkRgName $ResourceGroupName -VirtualNetworkName $VirtualNetworkName -Sku "Basic" -AsJob
@@ -275,16 +275,16 @@ function New-AAD-Hybrid-BCDR-Lab {
         #Adding Security Rules for allowing connection from Bastion
         #RDP
         Get-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Name $NetworkSecurityGroupName | `
-        Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_RDP -Description "Allow RDP Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange $RDPPort -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 101 -Direction Inbound | `
-        Set-AzNetworkSecurityGroup
+            Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_RDP -Description "Allow RDP Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange $RDPPort -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 101 -Direction Inbound | `
+            Set-AzNetworkSecurityGroup
         #SSH
         Get-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Name $NetworkSecurityGroupName | `
-        Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_SSH -Description "Allow SSH Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange 22 -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 102 -Direction Inbound 
+            Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_SSH -Description "Allow SSH Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange 22 -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 102 -Direction Inbound 
         Set-AzNetworkSecurityGroup
     }
 
     #Step 6: Create Azure Public Address
-    $PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $ResourceGroupName -Location $Location -AlLocationMethod Static -DomainNameLabel $VMName.ToLower()
+    $PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $ResourceGroupName -Location $Location -AllocationMethod Static -DomainNameLabel $VMName.ToLower()
     #Setting up the DNS Name
     #$PublicIP.DnsSettings.Fqdn = $FQDN
 
@@ -425,7 +425,8 @@ function New-AAD-Hybrid-BCDR-Lab {
         try {
             Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$(Split-Path -Path $DSCConfigurationZipFileURI -Leaf)" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $DSCConfigurationName -ConfigurationArgument $DSCConfigurationArguments -Version "2.80" -Location $Location -AutoUpdate -Verbose #-ErrorAction Ignore
         }
-        catch {}
+        catch {
+        }
         $VM | Update-AzVM -Verbose
         Remove-Item -Path $DSCZipLocalFilePath -Force
         Remove-Item -Path $DestinationFolder -Recurse -Force
@@ -435,8 +436,7 @@ function New-AAD-Hybrid-BCDR-Lab {
     }
     #endregion
 
-    if ($null -ne $BastionJob)
-    {
+    if ($null -ne $BastionJob) {
         Write-Verbose -Message "Waiting the creation of the Bastion completes ..."
         $BastionJob | Wait-Job | Out-Null
     }
@@ -462,8 +462,7 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
 #region Azure Connection
-if (-not(Get-AzContext))
-{
+if (-not(Get-AzContext)) {
     Connect-AzAccount
     Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
     Write-Verbose -Message "Account : $((Get-AzContext).Account)"
@@ -490,6 +489,9 @@ if (-not([String]::IsNullOrEmpty($MissingModules))) {
 
 $AdminCredential = Get-Credential -Credential $env:USERNAME
 
+#$Instance = Get-Random -Minimum 1 -Maximum 1000
+$Instance = 2
+
 $Parameters = @{
     "AdminCredential"      = $AdminCredential
     "VMSize"               = "Standard_D2s_v5"
@@ -497,13 +499,13 @@ $Parameters = @{
     "Project"              = "avd"
     "Role"                 = "ad"
     "ADDomainName"         = "csa.fr"
-    "RemoteVNetName"       = "vnet-avd-ad-eu-001"
+    "RemoteVNetName"       = "vnet-avd-ad-use2-002"
     "VNetAddressRange"     = '10.1.0.0/16'
     "ADSubnetAddressRange" = '10.1.1.0/24'
     "FirstDCIP"            = '10.0.1.4'
     "DomainControllerIP"   = '10.1.1.4'
-    "Instance"             = 1
-    "Location"             = "eastus2"
+    "Instance"             = $Instance
+    "Location"             = "westus2"
     "Spot"                 = $false
     "Bastion"              = $false
     "Verbose"              = $true

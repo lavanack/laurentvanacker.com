@@ -94,7 +94,7 @@ function New-AAD-Hybrid-Lab {
     $NetworkSecurityGroupPrefix = "nsg"
     $VirtualNetworkPrefix = "vnet"
     $SubnetPrefix = "snet"
-                         
+
     $StorageAccountName = '{0}{1}{2}{3}{4:D3}' -f $StorageAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
     $VMName = '{0}{1}{2}{3}{4:D3}' -f $VirtualMachinePrefix, $Project, $Role, $LocationShortName, $Instance                       
     $NetworkSecurityGroupName = '{0}-{1}-{2}-{3}-{4:D3}' -f $NetworkSecurityGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
@@ -496,7 +496,7 @@ $Instance = 1
 $Parameters = @{
     "AdminCredential"      = $AdminCredential
     "UserCredential"       = $UserCredential
-    "VMSize"               = "Standard_D2s_v4"
+    "VMSize"               = "Standard_D2s_v5"
     "OSDiskType"           = "Premium_LRS"
     "Project"              = "avd"
     "Role"                 = "ad"
@@ -505,8 +505,8 @@ $Parameters = @{
     "VNetAddressRange"     = '10.0.0.0/16'
     "ADSubnetAddressRange" = '10.0.1.0/24'
     "DomainControllerIP"   = '10.0.1.4'
-    "Instance"             = 2
-    "Location"             = "westus2"
+    "Instance"             = $Instance
+    "Location"             = "eastus2"
     "Spot"                 = $false
     "Bastion"              = $false
     "Verbose"              = $true
