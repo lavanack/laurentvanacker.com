@@ -18,31 +18,45 @@ of the Sample Code.
 [CmdletBinding()]
 param
 (
-    [string[]] $ResourceType
+    [string[]] $ResourceType,
+    [string[]] $SubscriptionId
 )
 
 Clear-Host
 $Error.Clear()
 
 #region Function Definition
-function Get-AzResourceMinimumTlsVersion {
+function Get-AzResourceTlsInfo {
     [CmdletBinding()]
     param
     (
-        [string[]] $ResourceType
+        [string[]] $ResourceType,
+        [string[]] $SubscriptionId
     )
-    if ($ResourceType) {
-        $AzResource = Get-AzResource -ExpandProperties -ErrorAction Ignore | Where-Object { $_.ResourceType -in $ResourceType } | Select-Object -Property Id -ExpandProperty Properties
-    }
-    else {
-        $AzResource = Get-AzResource -ExpandProperties -ErrorAction Ignore | Select-Object -Property Id -ExpandProperty Properties
-    }
 
-    foreach ($CurrentAzResource in $AzResource) {
-        Write-Verbose "Processing '$($CurrentAzResource.Id)' ..."
-        $TLSSetting = $CurrentAzResource.psobject.Properties | Where-Object -FilterScript { $_.Name -match "TLS" }
-        if ($TLSSetting) {
-            $CurrentAzResource | Select-Object -Property Id, $TLSSetting.Name
+    if (-not($SubscriptionId)) {
+        $SubscriptionId = (Get-AzContext).Subscription.Id
+    }
+    
+    foreach ($CurrentSubscriptionId in $SubscriptionId) {
+        $null = Set-AzContext -SubscriptionId $CurrentSubscriptionId
+        $CurrentSubscriptionName = (Get-AzContext).Subscription.Name
+        Write-Verbose $("Subscription : {0} ({1})" -f $CurrentSubscriptionName, $CurrentSubscriptionId)
+
+        if ($ResourceType) {
+            $AzResource = Get-AzResource -ExpandProperties -ErrorAction Ignore | Where-Object { $_.ResourceType -in $ResourceType } | Select-Object -Property Id -ExpandProperty Properties
+        }
+        else {
+            $AzResource = Get-AzResource -ExpandProperties -ErrorAction Ignore | Select-Object -Property Id -ExpandProperty Properties
+        }
+
+        foreach ($CurrentAzResource in $AzResource) {
+            Write-Verbose "Processing '$($CurrentAzResource.Id)' ..."
+            $TLSSetting = $CurrentAzResource.psobject.Properties | Where-Object -FilterScript { $_.Name -match "TLS" }
+            if ($TLSSetting) {
+                Write-Verbose "TLS Settings: '$($TLSSetting -join ', ')' ..."
+                $CurrentAzResource | Select-Object -Property @{Name = "SubscriptionId"; Expression = { $CurrentSubscriptionId } }, @{Name = "SubscriptionName"; Expression = { $CurrentSubscriptionName } }, Id, $TLSSetting.Name
+            }
         }
     }
 }
@@ -64,6 +78,6 @@ if (-not(Get-AzContext)) {
 }
 #endregion
 
-$ResourceMinimumTlsVersion = Get-AzResourceMinimumTlsVersion -ResourceType $ResourceType #-Verbose
-#$ResourceMinimumTlsVersion = Get-AzResourceMinimumTlsVersion -ResourceType "Microsoft.Storage/storageAccounts" -Verbose
-$ResourceMinimumTlsVersion | Format-List -Property * -Force
+$ResourceTlsInfo = Get-AzResourceTlsInfo -ResourceType $ResourceType -SubscriptionId (Get-AzSubscription).Id -Verbose
+#$ResourceTlsInfo = Get-AzResourceTlsInfo -ResourceType "Microsoft.Storage/storageAccounts" -Verbose
+$ResourceTlsInfo | Format-List -Property * -Force
