@@ -78,6 +78,27 @@ if (-not(Get-AzContext)) {
 }
 #endregion
 
-$ResourceTlsInfo = Get-AzResourceTlsInfo -ResourceType $ResourceType -SubscriptionId (Get-AzSubscription).Id -Verbose
+#Get TLS Info for all Azure resources in the current subscription (with verbose mode)
+$ResourceTlsInfo = Get-AzResourceTlsInfo -Verbose
+
+#Get TLS Info for all Storage Accounts (only) in the current subscription (with verbose mode)
 #$ResourceTlsInfo = Get-AzResourceTlsInfo -ResourceType "Microsoft.Storage/storageAccounts" -Verbose
-$ResourceTlsInfo | Format-List -Property * -Force
+
+#Get TLS Info for specified Azure resources in the specified subscriptions
+#$ResourceTlsInfo = Get-AzResourceTlsInfo -ResourceType $ResourceType -SubscriptionId $SubscriptionId -Verbose
+
+#Get TLS Info for all Azure resources in all subscriptions
+#$ResourceTlsInfo = Get-AzResourceTlsInfo -SubscriptionId (Get-AzSubscription).Id
+
+
+#region Output options
+#$ResourceTlsInfo | Format-List -Property * -Force
+
+#$ResourceTlsInfo | Out-GridView
+
+#region CSV Export
+$CSVFile = $CurrentScript -replace ".ps1$", "$("_{0}.csv" -f (Get-Date -Format 'yyyyMMddHHmmss'))"
+$ResourceTlsInfo | Export-Csv -Path $CSVFile -NoTypeInformation
+& $CSVFile
+#endregion
+#endregion
