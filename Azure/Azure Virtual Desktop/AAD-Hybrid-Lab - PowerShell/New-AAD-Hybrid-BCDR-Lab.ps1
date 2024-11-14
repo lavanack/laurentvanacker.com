@@ -490,11 +490,11 @@ if (-not([String]::IsNullOrEmpty($MissingModules))) {
 $AdminCredential = Get-Credential -Credential $env:USERNAME
 
 #$Instance = Get-Random -Minimum 1 -Maximum 1000
-$Instance = 2
+$Instance = 1
 
 $Parameters = @{
     "AdminCredential"      = $AdminCredential
-    "VMSize"               = "Standard_D2s_v5"
+    "VMSize"               = "Standard_D2s_v4"
     "OSDiskType"           = "Premium_LRS"
     "Project"              = "avd"
     "Role"                 = "ad"
@@ -505,7 +505,7 @@ $Parameters = @{
     "FirstDCIP"            = '10.0.1.4'
     "DomainControllerIP"   = '10.1.1.4'
     "Instance"             = $Instance
-    "Location"             = "westus2"
+    "Location"             = "centralus"
     "Spot"                 = $false
     "Bastion"              = $false
     "Verbose"              = $true
