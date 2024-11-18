@@ -61,7 +61,7 @@ $LatestDotNetCoreHostingBundleFilePath = Join-Path -Path $CurrentDir -ChildPath 
 #endregion
 
 #region Latest DotNet SDK
-$LatestDotNetCoreSDKURI = (Invoke-WebRequest https://dotnet.microsoft.com/en-us/download).links.href | Where-Object -FilterScript { $_ -match "sdk.*windows.*-x64"}
+$LatestDotNetCoreSDKURI = (Invoke-WebRequest https://dotnet.microsoft.com/en-us/download).links.href | Where-Object -FilterScript { $_ -match "sdk.*windows.*-x64"} | Sort-Object -Descending | Select-Object -First 1
 $LatestDotNetCoreSDKURI = "https://dotnet.microsoft.com$($LatestDotNetCoreSDKURI)"
 $LatestDotNetCoreSDKURI = (Invoke-WebRequest $LatestDotNetCoreSDKURI).links.href | Where-Object -FilterScript { $_ -match "sdk.*win.*-x64"} | Select-Object -Unique
 #endregion
