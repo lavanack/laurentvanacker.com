@@ -315,4 +315,6 @@ $VerbosePreference = $PreviousVerbosePreference
 $ErrorActionPreference = $PreviousErrorActionPreference
 #Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All -Verbose
 
+Start-Process -FilePath "http://DOCKER01"
+
 Stop-Transcript
