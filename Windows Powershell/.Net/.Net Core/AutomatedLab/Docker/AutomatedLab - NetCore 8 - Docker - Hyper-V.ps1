@@ -47,17 +47,9 @@ $NetworkID = '10.0.0.0/16'
 $DC01IPv4Address = '10.0.0.1'
 $DOCKER01IPv4Address = '10.0.0.11'
 
-$IISDockerFileContentWithPowershellCommandLines = @"
-# final stage/image
-FROM mcr.microsoft.com/dotnet/aspnet:8.0
-WORKDIR /app
-COPY --from=build /app ./
-ENTRYPOINT ["dotnet", "aspnetapp.dll"]
-"@
-
 $DockerFileName = 'DockerFile'
 
-$LabName = 'NetCoreDocker2025'
+$LabName = 'NetCoreDocker2022'
 
 #Dynamically get the latest version
 #region Latest DotNet Core Hosting Bundle
@@ -238,6 +230,7 @@ Checkpoint-LabVM -SnapshotName DotNetSetup -All
 
 Invoke-LabCommand -ActivityName 'Git Setup' -ComputerName DOCKER01 -ScriptBlock {
     Remove-Item -Path \dotnet-docker -Recurse -Force -ErrorAction Ignore
+    Set-Location -Path \
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git clone https://github.com/dotnet/dotnet-docker.git" -Wait
     Set-Location -Path \dotnet-docker\samples\aspnetapp\aspnetapp
     dotnet build
@@ -248,8 +241,6 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -S
     Set-WinUserLanguageList fr-fr -Force
 
     Start-Service Docker
-    #Pulling IIS image
-    #docker pull mcr.microsoft.com/dotnet/aspnet:8.0
 
     #Stopping all previously running containers if any
     if ($(docker ps -a -q)) {
@@ -261,7 +252,8 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -S
     #From https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/docker/building-net-docker-images?view=aspnetcore-8.0
     Set-Location -Path \dotnet-docker\samples\aspnetapp
     Rename-Item -Path DockerFile -NewName DockerFile.old
-    Copy-Item -Path .\Dockerfile.windowsservercore -Destination .\Dockerfile
+    #Using the nanoserver image
+    Copy-Item -Path .\Dockerfile.nanoserver -Destination .\Dockerfile
 
     #Building the image only once
     if ($(docker image ls) -notmatch "\s*aspnetapp\s*") {
