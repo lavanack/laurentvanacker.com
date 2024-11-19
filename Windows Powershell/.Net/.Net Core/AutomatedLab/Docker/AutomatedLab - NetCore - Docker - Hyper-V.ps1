@@ -47,9 +47,13 @@ $NetworkID = '10.0.0.0/16'
 $DC01IPv4Address = '10.0.0.1'
 $DOCKER01IPv4Address = '10.0.0.11'
 
+$DockerIISRootFolder = "$env:SystemDrive\Docker\AspNetApp"
 $DockerFileName = 'DockerFile'
 
 $LabName = 'NetCoreDocker2022'
+
+#We will create an IIS container listening for every port we specify here
+$IISWebSitePort = 80..82
 
 #Dynamically get the latest version
 #region Latest DotNet Core Hosting Bundle
@@ -63,10 +67,8 @@ $LatestDotNetCoreSDKURI = "https://dotnet.microsoft.com$($LatestDotNetCoreSDKURI
 $LatestDotNetCoreSDKURI = (Invoke-WebRequest $LatestDotNetCoreSDKURI).links.href | Where-Object -FilterScript { $_ -match "sdk.*win.*-x64" } | Select-Object -Unique
 #endregion
 
-$DockerIISRootFolder = "$env:SystemDrive\Docker\AspNetApp"
-$GitURI = ((Invoke-WebRequest -Uri 'https://git-scm.com/download/win').Links | Where-Object -FilterScript { $_.InnerText -eq "64-bit Git For Windows Setup" }).href
-$GitURI = "https://github.com/git-for-windows/git/releases/download/v2.47.0.windows.2/Git-2.47.0.2-64-bit.exe"
-
+#$GitURI = "https://github.com/git-for-windows/git/releases/download/v2.47.0.windows.2/Git-2.47.0.2-64-bit.exe"
+$GitURI = "https://github.com{0}" -f ((Invoke-WebRequest -Uri 'https://github.com/git-for-windows/git/releases').Links | Where-Object -FilterScript { $_.InnerText -match "64-bit.exe" }).href
 #endregion
 
 #Cleaning previously existing lab
@@ -156,8 +158,12 @@ Invoke-LabCommand -ActivityName 'DNS, AD Setup & GPO Settings on DC' -ComputerNa
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Edge' -ValueName "HideFirstRunExperience" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
 
     #Bonus : To open all the available websites accross all nodes
-    $StartPage = "http://DOCKER01"
-    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Edge\RestoreOnStartupURLs' -ValueName 0 -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "$StartPage"
+    $i = 0
+    $using:IISWebSitePort | ForEach-Object -Process {
+        $CurrentIISWebSitePort = $_
+        $StartPage = "http://DOCKER01:$CurrentIISWebSitePort"
+        Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Edge\RestoreOnStartupURLs' -ValueName ($i++) -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "$StartPage"
+    }
     #Hide the First-run experience and splash screen on Edge : https://docs.microsoft.com/en-us/deployedge/microsoft-edge-policies#hidefirstrunexperience
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\SOFTWARE\Policies\Microsoft\Edge' -ValueName "HideFirstRunExperience" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 1
     #endregion
@@ -249,23 +255,33 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -S
         docker rm -f $(docker ps -a -q)
     }
     
-    #From https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/docker/building-net-docker-images?view=aspnetcore-8.0
-    Set-Location -Path \dotnet-docker\samples\aspnetapp
-    Rename-Item -Path DockerFile -NewName DockerFile.old
-    #Using the nanoserver image
-    Copy-Item -Path .\Dockerfile.nanoserver -Destination .\Dockerfile
+    #Creating an IIS container per HTTP(S) port
+    foreach ($CurrentIISWebSitePort in $using:IISWebSitePort) {
+        $TimeStamp = $("{0:yyyyMMddHHmmss}" -f (Get-Date))
+        $Name = "aspnetcore_sample_$($TimeStamp)"
 
-    #Building the image only once
-    if ($(docker image ls) -notmatch "\s*aspnetapp\s*") {
-        Write-Verbose -Message "Building the Docker image ..."
-        docker build -t aspnetapp .
+        $ContainerLocalRootFolder = Join-Path -Path $using:DockerIISRootFolder -ChildPath "$Name"
+        $ContainerLocalDockerFile = Join-Path -Path $ContainerLocalRootFolder -ChildPath $using:DockerFileName
+        $null = New-Item -Path $ContainerLocalRootFolder -ItemType Directory -Force
+        
+        #From https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/docker/building-net-docker-images?view=aspnetcore-8.0
+        Copy-Item -Path \dotnet-docker\samples\aspnetapp\* -Destination $ContainerLocalRootFolder -Recurse -Force
+        #Using the reference DockerFile.nanoserver as DockerFile into the dedicated Docker instance Folder
+        Copy-Item -Path $ContainerLocalRootFolder\DockerFile.nanoserver -Destination $ContainerLocalDockerFile -Force
+        
+        Set-Location -Path $ContainerLocalRootFolder
+
+        #Building the image only once
+        if ($(docker image ls) -notmatch "\s*aspnetapp\s*") {
+            Write-Verbose -Message "Building the Docker image ..."
+            docker build -t aspnetapp .
+        }
+        docker run -d -p "$($CurrentIISWebSitePort):8080" --name $Name aspnetapp --restart always #--rm
+
+        #Getting the IP v4 address of the container
+        $ContainerIPv4Address = (docker inspect -f "{{ .NetworkSettings.Networks.nat.IPAddress }}" $Name | Out-String) -replace "`r|`n"
+        Write-Host "The internal IPv4 address for the container [$Name] is [$ContainerIPv4Address]" -ForegroundColor Yellow
     }
-    $Name = "aspnetcore_sample"
-    docker run -d -p "80:8080" --name $Name aspnetapp --restart always #--rm
-
-    #Getting the IP v4 address of the container
-    $ContainerIPv4Address = (docker inspect -f "{{ .NetworkSettings.Networks.nat.IPAddress }}" $Name | Out-String) -replace "`r|`n"
-    Write-Host "The internal IPv4 address for the container [$Name] is [$ContainerIPv4Address]" -ForegroundColor Yellow
 
     #Pulling ASP.Net Sample image
     #docker run -d -p 8080:80 --name aspnet_sample --rm -it mcr.microsoft.com/dotnet/framework/samples:aspnetapp
@@ -298,7 +314,7 @@ Invoke-LabCommand -ActivityName 'Pushing Docker images' -ComputerName DOCKER01 -
 $Jobs | Wait-Job | Out-Null
 
 #For updating the GPO
-Restart-LabVM -ComputerName $machines -Wait
+#Restart-LabVM -ComputerName $machines -Wait
 
 Show-LabDeploymentSummary -Detailed
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
@@ -307,6 +323,9 @@ $VerbosePreference = $PreviousVerbosePreference
 $ErrorActionPreference = $PreviousErrorActionPreference
 #Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All -Verbose
 
-Start-Process -FilePath "http://DOCKER01"
+
+foreach ($CurrentIISWebSitePort in $IISWebSitePort) {
+    Start-Process -FilePath $("http://DOCKER01:{0}" -f $CurrentIISWebSitePort)
+}
 
 Stop-Transcript
