@@ -11,6 +11,7 @@ $AdJoinUserName = 'adjoin'
 $ClearTextPassword = 'I@m@JediLikeMyF@therB4Me'
 $AdJoinPassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
 $AdJoinCredential = New-Object System.Management.Automation.PSCredential -ArgumentList ($AdJoinUserName, $AdJoinPassword)
+#endregion
 #region Azure Key Vault for stroing ADJoin Credentials
 $HostPoolSessionCredentialKeyVault = New-PsAvdHostPoolSessionHostCredentialKeyVault -ADJoinCredential $ADJoinCredential
 #endregion
