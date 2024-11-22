@@ -86,9 +86,9 @@ $AzureVMNameMaxLength = 15
 $RDPPort = 3389
 $JitPolicyTimeInHours = 3
 $JitPolicyName = "Default"
-$PrimaryLocation = "eastus"
-$RecoveryLocation = "eastus2"
-$VMSize = "Standard_D4s_v5"
+$PrimaryLocation = "EastUS2"
+$RecoveryLocation = "CentralUS"
+$VMSize = "Standard_D4s_v4"
 $PrimaryLocationShortName = $shortNameHT[$PrimaryLocation].shortName
 $RecoveryLocationShortName = $shortNameHT[$RecoveryLocation].shortName
 
@@ -101,7 +101,7 @@ $NetworkSecurityGroupPrefix = "nsg"
 $VirtualNetworkPrefix = "vnet"
 $SubnetPrefix = "snet"
 $Project = "asr"
-$Role = "drp"
+$Role = "pol"
 #$DigitNumber = 4
 $DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role + $PrimaryLocationShortName).Length
 
@@ -149,23 +149,23 @@ $SecurePassword = New-RandomPassword -ClipBoard -AsSecureString -Verbose
 $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList ($Username, $SecurePassword)
 #endregion
 
-$Jobss = @()
+$Jobs = @()
 $PrimaryLocationResourceGroup = Get-AzResourceGroup -Name $PrimaryLocationResourceGroupName -ErrorAction Ignore 
 if ($PrimaryLocationResourceGroup) {
     #Remove previously existing Azure Resource Group with the same name
-    $Jobss += $PrimaryLocationResourceGroup | Remove-AzResourceGroup -Force -AsJob
+    $Jobs += $PrimaryLocationResourceGroup | Remove-AzResourceGroup -Force -AsJob
 }
 
 $RecoveryLocationResourceGroup = Get-AzResourceGroup -Name $RecoveryLocationResourceGroupName -ErrorAction Ignore 
 if ($RecoveryLocationResourceGroup) {
     #Remove previously existing Azure Resource Group with the same name
-    $Jobss += $RecoveryLocationResourceGroup | Remove-AzResourceGroup -Force -AsJob
+    $Jobs += $RecoveryLocationResourceGroup | Remove-AzResourceGroup -Force -AsJob
 }
 
-$Jobss | Wait-Job | Out-Null
-$Jobss | Remove-Job -Force
+$Jobs | Wait-Job | Out-Null
+$Jobs | Remove-Job -Force
 
-$MyPublicIp = (Invoke-WebRequest -uri "https://ipv4.seeip.org").Content
+$MyPublicIp = (Invoke-WebRequest -Uri "https://ipv4.seeip.org").Content
 
 #region Define Variables needed for Virtual Machine
 $ImagePublisherName = "MicrosoftWindowsServer"
@@ -206,10 +206,10 @@ elseif (-not($RecoveryLocationShortName)) {
 elseif (-not($PrimaryLocationShortName)) {
     Write-Error "No location short name found for '$PrimaryLocation'" -ErrorAction Stop
 }
-elseif ($null -eq (Get-AZVMSize -Location $PrimaryLocation | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
+elseif ($null -eq (Get-AzVMSize -Location $PrimaryLocation | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
     Write-Error "The '$VMSize' is not available in the '$PrimaryLocation' location ..." -ErrorAction Stop
 }
-elseif ($null -eq (Get-AZVMSize -Location $RecoveryLocation | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
+elseif ($null -eq (Get-AzVMSize -Location $RecoveryLocation | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
     Write-Error "The '$VMSize' is not available in the '$RecoveryLocation' location ..." -ErrorAction Stop
 }
 
@@ -251,7 +251,7 @@ $PrimaryLocationSubnet = Get-AzVirtualNetworkSubnetConfig -Name $PrimaryLocation
 #endregion
 
 #Create Azure Public Address
-$PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $PrimaryLocationResourceGroupName -Location $PrimaryLocation -AlLocationMethod Static -DomainNameLabel $VMName.ToLower()
+$PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $PrimaryLocationResourceGroupName -Location $PrimaryLocation -AllocationMethod Static -DomainNameLabel $VMName.ToLower()
 #Setting up the DNS Name
 #$PublicIP.DnsSettings.Fqdn = $FQDN
 
@@ -369,24 +369,32 @@ $PrimaryLocationCacheStorageAccount = New-AzStorageAccount -Name $PrimaryLocatio
 #>
 
 #region Azure Policy Management
-$PolicyDefinition = Get-AzPolicyDefinition | Where-Object -FilterScript { $_.Properties.DisplayName -eq "Configure disaster recovery on virtual machines by enabling replication via Azure Site Recovery" }
-$PolicyAssignment = New-AzPolicyAssignment -Name "$($PrimaryLocationResourceGroupName)-enableAzureVMReplicationViaAzureSiteRecovery" -DisplayName 'Configure disaster recovery on virtual machines by enabling replication via Azure Site Recovery' -Scope $PrimaryLocationResourceGroup.ResourceId -PolicyDefinition $PolicyDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $RecoveryLocation -SourceRegion $PrimaryLocation -TargetRegion $RecoveryLocation -targetResourceGroupId $RecoveryLocationResourceGroup.ResourceId -vaultResourceGroupId $RecoveryLocationResourceGroup.ResourceId -vaultId $RecoveryServicesVault.ID -recoveryNetworkId $RecoveryLocationVirtualNetwork.Name -cacheStorageAccountId $PrimaryLocationCacheStorageAccount.StorageAccountName -tagValue @() -targetZone ""
+$PolicyDefinition = Get-AzPolicyDefinition | Where-Object -FilterScript { $_.DisplayName -eq "Configure disaster recovery on virtual machines by enabling replication via Azure Site Recovery" }
+$PolicyParameterObject = @{
+    SourceRegion          = $PrimaryLocation 
+    TargetRegion          = $RecoveryLocation 
+    targetResourceGroupId = $RecoveryLocationResourceGroup.ResourceId 
+    vaultResourceGroupId  = $RecoveryLocationResourceGroup.ResourceId 
+    vaultId               = $RecoveryServicesVault.ID 
+}
+
+$PolicyAssignment = New-AzPolicyAssignment -Name "$($PrimaryLocationResourceGroupName)-enableAzureVMReplicationViaAzureSiteRecovery" -DisplayName 'Configure disaster recovery on virtual machines by enabling replication via Azure Site Recovery' -Scope $PrimaryLocationResourceGroup.ResourceId -PolicyDefinition $PolicyDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $RecoveryLocation -PolicyParameterObject $PolicyParameterObject 
 
 # Grant defined roles to the primary and recovery resource groups with PowerShell
-$roleDefinitionIds = $PolicyDefinition | Select-Object @{Name = "roleDefinitionIds"; Expression = { $_.Properties.policyRule.then.details.roleDefinitionIds } } | Select-Object -ExpandProperty roleDefinitionIds #-Unique
+$roleDefinitionIds = $PolicyDefinition | Select-Object @{Name = "roleDefinitionIds"; Expression = { $_.policyRule.then.details.roleDefinitionIds } } | Select-Object -ExpandProperty roleDefinitionIds #-Unique
 Start-Sleep -Seconds 30
 if ($roleDefinitionIds.Count -gt 0) {
     $roleDefinitionIds | ForEach-Object -Process {
         $roleDefId = $_.Split("/") | Select-Object -Last 1
-        if (-not(Get-AzRoleAssignment -Scope $PrimaryLocationResourceGroup.ResourceId -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $roleDefId)) {
-            New-AzRoleAssignment -Scope $PrimaryLocationResourceGroup.ResourceId -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $roleDefId
-            New-AzRoleAssignment -Scope $RecoveryLocationResourceGroup.ResourceId -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $roleDefId
+        if (-not(Get-AzRoleAssignment -Scope $PrimaryLocationResourceGroup.ResourceId -ObjectId $PolicyAssignment.IdentityPrincipalId -RoleDefinitionId $roleDefId)) {
+            New-AzRoleAssignment -Scope $PrimaryLocationResourceGroup.ResourceId -ObjectId $PolicyAssignment.IdentityPrincipalId -RoleDefinitionId $roleDefId
+            New-AzRoleAssignment -Scope $RecoveryLocationResourceGroup.ResourceId -ObjectId $PolicyAssignment.IdentityPrincipalId -RoleDefinitionId $roleDefId
         }
     }
 }
 
-Write-Host -Object "Creating remediation for '$($PolicyDefinition.Properties.DisplayName)' Policy ..."
-$PolicyRemediation = Start-AzPolicyRemediation -Name $PolicyAssignment.Name -PolicyAssignmentId $PolicyAssignment.PolicyAssignmentId -ResourceGroupName $PrimaryLocationResourceGroup.ResourceGroupName -ResourceDiscoveryMode ReEvaluateCompliance
+Write-Host -Object "Creating remediation for '$($PolicyDefinition.DisplayName)' Policy ..."
+$PolicyRemediation = Start-AzPolicyRemediation -Name $PolicyAssignment.Name -PolicyAssignmentId $PolicyAssignment.Id -ResourceGroupName $PrimaryLocationResourceGroup.ResourceGroupName -ResourceDiscoveryMode ReEvaluateCompliance
 $PolicyRemediation
 
 Write-Host -Object "Starting Compliance Scan for '$PrimaryLocationResourceGroupName' Resource Group ..."

@@ -86,9 +86,9 @@ $AzureVMNameMaxLength = 15
 $RDPPort = 3389
 $JitPolicyTimeInHours = 3
 $JitPolicyName = "Default"
-$PrimaryLocation = "eastus"
-$RecoveryLocation = "eastus2"
-$VMSize = "Standard_D4s_v5"
+$PrimaryLocation = "westus"
+$RecoveryLocation = "westus2"
+$VMSize = "Standard_D4s_v4"
 $PrimaryLocationShortName = $shortNameHT[$PrimaryLocation].shortName
 $RecoveryLocationShortName = $shortNameHT[$RecoveryLocation].shortName
 
@@ -394,6 +394,7 @@ Write-Host -Object "Preparing the '$RecoveryServicesVaultName' Recovery Services
 Write-Host -Object "Creating a Site Recovery fabric object to represent the primary (source) region ('$PrimaryLocation') ..."
 #Create Primary ASR fabric
 $TempASRJob = New-AzRecoveryServicesAsrFabric -Azure -Location $PrimaryLocation  -Name $PrimaryLocationRecoveryServicesAsrFabricName
+Start-Sleep -Seconds 10
 
 # Track Job status to check for completion
 while (($TempASRJob.State -eq "InProgress") -or ($TempASRJob.State -eq "NotStarted")) {
@@ -412,6 +413,7 @@ $PrimaryLocationFabric = Get-AzRecoveryServicesAsrFabric -Name $PrimaryLocationR
 Write-Host -Object "Creating a Site Recovery fabric object to represent the recovery region ('$RecoveryLocation') ..."
 #Create Recovery ASR fabric
 $TempASRJob = New-AzRecoveryServicesAsrFabric -Azure -Location $RecoveryLocation  -Name $RecoveryLocationRecoveryServicesAsrFabricName
+Start-Sleep -Seconds 10
 
 # Track Job status to check for completion
 while (($TempASRJob.State -eq "InProgress") -or ($TempASRJob.State -eq "NotStarted")) {
@@ -428,6 +430,7 @@ $RecoveryLocationFabric = Get-AzRecoveryServicesAsrFabric -Name $RecoveryLocatio
 #region Create a Protection container in the primary Azure region (within the Primary fabric)
 Write-Host -Object "Creating a Protection container in the primary Azure region ('$PrimaryLocation')(within the Primary fabric)"
 $TempASRJob = New-AzRecoveryServicesAsrProtectionContainer -InputObject $PrimaryLocationFabric -Name $PrimaryLocationRecoveryServicesAsrProtectionContainerName
+Start-Sleep -Seconds 10
 
 #Track Job status to check for completion
 while (($TempASRJob.State -eq "InProgress") -or ($TempASRJob.State -eq "NotStarted")) {
@@ -444,6 +447,7 @@ $PrimaryProtectionContainer = Get-AzRecoveryServicesAsrProtectionContainer -Fabr
 #region Create a Protection container in the recovery Azure region (within the Recovery fabric)
 Write-Host -Object "Creating a Protection container in the recovery Azure region ('$RecoveryLocation')(within the Recovery fabric)"
 $TempASRJob = New-AzRecoveryServicesAsrProtectionContainer -InputObject $RecoveryLocationFabric -Name $RecoveryLocationRecoveryServicesAsrProtectionContainerName
+Start-Sleep -Seconds 10
 
 #Track Job status to check for completion
 while (($TempASRJob.State -eq "InProgress") -or ($TempASRJob.State -eq "NotStarted")) {
@@ -680,6 +684,7 @@ Write-Host -Object "Reprotecting ..."
 
 #Use the recovery protection container, new cache storage account in recovery location and the source region VM resource group
 $ReprotectJob = Update-AzRecoveryServicesAsrProtectionDirection -ReplicationProtectedItem $ReplicationProtectedItem -AzureToAzure -ProtectionContainerMapping $RecoveryToPrimaryPCMapping -LogStorageAccountId $RecoveryLocationCacheStorageAccount.Id -RecoveryResourceGroupID $PrimaryLocationResourceGroup.ResourceId
+Start-Sleep -Seconds 30
 
 Write-Host -Object "Waiting the reprotection completes ..." 
 while (($ReprotectJob.State -eq "InProgress") -or ($ReprotectJob.State -eq "NotStarted")) {

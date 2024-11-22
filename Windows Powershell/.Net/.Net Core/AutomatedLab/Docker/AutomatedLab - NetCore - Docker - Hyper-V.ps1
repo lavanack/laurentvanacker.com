@@ -47,43 +47,28 @@ $NetworkID = '10.0.0.0/16'
 $DC01IPv4Address = '10.0.0.1'
 $DOCKER01IPv4Address = '10.0.0.11'
 
-$IISSetupFileName = 'IISSetup.ps1'
-
-$IISDockerFileContentWithPowershellCommandLines = @"
-FROM mcr.microsoft.com/windows/servercore/iis:windowsservercore-ltsc2022
-SHELL [ "powershell" ]
-
-#setup ASP.Net and Remote IIS management
-RUN Install-WindowsFeature Web-Mgmt-Service, Web-Asp-Net45; \
-New-ItemProperty -Path HKLM:\software\microsoft\WebManagement\Server -Name EnableRemoteManagement -Value 1 -Force; \
-Set-Service -Name wmsvc -StartupType automatic;
-
-#Add user for Remote IIS Manager Login
-#RUN net user IISAdmin $ClearTextPassword /ADD; \
-#net localgroup administrators IISAdmin /add;
-RUN New-LocalUser -Name IISAdmin -Password `$(ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force) -AccountNeverExpires -PasswordNeverExpires | Add-LocalGroupMember -Group "Administrators"
-"@
-
-$IISDockerFileContentCallingPowershellScript = @"
-FROM mcr.microsoft.com/windows/servercore/iis:windowsservercore-ltsc2022
-COPY $IISSetupFileName C:\\
-SHELL [ "powershell" ]
-#File for a custom IIS setup
-RUN C:\$IISSetupFileName; \
-#Removing file after setup
-Remove-Item -Path C:\$IISSetupFileName -Force
-"@
-
+$DockerIISRootFolder = "$env:SystemDrive\Docker\AspNetApp"
 $DockerFileName = 'DockerFile'
 
-$LabName = 'IISDocker2022'
+$LabName = 'NetCoreDocker2022'
 
 #We will create an IIS container listening for every port we specify here
 $IISWebSitePort = 80..82
 
-#If we want to customize the IIS setup we will use this Powershell script
-$IISSetupPowerShellScriptFile = Join-Path -Path $CurrentDir -ChildPath $IISSetupFileName
-$DockerIISRootFolder = "$env:SystemDrive\Docker\IIS"
+#Dynamically get the latest version
+#region Latest DotNet Core Hosting Bundle
+$LatestDotNetCoreHostingBundleURI = (Invoke-WebRequest https://dotnet.microsoft.com/permalink/dotnetcore-current-windows-runtime-bundle-installer).links.href | Where-Object -FilterScript { $_ -match "\.exe$" } | Select-Object -Unique
+$LatestDotNetCoreHostingBundleFilePath = Join-Path -Path $CurrentDir -ChildPath $(($LatestDotNetCoreHostingBundleURI -split "/")[-1])
+#endregion
+
+#region Latest DotNet SDK
+$LatestDotNetCoreSDKURI = (Invoke-WebRequest https://dotnet.microsoft.com/en-us/download).links.href | Where-Object -FilterScript { $_ -match "sdk.*windows.*-x64" } | Sort-Object -Descending | Select-Object -First 1
+$LatestDotNetCoreSDKURI = "https://dotnet.microsoft.com$($LatestDotNetCoreSDKURI)"
+$LatestDotNetCoreSDKURI = (Invoke-WebRequest $LatestDotNetCoreSDKURI).links.href | Where-Object -FilterScript { $_ -match "sdk.*win.*-x64" } | Select-Object -Unique
+#endregion
+
+#$GitURI = "https://github.com/git-for-windows/git/releases/download/v2.47.0.windows.2/Git-2.47.0.2-64-bit.exe"
+$GitURI = "https://github.com{0}" -f ((Invoke-WebRequest -Uri 'https://github.com/git-for-windows/git/releases').Links | Where-Object -FilterScript { $_.InnerText -match "64-bit.exe" }).href
 #endregion
 
 #Cleaning previously existing lab
@@ -147,6 +132,12 @@ $Jobs = @()
 $Jobs += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $machines -IncludeManagementTools -PassThru -AsJob
 #endregion
 
+#region Installing Git
+$Git = Get-LabInternetFile -Uri $GitUri -Path $labSources\SoftwarePackages -PassThru -Force
+$Jobs += Install-LabSoftwarePackage -ComputerName DOCKER01 -Path $Git.FullName -CommandLine " /SILENT /CLOSEAPPLICATIONS" -AsJob -PassThru
+#endregion
+
+
 #Installing and setting up DNS
 Invoke-LabCommand -ActivityName 'DNS, AD Setup & GPO Settings on DC' -ComputerName DC01 -ScriptBlock {
     #region DNS management
@@ -169,8 +160,8 @@ Invoke-LabCommand -ActivityName 'DNS, AD Setup & GPO Settings on DC' -ComputerNa
     #Bonus : To open all the available websites accross all nodes
     $i = 0
     $using:IISWebSitePort | ForEach-Object -Process {
-        $CurrentIISWebSiteHostPort = $_
-        $StartPage = "http://DOCKER01:$CurrentIISWebSiteHostPort"
+        $CurrentIISWebSitePort = $_
+        $StartPage = "http://DOCKER01:$CurrentIISWebSitePort"
         Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Edge\RestoreOnStartupURLs' -ValueName ($i++) -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "$StartPage"
     }
     #Hide the First-run experience and splash screen on Edge : https://docs.microsoft.com/en-us/deployedge/microsoft-edge-policies#hidefirstrunexperience
@@ -184,9 +175,6 @@ Invoke-LabCommand -ActivityName 'DNS, AD Setup & GPO Settings on DC' -ComputerNa
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Environment' -ValueName "SSLKEYLOGFILE" -Type ([Microsoft.Win32.RegistryValueKind]::ExpandString) -Value $SSLKeysFile
     #endregion
 }
-
-#Install-LabWindowsFeature -FeatureName Containers, Hyper-V, Web-Mgmt-Console -ComputerName DOCKER01 -IncludeManagementTools
-$Jobs += Install-LabWindowsFeature -FeatureName Web-Mgmt-Console -ComputerName DOCKER01 -IncludeManagementTools -PassThru -AsJob
 
 #Checkpoint-LabVM -SnapshotName BeforeDockerSetup -All
 #Restore-LabVMSnapshot -SnapshotName BeforeDockerSetup -All -Verbose
@@ -206,24 +194,59 @@ $Jobs += Install-LabWindowsFeature -FeatureName Web-Mgmt-Console -ComputerName D
     Restart-LabVM -ComputerName DOCKER01 -Wait
 }
 
+$Jobs | Wait-Job | Out-Null
+
 Checkpoint-LabVM -SnapshotName DockerSetup -All
 #Restore-LabVMSnapshot -SnapshotName 'DockerSetup' -All -Verbose
 
-#If an IISSetup.ps1 file is present in the same folder than this script, we copy it on the DOCKER01 VM for a customized IIS setup, else we use a simple docker file
-If (Test-Path -Path $IISSetupPowerShellScriptFile) {
-    $IsIISSetupPowerShellScriptPresent = $true
-    Copy-LabFileItem -Path $IISSetupPowerShellScriptFile -DestinationFolderPath $DockerIISRootFolder -ComputerName DOCKER01
+#region .Net Core pre-requisites
+#region Downloading and Installing .Net Hosting Bundle Installer for hosting the web app
+$LatestDotNetCoreHostingBundle = Get-LabInternetFile -Uri $LatestDotNetCoreHostingBundleURI -Path $labSources\SoftwarePackages -PassThru -Force
+Install-LabSoftwarePackage -ComputerName DOCKER01 -Path $LatestDotNetCoreHostingBundle.FullName -CommandLine "/install /passive /norestart"
+#endregion 
+
+#region Downloading and Installing .Net SDK for creating the web app
+$LatestDotNetCoreSDK = Get-LabInternetFile -Uri $LatestDotNetCoreSDKURI -Path $labSources\SoftwarePackages -PassThru -Force
+Install-LabSoftwarePackage -ComputerName DOCKER01 -Path $LatestDotNetCoreSDK.FullName -CommandLine "/install /passive /norestart"
+#endregion
+
+Restart-LabVM -ComputerName DOCKER01 -Wait
+#endregion
+
+<#
+Invoke-LabCommand -ActivityName '.DotNet Setup' -ComputerName DOCKER01 -ScriptBlock {
+    #region Install .NET on Windows
+    #From https://learn.microsoft.com/en-us/dotnet/core/install/windows?WT.mc_id=dotnet-35129-website#install-with-powershell
+    #SDK
+    Invoke-Expression -Command "& { $(Invoke-RestMethod https://dot.net/v1/dotnet-install.ps1) } -Channel 8.0 -Quality GA #-Verbose"
+    #Desktop runtime 
+    Invoke-Expression -Command "& { $(Invoke-RestMethod https://dot.net/v1/dotnet-install.ps1) } -Channel 8.0 -Quality GA -Runtime windowsdesktop #-Verbose"
+    #ASP.NET Core runtime 
+    Invoke-Expression -Command "& { $(Invoke-RestMethod https://dot.net/v1/dotnet-install.ps1) } -Channel 8.0 -Quality GA -Runtime aspnetcore #-Verbose"
+
+    #winget install Microsoft.DotNet.SDK.9
+    #winget install Microsoft.DotNet.DesktopRuntime.9
+    #winget install Microsoft.DotNet.AspNetCore.9
+    #endregion
 }
-else {
-    $IsIISSetupPowerShellScriptPresent = $false
-}
+#>
+
+Checkpoint-LabVM -SnapshotName DotNetSetup -All
+#Restore-LabVMSnapshot -SnapshotName 'DotNetSetup' -All -Verbose
+
+Invoke-LabCommand -ActivityName 'Git Setup' -ComputerName DOCKER01 -ScriptBlock {
+    Remove-Item -Path \dotnet-docker -Recurse -Force -ErrorAction Ignore
+    Set-Location -Path \
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git clone https://github.com/dotnet/dotnet-docker.git" -Wait
+    Set-Location -Path \dotnet-docker\samples\aspnetapp\aspnetapp
+    dotnet build
+} -Verbose
+
 
 Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -ScriptBlock {
     Set-WinUserLanguageList fr-fr -Force
 
     Start-Service Docker
-    #Pulling IIS image
-    #docker pull mcr.microsoft.com/windows/servercore/iis:windowsservercore-ltsc2022
 
     #Stopping all previously running containers if any
     if ($(docker ps -a -q)) {
@@ -231,45 +254,35 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -S
         #To delete all containers
         docker rm -f $(docker ps -a -q)
     }
+    
     #Creating an IIS container per HTTP(S) port
-    $using:IISWebSitePort | ForEach-Object {
-        $CurrentIISWebSiteHostPort = $_
+    foreach ($CurrentIISWebSitePort in $using:IISWebSitePort) {
         $TimeStamp = $("{0:yyyyMMddHHmmss}" -f (Get-Date))
-        $Name = "MyRunningWebSite_$($TimeStamp)"
+        $Name = "aspnetcore_sample_$($TimeStamp)"
+
         $ContainerLocalRootFolder = Join-Path -Path $using:DockerIISRootFolder -ChildPath "$Name"
-        $ContainerLocalContentFolder = Join-Path -Path $ContainerLocalRootFolder -ChildPath "Content"
-        $ContainerLocalLogFolder = Join-Path -Path $ContainerLocalRootFolder -ChildPath "LogFiles"
         $ContainerLocalDockerFile = Join-Path -Path $ContainerLocalRootFolder -ChildPath $using:DockerFileName
-        $null = New-Item -Path $ContainerLocalContentFolder, $ContainerLocalLogFolder -ItemType Directory -Force
+        $null = New-Item -Path $ContainerLocalRootFolder -ItemType Directory -Force
         
-        #If an IISSetup.ps1 file is present in the same folder than this script, we use it on the DOCKER01 VM for a customized IIS setup, else we use a simple docker file
-        if ($using:IsIISSetupPowerShellScriptPresent) {
-            #Customizing default page
-            "<html><title>Docker Test Page</title><body>This page was generated at $(Get-Date) via Powershell.<BR>Current Time is <%=Now%> (via ASP.Net).<BR>Your are listening on port <b>$CurrentIISWebSiteHostPort</b>.<BR>You are using a <b>PowerShell script</b> for setting up IIS</body></html>" | Out-File -FilePath $(Join-Path -Path $ContainerLocalContentFolder -ChildPath "default.aspx")
-            $null = New-Item -Path $ContainerLocalDockerFile -ItemType File -Value $using:IISDockerFileContentCallingPowershellScript -Force
-            Copy-Item -Path $(Join-Path -Path $using:DockerIISRootFolder -ChildPath $using:IISSetupFileName) -Destination $ContainerLocalRootFolder -Force -Recurse
-        }
-        else {
-            #Customizing default page
-            "<html><title>Docker Test Page</title><body>This page was generated at $(Get-Date) via Powershell.<BR>Current Time is <%=Now%> (via ASP.Net).<BR>Your are listening on port <b>$CurrentIISWebSiteHostPort</b>.<BR>You are only using a <b>Docker file</b> for setting up IIS</body></html>" | Out-File -FilePath $(Join-Path -Path $ContainerLocalContentFolder -ChildPath "default.aspx")
-            $null = New-Item -Path $ContainerLocalDockerFile -ItemType File -Value $using:IISDockerFileContentWithPowershellCommandLines -Force
-        }
+        #From https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/docker/building-net-docker-images?view=aspnetcore-8.0
+        Copy-Item -Path \dotnet-docker\samples\aspnetapp\* -Destination $ContainerLocalRootFolder -Recurse -Force
+        #Using the reference DockerFile.nanoserver as DockerFile into the dedicated Docker instance Folder
+        Copy-Item -Path $ContainerLocalRootFolder\DockerFile.nanoserver -Destination $ContainerLocalDockerFile -Force
         
         Set-Location -Path $ContainerLocalRootFolder
+
         #Building the image only once
-        if ($(docker image ls) -notmatch "\s*iis-website\s*") {
+        if ($(docker image ls) -notmatch "\s*aspnetapp\s*") {
             Write-Verbose -Message "Building the Docker image ..."
-            docker build -t iis-website .
+            docker build -t aspnetapp .
         }
-        #Mapping the remote IIS log files directory locally for every container for easier management
-        #docker run -d -p "$($CurrentIISWebSiteHostPort):80" -v $ContainerLocalLogFolder\:C:\inetpub\logs\LogFiles -v $ContainerLocalContentFolder\:C:\inetpub\wwwroot --name $Name iis-website --restart unless-stopped #--rm
-        docker run -d -p "$($CurrentIISWebSiteHostPort):80" -v $ContainerLocalLogFolder\:C:\inetpub\logs\LogFiles -v $ContainerLocalContentFolder\:C:\inetpub\wwwroot --name $Name iis-website --restart always #--rm
+        docker run -d -p "$($CurrentIISWebSitePort):8080" --name $Name aspnetapp --restart always #--rm
+
         #Getting the IP v4 address of the container
         $ContainerIPv4Address = (docker inspect -f "{{ .NetworkSettings.Networks.nat.IPAddress }}" $Name | Out-String) -replace "`r|`n"
         Write-Host "The internal IPv4 address for the container [$Name] is [$ContainerIPv4Address]" -ForegroundColor Yellow
-        #Generating traffic : 10 web requests to have some entries in the IIS log files
-        1..10 | ForEach-Object -Process { $null = Invoke-WebRequest -Uri http://localhost:$CurrentIISWebSiteHostPort }
     }
+
     #Pulling ASP.Net Sample image
     #docker run -d -p 8080:80 --name aspnet_sample --rm -it mcr.microsoft.com/dotnet/framework/samples:aspnetapp
 
@@ -301,7 +314,7 @@ Invoke-LabCommand -ActivityName 'Pushing Docker images' -ComputerName DOCKER01 -
 $Jobs | Wait-Job | Out-Null
 
 #For updating the GPO
-Restart-LabVM -ComputerName $machines -Wait
+#Restart-LabVM -ComputerName $machines -Wait
 
 Show-LabDeploymentSummary -Detailed
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
@@ -309,5 +322,10 @@ Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 $VerbosePreference = $PreviousVerbosePreference
 $ErrorActionPreference = $PreviousErrorActionPreference
 #Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All -Verbose
+
+
+foreach ($CurrentIISWebSitePort in $IISWebSitePort) {
+    Start-Process -FilePath $("http://DOCKER01:{0}" -f $CurrentIISWebSitePort)
+}
 
 Stop-Transcript
