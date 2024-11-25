@@ -206,7 +206,6 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
 #region Defining variables 
-$SubscriptionName = "Cloud Solution Architect"
 #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
 $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
 $ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/main/src/repository/resourcelocations.json
@@ -214,7 +213,7 @@ $shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @
 #endregion
 
 # Login to your Azure subscription.
-While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName)) {
+While (-not(Get-AzContext)) {
     Connect-AzAccount
     Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
     #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
@@ -251,7 +250,8 @@ $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Locatio
 $AutomationAccount = New-AzAutomationAccount -Name $AutomationAccountName -Location $Location -ResourceGroupName $ResourceGroupName -AssignSystemIdentity
 
 #region RBAC Assignment
-Write-Verbose -Message "Assigning the 'Virtual Machine Contributor' RBAC role to Automation Account Manaed System Identity ..."
+Start-Sleep -Seconds 30
+Write-Verbose -Message "Assigning the 'Virtual Machine Contributor' RBAC role to Automation Account Managed System Identity ..."
 New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefinitionName 'Virtual Machine Contributor' -Scope "/subscriptions/$((Get-AzContext).Subscription.Id)"
 #endregion
 
