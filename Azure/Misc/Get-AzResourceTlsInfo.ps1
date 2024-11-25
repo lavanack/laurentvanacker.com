@@ -15,6 +15,8 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
+#requires -version 5
+
 [CmdletBinding()]
 param
 (
@@ -34,31 +36,40 @@ function Get-AzResourceTlsInfo {
         [string[]] $SubscriptionId
     )
 
+    $RegExPattern = "TLS|SSL"
     if (-not($SubscriptionId)) {
         $SubscriptionId = (Get-AzContext).Subscription.Id
     }
     
+    $ResourceTlsInfoBySubscriptionId = @{}
     foreach ($CurrentSubscriptionId in $SubscriptionId) {
         $null = Set-AzContext -SubscriptionId $CurrentSubscriptionId
         $CurrentSubscriptionName = (Get-AzContext).Subscription.Name
         Write-Verbose $("Subscription : {0} ({1})" -f $CurrentSubscriptionName, $CurrentSubscriptionId)
 
         if ($ResourceType) {
-            $AzResource = Get-AzResource -ExpandProperties -ErrorAction Ignore | Where-Object { $_.ResourceType -in $ResourceType } | Select-Object -Property Id -ExpandProperty Properties
+            Write-Verbose "Listing '$ResourceType' Azure Resources with a '$RegExPattern' property name or value ..."
+            $AzResource = Get-AzResource -ExpandProperties -ErrorAction Ignore | Where-Object { $_.ResourceType -in $ResourceType } | Select-Object -Property ResourceType, Id -ExpandProperty Properties | Where-Object -FilterScript { ($_.psobject.Properties.Name -match $RegExPattern) -or ($_.psobject.Properties.Value -match $RegExPattern) }
         }
         else {
-            $AzResource = Get-AzResource -ExpandProperties -ErrorAction Ignore | Select-Object -Property Id -ExpandProperty Properties
+            Write-Verbose "Listing Azure Resources with a '$RegExPattern' property name or value ..."
+            $AzResource = Get-AzResource -ExpandProperties -ErrorAction Ignore | Select-Object -Property ResourceType, Id -ExpandProperty Properties | Where-Object -FilterScript { ($_.psobject.Properties.Name -match $RegExPattern) -or ($_.psobject.Properties.Value -match $RegExPattern) }
         }
 
-        foreach ($CurrentAzResource in $AzResource) {
-            Write-Verbose "Processing '$($CurrentAzResource.Id)' ..."
-            $TLSSetting = $CurrentAzResource.psobject.Properties | Where-Object -FilterScript { $_.Name -match "TLS" }
-            if ($TLSSetting) {
-                Write-Verbose "TLS Settings: '$($TLSSetting -join ', ')' ..."
-                $CurrentAzResource | Select-Object -Property @{Name = "SubscriptionId"; Expression = { $CurrentSubscriptionId } }, @{Name = "SubscriptionName"; Expression = { $CurrentSubscriptionName } }, Id, $TLSSetting.Name
-            }
+        Write-Verbose "Impacted Azure Resources Grouped By Resource Type:`r`n$($AzResource | Group-Object -Property ResourceType -NoElement | Out-String)"
+
+        $TlsInfo = foreach ($CurrentAzResource in $AzResource) {            
+            Write-Verbose "Azure Resource: $($CurrentAzResource.Id) ..."
+            $TLSSetting = $CurrentAzResource.psobject.Properties | Where-Object -FilterScript { ($_.Name -match $RegExPattern) -or ($_.Value -match $RegExPattern) }
+            Write-Verbose "TLS Settings: '$($TLSSetting -join ', ')' ..."
+            $Properties = @{Name = "SubscriptionId"; Expression = { $CurrentSubscriptionId } }, @{Name = "SubscriptionName"; Expression = { $CurrentSubscriptionName } }, "ResourceType", "Id"
+            $Properties += $TLSSetting.Name
+            $CurrentAzResource | Select-Object -Property $Properties
         }
+        $ResourceTlsInfo = $TlsInfo | Group-Object -Property ResourceType -AsHashTable -AsString
+        $ResourceTlsInfoBySubscriptionId.Add($CurrentSubscriptionId, $ResourceTlsInfo)
     }
+    $ResourceTlsInfoBySubscriptionId
 }
 #endregion
 
@@ -87,18 +98,35 @@ $ResourceTlsInfo = Get-AzResourceTlsInfo -Verbose
 #Get TLS Info for specified Azure resources in the specified subscriptions
 #$ResourceTlsInfo = Get-AzResourceTlsInfo -ResourceType $ResourceType -SubscriptionId $SubscriptionId -Verbose
 
-#Get TLS Info for all Azure resources in all subscriptions
-#$ResourceTlsInfo = Get-AzResourceTlsInfo -SubscriptionId (Get-AzSubscription).Id
+#Get TLS Info for all Azure resources in all subscriptions (with verbose mode)
+#$ResourceTlsInfo = Get-AzResourceTlsInfo -SubscriptionId (Get-AzSubscription).Id -Verbose
 
+#region Data Export
+$TimeStamp = Get-Date -Format 'yyyyMMddHHmmss'
+foreach ($CurrentSubscriptionId in $ResourceTlsInfo.Keys) {
+    $CurrentSubscriptionIdResourceTlsInfo = $ResourceTlsInfo[$CurrentSubscriptionId]
 
-#region Output options
-#$ResourceTlsInfo | Format-List -Property * -Force
+    foreach ($CurrentResourceType in $CurrentSubscriptionIdResourceTlsInfo.Keys) {
+        #region CSV Export
+        $CurrentSubscriptionIdDir = Join-Path -Path $CurrentDir -ChildPath $CurrentSubscriptionId 
+        $CurrentSubscriptionIdTimeStampDir = Join-Path -Path $CurrentSubscriptionIdDir -ChildPath $TimeStamp 
+        Write-Verbose -Verbose "`Subscription Directory: $CurrentSubscriptionIdTimeStampDir"
+        $null = New-Item -Path $CurrentSubscriptionIdTimeStampDir -ItemType Directory -Force   
+        $CurrentCSVFile = Join-Path -Path $CurrentSubscriptionIdTimeStampDir -ChildPath "$("{0}_{1}.csv" -f $($CurrentResourceType -replace "/", "_"), $TimeStamp)"
+        Write-Verbose -Verbose "CSV File: $CurrentCSVFile"
+        $CurrentSubscriptionIdResourceTlsInfo[$CurrentResourceType] | Export-Csv -Path $CurrentCSVFile -NoTypeInformation
+        #& $CurrentCSVFile
+        #endregion
 
-#$ResourceTlsInfo | Out-GridView
+        #region JSON Export
+        $CurrentJSONFile = Join-Path -Path $CurrentSubscriptionIdTimeStampDir -ChildPath "$("{0}_{1}.json" -f $($CurrentResourceType -replace "/", "_"), $TimeStamp)"
+        Write-Verbose -Verbose "JSON File: $CurrentJSONFile"
+        $CurrentSubscriptionIdResourceTlsInfo[$CurrentResourceType] | ConvertTo-Json | Out-File -FilePath $CurrentJSONFile
+        #& $CurrentJSONFile
+        #endregion
 
-#region CSV Export
-$CSVFile = $CurrentScript -replace ".ps1$", "$("_{0}.csv" -f (Get-Date -Format 'yyyyMMddHHmmss'))"
-$ResourceTlsInfo | Export-Csv -Path $CSVFile -NoTypeInformation
-& $CSVFile
-#endregion
+        $CurrentSubscriptionIdResourceTlsInfo[$CurrentResourceType] | Out-GridView -Title $CurrentResourceType
+    }
+}
+
 #endregion
