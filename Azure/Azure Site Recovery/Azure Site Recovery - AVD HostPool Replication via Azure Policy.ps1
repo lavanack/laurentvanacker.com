@@ -52,7 +52,7 @@ $shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @
 
 
 $PrimaryLocation = "EastUS2"
-$PrimaryLocationResourceGroupName = "rg-avd-hp-pd-ad-poc-mp-use2-424"
+$PrimaryLocationResourceGroupName = "rg-avd-hp-pd-ad-poc-mp-use2-770"
 $PrimaryLocationResourceGroup = Get-AzResourceGroup -Name $PrimaryLocationResourceGroupName -Location $PrimaryLocation
 
 $RecoveryLocation = "CentralUS"
@@ -71,6 +71,11 @@ $PolicyParameterObject = @{
     targetResourceGroupId = $RecoveryLocationResourceGroup.ResourceId 
     vaultResourceGroupId  = $RecoveryLocationResourceGroup.ResourceId 
     vaultId               = $RecoveryServicesVault.ID 
+    <#
+    tagName               = "ASRIncluded"
+    tagValue              = "True"
+    tagType               = "Inclusion"
+    #>
 }
 
 $PolicyAssignment = New-AzPolicyAssignment -Name "pa-$($PrimaryLocationResourceGroupName)" -DisplayName "Configure disaster recovery on virtual machines by enabling replication via Azure Site Recovery (AVD)" -Scope $PrimaryLocationResourceGroup.ResourceId -PolicyDefinition $PolicyDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $RecoveryLocation -PolicyParameterObject $PolicyParameterObject 
@@ -102,6 +107,4 @@ Get-AzPolicyState -ResourceGroupName $PrimaryLocationResourceGroup -PolicyAssign
 
 #Get latest non-compliant policy states summary in resource group scope
 Get-AzPolicyStateSummary -ResourceGroupName $PrimaryLocationResourceGroup | Select-Object -ExpandProperty PolicyAssignments 
-#endregion 
-
-
+#endregion
