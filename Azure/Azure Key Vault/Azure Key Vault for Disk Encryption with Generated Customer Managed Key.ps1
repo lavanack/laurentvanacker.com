@@ -70,7 +70,7 @@ $shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @
 #endregion
 
 # Login to your Azure subscription.
-While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName)) {
+While (-not(Get-AzContext)) {
     Connect-AzAccount
     Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
     #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
@@ -81,7 +81,7 @@ $AzureVMNameMaxLength = 15
 $RDPPort = 3389
 $JitPolicyTimeInHours = 3
 $JitPolicyName = "Default"
-$Location = "eastus"
+$Location = "eastus2"
 $VMSize = "Standard_D4s_v5"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
@@ -96,7 +96,8 @@ $DiskEncryptionSetPrefix = "des"
 $DiskEncryptionKeyPrefix = "dek"
 
 $Project = "kv"
-$Role = "dskenc"
+#DE = Disk Encryption
+$Role = "de"
 #$DigitNumber = 4
 $DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role + $LocationShortName).Length
 
@@ -242,6 +243,13 @@ Set-AzVMSourceImage -VM $VMConfig -PublisherName $ImagePublisherName -Offer $Ima
 #region Setting up the Key Vault for Disk Encryption
 #Create an Azure Key Vault
 $KeyVault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $Location -EnabledForDiskEncryption -EnablePurgeProtection
+
+#region "Key Vault Administrator" RBAC Assignment
+$RoleDefinition = Get-AzRoleDefinition "Key Vault Administrator"
+$WhoAmI = (Get-AzADUser -UserPrincipalName (Get-AzContext).Account.Id)
+$RoleAssignment = New-AzRoleAssignment -ObjectId $WhoAmI.Id -RoleDefinitionName $RoleDefinition.Name -Scope $KeyVault.ResourceId -ErrorAction Ignore #-Debug
+#endregion
+
 #FROM https://learn.microsoft.com/en-us/azure/virtual-machines/windows/disks-enable-customer-managed-keys-powershell#set-up-an-azure-key-vault-and-diskencryptionset-optionally-with-automatic-key-rotation
 $key = Add-AzKeyVaultKey -VaultName $keyVaultName -Name $DiskEncryptionKeyName -Destination $DiskEncryptionKeyDestination
 $DiskEncryptionSetConfig = New-AzDiskEncryptionSetConfig -Location $Location -SourceVaultId $keyVault.ResourceId -KeyUrl $key.Key.Kid -IdentityType SystemAssigned -RotationToLatestKeyVersionEnabled $true
@@ -249,8 +257,17 @@ $DiskEncryptionSet = New-AzDiskEncryptionSet -Name $DiskEncryptionSetName -Resou
 $AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $keyVaultName -ObjectId $DiskEncryptionSet.Identity.PrincipalId -PermissionsToKeys wrapKey, unwrapKey, get
 
 #As the owner of the key vault, you automatically have access to create secrets. If you need to let another user create secrets, use:
-#$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -UserPrincipalName $UserPrincipalName -PermissionsToSecrets Get,Delete,List,Set -PassThru
+#$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -UserPrincipalName $WhoAmI.UserPrincipalName -PermissionsToSecrets Get,Delete,List,Set -PassThru
 #endregion 
+
+#From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/disks-enable-host-based-encryption-powershell#create-an-azure-key-vault-and-diskencryptionset
+# Grant the DiskEncryptionSet resource access to the key vault.
+#Set-AzKeyVaultAccessPolicy -VaultName $keyVaultName -ObjectId $DiskEncryptionSet.Identity.PrincipalId -PermissionsToKeys wrapkey,unwrapkey,get -Verbose
+#region "Key Vault Crypto Service Encryption User" RBAC Assignment
+$RoleDefinition = Get-AzRoleDefinition "Key Vault Crypto Service Encryption User"
+$RoleAssignment = New-AzRoleAssignment -ObjectId $DiskEncryptionSet.Identity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $KeyVault.ResourceId -ErrorAction Ignore #-Debug
+#endregion
+
 
 # Set OsDisk configuration
 Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -DiskEncryptionSetId $DiskEncryptionSet.Id -CreateOption fromImage
@@ -334,6 +351,8 @@ Start-Sleep -Seconds 15
 #mstsc /v $PublicIP.IpAddress
 mstsc /v $FQDN
 Write-Host -Object "Your RDP credentials (login/password) are $($Credential.UserName)/$($Credential.GetNetworkCredential().Password)" -ForegroundColor Green
+
+break
 
 Stop-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName -Force
 
