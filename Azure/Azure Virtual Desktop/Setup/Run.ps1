@@ -28,11 +28,12 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 $LogDir = [Environment]::GetFolderPath("MyDocuments")
 Set-Location -Path $CurrentDir
 
-$Global:MaximumFunctionCount = 32768
 try { while (Stop-Transcript) {} } catch {}
 #Get-Job | Remove-Job -Force
 Get-Job | Where-Object -FilterScript {$_.PSJobTypeName -eq "ThreadJob"} | Remove-Job -Force -Verbose
 $null = Remove-Module -Name PSAzureVirtualDesktop -Force -ErrorAction Ignore
+$Global:MaximumFunctionCount = 32768
+#Import-Module -Name PSAzureVirtualDesktop -RequiredVersion 1.0.3 -Force -Verbose
 Import-Module -Name PSAzureVirtualDesktop -Force -Verbose
 
 <#
@@ -58,12 +59,17 @@ Get-AzResourceGroup | Where-Object -FilterScript { $_.ResourceGroupName -match '
 Get-MgBetaGroup -Filter "DisplayName eq 'No-MFA Users'" | ForEach-Object -Process { Remove-MgBetaGroup -GroupId $_.Id -Verbose }
 Get-MgBetaIdentityConditionalAccessPolicy -Filter "displayName eq '[AVD] Require multifactor authentication for all users'" | ForEach-Object -Process { Remove-MgBetaIdentityConditionalAccessPolicy -ConditionalAccessPolicyId $_.Id -Verbose }
 Get-AzKeyVault -InRemovedState | Remove-AzKeyVault -InRemovedState -AsJob -Force
-& '.\Clear-WindowsCredentials.ps1' -Verbose
+& '.\Tests\Clear-WindowsCredentials.ps1' -Verbose
 #endregion
 
-#$DebugPreference = "Continue"
+#Set-PSDebug -Trace 2
+$PSBreakpoints = @() 
+$LatestPSAzureVirtualDesktopModule = Get-Module -Name PSAzureVirtualDesktop -ListAvailable | Sort-Object -Property Version -Descending | Select-Object -First 1
+#$PSBreakpoints += Set-PSBreakpoint -Command Get-Credential
+#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath "PSAzureVirtualDesktop.psm1") -Line 5383
 & '.\New-AzAvdHostPoolSetup.ps1' -LogDir $LogDir -Verbose -AsJob
-#$DebugPreference = "SilentlyContinue"
+$PSBreakpoints | Remove-PSBreakpoint
+Set-PSDebug -Off
 
 <#
 #region for openning the fileshares for FSLogix and MSIX
@@ -75,6 +81,7 @@ foreach ($storageAccount in $storageAccounts)
     $AzStorageShare = Get-AzStorageShare -Context $storageAccount.Context -ErrorAction Ignore
     $StorageShare = $AzStorageShare | Where-Object  -FilterScript {$_.Name -in "profiles", "msix"}
     if ($null -ne $StorageShare) {
+        Set-AzStorageAccount -ResourceGroupName $storageAccount.ResourceGroupName -Name $storageAccount.StorageAccountName -AllowSharedKeyAccess $true
         start $("\\{0}.file.{1}\{2}" -f $StorageShare.context.StorageAccountName, ($StorageShare.context.EndPointSuffix -replace "/"), $StorageShare.Name)
     }
 }

@@ -117,7 +117,7 @@ foreach ($CurrentGalleryImageDefinition in $GalleryImageDefinition) {
     # Use case 8 and more: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with an Image coming from an Azure Compute Gallery and without FSLogix and MSIX
     $PooledHostPool = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault).SetVMSourceImageId($CurrentGalleryImageDefinition.Id).DisableFSLogix().DisableMSIX()
     Write-Verbose -Message "VM Source Image Id for the ACG Host Pool: $LatestCurrentGalleryImageVersion (MSIX: $($PooledHostPool.MSIX) / FSlogix: $($PooledHostPool.FSlogix))"
-    #$HostPools += $PooledHostPool
+    $HostPools += $PooledHostPool
 }
 #endregion
 #Removing $null object(s) if any.
@@ -163,6 +163,9 @@ New-PsAvdHostPoolSetup -HostPool $HostPools -NoMFAEntraIDGroupName "No-MFA Users
 New-PsAvdScalingPlan -HostPool $HostPools 
 #Or pipeline processing call
 #$HostPools | New-PsAvdHostPoolSetup
+
+#Setting up Azure Monitor Baseline Alerts for Azure Virtual Desktop
+$AMBAResourceGroup = New-PsAvdAzureMonitorBaselineAlertsDeployment -Location $Location -HostPool $HostPools -PassThru -Verbose
 
 #Starting a Windows Explorer instance per FSLogix profiles share
 Get-PsAvdFSLogixProfileShare -HostPool $HostPools
