@@ -107,7 +107,7 @@ function Get-AzResourceTlsInfo {
     $ResourceTlsInfoBySubscriptionId = @{}
     foreach ($CurrentSubscriptionId in $SubscriptionId) {
         # Ensures you do not inherit an AzContext
-        Disable-AzContextAutosave -Scope Process
+        $null = Disable-AzContextAutosave -Scope Process
         $null = Set-AzContext -SubscriptionId $CurrentSubscriptionId
         $CurrentSubscriptionName = (Get-AzContext).Subscription.Name
         Write-Verbose $("Subscription : {0} ({1})" -f $CurrentSubscriptionName, $CurrentSubscriptionId)
@@ -168,17 +168,22 @@ if (-not(Get-AzContext)) {
 #endregion
 
 
-#$RegExPattern = "TLS|SSL"
+
 #Get TLS Info for all Azure resources in the current subscription where the property name match the specified regular expression pattern (with verbose mode)
 #$RegExPattern = "minimumTlsVersion"
 #$ResourceTlsInfo = Get-AzResourceTlsInfo -RegExPattern $RegExPattern -Scope Name -Verbose
 
 #Get TLS Info for all Storage Accounts (only) in the current subscription (with verbose mode). The default regular expression pattern ("TLS|SSL") will be used and applied to the property names and values
+#$RegExPattern = "TLS|SSL"
 #$ResourceTlsInfo = Get-AzResourceTlsInfo -ResourceType "Microsoft.Storage/storageAccounts" -Verbose
 
 #Get TLS Info for all Storage Accounts (only) in the current subscription (with verbose mode) where the property value match the specified regular expression pattern (with verbose mode)
+#$RegExPattern = "TLS1_0"
+#$ResourceTlsInfo = Get-AzResourceTlsInfo -ResourceType "Microsoft.Storage/storageAccounts" -RegExPattern $RegExPattern -Scope Value -Verbose
+
+#Get TLS Info for Azure resources in the current subscription (with verbose mode) where the property value match the specified regular expression pattern (with verbose mode)
 $RegExPattern = "TLS1_0"
-$ResourceTlsInfo = Get-AzResourceTlsInfo -ResourceType "Microsoft.Storage/storageAccounts" -RegExPattern $RegExPattern -Scope Value -Verbose
+$ResourceTlsInfo = Get-AzResourceTlsInfo -RegExPattern $RegExPattern -Scope Value -Verbose
 
 #Get TLS Info for all Storage Accounts and Application Gateways in the current subscription (with verbose mode). The default regular expression pattern ("TLS|SSL") will be used and applied to the property names and values
 #$ResourceTlsInfo = Get-AzResourceTlsInfo -ResourceType "Microsoft.Storage/storageAccounts","Microsoft.Network/applicationGateways" -Verbose
