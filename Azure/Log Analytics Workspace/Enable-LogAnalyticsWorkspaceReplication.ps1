@@ -15,7 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -version 5
+#requires -modules Az.Accounts -version 5
 
 [CmdletBinding()]
 param
@@ -55,11 +55,11 @@ function Enable-LogAnalyticsWorkspaceReplication {
     $Body = [ordered]@{ 
         "properties" = [ordered]@{
             "replication" = [ordered]@{
-                "enabled"  = $true
+                "enabled" = $true
                 "location" = $SecondaryLocation
             }
         }
-        "location"   = $PrimaryLocation
+        "location" = $PrimaryLocation
     }
 
     $LAWReplicationURI = "https://management.azure.com/subscriptions/$SubcriptionID/resourcegroups/$ResourceGroupName/providers/microsoft.operationalinsights/workspaces/$($WorkspaceName)?api-version=2023-01-01-preview"
@@ -114,7 +114,7 @@ function Disable-LogAnalyticsWorkspaceReplication {
                 "enabled" = $false
             }
         }
-        "location"   = $PrimaryLocation
+        "location" = $PrimaryLocation
     }
 
     $LAWReplicationURI = "https://management.azure.com/subscriptions/$SubcriptionID/resourcegroups/$ResourceGroupName/providers/microsoft.operationalinsights/workspaces/$($WorkspaceName)?api-version=2023-01-01-preview"
