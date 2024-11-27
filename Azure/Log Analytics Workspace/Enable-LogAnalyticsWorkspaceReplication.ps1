@@ -22,6 +22,7 @@ param
 (
 )
 
+#From https://learn.microsoft.com/en-us/azure/azure-monitor/logs/workspace-replication
 #region Function definitions
 function Enable-LogAnalyticsWorkspaceReplication {
     [CmdletBinding(PositionalBinding = $false)]
@@ -55,11 +56,11 @@ function Enable-LogAnalyticsWorkspaceReplication {
     $Body = [ordered]@{ 
         "properties" = [ordered]@{
             "replication" = [ordered]@{
-                "enabled" = $true
+                "enabled"  = $true
                 "location" = $SecondaryLocation
             }
         }
-        "location" = $PrimaryLocation
+        "location"   = $PrimaryLocation
     }
 
     $LAWReplicationURI = "https://management.azure.com/subscriptions/$SubcriptionID/resourcegroups/$ResourceGroupName/providers/microsoft.operationalinsights/workspaces/$($WorkspaceName)?api-version=2023-01-01-preview"
@@ -89,7 +90,9 @@ function Disable-LogAnalyticsWorkspaceReplication {
     [CmdletBinding(PositionalBinding = $false)]
     Param(
         [Parameter(Mandatory = $true)]
-        [string]$PrimaryLocation
+        [string]$PrimaryLocation,
+        [Parameter(Mandatory = $true)]
+        [string]$WorkspaceName
     )
 
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
@@ -114,7 +117,7 @@ function Disable-LogAnalyticsWorkspaceReplication {
                 "enabled" = $false
             }
         }
-        "location" = $PrimaryLocation
+        "location"   = $PrimaryLocation
     }
 
     $LAWReplicationURI = "https://management.azure.com/subscriptions/$SubcriptionID/resourcegroups/$ResourceGroupName/providers/microsoft.operationalinsights/workspaces/$($WorkspaceName)?api-version=2023-01-01-preview"
@@ -223,4 +226,7 @@ $HTTPResponse = Enable-LogAnalyticsWorkspaceReplication -PrimaryLocation $Primar
 $HTTPResponse = Test-LogAnalyticsWorkspaceReplicationProvisioningState -ResourcegroupName $ResourcegroupName -WorkspaceName $WorkspaceName -Verbose
 $ResponseObject = $HTTPResponse.Content | ConvertFrom-Json
 Write-Host "Log Analytics Workspace Replication Provisioning State: $($ResponseObject.properties.provisioningState)"
+
+#Disabling the Log Analytics Workspace Replication
+Disable-LogAnalyticsWorkspaceReplication -PrimaryLocation $PrimaryLocation -WorkspaceName $WorkspaceName -Verbose
 #endregion
