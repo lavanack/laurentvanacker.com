@@ -31,6 +31,7 @@ $Error.Clear()
 function Get-TLSSetting {
     [CmdletBinding()]
     param (
+        [Parameter(Mandatory = $true)]
         [object] $Properties,
         [string] $ParentProperty = "",
         [string] $RegExPattern = "TLS|SSL",
@@ -134,7 +135,7 @@ function Get-AzResourceTlsInfo {
         Write-Verbose "Impacted Azure Resources Grouped By Resource Type:`r`n$($AzResource | Group-Object -Property ResourceType -NoElement | Out-String)"
 
         $TlsInfo = foreach ($CurrentAzResource in $AzResource) {            
-            Write-Verbose "Azure Resource: $($CurrentAzResource.Id) ..."
+            Write-Verbose "Azure Resource: $($CurrentAzResource.ResourceId) ..."
             $TLSSetting = Get-TLSSetting -Properties $CurrentAzResource.Properties -RegExPattern $RegExPattern -Scope:$Scope #-Verbose
             if (-not([string]::IsNullOrEmpty($TLSSetting))) {
                 Write-Verbose "TLS Settings:`r`n$($TLSSetting | Out-String)"
