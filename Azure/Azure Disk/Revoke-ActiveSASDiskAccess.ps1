@@ -17,39 +17,61 @@ of the Sample Code.
 #>
 #requires -Version 5 -Modules Az.Accounts, Az.Compute
 
-$ActiveSASDisk = Get-AzDisk | Where-Object -FilterScript { $_.DiskState -eq "ActiveSAS" } | Out-GridView -OutputMode Multiple
+#region Function Definition
+function Revoke-ActiveSASDiskAccess {
+    [CmdletBinding(PositionalBinding = $false)]
+    param
+    (
+        [string[]] $ResourceGroupName
+    )
 
-$azContext = Get-AzContext
-$SubcriptionID = $azContext.Subscription.Id
-$azProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile
-$profileClient = New-Object -TypeName Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient -ArgumentList ($azProfile)
-$token = $profileClient.AcquireAccessToken($azContext.Subscription.TenantId)
-$authHeader = @{
-    'Content-Type'  = 'application/json'
-    'Authorization' = 'Bearer ' + $token.AccessToken
+    if ([string]::IsNullOrEmpty($ResourceGroupName)) {
+        $Disks = Get-AzDisk
+    }
+    else {
+        $Disks = foreach ($CurrentResourceGroupName in $ResourceGroupName) {
+            Get-AzDisk -ResourceGroupName $CurrentResourceGroupName
+        }
+    }
+
+    $ActiveSASDisk = $Disks | Where-Object -FilterScript { $_.DiskState -eq "ActiveSAS" } | Out-GridView -OutputMode Multiple
+
+
+    $azContext = Get-AzContext
+    $SubcriptionID = $azContext.Subscription.Id
+    $azProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile
+    $profileClient = New-Object -TypeName Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient -ArgumentList ($azProfile)
+    $token = $profileClient.AcquireAccessToken($azContext.Subscription.TenantId)
+    $authHeader = @{
+        'Content-Type'  = 'application/json'
+        'Authorization' = 'Bearer ' + $token.AccessToken
+    }
+
+    foreach ($CurrentActiveSASDisk in $ActiveSASDisk) {
+        Write-Host -Object "Processing '$($CurrentActiveSASDisk.Name)' ..." 
+        $URI = "https://management.azure.com/subscriptions/$SubcriptionID/resourceGroups/$($CurrentActiveSASDisk.ResourceGroupName)/providers/Microsoft.Compute/disks/$($CurrentActiveSASDisk.Name)/endGetAccess?api-version=2023-04-02"
+        try {
+            # Invoke the REST API
+            $Response = Invoke-RestMethod -Method POST -Headers $authHeader -ContentType "application/json" -Uri $URI -ErrorVariable ResponseError
+        }
+        catch [System.Net.WebException] {   
+            # Dig into the exception to get the Response details.
+            # Note that value__ is not a typo.
+            Write-Warning -Message "StatusCode: $($_.Exception.Response.StatusCode.value__ )"
+            Write-Warning -Message "StatusDescription: $($_.Exception.Response.StatusDescription)"
+            $respStream = $_.Exception.Response.GetResponseStream()
+            $reader = New-Object System.IO.StreamReader($respStream)
+            $Response = $reader.ReadToEnd() | ConvertFrom-Json
+            if (-not([string]::IsNullOrEmpty($Response.message))) {
+                Write-Warning -Message $Response.message
+            }
+        }
+        finally {
+        }
+        return $Response
+    }
+
 }
 #endregion
 
-foreach ($CurrentActiveSASDisk in $ActiveSASDisk) {
-    Write-Host -Object "Processing '$($CurrentActiveSASDisk.Name)' ..." 
-    $URI = "https://management.azure.com/subscriptions/$SubcriptionID/resourceGroups/$($CurrentActiveSASDisk.ResourceGroupName)/providers/Microsoft.Compute/disks/$($CurrentActiveSASDisk.Name)/endGetAccess?api-version=2023-04-02"
-    try {
-        # Invoke the REST API
-        $Response = Invoke-RestMethod -Method POST -Headers $authHeader -ContentType "application/json" -Uri $URI -ErrorVariable ResponseError
-    }
-    catch [System.Net.WebException] {   
-        # Dig into the exception to get the Response details.
-        # Note that value__ is not a typo.
-        Write-Warning -Message "StatusCode: $($_.Exception.Response.StatusCode.value__ )"
-        Write-Warning -Message "StatusDescription: $($_.Exception.Response.StatusDescription)"
-        $respStream = $_.Exception.Response.GetResponseStream()
-        $reader = New-Object System.IO.StreamReader($respStream)
-        $Response = $reader.ReadToEnd() | ConvertFrom-Json
-        if (-not([string]::IsNullOrEmpty($Response.message))) {
-            Write-Warning -Message $Response.message
-        }
-    }
-    finally {
-    }
-    return $Response
-}
+Revoke-ActiveSASDiskAccess -Verbose
