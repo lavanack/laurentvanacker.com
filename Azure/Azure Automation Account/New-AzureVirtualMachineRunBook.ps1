@@ -238,6 +238,7 @@ $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix
 $AutomationAccountName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $AutomationAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
 #endregion
 
+#region Resource Group Setup
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
 if ($ResourceGroup) {
     #Step 0: Remove previously existing Azure Resource Group with the same name
@@ -251,6 +252,7 @@ Write-Verbose "`$AutomationAccountName: $AutomationAccountName"
 # Create Resource Groups
 $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 $AutomationAccount = New-AzAutomationAccount -Name $AutomationAccountName -Location $Location -ResourceGroupName $ResourceGroupName -AssignSystemIdentity
+#endregion
 
 #region RBAC Assignment
 Start-Sleep -Seconds 30
