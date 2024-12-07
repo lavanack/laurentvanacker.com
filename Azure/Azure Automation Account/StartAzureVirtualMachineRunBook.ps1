@@ -32,6 +32,7 @@ if ($null -ne $Holidays.name) {
 else {
     Write-Output -InputObject 'No holiday today. The Virtual Machine(s) will be started.'
 
+    #region Azure connection
     # Ensures you do not inherit an AzContext in your dirbook
     Disable-AzContextAutosave -Scope Process
     # Connect to Azure with system-assigned managed identity (Azure Automation account, which has been given VM Start permissions)
@@ -40,6 +41,7 @@ else {
     # set and store context
     $AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -DefaultProfile $AzureContext
     Write-Output -InputObject $AzureContext
+    #endregion
 
     $vms = Get-AzResource -TagName $TagName -TagValue $TagValue -ResourceType 'Microsoft.Compute/virtualMachines' 
 
