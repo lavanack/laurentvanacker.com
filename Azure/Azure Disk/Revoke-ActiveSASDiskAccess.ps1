@@ -34,7 +34,7 @@ function Revoke-ActiveSASDiskAccess {
         }
     }
 
-    $ActiveSASDisk = $Disks | Where-Object -FilterScript { $_.DiskState -eq "ActiveSAS" } | Out-GridView -OutputMode Multiple
+    $ActiveSASDisk = $Disks | Where-Object -FilterScript { $_.DiskState -eq "ActiveSAS" }
 
 
     $azContext = Get-AzContext
