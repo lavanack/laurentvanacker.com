@@ -3,8 +3,9 @@
 Param(
 )
 
-$IP  = Get-AutomationVariable -Name IP
-
+$IP = Get-AutomationVariable -Name IP
+#In case of multiple IP addresses specified (comma is the delimiter)
+$IPs = $IP -split ","
 
 #region Azure connection
 # Ensures you do not inherit an AzContext in your dirbook
@@ -23,21 +24,22 @@ $JitPolicyTimeInHours = 3
 $JitPolicyName = "Default"
 $JitNetworkAccessPolicyVM = ((Get-AzJitNetworkAccessPolicy | Where-Object -FilterScript { $_.Name -eq $JitPolicyName })).VirtualMachines.Id
 $VM = $(Get-AzVM -Status | Where-Object -FilterScript { $_.PowerState -match "running" })
+#Write-Output -InputObject "Running VM(s) : $($VM.Name -join ', ')"
 #endregion
 
-$AzJitNetworkAccessPolicy = foreach ($CurrentVMJitNetworkAccessPolicyVM in $VM) {
-    Write-Output -InputObject "VM : $($CurrentVMJitNetworkAccessPolicyVM.Name)"
+foreach ($CurrentVMJitNetworkAccessPolicyVM in $VM) {
+    #Write-Output -InputObject "VM : $($CurrentVMJitNetworkAccessPolicyVM.Name)"
     if ($CurrentVMJitNetworkAccessPolicyVM.Id -in $JitNetworkAccessPolicyVM) {
         $JitPolicy = (@{
                 id    = $CurrentVMJitNetworkAccessPolicyVM.Id
                 ports = (@{
                         number                     = $RDPPort;
-                        endTimeUtc                 = (Get-Date).AddHours(3).ToUniversalTime()
-                        allowedSourceAddressPrefix = @($IP) 
+                        endTimeUtc                 = (Get-Date).AddHours($JitPolicyTimeInHours).ToUniversalTime()
+                        allowedSourceAddressPrefix = $IPs
                     })
             })
         $ActivationVM = @($JitPolicy)
-        Write-Output -InputObject "Requesting Temporary Acces via Just in Time for $($CurrentVMJitNetworkAccessPolicyVM.Name) on port number $RDPPort for maximum $JitPolicyTimeInHours hours from $IP ..."
+        Write-Output -InputObject "Requesting Temporary Acces via Just in Time for $($CurrentVMJitNetworkAccessPolicyVM.Name) on port number $RDPPort for maximum $JitPolicyTimeInHours hours from $IPs ..."
         #Get-AzJitNetworkAccessPolicy -ResourceGroupName $($CurrentVMJitNetworkAccessPolicyVM.ResourceGroupName) -Location $CurrentVMJitNetworkAccessPolicyVM.Location -Name $JitPolicyName 
         #Start-AzJitNetworkAccessPolicy -ResourceGroupName $($CurrentVMJitNetworkAccessPolicyVM.ResourceGroupName) -Location $CurrentVMJitNetworkAccessPolicyVM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM | Select-Object -Property *, @{Name = 'endTimeUtc'; Expression = { $JitPolicy.ports.endTimeUtc } }, @{Name = 'startTime'; Expression = { $_.startTimeUtc.ToLocalTime() } }, @{Name = 'endTime'; Expression = { $JitPolicy.ports.endTimeUtc.ToLocalTime() } }
         Start-AzJitNetworkAccessPolicy -ResourceGroupName $($CurrentVMJitNetworkAccessPolicyVM.ResourceGroupName) -Location $CurrentVMJitNetworkAccessPolicyVM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM | Select-Object -Property *, @{Name = 'startTime'; Expression = { $_.startTimeUtc.ToLocalTime() } }, @{Name = 'endTime'; Expression = { $JitPolicy.ports.endTimeUtc.ToLocalTime() } } -ExcludeProperty StartTimeUtc

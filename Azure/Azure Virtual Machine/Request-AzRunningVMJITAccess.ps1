@@ -28,7 +28,8 @@ function Request-AzRunningVMJITAccess {
         [Parameter(ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
         [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachineList[]] $VM = $(Get-AzVM -Status | Where-Object -FilterScript { $_.PowerState -match "running" }),
         [Alias('PublicIP')]
-        [string[]] $IP = $((Invoke-RestMethod -Uri http://ip-api.com/json/?fields=query).query)
+        [string[]] $IP = $((Invoke-RestMethod -Uri http://ip-api.com/json/?fields=query).query),
+        [switch] $PassThru
     )
 
     begin {
@@ -51,12 +52,12 @@ function Request-AzRunningVMJITAccess {
                         id    = $CurrentVMJitNetworkAccessPolicyVM.Id
                         ports = (@{
                                 number                     = $RDPPort;
-                                endTimeUtc                 = (Get-Date).AddHours(3).ToUniversalTime()
-                                allowedSourceAddressPrefix = @($IP) 
+                                endTimeUtc                 = (Get-Date).AddHours($JitPolicyTimeInHours).ToUniversalTime()
+                                allowedSourceAddressPrefix = $IP 
                             })
                     })
                 $ActivationVM = @($JitPolicy)
-                Write-Host -Object "Requesting Temporary Acces via Just in Time for $($CurrentVMJitNetworkAccessPolicyVM.Name) on port number $RDPPort for maximum $JitPolicyTimeInHours hours from $IP ..."
+                Write-Host -Object "Requesting Temporary Acces via Just in Time for $($CurrentVMJitNetworkAccessPolicyVM.Name) on port number $RDPPort for maximum $JitPolicyTimeInHours hours from '$($IP -join ',')' ..."
                 #Get-AzJitNetworkAccessPolicy -ResourceGroupName $($CurrentVMJitNetworkAccessPolicyVM.ResourceGroupName) -Location $CurrentVMJitNetworkAccessPolicyVM.Location -Name $JitPolicyName 
                 #Start-AzJitNetworkAccessPolicy -ResourceGroupName $($CurrentVMJitNetworkAccessPolicyVM.ResourceGroupName) -Location $CurrentVMJitNetworkAccessPolicyVM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM | Select-Object -Property *, @{Name = 'endTimeUtc'; Expression = { $JitPolicy.ports.endTimeUtc } }, @{Name = 'startTime'; Expression = { $_.startTimeUtc.ToLocalTime() } }, @{Name = 'endTime'; Expression = { $JitPolicy.ports.endTimeUtc.ToLocalTime() } }
                 Start-AzJitNetworkAccessPolicy -ResourceGroupName $($CurrentVMJitNetworkAccessPolicyVM.ResourceGroupName) -Location $CurrentVMJitNetworkAccessPolicyVM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM | Select-Object -Property *, @{Name = 'startTime'; Expression = { $_.startTimeUtc.ToLocalTime() } }, @{Name = 'endTime'; Expression = { $JitPolicy.ports.endTimeUtc.ToLocalTime() } } -ExcludeProperty StartTimeUtc
@@ -68,6 +69,9 @@ function Request-AzRunningVMJITAccess {
     }
     #endregion
     end {
+        if ($PassThru) {
+            $AzJitNetworkAccessPolicy
+        }
     }
 
 }
@@ -75,5 +79,6 @@ function Request-AzRunningVMJITAccess {
 
 #region Main code
 #Get-AzVM | Request-AzRunningVMJITAccess -Verbose | Format-List * -Force
-Request-AzRunningVMJITAccess -Verbose | Format-List * -Force
+#Request-AzRunningVMJITAccess -Verbose -PassThru | Format-List * -Force
+Request-AzRunningVMJITAccess -Verbose
 #endregion
