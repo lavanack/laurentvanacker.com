@@ -208,6 +208,9 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
+#From https://www.reddit.com/r/AZURE/comments/tw2ttb/necessary_roles_to_allow_a_user_to_request_jit/?rdt=34432
+$AzureVMJITAccessRequestCustomRBACRoleFilePath = Join-Path -Path  $CurrentDir -ChildPath "AzureVMJITAccessRequestCustomRBACRole.json"
+
 #region Defining variables 
 #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
 $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
@@ -236,6 +239,8 @@ $Instance = 2
 
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $AutomationAccountName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $AutomationAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
+$SubscriptionId = $((Get-AzContext).Subscription.Id)
+$TimeStamp = Get-Date -Format 'yyyyMMddHHmmss'
 #endregion
 
 #region Resource Group Setup
@@ -256,8 +261,21 @@ $AutomationAccount = New-AzAutomationAccount -Name $AutomationAccountName -Locat
 
 #region RBAC Assignment
 Start-Sleep -Seconds 30
+#region 'Virtual Machine Contributor' RBAC Assignment
 Write-Verbose -Message "Assigning the 'Virtual Machine Contributor' RBAC role to Automation Account Managed System Identity ..."
-New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefinitionName 'Virtual Machine Contributor' -Scope "/subscriptions/$((Get-AzContext).Subscription.Id)"
+New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefinitionName 'Virtual Machine Contributor' -Scope "/subscriptions/$SubscriptionId"
+#endregion
+
+#region 'Azure VM JIT Access Request Role' RBAC Assignment
+# Create a role definition
+Write-Verbose -Message "Creating 'Azure VM JIT Access Request Role' Role Definition ..."
+$TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath = $AzureVMJITAccessRequestCustomRBACRoleFilePath -replace ".json$", "_$TimeStamp.json"
+Write-Verbose -Message "`$TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath: $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath"
+((Get-Content -path $AzureVMJITAccessRequestCustomRBACRoleFilePath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath
+$RoleDefinition = New-AzRoleDefinition -InputFile $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath
+Write-Verbose -Message "Assigning the 'Azure VM JIT Access Request Roler' RBAC role to Automation Account Managed System Identity ..."
+New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope "/subscriptions/$SubscriptionId"
+#endregion
 #endregion
 
 #region New-StartAzureVirtualMachineRunBook
