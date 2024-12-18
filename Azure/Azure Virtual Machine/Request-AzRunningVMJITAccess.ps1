@@ -41,6 +41,8 @@ function Request-AzRunningVMJITAccess {
         #endregion
 
         $JitNetworkAccessPolicyVM = ((Get-AzJitNetworkAccessPolicy | Where-Object -FilterScript { $_.Name -eq $JitPolicyName })).VirtualMachines.Id
+        Write-Verbose -Message "Running VM(s) : $($VM.Name -join ', ')"
+        Write-Verbose -Message "Jit Network Access Policy VM(s) : $($JitNetworkAccessPolicyVM -join ', ')"
     }
 
     process {
