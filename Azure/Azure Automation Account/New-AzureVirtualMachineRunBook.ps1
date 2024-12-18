@@ -275,6 +275,7 @@ Write-Verbose -Message "`$TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePa
 $RoleDefinition = New-AzRoleDefinition -InputFile $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath
 Write-Verbose -Message "Assigning the 'Azure VM JIT Access Request Roler' RBAC role to Automation Account Managed System Identity ..."
 New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope "/subscriptions/$SubscriptionId"
+Remove-Item -Path $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath -Force
 #endregion
 #endregion
 
