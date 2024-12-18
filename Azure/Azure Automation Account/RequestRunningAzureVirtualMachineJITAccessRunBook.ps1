@@ -24,7 +24,8 @@ $JitPolicyTimeInHours = 3
 $JitPolicyName = "Default"
 $JitNetworkAccessPolicyVM = ((Get-AzJitNetworkAccessPolicy | Where-Object -FilterScript { $_.Name -eq $JitPolicyName })).VirtualMachines.Id
 $VM = $(Get-AzVM -Status | Where-Object -FilterScript { $_.PowerState -match "running" })
-#Write-Output -InputObject "Running VM(s) : $($VM.Name -join ', ')"
+Write-Output -InputObject "Running VM(s) : $($VM.Name -join ', ')"
+Write-Output -InputObject "Jit Network Access Policy VM(s) : $($JitNetworkAccessPolicyVM.Id -join ', ')"
 #endregion
 
 foreach ($CurrentVMJitNetworkAccessPolicyVM in $VM) {
