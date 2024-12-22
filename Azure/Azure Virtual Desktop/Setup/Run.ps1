@@ -25,7 +25,8 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 #$LogDir = "~\Documents\"
-$LogDir = [Environment]::GetFolderPath("MyDocuments")
+#$LogDir = [Environment]::GetFolderPath("MyDocuments")
+$LogDir = $CurrentDir
 Set-Location -Path $CurrentDir
 
 try { while (Stop-Transcript) {} } catch {}
@@ -33,7 +34,6 @@ try { while (Stop-Transcript) {} } catch {}
 Get-Job | Where-Object -FilterScript {$_.PSJobTypeName -eq "ThreadJob"} | Remove-Job -Force -Verbose
 $null = Remove-Module -Name PSAzureVirtualDesktop -Force -ErrorAction Ignore
 $Global:MaximumFunctionCount = 32768
-#Import-Module -Name PSAzureVirtualDesktop -RequiredVersion 1.0.3 -Force -Verbose
 Import-Module -Name PSAzureVirtualDesktop -Force -Verbose
 
 <#
@@ -55,7 +55,7 @@ catch {
     Get-ChildItem -Path $LogDir -Filter HostPool_* -Directory | Remove-Item -Force -Recurse -ErrorAction Stop
 }
 
-Get-AzResourceGroup | Where-Object -FilterScript { $_.ResourceGroupName -match '^rg-avd-.*-(poc)-.*-\d+'} | Remove-AzResourceGroup -AsJob -Force -Verbose
+$null = Get-AzResourceGroup | Where-Object -FilterScript { $_.ResourceGroupName -match '^rg-avd-.*-poc-.*-\d+'} | Remove-AzResourceGroup -AsJob -Force -Verbose | Receive-Job -Wait -AutoRemoveJob
 Get-MgBetaGroup -Filter "DisplayName eq 'No-MFA Users'" | ForEach-Object -Process { Remove-MgBetaGroup -GroupId $_.Id -Verbose }
 Get-MgBetaIdentityConditionalAccessPolicy -Filter "displayName eq '[AVD] Require multifactor authentication for all users'" | ForEach-Object -Process { Remove-MgBetaIdentityConditionalAccessPolicy -ConditionalAccessPolicyId $_.Id -Verbose }
 Get-AzKeyVault -InRemovedState | Remove-AzKeyVault -InRemovedState -AsJob -Force
@@ -66,8 +66,15 @@ Get-AzKeyVault -InRemovedState | Remove-AzKeyVault -InRemovedState -AsJob -Force
 $PSBreakpoints = @() 
 $LatestPSAzureVirtualDesktopModule = Get-Module -Name PSAzureVirtualDesktop -ListAvailable | Sort-Object -Property Version -Descending | Select-Object -First 1
 #$PSBreakpoints += Set-PSBreakpoint -Command Get-Credential
-#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath "PSAzureVirtualDesktop.psm1") -Line 5383
-& '.\New-AzAvdHostPoolSetup.ps1' -LogDir $LogDir -Verbose -AsJob
+#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Line 4390
+#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Command New-PsAvdPrivateEndpointSetup
+#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Variable $ThisDomainControllerVirtualNetwork -Mode ReadWrite
+if ($PSBreakpoints.Count -le 0) {
+    & '.\Scenarios\Mixed\Tests.ps1' -LogDir $LogDir -Verbose -AsJob
+}
+else {
+    & '.\Scenarios\Mixed\Tests.ps1' -LogDir $LogDir -Verbose
+}
 $PSBreakpoints | Remove-PSBreakpoint
 Set-PSDebug -Off
 
