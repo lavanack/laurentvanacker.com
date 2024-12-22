@@ -250,6 +250,8 @@ $WhoAmI = (Get-AzADUser -UserPrincipalName (Get-AzContext).Account.Id)
 $RoleAssignment = New-AzRoleAssignment -ObjectId $WhoAmI.Id -RoleDefinitionName $RoleDefinition.Name -Scope $KeyVault.ResourceId -ErrorAction Ignore #-Debug
 #endregion
 
+Start-Sleep -Seconds 30
+
 #FROM https://learn.microsoft.com/en-us/azure/virtual-machines/windows/disks-enable-customer-managed-keys-powershell#set-up-an-azure-key-vault-and-diskencryptionset-optionally-with-automatic-key-rotation
 $key = Add-AzKeyVaultKey -VaultName $keyVaultName -Name $DiskEncryptionKeyName -Destination $DiskEncryptionKeyDestination
 $DiskEncryptionSetConfig = New-AzDiskEncryptionSetConfig -Location $Location -SourceVaultId $keyVault.ResourceId -KeyUrl $key.Key.Kid -IdentityType SystemAssigned -RotationToLatestKeyVersionEnabled $true
@@ -258,7 +260,6 @@ $AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $keyVaultName -ObjectId $D
 
 #As the owner of the key vault, you automatically have access to create secrets. If you need to let another user create secrets, use:
 #$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -UserPrincipalName $WhoAmI.UserPrincipalName -PermissionsToSecrets Get,Delete,List,Set -PassThru
-#endregion 
 
 #From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/disks-enable-host-based-encryption-powershell#create-an-azure-key-vault-and-diskencryptionset
 # Grant the DiskEncryptionSet resource access to the key vault.
@@ -268,15 +269,18 @@ $RoleDefinition = Get-AzRoleDefinition "Key Vault Crypto Service Encryption User
 $RoleAssignment = New-AzRoleAssignment -ObjectId $DiskEncryptionSet.Identity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $KeyVault.ResourceId -ErrorAction Ignore #-Debug
 #endregion
 
+Start-Sleep -Seconds 30
+#endregion 
+
 
 # Set OsDisk configuration
-Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -DiskEncryptionSetId $DiskEncryptionSet.Id -CreateOption fromImage
+Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -CreateOption fromImage
 
 
 #region Adding Data Disk
 $VMDataDisk01Config = New-AzDiskConfig -SkuName $OSDiskType -Location $Location -CreateOption Empty -DiskSizeGB 512
 $VMDataDisk01 = New-AzDisk -DiskName $DataDiskName -Disk $VMDataDisk01Config -ResourceGroupName $ResourceGroupName
-$VM = Add-AzVMDataDisk -VM $VMConfig -Name $DataDiskName -Caching 'ReadWrite' -CreateOption Attach -ManagedDiskId $VMDataDisk01.Id -Lun 0 -DiskEncryptionSetId $DiskEncryptionSet.Id 
+$VM = Add-AzVMDataDisk -VM $VMConfig -Name $DataDiskName -Caching 'ReadWrite' -CreateOption Attach -ManagedDiskId $VMDataDisk01.Id -Lun 0
 #endregion
 
 #Step 10: Create Azure Virtual Machine
@@ -339,6 +343,34 @@ $Properties.Add('targetResourceId', $VM.Id)
 New-AzResource -Location $Location -ResourceId $ScheduledShutdownResourceId -Properties $Properties -Force
 #endregion
 
+#region Azure Disk Encryption
+#From https://learn.microsoft.com/en-us/powershell/module/az.compute/set-azvmdiskencryptionextension?view=azps-13.0.0
+<#
+$params = [PSCustomObject]@{
+    ResourceGroupName = $ResourceGroupName
+    VMName = $VMName
+    DiskEncryptionKeyVaultId = $KeyVault.ResourceId
+    DiskEncryptionKeyVaultUrl = $KeyVault.VaultUri
+    KeyEncryptionKeyVaultId = $KeyVault.ResourceId
+    KeyEncryptionKeyUrl = $key.Key.kid
+    VolumeType = "All"
+}
+#>
+
+$params = [PSCustomObject]@{
+    ResourceGroupName = $ResourceGroupName
+    VMName = $VMName
+    VaultName = $KeyVault.VaultName
+    KeyVault  = $KeyVault
+    DiskEncryptionKeyVaultId = $KeyVault.ResourceId
+    DiskEncryptionKeyVaultUrl = $KeyVault.VaultUri
+    KeyVaultResourceId = $KeyVault.ResourceId
+    VolumeType = "All"
+}
+
+$params | Set-AzVMDiskEncryptionExtension -Force
+#endregion
+
 #Step 11: Start Azure Virtual Machine
 Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 
@@ -351,44 +383,3 @@ Start-Sleep -Seconds 15
 #mstsc /v $PublicIP.IpAddress
 mstsc /v $FQDN
 Write-Host -Object "Your RDP credentials (login/password) are $($Credential.UserName)/$($Credential.GetNetworkCredential().Password)" -ForegroundColor Green
-
-break
-
-Stop-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName -Force
-
-#region Migrating from CMK to PMK
-$VMOSDisk = Get-AzDisk -Name (Get-AzVM -Name $VMName).StorageProfile.OsDisk.Name
-Write-Host "[CMK -> PMK] Processing '$($VMOSDisk.Name)' OS Disk ..."
-$null = New-AzDiskUpdateConfig -EncryptionType "EncryptionAtRestWithPlatformKey" -DiskEncryptionSetId $null | Update-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $VMOSDisk.Name
-
-$VMDataDiskNames = (Get-AzVM -Name $VMName).StorageProfile.DataDisks.Name
-if ($null -ne $VMDataDiskNames)
-{
-    $VMDataDisks = Get-AzDisk -Name $VMDataDiskNames
-    foreach ($CurrentVMDataDisk in $VMDataDisks)
-    {
-        Write-Host "[CMK -> PMK] Processing '$($CurrentVMDataDisk.Name)' Data Disk ..."
-        $null = New-AzDiskUpdateConfig -EncryptionType "EncryptionAtRestWithPlatformKey" -DiskEncryptionSetId $null | Update-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $CurrentVMDataDisk.Name
-    }
-}
-#endregion
-
-#region Migrating from PMK to CMK
-$DiskEncryptionSet = Get-AzDiskEncryptionSet -ResourceGroupName $ResourceGroupName -Name $DiskEncryptionSetName
- 
-$VMOSDisk = Get-AzDisk -Name (Get-AzVM -Name $VMName).StorageProfile.OsDisk.Name
-Write-Host "[PMK -> CMK] Processing '$($VMOSDisk.Name)' OS Disk ..."
-$null = New-AzDiskUpdateConfig -EncryptionType "EncryptionAtRestWithCustomerKey" -DiskEncryptionSetId $DiskEncryptionSet.Id | Update-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $VMOSDisk.Name
-
-
-$VMDataDiskNames = (Get-AzVM -Name $VMName).StorageProfile.DataDisks.Name
-if ($null -ne $VMDataDiskNames)
-{
-    $VMDataDisks = Get-AzDisk -Name $VMDataDiskNames
-    foreach ($CurrentVMDataDisk in $VMDataDisks)
-    {
-        Write-Host "[PMK -> CMK] Processing '$($CurrentVMDataDisk.Name)' Data Disk ..."
-        $null = New-AzDiskUpdateConfig -EncryptionType "EncryptionAtRestWithCustomerKey" -DiskEncryptionSetId $DiskEncryptionSet.Id | Update-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $CurrentVMDataDisk.Name
-    }
-}
-#endregion

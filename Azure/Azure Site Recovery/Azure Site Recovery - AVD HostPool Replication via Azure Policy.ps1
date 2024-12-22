@@ -24,6 +24,16 @@ param
 (
 )
 
+#region Function Definitions
+function Get-AzurePairedRegion {
+    [CmdletBinding(PositionalBinding = $false)]
+    Param(
+    )
+
+    (Get-AzLocation -OutVariable locations) | Select-Object -Property Location, PhysicalLocation, @{Name='PairedRegion';Expression={$_.PairedRegion.Name}}, @{Name='PairedRegionPhysicalLocation';Expression={($locations | Where-Object -FilterScript {$_.location -eq $_.PairedRegion.Name}).PhysicalLocation} } | Where-Object -FilterScript { $_.PairedRegion } | Group-Object -Property Location -AsHashTable -AsString
+}
+#endregion
+
 Clear-Host
 $Error.Clear()
 
@@ -51,16 +61,38 @@ $ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/
 $shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @{Name = 'Location'; Expression = { $AzLocation[$_.name].Location } } | Where-Object -FilterScript { $_.Location } | Group-Object -Property Location -AsHashTable -AsString
 
 
+<#
 $PrimaryLocation = "EastUS2"
-$PrimaryLocationResourceGroupName = "rg-avd-hp-pd-ad-poc-mp-use2-424"
+$PrimaryLocationResourceGroupName = "rg-avd-hp-pd-ad-poc-mp-use2-770"
 $PrimaryLocationResourceGroup = Get-AzResourceGroup -Name $PrimaryLocationResourceGroupName -Location $PrimaryLocation
+#>
 
+$AzurePairedRegion = Get-AzurePairedRegion
+
+#Randomly getting a Personal Host Pool  
+$PrimaryLocationResourceGroup = Get-AzResourceGroup -Name "rg-avd-hp-pd-ad-poc-mp-use2-*" | Select-Object -First 1
+$PrimaryLocationResourceGroupName = $PrimaryLocationResourceGroup.ResourceGroupName
+$PrimaryLocation = $PrimaryLocationResourceGroup.Location
+Write-Host -Object "Primary Location ResourceGroup Name: '$PrimaryLocationResourceGroupName'..."
+Write-Host -Object "Primary Location: '$PrimaryLocation'..."
+
+
+<#
 $RecoveryLocation = "CentralUS"
+#>
+#Getting the Paired Region
+$RecoveryLocation = $AzurePairedRegion[$PrimaryLocation].PairedRegion -as [string]
 $RecoveryLocationResourceGroupName = $PrimaryLocationResourceGroupName -replace $shortNameHT[$PrimaryLocation].shortName, $shortNameHT[$RecoveryLocation].shortName
-$RecoveryLocationResourceGroup = New-AzResourceGroup -Name $RecoveryLocationResourceGroupName -Location $RecoveryLocation
-
+$RecoveryLocationResourceGroup = New-AzResourceGroup -Name $RecoveryLocationResourceGroupName -Location $RecoveryLocation -Force
 $RecoveryServicesVaultName = $RecoveryLocationResourceGroupName -replace "^rg", "rsv" 
 $RecoveryServicesVault = New-AzRecoveryServicesVault -Name $RecoveryServicesVaultName -Location $RecoveryLocation -ResourceGroupName $RecoveryLocationResourceGroupName
+Write-Host -Object "Recovery Location ResourceGroup Name: '$RecoveryLocationResourceGroupName'..."
+Write-Host -Object "Recovery Location: '$RecoveryLocation'..."
+Write-Host -Object "Recovery Services Vault Name: '$RecoveryServicesVaultName'..."
+
+#Randomly getting a Virtual Network in the recovery region
+$RecoveryNetwork = Get-AzVirtualNetwork | Where-Object -FilterScript { $_.Location -eq $RecoveryLocation } | Select-Object -First 1
+Write-Host -Object "Recovery Network: '$($RecoveryNetwork.Name)'..."
 #endregion
 
 #region Azure Policy Management
@@ -70,7 +102,13 @@ $PolicyParameterObject = @{
     TargetRegion          = $RecoveryLocation 
     targetResourceGroupId = $RecoveryLocationResourceGroup.ResourceId 
     vaultResourceGroupId  = $RecoveryLocationResourceGroup.ResourceId 
-    vaultId               = $RecoveryServicesVault.ID 
+    vaultId               = $RecoveryServicesVault.ID
+    recoveryNetworkId     = $RecoveryNetwork.Id
+    <#
+    tagName               = "ASRIncluded"
+    tagValue              = "True"
+    tagType               = "Inclusion"
+    #>
 }
 
 $PolicyAssignment = New-AzPolicyAssignment -Name "pa-$($PrimaryLocationResourceGroupName)" -DisplayName "Configure disaster recovery on virtual machines by enabling replication via Azure Site Recovery (AVD)" -Scope $PrimaryLocationResourceGroup.ResourceId -PolicyDefinition $PolicyDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $RecoveryLocation -PolicyParameterObject $PolicyParameterObject 
@@ -92,6 +130,10 @@ Write-Host -Object "Creating remediation for '$($PolicyDefinition.DisplayName)' 
 $PolicyRemediation = Start-AzPolicyRemediation -Name $PolicyAssignment.Name -PolicyAssignmentId $PolicyAssignment.Id -ResourceGroupName $PrimaryLocationResourceGroup.ResourceGroupName -ResourceDiscoveryMode ReEvaluateCompliance
 $PolicyRemediation
 
+Write-Host -Object "Starting Compliance Scan for '$PrimaryLocationResourceGroupName' Resource Group (As Job)..."
+$null = Start-AzPolicyComplianceScan -ResourceGroupName $PrimaryLocationResourceGroup -AsJob
+
+<#
 Write-Host -Object "Starting Compliance Scan for '$PrimaryLocationResourceGroupName' Resource Group ..."
 $PolicyComplianceScan = Start-AzPolicyComplianceScan -ResourceGroupName $PrimaryLocationResourceGroup
 $PolicyComplianceScan
@@ -102,6 +144,5 @@ Get-AzPolicyState -ResourceGroupName $PrimaryLocationResourceGroup -PolicyAssign
 
 #Get latest non-compliant policy states summary in resource group scope
 Get-AzPolicyStateSummary -ResourceGroupName $PrimaryLocationResourceGroup | Select-Object -ExpandProperty PolicyAssignments 
-#endregion 
-
-
+#endregion
+#>
