@@ -24,7 +24,7 @@ function Get-AzurePairedRegion {
     return (Get-AzLocation -OutVariable locations) | Select-Object -Property Location, PhysicalLocation, @{Name = 'PairedRegion'; Expression = { $_.PairedRegion.Name } }, @{Name = 'PairedRegionPhysicalLocation'; Expression = { ($locations | Where-Object -FilterScript { $_.location -eq $_.PairedRegion.Name }).PhysicalLocation } } | Where-Object -FilterScript { $_.PairedRegion } | Group-Object -Property Location -AsHashTable -AsString
 }
 
-function Get-AzureLocationSortName {
+function Get-AzureLocationShortName {
     [CmdletBinding()]
     Param(
     )
@@ -42,13 +42,14 @@ function Add-PsAvdVirtualNetworkPeering {
         [Parameter(Mandatory = $true)]
         [Microsoft.Azure.Commands.Network.Models.PSVirtualNetwork] $RemoteVirtualNetwork
     )
-    $VirtualNetworkPeeringName = "$($VirtualNetwork.Name)-$($RemoteVirtualNetwork.Name)"
+    #$VirtualNetworkPeeringName = "$($VirtualNetwork.Name)-$($RemoteVirtualNetwork.Name)"
+    $VirtualNetworkPeeringName = "peer-{0}-{1}" -f $VirtualNetwork.Name, $RemoteVirtualNetwork.Name
     if (-not(Get-AzVirtualNetworkPeering -Name $VirtualNetworkPeeringName -VirtualNetworkName $VirtualNetwork.Name -ResourceGroupName $VirtualNetwork.ResourceGroupName -ErrorAction Ignore)) {
         $vNetPeeringStatus = Add-AzVirtualNetworkPeering -Name $VirtualNetworkPeeringName -VirtualNetwork $VirtualNetwork -RemoteVirtualNetworkId $RemoteVirtualNetwork.Id -AllowForwardedTraffic
-        Write-Verbose -Message "Creating '$VirtualNetworkPeeringName' ..."
+        Write-Verbose -Message "Creating '$VirtualNetworkPeeringName': '$($VirtualNetwork.Name)' <==> '$($RemoteVirtualNetwork.Name)'"
         Write-Verbose -Message "`$vNetPeeringStatus: $($vNetPeeringStatus.PeeringState)"
         if ($vNetPeeringStatus.PeeringState -notin 'Initiated' , 'Connected') {
-            Write-Error "The '$VirtualNetworkPeeringName' peering state is $($vNetPeeringStatus.PeeringState)" #-ErrorAction Stop
+            Write-Error "The '$VirtualNetworkPeeringName' peering state is '$($vNetPeeringStatus.PeeringState)'" #-ErrorAction Stop
         }
     }
     else {
@@ -68,28 +69,42 @@ Set-Location -Path $CurrentDir
 
 
 $AzurePairedRegionHT = Get-AzurePairedRegion
-$AzureLocationSortName = Get-AzureLocationSortName
+$AzureLocationShortName = Get-AzureLocationShortName
 $Instance = 2
 $PrimaryLocation = "EastUS2"
-$TargetRegion = $AzurePairedRegionHT[$PrimaryLocation].PairedRegion
-$VirtualNetworkTemplateName = "vnet-avd-avd-{0}-{1:D3}"
+$SecondaryLocation = $AzurePairedRegionHT[$PrimaryLocation].PairedRegion
+$VirtualNetworkTemplateName = "vnet-avd-ad-{0}-{1:D3}"
 $VNetAddressTemplateRange = "10.{0}.0.0/16"
 $SubnetAddressTemplateRange = "10.{0}.1.0/24"
 $ResourceGroupTemplateName = "rg-avd-ad-{0}-{1:D3}"
-#$Index =1
-$Index = [regex]::Match( ((Get-AzVirtualNetwork -Name vnet-avd-ad-*).AddressSpace.AddressPrefixes | Sort-Object -Descending | Select-Object -First 1), "^10\.(?<BClass>\d+)").Groups["BClass"].Value -as [int]
+#$BClassIndex =1
+$BClassIndex = [regex]::Match(((Get-AzVirtualNetwork -Name vnet-avd-ad-*).AddressSpace.AddressPrefixes | Sort-Object -Descending | Select-Object -First 1), "^10\.(?<BClass>\d+)").Groups["BClass"].Value -as [int]
 
 
-$VirtualNetwork, $RemoteVirtualNetwork = foreach ($Location in $PrimaryLocation, $TargetRegion) {
-    $Index++
-    $LocationShortName = $AzureLocationSortName[$Location].shortName
+$ADVirtualNetwork = @{}
+foreach ($Location in $PrimaryLocation, $SecondaryLocation) {
+    $LocationShortName = $AzureLocationShortName[$Location].shortName
     $VirtualNetworkName = $VirtualNetworkTemplateName -f $LocationShortName, $Instance
+    $ResourceGroupName = $ResourceGroupTemplateName -f $LocationShortName, $Instance
+    $AzVirtualNetwork = Get-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName
+    $ADVirtualNetwork[$Location] = $AzVirtualNetwork
+}
+
+
+$AVDVirtualNetwork = @{}
+foreach ($CurrentItem in $ADVirtualNetwork.GetEnumerator()) {
+    $Location = $CurrentItem.Name
+    $CurrentVirtualNetwork = $CurrentItem.Value
+    $LocationShortName = $AzureLocationShortName[$Location].shortName
+    $VirtualNetworkName = $CurrentVirtualNetwork.Name -replace "avd-ad", "avd-avd"
     $subnetName = $VirtualNetworkName -replace "^vnet", "snet"
-    $VNetAddressRange = $VNetAddressTemplateRange -f $Index
-    $SubnetAddressRange = $SubnetAddressTemplateRange -f $Index
+    $BClassIndex++
+    $VNetAddressRange = $VNetAddressTemplateRange -f $BClassIndex
+    $SubnetAddressRange = $SubnetAddressTemplateRange -f $BClassIndex
     $ResourceGroupName = $ResourceGroupTemplateName -f $LocationShortName, $Instance
     $NetworkSecurityGroupName = $ResourceGroupName -replace "^rg", "nsg"
 
+    Write-Verbose -Message "`$Location: $Location"
     Write-Verbose -Message "`$LocationShortName: $LocationShortName"
     Write-Verbose -Message "`$VirtualNetworkName: $VirtualNetworkName"
     Write-Verbose -Message "`$subnetName: $subnetName"
@@ -97,37 +112,44 @@ $VirtualNetwork, $RemoteVirtualNetwork = foreach ($Location in $PrimaryLocation,
     Write-Verbose -Message "`$SubnetAddressRange: $SubnetAddressRange"
     Write-Verbose -Message "`$ResourceGroupName: $ResourceGroupName"
     Write-Verbose -Message "`$NetworkSecurityGroupName: $NetworkSecurityGroupName"
-    $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
-    $NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NetworkSecurityGroupName -Force
-    $subnet = New-AzVirtualNetworkSubnetConfig -Name $subnetName -AddressPrefix $SubnetAddressRange -NetworkSecurityGroup $NetworkSecurityGroup
-    $AzVirtualNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName  -AddressPrefix $VNetAddressRange -Location $Location -Subnet $Subnet -Force
-    $AzVirtualNetwork
+    $AzVirtualNetwork = Get-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName -ErrorAction Ignore
+    if ($null -eq $AzVirtualNetwork) {
+        $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
+        $NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NetworkSecurityGroupName -Force
+        $subnet = New-AzVirtualNetworkSubnetConfig -Name $subnetName -AddressPrefix $SubnetAddressRange -NetworkSecurityGroup $NetworkSecurityGroup
+        $AzVirtualNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName -AddressPrefix $VNetAddressRange -Location $Location -Subnet $Subnet -DnsServer $ADVirtualNetwork[$Location].DhcpOptions.DnsServers -Force
+    }
+    $AVDVirtualNetwork[$Location] = $AzVirtualNetwork
 }
 
-$ADVirtualNetwork, $ADRemoteVirtualNetwork = foreach ($CurrentVirtualNetwork in $VirtualNetwork, $RemoteVirtualNetwork) {
-    $VirtualNetworkName = $CurrentVirtualNetwork.Name -replace "avd-avd", "avd-ad"
-    $AzVirtualNetwork = Get-AzVirtualNetwork -ResourceGroupName $CurrentVirtualNetwork.ResourceGroupName -Name $VirtualNetworkName
-    $AzVirtualNetwork
-}
 
-#region Local AVD - Remote AVD vNet Peering
-Add-PsAvdVirtualNetworkPeering -VirtualNetwork $VirtualNetwork -RemoteVirtualNetwork $RemoteVirtualNetwork -Verbose
-Add-PsAvdVirtualNetworkPeering -VirtualNetwork $RemoteVirtualNetwork -RemoteVirtualNetwork $VirtualNetwork -Verbose
+#region Primary Location AVD <-> Secondary Location AVD vNet Peering
+Add-PsAvdVirtualNetworkPeering -VirtualNetwork $AVDVirtualNetwork[$PrimaryLocation] -RemoteVirtualNetwork $AVDVirtualNetwork[$SecondaryLocation] -Verbose
+Add-PsAvdVirtualNetworkPeering -VirtualNetwork $AVDVirtualNetwork[$SecondaryLocation] -RemoteVirtualNetwork $AVDVirtualNetwork[$PrimaryLocation] -Verbose
 #endregion
 
-#region Local AD - Remote AD vNet Peering
-Add-PsAvdVirtualNetworkPeering -VirtualNetwork $ADVirtualNetwork -RemoteVirtualNetwork $ADRemoteVirtualNetwork -Verbose
-Add-PsAvdVirtualNetworkPeering -VirtualNetwork $ADRemoteVirtualNetwork -RemoteVirtualNetwork $ADVirtualNetwork -Verbose
+#region Primary Location AD <-> Secondary Location AD vNet Peering
+Add-PsAvdVirtualNetworkPeering -VirtualNetwork $ADVirtualNetwork[$PrimaryLocation] -RemoteVirtualNetwork $ADVirtualNetwork[$SecondaryLocation] -Verbose
+Add-PsAvdVirtualNetworkPeering -VirtualNetwork $ADVirtualNetwork[$SecondaryLocation] -RemoteVirtualNetwork $ADVirtualNetwork[$PrimaryLocation] -Verbose
 #endregion
 
-#region Local AD - Local AVD vNet Peering
-Add-PsAvdVirtualNetworkPeering -VirtualNetwork $ADVirtualNetwork -RemoteVirtualNetwork $VirtualNetwork -Verbose
-Add-PsAvdVirtualNetworkPeering -VirtualNetwork $VirtualNetwork -RemoteVirtualNetwork $ADVirtualNetwork -Verbose
+#region Primary Location AD <-> Primary Location AVD vNet Peering
+Add-PsAvdVirtualNetworkPeering -VirtualNetwork $ADVirtualNetwork[$PrimaryLocation] -RemoteVirtualNetwork $AVDVirtualNetwork[$PrimaryLocation] -Verbose
+Add-PsAvdVirtualNetworkPeering -VirtualNetwork $AVDVirtualNetwork[$PrimaryLocation] -RemoteVirtualNetwork $ADVirtualNetwork[$PrimaryLocation] -Verbose
 #endregion
 
-#region Remote AD - Remote AVD vNet Peering
-Add-PsAvdVirtualNetworkPeering -VirtualNetwork $ADRemoteVirtualNetwork -RemoteVirtualNetwork $RemoteVirtualNetwork -Verbose
-Add-PsAvdVirtualNetworkPeering -VirtualNetwork $RemoteVirtualNetwork -RemoteVirtualNetwork $ADRemoteVirtualNetwork -Verbose
+#region Primary Location AD <-> Secondary Location AVD vNet Peering
+Add-PsAvdVirtualNetworkPeering -VirtualNetwork $ADVirtualNetwork[$PrimaryLocation] -RemoteVirtualNetwork $AVDVirtualNetwork[$SecondaryLocation] -Verbose
+Add-PsAvdVirtualNetworkPeering -VirtualNetwork $AVDVirtualNetwork[$SecondaryLocation] -RemoteVirtualNetwork $ADVirtualNetwork[$PrimaryLocation] -Verbose
 #endregion
 
+#region Secondary Location AD <-> Secondary Location AVD vNet Peering
+Add-PsAvdVirtualNetworkPeering -VirtualNetwork $ADVirtualNetwork[$SecondaryLocation] -RemoteVirtualNetwork $AVDVirtualNetwork[$SecondaryLocation] -Verbose
+Add-PsAvdVirtualNetworkPeering -VirtualNetwork $AVDVirtualNetwork[$SecondaryLocation] -RemoteVirtualNetwork $ADVirtualNetwork[$SecondaryLocation] -Verbose
+#endregion
+
+#region Secondary Location AD <-> Primary Location AVD vNet Peering
+Add-PsAvdVirtualNetworkPeering -VirtualNetwork $ADVirtualNetwork[$SecondaryLocation] -RemoteVirtualNetwork $AVDVirtualNetwork[$PrimaryLocation] -Verbose
+Add-PsAvdVirtualNetworkPeering -VirtualNetwork $AVDVirtualNetwork[$PrimaryLocation] -RemoteVirtualNetwork $ADVirtualNetwork[$SecondaryLocation] -Verbose
+#endregion
 

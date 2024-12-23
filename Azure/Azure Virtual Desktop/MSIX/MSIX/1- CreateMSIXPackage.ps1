@@ -56,7 +56,8 @@ if ($HTMLResponse.Content -match "Current Version (?<version>\d\.\d(\.\d)?)") {
 }
 else {
     #Should never be reached but in case: Update this line to reflect the latest release of Notepad++ 
-    $NotepadPlusPlusVersion = "8.7.0"
+    #Updated : December 14, 2024
+    $NotepadPlusPlusVersion = "8.7.4"
 }
 #Downloading notepad++ 
 $NotepadPlusPlusUri = "https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v$NotepadPlusPlusVersion/npp.$NotepadPlusPlusVersion.Installer.x64.exe"
@@ -104,9 +105,6 @@ If (-not(Test-Path -Path $Outfile)) {
 Expand-Archive -Path .\msixmgr.zip -Force
 #endregion
 
-$Label = "NotepadPlusPlus_{0}" -f [system.version]::Parse($NotepadPlusPlusVersion)
-$Label
-
 #region VHDX: Old Way
 $Label = "NotepadPlusPlus_{0}" -f [system.version]::Parse($NotepadPlusPlusVersion)
 $VHDXFileName = "{0}_{1}.vhdx" -f $Label.ToLower() , $(Get-Date -Format 'yyyyMMddHHmmss')
@@ -132,6 +130,7 @@ Resize-VHD -Path $MSIXVHD -ToMinimumSize
 #endregion
 
 #region VHDX: New Way
+$Label = "NotepadPlusPlus_{0}" -f [system.version]::Parse($NotepadPlusPlusVersion)
 $VHDXFileName = "{0}_{1}.vhdx" -f $Label.ToLower() , $(Get-Date -Format 'yyyyMMddHHmmss')
 $VHDXFilePath = Join-Path -Path $CurrentDir -ChildPath $VHDXFileName
 Remove-Item -Path $VHDXFilePath -Force -ErrorAction Ignore
