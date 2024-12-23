@@ -32,7 +32,7 @@ $BackupDir = Join-Path -Path $BackupDir -ChildPath $("CodeBackup_{0:yyyyMMddHHmm
 Set-Location -Path $ParentDir
 $null = New-Item -Path $BackupDir -ItemType Directory -Force
 #Backing up all powershell scripts
-Get-ChildItem -Path $ParentDir -Filter *.ps1 -File | Copy-Item -Destination $BackupDir -Force
+Get-ChildItem -Path $ParentDir -Filter *.ps1 -File -Recurse -Exclude $BackupDir  | Copy-Item -Destination $BackupDir -Recurse -Force
 #Backing up all PSAzureVirtualDesktop module versions
 Split-Path -Path (Get-Module -Name PSAzureVirtualDesktop -ListAvailable).ModuleBase -Parent | Select-Object -Unique | Copy-Item -Destination $BackupDir -Recurse -Force
 #Compressing files and folders
