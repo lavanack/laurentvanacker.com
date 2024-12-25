@@ -95,7 +95,7 @@ $SecondaryRegionVNetName          = "vnet-avd-avd-usc-002"
 $SecondaryRegionSubnetName        = "snet-avd-avd-usc-002"
 $SecondaryRegionVNet              = Get-AzVirtualNetwork -Name $SecondaryRegionVNetName -ResourceGroupName $SecondaryRegionResourceGroupName
 $SecondaryRegionSubnet            = $SecondaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $SecondaryRegionSubnetName
-$SecondaryRegion                  = $SecondaryRegionSubnet.Location
+$SecondaryRegion                  = $SecondaryRegionVNet.Location
 #$SecondaryRegion                  = [HostPool]::GetAzurePairedRegion($PrimaryRegion)
 #endregion
 #endregion
@@ -205,29 +205,6 @@ New-PsAvdHostPoolSetup -HostPool $HostPools -NoMFAEntraIDGroupName "No-MFA Users
 #Or pipeline processing call
 #$HostPools | New-PsAvdHostPoolSetup #-AsJob 
 
-<#
-#Setting up the hostpool scaling plan(s)
-New-PsAvdScalingPlan -HostPool $HostPools 
-
-#Setting up Azure Monitor Baseline Alerts for Azure Virtual Desktop
-$AMBAResourceGroup = New-PsAvdAzureMonitorBaselineAlertsDeployment -Location $PrimaryRegion -HostPool $HostPools -PassThru -Verbose
-
-#Importing some useful AVD Worbooks
-Import-PsAvdWorkbook -Location $PrimaryRegion
-
-#Setting up the Azure site Recovery for the Hostpools 
-New-PsAvdAzureSiteRecoveryPolicyAssignement -HostPool $HostPools
-
-#region Restarting all session hosts
-Restart-PsAvdSessionHost -HostPool $HostPools -Wait
-#endregion
-
-#region Running RDCMan to connect to all Session Hosts (for administration purpose if needed)
-New-PsAvdRdcMan -HostPool $HostPools -Install -Open
-#endregion
-
-#>
-
 #Starting a Windows Explorer instance per FSLogix profiles share
 Get-PsAvdFSLogixProfileShare -HostPool $HostPools
 
@@ -241,30 +218,17 @@ Start-MicrosoftEntraIDConnectSync
 #endregion
 #endregion
 
-#region Checking data sent to the Log Analytics Workspace(s)
-#$Results = Get-PsAvdLatestOperationalInsightsData -HostPool $HostPools #-Verbose
-#$Results | Sort-Object -Property Computer | Out-GridView
-#For getting all Data Collection Rule Associations
-#$DataCollectionRuleAssociations = $HostPools.GetResourceGroupName() | ForEach-Object -Process { Get-AzVM -ResourceGroupName $_ } | ForEach-Object -Process { Get-AzDataCollectionRuleAssociation -ResourceUri $_.Id} #| Out-GridView
-#$DataCollectionRuleAssociations | Out-GridView
-#endregion
-
+#region Updating the UsageLocation to France for all users (Adjust depending on your needs and from which country you will connect from)
 <#
-#region Updating the UsageLocation to the current machine location for all users
+#Updating the UsageLocation to the current machine location for all users
 $UsageLocation = (Invoke-RestMethod -Uri http://ip-api.com/json/?fields=countryCode).countryCode
-$UsageLocation
-Update-PsAvdMgBetaUserUsageLocation -UsageLocation $UsageLocation -Force -Verbose
-#endregion
 
-#region Updating the UsageLocation to the current RDP client location for all users
+#Updating the UsageLocation to the current RDP client location for all users
 $UsageLocation = (Invoke-RestMethod -Uri $("http://ip-api.com/json/{0}?fields=countryCode" -f (Get-NetTCPConnection -LocalPort 3389 -State Established -ErrorAction Ignore | Select-Object -First 1).RemoteAddress)).CountryCode
-$UsageLocation
-Update-PsAvdMgBetaUserUsageLocation -UsageLocation $UsageLocation -Force -Verbose
-#endregion
 #>
 
-#region Updating the UsageLocation to France for all users (Adjust depending on your needs and from which country you will connect from)
-Update-PsAvdMgBetaUserUsageLocation -UsageLocation FR -Force -Verbose
+$UsageLocation = "FR"
+Update-PsAvdMgBetaUserUsageLocation -UsageLocation $UsageLocation -Force -Verbose
 #endregion
 
 #region Assigning E5 licenses (if available) to the 'AVD Users' Entra ID Group
@@ -294,9 +258,3 @@ Write-Host -Object "Overall Processing Time: $($TimeSpan.ToString())"
 Stop-Transcript
 
 Invoke-PsAvdErrorLogFilePester -LogDir $CurrentLogDir
-
-<#
-Write-Host -Object "Error number per log file :"
-Get-ChildItem -Path $CurrentLogDir -Filter *.txt -File | Select-String -Pattern "~~~" | Group-Object -Property Path -NoElement | Format-Table -AutoSize
-#>
-#endregion

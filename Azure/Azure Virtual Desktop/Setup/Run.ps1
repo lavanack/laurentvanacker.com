@@ -36,8 +36,6 @@ $null = Remove-Module -Name PSAzureVirtualDesktop -Force -ErrorAction Ignore
 $Global:MaximumFunctionCount = 32768
 Import-Module -Name PSAzureVirtualDesktop -Force -Verbose
 
-<#
-#>
 Connect-MgGraph -NoWelcome
 try { 
     $null = Get-AzAccessToken -ErrorAction Stop
@@ -76,21 +74,4 @@ else {
     & '.\Scenarios\Mixed\Tests.ps1' -LogDir $LogDir -Verbose
 }
 $PSBreakpoints | Remove-PSBreakpoint
-Set-PSDebug -Off
-
-<#
-#region for openning the fileshares for FSLogix and MSIX
-$storageAccounts = Get-AzStorageAccount
-# Loop through each storage account
-foreach ($storageAccount in $storageAccounts)
-{
-    # Get the list of file shares in the storage account
-    $AzStorageShare = Get-AzStorageShare -Context $storageAccount.Context -ErrorAction Ignore
-    $StorageShare = $AzStorageShare | Where-Object  -FilterScript {$_.Name -in "profiles", "msix"}
-    if ($null -ne $StorageShare) {
-        Set-AzStorageAccount -ResourceGroupName $storageAccount.ResourceGroupName -Name $storageAccount.StorageAccountName -AllowSharedKeyAccess $true
-        start $("\\{0}.file.{1}\{2}" -f $StorageShare.context.StorageAccountName, ($StorageShare.context.EndPointSuffix -replace "/"), $StorageShare.Name)
-    }
-}
-#endregion
-#> 
+#Set-PSDebug -Off
