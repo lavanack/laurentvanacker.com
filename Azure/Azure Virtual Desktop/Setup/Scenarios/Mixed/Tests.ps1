@@ -29,7 +29,6 @@ Clear-Host
 $Error.Clear()
 #From https://helloitsliam.com/2021/10/25/powershell-function-and-variable-issue/
 $Global:MaximumFunctionCount = 32768
-#Import-Module -Name PSAzureVirtualDesktop -RequiredVersion 1.0.3 -Force -Verbose
 $null = Remove-Module -Name PSAzureVirtualDesktop -Force -ErrorAction Ignore
 Import-Module -Name PSAzureVirtualDesktop -Force -Verbose
 
@@ -107,9 +106,6 @@ $HostPoolSessionCredentialKeyVault = New-PsAvdHostPoolSessionHostCredentialKeyVa
 
 
 #region Creating Host Pools
-#Enabling the Watermarking
-#[HostPool]::EnableWatermarking()
-
 #Reset Index (starting at 1) for automatic numbering (every instantiation will increment the Index)
 [PooledHostPool]::ResetIndex()
 [PersonalHostPool]::ResetIndex()
