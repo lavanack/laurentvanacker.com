@@ -339,10 +339,12 @@ function New-AAD-Hybrid-BCDR-Lab {
 
     #region vNet Peering
     $RemoteVNetwork = Get-AzVirtualNetwork -Name $RemoteVNetName
-    $vNetPeeringStatus = Add-AzVirtualNetworkPeering -Name "$($VirtualNetworkName)-$($RemoteVNetName)" -VirtualNetwork $vNetwork -RemoteVirtualNetworkId $RemoteVNetwork.Id -AllowForwardedTraffic
+    $VirtualNetworkPeeringName = "peer-{0}-{1}" -f $VirtualNetworkName, $RemoteVNetName
+    Write-Verbose -Message "Creating '$VirtualNetworkPeeringName': '$VirtualNetworkName' <==> '$RemoteVNetName'"
+    $vNetPeeringStatus = Add-AzVirtualNetworkPeering -Name $VirtualNetworkPeeringName -VirtualNetwork $vNetwork -RemoteVirtualNetworkId $RemoteVNetwork.Id -AllowForwardedTraffic
     Write-Verbose -Message "`$vNetPeeringStatus: $($vNetPeeringStatus.PeeringState)"
     if ($vNetPeeringStatus.PeeringState -ne 'Initiated') {
-        Write-Error "The '$($VirtualNetworkName)-$($RemoteVNetName)' peering state is $($vNetPeeringStatus.PeeringState)" -ErrorAction Stop
+        Write-Error "The '$VirtualNetworkPeeringName' peering state is $($vNetPeeringStatus.PeeringState)" -ErrorAction Stop
     }
     $RemoteVNetPeeringStatus = Add-AzVirtualNetworkPeering -Name "$($RemoteVNetName)-$($VirtualNetworkName)" -VirtualNetwork $RemoteVNetwork -RemoteVirtualNetworkId $vNetwork.Id -AllowForwardedTraffic
     Write-Verbose -Message "`$RemoteVNetPeeringStatus: $($RemoteVNetPeeringStatus.PeeringState)"
@@ -490,11 +492,11 @@ if (-not([String]::IsNullOrEmpty($MissingModules))) {
 $AdminCredential = Get-Credential -Credential $env:USERNAME
 
 #$Instance = Get-Random -Minimum 1 -Maximum 1000
-$Instance = 1
+$Instance = 2
 
 $Parameters = @{
     "AdminCredential"      = $AdminCredential
-    "VMSize"               = "Standard_D2s_v4"
+    "VMSize"               = "Standard_D2s_v5"
     "OSDiskType"           = "Premium_LRS"
     "Project"              = "avd"
     "Role"                 = "ad"
