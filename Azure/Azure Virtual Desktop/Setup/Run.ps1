@@ -16,6 +16,7 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 
+##requires -Version 5 -Modules PSAzureVirtualDesktop
 [CmdletBinding()]
 Param (
 )
