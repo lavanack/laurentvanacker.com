@@ -235,7 +235,7 @@ $AutomationAccountPrefix = "aa"
 $Project = "automation"
 $Role = "startvm"
 $DigitNumber = 3
-$Instance = 2
+$Instance = 1
 
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $AutomationAccountName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $AutomationAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
