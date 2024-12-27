@@ -140,7 +140,7 @@ $HostPools = @(
 $HostPools = @(
     #region Deploy 2  Pooled HostPools without MSIX and with FSLogix and FSLogix Cloud Cache Enabled and replicating the profiles to each other (because they use Azure Paired Regions)
     [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().DisableMSIX().EnableFSLogixCloudCache().EnableWatermarking()
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).EnableSpotInstance().DisableMSIX().EnableFSLogixCloudCache()
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).EnableSpotInstance().DisableMSIX().EnableFSLogixCloudCache().EnableWatermarking()
     #endregion
     # Use case X: Deploy a Personal HostPool with 3 (default value) Session Hosts (AD Domain joined and without FSLogix and MSIX - Not necessary for Personal Desktops) and with a replication of the disk to a recovery region with Azure Site Recovery
     [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().EnableAzureSiteRecovery($SecondaryRegionVNet.Id)
@@ -148,18 +148,21 @@ $HostPools = @(
     [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance()
     [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().EnableAzureSiteRecovery($SecondaryRegionVNet.Id)
 )
-#region Creating a new Pooled Host Pool for every image definition in the Azure Compute Gallery
-#$AzureComputeGallery = New-AzureComputeGallery -Location $PrimaryRegion -Verbose
-$AzureComputeGallery = Get-AzGallery | Sort-Object -Property Name -Descending | Select-Object -First 1
-if ($AzureComputeGallery) {
+#region Creating a new Pooled Host Pool for every image definition from an Azure Compute Gallery
+#Looging for Azure Compute Gallery Image Definition with image version in the primary and secondary regions
+$GalleryImageDefinition = Get-PsAvdAzGalleryImageDefinition -Region $PrimaryRegion, $SecondaryRegion
+if (-not($GalleryImageDefinition)) {
+    #Creating an Azure Compute Gallery if needed
+    $AzureComputeGallery = New-AzureComputeGallery -Location $PrimaryRegion -TargetRegions $PrimaryRegion, $SecondaryRegion
     $GalleryImageDefinition = Get-AzGalleryImageDefinition -GalleryName $AzureComputeGallery.Name -ResourceGroupName $AzureComputeGallery.ResourceGroupName
-    foreach ($CurrentGalleryImageDefinition in $GalleryImageDefinition) {
-        #$LatestCurrentGalleryImageVersion = Get-AzGalleryImageVersion -GalleryName $AzureComputeGallery.Name -ResourceGroupName $AzureComputeGallery.ResourceGroupName -GalleryImageDefinitionName $CurrentGalleryImageDefinition.Name | Sort-Object -Property Id | Select-Object -Last 1
-        # Use case 8 and more: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with an Image coming from an Azure Compute Gallery and without FSLogix and MSIX
-        $PooledHostPool = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetVMSourceImageId($CurrentGalleryImageDefinition.Id).DisableFSLogix().DisableMSIX()
-        Write-Verbose -Message "VM Source Image Id for the ACG Host Pool: $LatestCurrentGalleryImageVersion (MSIX: $($PooledHostPool.MSIX) / FSlogix: $($PooledHostPool.FSlogix))"
-        #$HostPools += $PooledHostPool
-    }
+}
+
+foreach ($CurrentGalleryImageDefinition in $GalleryImageDefinition) {
+    #$LatestCurrentGalleryImageVersion = Get-AzGalleryImageVersion -GalleryName $AzureComputeGallery.Name -ResourceGroupName $AzureComputeGallery.ResourceGroupName -GalleryImageDefinitionName $CurrentGalleryImageDefinition.Name | Sort-Object -Property Id | Select-Object -Last 1
+    # Use case 8 and more: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with an Image coming from an Azure Compute Gallery and without FSLogix and MSIX
+    $PooledHostPool = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetVMSourceImageId($CurrentGalleryImageDefinition.Id).DisableFSLogix().DisableMSIX()
+    Write-Verbose -Message "VM Source Image Id for the ACG Host Pool: $LatestCurrentGalleryImageVersion (MSIX: $($PooledHostPool.MSIX) / FSlogix: $($PooledHostPool.FSlogix))"
+    #$HostPools += $PooledHostPool
 }
 #endregion
 

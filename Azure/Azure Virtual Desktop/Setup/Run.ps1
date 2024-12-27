@@ -24,7 +24,6 @@ Clear-Host
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
-#$LogDir = "~\Documents\"
 #$LogDir = [Environment]::GetFolderPath("MyDocuments")
 $LogDir = $CurrentDir
 Set-Location -Path $CurrentDir
@@ -44,7 +43,7 @@ try {
     Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
 }
 
-#region Dirty Cleanup
+#region Dirty Cleanup - Removing everything for a complete restart
 try {
     Get-ChildItem -Path $LogDir -Filter HostPool_* -Directory | Remove-Item -Force -Recurse -ErrorAction Stop
 }
@@ -68,10 +67,10 @@ $LatestPSAzureVirtualDesktopModule = Get-Module -Name PSAzureVirtualDesktop -Lis
 #$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Command New-PsAvdPrivateEndpointSetup
 #$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Variable $ThisDomainControllerVirtualNetwork -Mode ReadWrite
 if ($PSBreakpoints.Count -le 0) {
-    & '.\Scenarios\Mixed\Tests.ps1' -LogDir $LogDir -Verbose -AsJob
+    & '.\Scenarios\0 - Full - Tests' -LogDir $LogDir -Verbose -AsJob
 }
 else {
-    & '.\Scenarios\Mixed\Tests.ps1' -LogDir $LogDir -Verbose
+    & '.\Scenarios\0 - Full - Tests' -LogDir $LogDir -Verbose
+    $PSBreakpoints | Remove-PSBreakpoint
 }
-$PSBreakpoints | Remove-PSBreakpoint
 #Set-PSDebug -Off
