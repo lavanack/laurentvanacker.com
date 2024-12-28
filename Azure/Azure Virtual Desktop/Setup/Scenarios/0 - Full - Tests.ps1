@@ -52,7 +52,7 @@ Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader #-Verbose
 
 #region function calls
 #region Prerequisites
-if (-not(Test-Domaincontroller)) {
+if (-not(Test-DomainController)) {
     Write-Error -Message "The '$env:COMPUTERNAME' is NOT an ADDS Domain Controller" -ErrorAction Stop
     Stop-Transcript
 }
