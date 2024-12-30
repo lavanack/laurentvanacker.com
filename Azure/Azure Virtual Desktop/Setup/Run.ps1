@@ -68,10 +68,10 @@ $LatestPSAzureVirtualDesktopModule = Get-Module -Name PSAzureVirtualDesktop -Lis
 #$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Command New-PsAvdPrivateEndpointSetup
 #$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Variable $ThisDomainControllerVirtualNetwork -Mode ReadWrite
 if ($PSBreakpoints.Count -le 0) {
-    & '.\Scenarios\0 - Full - Tests' -LogDir $LogDir -Verbose -AsJob
+    & '.\Scenarios\00 - Full - Tests' -LogDir $LogDir -Verbose -AsJob
 }
 else {
-    & '.\Scenarios\0 - Full - Tests' -LogDir $LogDir -Verbose
+    & '.\Scenarios\00 - Full - Tests' -LogDir $LogDir -Verbose
     $PSBreakpoints | Remove-PSBreakpoint
 }
 #Set-PSDebug -Off
