@@ -121,6 +121,33 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 [PooledHostPool]::SetIndex($RandomNumber, $SecondaryRegion)
 [PersonalHostPool]::SetIndex($RandomNumber, $SecondaryRegion)
 
+$HostPools = @(
+    #Be sure to use the same Index in the both region when using FSLogix Cloud Cache
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().EnableFSLogixCloudCache().EnableWatermarking()
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).EnableSpotInstance().EnableFSLogixCloudCache().EnableWatermarking()
+
+    #Be sure to use the same Index in the both region when using FSLogix Cloud Cache
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableIntune().EnableSpotInstance().EnableFSLogixCloudCache().EnableWatermarking()
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).EnableIntune().EnableSpotInstance().EnableFSLogixCloudCache().EnableWatermarking()
+)
+
+<#
+$HP1 = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().EnableFSLogixCloudCache().EnableWatermarking()
+$HP2 = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).EnableSpotInstance().EnableFSLogixCloudCache($HP1).EnableWatermarking()
+$HostPools = @(
+    $HP1
+    $HP2    
+)
+
+$HostPools = @(
+    #Be sure to use the same Index in the both region when using FSLogix Cloud Cache
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().EnableFSLogixCloudCache().EnableWatermarking()
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).EnableSpotInstance().EnableFSLogixCloudCache().EnableWatermarking()
+
+    #Be sure to use the same Index in the both region when using FSLogix Cloud Cache
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableIntune().EnableSpotInstance().EnableFSLogixCloudCache().EnableWatermarking()
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).EnableIntune().EnableSpotInstance().EnableFSLogixCloudCache().EnableWatermarking()
+)
 
 $HostPools = @(
     #Be sure to use the same Index in the both region when using FSLogix Cloud Cache
@@ -144,7 +171,6 @@ $HostPools = @(
     #region Deploy 2  Pooled HostPools without MSIX and with FSLogix and FSLogix Cloud Cache Enabled and replicating the profiles to each other (because they use Azure Paired Regions)
 )
 
-<#
 $HostPools = @(
     #region Deploy 2  Pooled HostPools without MSIX and with FSLogix and FSLogix Cloud Cache Enabled and replicating the profiles to each other (because they use Azure Paired Regions)
     [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().DisableMSIX().EnableFSLogixCloudCache().EnableWatermarking()
@@ -209,7 +235,8 @@ $HostPoolBackup = New-PsAvdHostPoolBackup -HostPool $HostPools -Directory $Backu
 
 #region Setting up
 #Setting up the hostpool(s)
-New-PsAvdHostPoolSetup -HostPool $HostPools -NoMFAEntraIDGroupName "No-MFA Users" -LogDir $CurrentLogDir  -AMBA -WorkBook -Restart -RDCMan -AsJob:$AsJob
+$NoMFAEntraIDGroupName = "No-MFA Users"
+New-PsAvdHostPoolSetup -HostPool $HostPools -NoMFAEntraIDGroupName $NoMFAEntraIDGroupName -LogDir $CurrentLogDir  -AMBA -WorkBook -Restart -RDCMan -AsJob:$AsJob
 #Or pipeline processing call
 #$HostPools | New-PsAvdHostPoolSetup #-AsJob 
 
@@ -223,6 +250,14 @@ Get-PsAvdMSIXProfileShare -HostPool $HostPools
 $AVDUserGroupName = 'AVD Users'
 Get-ADGroup -Filter "Name -like 'hp*-*Application Group Users'" | Add-ADGroupMember -Members $AVDUserGroupName
 Start-MicrosoftEntraIDConnectSync
+#endregion
+
+#region Adding Test Users (under the OrgUsers OU) as Memebers of the "No-MFA Users" group (if any)
+$NoMFAEntraIDGroup = Get-MgBetaGroup -Filter "DisplayName eq '$NoMFAEntraIDGroupName'"
+$AVDUserGroup = Get-MgBetaGroup -Filter "DisplayName eq '$AVDUserGroupName'"
+if (($null -ne $NoMFAEntraIDGroup) -and (-not((Get-MgBetaGroupMember -GroupId $NoMFAEntraIDGroup.Id).Id -contains $AVDUserGroup.Id))) {
+    New-MgBetaGroupMember -GroupId $NoMFAEntraIDGroup.Id -DirectoryObjectId $AVDUserGroup.Id
+}
 #endregion
 #endregion
 
