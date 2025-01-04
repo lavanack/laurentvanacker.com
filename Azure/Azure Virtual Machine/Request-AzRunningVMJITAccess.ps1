@@ -82,5 +82,5 @@ function Request-AzRunningVMJITAccess {
 #region Main code
 #Get-AzVM | Request-AzRunningVMJITAccess -Verbose | Format-List * -Force
 #Request-AzRunningVMJITAccess -Verbose -PassThru | Format-List * -Force
-Request-AzRunningVMJITAccess -Verbose
+Request-AzRunningVMJITAccess -PassThru -Verbose | Format-List -Property * -Force 
 #endregion
