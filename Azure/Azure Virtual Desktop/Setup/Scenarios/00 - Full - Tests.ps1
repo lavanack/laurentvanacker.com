@@ -27,6 +27,10 @@ Param (
 #region Main code
 Clear-Host
 $Error.Clear()
+$PSDefaultParameterValues = @{
+    #To avoid warning message like: WARNING: The names of some imported commands from the module 'Microsoft.Azure.PowerShell.Cmdlets.Network' include unapproved verbs that might make them less discoverable
+    'Import-Module:DisableNameChecking' = $true
+}
 #From https://helloitsliam.com/2021/10/25/powershell-function-and-variable-issue/
 $Global:MaximumFunctionCount = 32768
 $null = Remove-Module -Name PSAzureVirtualDesktop -Force -ErrorAction Ignore
@@ -52,7 +56,7 @@ Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader #-Verbose
 
 #region function calls
 #region Prerequisites
-if (-not(Test-Domaincontroller)) {
+if (-not(Test-DomainController)) {
     Write-Error -Message "The '$env:COMPUTERNAME' is NOT an ADDS Domain Controller" -ErrorAction Stop
     Stop-Transcript
 }
@@ -117,9 +121,34 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 [PooledHostPool]::SetIndex($RandomNumber, $SecondaryRegion)
 [PersonalHostPool]::SetIndex($RandomNumber, $SecondaryRegion)
 
+$HostPools = @(
+    # Use case 3: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with FSLogix and AppAttach
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableAppAttach()
+)
 
 <#
+$HP1 = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().EnableFSLogixCloudCache().EnableWatermarking()
+$HP2 = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).EnableSpotInstance().EnableFSLogixCloudCache($HP1).EnableWatermarking()
 $HostPools = @(
+    $HP1
+    $HP2    
+)
+
+$HostPools = @(
+    #Be sure to use the same Index in the both region when using FSLogix Cloud Cache
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().EnableFSLogixCloudCache().EnableWatermarking()
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).EnableSpotInstance().EnableFSLogixCloudCache().EnableWatermarking()
+
+    #Be sure to use the same Index in the both region when using FSLogix Cloud Cache
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableIntune().EnableSpotInstance().EnableFSLogixCloudCache().EnableWatermarking()
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).EnableIntune().EnableSpotInstance().EnableFSLogixCloudCache().EnableWatermarking()
+)
+
+$HostPools = @(
+    #Be sure to use the same Index in the both region when using FSLogix Cloud Cache
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableIntune().EnableSpotInstance().EnableFSLogixCloudCache().EnableWatermarking()
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).EnableIntune().EnableSpotInstance().EnableFSLogixCloudCache().EnableWatermarking()
+
     # Use case 1: Deploy a Pooled HostPool with 3 (default value) Session Hosts for RemoteApp (AD Domain joined) with FSLogix and MSIX
     [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetPreferredAppGroupType("RailApplications")#.EnableSpotInstance()
     # Use case 2: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with FSLogix, MSIX, Ephemeral OS Disk (ResourceDisk mode) and a Standard_D8ds_v5 size (compatible with Ephemeral OS Disk)
@@ -134,13 +163,13 @@ $HostPools = @(
     [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetVMNumberOfInstances(2).EnableHibernation()
     # Use case 7: Deploy a Personal HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined and without FSLogix and MSIX - Not necessary for Personal Desktops) and a Scaling Plan 
     [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableScalingPlan()
+    #region Deploy 2  Pooled HostPools without MSIX and with FSLogix and FSLogix Cloud Cache Enabled and replicating the profiles to each other (because they use Azure Paired Regions)
 )
-#>
 
 $HostPools = @(
     #region Deploy 2  Pooled HostPools without MSIX and with FSLogix and FSLogix Cloud Cache Enabled and replicating the profiles to each other (because they use Azure Paired Regions)
     [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().DisableMSIX().EnableFSLogixCloudCache().EnableWatermarking()
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).EnableSpotInstance().DisableMSIX().EnableFSLogixCloudCache()
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).EnableSpotInstance().DisableMSIX().EnableFSLogixCloudCache().EnableWatermarking()
     #endregion
     # Use case X: Deploy a Personal HostPool with 3 (default value) Session Hosts (AD Domain joined and without FSLogix and MSIX - Not necessary for Personal Desktops) and with a replication of the disk to a recovery region with Azure Site Recovery
     [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().EnableAzureSiteRecovery($SecondaryRegionVNet.Id)
@@ -148,18 +177,22 @@ $HostPools = @(
     [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance()
     [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().EnableAzureSiteRecovery($SecondaryRegionVNet.Id)
 )
-#region Creating a new Pooled Host Pool for every image definition in the Azure Compute Gallery
-#$AzureComputeGallery = New-AzureComputeGallery -Location $PrimaryRegion -Verbose
-$AzureComputeGallery = Get-AzGallery | Sort-Object -Property Name -Descending | Select-Object -First 1
-if ($AzureComputeGallery) {
+#>
+#region Creating a new Pooled Host Pool for every image definition from an Azure Compute Gallery
+#Looging for Azure Compute Gallery Image Definition with image version in the primary and secondary regions
+$GalleryImageDefinition = Get-PsAvdAzGalleryImageDefinition -Region $PrimaryRegion, $SecondaryRegion
+if (-not($GalleryImageDefinition)) {
+    #Creating an Azure Compute Gallery if needed
+    $AzureComputeGallery = New-AzureComputeGallery -Location $PrimaryRegion -TargetRegions $PrimaryRegion, $SecondaryRegion
     $GalleryImageDefinition = Get-AzGalleryImageDefinition -GalleryName $AzureComputeGallery.Name -ResourceGroupName $AzureComputeGallery.ResourceGroupName
-    foreach ($CurrentGalleryImageDefinition in $GalleryImageDefinition) {
-        #$LatestCurrentGalleryImageVersion = Get-AzGalleryImageVersion -GalleryName $AzureComputeGallery.Name -ResourceGroupName $AzureComputeGallery.ResourceGroupName -GalleryImageDefinitionName $CurrentGalleryImageDefinition.Name | Sort-Object -Property Id | Select-Object -Last 1
-        # Use case 8 and more: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with an Image coming from an Azure Compute Gallery and without FSLogix and MSIX
-        $PooledHostPool = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetVMSourceImageId($CurrentGalleryImageDefinition.Id).DisableFSLogix().DisableMSIX()
-        Write-Verbose -Message "VM Source Image Id for the ACG Host Pool: $LatestCurrentGalleryImageVersion (MSIX: $($PooledHostPool.MSIX) / FSlogix: $($PooledHostPool.FSlogix))"
-        #$HostPools += $PooledHostPool
-    }
+}
+
+foreach ($CurrentGalleryImageDefinition in $GalleryImageDefinition) {
+    #$LatestCurrentGalleryImageVersion = Get-AzGalleryImageVersion -GalleryName $AzureComputeGallery.Name -ResourceGroupName $AzureComputeGallery.ResourceGroupName -GalleryImageDefinitionName $CurrentGalleryImageDefinition.Name | Sort-Object -Property Id | Select-Object -Last 1
+    # Use case 8 and more: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with an Image coming from an Azure Compute Gallery and without FSLogix and MSIX
+    $PooledHostPool = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetVMSourceImageId($CurrentGalleryImageDefinition.Id).DisableFSLogix().DisableMSIX()
+    Write-Verbose -Message "VM Source Image Id for the ACG Host Pool: $LatestCurrentGalleryImageVersion (MSIX: $($PooledHostPool.MSIX) / FSlogix: $($PooledHostPool.FSlogix))"
+    #$HostPools += $PooledHostPool
 }
 #endregion
 
@@ -197,7 +230,8 @@ $HostPoolBackup = New-PsAvdHostPoolBackup -HostPool $HostPools -Directory $Backu
 
 #region Setting up
 #Setting up the hostpool(s)
-New-PsAvdHostPoolSetup -HostPool $HostPools -NoMFAEntraIDGroupName "No-MFA Users" -LogDir $CurrentLogDir  -AMBA -WorkBook -Restart -RDCMan -AsJob:$AsJob
+$NoMFAEntraIDGroupName = "No-MFA Users"
+New-PsAvdHostPoolSetup -HostPool $HostPools -NoMFAEntraIDGroupName $NoMFAEntraIDGroupName -LogDir $CurrentLogDir  -AMBA -WorkBook -Restart -RDCMan -AsJob:$AsJob
 #Or pipeline processing call
 #$HostPools | New-PsAvdHostPoolSetup #-AsJob 
 
@@ -212,6 +246,16 @@ $AVDUserGroupName = 'AVD Users'
 Get-ADGroup -Filter "Name -like 'hp*-*Application Group Users'" | Add-ADGroupMember -Members $AVDUserGroupName
 Start-MicrosoftEntraIDConnectSync
 #endregion
+
+<#
+#region Adding Test Users (under the OrgUsers OU) as Memebers of the "No-MFA Users" group (if any)
+$NoMFAEntraIDGroup = Get-MgBetaGroup -Filter "DisplayName eq '$NoMFAEntraIDGroupName'"
+$AVDUserGroup = Get-MgBetaGroup -Filter "DisplayName eq '$AVDUserGroupName'"
+if (($null -ne $NoMFAEntraIDGroup) -and (-not((Get-MgBetaGroupMember -GroupId $NoMFAEntraIDGroup.Id).Id -contains $AVDUserGroup.Id))) {
+    New-MgBetaGroupMember -GroupId $NoMFAEntraIDGroup.Id -DirectoryObjectId $AVDUserGroup.Id
+}
+#endregion
+#>
 #endregion
 
 #region Updating the UsageLocation to France for all users (Adjust depending on your needs and from which country you will connect from)

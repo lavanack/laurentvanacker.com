@@ -16,6 +16,7 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 
+#requires -Version 5 -RunAsAdministrator 
 [CmdletBinding()]
 Param (
 )
@@ -24,7 +25,6 @@ Clear-Host
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
-#$LogDir = "~\Documents\"
 #$LogDir = [Environment]::GetFolderPath("MyDocuments")
 $LogDir = $CurrentDir
 Set-Location -Path $CurrentDir
@@ -44,7 +44,7 @@ try {
     Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
 }
 
-#region Dirty Cleanup
+#region Dirty Cleanup - Removing everything for a complete restart
 try {
     Get-ChildItem -Path $LogDir -Filter HostPool_* -Directory | Remove-Item -Force -Recurse -ErrorAction Stop
 }
@@ -63,15 +63,14 @@ Get-AzKeyVault -InRemovedState | Remove-AzKeyVault -InRemovedState -AsJob -Force
 #Set-PSDebug -Trace 2
 $PSBreakpoints = @() 
 $LatestPSAzureVirtualDesktopModule = Get-Module -Name PSAzureVirtualDesktop -ListAvailable | Sort-Object -Property Version -Descending | Select-Object -First 1
-#$PSBreakpoints += Set-PSBreakpoint -Command Get-Credential
-#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Line 8774, 8819
+#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Line 7095
 #$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Command New-PsAvdPrivateEndpointSetup
 #$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Variable $ThisDomainControllerVirtualNetwork -Mode ReadWrite
 if ($PSBreakpoints.Count -le 0) {
-    & '.\Scenarios\Mixed\Tests.ps1' -LogDir $LogDir -Verbose -AsJob
+    & '.\Scenarios\00 - Full - Tests' -LogDir $LogDir -Verbose -AsJob
 }
 else {
-    & '.\Scenarios\Mixed\Tests.ps1' -LogDir $LogDir -Verbose
+    & '.\Scenarios\00 - Full - Tests' -LogDir $LogDir -Verbose
+    $PSBreakpoints | Remove-PSBreakpoint
 }
-$PSBreakpoints | Remove-PSBreakpoint
 #Set-PSDebug -Off
