@@ -23,7 +23,7 @@ function New-AzureComputeGallery {
 	[CmdletBinding()]
 	Param(
 		[Parameter(Mandatory = $false)]
-		[string]$Location = "EastUS",
+		[string]$Location = "EastUS2",
 		[Parameter(Mandatory = $false)]
 		[string[]]$TargetRegions = @($Location),
 		[Parameter(Mandatory = $false)]
