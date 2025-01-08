@@ -47,7 +47,7 @@ if ([string]::IsNullOrEmpty($LogDir)) {
 else {
     $CurrentLogDir = Join-Path -Path $LogDir -ChildPath $("HostPool_{0:yyyyMMddHHmmss}" -f $StartTime)
 }
-$BackupDir = Join-Path -Path $CurrentDir -ChildPath "..\..\Backup"
+$BackupDir = Join-Path -Path $CurrentDir -ChildPath "..\Backup"
 $null = New-Item -Path $CurrentLogDir, $BackupDir -ItemType Directory -Force
 Set-Location -Path $CurrentDir
 #$TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}" -f $StartTime).txt"
@@ -122,11 +122,23 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 [PersonalHostPool]::SetIndex($RandomNumber, $SecondaryRegion)
 
 $HostPools = @(
-    # Use case 3: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with FSLogix and AppAttach
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableAppAttach()
+    #[PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableAppAttach()
+    #[PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableAppAttach()
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).DisableMSIX()
 )
 
 <#
+$HP1 = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableFSLogixCloudCache().EnableAppAttach()
+$HP2 = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableFSLogixCloudCache($HP1).EnableAppAttach()
+$HP3 = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableFSLogixCloudCache().EnableAppAttach()
+$HP4 = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableFSLogixCloudCache($HP3).EnableAppAttach()
+$HostPools = @(
+    $HP1
+    $HP2
+    $HP3
+    $HP4    
+)
+
 $HP1 = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().EnableFSLogixCloudCache().EnableWatermarking()
 $HP2 = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).EnableSpotInstance().EnableFSLogixCloudCache($HP1).EnableWatermarking()
 $HostPools = @(
