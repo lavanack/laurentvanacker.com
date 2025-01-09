@@ -34,7 +34,7 @@ $PSDefaultParameterValues = @{
 #From https://helloitsliam.com/2021/10/25/powershell-function-and-variable-issue/
 $Global:MaximumFunctionCount = 32768
 $null = Remove-Module -Name PSAzureVirtualDesktop -Force -ErrorAction Ignore
-Import-Module -Name PSAzureVirtualDesktop -Force -Verbose
+Import-Module -Name PSAzureVirtualDesktop -DisableNameChecking -Force -Verbose
 
 $StartTime = Get-Date
 $CurrentScript = $MyInvocation.MyCommand.Path

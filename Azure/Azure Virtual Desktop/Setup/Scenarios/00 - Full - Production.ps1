@@ -34,7 +34,7 @@ $PSDefaultParameterValues = @{
 #From https://helloitsliam.com/2021/10/25/powershell-function-and-variable-issue/
 $Global:MaximumFunctionCount = 32768
 $null = Remove-Module -Name PSAzureVirtualDesktop -Force -ErrorAction Ignore
-Import-Module -Name PSAzureVirtualDesktop -Force -Verbose
+Import-Module -Name PSAzureVirtualDesktop -DisableNameChecking -Force -Verbose
 
 $StartTime = Get-Date
 $CurrentScript = $MyInvocation.MyCommand.Path
@@ -124,7 +124,7 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 $HostPools = @(
     #[PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableAppAttach()
     #[PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableAppAttach()
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).DisableMSIX()
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).DisableMSIX().EnableWatermarking()#
 )
 
 <#
