@@ -122,7 +122,7 @@ Do {
     $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
     $StorageAccountName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $StorageAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
     $AzureFunctionName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $AzureFunctionPrefix, $Project, $Role, $LocationShortName, $Instance                       
-} While ((-not(Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable) -or  (-not(Test-FunctionAppNameAvailability -FunctionAppName $AzureFunctionName)))
+} While ((-not(Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable) -or (-not(Test-FunctionAppNameAvailability -FunctionAppName $AzureFunctionName)))
 
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $AzureFunctionName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $AzureFunctionPrefix, $Project, $Role, $LocationShortName, $Instance                       
@@ -173,12 +173,12 @@ Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" init $Func
 
 #region Latest DotNet SDK
 
-$LatestDotNetCoreSDKURI = (Invoke-WebRequest https://dotnet.microsoft.com/en-us/download).links.href | Where-Object -FilterScript { $_ -match "sdk.*windows.*-x64"} | Sort-Object -Descending | Select-Object -First 1
+$LatestDotNetCoreSDKURI = (Invoke-WebRequest https://dotnet.microsoft.com/en-us/download).links.href | Where-Object -FilterScript { $_ -match "sdk.*windows.*-x64" } | Sort-Object -Descending | Select-Object -First 1
 $Version = [regex]::Match($LatestDotNetCoreSDKURI, "sdk-(?<Version>\d+\.\d+)").Groups["Version"].Value
 if ($null -eq $(Get-WmiObject -Class Win32Reg_AddRemovePrograms -Filter "DisplayName LIKE '%sdk%$Version%'")) {
     #region Downloading
     $LatestDotNetCoreSDKURI = "https://dotnet.microsoft.com$($LatestDotNetCoreSDKURI)"
-    $LatestDotNetCoreSDKURI = (Invoke-WebRequest $LatestDotNetCoreSDKURI).links.href | Where-Object -FilterScript { $_ -match "sdk.*win.*-x64"} | Select-Object -Unique
+    $LatestDotNetCoreSDKURI = (Invoke-WebRequest $LatestDotNetCoreSDKURI).links.href | Where-Object -FilterScript { $_ -match "sdk.*win.*-x64" } | Select-Object -Unique
     $LatestDotNetCoreSDKFileName = Split-Path -Path $LatestDotNetCoreSDKFilePath -Leaf
     $LatestDotNetCoreSDKFilePath = Join-Path -Path $CurrentDir -ChildPath $LatestDotNetCoreSDKFileName 
     Start-BitsTransfer -Source $LatestDotNetCoreSDKURI -Destination $LatestDotNetCoreSDKFilePath
@@ -244,17 +244,17 @@ $FuncProcess = Start-Process -FilePath """$Func""" -ArgumentList "start" -PassTh
 Start-Sleep -Second 10
 
 $Name = (Get-AzContext).Account.Id
-Invoke-RestMethod -Uri "http://localhost:7071/api/$FunctionName" -Body @{Name=$Name}
+Invoke-RestMethod -Uri "http://localhost:7071/api/$FunctionName" -Body @{Name = $Name }
 #endregion
 
 #region Publishing the Azure Function
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" azure functionapp publish $($FunctionApp.Name)" -Wait
 #Waiting some seconds the process be available
 Start-Sleep -Second 10
-Invoke-RestMethod -Uri "https://$AzureFunctionName.azurewebsites.net/api/$FunctionName" -Body @{Name=$Name}
+Invoke-RestMethod -Uri "https://$AzureFunctionName.azurewebsites.net/api/$FunctionName" -Body @{Name = $Name }
 #endregion
 
-#region Cleanupp
+#region Cleanup
 Set-Location -Path $CurrentDir
 Stop-Process -InputObject $FuncProcess -Force
 
