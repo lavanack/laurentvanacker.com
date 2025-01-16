@@ -4,7 +4,7 @@
 Param(
 )
 
-$LogAnalyticsWorkspaceId  = Get-AutomationVariable -Name LogAnalyticsWorkspaceId
+$LogAnalyticsWorkspaceId = Get-AutomationVariable -Name LogAnalyticsWorkspaceId
 
 if ([string]::IsNullOrEmpty($LogAnalyticsWorkspaceId)) {
     Write-Output -InputObject "The provider LogAnalyticsWorkspaceId is null or empty"
@@ -32,7 +32,7 @@ else {
         $VMNames = $Result.Results.SessionHostName
 
         Foreach ($VMName in $VMNames) {
-            Write-Output -InputObject "Starting $($vm.Name)"                
+            Write-Output -InputObject "Starting $VMName"                
             Get-AzVM -Name $VMName | Start-AzVM -AsJob
         }
     }
