@@ -26,7 +26,11 @@ else {
 
     foreach ($CurrentLogAnalyticsWorkspaceId in $LogAnalyticsWorkspaceIds) {
         Write-Output -InputObject "`$CurrentLogAnalyticsWorkspaceId: $CurrentLogAnalyticsWorkspaceId"
+        #Connection in the last 3 days
         $Query = 'let daysAgo = 3d; WVDConnections | where TimeGenerated > ago(daysAgo) and State == "Connected" | distinct SessionHostName'
+        #Connection in the last 24 days summarize by week day
+        #$Query = 'let daysAgo = 28d; WVDConnections | where TimeGenerated > ago(daysAgo) and State == "Connected" | summarize count() by DayOfWeek=dayofweek(TimeGenerated), SessionHostName'
+
         Write-Output -InputObject "`$Query: $Query"
         # Run the query
         $Result = Invoke-AzOperationalInsightsQuery -WorkspaceId $CurrentLogAnalyticsWorkspaceId -Query $Query
