@@ -34,7 +34,8 @@ else {
         Write-Output -InputObject "`$Query: $Query"
         # Run the query
         $Result = Invoke-AzOperationalInsightsQuery -WorkspaceId $CurrentLogAnalyticsWorkspaceId -Query $Query
-        $VMNames = $Result.Results.SessionHostName
+        #Keeping only the Netbios name (vm.contoso.com ==> vm)
+        $VMNames = $Result.Results.SessionHostName -replace "\..*"
 
         Foreach ($VMName in $VMNames) {
             Write-Output -InputObject "Starting $VMName"                
