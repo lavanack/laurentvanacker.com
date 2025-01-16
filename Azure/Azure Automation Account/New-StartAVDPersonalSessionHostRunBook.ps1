@@ -261,6 +261,10 @@ Start-Sleep -Seconds 30
 #region 'Virtual Machine Contributor' RBAC Assignment
 Write-Verbose -Message "Assigning the 'Virtual Machine Contributor' RBAC role to Automation Account Managed System Identity ..."
 New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefinitionName 'Virtual Machine Contributor' -Scope "/subscriptions/$SubscriptionId"
+
+#region 'Log Analytics Reader' RBAC Assignment
+Write-Verbose -Message "Assigning the 'Log Analytics Reader' RBAC role to Automation Account Managed System Identity ..."
+New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefinitionName 'Log Analytics Reader' -Scope "/subscriptions/$SubscriptionId"
 #endregion
 #endregion
 
@@ -284,9 +288,9 @@ $RunBookName = "{0}-StartAVDPersonalSessionHost" -f $RunBookPrefix
 
 # Create a new variable(s)
 $VariableName = "LogAnalyticsWorkspaceId"
-#Replace by your own LAW Id
+#Replace by your own LAW Id(s)
 $VariableValue = "00000000-0000-0000-0000-000000000000"
-$Variable = New-AzAutomationVariable -AutomationAccountName $AutomationAccount.AutomationAccountName-Name $VariableName -Value $VariableValue -Encrypted $false -ResourceGroupName $ResourceGroupName -Description "Abstract (https://www.abstractapi.com) API Key, used by the runbook to check if the Date matches a FR Public Holiday"
+$Variable = New-AzAutomationVariable -AutomationAccountName $AutomationAccount.AutomationAccountName-Name $VariableName -Value $VariableValue -Encrypted $false -ResourceGroupName $ResourceGroupName -Description "LogAnalyticsWorkspace Ids (comma-separated values) for AVD Host Pools"
 #endregion 
 
 $Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Automation%20Account/StartAVDPersonalSessionHostRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Starting AVD Personal Session Hosts" -Verbose 

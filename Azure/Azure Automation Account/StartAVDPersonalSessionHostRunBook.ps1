@@ -25,6 +25,7 @@ else {
     $LogAnalyticsWorkspaceIds = $LogAnalyticsWorkspaceId -split ','
 
     foreach ($CurrentLogAnalyticsWorkspaceId in $LogAnalyticsWorkspaceIds) {
+        Write-Output -InputObject "`$CurrentLogAnalyticsWorkspaceId: $CurrentLogAnalyticsWorkspaceId"
         $Query = 'let daysAgo = 3d; WVDConnections | where TimeGenerated > ago(daysAgo) and State == "Connected" | distinct SessionHostName'
         Write-Output -InputObject "`$Query: $Query"
         # Run the query
