@@ -28,8 +28,8 @@ else {
         Write-Output -InputObject "`$CurrentLogAnalyticsWorkspaceId: $CurrentLogAnalyticsWorkspaceId"
         #Connection in the last 3 days
         $Query = 'let daysAgo = 3d; WVDConnections | where TimeGenerated > ago(daysAgo) and State == "Connected" | distinct SessionHostName'
-        #Connection in the last 24 days summarize by week day
-        #$Query = 'let daysAgo = 28d; WVDConnections | where TimeGenerated > ago(daysAgo) and State == "Connected" | summarize count() by DayOfWeek=dayofweek(TimeGenerated), SessionHostName'
+        #Connection in the last 28 days summarize by week day. Return the VM only if the connected at least twice for this weekday on the previous 4 weeks.
+        #$Query = 'let daysAgo = 28d; WVDConnections | where TimeGenerated > ago(daysAgo) and State == "Connected" | distinct DayOfWeek=dayofweek(TimeGenerated), SessionHostName | summarize count() by DayOfWeek, SessionHostName | where count_>=2'
 
         Write-Output -InputObject "`$Query: $Query"
         # Run the query
