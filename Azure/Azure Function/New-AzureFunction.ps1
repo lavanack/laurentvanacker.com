@@ -265,3 +265,5 @@ Stop-AzFunctionApp -Name $AzureFunctionName -ResourceGroupName $ResourceGroupNam
 Remove-AzResourceGroup -Name $ResourceGroupName -Force -AsJob
 #>
 #endregion
+
+#Next Step : https://dev.to/pwd9000/power-virtual-machines-on-or-off-using-azure-functions-4k8o
