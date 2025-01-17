@@ -263,6 +263,7 @@ Remove-Item -Path $FunctionName -Recurse -Force
 <#
 Stop-AzFunctionApp -Name $AzureFunctionName -ResourceGroupName $ResourceGroupName -Force
 Remove-AzResourceGroup -Name $ResourceGroupName -Force -AsJob
+Get-AzResourceGroup -Name rg-func-poc* | Remove-AzResourceGroup -Force -AsJob
 #>
 #endregion
 
