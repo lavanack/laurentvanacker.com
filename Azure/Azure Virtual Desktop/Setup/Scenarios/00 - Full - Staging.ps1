@@ -70,13 +70,6 @@ Install-PsAvdFSLogixGpoSettings #-Force
 Install-PsAvdAvdGpoSettings #-Force
 #endregion
 
-#region ADJoin User
-$AdJoinUserName = 'adjoin'
-$AdJoinUserClearTextPassword = 'I@m@JediLikeMyF@therB4Me'
-$AdJoinUserPassword = ConvertTo-SecureString -String $AdJoinUserClearTextPassword -AsPlainText -Force
-$AdJoinCredential = New-Object System.Management.Automation.PSCredential -ArgumentList ($AdJoinUserName, $AdJoinUserPassword)
-#endregion
-
 #region Getting Current Azure location (based on the Subnet location of this DC) to deploy the Azure compute Gallery in the same location that the other resources
 $ThisDomainControllerSubnet = Get-AzVMSubnet
 #endregion
@@ -94,7 +87,19 @@ $PrimaryRegion                  = $PrimaryRegionVNet.Location
 #endregion
 
 #region Azure Key Vault for storing ADJoin Credentials
-$HostPoolSessionCredentialKeyVault = New-PsAvdHostPoolSessionHostCredentialKeyVault -ADJoinCredential $ADJoinCredential -Subnet $ThisDomainControllerSubnet
+$HostPoolSessionCredentialKeyVault = Get-AzKeyVault -Name kvavdhpcred* | Select-Object -First 1
+if ($null -eq $HostPoolSessionCredentialKeyVault) {
+    #region ADJoin User
+    $AdJoinUserName = 'adjoin'
+    $AdJoinUserClearTextPassword = 'I@m@JediLikeMyF@therB4Me'
+    $AdJoinUserPassword = ConvertTo-SecureString -String $AdJoinUserClearTextPassword -AsPlainText -Force
+    $AdJoinCredential = New-Object System.Management.Automation.PSCredential -ArgumentList ($AdJoinUserName, $AdJoinUserPassword)
+    #endregion
+    $HostPoolSessionCredentialKeyVault = New-PsAvdHostPoolSessionHostCredentialKeyVault -ADJoinCredential $ADJoinCredential -Subnet $ThisDomainControllerSubnet
+}
+else {
+    Write-Warning -Message "We are reusing '$($HostPoolSessionCredentialKeyVault.VaultName)' the KeyVault"
+}
 #endregion
 #endregion
 
@@ -107,6 +112,8 @@ $HostPoolSessionCredentialKeyVault = New-PsAvdHostPoolSessionHostCredentialKeyVa
 $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 [PooledHostPool]::SetIndex($RandomNumber, $PrimaryRegion)
 [PersonalHostPool]::SetIndex($RandomNumber, $PrimaryRegion)
+
+[PooledHostPool]::SetIndex($RandomNumber, $SecondaryRegion)
 
 $HostPools = @(
     [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableAppAttach()
@@ -204,10 +211,10 @@ $HostPools = $HostPools | Where-Object -FilterScript { $null -ne $_ }
 #$LatestHostPoolJSONFile = Get-ChildItem -Path $CurrentDir -Filter "HostPool_*.json" -File | Sort-Object -Property Name -Descending | Select-Object -First 1
 $LatestHostPoolJSONFile = Get-ChildItem -Path $BackupDir -Filter "HostPool_*.json" -File | Sort-Object -Property Name -Descending
 if ($LatestHostPoolJSONFile) {
-    Remove-PsAvdHostPoolSetup -FullName $LatestHostPoolJSONFile.FullName
+    Remove-PsAvdHostPoolSetup -FullName $LatestHostPoolJSONFile.FullName #-AppAttach
 }
 else {
-    Remove-PsAvdHostPoolSetup -HostPool $HostPools
+    Remove-PsAvdHostPoolSetup -HostPool $HostPools #-AppAttach
 }
 #endregion
 
