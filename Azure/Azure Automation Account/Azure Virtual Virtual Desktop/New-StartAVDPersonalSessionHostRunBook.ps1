@@ -208,9 +208,6 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
-#From https://www.reddit.com/r/AZURE/comments/tw2ttb/necessary_roles_to_allow_a_user_to_request_jit/?rdt=34432
-$AzureVMJITAccessRequestCustomRBACRoleFilePath = Join-Path -Path  $CurrentDir -ChildPath "AzureVMJITAccessRequestCustomRBACRole.json"
-
 #region Defining variables 
 #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
 $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
@@ -233,7 +230,7 @@ $RunBookPrefix = "runbk"
 $ResourceGroupPrefix = "rg"
 $AutomationAccountPrefix = "aa"
 $Project = "automation"
-$Role = "startvm"
+$Role = "avd"
 $DigitNumber = 3
 $Instance = 1
 
@@ -264,18 +261,10 @@ Start-Sleep -Seconds 30
 #region 'Virtual Machine Contributor' RBAC Assignment
 Write-Verbose -Message "Assigning the 'Virtual Machine Contributor' RBAC role to Automation Account Managed System Identity ..."
 New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefinitionName 'Virtual Machine Contributor' -Scope "/subscriptions/$SubscriptionId"
-#endregion
 
-#region 'Azure VM JIT Access Request Role' RBAC Assignment
-# Create a role definition
-Write-Verbose -Message "Creating 'Azure VM JIT Access Request Role' Role Definition ..."
-$TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath = $AzureVMJITAccessRequestCustomRBACRoleFilePath -replace ".json$", "_$TimeStamp.json"
-Write-Verbose -Message "`$TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath: $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath"
-((Get-Content -path $AzureVMJITAccessRequestCustomRBACRoleFilePath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath
-$RoleDefinition = New-AzRoleDefinition -InputFile $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath
-Write-Verbose -Message "Assigning the 'Azure VM JIT Access Request Roler' RBAC role to Automation Account Managed System Identity ..."
-New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope "/subscriptions/$SubscriptionId"
-Remove-Item -Path $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath -Force
+#region 'Log Analytics Reader' RBAC Assignment
+Write-Verbose -Message "Assigning the 'Log Analytics Reader' RBAC role to Automation Account Managed System Identity ..."
+New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefinitionName 'Log Analytics Reader' -Scope "/subscriptions/$SubscriptionId"
 #endregion
 #endregion
 
@@ -283,7 +272,7 @@ Remove-Item -Path $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath -For
 #region Schedule Setup
 #region Azure Virtual Machine - Daily Start
 $TimeZone = ([System.TimeZoneInfo]::Local).Id
-$StartTime = Get-Date "06:55:00"
+$StartTime = Get-Date "08:00:00"
 if ($(Get-Date) -gt $StartTime) {
     $StartTime = $StartTime.AddDays(1)
 }
@@ -292,49 +281,19 @@ $Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.A
 #endregion
 
 #region RunBook Setup
-$RunBookName = "{0}-StopStartAzureVirtualMachine" -f $RunBookPrefix
+$RunBookName = "{0}-StartAVDPersonalSessionHost" -f $RunBookPrefix
 #$Runbook = New-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName -Type PowerShell
 # Publish the runbook
 #Publish-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName
 
-$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Automation%20Account/StartAzureVirtualMachineRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Starting Azure Virtual Machines" -Verbose 
-
 # Create a new variable(s)
-$VariableName = "AbstractApiKey "
-#Replace by your own API key
-$VariableValue = "00000000-0000-0000-0000-00000000"
-$Variable = New-AzAutomationVariable -AutomationAccountName $AutomationAccount.AutomationAccountName-Name $VariableName -Value $VariableValue -Encrypted $false -ResourceGroupName $ResourceGroupName -Description "Abstract (https://www.abstractapi.com) API Key, used by the runbook to check if the Date matches a FR Public Holiday"
+$VariableName = "LogAnalyticsWorkspaceId"
+#Replace by your own LAW Id(s)
+$VariableValue = "00000000-0000-0000-0000-000000000000"
+$Variable = New-AzAutomationVariable -AutomationAccountName $AutomationAccount.AutomationAccountName-Name $VariableName -Value $VariableValue -Encrypted $false -ResourceGroupName $ResourceGroupName -Description "LogAnalyticsWorkspace Ids (comma-separated values) for AVD Host Pools"
 #endregion 
 
-# Link the schedule to the runbook
-Register-AzAutomationScheduledRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ScheduleName $Schedule.Name -ResourceGroupName $ResourceGroupName -Parameters @{ "TagName" = "AutoStart-Enabled"; "TagValue" = "Enabled"; "Shutdown" = $false }
-#endregion
-
-#region New-RequestRunningAzureVirtualMachineJITAccessRunBook
-#region Schedule Setup
-#region Azure Virtual Machine - Daily Start
-$TimeZone = ([System.TimeZoneInfo]::Local).Id
-$StartTime = Get-Date "07:00:00"
-if ($(Get-Date) -gt $StartTime) {
-    $StartTime = $StartTime.AddDays(1)
-}
-$Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Machine - Daily Request JIT Access" -StartTime $StartTime -WeekInterval 1 -DaysOfWeek "Monday", "Tuesday", "Wednesday", "Thursday", "Friday" -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
-#endregion 
-#endregion
-
-#region RunBook Setup
-$RunBookName = "{0}-RequestRunningAzureVirtualMachineJITAccess" -f $RunBookPrefix
-#$Runbook = New-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName -Type PowerShell
-# Publish the runbook
-#Publish-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName
-
-$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Automation%20Account/RequestRunningAzureVirtualMachineJITAccessRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Requesting JIT Azure Virtual Machine Access" -Verbose 
-
-# Create a new variable(s)
-$VariableName = "IP "
-#Getting the current public IP from the machine where this script is executed
-$VariableValue = $((Invoke-RestMethod -Uri http://ip-api.com/json/?fields=query).query)
-$Variable = New-AzAutomationVariable -AutomationAccountName $AutomationAccount.AutomationAccountName-Name $VariableName -Value $VariableValue -Encrypted $false -ResourceGroupName $ResourceGroupName -Description "Public IP allowed to connect using RDP via JIT"
+$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Automation%20Account/StartAVDPersonalSessionHostRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Starting AVD Personal Session Hosts" -Verbose 
 #endregion 
 
 # Link the schedule to the runbook
