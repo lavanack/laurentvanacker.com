@@ -16,9 +16,37 @@ $AdJoinCredential = New-Object System.Management.Automation.PSCredential -Argume
 $HostPoolSessionCredentialKeyVault = New-PsAvdHostPoolSessionHostCredentialKeyVault -ADJoinCredential $ADJoinCredential
 #endregion
 
-[int] $RandomNumber = ((Get-AzWvdHostPool).Name -replace ".*-(\d+)", '$1' | Sort-Object | Select-Object -First 1)-1
-[PooledHostPool]::Index = $RandomNumber
-[PersonalHostPool]::Index = $RandomNumber
+#region AVD Dedicated VNets and Subnets
+#region Primary Region
+$PrimaryRegionResourceGroupName = "rg-avd-ad-use2-002"
+$PrimaryRegionVNetName          = "vnet-avd-avd-use2-002"
+$PrimaryRegionSubnetName        = "snet-avd-avd-use2-002"
+$PrimaryRegionVNet              = Get-AzVirtualNetwork -Name $PrimaryRegionVNetName -ResourceGroupName $PrimaryRegionResourceGroupName
+$PrimaryRegionSubnet            = $PrimaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $PrimaryRegionSubnetName
+$PrimaryRegion                  = $PrimaryRegionVNet.Location
+#$PrimaryRegion                  = (Get-AzVMCompute).Location
+#endregion
+
+#region Secondary Region (for ASR and FSLogix Cloud Cache)
+$SecondaryRegionResourceGroupName = "rg-avd-ad-usc-002"
+$SecondaryRegionVNetName          = "vnet-avd-avd-usc-002"
+$SecondaryRegionSubnetName        = "snet-avd-avd-usc-002"
+$SecondaryRegionVNet              = Get-AzVirtualNetwork -Name $SecondaryRegionVNetName -ResourceGroupName $SecondaryRegionResourceGroupName
+$SecondaryRegionSubnet            = $SecondaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $SecondaryRegionSubnetName
+$SecondaryRegion                  = $SecondaryRegionVNet.Location
+#$SecondaryRegion                  = [HostPool]::GetAzurePairedRegion($PrimaryRegion)
+#endregion
+#endregion
+
+[int] $RandomNumber = ((Get-AzWvdHostPool | Where-Object -FilterScript { $_.Name -match "^hp-"}).Name -replace ".*-(\d+)", '$1' | Sort-Object | Select-Object -First 1)-1
+[PooledHostPool]::SetIndex($RandomNumber, $PrimaryRegion)
+[PersonalHostPool]::SetIndex($RandomNumber, $PrimaryRegion)
+
+[PooledHostPool]::SetIndex($RandomNumber, $SecondaryRegion)
+[PersonalHostPool]::SetIndex($RandomNumber, $SecondaryRegion)
+
+[PooledHostPool]::AppAttachStorageAccountNameHT[$PrimaryRegion] = $(Get-AzStorageAccount | Where-Object -FilterScript { $_.PrimaryLocation -eq $PrimaryRegion -and $_.StorageAccountName -match "saavdappattachpoc"} | Select-Object -First 1)
+[PooledHostPool]::AppAttachStorageAccountNameHT[$SecondaryRegion] = $(Get-AzStorageAccount | Where-Object -FilterScript { $_.PrimaryLocation -eq $SecondaryRegion -and $_.StorageAccountName -match "saavdappattachpoc"} | Select-Object -First 1)
 
 $HostPools = @(
     # Use case 1: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with FSLogix
