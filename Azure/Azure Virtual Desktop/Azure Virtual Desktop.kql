@@ -24,4 +24,110 @@ WVDConnectionNetworkData
 | summarize ["Avg. RTT"]=avg(EstRoundTripTimeInMs),["Max. RTT"]=max(EstRoundTripTimeInMs),["P90 RTT"]=percentile(EstRoundTripTimeInMs,90),["Avg. Bandwidth"]=avg(EstAvailableBandwidthKBps),["Max. Bandwidth"]=max(EstAvailableBandwidthKBps),["P90 Bandwidth"]=percentile(EstAvailableBandwidthKBps,90) by UserName
 | order by ["Avg. RTT"] desc
 
-// Additional query examples are available at https://docs.microsoft.com/en-us/azure/virtual-desktop/diagnostics-log-analytics
+// From https://www.russ.cloud/2024/07/07/azure-virtual-desktop-kql-queries/
+//Find out all the IP addresses in the last 30 days
+let daysAgo = 30d;
+WVDConnections
+| where TimeGenerated > ago(daysAgo)
+| summarize NumberOfConnections = count() by UserName, ClientIPAddress
+| order by NumberOfConnections desc
+| extend ip_location = parse_json(geo_info_from_ip_address(ClientIPAddress))
+| extend
+    Country = tostring(ip_location.country),
+    State = tostring(ip_location.state),
+    City = tostring(ip_location.city)
+| project ClientIPAddress, NumberOfConnections, Country, State, City
+
+//Find out all Users and their IP addresses in the last 30 days
+let daysAgo = 30d;
+WVDConnections
+| where TimeGenerated > ago(daysAgo)
+| summarize NumberOfConnections = count() by UserName, ClientIPAddress
+| order by NumberOfConnections desc
+| extend ip_location = parse_json(geo_info_from_ip_address(ClientIPAddress))
+| extend
+	Country = tostring(ip_location.country),
+	State = tostring(ip_location.state),
+	City = tostring(ip_location.city)
+| project UserName, ClientIPAddress, NumberOfConnections, Country, State, City
+
+//Find out the IP addresses of where a user is connecting from
+let userSearch = "<replace with the UPN of a user>";
+let daysAgo = 30d;
+WVDConnections
+| where TimeGenerated > ago(daysAgo)
+| where UserName contains userSearch
+| summarize NumberOfConnections = count() by ClientIPAddress
+| order by NumberOfConnections desc
+| extend ip_location = parse_json(geo_info_from_ip_address(ClientIPAddress))
+| extend
+	Country = tostring(ip_location.country),
+	State = tostring(ip_location.state),
+	City = tostring(ip_location.city)
+| project ClientIPAddress, NumberOfConnections, Country, State, City
+
+//Get all errors for all users from a single IP address
+let ipAddress = "<replace with the IP address you are interested in>";
+let daysAgo = 30d;
+let users =
+    WVDConnections
+    | where TimeGenerated > ago(daysAgo)
+    | where ClientSideIPAddress contains ipAddress
+    | summarize by UserName;
+WVDErrors
+| where TimeGenerated > ago(daysAgo)
+| where UserName in (users)
+| summarize ErrorCount = count() by UserName, CodeSymbolic
+| order by ErrorCount desc
+
+//Total session time
+let daysAgo = 31d;
+WVDConnections
+| where TimeGenerated > ago(daysAgo)
+| where State == "Connected"
+| project CorrelationId, UserName, ConnectionType, StartTime=TimeGenerated
+| join (WVDConnections
+    | where State == "Completed"
+    | project EndTime=TimeGenerated, CorrelationId)
+    on CorrelationId
+| extend SessionDuration = EndTime - StartTime
+| summarize TotalDuration = sum(SessionDuration) by UserName, ConnectionType
+| extend 
+    DurationHours = round(TotalDuration / 1h, 2),
+    DurationDays = round(TotalDuration / 1d, 2)
+| project UserName, ConnectionType, DurationHours, DurationDays
+| sort by DurationHours desc
+
+//Total number of sessions per host pool
+let daysAgo = 31d;
+WVDConnections 
+| where TimeGenerated > ago(daysAgo)
+| where State == "Connected" 
+| project _ResourceId, UserName 
+| project-rename Hostpool = _ResourceId 
+| summarize DistinctUsers= dcount(UserName) by Hostpool 
+| extend HostPool=toupper(strcat(split(Hostpool, "/")[4], ".", split(Hostpool, "/")[8])) 
+| project HostPool, DistinctUsers
+
+
+//Total Sessions
+let daysAgo = 1d;
+WVDConnections
+| where TimeGenerated > ago(daysAgo) and State == "Completed"
+| project-rename Hostpool = _ResourceId
+| extend HostPool=toupper(strcat(split(Hostpool, "/")[4], ".", split(Hostpool, "/")[8]))
+| project TimeGenerated, UserName, ClientOS, ClientType, ConnectionType, HostPool
+
+//Errors per host pool
+let daysAgo = 1d;
+WVDErrors
+| where TimeGenerated > ago(daysAgo) 
+| project _ResourceId, CodeSymbolic
+| project-rename Hostpool = _ResourceId
+| extend HostPool=toupper(strcat(split(Hostpool, "/")[4], ".", split(Hostpool, "/")[8]))
+| summarize Count=count() by CodeSymbolic, HostPool
+
+
+// Additional query examples are available at 
+// - https://docs.microsoft.com/en-us/azure/virtual-desktop/diagnostics-log-analytics
+// - https://learn.microsoft.com/en-us/azure/azure-monitor/reference/queries/wvdconnections
