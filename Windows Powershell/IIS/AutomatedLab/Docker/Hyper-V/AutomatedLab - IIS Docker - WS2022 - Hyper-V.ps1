@@ -266,7 +266,7 @@ Invoke-LabCommand -ActivityName 'Docker Configuration' -ComputerName DOCKER01 -S
         docker run -d -p "$($CurrentIISWebSiteHostPort):80" -v $ContainerLocalLogFolder\:C:\inetpub\logs\LogFiles -v $ContainerLocalContentFolder\:C:\inetpub\wwwroot --name $Name iis-website --restart always #--rm
         #Getting the IP v4 address of the container
         $ContainerIPv4Address = (docker inspect -f "{{ .NetworkSettings.Networks.nat.IPAddress }}" $Name | Out-String) -replace "`r|`n"
-        Write-Host "The internal IPv4 address for the container [$Name] is [$ContainerIPv4Address]" -ForegroundColor Yellow
+        Write-Host "The internal IPv4 address for the container [$Name] is [$ContainerIPv4Address]. The port is [$CurrentIISWebSiteHostPort]" -ForegroundColor Yellow
         #Generating traffic : 10 web requests to have some entries in the IIS log files
         1..10 | ForEach-Object -Process { $null = Invoke-WebRequest -Uri http://localhost:$CurrentIISWebSiteHostPort }
     }
