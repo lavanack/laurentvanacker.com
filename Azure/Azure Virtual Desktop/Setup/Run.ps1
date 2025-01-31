@@ -22,6 +22,11 @@ Param (
 )
 
 Clear-Host
+$Error.Clear()
+$PSDefaultParameterValues = @{
+    #To avoid warning message like: WARNING: The names of some imported commands from the module 'Microsoft.Azure.PowerShell.Cmdlets.Network' include unapproved verbs that might make them less discoverable
+    'Import-Module:DisableNameChecking' = $true
+}
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
@@ -34,7 +39,7 @@ try { while (Stop-Transcript) {} } catch {}
 Get-Job | Where-Object -FilterScript {$_.PSJobTypeName -eq "ThreadJob"} | Remove-Job -Force -Verbose
 $null = Remove-Module -Name PSAzureVirtualDesktop -Force -ErrorAction Ignore
 $Global:MaximumFunctionCount = 32768
-Import-Module -Name PSAzureVirtualDesktop -Force -Verbose
+Import-Module -Name PSAzureVirtualDesktop -DisableNameChecking -Force -Verbose
 
 Connect-MgGraph -NoWelcome
 try { 
@@ -53,7 +58,7 @@ catch {
     Get-ChildItem -Path $LogDir -Filter HostPool_* -Directory | Remove-Item -Force -Recurse -ErrorAction Stop
 }
 
-$null = Get-AzResourceGroup | Where-Object -FilterScript { $_.ResourceGroupName -match '^rg-avd-.*-poc-.*-\d+'} | Remove-AzResourceGroup -AsJob -Force -Verbose | Receive-Job -Wait -AutoRemoveJob
+$null = Get-AzResourceGroup | Where-Object -FilterScript { (($_.ResourceGroupName -match '^rg-avd-.*-poc-.*-\d+') -and ($_.ResourceGroupName -notin (Get-AzResourceLock).ResourceGroupName)) } | Remove-AzResourceGroup -AsJob -Force -Verbose | Receive-Job -Wait -AutoRemoveJob
 Get-MgBetaGroup -Filter "DisplayName eq 'No-MFA Users'" | ForEach-Object -Process { Remove-MgBetaGroup -GroupId $_.Id -Verbose }
 Get-MgBetaIdentityConditionalAccessPolicy -Filter "displayName eq '[AVD] Require multifactor authentication for all users'" | ForEach-Object -Process { Remove-MgBetaIdentityConditionalAccessPolicy -ConditionalAccessPolicyId $_.Id -Verbose }
 Get-AzKeyVault -InRemovedState | Remove-AzKeyVault -InRemovedState -AsJob -Force
@@ -63,14 +68,14 @@ Get-AzKeyVault -InRemovedState | Remove-AzKeyVault -InRemovedState -AsJob -Force
 #Set-PSDebug -Trace 2
 $PSBreakpoints = @() 
 $LatestPSAzureVirtualDesktopModule = Get-Module -Name PSAzureVirtualDesktop -ListAvailable | Sort-Object -Property Version -Descending | Select-Object -First 1
-#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Line 7095
-#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Command New-PsAvdPrivateEndpointSetup
-#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Variable $ThisDomainControllerVirtualNetwork -Mode ReadWrite
+#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Line 596, 657, 688, 3064
+#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Command Test-PsAvdStorageAccountNameAvailability
+#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Variable $app -Mode ReadWrite
 if ($PSBreakpoints.Count -le 0) {
-    & '.\Scenarios\00 - Full - Tests' -LogDir $LogDir -Verbose -AsJob
+    & '.\Scenarios\00 - Full - Production.ps1' -LogDir $LogDir -Verbose -AsJob
 }
 else {
-    & '.\Scenarios\00 - Full - Tests' -LogDir $LogDir -Verbose
+    & '.\Scenarios\00 - Full - Production.ps1' -LogDir $LogDir -Verbose
     $PSBreakpoints | Remove-PSBreakpoint
 }
 #Set-PSDebug -Off
