@@ -29,7 +29,6 @@ param
 
 
 #region function definitions 
-#Was coded as an alternative to Test-AzKeyVaultNameAvailability (for testing purpose - no more used in this script)
 function Test-FunctionAppNameAvailability {
     [CmdletBinding(PositionalBinding = $false)]
     [OutputType([Boolean])]
@@ -161,6 +160,7 @@ $PowerShellVersion = [version]::Parse($(pwsh -v) -replace "[^\d|\.]")
 
 #Create Azure Function
 $RuntimeVersion = "{0}.{1}" -f $PowerShellVersion.Major, $PowerShellVersion.Minor
+$RuntimeVersion = "7.4"
 $FunctionApp = New-AzFunctionApp -Name $AzureFunctionName -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Runtime "PowerShell" -RuntimeVersion $RuntimeVersion -OSType "Linux" -Location $Location
 
 #region Creating the Function Locally
@@ -241,7 +241,7 @@ Set-Location -Path $FunctionName
 $FuncProcess = Start-Process -FilePath """$Func""" -ArgumentList "start" -PassThru
 
 #Waiting some seconds the process be available
-Start-Sleep -Second 10
+Start-Sleep -Second 30
 
 $Name = (Get-AzContext).Account.Id
 Invoke-RestMethod -Uri "http://localhost:7071/api/$FunctionName" -Body @{Name = $Name }
