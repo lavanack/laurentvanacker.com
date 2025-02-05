@@ -37,7 +37,7 @@ else {
         #Keeping only the Netbios name (vm.contoso.com ==> vm)
         $VMNames = $Result.Results.SessionHostName -replace "\..*"
 
-        Foreach ($VMName in $VMNames) {
+        foreach ($VMName in $VMNames) {
             Write-Output -InputObject "Starting $VMName"                
             Get-AzVM -Name $VMName | Start-AzVM -AsJob
         }
