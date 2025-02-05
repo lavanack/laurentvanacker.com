@@ -263,10 +263,10 @@ $HostPools = $HostPools | Where-Object -FilterScript { $null -ne $_ }
 #$LatestHostPoolJSONFile = Get-ChildItem -Path $CurrentDir -Filter "HostPool_*.json" -File | Sort-Object -Property Name -Descending | Select-Object -First 1
 $LatestHostPoolJSONFile = Get-ChildItem -Path $BackupDir -Filter "HostPool_*.json" -File | Sort-Object -Property Name -Descending
 if ($LatestHostPoolJSONFile) {
-    Remove-PsAvdHostPoolSetup -FullName $LatestHostPoolJSONFile.FullName #-KeepAzureAppAttachStorage
+    Remove-PsAvdHostPoolSetup -FullName $LatestHostPoolJSONFile.FullName -KeepAzureAppAttachStorage
 }
 else {
-    Remove-PsAvdHostPoolSetup -HostPool $HostPools #-KeepAzureAppAttachStorage
+    Remove-PsAvdHostPoolSetup -HostPool $HostPools -KeepAzureAppAttachStorage
 }
 #endregion
 
