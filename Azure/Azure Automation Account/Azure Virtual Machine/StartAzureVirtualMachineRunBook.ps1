@@ -21,7 +21,7 @@ $Date = [System.TimeZoneInfo]::ConvertTimeFromUtc($tDate, $tz)
 
 
 $APIKey  = Get-AutomationVariable -Name AbstractApiKey
-$Holiday = Invoke-WebRequest -Uri ('https://holidays.abstractapi.com/v1/?api_key={0}&country={1}&year={2}&month={3}&day={4}' -f $APIKey    , $CountryCode, $Date.Year, $Date.Month, $Date.Day) -UseBasicParsing
+$Holiday = Invoke-WebRequest -Uri ('https://holidays.abstractapi.com/v1/?api_key={0}&country={1}&year={2}&month={3}&day={4}' -f $APIKey, $CountryCode, $Date.Year, $Date.Month, $Date.Day) -UseBasicParsing
 
 $Holidays = $Holiday.Content
 $Holidays = $Holidays | ConvertFrom-Json
@@ -33,7 +33,7 @@ else {
     Write-Output -InputObject 'No holiday today. The Virtual Machine(s) will be started.'
 
     #region Azure connection
-    # Ensures you do not inherit an AzContext in your dirbook
+    # Ensures you do not inherit an AzContext in your runbook
     Disable-AzContextAutosave -Scope Process
     # Connect to Azure with system-assigned managed identity (Azure Automation account, which has been given VM Start permissions)
     $AzureContext = (Connect-AzAccount -Identity).context
@@ -45,7 +45,7 @@ else {
 
     $vms = Get-AzResource -TagName $TagName -TagValue $TagValue -ResourceType 'Microsoft.Compute/virtualMachines' 
 
-    Foreach ($vm in $vms) {
+    foreach ($vm in $vms) {
         if ($Shutdown) {
             Write-Output -InputObject "Stopping $($vm.Name)"                
             Stop-AzVM -Name $vm.Name -ResourceGroupName $vm.ResourceGroupName -Force -AsJob
