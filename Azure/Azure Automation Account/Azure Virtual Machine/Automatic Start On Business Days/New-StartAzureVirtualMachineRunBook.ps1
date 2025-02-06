@@ -272,9 +272,14 @@ New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefi
 Write-Verbose -Message "Creating 'Azure VM JIT Access Request Role' Role Definition ..."
 $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath = $AzureVMJITAccessRequestCustomRBACRoleFilePath -replace ".json$", "_$TimeStamp.json"
 Write-Verbose -Message "`$TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath: $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath"
-((Get-Content -path $AzureVMJITAccessRequestCustomRBACRoleFilePath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath
-$RoleDefinition = New-AzRoleDefinition -InputFile $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath
-Write-Verbose -Message "Assigning the 'Azure VM JIT Access Request Roler' RBAC role to Automation Account Managed System Identity ..."
+$RoleDefinitionName = ((Get-Content -path $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath -Raw)  | ConvertFrom-Json).Name
+if ([string]::IsNullOrEmpty($RoleDefinitionName)) {
+    $RoleDefinition = New-AzRoleDefinition -InputFile $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath
+}
+else {
+    $RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
+}
+Write-Verbose -Message "Assigning the '$RoleDefinitionName' RBAC role to Automation Account Managed System Identity ..."
 New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope "/subscriptions/$SubscriptionId"
 Remove-Item -Path $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath -Force
 #endregion
