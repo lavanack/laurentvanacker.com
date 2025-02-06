@@ -195,7 +195,7 @@ else {
 
 #endregion
 
-
+#region Local code
 $Directory = New-Item -Path $FunctionName\$FunctionName -ItemType Directory -Force
 $ScriptContent = @'
 using namespace System.Net
@@ -212,7 +212,7 @@ Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
 })
 '@
 
-$JSONContent = @'
+$FunctionJSONContent = @'
 {
   "bindings": [
     {
@@ -235,7 +235,7 @@ $JSONContent = @'
 '@
 
 New-Item -Path $(Join-Path -Path $Directory -ChildPath "run.ps1") -Value $ScriptContent -Force
-New-Item -Path $(Join-Path -Path $Directory -ChildPath "function.json") -Value $JSONContent -Force
+New-Item -Path $(Join-Path -Path $Directory -ChildPath "function.json") -Value $FunctionJSONContent -Force
 
 Set-Location -Path $FunctionName
 $FuncProcess = Start-Process -FilePath """$Func""" -ArgumentList "start" -PassThru
@@ -245,6 +245,7 @@ Start-Sleep -Second 30
 
 $Name = (Get-AzContext).Account.Id
 Invoke-RestMethod -Uri "http://localhost:7071/api/$FunctionName" -Body @{Name = $Name }
+#endregion
 #endregion
 
 #region Publishing the Azure Function
