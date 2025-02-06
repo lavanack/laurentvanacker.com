@@ -16,7 +16,7 @@ Param(
 $CountryCode = 'FR'
 
 $tDate = (Get-Date).ToUniversalTime()
-$tz = [System.TimeZoneInfo]::FindSystemTimeZoneById("Romance Standard Time")
+$tz = ([System.TimeZoneInfo]::Local).Id
 $Date = [System.TimeZoneInfo]::ConvertTimeFromUtc($tDate, $tz)
 
 
