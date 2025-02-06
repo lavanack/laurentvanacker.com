@@ -278,7 +278,7 @@ $SubscriptionId = $((Get-AzContext).Subscription.Id)
 $ResourcegroupName = (Get-AzVM).ResourceGroupName | Get-Random
 $Body  = @{
     resourcegroup  = $ResourcegroupName
-    action         = "get"
+    action         = "start"
 }
 Invoke-RestMethod -Uri "http://localhost:7071/api/$FunctionName" -Body $Body 
 #endregion
