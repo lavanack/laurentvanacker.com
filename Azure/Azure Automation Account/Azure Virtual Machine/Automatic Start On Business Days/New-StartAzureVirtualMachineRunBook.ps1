@@ -235,7 +235,8 @@ $AutomationAccountPrefix = "aa"
 $Project = "automation"
 $Role = "startvm"
 $DigitNumber = 3
-$Instance = 2
+#$Instance = 2
+$Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
 
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $AutomationAccountName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $AutomationAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
@@ -297,7 +298,7 @@ $RunBookName = "{0}-StopStartAzureVirtualMachine" -f $RunBookPrefix
 # Publish the runbook
 #Publish-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName
 
-$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Automation%20Account/StartAzureVirtualMachineRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Starting Azure Virtual Machines" -Verbose 
+$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20Virtual%20Machine/Automatic%20Start%20On%20Business%20Days/StartAzureVirtualMachineRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Starting Azure Virtual Machines" -Verbose 
 
 # Create a new variable(s)
 $VariableName = "AbstractApiKey "
