@@ -254,6 +254,7 @@ if ($ResourceGroup) {
 }
 Write-Verbose "`$ResourceGroupName: $ResourceGroupName"
 Write-Verbose "`$AutomationAccountName: $AutomationAccountName"
+Write-Verbose "`$WebhookName: $WebhookName"
 
 
 #Step 1: Create Azure Resource Group
@@ -275,8 +276,14 @@ Write-Verbose -Message "Creating 'Azure VM JIT Access Request Role' Role Definit
 $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath = $AzureVMJITAccessRequestCustomRBACRoleFilePath -replace ".json$", "_$TimeStamp.json"
 Write-Verbose -Message "`$TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath: $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath"
 ((Get-Content -path $AzureVMJITAccessRequestCustomRBACRoleFilePath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath
-$RoleDefinition = New-AzRoleDefinition -InputFile $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath
-Write-Verbose -Message "Assigning the 'Azure VM JIT Access Request Roler' RBAC role to Automation Account Managed System Identity ..."
+$RoleDefinitionName = ((Get-Content -path $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath -Raw)  | ConvertFrom-Json).Name
+if ([string]::IsNullOrEmpty($RoleDefinitionName)) {
+    $RoleDefinition = New-AzRoleDefinition -InputFile $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath
+}
+else {
+    $RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
+}
+Write-Verbose -Message "Assigning the '$RoleDefinitionName' RBAC role to Automation Account Managed System Identity ..."
 New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope "/subscriptions/$SubscriptionId"
 Remove-Item -Path $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath -Force
 #endregion
@@ -293,9 +300,25 @@ $RunBookName = "{0}-StopStartAzureVirtualMachine" -f $RunBookPrefix
 $Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20Virtual%20Machine/WebHooks/StartAzureVirtualMachineRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Starting Azure Virtual Machines" -Verbose 
 #endregion 
 
+#region WebHook Setup
+#From https://learn.microsoft.com/en-us/azure/automation/automation-webhooks?tabs=powershell
 $10YearsFromNow = (Get-Date).AddYears(10)
 $Webhook = New-AzAutomationWebhook -ResourceGroup $ResourceGroupName -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $WebhookName -RunbookName $RunBookName -IsEnabled $True -ExpiryTime $10YearsFromNow -Force
 # Store URL in variable; reveal variable
-$WebhookURI = $newWebhook.WebhookURI
+$WebhookURI = $Webhook.WebhookURI
 $WebhookURI
+#endregion
+#endregion
+
+#region Testing
+#Randomly picking up to Azure VMs
+$Body = Get-AzVM | Get-Random -Count 2 | Select-Object -Property Name, ResourceGroupName | ConvertTo-Json
+$Response = Invoke-WebRequest -Method Post -Uri $webhookURI -Body $Body -UseBasicParsing
+$Response
+
+#isolate job ID
+$JobID = (ConvertFrom-Json ($Response.Content)).jobids[0]
+
+# Get output
+Get-AzAutomationJobOutput -AutomationAccountName $AutomationAccountName -Id $JobID -ResourceGroupName $ResourceGroupName -Stream Output
 #endregion
