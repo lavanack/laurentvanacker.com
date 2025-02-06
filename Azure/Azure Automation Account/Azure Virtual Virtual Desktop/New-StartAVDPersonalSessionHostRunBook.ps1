@@ -258,9 +258,9 @@ $AutomationAccount = New-AzAutomationAccount -Name $AutomationAccountName -Locat
 
 #region RBAC Assignment
 Start-Sleep -Seconds 30
-#region 'Virtual Machine Contributor' RBAC Assignment
-Write-Verbose -Message "Assigning the 'Virtual Machine Contributor' RBAC role to Automation Account Managed System Identity ..."
-New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefinitionName 'Virtual Machine Contributor' -Scope "/subscriptions/$SubscriptionId"
+#region 'Desktop Virtualization Power On Contributor' RBAC Assignment
+Write-Verbose -Message "Assigning the 'Desktop Virtualization Power On Contributor' RBAC role to Automation Account Managed System Identity ..."
+New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefinitionName 'Desktop Virtualization Power On Contributor' -Scope "/subscriptions/$SubscriptionId"
 
 #region 'Log Analytics Reader' RBAC Assignment
 Write-Verbose -Message "Assigning the 'Log Analytics Reader' RBAC role to Automation Account Managed System Identity ..."
@@ -293,7 +293,7 @@ $VariableValue = "00000000-0000-0000-0000-000000000000"
 $Variable = New-AzAutomationVariable -AutomationAccountName $AutomationAccount.AutomationAccountName-Name $VariableName -Value $VariableValue -Encrypted $false -ResourceGroupName $ResourceGroupName -Description "LogAnalyticsWorkspace Ids (comma-separated values) for AVD Host Pools"
 #endregion 
 
-$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Automation%20Account/StartAVDPersonalSessionHostRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Starting AVD Personal Session Hosts" -Verbose 
+$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20Virtual%20Virtual%20Desktop/StartAVDPersonalSessionHostRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Starting AVD Personal Session Hosts" -Verbose 
 #endregion 
 
 # Link the schedule to the runbook
