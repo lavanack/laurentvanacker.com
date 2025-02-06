@@ -320,5 +320,5 @@ $Response
 $JobID = (ConvertFrom-Json ($Response.Content)).jobids[0]
 
 # Get output
-Get-AzAutomationJobOutput -AutomationAccountName $AutomationAccountName -Id $JobID -ResourceGroupName $ResourceGroupName -Stream Output | ogv
+Get-AzAutomationJobOutput -AutomationAccountName $AutomationAccountName -Id $JobID -ResourceGroupName $ResourceGroupName -Stream Output
 #endregion
