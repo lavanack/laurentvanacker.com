@@ -208,9 +208,6 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
-#From https://www.reddit.com/r/AZURE/comments/tw2ttb/necessary_roles_to_allow_a_user_to_request_jit/?rdt=34432
-$AzureVMJITAccessRequestCustomRBACRoleFilePath = Join-Path -Path  $CurrentDir -ChildPath "AzureVMJITAccessRequestCustomRBACRole.json"
-
 #region Defining variables 
 #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
 $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
@@ -270,23 +267,6 @@ Write-Verbose -Message "Assigning the 'Virtual Machine Contributor' RBAC role to
 New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefinitionName 'Virtual Machine Contributor' -Scope "/subscriptions/$SubscriptionId"
 #endregion
 
-#region 'Azure VM JIT Access Request Role' RBAC Assignment
-# Create a role definition
-Write-Verbose -Message "Creating 'Azure VM JIT Access Request Role' Role Definition ..."
-$TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath = $AzureVMJITAccessRequestCustomRBACRoleFilePath -replace ".json$", "_$TimeStamp.json"
-Write-Verbose -Message "`$TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath: $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath"
-((Get-Content -path $AzureVMJITAccessRequestCustomRBACRoleFilePath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath
-$RoleDefinitionName = ((Get-Content -path $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath -Raw)  | ConvertFrom-Json).Name
-if ([string]::IsNullOrEmpty($RoleDefinitionName)) {
-    $RoleDefinition = New-AzRoleDefinition -InputFile $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath
-}
-else {
-    $RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
-}
-Write-Verbose -Message "Assigning the '$RoleDefinitionName' RBAC role to Automation Account Managed System Identity ..."
-New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope "/subscriptions/$SubscriptionId"
-Remove-Item -Path $TimeStampedAzureVMJITAccessRequestCustomRBACRoleFilePath -Force
-#endregion
 #endregion
 
 #region New-StartAzureVirtualMachineRunBook
@@ -311,14 +291,21 @@ $WebhookURI
 #endregion
 
 #region Testing
-#Randomly picking up to Azure VMs
-$Body = Get-AzVM | Get-Random -Count 2 | Select-Object -Property Name, ResourceGroupName | ConvertTo-Json
+#Randomly picking up 2 non-running Azure VMs
+$Body = Get-AzVM -Status | Where-Object -FilterScript { $_.PowerState -ne "VM running" } | Get-Random -Count 2 | Select-Object -Property Name, ResourceGroupName | ConvertTo-Json
+$Body
 $Response = Invoke-WebRequest -Method Post -Uri $webhookURI -Body $Body -UseBasicParsing
 $Response
 
 #isolate job ID
 $JobID = (ConvertFrom-Json ($Response.Content)).jobids[0]
 
+while ((Get-AzAutomationJob -AutomationAccountName $AutomationAccountName -Id $JobID -ResourceGroupName $ResourceGroupName).Status -ne "Completed") {
+    Write-Verbose -Message "Sleeping 30 seconds ..."
+    Start-Sleep -Seconds 30
+}
+
 # Get output
-Get-AzAutomationJobOutput -AutomationAccountName $AutomationAccountName -Id $JobID -ResourceGroupName $ResourceGroupName -Stream Output
+$AutomationJobOutput = Get-AzAutomationJobOutput -AutomationAccountName $AutomationAccountName -Id $JobID -ResourceGroupName $ResourceGroupName -Stream Output
+$AutomationJobOutput.Summary
 #endregion
