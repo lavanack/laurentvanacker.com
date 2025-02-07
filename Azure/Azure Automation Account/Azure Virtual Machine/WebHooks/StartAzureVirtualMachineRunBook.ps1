@@ -31,7 +31,7 @@ if ($WebhookData) {
         }
         $Jobs | Receive-Job -Wait #-AutoRemoveJob
         Write-Output -InputObject $($Jobs | Select-Object -Property Name, State | Out-String)
-        Write-Output -InputObject "All VMs have been started: $($VMs.Name -join ', ')"
+        Write-Output -InputObject ">> All VMs have been started: $($VMs.Name -join ', ')"
     }
     else {
         Write-Output -InputObject "Hello World!"
