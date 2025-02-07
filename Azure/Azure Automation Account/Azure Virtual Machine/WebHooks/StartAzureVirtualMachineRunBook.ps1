@@ -30,8 +30,8 @@ if ($WebhookData) {
             Get-AzVM -ResourceGroupName $ResourceGroupName -Name $VMName | Start-AzVM -AsJob
         }
         $Jobs | Receive-Job -Wait #-AutoRemoveJob
-        Write-Output -InputObject $($Jobs | Select-Object -Property Name, State | Out-String)
-        Write-Output -InputObject ">> All VMs have been started: $($VMs.Name -join ', ')"
+        Write-Output -InputObject "Jobs: $($Jobs | Select-Object -Property Name, State | Out-String)"
+        Write-Output -InputObject " All VMs have been started: $($VMs.Name -join ', ')"
     }
     else {
         Write-Output -InputObject "Hello World!"
