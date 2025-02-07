@@ -25,9 +25,7 @@ if ($WebhookData) {
 
         $Jobs = foreach ($CurrentVM in $VMs)
         {
-            $VMName = $CurrentVM.Name
-            $ResourceGroupName = $CurrentVM.ResourceGroup
-            Get-AzVM -ResourceGroupName $ResourceGroupName -Name $VMName | Start-AzVM -AsJob
+            Get-AzVM -ResourceGroupName $CurrentVM.ResourceGroupName -Name $CurrentVM.Name | Start-AzVM -AsJob
         }
         $Jobs | Receive-Job -Wait #-AutoRemoveJob
         Write-Output -InputObject "Jobs: $($Jobs | Select-Object -Property Name, State | Out-String)"
