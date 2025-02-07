@@ -21,16 +21,27 @@ if ($WebhookData) {
     }
 
     if ($WebhookData.RequestBody) { 
+
+        #region Azure connection
+        # Ensures you do not inherit an AzContext in your runbook
+        Disable-AzContextAutosave -Scope Process
+        # Connect to Azure with system-assigned managed identity (Azure Automation account, which has been given VM Start permissions)
+        $AzureContext = (Connect-AzAccount -Identity).context
+        Write-Output -InputObject $AzureContext
+        # set and store context
+        $AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -DefaultProfile $AzureContext
+        Write-Output -InputObject $AzureContext
+        #endregion
+
         $VMs = (ConvertFrom-Json -InputObject $WebhookData.RequestBody)
 
-        foreach ($CurrentVM in $VMs)
+        $Jobs = foreach ($CurrentVM in $VMs)
         {
-            Write-Output -InputObject "ResourceGroup Name: $($CurrentVM.ResourceGroupName)"
-            Write-Output -InputObject "VM Name: $($CurrentVM.Name)"
-            $Result = Get-AzVM -ResourceGroupName $CurrentVM.ResourceGroupName -Name $CurrentVM.Name | Start-AzVM
-            Write-Output -InputObject "Result: $($Result | Out-String)"
+            Get-AzVM -ResourceGroupName $CurrentVM.ResourceGroupName -Name $CurrentVM.Name | Start-AzVM -AsJob
         }
-        Write-Output -InputObject "All VMs have been started: $($VMs.Name -join ', ')"
+        $Jobs | Receive-Job -Wait #-AutoRemoveJob
+        Write-Output -InputObject "Jobs: $($Jobs | Select-Object -Property Name, State | Out-String)"
+        Write-Output -InputObject " All VMs have been started: $($VMs.Name -join ', ')"
     }
     else {
         Write-Output -InputObject "Hello World!"
