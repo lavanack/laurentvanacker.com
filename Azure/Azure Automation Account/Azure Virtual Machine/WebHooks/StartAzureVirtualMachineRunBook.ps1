@@ -35,15 +35,14 @@ if ($WebhookData) {
 
         $VMs = (ConvertFrom-Json -InputObject $WebhookData.RequestBody)
 
-        $Jobs = foreach ($CurrentVM in $VMs)
-        {
+        $Jobs = foreach ($CurrentVM in $VMs) {
             Get-AzVM -ResourceGroupName $CurrentVM.ResourceGroupName -Name $CurrentVM.Name | Start-AzVM -AsJob
         }
         $Jobs | Receive-Job -Wait #-AutoRemoveJob
         Write-Output -InputObject "Jobs: $($Jobs | Select-Object -Property Name, State | Out-String)"
-        Write-Output -InputObject " All VMs have been started: $($VMs.Name -join ', ')"
+        Write-Output -InputObject "All VMs have been started: $($VMs.Name -join ', ')"
     }
     else {
-        Write-Output -InputObject "Hello World!"
+        Write-Output -InputObject "No Webhook Data"
     }
 }
