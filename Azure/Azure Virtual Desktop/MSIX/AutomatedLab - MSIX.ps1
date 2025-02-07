@@ -92,8 +92,8 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:Network'         = $LabName
     'Add-LabMachineDefinition:DomainName'      = $FQDNDomainName
     'Add-LabMachineDefinition:MinMemory'       = 2GB
-    'Add-LabMachineDefinition:Memory'          = 3GB
-    'Add-LabMachineDefinition:MaxMemory'       = 4GB
+    'Add-LabMachineDefinition:Memory'          = 2GB
+    'Add-LabMachineDefinition:MaxMemory'       = 2GB
     'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2022 Datacenter (Desktop Experience)'
     'Add-LabMachineDefinition:Processors'      = 2
 }
@@ -109,8 +109,8 @@ Add-LabMachineDefinition -Name MSIX -NetworkAdapter $netAdapter -OperatingSystem
 
 #Installing servers
 Install-Lab #-Verbose
-Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
-#Restore-LabVMSnapshot -SnapshotName 'FreshInstall' -All -Verbose
+Checkpoint-LabVM -SnapshotName FreshInstall -All
+#Restore-LabVMSnapshot -SnapshotName 'FreshInstall' -All
 
 #region Certification Authority : Creation and SSL Certificate Generation
 #Get the CA
@@ -127,8 +127,8 @@ Install-LabWindowsFeature -FeatureName Microsoft-Hyper-V-Management-PowerShell -
 Copy-LabFileItem -Path $CurrentDir\MSIX -ComputerName $Client -DestinationFolderPath C:\ -Recurse
 Restart-LabVM $Client -Wait
 
-Checkpoint-LabVM -SnapshotName BeforeMSIX -All -Verbose
-#Restore-LabVMSnapshot -SnapshotName 'BeforeMSIX' -All -Verbose
+Checkpoint-LabVM -SnapshotName BeforeMSIX -All
+#Restore-LabVMSnapshot -SnapshotName 'BeforeMSIX' -All
 
 Invoke-LabCommand -ActivityName "Installing 'MSIX Packaging Tool' and 'PSFTooling'" -ComputerName $Client -ScriptBlock {
     #Installing MSIX Packaging Tool
@@ -149,7 +149,7 @@ Invoke-LabCommand -ActivityName "Installing 'MSIX Packaging Tool' and 'PSFToolin
     Add-WindowsPackage -Online -PackagePath $OutFile
     Add-WindowsCapability -Online -Name "Msix.PackagingTool.Driver~~~~0.0.1.0" -ErrorAction Ignore
     #>
-    dism /online /add-capability /capabilityname:Msix.PackagingTool.Driver~~~~0.0.1.0
+    #dism /online /add-capability /capabilityname:Msix.PackagingTool.Driver~~~~0.0.1.0
 
     #Installing PSFTooling Tool
     $OutFile = "C:\MSIX\PsfTooling-x64.msix"
@@ -189,12 +189,17 @@ Invoke-LabCommand -ActivityName "Installing 'MSIX Packaging Tool' and 'PSFToolin
     $SecurePassword = ConvertTo-SecureString "P@ssw0rd" -AsPlainText -Force
     #Adding the self-signed certificate to the Trusted People (To validate this certificate)
     Import-PfxCertificate C:\MSIX\MSIXDigitalSignature.pfx -CertStoreLocation Cert:\LocalMachine\TrustedPeople\ -Password $SecurePassword
-} -Verbose
+}
+
+
+Invoke-LabCommand -ActivityName "Installing 'MSIX Packaging Tool Driver'" -ComputerName $Client -ScriptBlock {
+    dism /online /add-capability /capabilityname:Msix.PackagingTool.Driver~~~~0.0.1.0
+}
 
 Show-LabDeploymentSummary -Detailed
-Checkpoint-LabVM -SnapshotName 'FullInstall' -All -Verbose
+Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 $VerbosePreference = $PreviousVerbosePreference
 $ErrorActionPreference = $PreviousErrorActionPreference
-#Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All -Verbose
+#Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All
 
 Stop-Transcript
