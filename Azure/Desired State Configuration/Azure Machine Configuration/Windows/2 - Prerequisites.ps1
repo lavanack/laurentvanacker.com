@@ -22,8 +22,8 @@ Install-Module -Name Az.Accounts, Az.Compute, Az.PolicyInsights, Az.Resources, A
 Install-Module -Name GuestConfiguration -Force
 
 #Connection to Azure and Subscription selection
-Connect-AzAccount
-Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
+Connect-AzAccount -UseDeviceAuthentication
+#Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
 
 #Installing Powershell 7+ : Silent Install
 Invoke-Expression -Command "& { $(Invoke-RestMethod https://aka.ms/install-powershell.ps1) } -UseMSI -Quiet"
