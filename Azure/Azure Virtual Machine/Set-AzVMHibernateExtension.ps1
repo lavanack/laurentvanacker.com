@@ -61,7 +61,7 @@ function Set-AzVMHibernateExtension {
                         $null = $CurrentVMOSDisk | Update-AzDisk
                         #region Enabling hibernation on the VM
                         Write-Verbose -Message "Updating the '$($CurrentVM.Name)' Azure VM"
-                        $null = $CurrentVM | Update-AzVM -HibernationEnabled
+                        $null = $CurrentVM | Update-AzVM -HibernationEnabled -ErrorAction Stop
                         #endregion
                     }
                     catch {
