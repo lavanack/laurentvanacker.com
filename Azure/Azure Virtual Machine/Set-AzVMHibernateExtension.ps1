@@ -23,10 +23,12 @@ function Set-AzVMHibernateExtension {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $false)]
-        [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachineList[]] $CurrentVM
+        [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachineList[]] $CurrentVM,
+        [switch] $Status
     )
     begin {
         $RunningVMs = @()
+        $Statuses = @()
     } 
     process {
         foreach ($CurrentVM in $CurrentVM) {
@@ -35,19 +37,21 @@ function Set-AzVMHibernateExtension {
 
                 if ($CurrentVM.Priority -eq "Spot") {
                     Write-Warning -Message "The '$($CurrentVM.Name)' is a Spot Azure VM. Skipping it. Hibernation capability is not supported for Spot VMs. For more information, see https://aka.ms/hibernate-resume/errors."
+                    $Statuses += [PSCustomObject] @{ "Date" = Get-Date; "VMName" = $CurrentVM.Name; "Status" = "Skipped (Spot Instance VM)" }
                 }
                 else {
                     Write-Verbose -Message "The 'WindowsHibernateExtension' extension is NOT installed on the '$($CurrentVM.Name)' Azure VM"
                     #From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/hibernate-resume-windows?tabs=enableWithPortal%2CenableWithPSExisting%2CPortalDoHiber%2CPortalStatCheck%2CPortalStartHiber%2CPortalImageGallery#enabling-hibernation-on-an-existing-windows-vm
                     #region Stopping the VM
                     if ((($CurrentVM | Get-AzVM -Status).Statuses | Where-Object -FilterScript { $_.code -eq "PowerState/running" }).DisplayStatus -eq "VM running") {
-                        Write-Warning -Message "The '$($CurrentVM.Name)' Azure VM is running. Stopping it. The script will continue when the VM will be stopped. (The VM will be restarted at the end of the script)"
+                        Write-Warning -Message "The '$($CurrentVM.Name)' Azure VM is running. Stopping it. The script will continue when the VM will be stopped. The VM will be restarted after the update"
                         try {
                             $null = $CurrentVM | Stop-AzVM -Force -ErrorAction Stop
                             $RunningVMs += $CurrentVM
                         }
                         catch {
                             Write-Warning -Message $($_.Exception.Message)
+                            $Statuses += [PSCustomObject] @{ "Date" = Get-Date; "VMName" = $CurrentVM.Name; "Status" = $_.Exception.Message }
                         }
                     }
                     #endregion 
@@ -62,10 +66,14 @@ function Set-AzVMHibernateExtension {
                         #region Enabling hibernation on the VM
                         Write-Verbose -Message "Updating the '$($CurrentVM.Name)' Azure VM"
                         $null = $CurrentVM | Update-AzVM -HibernationEnabled -ErrorAction Stop
+                        Write-Verbose -Message "Restarting the '$($CurrentVM.Name)' Azure VM"
+                        $null = $CurrentVM | Start-AzVM -NoWait
+                        $Statuses += [PSCustomObject] @{ "Date" = Get-Date; "VMName" = $CurrentVM.Name; "Status" = "Updated" }
                         #endregion
                     }
                     catch {
                         Write-Warning -Message $($_.Exception.Message)
+                        $Statuses += [PSCustomObject] @{ "Date" = Get-Date; "VMName" = $CurrentVM.Name; "Status" = $_.Exception.Message }
                     }
                     #endregion
 
@@ -73,16 +81,14 @@ function Set-AzVMHibernateExtension {
             }
             else {
                 Write-Verbose -Message "The 'WindowsHibernateExtension' extension is already installed on the '$($CurrentVM.Name)' Azure VM. Skipping it"
+                $Statuses += [PSCustomObject] @{ "Date" = Get-Date; "VMName" = $CurrentVM.Name; "Status" = "Skipped (Already configured)" }
             }
         }
     }
     end {
-        #region Restarting the VMs (if started at the beginning of the script)
-        foreach ($CurrentRunningVM in $RunningVMs) {
-            Write-Warning -Message "The '$($CurrentRunningVM.Name)' Azure VM was running at the beginning of the script. Restarting it (Compute Costs will apply !)."
-            $null = $CurrentRunningVM | Start-AzVM -NoWait
+        if ($Status) {
+            return $Statuses
         }
-        #endregion
     }
 }
 
@@ -92,4 +98,5 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
 $CurrentVM = Get-AzVM
-$CurrentVM | Set-AzVMHibernateExtension -Verbose
+$Status = $CurrentVM | Set-AzVMHibernateExtension -Status -Verbose
+$Status #| Format-List * -Force
