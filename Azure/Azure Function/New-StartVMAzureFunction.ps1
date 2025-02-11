@@ -268,7 +268,7 @@ Set-Location -Path $FunctionName
 #endregion
 
 #Set-Location -Path $FunctionName
-$FuncProcess = Start-Process -FilePath """$Func""" -ArgumentList "start" -PassThru
+$FuncProcess = Start-Process -FilePath """$Func""" -ArgumentList "start", "--verbose" -PassThru
 
 #Waiting some seconds the process be available
 Start-Sleep -Second 30
@@ -280,6 +280,7 @@ $Body  = @{
     resourcegroup  = $ResourcegroupName
     action         = "start"
 }
+$Body
 Invoke-RestMethod -Uri "http://localhost:7071/api/$FunctionName" -Body $Body 
 #endregion
 #endregion
