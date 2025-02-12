@@ -36,7 +36,7 @@ Write-Verbose "Latest DotNet Core Hosting Bundle is available at '$LatestDotNetC
 #endregion
 
 #region Latest DotNet SDK
-$LatestDotNetCoreSDKURI = (Invoke-WebRequest https://dotnet.microsoft.com/en-us/download).links.href | Where-Object -FilterScript { $_ -match "sdk.*windows.*-x64"}
+$LatestDotNetCoreSDKURI = (Invoke-WebRequest https://dotnet.microsoft.com/en-us/download).links.href | Where-Object -FilterScript { $_ -match "sdk.*windows.*-x64"} | Sort-Object -Descending | Select-Object -First 1
 $LatestDotNetCoreSDKURI = "https://dotnet.microsoft.com$($LatestDotNetCoreSDKURI)"
 $LatestDotNetCoreSDKURI = (Invoke-WebRequest $LatestDotNetCoreSDKURI).links.href | Where-Object -FilterScript { $_ -match "sdk.*win.*-x64"} | Select-Object -Unique
 $LatestDotNetCoreSDKFilePath = Join-Path -Path $CurrentDir -ChildPath $(($LatestDotNetCoreSDKURI -split "/")[-1])
