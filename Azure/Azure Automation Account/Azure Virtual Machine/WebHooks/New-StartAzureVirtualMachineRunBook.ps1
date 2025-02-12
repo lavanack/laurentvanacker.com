@@ -226,16 +226,19 @@ While (-not(Get-AzContext)) {
 $Location = "EastUS"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
+$WebhookPrefix = "wbhk"
 $RunBookPrefix = "runbk"
 $ResourceGroupPrefix = "rg"
 $AutomationAccountPrefix = "aa"
 $Project = "automation"
-$Role = "avd"
+$Role = "startvm"
 $DigitNumber = 3
-$Instance = 1
+#$Instance = 1
+$Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
 
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
-$AutomationAccountName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $AutomationAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
+$AutomationAccountName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $AutomationAccountPrefix, $Project, $Role, $LocationShortName, $Instance
+$WebhookName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $WebhookPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $SubscriptionId = $((Get-AzContext).Subscription.Id)
 $TimeStamp = Get-Date -Format 'yyyyMMddHHmmss'
 #endregion
@@ -248,6 +251,7 @@ if ($ResourceGroup) {
 }
 Write-Verbose "`$ResourceGroupName: $ResourceGroupName"
 Write-Verbose "`$AutomationAccountName: $AutomationAccountName"
+Write-Verbose "`$WebhookName: $WebhookName"
 
 
 #Step 1: Create Azure Resource Group
@@ -258,44 +262,50 @@ $AutomationAccount = New-AzAutomationAccount -Name $AutomationAccountName -Locat
 
 #region RBAC Assignment
 Start-Sleep -Seconds 30
-#region 'Desktop Virtualization Power On Contributor' RBAC Assignment
-Write-Verbose -Message "Assigning the 'Desktop Virtualization Power On Contributor' RBAC role to Automation Account Managed System Identity ..."
-New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefinitionName 'Desktop Virtualization Power On Contributor' -Scope "/subscriptions/$SubscriptionId"
-
-#region 'Log Analytics Reader' RBAC Assignment
-Write-Verbose -Message "Assigning the 'Log Analytics Reader' RBAC role to Automation Account Managed System Identity ..."
-New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefinitionName 'Log Analytics Reader' -Scope "/subscriptions/$SubscriptionId"
+#region 'Virtual Machine Contributor' RBAC Assignment
+Write-Verbose -Message "Assigning the 'Virtual Machine Contributor' RBAC role to Automation Account Managed System Identity ..."
+New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefinitionName 'Virtual Machine Contributor' -Scope "/subscriptions/$SubscriptionId"
 #endregion
+
 #endregion
 
 #region New-StartAzureVirtualMachineRunBook
-#region Schedule Setup
-#region Azure Virtual Machine - Daily Start
-$TimeZone = ([System.TimeZoneInfo]::Local).Id
-$StartTime = Get-Date "08:00:00"
-if ($(Get-Date) -gt $StartTime) {
-    $StartTime = $StartTime.AddDays(1)
-}
-$Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Machine - Daily Start" -StartTime $StartTime -WeekInterval 1 -DaysOfWeek "Monday", "Tuesday", "Wednesday", "Thursday", "Friday" -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
-#endregion 
-#endregion
 
 #region RunBook Setup
-$RunBookName = "{0}-StartAVDPersonalSessionHost" -f $RunBookPrefix
+$RunBookName = "{0}-StopStartAzureVirtualMachine" -f $RunBookPrefix
 #$Runbook = New-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName -Type PowerShell
 # Publish the runbook
 #Publish-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName
 
-# Create a new variable(s)
-$VariableName = "LogAnalyticsWorkspaceId"
-#Replace by your own LAW Id(s)
-$VariableValue = "00000000-0000-0000-0000-000000000000"
-$Variable = New-AzAutomationVariable -AutomationAccountName $AutomationAccount.AutomationAccountName-Name $VariableName -Value $VariableValue -Encrypted $false -ResourceGroupName $ResourceGroupName -Description "LogAnalyticsWorkspace Ids (comma-separated values) for AVD Host Pools"
+$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20Virtual%20Machine/WebHooks/StartAzureVirtualMachineRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Starting Azure Virtual Machines" -Verbose 
 #endregion 
 
-$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20Virtual%20Virtual%20Desktop/StartAVDPersonalSessionHostRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Starting AVD Personal Session Hosts" -Verbose 
-#endregion 
+#region WebHook Setup
+#From https://learn.microsoft.com/en-us/azure/automation/automation-webhooks?tabs=powershell
+$10YearsFromNow = (Get-Date).AddYears(10)
+$Webhook = New-AzAutomationWebhook -ResourceGroup $ResourceGroupName -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $WebhookName -RunbookName $RunBookName -IsEnabled $True -ExpiryTime $10YearsFromNow -Force
+# Store URL in variable; reveal variable
+$WebhookURI = $Webhook.WebhookURI
+$WebhookURI
+#endregion
+#endregion
 
-# Link the schedule to the runbook
-Register-AzAutomationScheduledRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ScheduleName $Schedule.Name -ResourceGroupName $ResourceGroupName #-Parameters @{ }
+#region Testing
+#Randomly picking up 2 non-running Azure VMs
+$Body = Get-AzVM -Status | Where-Object -FilterScript { $_.PowerState -ne "VM running" } | Get-Random -Count 2 | Select-Object -Property Name, ResourceGroupName | ConvertTo-Json
+$Body
+$Response = Invoke-WebRequest -Method Post -Uri $webhookURI -Body $Body -UseBasicParsing
+$Response
+
+#isolate job ID
+$JobID = (ConvertFrom-Json ($Response.Content)).jobids[0]
+
+while ((Get-AzAutomationJob -AutomationAccountName $AutomationAccountName -Id $JobID -ResourceGroupName $ResourceGroupName).Status -ne "Completed") {
+    Write-Verbose -Message "Sleeping 30 seconds ..."
+    Start-Sleep -Seconds 30
+}
+
+# Get output
+$AutomationJobOutput = Get-AzAutomationJobOutput -AutomationAccountName $AutomationAccountName -Id $JobID -ResourceGroupName $ResourceGroupName -Stream Output
+$AutomationJobOutput.Summary
 #endregion

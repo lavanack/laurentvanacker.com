@@ -36,10 +36,13 @@ else {
         $Result = Invoke-AzOperationalInsightsQuery -WorkspaceId $CurrentLogAnalyticsWorkspaceId -Query $Query
         #Keeping only the Netbios name (vm.contoso.com ==> vm)
         $VMNames = $Result.Results.SessionHostName -replace "\..*"
+        Write-Output -InputObject "`$VMNames: $($VMNames -join ', ')"                
 
-        Foreach ($VMName in $VMNames) {
-            Write-Output -InputObject "Starting $VMName"                
-            Get-AzVM -Name $VMName | Start-AzVM -AsJob
+        if (-not([string]::IsNullOrEmpty($VMNames))) {
+            Foreach ($VMName in $VMNames) {
+                Write-Output -InputObject "Starting $VMName"                
+                Get-AzVM -Name $VMName | Start-AzVM -AsJob
+            }
         }
     }
 }

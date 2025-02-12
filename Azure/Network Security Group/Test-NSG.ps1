@@ -77,7 +77,7 @@ $SubnetName = $SubnetName.ToLower()
 $ResourceGroupName = $ResourceGroupName.ToLower()
 $VirtualNetworkAddressSpace = "10.10.0.0/16" # Format 10.10.0.0/16
 $SubnetIPRange = "10.10.0.0/19" # Format 10.10.1.0/24                         
-$MyPublicIp = (Invoke-WebRequest -uri "https://ipv4.seeip.org").Content
+$MyPublicIp = (Invoke-WebRequest -Uri "https://ipv4.seeip.org").Content
 
 
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
@@ -123,10 +123,10 @@ $NicNumber = 6356
 $Jobs = 1..$NicNumber | ForEach-Object -Process {
     $NICName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}-{5:D$DigitNumber}" -f $NICPrefix, $Project, $Role, $LocationShortName, $Instance, $_
     Write-Host -Object "Creating NIC '$NICName' ..."
-    $PercentComplete = ($_/$NicNumber) 
-    Write-Progress -Activity "[$_/$NicNumber] Creating NIC '$NICName'" -Status ('Processing {0:p0}' -f $PercentComplete) -PercentComplete ($PercentComplete*100)
+    $PercentComplete = ($_ / $NicNumber) 
+    Write-Progress -Activity "[$_/$NicNumber] Creating NIC '$NICName'" -Status ('Processing {0:p0}' -f $PercentComplete) -PercentComplete ($PercentComplete * 100)
     #Create Network Interface Card 
-    New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -NetworkSecurityGroupId $NetworkSecurityGroup.Id -AsJob
+    New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -NetworkSecurityGroupId $NetworkSecurityGroup.Id #-AsJob
 }
 #$Jobs | Receive-Job -Wait -AutoRemoveJob
 Write-Progress -Completed -Activity 'All NICs have been created'
