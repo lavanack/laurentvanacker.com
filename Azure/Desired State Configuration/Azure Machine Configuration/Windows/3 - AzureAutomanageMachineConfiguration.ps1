@@ -90,7 +90,7 @@ $Job = Start-AzPolicyComplianceScan -ResourceGroupName $ResourceGroupName -AsJob
 
 # Create a guest configuration package for Azure Policy GCS
 $GuestConfigurationPackage = New-GuestConfigurationPackage -Name $ConfigurationName -Configuration "./$ConfigurationName/localhost.mof" -Type AuditAndSet -Force
-# Testing the configuration
+# Validating the configuration package meets requirements: https://learn.microsoft.com/en-us/azure/governance/machine-configuration/how-to/develop-custom-package/3-test-package#validate-the-configuration-package-meets-requirements
 Get-GuestConfigurationPackageComplianceStatus -Path $GuestConfigurationPackage.Path
 #Set-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -AllowBlobPublicAccess $true
 # Applying the Machine Configuration Package locally
@@ -149,7 +149,7 @@ if ($roleDefinitionIds.Count -gt 0) {
 
 Write-Host -Object "Creating remediation for '$($PolicyDefinition.DisplayName)' Policy ..."
 $Jobs = Start-AzPolicyRemediation -Name $PolicyAssignment.Name -PolicyAssignmentId $PolicyAssignment.Id -ResourceGroupName $ResourceGroup.ResourceGroupName -ResourceDiscoveryMode ReEvaluateCompliance -AsJob
-$PolicyRemediation = $Jobs | Wait-Job | Receive-Job #-Keep
+$PolicyRemediation = $Jobs | Receive-Job -Wait -AutoRemoveJob
 $PolicyRemediation
 
 #If you want to force an update on the compliance result you can use the following cmdlet instead of waiting for the next trigger : https://docs.microsoft.com/en-us/azure/governance/policy/how-to/get-compliance-data#evaluation-triggers.
