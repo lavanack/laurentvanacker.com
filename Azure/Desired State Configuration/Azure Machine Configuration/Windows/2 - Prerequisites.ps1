@@ -1,4 +1,4 @@
-﻿#To run from the Azure VM
+﻿Install-Module -Name #To run from the Azure VM
 #requires -Version 5 -RunAsAdministrator 
 #More info on https://docs.microsoft.com/en-us/azure/governance/policy/how-to/guest-configuration-create-setup
 Clear-Host
@@ -17,9 +17,14 @@ Stop-Process -Name Explorer -Force
 #Installing the NuGet Provider
 Get-PackageProvider -Name Nuget -ForceBootstrap -Force
 #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-#Install-Module -Name Az.Compute, Az.PolicyInsights, Az.Resources, Az.Storage, GuestConfiguration, PSDesiredStateConfiguration, PSDSCResources -Force
-Install-Module -Name Az.Accounts, Az.Compute, Az.PolicyInsights, Az.Resources, Az.Storage, PSDesiredStateConfiguration, PSDSCResources -Force
+#For Azure
+Install-Module -Name Az.Accounts, Az.Compute, Az.PolicyInsights, Az.Resources, Az.Storage -Force
+#For DSC
+Install-Module -Name PSDesiredStateConfiguration, PSDSCResources -Force
+#For Machine/Guest Configuration
 Install-Module -Name GuestConfiguration -Force
+#For IIS
+Install-Module -Name WebAdministrationDsc -Force
 
 #Connection to Azure and Subscription selection
 Connect-AzAccount -UseDeviceAuthentication
