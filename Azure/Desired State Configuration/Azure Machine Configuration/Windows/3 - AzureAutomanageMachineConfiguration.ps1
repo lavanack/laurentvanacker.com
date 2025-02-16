@@ -48,8 +48,8 @@ $ResourceGroupName = $AzVM.ResourceGroupName
 $StorageAccount = Get-AzStorageAccount -ResourceGroupName $resourceGroupName
 $StorageAccountName = $StorageAccount.StorageAccountName
 $StorageContainerName = "guestconfiguration"
-#$ConfigurationName = "CreateAdminUserDSCConfiguration"
-$ConfigurationName = "IISSetupDSCConfiguration"
+$ConfigurationName = "CreateAdminUserDSCConfiguration"
+#$ConfigurationName = "IISSetupDSCConfiguration"
 $GuestConfigurationPackageName = "$ConfigurationName.zip"
 #$GuestConfigurationPackageFullName  = "$CurrentDir\$ConfigurationName\$GuestConfigurationPackageName"
 
