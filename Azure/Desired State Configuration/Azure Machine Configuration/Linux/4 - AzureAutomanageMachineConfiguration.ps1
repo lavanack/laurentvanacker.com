@@ -10,10 +10,32 @@
 #Cleaning up previous tests 
 Get-AzResourceGroup -Name rg-dsc-amc* | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyRemediation | Remove-AzPolicyRemediation -AllowStop -AsJob -Verbose | Wait-Job
 Get-AzResourceGroup -Name rg-dsc-amc* | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyAssignment  | Where-Object -FilterScript { $_.ResourceGroupName -like 'rg-dsc-amc*' } | Remove-AzPolicyAssignment -Verbose #-Whatif
-Get-AzPolicyDefinition | Where-Object -filterScript {$_.Properties.metadata.category -eq "Guest Configuration" -and $_.Properties.DisplayName -like "*ExampleConfiguration*"} | Remove-AzPolicyDefinition -Force -Verbose #-WhatIf
+Get-AzPolicyDefinition | Where-Object -filterScript {$_.metadata.category -eq "Guest Configuration" -and $_.DisplayName -like "*ExampleConfiguration*"} | Remove-AzPolicyDefinition -Force -Verbose #-WhatIf
 Get-AzResourceGroup -Name rg-dsc-amc* | Remove-AzResourceGroup -AsJob -Force -Verbose 
 #>
+*#region Function defintions
+#Get The Azure VM Compute Object for the VM executing this function
+function Get-AzVMCompute {
+    [CmdletBinding(PositionalBinding = $false)]
+    Param(
+    )
 
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
+
+    $uri = "http://169.254.169.254/metadata/instance?api-version=2021-02-01"
+
+    try {
+        $response = Invoke-RestMethod -Uri $uri -Headers @{"Metadata" = "true" } -Method GET -TimeoutSec 5
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] VM Compute Object:`r`n$($response.compute | Out-String)"
+        return $response.compute
+    }
+    catch {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
+        return $null
+    }
+}
+#endregion
 
 Clear-Host
 $CurrentScript = $MyInvocation.MyCommand.Path
@@ -21,14 +43,13 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
 
-#region #Connection to Azure and Subscription selection
+#region Connection to Azure and Subscription selection
 if (-not(Get-AzContext)) {
     Connect-AzAccount -UseDeviceAuthentication
     #Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
 }
 
-$VMName = $(hostname)
-$AzVM = Get-AzVM -Name $VMName 
+$AzVM = Get-AzVMCompute
 $Location = $AzVM.Location
 $ResourceGroupName = $AzVM.ResourceGroupName
 $StorageAccount = Get-AzStorageAccount -ResourceGroupName $resourceGroupName
@@ -42,28 +63,28 @@ $GuestConfigurationPackageFilePath = Join-Path -Path $CurrentDir -ChildPath $Gue
 #region Deploy prerequisites to enable Guest Configuration policies on virtual machines
 
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName
-$PolicySetDefinition = Get-AzPolicySetDefinition | Where-Object -FilterScript { $_.Properties.DisplayName -eq "Deploy prerequisites to enable Guest Configuration policies on virtual machines" }
+$PolicySetDefinition = Get-AzPolicySetDefinition | Where-Object -FilterScript { $_.DisplayName -eq "Deploy prerequisites to enable Guest Configuration policies on virtual machines" }
 $PolicyAssignment = New-AzPolicyAssignment -Name "$($resourceGroupName)-deployPrereqForGuestConfigurationPolicies" -DisplayName 'Deploy prerequisites to enable Guest Configuration policies on virtual machines' -Scope $ResourceGroup.ResourceId -PolicySetDefinition $PolicySetDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $Location
 
 # Grant defined roles with PowerShell
-$roleDefinitionIds = $PolicySetDefinition.Properties.PolicyDefinitions | ForEach-Object -Process { Get-AzPolicyDefinition -Id $_.policyDefinitionId | Select-Object @{Name = "roleDefinitionIds"; Expression = { $_.Properties.policyRule.then.details.roleDefinitionIds } } } | Select-Object -ExpandProperty roleDefinitionIds -Unique
+$roleDefinitionIds = $PolicySetDefinition.PolicyDefinition | ForEach-Object -Process { Get-AzPolicyDefinition -Id $_.policyDefinitionId | Select-Object @{Name = "roleDefinitionIds"; Expression = { $_.policyRule.then.details.roleDefinitionIds } } } | Select-Object -ExpandProperty roleDefinitionIds -Unique
 Start-Sleep -Seconds 30
 if ($roleDefinitionIds.Count -gt 0) {
     $roleDefinitionIds | ForEach-Object {
         $roleDefId = $_.Split("/") | Select-Object -Last 1
-        if (-not(Get-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $roleDefId)) {
-            New-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $roleDefId
+        if (-not(Get-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.IdentityPrincipalId -RoleDefinitionId $roleDefId)) {
+            New-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.IdentityPrincipalId -RoleDefinitionId $roleDefId
         }
     }
 }
 
 $Jobs = @() 
 # Start remediation for every policy definition
-$PolicySetDefinition.Properties.PolicyDefinitions | ForEach-Object -Process {
+$PolicySetDefinition.PolicyDefinition | ForEach-Object -Process {
     Write-Host -Object "Creating remediation for '$($_.policyDefinitionReferenceId)' Policy ..."
-    $Jobs += Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignment.PolicyAssignmentId -PolicyDefinitionReferenceId $_.policyDefinitionReferenceId -Name $_.policyDefinitionReferenceId -ResourceGroupName $ResourceGroup.ResourceGroupName -ResourceDiscoveryMode ReEvaluateCompliance -AsJob
+    $Jobs += Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignment.Id -PolicyDefinitionReferenceId $_.policyDefinitionReferenceId -Name $_.policyDefinitionReferenceId -ResourceGroupName $ResourceGroup.ResourceGroupName -ResourceDiscoveryMode ReEvaluateCompliance -AsJob
 }
-$remediation = $Jobs | Wait-Job | Receive-Job #-Keep
+$remediation = $Jobs | Receive-Job -Wait -AutoRemoveJob
 $remediation
 
 Write-Host -Object "Starting Compliance Scan for '$ResourceGroupName' Resource Group ..."
@@ -118,19 +139,19 @@ $PolicyAssignment = New-AzPolicyAssignment -Name "$($ResourceGroupName)-$($Confi
 
 # Grant defined roles with PowerShell
 # https://docs.microsoft.com/en-us/azure/governance/policy/how-to/remediate-resources#grant-defined-roles-with-PowerShell
-$roleDefinitionIds = $PolicyDefinition.Properties.policyRule.then.details.roleDefinitionIds
+$roleDefinitionIds = $PolicyDefinition.policyRule.then.details.roleDefinitionIds
 Start-Sleep -Seconds 30
 if ($roleDefinitionIds.Count -gt 0) {
     $roleDefinitionIds | ForEach-Object {
         $roleDefId = $_.Split("/") | Select-Object -Last 1
-        if (-not(Get-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $roleDefId)) {
-            New-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $roleDefId
+        if (-not(Get-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.IdentityPrincipalId -RoleDefinitionId $roleDefId)) {
+            New-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.IdentityPrincipalId -RoleDefinitionId $roleDefId
         }
     }
 }
 
-Write-Host -Object "Creating remediation for '$($PolicyDefinition.Properties.DisplayName)' Policy ..."
-$Jobs = Start-AzPolicyRemediation -Name $PolicyAssignment.Name -PolicyAssignmentId $PolicyAssignment.PolicyAssignmentId -ResourceGroupName $ResourceGroup.ResourceGroupName -ResourceDiscoveryMode ReEvaluateCompliance -AsJob
+Write-Host -Object "Creating remediation for '$($PolicyDefinition.DisplayName)' Policy ..."
+$Jobs = Start-AzPolicyRemediation -Name $PolicyAssignment.Name -PolicyAssignmentId $PolicyAssignment.Id -ResourceGroupName $ResourceGroup.ResourceGroupName -ResourceDiscoveryMode ReEvaluateCompliance -AsJob
 $PolicyRemediation = $Jobs | Wait-Job | Receive-Job #-Keep
 $PolicyRemediation
 
@@ -144,5 +165,6 @@ Get-AzPolicyState -ResourceGroupName $ResourceGroupName -PolicyAssignmentName $P
 #Get latest non-compliant policy states summary in resource group scope
 Get-AzPolicyStateSummary -ResourceGroupName $ResourceGroupName | Select-Object -ExpandProperty PolicyAssignments 
 #endregion
+#endregion
 
-$Job | Receive-Job -Wait
+$Job | Receive-Job -Wait -AutoRemoveJob

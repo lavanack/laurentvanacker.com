@@ -92,7 +92,7 @@ $Job = Start-AzPolicyComplianceScan -ResourceGroupName $ResourceGroupName -AsJob
 # Create a guest configuration package for Azure Policy GCS
 $GuestConfigurationPackage = New-GuestConfigurationPackage -Name $ConfigurationName -Configuration "./$ConfigurationName/localhost.mof" -Type AuditAndSet -Force
 # Validating the configuration package meets requirements: https://learn.microsoft.com/en-us/azure/governance/machine-configuration/how-to/develop-custom-package/3-test-package#validate-the-configuration-package-meets-requirements
-Get-GuestConfigurationPackageComplianceStatus -Path $GuestConfigurationPackage.Path
+Get-GuestConfigurationPackageComplianceStatus -Path $GuestConfigurationPackage.Path -Verbose
 #Set-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -AllowBlobPublicAccess $true
 # Applying the Machine Configuration Package locally
 #Start-GuestConfigurationPackageRemediation -Path $GuestConfigurationPackage.Path -Verbose
