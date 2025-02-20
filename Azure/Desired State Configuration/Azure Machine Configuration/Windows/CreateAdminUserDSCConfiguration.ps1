@@ -7,7 +7,7 @@
 
     Import-DscResource -ModuleName 'PSDscResources'
 
-    node localhost
+    node $AllNodes.NodeName
     {
         User AdminUser {
             Ensure   = 'Present'
@@ -16,12 +16,11 @@
         }
 
 
-        GroupSet AddUserToAdminGroup {
-            GroupName        = @( 'Administrators' )
+        Group AddUserToAdminGroup {
+            GroupName        = 'Administrators'
             Ensure           = 'Present'
             MembersToInclude = @( $Credential.UserName )
-# https://github.com/dsccommunity/xPSDesiredStateConfiguration/issues/400            
-#            DependsOn        = '[User]AdminUser'
+            DependsOn        = '[User]AdminUser'
         }
     }
 }

@@ -13,7 +13,9 @@ Get-PackageProvider -Name Nuget -ForceBootstrap -Force
 Install-Module -Name Az.Accounts, Az.Compute, Az.PolicyInsights, Az.Resources, Az.Ssh, Az.Storage -Scope AllUsers -AllowClobber -Force
 #Install-Module -Name Microsoft.PowerShell.GraphicalTools -Force
 Install-Module -Name GuestConfiguration -Scope AllUsers -AllowClobber -Force
-Install-Module PSDesiredStateConfiguration -AllowPreRelease -RequiredVersion 3.0.0-beta1 -AllowClobber -Scope AllUsers -Force
+#Install-Module PSDesiredStateConfiguration -AllowPreRelease -RequiredVersion 3.0.0-beta1 -AllowClobber -Scope AllUsers -Force
+Install-Module PSDesiredStateConfiguration -AllowPreRelease -AllowClobber -Scope AllUsers -Force
+Uninstall-Module -Name nxtools -AllVersions -Force -ErrorAction Ignore
 Install-Module nxtools -Scope AllUsers -Force
 
 # Compiling the Configuration

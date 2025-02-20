@@ -13,7 +13,7 @@ Get-AzResourceGroup -Name rg-dsc-amc* | Select-Object -Property @{Name="Scope"; 
 Get-AzPolicyDefinition | Where-Object -filterScript {$_.metadata.category -eq "Guest Configuration" -and $_.DisplayName -like "*CreateAdminUserDSCConfiguration*"} | Remove-AzPolicyDefinition -Verbose -Force #-WhatIf
 Get-AzResourceGroup -Name rg-dsc-amc* | Remove-AzResourceGroup -AsJob -Force -Verbose 
 #>
-*#region Function defintions
+#region Function defintions
 #Get The Azure VM Compute Object for the VM executing this function
 function Get-AzVMCompute {
     [CmdletBinding(PositionalBinding = $false)]
@@ -49,6 +49,7 @@ $StorageAccount = Get-AzStorageAccount -ResourceGroupName $resourceGroupName
 $StorageAccountName = $StorageAccount.StorageAccountName
 $StorageContainerName = "guestconfiguration"
 $ConfigurationName = "CreateAdminUserDSCConfiguration"
+#$ConfigurationName = "IISSetupDSCConfiguration"
 $GuestConfigurationPackageName = "$ConfigurationName.zip"
 #$GuestConfigurationPackageFullName  = "$CurrentDir\$ConfigurationName\$GuestConfigurationPackageName"
 
@@ -90,8 +91,8 @@ $Job = Start-AzPolicyComplianceScan -ResourceGroupName $ResourceGroupName -AsJob
 
 # Create a guest configuration package for Azure Policy GCS
 $GuestConfigurationPackage = New-GuestConfigurationPackage -Name $ConfigurationName -Configuration "./$ConfigurationName/localhost.mof" -Type AuditAndSet -Force
-# Testing the configuration
-Get-GuestConfigurationPackageComplianceStatus -Path $GuestConfigurationPackage.Path
+# Validating the configuration package meets requirements: https://learn.microsoft.com/en-us/azure/governance/machine-configuration/how-to/develop-custom-package/3-test-package#validate-the-configuration-package-meets-requirements
+Get-GuestConfigurationPackageComplianceStatus -Path $GuestConfigurationPackage.Path -Verbose
 #Set-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -AllowBlobPublicAccess $true
 # Applying the Machine Configuration Package locally
 #Start-GuestConfigurationPackageRemediation -Path $GuestConfigurationPackage.Path -Verbose
@@ -149,7 +150,7 @@ if ($roleDefinitionIds.Count -gt 0) {
 
 Write-Host -Object "Creating remediation for '$($PolicyDefinition.DisplayName)' Policy ..."
 $Jobs = Start-AzPolicyRemediation -Name $PolicyAssignment.Name -PolicyAssignmentId $PolicyAssignment.Id -ResourceGroupName $ResourceGroup.ResourceGroupName -ResourceDiscoveryMode ReEvaluateCompliance -AsJob
-$PolicyRemediation = $Jobs | Wait-Job | Receive-Job #-Keep
+$PolicyRemediation = $Jobs | Receive-Job -Wait -AutoRemoveJob
 $PolicyRemediation
 
 #If you want to force an update on the compliance result you can use the following cmdlet instead of waiting for the next trigger : https://docs.microsoft.com/en-us/azure/governance/policy/how-to/get-compliance-data#evaluation-triggers.
