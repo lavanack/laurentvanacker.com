@@ -7,7 +7,7 @@
 
     Import-DscResource -ModuleName 'PSDscResources'
 
-    node localhost
+    node $AllNodes.NodeName
     {
         User AdminUser {
             Ensure   = 'Present'
