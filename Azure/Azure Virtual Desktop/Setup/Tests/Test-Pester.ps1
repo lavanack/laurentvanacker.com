@@ -6,15 +6,22 @@ Import-Module -Name PSAzureVirtualDesktop -Force
 Connect-MgGraph -NoWelcome
 
 #region Creating Host Pools
+
+#region Getting Current Azure location (based on the Subnet location of this DC) to deploy the Azure compute Gallery in the same location that the other resources
+$ThisDomainControllerSubnet = Get-AzVMSubnet
+#endregion
+
 #region ADJoin User
 $AdJoinUserName = 'adjoin'
 $ClearTextPassword = 'I@m@JediLikeMyF@therB4Me'
 $AdJoinPassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
 $AdJoinCredential = New-Object System.Management.Automation.PSCredential -ArgumentList ($AdJoinUserName, $AdJoinPassword)
 #endregion
-#region Azure Key Vault for stroing ADJoin Credentials
-$HostPoolSessionCredentialKeyVault = New-PsAvdHostPoolSessionHostCredentialKeyVault -ADJoinCredential $ADJoinCredential
+
+#region Azure Key Vault for storing ADJoin Credentials
+$HostPoolSessionCredentialKeyVault = New-PsAvdHostPoolSessionHostCredentialKeyVault -ADJoinCredential $ADJoinCredential -Subnet $ThisDomainControllerSubnet
 #endregion
+
 
 #region AVD Dedicated VNets and Subnets
 #region Primary Region
@@ -39,6 +46,9 @@ $SecondaryRegion                  = $SecondaryRegionVNet.Location
 #endregion
 
 [int] $RandomNumber = ((Get-AzWvdHostPool | Where-Object -FilterScript { $_.Name -match "^hp-"}).Name -replace ".*-(\d+)", '$1' | Sort-Object | Select-Object -First 1)-1
+[PooledHostPool]::ResetIndex()
+[PersonalHostPool]::ResetIndex()
+
 [PooledHostPool]::SetIndex($RandomNumber, $PrimaryRegion)
 [PersonalHostPool]::SetIndex($RandomNumber, $PrimaryRegion)
 
