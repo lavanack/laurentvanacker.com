@@ -47,7 +47,7 @@ if ([string]::IsNullOrEmpty($LogDir)) {
 else {
     $CurrentLogDir = Join-Path -Path $LogDir -ChildPath $("HostPool_{0:yyyyMMddHHmmss}" -f $StartTime)
 }
-$BackupDir = Join-Path -Path $CurrentDir -ChildPath "..\Backup"
+$BackupDir = Join-Path -Path $CurrentDir -ChildPath "Backup"
 $null = New-Item -Path $CurrentLogDir, $BackupDir -ItemType Directory -Force
 Set-Location -Path $CurrentDir
 #$TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}" -f $StartTime).txt"

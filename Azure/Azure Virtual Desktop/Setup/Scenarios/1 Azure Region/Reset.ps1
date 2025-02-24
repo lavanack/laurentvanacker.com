@@ -73,10 +73,10 @@ $LatestPSAzureVirtualDesktopModule = Get-Module -Name PSAzureVirtualDesktop -Lis
 #$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Command Invoke-Pester
 #$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Variable $app -Mode ReadWrite
 if ($PSBreakpoints.Count -le 0) {
-    & '.\Scenarios\00 - Full - Staging.ps1' -LogDir $LogDir -Verbose -AsJob
+    & '.\Start.ps1' -LogDir $LogDir -Verbose -AsJob
 }
 else {
-    & '.\Scenarios\00 - Full - Staging.ps1' -LogDir $LogDir -Verbose #-AsJob
+    & '.\Start.ps1' -LogDir $LogDir -Verbose #-AsJob
     $PSBreakpoints | Remove-PSBreakpoint
 }
 #Set-PSDebug -Off
