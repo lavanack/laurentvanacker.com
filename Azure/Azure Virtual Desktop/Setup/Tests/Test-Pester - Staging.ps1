@@ -6,61 +6,48 @@ Import-Module -Name PSAzureVirtualDesktop -Force
 Connect-MgGraph -NoWelcome
 
 #region Creating Host Pools
+
+#region Getting Current Azure location (based on the Subnet location of this DC) to deploy the Azure compute Gallery in the same location that the other resources
+$ThisDomainControllerSubnet = Get-AzVMSubnet
+#endregion
+
 #region ADJoin User
 $AdJoinUserName = 'adjoin'
 $ClearTextPassword = 'I@m@JediLikeMyF@therB4Me'
 $AdJoinPassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
 $AdJoinCredential = New-Object System.Management.Automation.PSCredential -ArgumentList ($AdJoinUserName, $AdJoinPassword)
 #endregion
-#region Azure Key Vault for stroing ADJoin Credentials
-$HostPoolSessionCredentialKeyVault = New-PsAvdHostPoolSessionHostCredentialKeyVault -ADJoinCredential $ADJoinCredential
+
+#region Azure Key Vault for storing ADJoin Credentials
+$HostPoolSessionCredentialKeyVault = New-PsAvdHostPoolSessionHostCredentialKeyVault -ADJoinCredential $ADJoinCredential -Subnet $ThisDomainControllerSubnet
 #endregion
 
 #region AVD Dedicated VNets and Subnets
 #region Primary Region
-$PrimaryRegionResourceGroupName = "rg-avd-ad-use2-002"
-$PrimaryRegionVNetName          = "vnet-avd-avd-use2-002"
-$PrimaryRegionSubnetName        = "snet-avd-avd-use2-002"
+$PrimaryRegionResourceGroupName = "rg-avd-ad-usw2-002"
+$PrimaryRegionVNetName          = "vnet-avd-ad-usw2-002"
+$PrimaryRegionSubnetName        = "snet-avd-ad-usw2-002"
 $PrimaryRegionVNet              = Get-AzVirtualNetwork -Name $PrimaryRegionVNetName -ResourceGroupName $PrimaryRegionResourceGroupName
 $PrimaryRegionSubnet            = $PrimaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $PrimaryRegionSubnetName
 $PrimaryRegion                  = $PrimaryRegionVNet.Location
 #$PrimaryRegion                  = (Get-AzVMCompute).Location
 #endregion
-
-#region Secondary Region (for ASR and FSLogix Cloud Cache)
-$SecondaryRegionResourceGroupName = "rg-avd-ad-usc-002"
-$SecondaryRegionVNetName          = "vnet-avd-avd-usc-002"
-$SecondaryRegionSubnetName        = "snet-avd-avd-usc-002"
-$SecondaryRegionVNet              = Get-AzVirtualNetwork -Name $SecondaryRegionVNetName -ResourceGroupName $SecondaryRegionResourceGroupName
-$SecondaryRegionSubnet            = $SecondaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $SecondaryRegionSubnetName
-$SecondaryRegion                  = $SecondaryRegionVNet.Location
-#$SecondaryRegion                  = [HostPool]::GetAzurePairedRegion($PrimaryRegion)
-#endregion
 #endregion
 
 [int] $RandomNumber = ((Get-AzWvdHostPool | Where-Object -FilterScript { $_.Name -match "^hp-"}).Name -replace ".*-(\d+)", '$1' | Sort-Object | Select-Object -First 1)-1
+[PooledHostPool]::ResetIndex()
+[PersonalHostPool]::ResetIndex()
+
 [PooledHostPool]::SetIndex($RandomNumber, $PrimaryRegion)
 [PersonalHostPool]::SetIndex($RandomNumber, $PrimaryRegion)
 
-[PooledHostPool]::SetIndex($RandomNumber, $SecondaryRegion)
-[PersonalHostPool]::SetIndex($RandomNumber, $SecondaryRegion)
-
 [PooledHostPool]::AppAttachStorageAccountNameHT[$PrimaryRegion] = $(Get-AzStorageAccount | Where-Object -FilterScript { $_.PrimaryLocation -eq $PrimaryRegion -and $_.StorageAccountName -match "saavdappattachpoc"} | Select-Object -First 1)
-[PooledHostPool]::AppAttachStorageAccountNameHT[$SecondaryRegion] = $(Get-AzStorageAccount | Where-Object -FilterScript { $_.PrimaryLocation -eq $SecondaryRegion -and $_.StorageAccountName -match "saavdappattachpoc"} | Select-Object -First 1)
 
 $HostPools = @(
-    # Use case 1: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with FSLogix
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault)#.EnableSpotInstance()
-    # Use case 2: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with FSLogix, Ephemeral OS Disk (ResourceDisk mode) and a Standard_DS3_v2 size (compatible with Ephemeral OS Disk)
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault).SetVMSize('Standard_D8ds_v5').EnableEphemeralOSDisk([DiffDiskPlacement]::ResourceDisk)
-    # Use case 3: Deploy a Pooled HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined) with FSLogix and Spot Instance VMs and setting the LoadBalancer Type to DepthFirst
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableSpotInstance().SetLoadBalancerType([Microsoft.Azure.PowerShell.Cmdlets.DesktopVirtualization.Support.LoadBalancerType]::DepthFirst)
-    # Use case 4: Deploy a Pooled HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined, enrolled with Intune) with FSLogix and a Scaling Plan
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault).EnableIntune()#.EnableScalingPlan()#.SetVMNumberOfInstances(1).EnableSpotInstance()
-    # Use case 5: Deploy a Personal HostPool with 2 Session Hosts (AD Domain joined and without FSLogix and MSIX - Not necessary for Personal Desktops) 
-    [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault).SetVMNumberOfInstances(2)
-    # Use case 6: Deploy a Personal HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined and without FSLogix and MSIX - Not necessary for Personal Desktops), Hibernation enabled and a Scaling Plan 
-    [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableHibernation().EnableScalingPlan()
+    # Use case 1: Deploy a Pooled HostPool with 3 (default value) Session Hosts for RemoteApp (AD Domain joined) with FSLogix and AppAttach
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetPreferredAppGroupType("RailApplications").EnableAppAttach()
+    # Use case 2: Deploy a Pooled HostPool with 3 (default value) Session Hosts for RemoteApp (Azure AD/Microsoft Entra ID joined) with FSLogix and AppAttach
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).SetPreferredAppGroupType("RailApplications").EnableAppAttach()
 )
 #endregion
 
@@ -68,6 +55,7 @@ $HostPool = $HostPools
 $ModuleBase = (Get-Module -Name PSAzureVirtualDesktop -ListAvailable).ModuleBase
 $PesterDirectory = Join-Path -Path $ModuleBase -ChildPath 'Pester'
 
+$StartTime = Get-Date
 #region Pester Tests
 $HostPoolClassPesterTests    = Join-Path -Path $PesterDirectory -ChildPath 'HostPool.Class.Tests.ps1'
 $Container = New-PesterContainer -Path $HostPoolClassPesterTests -Data @{ HostPool = $HostPool }
@@ -133,3 +121,7 @@ foreach ($CurrentHostPool in $HostPools) {
     Invoke-Pester -Container $Container -Output Detailed #-Verbose
 }
 #endregion
+$EndTime = Get-Date
+
+$TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
+$TimeSpan.ToString()

@@ -58,8 +58,8 @@ catch {
     Get-ChildItem -Path $LogDir -Filter HostPool_* -Directory | Remove-Item -Force -Recurse -ErrorAction Stop
 }
 
-#$null = Get-AzResourceGroup | Where-Object -FilterScript { (($_.ResourceGroupName -match '^rg-avd-.*-poc-.*-\d+') -and ($_.ResourceGroupName -notin (Get-AzResourceLock).ResourceGroupName)) } | Remove-AzResourceGroup -AsJob -Force -Verbose | Receive-Job -Wait -AutoRemoveJob
-$ResourceGroup = Get-AzResourceGroup | Where-Object -FilterScript { (($_.ResourceGroupName -match '^rg-avd-.*-poc-.*-\d+') -and ($_.ResourceGroupName -notmatch "kv|appattach")) } | Remove-AzResourceGroup -AsJob -Force -Verbose | Receive-Job -Wait -AutoRemoveJob
+$null = Get-AzResourceGroup | Where-Object -FilterScript { (($_.ResourceGroupName -match '^rg-avd-.*-poc-.*-\d+') -and ($_.ResourceGroupName -notin (Get-AzResourceLock).ResourceGroupName)) } | Remove-AzResourceGroup -AsJob -Force -Verbose | Receive-Job -Wait -AutoRemoveJob
+#$ResourceGroup = Get-AzResourceGroup | Where-Object -FilterScript { (($_.ResourceGroupName -match '^rg-avd-.*-poc-.*-\d+') -and ($_.ResourceGroupName -notmatch "kv|appattach")) } | Remove-AzResourceGroup -AsJob -Force -Verbose | Receive-Job -Wait -AutoRemoveJob
 Get-MgBetaGroup -Filter "DisplayName eq 'No-MFA Users'" | ForEach-Object -Process { Remove-MgBetaGroup -GroupId $_.Id -Verbose }
 Get-MgBetaIdentityConditionalAccessPolicy -Filter "displayName eq '[AVD] Require multifactor authentication for all users'" | ForEach-Object -Process { Remove-MgBetaIdentityConditionalAccessPolicy -ConditionalAccessPolicyId $_.Id -Verbose }
 Get-AzKeyVault -InRemovedState | Remove-AzKeyVault -InRemovedState -AsJob -Force
@@ -69,14 +69,14 @@ Get-AzKeyVault -InRemovedState | Remove-AzKeyVault -InRemovedState -AsJob -Force
 #Set-PSDebug -Trace 2
 $PSBreakpoints = @() 
 $LatestPSAzureVirtualDesktopModule = Get-Module -Name PSAzureVirtualDesktop -ListAvailable | Sort-Object -Property Version -Descending | Select-Object -First 1
-#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Line 7070, 7473
-#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Command Add-PsAvdAzureAppAttach
+#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Line 6113, 7970
+#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Command Invoke-Pester
 #$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Variable $app -Mode ReadWrite
 if ($PSBreakpoints.Count -le 0) {
-    & '.\Scenarios\00 - Full - Production.ps1' -LogDir $LogDir -Verbose -AsJob
+    & '.\Start.ps1' -LogDir $LogDir -Verbose -AsJob
 }
 else {
-    & '.\Scenarios\00 - Full - Production.ps1' -LogDir $LogDir -Verbose #-AsJob
+    & '.\Start.ps1' -LogDir $LogDir -Verbose #-AsJob
     $PSBreakpoints | Remove-PSBreakpoint
 }
 #Set-PSDebug -Off

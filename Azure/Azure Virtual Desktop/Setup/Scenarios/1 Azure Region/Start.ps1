@@ -47,7 +47,7 @@ if ([string]::IsNullOrEmpty($LogDir)) {
 else {
     $CurrentLogDir = Join-Path -Path $LogDir -ChildPath $("HostPool_{0:yyyyMMddHHmmss}" -f $StartTime)
 }
-$BackupDir = Join-Path -Path $CurrentDir -ChildPath "..\Backup"
+$BackupDir = Join-Path -Path $CurrentDir -ChildPath "Backup"
 $null = New-Item -Path $CurrentLogDir, $BackupDir -ItemType Directory -Force
 Set-Location -Path $CurrentDir
 #$TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}" -f $StartTime).txt"
@@ -76,23 +76,13 @@ $ThisDomainControllerSubnet = Get-AzVMSubnet
 
 #region AVD Dedicated VNets and Subnets
 #region Primary Region
-$PrimaryRegionResourceGroupName = "rg-avd-ad-use2-002"
-$PrimaryRegionVNetName          = "vnet-avd-avd-use2-002"
-$PrimaryRegionSubnetName        = "snet-avd-avd-use2-002"
+$PrimaryRegionResourceGroupName = "rg-avd-ad-usw2-002"
+$PrimaryRegionVNetName          = "vnet-avd-ad-usw2-002"
+$PrimaryRegionSubnetName        = "snet-avd-ad-usw2-002"
 $PrimaryRegionVNet              = Get-AzVirtualNetwork -Name $PrimaryRegionVNetName -ResourceGroupName $PrimaryRegionResourceGroupName
 $PrimaryRegionSubnet            = $PrimaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $PrimaryRegionSubnetName
 $PrimaryRegion                  = $PrimaryRegionVNet.Location
 #$PrimaryRegion                  = (Get-AzVMCompute).Location
-#endregion
-
-#region Secondary Region (for ASR and FSLogix Cloud Cache)
-$SecondaryRegionResourceGroupName = "rg-avd-ad-usc-002"
-$SecondaryRegionVNetName          = "vnet-avd-avd-usc-002"
-$SecondaryRegionSubnetName        = "snet-avd-avd-usc-002"
-$SecondaryRegionVNet              = Get-AzVirtualNetwork -Name $SecondaryRegionVNetName -ResourceGroupName $SecondaryRegionResourceGroupName
-$SecondaryRegionSubnet            = $SecondaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $SecondaryRegionSubnetName
-$SecondaryRegion                  = $SecondaryRegionVNet.Location
-#$SecondaryRegion                  = [HostPool]::GetAzurePairedRegion($PrimaryRegion)
 #endregion
 #endregion
 
@@ -124,7 +114,6 @@ else {
 
 #region Listing Azure VMs with Ephemeral OS Disk
 $PrimaryRegionAzureEphemeralOsDiskSku = [HostPool]::GetAzureEphemeralOsDiskSku($PrimaryRegion)
-$SecondaryRegionAzureEphemeralOsDiskSku = [HostPool]::GetAzureEphemeralOsDiskSku($SecondaryRegion)
 #endregion
 
 
@@ -136,9 +125,6 @@ $SecondaryRegionAzureEphemeralOsDiskSku = [HostPool]::GetAzureEphemeralOsDiskSku
 $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 [PooledHostPool]::SetIndex($RandomNumber, $PrimaryRegion)
 [PersonalHostPool]::SetIndex($RandomNumber, $PrimaryRegion)
-
-[PooledHostPool]::SetIndex($RandomNumber, $SecondaryRegion)
-[PersonalHostPool]::SetIndex($RandomNumber, $SecondaryRegion)
 
 $HostPools = @(
     # Use case 1: Deploy a Pooled HostPool with 3 (default value) Session Hosts for RemoteApp (AD Domain joined) with FSLogix and AppAttach
@@ -157,41 +143,19 @@ $HostPools = @(
     [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id)
     [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID)
     [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableAppAttach()
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableAppAttach()
 
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id)
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableAppAttach()
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).EnableAppAttach()
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).EnableAppAttach()
-)
-
-$HP1 = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableFSLogixCloudCache().EnableAppAttach()
-$HP2 = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableFSLogixCloudCache($HP1).EnableAppAttach()
-$HP3 = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableFSLogixCloudCache().EnableAppAttach()
-$HP4 = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableFSLogixCloudCache($HP3).EnableAppAttach()
-$HostPools = @(
-    $HP1
-    $HP2
-    $HP3
-    $HP4    
-)
-
-$HP1 = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().EnableFSLogixCloudCache().EnableWatermarking()
-$HP2 = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).EnableSpotInstance().EnableFSLogixCloudCache($HP1).EnableWatermarking()
-$HostPools = @(
-    $HP1
-    $HP2    
 )
 
 $HostPools = @(
-    #Deploy 2 Pooled HostPools with FSLogix and FSLogix Cloud Cache Enabled and replicating the profiles to each other (because they use Azure Paired Regions)
+	[PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableFSLogixCloudCache().EnableAppAttach()
+)
+
+$HostPools = @(
+    #Deploy 1 Pooled HostPool with FSLogix and FSLogix Cloud Cache Enabled
     [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().EnableFSLogixCloudCache().EnableWatermarking()
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).EnableSpotInstance().EnableFSLogixCloudCache().EnableWatermarking()
 
-    #Deploy 2 Pooled HostPools with Intune, FSLogix and FSLogix Cloud Cache Enabled and replicating the profiles to each other (because they use Azure Paired Regions)
-    #Be sure to use the same Index in the both region when using FSLogix Cloud Cache
+    #Deploy 1 Pooled HostPools with Intune, FSLogix and FSLogix Cloud Cache Enabled 
     [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableIntune().EnableSpotInstance().EnableFSLogixCloudCache().EnableWatermarking()
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).EnableIntune().EnableSpotInstance().EnableFSLogixCloudCache().EnableWatermarking()
 )
 
 $HostPools = @(
@@ -223,25 +187,24 @@ $HostPools = @(
 
 
 $HostPools = @(
-    #Deploy 2  Pooled HostPools without MSIX and with FSLogix and FSLogix Cloud Cache Enabled and replicating the profiles to each other (because they use Azure Paired Regions)
+    #Deploy 1 Pooled HostPools without MSIX and with FSLogix and FSLogix Cloud Cache Enabled 
     [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().DisableMSIX().EnableFSLogixCloudCache().EnableWatermarking()
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $SecondaryRegionSubnet.Id).EnableSpotInstance().DisableMSIX().EnableFSLogixCloudCache().EnableWatermarking()
 
     # Use case X: Deploy a Personal HostPool with 3 (default value) Session Hosts (AD Domain joined and without FSLogix and MSIX - Not necessary for Personal Desktops) and with a replication of the disk to a recovery region with Azure Site Recovery
-    [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().EnableAzureSiteRecovery($SecondaryRegionVNet.Id)
+    [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().EnableAzureSiteRecovery($PrimaryRegionVNet.Id)
     # Use case X: Deploy a Personal HostPool with 3 (default value) Session Hosts (AD Domain joined and without FSLogix and MSIX - Not necessary for Personal Desktops)
     [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance()
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().EnableAzureSiteRecovery($SecondaryRegionVNet.Id)
+    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().EnableAzureSiteRecovery($PrimaryRegionVNet.Id)
 )
 #endregion
 
 #>
 #region Creating a new Pooled Host Pool for every image definition from an Azure Compute Gallery
-#Looging for Azure Compute Gallery Image Definition with image version in the primary and secondary regions
-$GalleryImageDefinition = Get-PsAvdAzGalleryImageDefinition -Region $PrimaryRegion, $SecondaryRegion
+#Looging for Azure Compute Gallery Image Definition with image version in the primary region
+$GalleryImageDefinition = Get-PsAvdAzGalleryImageDefinition -Region $PrimaryRegion
 if (-not($GalleryImageDefinition)) {
     #Creating an Azure Compute Gallery if needed
-    $AzureComputeGallery = New-AzureComputeGallery -Location $PrimaryRegion -TargetRegions $PrimaryRegion, $SecondaryRegion
+    $AzureComputeGallery = New-AzureComputeGallery -Location $PrimaryRegion -TargetRegions $PrimaryRegion
     $GalleryImageDefinition = Get-AzGalleryImageDefinition -GalleryName $AzureComputeGallery.Name -ResourceGroupName $AzureComputeGallery.ResourceGroupName
 }
 
