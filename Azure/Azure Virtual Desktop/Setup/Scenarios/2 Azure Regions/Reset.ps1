@@ -39,7 +39,7 @@ try { while (Stop-Transcript) {} } catch {}
 Get-Job | Where-Object -FilterScript {$_.PSJobTypeName -eq "ThreadJob"} | Remove-Job -Force -Verbose
 $null = Remove-Module -Name PSAzureVirtualDesktop -Force -ErrorAction Ignore
 $Global:MaximumFunctionCount = 32768
-Import-Module -Name PSAzureVirtualDesktop -DisableNameChecking -Force -Verbose
+Import-Module -Name PSAzureVirtualDesktop -DisableNameChecking -Force #-Verbose
 
 Connect-MgGraph -NoWelcome
 try { 
@@ -60,10 +60,10 @@ catch {
 
 $ResourceGroup = Get-AzResourceGroup | Where-Object -FilterScript { (($_.ResourceGroupName -match '^rg-avd-.*-poc-.*-\d+') -and ($_.ResourceGroupName -notin (Get-AzResourceLock).ResourceGroupName)) } | Remove-AzResourceGroup -AsJob -Force -Verbose | Receive-Job -Wait -AutoRemoveJob
 #$ResourceGroup = Get-AzResourceGroup | Where-Object -FilterScript { (($_.ResourceGroupName -match '^rg-avd-.*-poc-.*-\d+') -and ($_.ResourceGroupName -notmatch "kv|appattach")) } | Remove-AzResourceGroup -AsJob -Force -Verbose | Receive-Job -Wait -AutoRemoveJob
-Get-MgBetaGroup -Filter "DisplayName eq 'No-MFA Users'" | ForEach-Object -Process { Remove-MgBetaGroup -GroupId $_.Id -Verbose }
-Get-MgBetaIdentityConditionalAccessPolicy -Filter "displayName eq '[AVD] Require multifactor authentication for all users'" | ForEach-Object -Process { Remove-MgBetaIdentityConditionalAccessPolicy -ConditionalAccessPolicyId $_.Id -Verbose }
+Get-MgBetaGroup -Filter "DisplayName eq 'No-MFA Users'" | ForEach-Object -Process { Remove-MgBetaGroup -GroupId $_.Id }
+Get-MgBetaIdentityConditionalAccessPolicy -Filter "displayName eq '[AVD] Require multifactor authentication for all users'" | ForEach-Object -Process { Remove-MgBetaIdentityConditionalAccessPolicy -ConditionalAccessPolicyId $_.Id }
 Get-AzKeyVault -InRemovedState | Remove-AzKeyVault -InRemovedState -AsJob -Force
-& '.\Tests\Clear-WindowsCredentials.ps1' -Verbose
+& '..\..\Tests\Clear-WindowsCredentials.ps1' -Verbose
 #endregion
 
 #Set-PSDebug -Trace 2
