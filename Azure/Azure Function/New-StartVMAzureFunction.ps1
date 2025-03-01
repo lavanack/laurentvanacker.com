@@ -218,11 +218,12 @@ if (-not $action) {
 if ($rgname -and $action) {
     $status = [HttpStatusCode]::OK
     if ($action -ceq "get"){
-        $body = Get-AzVM -ResourceGroupName $rgname -status | select-object Name,PowerState
+        $body = Get-AzVM -ResourceGroupName $rgname -Status | Select-Object -Property Name,PowerState
     }
     if ($action -ceq "start"){
         $body = $action
-        $body = Get-AzVM -ResourceGroupName $rgname | Start-AzVM
+        $Job = Get-AzVM -ResourceGroupName $rgname | Start-AzVM -AsJob
+        $body = $Job | Receive-Job -Wait -AutoRemoveJob
     }
 }
 else {
@@ -265,6 +266,8 @@ New-Item -Path $(Join-Path -Path $Directory -ChildPath "function.json") -Value $
 #region Requiring Az PowerShell modules
 Set-Location -Path $FunctionName
 (Get-Content -Path requirements.psd1) -replace "# 'Az'", "'Az'" | Set-Content -Path requirements.psd1 
+#Increasing Timeout from 5 to 10 minutes
+Get-Content -Path host.json | ConvertFrom-Json | Add-Member -Name "functionTimeout" -Value "00:10:00" -MemberType NoteProperty -PassThru | ConvertTo-Json | Set-Content -Path host.json
 #endregion
 
 #Set-Location -Path $FunctionName
@@ -281,13 +284,16 @@ $Body  = @{
     action         = "start"
 }
 $Body
-Invoke-RestMethod -Uri "http://localhost:7071/api/$FunctionName" -Body $Body 
+Invoke-RestMethod -Uri "http://localhost:7071/api/$FunctionName" -Body $Body
 #endregion
 #endregion
 
 #region Publishing the Azure Function
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" azure functionapp publish $($FunctionApp.Name)" -Wait
+# Enable Logs
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" azure functionapp logstream $($FunctionApp.Name) --browser" -Wait
 #endregion
+
 
 #region RBAC Assignment
 #region 'Virtual Machine Contributor' RBAC Assignment
@@ -299,7 +305,7 @@ New-AzRoleAssignment -ObjectId $FunctionApp.IdentityPrincipalId -RoleDefinitionN
 Start-Sleep -Second 30
 
 #region Testing the Azure Function
-Invoke-RestMethod -Uri "https://$AzureFunctionName.azurewebsites.net/api/$FunctionName" -Body $Body 
+Invoke-RestMethod -Uri "https://$AzureFunctionName.azurewebsites.net/api/$FunctionName" -Body $Body
 #endregion
 
 #region Cleanup
