@@ -87,12 +87,18 @@ $PrimaryRegion                  = $PrimaryRegionVNet.Location
 #endregion
 
 #region Azure Key Vault for storing ADJoin Credentials
+$HostPoolSessionCredentialKeyVault = $null
+$VaultName = $null
+
+#region Reusing existing Keyvault for credential management : Comment this for using a new Keyvault at every run
+#Returns a PSKeyVault object
+$VaultName = (Get-AzKeyVault | Where-Object -FilterScript {$_.VaultName -match "^kvavdhpcred" }).VaultName | Select-Object -First 1
 #Doesn't return a PSKeyVault object but a PSKeyVaultIdentityItem
 #$HostPoolSessionCredentialKeyVault = Get-AzKeyVault -Name kvavdhpcred* | Select-Object -First 1
-#Returns a PSKeyVault object
-$VaultName = (Get-AzKeyVault).VaultName | Select-Object -First 1
+#endregion
+
 if (-not([string]::IsNullOrEmpty($VaultName))) {
-    $HostPoolSessionCredentialKeyVault = Get-AzKeyVault -VaultName $VaultName
+    $HostPoolSessionCredentialKeyVault = Get-AzKeyVault -VaultName $VaultName -ErrorAction Ignore
 }
 if ($null -eq $HostPoolSessionCredentialKeyVault) {
     #region ADJoin User
@@ -126,79 +132,17 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 [PooledHostPool]::SetIndex($RandomNumber, $PrimaryRegion)
 [PersonalHostPool]::SetIndex($RandomNumber, $PrimaryRegion)
 
-$HostPools = @(
-    # Use case 1: Deploy a Pooled HostPool with 3 (default value) Session Hosts for RemoteApp (AD Domain joined) with FSLogix and AppAttach
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetPreferredAppGroupType("RailApplications").EnableAppAttach()
-    # Use case 2: Deploy a Pooled HostPool with 3 (default value) Session Hosts for RemoteApp (Azure AD/Microsoft Entra ID joined) with FSLogix and AppAttach
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).SetPreferredAppGroupType("RailApplications").EnableAppAttach()
-)
-
+#Uncomment the best scenario for your usage or create your own
+#$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_FSLogixCloudCache_AzureAppAttach.ps1"
+#$HostPools = & "..\1 Azure Region\2_Pooled_2_Personal_AD_Misc.ps1"
+#$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_AD_AzureAppAttach.ps1"
+#$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_Intune_AD_FSLogixCloudCache_Watermarking_SpotInstance.ps1"
+#$HostPools = & "..\1 Azure Region\3_Pooled_EntraID_AD_Misc.ps1"
+#$HostPools = & "..\1 Azure Region\6_Pooled_2_Personal_EntraID_AD_Misc.ps1"
+#$HostPools = & "..\1 Azure Region\1_Pooled_FSLogix_MSIX_RDPShortPath.ps1"
 
 #endregion
 
-
-<#
-#region OK
-$HostPools = @(
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id)
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID)
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableAppAttach()
-
-)
-
-$HostPools = @(
-	[PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableFSLogixCloudCache().EnableAppAttach()
-)
-
-$HostPools = @(
-    #Deploy 1 Pooled HostPool with FSLogix and FSLogix Cloud Cache Enabled
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().EnableFSLogixCloudCache().EnableWatermarking()
-
-    #Deploy 1 Pooled HostPools with Intune, FSLogix and FSLogix Cloud Cache Enabled 
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableIntune().EnableSpotInstance().EnableFSLogixCloudCache().EnableWatermarking()
-)
-
-$HostPools = @(
-    # Use case 1: Deploy a Pooled HostPool with 3 (default value) Session Hosts for RemoteApp (AD Domain joined) with FSLogix and AppAttach
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetPreferredAppGroupType("RailApplications").EnableAppAttach()
-    # Use case 2: Deploy a Pooled HostPool with 3 (default value) Session Hosts for RemoteApp (Azure AD/Microsoft Entra ID joined) with FSLogix and AppAttach
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).SetPreferredAppGroupType("RailApplications").EnableAppAttach()
-)
-
-
-$HostPools = @(
-    # Use case 0: Deploy a Pooled HostPool with 3 (default value) Session Hosts for RemoteApp (AD Domain joined) with FSLogix and MSIX
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetPreferredAppGroupType("RailApplications")#.EnableSpotInstance()
-    # Use case 1: Deploy a Pooled HostPool with 3 (default value) Session Hosts for RemoteApp (EntraID joined) with FSLogix and MSIX
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).SetPreferredAppGroupType("RailApplications")#.EnableSpotInstance()
-    # Use case 2: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with FSLogix, MSIX, Ephemeral OS Disk (ResourceDisk mode) and a Standard_D8ds_v5 size (compatible with Ephemeral OS Disk)
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetVMSize('Standard_D8ds_v5').EnableEphemeralOSDisk([DiffDiskPlacement]::ResourceDisk)
-    # Use case 3: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with FSLogix and AppAttach
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableAppAttach()
-    # Use case 4: Deploy a Pooled HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined) with FSLogix and Spot Instance VMs and setting the LoadBalancer Type to DepthFirst
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableSpotInstance().SetLoadBalancerType("DepthFirst")
-    # Use case 5: Deploy a Pooled HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined, enrolled with Intune) with FSLogix and a Scaling Plan
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableIntune().EnableScalingPlan()#.SetVMNumberOfInstances(1).EnableSpotInstance()
-    # Use case 6: Deploy a Personal HostPool with 2 Session Hosts (AD Domain joined and without FSLogix and MSIX - Not necessary for Personal Desktops) and Hibernation enabled 
-    [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetVMNumberOfInstances(2).SetVMSize('Standard_D8ds_v5').EnableHibernation()
-    # Use case 7: Deploy a Personal HostPool with 3 (default value) Session Hosts (Azure AD/Microsoft Entra ID joined and without FSLogix and MSIX - Not necessary for Personal Desktops) and a Scaling Plan 
-    [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).EnableScalingPlan()
-)
-
-
-$HostPools = @(
-    #Deploy 1 Pooled HostPools without MSIX and with FSLogix and FSLogix Cloud Cache Enabled 
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().DisableMSIX().EnableFSLogixCloudCache().EnableWatermarking()
-
-    # Use case X: Deploy a Personal HostPool with 3 (default value) Session Hosts (AD Domain joined and without FSLogix and MSIX - Not necessary for Personal Desktops) and with a replication of the disk to a recovery region with Azure Site Recovery
-    [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().EnableAzureSiteRecovery($PrimaryRegionVNet.Id)
-    # Use case X: Deploy a Personal HostPool with 3 (default value) Session Hosts (AD Domain joined and without FSLogix and MSIX - Not necessary for Personal Desktops)
-    [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance()
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().EnableAzureSiteRecovery($PrimaryRegionVNet.Id)
-)
-#endregion
-
-#>
 #region Creating a new Pooled Host Pool for every image definition from an Azure Compute Gallery
 #Looging for Azure Compute Gallery Image Definition with image version in the primary region
 $GalleryImageDefinition = Get-PsAvdAzGalleryImageDefinition -Region $PrimaryRegion
