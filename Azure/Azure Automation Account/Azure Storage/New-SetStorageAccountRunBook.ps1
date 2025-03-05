@@ -288,9 +288,10 @@ $VariableValue = "StorageAccount Name"
 $Variable = New-AzAutomationVariable -AutomationAccountName $AutomationAccount.AutomationAccountName-Name $VariableName -Value $VariableValue -Encrypted $false -ResourceGroupName $ResourceGroupName -Description "Storage Account Name"
 #endregion
 
+#region Allowed Public IP
 $VariableName = "IPAddressOrRange "
 $VariableValue = (Invoke-WebRequest -Uri "https://ipv4.seeip.org").Content
-$Variable = New-AzAutomationVariable -AutomationAccountName $AutomationAccount.AutomationAccountName-Name $VariableName -Value $VariableValue -Encrypted $false -ResourceGroupName $ResourceGroupName -Description "Authorized Public IP"
+$Variable = New-AzAutomationVariable -AutomationAccountName $AutomationAccount.AutomationAccountName-Name $VariableName -Value $VariableValue -Encrypted $false -ResourceGroupName $ResourceGroupName -Description "Allowed Public IP"
 #endregion
 #endregion
 
