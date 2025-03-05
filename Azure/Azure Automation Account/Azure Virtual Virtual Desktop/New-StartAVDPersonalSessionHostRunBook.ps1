@@ -261,6 +261,7 @@ Start-Sleep -Seconds 30
 #region 'Desktop Virtualization Power On Contributor' RBAC Assignment
 Write-Verbose -Message "Assigning the 'Desktop Virtualization Power On Contributor' RBAC role to Automation Account Managed System Identity ..."
 New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefinitionName 'Desktop Virtualization Power On Contributor' -Scope "/subscriptions/$SubscriptionId"
+#endregion
 
 #region 'Log Analytics Reader' RBAC Assignment
 Write-Verbose -Message "Assigning the 'Log Analytics Reader' RBAC role to Automation Account Managed System Identity ..."

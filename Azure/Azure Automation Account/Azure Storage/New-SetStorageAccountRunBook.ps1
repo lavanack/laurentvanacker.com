@@ -253,9 +253,17 @@ $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Locatio
 $AutomationAccount = New-AzAutomationAccount -Name $AutomationAccountName -Location $Location -ResourceGroupName $ResourceGroupName -AssignSystemIdentity
 #endregion
 
+#region RBAC Assignment
+Start-Sleep -Seconds 30
+#region 'Storage Account Contributor' RBAC Assignment
+Write-Verbose -Message "Assigning the 'Storage Account Contributor' RBAC role to Automation Account Managed System Identity ..."
+New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefinitionName 'Storage Account Contributor' -Scope "/subscriptions/$SubscriptionId"
+#endregion
+#endregion
+
 #region New-SetStorageAccountRunBook
 #region Schedule Setup
-#region Azure Virtual Machine - Daily Start
+#region Azure Storage Account - Set Configuration - Daily Schedule
 $TimeZone = ([System.TimeZoneInfo]::Local).Id
 $StartTime = Get-Date "22:00:00"
 if ($(Get-Date) -gt $StartTime) {
@@ -271,7 +279,7 @@ $RunBookName = "{0}-SetStorageAccount" -f $RunBookPrefix
 # Publish the runbook
 #Publish-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName
 
-$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%Storage/SetStorageAccountRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Setting Azure Storage Account Configuration" -Verbose 
+$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20Storage/SetStorageAccountRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Setting Azure Storage Account Configuration" -Verbose 
 
 # Create a new variable(s)
 #region ResourceGroup Name
@@ -290,11 +298,11 @@ $Variable = New-AzAutomationVariable -AutomationAccountName $AutomationAccount.A
 
 #region Allowed Public IP
 $VariableName = "IPAddressOrRange "
-$VariableValue = (Invoke-WebRequest -Uri "https://ipv4.seeip.org").Content
+$VariableValue = $((Invoke-RestMethod -Uri http://ip-api.com/json/?fields=query).query)
 $Variable = New-AzAutomationVariable -AutomationAccountName $AutomationAccount.AutomationAccountName-Name $VariableName -Value $VariableValue -Encrypted $false -ResourceGroupName $ResourceGroupName -Description "Allowed Public IP"
 #endregion
 #endregion
 
 # Link the schedule to the runbook
-Register-AzAutomationScheduledRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ScheduleName $Schedule.Name -ResourceGroupName $ResourceGroupName -Parameters @{ "TagName" = "AutoStart-Enabled"; "TagValue" = "Enabled"; "Shutdown" = $false }
+Register-AzAutomationScheduledRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ScheduleName $Schedule.Name -ResourceGroupName $ResourceGroupName
 #endregion
