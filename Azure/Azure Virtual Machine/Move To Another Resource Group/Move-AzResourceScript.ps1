@@ -25,7 +25,7 @@ param
     [Parameter(Mandatory = $true)]
     [string] $SourceResourceGroupName,
     [Parameter(Mandatory = $true)]
-    [string] $DestinationResourceGroupName,
+    [string] $TargetResourceGroupName,
     [switch] $Start
 )
 
@@ -33,7 +33,7 @@ Clear-Host
 $Error.Clear()
 
 $SourceResourceGroup = Get-AzResourceGroup -Name $SourceResourceGroupName
-$DestinationResourceGroup = Get-AzResourceGroup -Name $DestinationResourceGroupName
+$TargetResourceGroup = Get-AzResourceGroup -Name $TargetResourceGroupName
 $VM = Get-AzVM -ResourceGroupName $SourceResourceGroupName
 $DataDisks = $VM.StorageProfile.DataDisks.ManagedDisk
 $OsDisk = $VM.StorageProfile.OsDisk.ManagedDisk
@@ -47,7 +47,7 @@ $Resource = @($VM, $DataDisks, $OsDisk, $NetworkInterfaces, $PublicIpAddress)
 
 $Parameters = @{
     resources           = $Resource.Id; # Wrap in an @() array if providing a single resource ID string.
-    targetResourceGroup = $DestinationResourceGroup.ResourceId
+    targetResourceGroup = $TargetResourceGroup.ResourceId
 }
 
 #region Stopping the VMs
@@ -66,16 +66,16 @@ try {
     #endregion
 
     #region Move (if validation succeeds)
-    Write-Host -Object "Starting to move the VMs from '$SourceResourceGroupName' to '$DestinationResourceGroupName' ..."
+    Write-Host -Object "Starting to move the VMs from '$SourceResourceGroupName' to '$TargetResourceGroupName' ..."
     $StartTime = Get-Date
-    Move-AzResource -DestinationResourceGroupName $DestinationResourceGroupName -ResourceId $Resource.Id -Force
+    Move-AzResource -DestinationResourceGroupName $TargetResourceGroupName -ResourceId $Resource.Id -Force
     $EndTime = Get-Date
     Write-Host -Object "Move completed in $(New-TimeSpan -Start $StartTime -End $EndTime) ..." -ForegroundColor Green
     #endregion
 
     #region Starting the VMs (if specified)
     if ($Start) {
-        $Jobs = Get-AzVM -ResourceGroupName $DestinationResourceGroupName | Where-Object -FilterScript { $_.Name -in $VM.Name} | Start-AzVM -AsJob
+        $Jobs = Get-AzVM -ResourceGroupName $TargetResourceGroupName | Where-Object -FilterScript { $_.Name -in $VM.Name} | Start-AzVM -AsJob
         Write-Host -Object "Starting the moved VMs (As Job) ..."
         $Jobs | Wait-Job | Out-Null
         Write-Host -Object "VMs started !"
