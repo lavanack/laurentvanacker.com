@@ -67,7 +67,7 @@ function New-AzureVMsWithPublicIPRDCManRDGFile {
 </RDCMan>
 "@
     $CurrentSubscription = (Get-AzContext).Subscription
-    $RDGFilePath = $(Join-Path -Path $([Environment]::GetFolderPath("Desktop")) -ChildPath "AzureVMsWithPublicIP.rdg")
+    $RDGFilePath = $(Join-Path -Path $([Environment]::GetFolderPath("MyDocuments")) -ChildPath "AzureVMsWithPublicIP.rdg")
     #endregion
 
     #region Listing all Azure VM with a Public IP Address
