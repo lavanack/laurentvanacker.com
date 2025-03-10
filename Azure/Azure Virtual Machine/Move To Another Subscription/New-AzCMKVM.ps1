@@ -320,7 +320,7 @@ function New-AzCMKVM {
         $image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer -sku $ImageSku.Skus | Sort-Object -Property Version -Descending | Select-Object -First 1
         #>
 
-        # Step 9: Create a virtual machine configuration file #(As a Spot Intance)
+        # Step 9: Create a virtual machine configuration file (As a Spot Intance)
         $VMConfig = New-AzVMConfig -VMName $CurrentVMName -VMSize $VMSize -IdentityType SystemAssigned -EncryptionAtHost -Priority "Spot" -MaxPrice -1
 
         $null = Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id

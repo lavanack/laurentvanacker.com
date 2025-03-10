@@ -36,8 +36,16 @@ function Move-AzResource {
     $DataDisks = $VM.StorageProfile.DataDisks.ManagedDisk
     $OsDisk = $VM.StorageProfile.OsDisk.ManagedDisk
     $NetworkInterfaces = $VM.NetworkProfile.NetworkInterfaces
+
     $PublicIpAddress = foreach ($CurrentVM in $VM) {
-        ((Get-AzNetworkInterface -ResourceId $CurrentVM.NetworkProfile.NetworkInterfaces.Id).IpConfigurations).PublicIpAddress
+        $CurrentVMNIC = Get-AzNetworkInterface -ResourceGroupName $CurrentVM.ResourceGroupName -Name $CurrentVM.NetworkProfile.NetworkInterfaces[0].Id.Split('/')[-1]
+
+        # Get the public IP address of the network interface
+        foreach ($IPConfig in $CurrentVMNIC.IpConfigurations) {
+            if ($IPConfig.PublicIpAddress) {
+                Get-AzPublicIpAddress -ResourceGroupName $CurrentVM.ResourceGroupName -Name $IPConfig.PublicIpAddress.Id.Split('/')[-1]
+            }
+        }
     }
 
     #Resources to move
