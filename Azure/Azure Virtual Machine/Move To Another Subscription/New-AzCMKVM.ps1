@@ -15,7 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.KeyVault, Az.Network, Az.Resources, Az.Storage, Az.Security, ThreadJob
+#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.KeyVault, Az.Network, Az.Resources, Az.Security, Az.Storage
 
 #region function definitions 
 #Based from https://adamtheautomator.com/powershell-random-password/
@@ -50,7 +50,7 @@ function New-AzCMKVM {
     [CmdletBinding()]
     param
     (
-        [int] $VMNumber = 5,
+        [int] $VMNumber = 10,
         [switch] $JIT,
         [switch] $DataDisk,
         [Parameter(ParameterSetName='Linux')]
@@ -58,7 +58,8 @@ function New-AzCMKVM {
         [Parameter(ParameterSetName='Linux')]
         [ValidateScript({Test-Path -Path $_ -PathType Leaf})]
         [ValidateNotNullOrEmpty()]
-        [string] $SSHPublicKeyPath
+        [string] $SSHPublicKeyPath,
+        [switch] $NoPublicIP
     )
 
     #region Defining variables 
@@ -67,11 +68,6 @@ function New-AzCMKVM {
     $ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/main/src/repository/resourcelocations.json
     $shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @{Name = 'Location'; Expression = { $AzLocation[$_.name].Location } } | Where-Object -FilterScript { $_.Location } | Group-Object -Property Location -AsHashTable -AsString
     #endregion
-
-    # Login to your Azure subscription.
-    While (-not(Get-AzContext)) {
-        Connect-AzAccount
-    }
 
     $AzureVMNameMaxLength = 15
     $SSHPort = 22
@@ -259,7 +255,7 @@ function New-AzCMKVM {
 
     #Steps 4 + 5: Create Azure Virtual network using the virtual network subnet configuration
     $VirtualNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName  -AddressPrefix $VirtualNetworkAddressSpace -Location $Location
-    Add-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork -AddressPrefix $SubnetIPRange -NetworkSecurityGroupId $NetworkSecurityGroup.Id
+    $null = Add-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork -AddressPrefix $SubnetIPRange -NetworkSecurityGroupId $NetworkSecurityGroup.Id
 
     $VirtualNetwork = Set-AzVirtualNetwork -VirtualNetwork $VirtualNetwork
     $Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork
@@ -289,12 +285,6 @@ function New-AzCMKVM {
         Start-Sleep -Seconds 30
     }
     #endregion 
-    #$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -ObjectId $DiskEncryptionSet.Identity.PrincipalId -PermissionsToKeys wrapKey, unwrapKey, get -PassThru
-
-    #As the owner of the key vault, you automatically have access to create secrets. If you need to let another user create secrets, use:
-    #$UserPrincipalName = (Get-AzContext).Account.Id
-    #$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -UserPrincipalName $UserPrincipalName -PermissionsToSecrets Get,Delete,List,Set -PassThru
-    #$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -UserPrincipalName $UserPrincipalName -PermissionsToKeys wrapKey, unwrapKey, get -PassThru
     #endregion 
 
     $Index=0
@@ -312,10 +302,16 @@ function New-AzCMKVM {
         Write-Verbose "`$DataDiskName: $DataDiskName"
         Write-Verbose "`$PublicIPName: $PublicIPName"
         #Step 6: Create Azure Public Address
-        $PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $ResourceGroupName -Location $Location -AllocationMethod Static -DomainNameLabel $CurrentVMName.ToLower()
+        if ($NoPublicIP) {
+            #Step 7: Create Network Interface Card 
+            $NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
+        }
+        else {
+            $PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $ResourceGroupName -Location $Location -AllocationMethod Static -DomainNameLabel $CurrentVMName.ToLower()
 
-        #Step 7: Create Network Interface Card 
-        $NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -PublicIpAddressId $PublicIP.Id #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
+            #Step 7: Create Network Interface Card 
+            $NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -PublicIpAddressId $PublicIP.Id #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
+        }
 
         <# Optional : Step 8: Get Virtual Machine publisher, Image Offer, Sku and Image
         $ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq "MicrosoftWindowsDesktop"}
@@ -377,7 +373,7 @@ function New-AzCMKVM {
         }
 
         #Step 10: Create Azure Virtual Machine
-        New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig -AsJob
+        New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig -OSDiskDeleteOption Delete -DataDiskDeleteOption Delete -AsJob
         #-DisableBginfoExtension
     }
 
@@ -459,7 +455,7 @@ function New-AzCMKVM {
         $Properties.Add('dailyRecurrence', @{'time' = "2300" })
         $Properties.Add('timeZoneId', (Get-TimeZone).Id)
         $Properties.Add('targetResourceId', $CurrentVM.Id)
-        New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Properties $Properties -Force
+        $null = New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Properties $Properties -Force
         #endregion
 
         #Step 11: Start Azure Virtual Machine
@@ -486,11 +482,11 @@ function New-AzCMKVM {
     }
     else {
         While (($null -eq $TargetSubscription) -or ($TargetSubscription.Count -gt 1)) {
-            $TargetSubscription = $TargetSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
+            $TargetSubscription = $TargetSubscription | Out-GridView -OutputMode Single -Title "Select the Source Subscription" | Select-AzSubscription
         }
         Write-Host -Object "`$TargetSubscription : $($TargetSubscription | Out-String)"
         Write-Host -Object "Switching to '$($TargetSubscription.Name)' Subscription"
-        Select-AzSubscription -SubscriptionObject $TargetSubscription
+        $null = Select-AzSubscription -SubscriptionObject $TargetSubscription
 
         #region ResourceGroup
         $TargetResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
@@ -540,24 +536,18 @@ function New-AzCMKVM {
             Start-Sleep -Seconds 30
         }
         #endregion 
-        #$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $TargetKeyVaultName -ObjectId $TargetDiskEncryptionSet.Identity.PrincipalId -PermissionsToKeys wrapKey, unwrapKey, get -PassThru
-
-        #As the owner of the key vault, you automatically have access to create secrets. If you need to let another user create secrets, use:
-        #$UserPrincipalName = (Get-AzContext).Account.Id
-        #$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $TargetKeyVaultName -UserPrincipalName $UserPrincipalName -PermissionsToSecrets Get,Delete,List,Set -PassThru
-        #$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $TargetKeyVaultName -UserPrincipalName $UserPrincipalName -PermissionsToKeys wrapKey, unwrapKey, get -PassThru
         #endregion 
     
         $MoveAzResourceToAnotherSubscriptionScriptFilePath = Join-Path -Path $CurrentDir -ChildPath "Move-AzResourceScript.ps1"
         #Moving the VM to a destination resource group and restarting them after.
         #$CommandLine = "Select-AzSubscription -SubscriptionObject `$SourceSubscription; Get-AzVM | Where-Object -FilterScript { `$_.Name -in '$($VMNames -join ''',''')' } | .\Move-AzResourceScript.ps1 -TargetResourceGroupName $ResourceGroupName -TargetSubscriptionId $($TargetSubscription.Id) -TargetDiskEncryptionSetId $($TargetDiskEncryptionSet.Id) -TargetSubnetId $($TargetVirtualNetwork.Subnets[0].Id) -Snapshot -Verbose #-AsJob" 
         $VMNamePattern = "{0}{1}{2}{3}*" -f $VirtualMachinePrefix, $Project, $Role, $LocationShortName
-        $CommandLine = "Select-AzSubscription -Subscription $($SourceSubscription.Id); Get-AzVM -Name $VMNamePattern | .\Move-AzResourceScript.ps1 -TargetResourceGroupName $ResourceGroupName -TargetSubscriptionId $($TargetSubscription.Id) -TargetDiskEncryptionSetId $($TargetDiskEncryptionSet.Id) -TargetSubnetId $($TargetVirtualNetwork.Subnets[0].Id) -Snapshot -Verbose #-AsJob" 
+        $CommandLine = "Select-AzSubscription -Subscription $($SourceSubscription.Id); . .\Move-AzResource.ps1; Get-AzVM -Name $VMNamePattern | Move-AzResource -TargetResourceGroupName $ResourceGroupName -TargetSubscriptionId $($TargetSubscription.Id) -TargetDiskEncryptionSetId $($TargetDiskEncryptionSet.Id) -TargetSubnetId $($TargetVirtualNetwork.Subnets[0].Id) -Verbose -AsJob #-Snapshot" 
         Write-Host -Object $CommandLine -ForegroundColor Cyan
         $CommandLine | Set-Clipboard
 
         Write-Host -Object "Switching back to '$($SourceSubscription.Name)' Subscription"
-        Select-AzSubscription -SubscriptionObject $SourceSubscription
+        $null = Select-AzSubscription -SubscriptionObject $SourceSubscription
     }
 }
 #endregion 
@@ -565,6 +555,13 @@ function New-AzCMKVM {
 #region Main Code
 Clear-Host
 $Error.Clear()
+
+# Login to your Azure subscription.
+While (-not(Get-AzContext)) {
+    Connect-AzAccount
+}
+
+
 Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
 $SourceSubscription = (Get-AzContext).Subscription
 
@@ -573,8 +570,8 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
-#region Windows
-New-AzCMKVM -JIT -DataDisk
+#region Windows without Public IP Address
+New-AzCMKVM -JIT -NoPublicIP #-DataDisk 
 #endregion
 
 <#
