@@ -420,7 +420,7 @@ function New-AzCMKVM {
             $UpdatedJITPolicy.Add($NewJitPolicy)
 	
             # Enable Access to the VM including management Port, and Time Range in Hours
-            Write-Host "Enabling Just in Time VM Access Policy for ($CurrentVMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
+            Write-Host "Enabling Just in Time VM Access Policy for ($CurrentVMName) on port number(s) $($JitPolicy.ports.number -join ', ') for maximum $JitPolicyTimeInHours hours..."
             $JitNetworkAccessPolicy = Set-AzJitNetworkAccessPolicy -VirtualMachine $UpdatedJITPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -Kind "Basic"
             Start-Sleep -Seconds 5
             #endregion
@@ -555,11 +555,15 @@ function New-AzCMKVM {
 Clear-Host
 $Error.Clear()
 
-# Login to your Azure subscription.
-While (-not(Get-AzContext)) {
-    Connect-AzAccount
+#region Login to your Azure subscription.
+try { 
+    $null = Get-AzAccessToken -ErrorAction Stop
 }
-
+catch {
+    Connect-AzAccount
+    #Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
+}
+#endregion
 
 Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
 $SourceSubscription = (Get-AzContext).Subscription
