@@ -18,7 +18,7 @@ of the Sample Code.
 #requires -Version 5 -Modules Az.Compute, Az.Network, Az.Resources
 
 
-#region Dunction definitions
+#region Function definitions
 function New-AzureVMsWithPublicIPRDCManRDGFile {
     [CmdletBinding()]
     Param ()
@@ -78,18 +78,18 @@ function New-AzureVMsWithPublicIPRDCManRDGFile {
         foreach ($CurrentVM in Get-AzVM) {
             Write-Host -Object "Processing [$($Subscription.Name)] $($CurrentVM.Name)"
             # Get the network interface of the VM
-            $nic = Get-AzNetworkInterface -ResourceGroupName $CurrentVM.ResourceGroupName -Name $CurrentVM.NetworkProfile.NetworkInterfaces[0].Id.Split('/')[-1]
+            $NIC = Get-AzNetworkInterface -ResourceGroupName $CurrentVM.ResourceGroupName -Name $CurrentVM.NetworkProfile.NetworkInterfaces[0].Id.Split('/')[-1]
     
             # Get the public IP address of the network interface
-            foreach ($ipconfig in $nic.IpConfigurations) {
-                if ($ipconfig.PublicIpAddress) {
-                    $PublicIP = Get-AzPublicIpAddress -ResourceGroupName $CurrentVM.ResourceGroupName -Name $ipconfig.PublicIpAddress.Id.Split('/')[-1]
-                    $DNSLabel = $publicIP.DnsSettings.DomainNameLabel
+            foreach ($IPConfig in $NIC.IpConfigurations) {
+                if ($IPConfig.PublicIpAddress) {
+                    $PublicIP = Get-AzPublicIpAddress -ResourceGroupName $CurrentVM.ResourceGroupName -Name $IPConfig.PublicIpAddress.Id.Split('/')[-1]
+                    $DomainNameLabel = $publicIP.DnsSettings.DomainNameLabel
                     [PSCustomObject]@{
                         SubscriptionName = $Subscription.Name
                         VMName           = $CurrentVM.Name
                         PublicIP         = $PublicIP.IpAddress
-                        DNSName          = $("{0}.{1}.cloudapp.azure.com" -f $DNSLabel, $CurrentVM.Location).ToLower()
+                        DNSName          = $("{0}.{1}.cloudapp.azure.com" -f $DomainNameLabel, $CurrentVM.Location).ToLower()
                     }
                     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$($Subscription.Name)] '$($CurrentVM.Name)' has the '$($PublicIP.IpAddress)' Public IP Address"
                 }
@@ -158,5 +158,14 @@ function New-AzureVMsWithPublicIPRDCManRDGFile {
 }
 #endregion 
 
+#region Main Code
 Clear-Host
+$Error.Clear()
+
+# Login to your Azure subscription.
+While (-not(Get-AzContext)) {
+    Connect-AzAccount
+}
+
 New-AzureVMsWithPublicIPRDCManRDGFile -Verbose
+#endregion
