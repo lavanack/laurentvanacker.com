@@ -538,11 +538,10 @@ function New-AzCMKVM {
         #endregion 
         #endregion 
     
-        $MoveAzResourceToAnotherSubscriptionScriptFilePath = Join-Path -Path $CurrentDir -ChildPath "Move-AzResourceScript.ps1"
-        #Moving the VM to a destination resource group and restarting them after.
         #$CommandLine = "Select-AzSubscription -SubscriptionObject `$SourceSubscription; Get-AzVM | Where-Object -FilterScript { `$_.Name -in '$($VMNames -join ''',''')' } | .\Move-AzResourceScript.ps1 -TargetResourceGroupName $ResourceGroupName -TargetSubscriptionId $($TargetSubscription.Id) -TargetDiskEncryptionSetId $($TargetDiskEncryptionSet.Id) -TargetSubnetId $($TargetVirtualNetwork.Subnets[0].Id) -Snapshot -Verbose #-AsJob" 
+        $MoveAzResourceToAnotherSubscriptionScriptFilePath = Join-Path -Path $CurrentDir -ChildPath "Move-AzResource.ps1"
         $VMNamePattern = "{0}{1}{2}{3}*" -f $VirtualMachinePrefix, $Project, $Role, $LocationShortName
-        $CommandLine = "Select-AzSubscription -Subscription $($SourceSubscription.Id); . .\Move-AzResource.ps1; Get-AzVM -Name $VMNamePattern | Move-AzResource -TargetResourceGroupName $ResourceGroupName -TargetSubscriptionId $($TargetSubscription.Id) -TargetDiskEncryptionSetId $($TargetDiskEncryptionSet.Id) -TargetSubnetId $($TargetVirtualNetwork.Subnets[0].Id) -Verbose -AsJob #-Snapshot" 
+        $CommandLine = "Select-AzSubscription -Subscription $($SourceSubscription.Id); . ""$MoveAzResourceToAnotherSubscriptionScriptFilePath""; Get-AzVM -Name $VMNamePattern | Move-AzResource -TargetResourceGroupName $ResourceGroupName -TargetSubscriptionId $($TargetSubscription.Id) -TargetDiskEncryptionSetId $($TargetDiskEncryptionSet.Id) -TargetSubnetId $($TargetVirtualNetwork.Subnets[0].Id) -Verbose -AsJob #-Snapshot" 
         Write-Host -Object $CommandLine -ForegroundColor Cyan
         $CommandLine | Set-Clipboard
 

@@ -37,8 +37,6 @@ function Move-AzResource {
     )
 
     begin {
-        Clear-Host
-        $Error.Clear()
         $MyPublicIp = (Invoke-WebRequest -Uri "https://ipv4.seeip.org").Content
         $SourceSubscription = (Get-AzContext).Subscription
         $TargetSubscription =  Get-AzSubscription -SubscriptionId $TargetSubscriptionId
