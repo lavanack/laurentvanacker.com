@@ -74,7 +74,7 @@ function Move-AzResource {
         #region Move (if validation succeeds)
         Write-Host -Object "Starting to move the VMs from '$SourceResourceGroupName' to '$TargetResourceGroupName' ..."
         $StartTime = Get-Date
-        Move-AzResource -DestinationResourceGroupName $TargetResourceGroupName -ResourceId $Resources.Id -Force
+        Az.Resources\Move-AzResource -DestinationResourceGroupName $TargetResourceGroupName -ResourceId $Resources.Id -Force
         $EndTime = Get-Date
         Write-Host -Object "Move completed in $(New-TimeSpan -Start $StartTime -End $EndTime) ..." -ForegroundColor Green
         #endregion
