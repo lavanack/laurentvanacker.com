@@ -35,4 +35,5 @@ The Move-AzResource function has two mandatory parameters and an optional one (s
 > A validation test is done before the move to ensure that the move is possible (like the [Azure Resource Mover](https://azure.microsoft.com/products/resource-mover/) tool).
 >
 > The 25 VMS are moved in less than 5 minutes as shown in the following screenshot.
+>
 ![Moving Azure VMs](docs/Move-AzResource.jpg)
