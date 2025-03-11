@@ -9,8 +9,8 @@
 <#
 #Cleaning up previous tests 
 Get-AzResourceGroup -Name rg-dsc-amc* | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyRemediation | Remove-AzPolicyRemediation -AllowStop -AsJob -Verbose | Wait-Job
-Get-AzResourceGroup -Name rg-dsc-amc* | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyAssignment  | Where-Object -FilterScript { $_.ResourceGroupName -like 'rg-dsc-amc*' } | Remove-AzPolicyAssignment -Verbose #-Whatif
-Get-AzPolicyDefinition | Where-Object -filterScript {$_.metadata.category -eq "Guest Configuration" -and $_.DisplayName -like "*ExampleConfiguration*"} | Remove-AzPolicyDefinition -Force -Verbose #-WhatIf
+Get-AzResourceGroup -Name rg-dsc-amc* | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyAssignment  | Where-Object -FilterScript { $_.Scope -match 'rg-dsc-amc' } | Remove-AzPolicyAssignment -Verbose #-Whatif
+Get-AzPolicyDefinition | Where-Object -filterScript {$_.metadata.category -eq "Guest Configuration" -and $_.DisplayName -like "*CreateAdminUserDSCConfiguration*"} | Remove-AzPolicyDefinition -Verbose -Force #-WhatIf
 Get-AzResourceGroup -Name rg-dsc-amc* | Remove-AzResourceGroup -AsJob -Force -Verbose 
 #>
 *#region Function defintions
