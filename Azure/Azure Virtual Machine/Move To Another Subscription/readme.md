@@ -23,7 +23,7 @@ At the end of the script, a command line is generated (copy and paste it) for mo
 
 The [Move-AzResource.ps1](Move-AzResource.ps1) script contains the Move-AzResource function for moving all VMS (We copy the disks and create a new VM - The NIC and the Public IP Address (if any) are recreated) to another subscription.
 
-The Move-AzResource function has the follwing mandatory parameters and some optional ones (switch)
+The Move-AzResource function has the following mandatory parameters and some optional ones (switch)
 
 - `VM`: The VMs to move (can be passed via the pipeline)
 - `TargetResourceGroupName`: The target resource group name
@@ -34,6 +34,7 @@ The Move-AzResource function has the follwing mandatory parameters and some opti
 - `AsJob`: If present, the VMs are moved in parallel (using jobs)
 
 > [!NOTE]
+> The script has to be run from the source subscription.
 > The 10 VMS are moved in less than 4 minutes (when using jobs) as shown in the following screenshot. Without jobs, you can expect a time of 90 seconds per VM.
 >
 ![Moving Azure VMs](docs/Move-AzResource.jpg)
