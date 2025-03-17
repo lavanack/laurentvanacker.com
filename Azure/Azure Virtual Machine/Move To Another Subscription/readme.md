@@ -35,6 +35,7 @@ The Move-AzResource function has the following mandatory parameters and some opt
 
 > [!NOTE]
 > The script has to be run from the source subscription.
+> 
 > The 10 VMS are moved in less than 4 minutes (when using jobs) as shown in the following screenshot. Without jobs, you can expect a time of 90 seconds per VM.
 >
 ![Moving Azure VMs](docs/Move-AzResource.jpg)
