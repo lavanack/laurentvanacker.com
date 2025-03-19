@@ -153,7 +153,7 @@ Invoke-LabCommand -ActivityName "Installing Powershell7+, VSCode, PowerShell ext
 
 $Job | Wait-Job | Out-Null
 
-Show-LabDeploymentSummary -Detailed
+Show-LabDeploymentSummary
 Restart-LabVM $Client -Wait
 
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All -Verbose

@@ -437,7 +437,7 @@ Invoke-LabCommand -ActivityName 'Enabling IIS Shared Configuration' -ComputerNam
 #Waiting for background jobs
 $Job | Wait-Job | Out-Null
 
-Show-LabDeploymentSummary -Detailed
+Show-LabDeploymentSummary
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All -Verbose
 $VerbosePreference = $PreviousVerbosePreference
 $ErrorActionPreference = $PreviousErrorActionPreference

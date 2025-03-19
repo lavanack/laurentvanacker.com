@@ -344,7 +344,7 @@ Get-LabVM -All | Start-VM
 #Waiting for background jobs
 $Jobs | Wait-Job | Out-Null
 
-Show-LabDeploymentSummary -Detailed
+Show-LabDeploymentSummary
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 
 $VerbosePreference = $PreviousVerbosePreference

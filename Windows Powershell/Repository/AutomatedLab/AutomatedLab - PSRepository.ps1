@@ -527,7 +527,7 @@ $Jobs | Wait-Job | Out-Null
 #For updating the GPO
 #Restart-LabVM -ComputerName $machines -Wait
 
-Show-LabDeploymentSummary -Detailed
+Show-LabDeploymentSummary
 
 $VerbosePreference = $PreviousVerbosePreference
 $ErrorActionPreference = $PreviousErrorActionPreference

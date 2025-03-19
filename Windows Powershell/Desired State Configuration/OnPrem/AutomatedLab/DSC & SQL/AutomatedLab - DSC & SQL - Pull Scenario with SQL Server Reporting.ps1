@@ -669,7 +669,7 @@ Invoke-LabCommand -ActivityName 'Clearing "Microsoft-Windows-Dsc/Operational" ev
 }
 #>
 
-Show-LabDeploymentSummary -Detailed
+Show-LabDeploymentSummary
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 #Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All -Verbose
 

@@ -88,6 +88,17 @@ function New-AzCMKVM {
     $DiskEncryptionSetPrefix = "des"
     $DiskEncryptionKeyPrefix = "dek"
 
+    $TotalRegionalvCPUs = Get-AzVMUsage -Location $Location | Where-Object -FilterScript {$_.Name.Value -eq "cores"}
+    $AzVMSize = Get-AzVMSize -Location $Location | Where-Object -FilterScript {$_.Name -eq $VMSize}
+    $TotalRegionalAvailablevCPUs = $TotalRegionalvCPUs.Limit - $TotalRegionalvCPUs.CurrentValue
+    $VMNumberLimit = [math]::Floor($TotalRegionalAvailablevCPUs/$AzVMSize.NumberOfCores)
+
+    if ($VMNumber -gt $VMNumberLimit) {
+        Write-Warning -Message "The specified '$VMNumber' exceeds the current limit '$VMNumberLimit'. We set the `$VMNumber to $VMNumberLimit"
+        $VMNumber = $VMNumberLimit
+    }
+
+
     $Project = "kv"
     $Role = "de"
     #$DigitNumber = 4
@@ -594,7 +605,7 @@ else {
 #region Cleanup
 $Jobs = foreach ($CurrentSubscription in Get-AzSubscription) {
     $null = Select-AzSubscription -SubscriptionObject $CurrentSubscription
-    Remove-AzResourceGroup -ResourceGroupName rg-kv-de*  -AsJob -Force
+    Get-AzResourceGroup -ResourceGroupName rg-kv-de* | Remove-AzResourceGroup -AsJob -Force
 }
 Select-AzSubscription -SubscriptionObject $SourceSubscription
 $null = $Jobs | Receive-Job -Wait -AutoRemoveJob

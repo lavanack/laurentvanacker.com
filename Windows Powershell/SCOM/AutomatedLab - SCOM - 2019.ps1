@@ -507,7 +507,7 @@ Invoke-LabCommand -ActivityName 'Windows Udpate via the PSWindowsUpdate PowerShe
 
 Checkpoint-LabVM -SnapshotName 'Windows Update' -All
 
-Show-LabDeploymentSummary -Detailed
+Show-LabDeploymentSummary
 
 $VerbosePreference = $PreviousVerbosePreference
 $ErrorActionPreference = $PreviousErrorActionPreference

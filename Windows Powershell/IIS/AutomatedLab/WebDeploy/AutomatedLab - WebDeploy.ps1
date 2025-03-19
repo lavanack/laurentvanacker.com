@@ -289,7 +289,7 @@ Get-VM -Name 'IIS01' | Remove-VMNetworkAdapter -Name 'Default Switch' -ErrorActi
 Get-LabVM -All | Stop-VM -Passthru | Set-VMProcessor -Count 1
 Get-LabVM -All | Start-VM
 
-Show-LabDeploymentSummary -Detailed
+Show-LabDeploymentSummary
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 
 $VerbosePreference = $PreviousVerbosePreference

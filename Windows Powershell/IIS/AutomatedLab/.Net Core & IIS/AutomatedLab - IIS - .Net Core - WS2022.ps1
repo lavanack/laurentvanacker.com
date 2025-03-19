@@ -265,7 +265,7 @@ Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName
 #Waiting for background jobs
 $Job | Wait-Job | Out-Null
 
-Show-LabDeploymentSummary -Detailed
+Show-LabDeploymentSummary
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 
 $VerbosePreference = $PreviousVerbosePreference

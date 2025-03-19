@@ -274,7 +274,7 @@ $Job | Wait-Job | Out-Null
 #Restarting the IIS Server to take the SCHANNEL hardening into consideration
 Restart-LabVM -ComputerName $AllLabVMs -Wait
 
-Show-LabDeploymentSummary -Detailed
+Show-LabDeploymentSummary
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 
 $VerbosePreference = $PreviousVerbosePreference

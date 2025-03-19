@@ -88,6 +88,16 @@ function New-AzCMKVM {
     $DiskEncryptionSetPrefix = "des"
     $DiskEncryptionKeyPrefix = "dek"
 
+    $TotalRegionalvCPUs = Get-AzVMUsage -Location $Location | Where-Object -FilterScript {$_.Name.Value -eq "cores"}
+    $AzVMSize = Get-AzVMSize -Location $Location | Where-Object -FilterScript {$_.Name -eq $VMSize}
+    $TotalRegionalAvailablevCPUs = $TotalRegionalvCPUs.Limit - $TotalRegionalvCPUs.CurrentValue
+    $VMNumberLimit = [math]::Floor($TotalRegionalAvailablevCPUs/$AzVMSize.NumberOfCores)
+
+    if ($VMNumber -gt $VMNumberLimit) {
+        Write-Warning -Message "The specified '$VMNumber' exceeds the current limit '$VMNumberLimit'. We set the `$VMNumber to $VMNumberLimit"
+        $VMNumber = $VMNumberLimit
+    }
+
     $Project = "kv"
     $Role = "de"
     #$DigitNumber = 4
