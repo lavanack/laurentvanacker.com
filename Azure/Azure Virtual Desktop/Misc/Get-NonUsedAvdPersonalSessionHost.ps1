@@ -15,11 +15,15 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.ResourceGraph
+#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.OperationalInsights, Az.ResourceGraph
 
 [CmdletBinding()]
 param
 (
+    [parameter(Mandatory = $true)]
+    [string] $LogAnalyticsWorkSpaceId,
+    [switch]$Force,
+    [switch]$Wait
 )
 
 #region Main Code
@@ -31,6 +35,18 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
+#region Login to your Azure subscription.
+try { 
+    $null = Get-AzAccessToken -ErrorAction Stop
+}
+catch {
+    Connect-AzAccount
+    #Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
+}
+#endregion
+
+<#
+#region Graph
 $Query = @'
 // This will by default return only hosts without a user assigned to it. If you want to return both unassigned and assigned
 // hosts then comment out line '|where isempty(assignedUser)'
@@ -52,21 +68,52 @@ Resources
 | where currentSessions == 0
 | project hostpoolId, hostpoolName = name, sessionhostName, hostpoolType, resourceGroup, assignedUser, currentSessions, allowNewSession, sessionhostProperties, hostpoolProperties, vmresourceId
 '@
-
-
-#region Login to your Azure subscription.
-try { 
-    $null = Get-AzAccessToken -ErrorAction Stop
-}
-catch {
-    Connect-AzAccount
-    #Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
-}
-#endregion
-
 $Result = Search-AzGraph -Query $Query
-$sessionhosts = $Result | Select-Object -Property @{Name = "ResourceGroupName"; Expression = { $_.resourceGroup } }, @{Name = "Name"; Expression = { $_.sessionhostName -replace "\..*" } }
-Write-Host -Object "The following VMs will be hibernated:`r`n$($sessionhosts | Out-String)"
-$Jobs = $sessionhosts | Stop-AzVM -Hibernate -Force -Verbose -AsJob
-$Jobs
+$SessionHosts = $Result | Select-Object -Property @{Name = "ResourceGroupName"; Expression = { $_.resourceGroup } }, @{Name = "Name"; Expression = { $_.sessionhostName -replace "\..*" } }
+#endregion
+#>
+
+#region Log Analytics Workspace
+#Query for listing the Azure VM with an inactive session in the last 5 minutes
+$Query = @"
+WVDAgentHealthStatus
+| where TimeGenerated > ago(5m) and InactiveSessions == 1
+| distinct tostring(split(SessionHostName, '.', 0)[0]), tostring(split(SessionHostResourceId, '/', 4)[0])
+| project-rename Name=SessionHostName_0, ResourceGroupName=SessionHostResourceId_0
+"@
+
+$Result = Invoke-AzOperationalInsightsQuery -WorkspaceId $LogAnalyticsWorkspaceId -Query $Query
+$SessionHosts = $Result.Results
+#endregion 
+
+$AzRunningVMs = (($SessionHosts | Get-AzVM -Status) | Where-Object -FilterScript { ($_.Statuses.code -eq "PowerState/running") -and ($_.Statuses.DisplayStatus -eq "VM running") } )
+if (-not([string]::IsNullOrEmpty($AzRunningVMs))) {
+    Write-Host -Object "The following VMs will be hibernated :`r`n$($AzRunningVMs | Select-Object -Property ResourceGroupName, Name | Out-String)"
+    $Jobs = $AzRunningVMs | Stop-AzVM -Hibernate -Force -AsJob -Verbose
+    if ($Wait) {
+        Write-Host -Object "Waiting the hibernation jobs complete ..."
+        $null = $Jobs | Receive-Job -Wait -AutoRemoveJob -ErrorAction SilentlyContinue
+    }
+    else {
+        $Jobs
+    }
+
+    if ($Force) {
+        Write-Host -Object "Waiting the hibernation jobs complete ..."
+        $null = $Jobs | Receive-Job -Wait -AutoRemoveJob -ErrorAction SilentlyContinue
+        $AzRunningVMs = (($SessionHosts | Get-AzVM -Status) | Where-Object -FilterScript { ($_.Statuses.code -eq "PowerState/running") -and ($_.Statuses.DisplayStatus -eq "VM running") })
+
+        if (-not([string]::IsNullOrEmpty($AzRunningVMs))) {
+            Write-Warning -Message "The following VMs will be shutdown :`r`n$($AzRunningVMs | Select-Object -Property ResourceGroupName, Name | Out-String)"
+            $Jobs = $AzRunningVMs | Stop-AzVM -Force -AsJob -Verbose
+            if ($Wait) {
+                Write-Host -Object "Waiting the shutdown jobs complete ..."
+                $null = $Jobs | Receive-Job -Wait -AutoRemoveJob #-ErrorAction SilentlyContinue
+            }
+            else {
+                $Jobs
+            }
+        }
+    }
+}
 #endregion
