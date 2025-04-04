@@ -489,7 +489,7 @@ Invoke-LabCommand -ActivityName 'Updating the LCM Configuration to use the NLB V
 
 $Jobs | Wait-Job | Out-Null
 
-Show-LabDeploymentSummary -Detailed
+Show-LabDeploymentSummary
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 
 $VerbosePreference = $PreviousVerbosePreference

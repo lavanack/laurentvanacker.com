@@ -316,7 +316,7 @@ $Jobs | Wait-Job | Out-Null
 #For updating the GPO
 #Restart-LabVM -ComputerName $machines -Wait
 
-Show-LabDeploymentSummary -Detailed
+Show-LabDeploymentSummary
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 
 $VerbosePreference = $PreviousVerbosePreference

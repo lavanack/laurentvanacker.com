@@ -990,7 +990,7 @@ Start-Process https://RHEL01 -WindowStyle Maximized
 
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 #Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All -Verbose
-Show-LabDeploymentSummary -Detailed
+Show-LabDeploymentSummary
 
 
 #$VerbosePreference = $PreviousVerbosePreference

@@ -17,6 +17,7 @@ of the Sample Code.
 #>
 #requires -Version 5
 
+#region function definition
 function Remove-AzVMStaleCredential {
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
     Param
@@ -31,8 +32,20 @@ function Remove-AzVMStaleCredential {
         #Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
     }
     #endregion
-    Clear-Host
+
+    $SourceSubscription = (Get-AzContext).Subscription
+    Write-Verbose -Message "Currently Selected Subscription: '$($SourceSubscription.Name)'"
     $AzureCredentials = cmdkey /list | Select-String -Pattern "=(?<termsrv>TERMSRV/)?(?<dnsname>(?<vmname>.*)\.(?<location>.*)\.cloudapp\.azure\.com)" -AllMatches
+    $VMs = foreach ($CurrentSubscription in Get-AzSubscription) {
+        $null = Select-AzSubscription -SubscriptionObject $CurrentSubscription
+        Write-Verbose -Message "Switching to '$($CurrentSubscription.Name)' Subscription"
+        Get-AzVM | Where-Object -FilterScript { $_.Name -in $(($AzureCredentials.Matches.Groups | Where-Object -FilterScript { $_.Name -eq "vmname" }).Value) } | Add-Member -MemberType NoteProperty -Name SubscriptionName -Value $((Get-AzContext).Subscription.Name) -PassThru
+    }
+    $null = Select-AzSubscription -SubscriptionObject $SourceSubscription
+    Write-Verbose -Message "Switching Back to '$($SourceSubscription.Name)' Subscription"
+    
+    $VMHT = $VMs | Group-Object -Property Name -AsHashTable -AsString
+
     if ($AzureCredentials.Matches) {
         $Index = 0
         $AzureCredentials.Matches | ForEach-Object -Process { 
@@ -40,12 +53,12 @@ function Remove-AzVMStaleCredential {
             $DNSName = $_.Groups['dnsname'].Value
             $VMName = $_.Groups['vmname'].Value
             $Location = $_.Groups['location'].Value
-            $AzVM = Get-AzVM -Name $VMName 
+            $AzVM = $VMHT[$VMName]
             $Index++
             $PercentComplete = $Index / $AzureCredentials.Matches.Count * 100
             Write-Progress -Activity "[$($Index)/$($AzureCredentials.Matches.Count)] Cleaning VM credentials ..." -CurrentOperation "Processing '$VMName' Credentials ..." -Status $('{0:N0}%' -f $PercentComplete) -PercentComplete $PercentComplete
             if (($AzVM) -and ($AzVM.Location -eq $Location)) {
-                Write-Verbose -Message "$VMName ($DNSName) Azure VM exists. The related credentials will stay into the Windows Credential Manager"
+                Write-Verbose -Message "$VMName ($DNSName) Azure VM exists in the '$($AzVM.SubscriptionName)' Subscription. The related credentials will stay into the Windows Credential Manager"
             }
             else {
                 If ($pscmdlet.ShouldProcess($DNSName, 'Removing Credentials from the Windows Credential Manager')) {
@@ -63,6 +76,17 @@ function Remove-AzVMStaleCredential {
         Write-Progress -Completed -Activity "Completed"
     }
 }
+#endregion 
 
-Get-ChildItem -Path "HKCU:\Software\Microsoft\Terminal Server Client\Servers" -Include *.cloudapp.azure.com -Recurse | Remove-Item -Force -WhatIf
+#region Main Code
+Clear-Host
+$Error.Clear()
+$SourceSubscription = (Get-AzContext).Subscription
+
+$CurrentScript = $MyInvocation.MyCommand.Path
+#Getting the current directory (where this script file resides)
+$CurrentDir = Split-Path -Path $CurrentScript -Parent
+
+#Get-ChildItem -Path "HKCU:\Software\Microsoft\Terminal Server Client\Servers" -Include *.cloudapp.azure.com -Recurse | Remove-Item -Force -WhatIf
 Remove-AzVMStaleCredential -Verbose -Confirm:$false #-WhatIf
+#endregion 

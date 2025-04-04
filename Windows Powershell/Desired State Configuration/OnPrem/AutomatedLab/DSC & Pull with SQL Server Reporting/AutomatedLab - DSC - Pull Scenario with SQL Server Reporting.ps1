@@ -369,7 +369,7 @@ Restart-LabVM -ComputerName $AllLabVMs -Wait
 
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 
-Show-LabDeploymentSummary -Detailed
+Show-LabDeploymentSummary
 
 $VerbosePreference = $PreviousVerbosePreference
 $ErrorActionPreference = $PreviousErrorActionPreference

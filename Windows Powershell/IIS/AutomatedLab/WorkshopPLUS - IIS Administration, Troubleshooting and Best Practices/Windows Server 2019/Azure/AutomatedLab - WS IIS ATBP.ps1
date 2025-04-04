@@ -281,7 +281,7 @@ Invoke-LabCommand -ActivityName 'Demos Setup' -ComputerName IIS01 -ScriptBlock {
 Checkpoint-LabVM -SnapshotName 'Demos' -All
 #>
 
-Show-LabDeploymentSummary -Detailed
+Show-LabDeploymentSummary
 
 $VerbosePreference = $PreviousVerbosePreference
 $ErrorActionPreference = $PreviousErrorActionPreference

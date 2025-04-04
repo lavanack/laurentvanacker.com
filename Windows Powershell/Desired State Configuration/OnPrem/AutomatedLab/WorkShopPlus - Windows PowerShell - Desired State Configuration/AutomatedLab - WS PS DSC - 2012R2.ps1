@@ -206,7 +206,7 @@ Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
 
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 
-Show-LabDeploymentSummary -Detailed
+Show-LabDeploymentSummary
 
 $VerbosePreference = $PreviousVerbosePreference
 $ErrorActionPreference = $PreviousErrorActionPreference

@@ -665,7 +665,7 @@ Invoke-LabCommand -ActivityName 'GPUpdate' -ComputerName $machines -ScriptBlock 
 #Waiting for background jobs
 $Job | Wait-Job | Out-Null
 
-Show-LabDeploymentSummary -Detailed
+Show-LabDeploymentSummary
 
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All -Verbose
 $VerbosePreference = $PreviousVerbosePreference

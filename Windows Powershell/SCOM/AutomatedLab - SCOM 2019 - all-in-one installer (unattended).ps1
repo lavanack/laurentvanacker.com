@@ -763,7 +763,7 @@ Start-LabVm -All -ProgressIndicator 1 -Wait
 
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 
-Show-LabDeploymentSummary -Detailed
+Show-LabDeploymentSummary
 
 $VerbosePreference = $PreviousVerbosePreference
 $ErrorActionPreference = $PreviousErrorActionPreference

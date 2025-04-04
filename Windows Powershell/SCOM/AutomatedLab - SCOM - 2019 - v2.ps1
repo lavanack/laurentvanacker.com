@@ -538,7 +538,7 @@ Restart-LabVM -ComputerName $AllLabVMs -Wait -ProgressIndicator 10 -Verbose
 
 Checkpoint-LabVM -SnapshotName 'WindowsUpdate' -All
 
-Show-LabDeploymentSummary -Detailed
+Show-LabDeploymentSummary
 
 $VerbosePreference = $PreviousVerbosePreference
 $ErrorActionPreference = $PreviousErrorActionPreference

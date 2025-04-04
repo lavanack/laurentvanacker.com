@@ -196,7 +196,7 @@ Invoke-LabCommand -ActivityName "Installing 'MSIX Packaging Tool Driver'" -Compu
     dism /online /add-capability /capabilityname:Msix.PackagingTool.Driver~~~~0.0.1.0
 }
 
-Show-LabDeploymentSummary -Detailed
+Show-LabDeploymentSummary
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 $VerbosePreference = $PreviousVerbosePreference
 $ErrorActionPreference = $PreviousErrorActionPreference

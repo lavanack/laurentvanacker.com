@@ -314,7 +314,7 @@ Start-LabVm -All -ProgressIndicator 1 -Wait
 #endregion
 #>
 
-Show-LabDeploymentSummary -Detailed
+Show-LabDeploymentSummary
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 
 $VerbosePreference = $PreviousVerbosePreference
