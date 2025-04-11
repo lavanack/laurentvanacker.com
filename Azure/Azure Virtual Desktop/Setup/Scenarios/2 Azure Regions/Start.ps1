@@ -150,8 +150,9 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 #$HostPools = & "..\2 Azure Regions\8_Pooled_EntraID_AD_AzureAppAttach.ps1"
 #$HostPools = & "..\2 Azure Regions\4_Pooled_AD_AzureAppAttach.ps1"
 
-#$HostPools = & "..\1 Azure Region\1_Pooled_AD_AzureAppAttach.ps1"
-$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_FSLogixCloudCache_AzureAppAttach.ps1"
+$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix.ps1"
+#$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach.ps1"
+#$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_FSLogixCloudCache_AzureAppAttach.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_2_Personal_AD_Misc.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_AD_AzureAppAttach.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_Intune_AD_FSLogixCloudCache_Watermarking_SpotInstance.ps1"

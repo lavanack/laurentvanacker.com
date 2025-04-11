@@ -55,7 +55,7 @@ try {
 }
 catch {
     Stop-Process -Name notepad, powershell* -Force -ErrorAction Ignore
-    Get-ChildItem -Path $LogDir -Filter HostPool_* -Directory | Remove-Item -Force -Recurse -ErrorAction Stop
+    #Get-ChildItem -Path $LogDir -Filter HostPool_* -Directory | Remove-Item -Force -Recurse -ErrorAction Stop
 }
 
 $ResourceGroup = Get-AzResourceGroup | Where-Object -FilterScript { (($_.ResourceGroupName -match '^rg-avd-.*-poc-.*-\d+') -and ($_.ResourceGroupName -notin (Get-AzResourceLock).ResourceGroupName)) } | Remove-AzResourceGroup -AsJob -Force -Verbose | Receive-Job -Wait -AutoRemoveJob
