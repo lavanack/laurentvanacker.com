@@ -43,7 +43,7 @@ function Write-MyProgress {
     $ElapsedTimeToString = $ElapsedTime.ToString('hh\:mm\:ss')
     Write-Verbose "`$ElapsedTime: $ElapsedTime"
     try {
-        $RemainingTime = New-TimeSpan -Seconds $($ElapsedTime.Seconds / ($Index - 1) * ($Count - $Index + 1))
+        $RemainingTime = New-TimeSpan -Seconds $($ElapsedTime.TotalSeconds / ($Index - 1) * ($Count - $Index + 1))
         $RemainingTimeToString = $RemainingTime.ToString('hh\:mm\:ss')
     }
     catch {
@@ -56,7 +56,7 @@ function Write-MyProgress {
 function Test-PsAvdStorageAccountNameAvailability {
     [CmdletBinding(PositionalBinding = $false)]
     Param(
-        [ValidateScript({ $_ -in $(Get-AzLocation).Location })]
+        [ValidateScript({$_ -in $(Get-AzLocation).Location})]
         [string] $AzureRegion
     )
 
@@ -65,7 +65,7 @@ function Test-PsAvdStorageAccountNameAvailability {
     $IdentityProviderType = "ad", "ei"
     $ImageType = "mp", "cg"
     $DigitNumber = 3
-    $InstanceNumber = [math]::Pow(10, $DigitNumber) - 1
+    $InstanceNumber = [math]::Pow(10,$DigitNumber)-1
 
     $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
     $ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/main/src/repository/resourcelocations.json
@@ -94,7 +94,7 @@ function Test-PsAvdStorageAccountNameAvailability {
                         Write-Verbose -Message "Processing '$CurrentImageType' CurrentImage Type"
                         foreach ($CurrentIndex in 1..$InstanceNumber) {
                             Write-Verbose -Message "Index : $CurrentIndex"
-                            $StorageAccountName = "{0}hp{1}{2}poc{3}{4}{5:D$DigitNumber}" -f $CurrentShareType, $CurrentHostPoolType, $CurrentIdentityProviderType, $CurrentImageType, $AzLocationShortNameHT[$CurrentAzRegion].ShortName, $CurrentIndex
+                            $StorageAccountName = "{0}hp{1}{2}poc{3}{4}{5:D$DigitNumber}" -f $CurrentShareType, $CurrentHostPoolType, $CurrentIdentityProviderType, $CurrentImageType, $AzLocationShortNameHT[$CurrentAzRegion].ShortName,$CurrentIndex
                             Write-Verbose -Message "StorageAccountName : $StorageAccountName"
                             $StorageAccountNameIndex++
                             #Write-Progress -Activity "[$($StorageAccountNameIndex)/$StorageAccountNameNumber] Processing '$StorageAccountName'" -Status "Percent : $('{0:N0}' -f $($StorageAccountNameIndex/$StorageAccountNameNumber * 100)) %" -PercentComplete ($StorageAccountNameIndex / $StorageAccountNameNumber * 100)
@@ -102,7 +102,7 @@ function Test-PsAvdStorageAccountNameAvailability {
                             try {
                                 $NameAvailable = (Get-AzStorageAccountNameAvailability -Name $StorageAccountName -ErrorAction Stop).NameAvailable
                                 Write-Verbose -Message "NameAvailable : $NameAvailable"
-                                [PSCustomObject]@{StorageAccountName = $StorageAccountName; NameAvailable = $NameAvailable }
+                                [PSCustomObject]@{StorageAccountName = $StorageAccountName; NameAvailable = $NameAvailable}
                             }
                             catch {   
                                 Write-Warning -Message "Exception: $_"

@@ -115,7 +115,7 @@ function Write-MyProgress {
     $ElapsedTimeToString = $ElapsedTime.ToString('hh\:mm\:ss')
     Write-Verbose "`$ElapsedTime: $ElapsedTime"
     try {
-        $RemainingTime = New-TimeSpan -Seconds $($ElapsedTime.Seconds / ($Index - 1) * ($Count - $Index + 1))
+        $RemainingTime = New-TimeSpan -Seconds $($ElapsedTime.TotalSeconds / ($Index - 1) * ($Count - $Index + 1))
         $RemainingTimeToString = $RemainingTime.ToString('hh\:mm\:ss')
     }
     catch {
