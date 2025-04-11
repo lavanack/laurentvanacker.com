@@ -57,7 +57,7 @@ $WIN11IPv4Address = '10.0.0.10'
 
 $VSCodeExtension = [ordered]@{
     #"PowerShell" = "ms-vscode.powershell"
-    'Live Share Extension Pack' = 'ms-vsliveshare.vsliveshare-pack'
+    #'Live Share Extension Pack' = 'ms-vsliveshare.vsliveshare-pack'
     'Git Graph' = 'mhutchie.git-graph'
     'Git History' = 'donjayamanne.githistory'
     'GitLens - Git supercharged' = 'eamodio.gitlens'
