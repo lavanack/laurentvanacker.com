@@ -58,7 +58,7 @@ function Add-PsAvdVirtualNetworkPeering {
 }
 #endregion
 
-
+#region Main Code
 Clear-Host
 $Error.Clear()
 
@@ -152,4 +152,4 @@ Add-PsAvdVirtualNetworkPeering -VirtualNetwork $AVDVirtualNetwork[$SecondaryLoca
 Add-PsAvdVirtualNetworkPeering -VirtualNetwork $ADVirtualNetwork[$SecondaryLocation] -RemoteVirtualNetwork $AVDVirtualNetwork[$PrimaryLocation] -Verbose
 Add-PsAvdVirtualNetworkPeering -VirtualNetwork $AVDVirtualNetwork[$PrimaryLocation] -RemoteVirtualNetwork $ADVirtualNetwork[$SecondaryLocation] -Verbose
 #endregion
-
+#endregion
