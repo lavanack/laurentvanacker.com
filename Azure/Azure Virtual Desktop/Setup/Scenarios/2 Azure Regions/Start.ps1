@@ -147,35 +147,18 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 #$HostPools = & "..\2 Azure Regions\3_Pooled_2_Personal_AD_Misc.ps1"
 #$HostPools = & "..\2 Azure Regions\4_Pooled_EntraID_FSLogixCloudCache.ps1"
 #$HostPools = & "..\2 Azure Regions\4_Pooled_EntraID_Intune_AD_FSLogixCloudCache_Watermarking_SpotInstance.ps1"
-$HostPools = & "..\2 Azure Regions\8_Pooled_EntraID_AD_AzureAppAttach.ps1"
+#$HostPools = & "..\2 Azure Regions\8_Pooled_EntraID_AD_AzureAppAttach.ps1"
+#$HostPools = & "..\2 Azure Regions\4_Pooled_AD_AzureAppAttach.ps1"
 
-#$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_FSLogixCloudCache_AzureAppAttach.ps1"
+#$HostPools = & "..\1 Azure Region\1_Pooled_AD_AzureAppAttach.ps1"
+$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_FSLogixCloudCache_AzureAppAttach.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_2_Personal_AD_Misc.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_AD_AzureAppAttach.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_Intune_AD_FSLogixCloudCache_Watermarking_SpotInstance.ps1"
 #$HostPools = & "..\1 Azure Region\3_Pooled_EntraID_AD_Misc.ps1"
 #$HostPools = & "..\1 Azure Region\6_Pooled_2_Personal_EntraID_AD_Misc.ps1"
-#$HostPools = & "..\1 Azure Region\1_Pooled_FSLogix_MSIX_RDPShortPath.ps1"
+#$HostPools = & "..\1 Azure Region\X_Pooled_AD_ACG_NoFSLogix_NoMSIX.ps1"
 #endregion
-
-#region Creating a new Pooled Host Pool for every image definition from an Azure Compute Gallery
-#Looging for Azure Compute Gallery Image Definition with image version in the primary and secondary regions
-$GalleryImageDefinition = Get-PsAvdAzGalleryImageDefinition -Region $PrimaryRegion, $SecondaryRegion
-if (-not($GalleryImageDefinition)) {
-    #Creating an Azure Compute Gallery if needed
-    $AzureComputeGallery = New-AzureComputeGallery -Location $PrimaryRegion -TargetRegions $PrimaryRegion, $SecondaryRegion
-    $GalleryImageDefinition = Get-AzGalleryImageDefinition -GalleryName $AzureComputeGallery.Name -ResourceGroupName $AzureComputeGallery.ResourceGroupName
-}
-
-foreach ($CurrentGalleryImageDefinition in $GalleryImageDefinition) {
-    #$LatestCurrentGalleryImageVersion = Get-AzGalleryImageVersion -GalleryName $AzureComputeGallery.Name -ResourceGroupName $AzureComputeGallery.ResourceGroupName -GalleryImageDefinitionName $CurrentGalleryImageDefinition.Name | Sort-Object -Property Id | Select-Object -Last 1
-    # Use case 8 and more: Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with an Image coming from an Azure Compute Gallery and without FSLogix and MSIX
-    $PooledHostPool = [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetVMSourceImageId($CurrentGalleryImageDefinition.Id).DisableFSLogix().DisableMSIX()
-    Write-Verbose -Message "VM Source Image Id for the ACG Host Pool: $LatestCurrentGalleryImageVersion (MSIX: $($PooledHostPool.MSIX) / FSlogix: $($PooledHostPool.FSlogix))"
-    #$HostPools += $PooledHostPool
-}
-#endregion
-
 
 #Removing $null object(s) if any.
 $HostPools = $HostPools | Where-Object -FilterScript { $null -ne $_ }
@@ -185,10 +168,10 @@ $HostPools = $HostPools | Where-Object -FilterScript { $null -ne $_ }
 #$LatestHostPoolJSONFile = Get-ChildItem -Path $CurrentDir -Filter "HostPool_*.json" -File | Sort-Object -Property Name -Descending | Select-Object -First 1
 $LatestHostPoolJSONFile = Get-ChildItem -Path $BackupDir -Filter "HostPool_*.json" -File | Sort-Object -Property Name -Descending
 if ($LatestHostPoolJSONFile) {
-    Remove-PsAvdHostPoolSetup -FullName $LatestHostPoolJSONFile.FullName -KeepAzureAppAttachStorage
+    Remove-PsAvdHostPoolSetup -FullName $LatestHostPoolJSONFile.FullName #-KeepAzureAppAttachStorage
 }
 else {
-    Remove-PsAvdHostPoolSetup -HostPool $HostPools -KeepAzureAppAttachStorage
+    Remove-PsAvdHostPoolSetup -HostPool $HostPools #-KeepAzureAppAttachStorage
 }
 #endregion
 
