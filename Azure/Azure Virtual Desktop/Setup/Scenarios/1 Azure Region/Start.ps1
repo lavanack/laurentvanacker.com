@@ -76,12 +76,12 @@ $ThisDomainControllerSubnet = Get-AzVMSubnet
 
 #region AVD Dedicated VNets and Subnets
 #region Primary Region
-$PrimaryRegionResourceGroupName = "rg-avd-ad-use2-002"
-$PrimaryRegionVNetName          = "vnet-avd-avd-use2-002"
-$PrimaryRegionSubnetName        = "snet-avd-avd-use2-002"
-$PrimaryRegionVNet              = Get-AzVirtualNetwork -Name $PrimaryRegionVNetName -ResourceGroupName $PrimaryRegionResourceGroupName
-$PrimaryRegionSubnet            = $PrimaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $PrimaryRegionSubnetName
-$PrimaryRegion                  = $PrimaryRegionVNet.Location
+$PrimaryRegionResourceGroupName = "rg-avd-ad-usw2-001"
+$PrimaryRegionVNetName = "vnet-avd-avd-usw2-001"
+$PrimaryRegionSubnetName = "snet-avd-avd-usw2-001"
+$PrimaryRegionVNet = Get-AzVirtualNetwork -Name $PrimaryRegionVNetName -ResourceGroupName $PrimaryRegionResourceGroupName
+$PrimaryRegionSubnet = $PrimaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $PrimaryRegionSubnetName
+$PrimaryRegion = $PrimaryRegionVNet.Location
 #$PrimaryRegion                  = (Get-AzVMCompute).Location
 #endregion
 #endregion
@@ -92,7 +92,7 @@ $VaultName = $null
 
 #region Reusing existing Keyvault for credential management : Comment this for using a new Keyvault at every run
 #Returns a PSKeyVault object
-$VaultName = (Get-AzKeyVault | Where-Object -FilterScript {$_.VaultName -match "^kvavdhpcred" }).VaultName | Select-Object -First 1
+$VaultName = (Get-AzKeyVault | Where-Object -FilterScript { $_.VaultName -match "^kvavdhpcred" }).VaultName | Select-Object -First 1
 #Doesn't return a PSKeyVault object but a PSKeyVaultIdentityItem
 #$HostPoolSessionCredentialKeyVault = Get-AzKeyVault -Name kvavdhpcred* | Select-Object -First 1
 #endregion
@@ -133,7 +133,7 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 [PersonalHostPool]::SetIndex($RandomNumber, $PrimaryRegion)
 
 #Uncomment the best scenario for your usage or create your own
-$HostPools = & "..\1 Azure Region\1_Pooled_AD_AzureAppAttach.ps1"
+$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_FSLogixCloudCache_AzureAppAttach.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_2_Personal_AD_Misc.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_AD_AzureAppAttach.ps1"

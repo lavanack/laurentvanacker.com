@@ -79,21 +79,21 @@ $ThisDomainControllerSubnet = Get-AzVMSubnet
 #region AVD Dedicated VNets and Subnets
 #region Primary Region
 $PrimaryRegionResourceGroupName = "rg-avd-ad-use2-002"
-$PrimaryRegionVNetName          = "vnet-avd-avd-use2-002"
-$PrimaryRegionSubnetName        = "snet-avd-avd-use2-002"
-$PrimaryRegionVNet              = Get-AzVirtualNetwork -Name $PrimaryRegionVNetName -ResourceGroupName $PrimaryRegionResourceGroupName
-$PrimaryRegionSubnet            = $PrimaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $PrimaryRegionSubnetName
-$PrimaryRegion                  = $PrimaryRegionVNet.Location
+$PrimaryRegionVNetName = "vnet-avd-avd-use2-002"
+$PrimaryRegionSubnetName = "snet-avd-avd-use2-002"
+$PrimaryRegionVNet = Get-AzVirtualNetwork -Name $PrimaryRegionVNetName -ResourceGroupName $PrimaryRegionResourceGroupName
+$PrimaryRegionSubnet = $PrimaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $PrimaryRegionSubnetName
+$PrimaryRegion = $PrimaryRegionVNet.Location
 #$PrimaryRegion                  = (Get-AzVMCompute).Location
 #endregion
 
 #region Secondary Region (for ASR and FSLogix Cloud Cache)
 $SecondaryRegionResourceGroupName = "rg-avd-ad-usc-002"
-$SecondaryRegionVNetName          = "vnet-avd-avd-usc-002"
-$SecondaryRegionSubnetName        = "snet-avd-avd-usc-002"
-$SecondaryRegionVNet              = Get-AzVirtualNetwork -Name $SecondaryRegionVNetName -ResourceGroupName $SecondaryRegionResourceGroupName
-$SecondaryRegionSubnet            = $SecondaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $SecondaryRegionSubnetName
-$SecondaryRegion                  = $SecondaryRegionVNet.Location
+$SecondaryRegionVNetName = "vnet-avd-avd-usc-002"
+$SecondaryRegionSubnetName = "snet-avd-avd-usc-002"
+$SecondaryRegionVNet = Get-AzVirtualNetwork -Name $SecondaryRegionVNetName -ResourceGroupName $SecondaryRegionResourceGroupName
+$SecondaryRegionSubnet = $SecondaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $SecondaryRegionSubnetName
+$SecondaryRegion = $SecondaryRegionVNet.Location
 #$SecondaryRegion                  = [HostPool]::GetAzurePairedRegion($PrimaryRegion)
 #endregion
 #endregion
@@ -102,7 +102,7 @@ $SecondaryRegion                  = $SecondaryRegionVNet.Location
 #Doesn't return a PSKeyVault object but a PSKeyVaultIdentityItem
 #$HostPoolSessionCredentialKeyVault = Get-AzKeyVault -Name kvavdhpcred* | Select-Object -First 1
 #Returns a PSKeyVault object
-$VaultName = (Get-AzKeyVault | Where-Object -FilterScript {$_.VaultName -match "^kvavdhpcred" }).VaultName | Select-Object -First 1
+$VaultName = (Get-AzKeyVault | Where-Object -FilterScript { $_.VaultName -match "^kvavdhpcred" }).VaultName | Select-Object -First 1
 if (-not([string]::IsNullOrEmpty($VaultName))) {
     $HostPoolSessionCredentialKeyVault = Get-AzKeyVault -VaultName $VaultName
 }
