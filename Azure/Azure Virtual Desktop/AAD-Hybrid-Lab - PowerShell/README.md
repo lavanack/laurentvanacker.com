@@ -41,7 +41,7 @@
 - Run it
 - You will be prompted for 2 credential sets:
   - Domain Administrator credentials (the username will be auto-filled with your current logged in username" but you can change it if you want)
-  - Password (and ony password) for the 6 demo users
+  - Password (and ony password) for the 6 demo users (These users will be also added to the Active Directory "AVD Users" group).
 
 ![Alt text](docs/dsa.jpg)
 

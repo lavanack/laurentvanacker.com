@@ -70,9 +70,10 @@ Set-Location -Path $CurrentDir
 
 $AzurePairedRegionHT = Get-AzurePairedRegion
 $AzureLocationShortName = Get-AzureLocationShortName
-$Instance = 2
+$Instance = 1
 $PrimaryLocation = "EastUS2"
 $SecondaryLocation = $AzurePairedRegionHT[$PrimaryLocation].PairedRegion
+#$SecondaryLocation = "WestUS2"
 $VirtualNetworkTemplateName = "vnet-avd-ad-{0}-{1:D3}"
 $VNetAddressTemplateRange = "10.{0}.0.0/16"
 $SubnetAddressTemplateRange = "10.{0}.1.0/24"

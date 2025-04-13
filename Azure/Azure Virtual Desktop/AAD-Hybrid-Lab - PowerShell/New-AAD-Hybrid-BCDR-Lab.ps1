@@ -15,8 +15,8 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-##requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources -RunAsAdministrator 
-#requires -Version 5 -RunAsAdministrator 
+#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.Network, Az.Resources, Az.Security, Az.Storage  -RunAsAdministrator 
+##requires -Version 5 -RunAsAdministrator 
 
 #region Function definition
 function New-AAD-Hybrid-BCDR-Lab {
@@ -119,7 +119,7 @@ function New-AAD-Hybrid-BCDR-Lab {
         #Step 0: Remove previously existing Azure Resource Group with the same name
         $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
     }
-    $MyPublicIp = (Invoke-WebRequest -Uri "https://ipv4.seeip.org").Content
+    $MyPublicIp = (Invoke-WebRequest -Uri "https://ipv4.seeip.org" -UseBasicParsing).Content
 
     #region Define Variables needed for Virtual Machine
     $ImagePublisherName = "MicrosoftWindowsServer"
@@ -340,13 +340,15 @@ function New-AAD-Hybrid-BCDR-Lab {
     #region vNet Peering
     $RemoteVNetwork = Get-AzVirtualNetwork -Name $RemoteVNetName
     $VirtualNetworkPeeringName = "peer-{0}-{1}" -f $VirtualNetworkName, $RemoteVNetName
+    $RemoteVirtualNetworkPeeringName = "peer-{0}-{1}" -f $RemoteVNetName, $VirtualNetworkName
     Write-Verbose -Message "Creating '$VirtualNetworkPeeringName': '$VirtualNetworkName' <==> '$RemoteVNetName'"
     $vNetPeeringStatus = Add-AzVirtualNetworkPeering -Name $VirtualNetworkPeeringName -VirtualNetwork $vNetwork -RemoteVirtualNetworkId $RemoteVNetwork.Id -AllowForwardedTraffic
     Write-Verbose -Message "`$vNetPeeringStatus: $($vNetPeeringStatus.PeeringState)"
     if ($vNetPeeringStatus.PeeringState -ne 'Initiated') {
         Write-Error "The '$VirtualNetworkPeeringName' peering state is $($vNetPeeringStatus.PeeringState)" -ErrorAction Stop
     }
-    $RemoteVNetPeeringStatus = Add-AzVirtualNetworkPeering -Name "$($RemoteVNetName)-$($VirtualNetworkName)" -VirtualNetwork $RemoteVNetwork -RemoteVirtualNetworkId $vNetwork.Id -AllowForwardedTraffic
+    Write-Verbose -Message "Creating '$RemoteVirtualNetworkPeeringName': '$RemoteVNetName' <==> '$VirtualNetworkName'"
+    $RemoteVNetPeeringStatus = Add-AzVirtualNetworkPeering -Name $RemoteVirtualNetworkPeeringName -VirtualNetwork $RemoteVNetwork -RemoteVirtualNetworkId $vNetwork.Id -AllowForwardedTraffic
     Write-Verbose -Message "`$RemoteVNetPeeringStatus: $($RemoteVNetPeeringStatus.PeeringState)"
     if ($RemoteVNetPeeringStatus.PeeringState -ne 'Connected') {
         Write-Error "The '$($RemoteVNetName)-$($VirtualNetworkName)' peering state is $($vNetPeeringStatus.PeeringState)" -ErrorAction Stop
@@ -492,7 +494,7 @@ if (-not([String]::IsNullOrEmpty($MissingModules))) {
 $AdminCredential = Get-Credential -Credential $env:USERNAME
 
 #$Instance = Get-Random -Minimum 1 -Maximum 1000
-$Instance = 2
+$Instance = 1
 
 $Parameters = @{
     "AdminCredential"      = $AdminCredential
@@ -501,13 +503,13 @@ $Parameters = @{
     "Project"              = "avd"
     "Role"                 = "ad"
     "ADDomainName"         = "csa.fr"
-    "RemoteVNetName"       = "vnet-avd-ad-use2-002"
+    "RemoteVNetName"       = "vnet-avd-ad-use2-001"
     "VNetAddressRange"     = '10.1.0.0/16'
     "ADSubnetAddressRange" = '10.1.1.0/24'
     "FirstDCIP"            = '10.0.1.4'
     "DomainControllerIP"   = '10.1.1.4'
     "Instance"             = $Instance
-    "Location"             = "centralus"
+    "Location"             = "westus2"
     "Spot"                 = $false
     "Bastion"              = $false
     "Verbose"              = $true
