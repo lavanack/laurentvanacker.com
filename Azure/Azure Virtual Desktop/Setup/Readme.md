@@ -119,7 +119,7 @@ This script is basically doing the following tasks:
 >$Global:MaximumFunctionCount = 32768
 >```
 
-- Start a timestamped transcript file (Start_yyyyMMddHHmmss.txt as naming convention) in the `$LogDir` folder
+- Start a timestamped transcript file (`Start_yyyyMMddHHmmss.txt` as naming convention) in the `$LogDir` folder
 - Test if the running VM is the Domain Controller (Thanks to the [Test-DomainController](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Test-Domaincontroller) function)(if not, the script will stop)
 - Connect to Azure and Graph (if not already connected) via the [Connect-PsAvdAzure](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Connect-PsAvdAzure) function
 - Registering the required Azure Resource Providers (if not already registered) via the [Register-PsAvdRequiredResourceProviders](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Register-PsAvdRequiredResourceProvider) function
@@ -180,7 +180,7 @@ This script is basically doing the following tasks:
 > [!NOTE]
 > Some Tags are added to every deployed AVD Host Pool with related information about the underlying configuration.
 
-- Run a Windows Explorer instance for every Azure file share created for the FSLogix and MSIX/AppAttach resources via the [Get-PsAvdFSLogixProfileShare](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Get-PsAvdFSLogixProfileShare) and [Get-PsAvdMSIXProfileShare](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Get-PsAvdMSIXProfileShare) functions
+- Run a Windows Explorer instance for every Azure file share created for the FSLogix and [MSIX AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=msix-app-attach)/[Azure AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=app-attach) resources via the [Get-PsAvdFSLogixProfileShare](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Get-PsAvdFSLogixProfileShare) and [Get-PsAvdMSIXProfileShare](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Get-PsAvdMSIXProfileShare) functions
 - Add the `AVD Users` group as member of every generated AD group (for the HostPool(s) you deployed)
 - Updating the location for all users to the specified location (2-Letter ISO format - "FR" for France for example) via the [Update-PsAvdMgBetaUserUsageLocation](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Update-PsAvdMgBetaUserUsageLocation) function
 - Assign some licences (if any available) to the users in the `AVD Users` group via the [Set-PsAvdMgBetaUsersGroupLicense](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Set-PsAvdMgBetaUsersGroupLicense) function. The SKU Part Number is specified in the `-SkuPartNumber` parameter.
@@ -209,7 +209,7 @@ At the end of the deployment, the following deliverables are available (the foll
 - Some GPOs
   - 'AVD Global Settings' GPO linked to the `AVD` OU
   - '`<HostPoolName>` - FSLogix Settings' GPO linked to the `<HostPoolName>` OU for the FSLogix Settings (if FSLogix is required) per HostPool
-  - '`<HostPoolName>` - MSIX Settings' GPO linked to the `<HostPoolName>` OU for the MSIX Settings (if MSIX or AppAttach is required) per HostPool
+  - '`<HostPoolName>` - MSIX Settings' GPO linked to the `<HostPoolName>` OU for the MSIX Settings (if [MSIX AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=msix-app-attach) or [Azure AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=app-attach) is required) per HostPool
   - 2 starter GPOs linked to the `AVD` OU
     - 'Group Policy Reporting Firewall Ports'
     - 'Group Policy Remote Update Firewall Ports'
@@ -243,7 +243,7 @@ At the end of the deployment, the following deliverables are available (the foll
 ### Limitations
 
 - I'm not using Application Security Group (only Network Security Groups).
-- FSLogix, MSIX and AppAttach features are only implemented for Pooled HostPools
+- FSLogix, [MSIX AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=msix-app-attach) and [Azure AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=app-attach) features are only implemented for Pooled HostPools
 
 ### Azure Resources
 
@@ -252,7 +252,7 @@ The script will deploy the following Azure resources (ordered by alphabetical or
 - Azure Compute Gallery
   - Image Definition
   - Image Version
-- Azure File Share (for FSLogix and MSIX/AppAttach)
+- Azure File Share (for FSLogix and [MSIX AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=msix-app-attach)/[Azure AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=app-attach))
 - Azure Key Vault
 - Azure Private Endpoint (for Azure File Share and Azure Key Vault)
 - Azure Resource Group
