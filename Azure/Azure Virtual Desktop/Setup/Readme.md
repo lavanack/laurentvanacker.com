@@ -82,22 +82,20 @@ cd .\laurentvanacker.com\Azure\Azure Virtual Desktop\Setup
 The [Scenarios](./Scenarios/) subfolder contains two folders:
 
 - [1 Azure Region](./Scenarios/1%20Azure%20Region/): For 1 Azure region deployment (the one where the Domain Controller is deployed)
-- [2 Azure Regions](./Scenarios/2%20Azure%20Regions/): For 2 Azure regions deployment (the ones where the Domain Controllers are deployed - cf. [here](../AAD-Hybrid-Lab%20-%20PowerShell#new-aad-hybrid-bcdr-labps1-step-by-step-guide) - Paired Azure regions are recommended for BCDR and HA deployment)
+- [2 Azure Regions](./Scenarios/2%20Azure%20Regions/): For 2 Azure regions deployment (the ones where the Domain Controllers are deployed - cf. [here](../AAD-Hybrid-Lab%20-%20PowerShell#new-aad-hybrid-bcdr-labps1-step-by-step-guide) - Paired Azure regions are recommended for [BCDR](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/landing-zone/design-area/management-business-continuity-disaster-recovery) and HA deployment)
 
 Each folder mainly contains some very small specific scripts (1 line sometimes) for creating Azure Virtual Desktop HostPools (Thanks to the [HostPool PowerShell Class](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/HostPool-PowerShell-Classes#hostpool-powershell-class-base-class) defined in the [PSAzureVirtualDesktop](https://www.powershellgallery.com/packages/PSAzureVirtualDesktop) PowerShell module) in a dedicated Azure region. The one you you used for deploying your Domain Controller (cf. [here](#prerequisites)). Two scripts are specific because they are used to deploy the HostPools :
 
 - [Reset.ps1](./Scenarios/1%20Azure%20Region/Reset.ps1): Remove all resource groups matching the
-'^rg-avd-.\*-poc-.\*-\d+' pattern used in the [PSAzureVirtualDesktop](https://www.powershellgallery.com/packages/PSAzureVirtualDesktop) PowerShell module, the dedicated Conditional Access Policy, the dedicated 'No-MFA Users' EntraID group for excluding some users/identities from MFA and call the [Start.ps1](./Scenarios/1%20Azure%20Region/Start.ps1) script.
+'^rg-avd-.\*-poc-.\*-\d+' pattern used in the [PSAzureVirtualDesktop](https://www.powershellgallery.com/packages/PSAzureVirtualDesktop) PowerShell module, the dedicated Conditional Access Policy, the dedicated 'No-MFA Users' EntraID group for excluding some users/identities from MFA and call the [Start.ps1](./Scenarios/1%20Azure%20Region/Start.ps1) script. This script was mainly created to quickly remove all the Azure resources created by the [Start.ps1](./Scenarios/1%20Azure%20Region/Start.ps1) script.
 - [Start.ps1](./Scenarios/1%20Azure%20Region/Start.ps1):
   
-  This script has 2 optional parameters:
-  - `-AsJob`: When specified, the HostPools  will be deployed in parallel (via the [Start-ThreadJob](https://learn.microsoft.com/en-us/powershell/module/threadjob/start-threadjob?view=powershell-7.4&viewFallbackFrom=powershell-5.1) cmdlet) instead of sequentially. The processing time is greatly reduced from 4.5 hours to 1.5 hours (including the Azure Compute Gallery Setup if needed - without the Azure Compute Gallery Setup, the processing time are 3.5 hours sequentially  and 45 minutes in parallel) for the proposed HostPool configurations. Of course, the fewer configurations you define, the shorter the processing time will be (especially in sequential mode).
-
+  This core script has 2 optional parameters:
+  - `-AsJob`: When specified, the HostPools  will be deployed in parallel (via the [Start-ThreadJob](https://learn.microsoft.com/en-us/powershell/module/threadjob/start-threadjob?view=powershell-7.4&viewFallbackFrom=powershell-5.1) cmdlet) instead of sequentially. The processing time is greatly reduced when deploying multiple HosPool configurations. Of course, the fewer configurations you define, the shorter the processing time will be (especially in sequential mode).
   - `-LogDir`: The folder where you want to put the generated log files.
 
 > [!IMPORTANT]
-> The script was created to deployed all the required resources from a unique call. It is not designed (not tested for the moment to be honest) to be called in an incremental mode (deploying a HostPool and updating the infrastructure by adding another one after). So create you own dedicated scenario files with all the required resources.
->
+> The script was created to deployed all the required resources from a unique call. It is not designed (not tested for the moment to be honest) to be called in an incremental mode (deploying a HostPool and updating the infrastructure by adding another one after). So create your own dedicated scenario files with all the required resources.
 
 ## Start.ps1
 
@@ -155,7 +153,7 @@ This script is basically doing the following tasks:
   > [!IMPORTANT]
   > If the `ADJoinCredential` account doesn't exist in the Active Directory, it will be created later in the script processing (in the [Grant-ADJoinPermission](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Grant-PsAvdADJoinPermission) function). But if the account already exists in the Active Directory, you have to specify the current sAMAccountNAme and password for this account.
 
-- Listing Azure VMs with Ephemeral OS Disk in the Azure region (if any) via the [Get-AzureEphemeralOsDiskSku](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Get-AzureEphemeralOsDiskSku) static function). This call is used just for information purpose.
+- Listing Azure VMs with Ephemeral OS Disk in the Azure region (if any) via the [GetAzureEphemeralOsDiskSku](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/HostPool-PowerShell-Classes#hostpool-powershell-class--methods) static function). This call is used just for information purpose.
 
 - Generate a random starting number for numbering the Resource Groups  and the HostPools to limit or avoid duplicated names for Storage Accounts.
 - Apply a scenario from the [Scenarios](./Scenarios/) subfolder (Uncomment the scenario you want to deploy or create a new scenario)
