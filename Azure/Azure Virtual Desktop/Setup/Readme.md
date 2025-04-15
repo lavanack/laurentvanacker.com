@@ -201,7 +201,7 @@ At the end of the deployment, the following deliverables are available (the foll
 
 - A timestamped transcript file in the script directory
 - A timestamped JSON file `HostPool_yyyyMMddHHmmss.json` in the `Backup` subfolder of the script directory as a reminder of the deployed HostPool(s) configuration
-- A .rdg file on the Desktop with all the information to connect to the Session Hosts (cf. [here](#remote-desktop-connection-manager))
+- A .rdg file on the Desktop with all the information to connect to the Session Hosts
 - A dedicated Organization Unit (OU) in the Active Directory domain for every HostPool
 
 ![Organization Units](docs/ou.jpg)
@@ -280,4 +280,4 @@ The script will deploy the following Azure resources (ordered by alphabetical or
 I will probably integrate the following features in the script (when time permits and not necessarily in this order):
 
 - [Use Azure Private Link to connect networks to Azure Monitor](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/private-link-security)
-- Write a PowerShell 7+ version of the script (I'm using PowerShell 5.1 for the moment)
+- Write a [PowerShell 7+](https://github.com/PowerShell/PowerShell/releases) version of the script (I'm using Windows PowerShell 5.1 for the moment)
