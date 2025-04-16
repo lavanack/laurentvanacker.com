@@ -186,7 +186,7 @@ New-PsAvdHostPoolSetup -HostPool $HostPools -NoMFAEntraIDGroupName $NoMFAEntraID
 Get-PsAvdFSLogixProfileShare -HostPool $HostPools
 
 #Starting a Windows Explorer instance per MSIX profiles share
-Get-PsAvdMSIXProfileShare -HostPool $HostPools
+Get-PsAvdAppAttachProfileShare -HostPool $HostPools
 
 #region Adding Test Users (under the OrgUsers OU) as HostPool Users (for all HostPools)
 $AVDUserGroupName = 'AVD Users'
