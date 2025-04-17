@@ -279,18 +279,23 @@ The script will potentially deploy the following Azure resources (listed in alph
 
 You can deploy either Personal or Pooled HostPools with the following capabilities (depending of the HostPool type you choose and listed in alphabetical order:)
 
+- [Azure Compute Gallery](https://learn.microsoft.com/azure/virtual-machines/azure-compute-gallery)
 - Active Directory Domain Services (ADDS),
-- Azure AppAttach
+- [Azure AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=app-attach)
 - Azure Backup
 - Entra ID
-- FSLogix
-- FSLogix CloudCache
+- [Ephemeral OS disks for Azure VMs](https://learn.microsoft.com/en-us/azure/virtual-machines/ephemeral-os-disks)
+- [FSLogix](https://learn.microsoft.com/fslogix/overview-what-is-fslogix), [MSIX AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=msix-app-attach)
+- [FSLogix CloudCache](https://learn.microsoft.com/fslogix/concepts-fslogix-cloud-cache)
+- Full Desktop or RemoteApp
+- [Hibernation for Azure virtual machines](https://learn.microsoft.com/azure/virtual-machines/hibernate-resume)
 - Intune
-- MSIX App Attach
+- [MSIX AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=msix-app-attach)
 - Watermarking
-- Azure Site Recovery
+- [Azure Site Recovery](https://azure.microsoft.com/products/site-recovery)
+- [Azure Spot Virtual Machines](https://azure.microsoft.com/products/virtual-machines/spot)
 - Monitoring
-- ...
+- [Scaling Plan](https://learn.microsoft.com/azure/virtual-desktop/autoscale-create-assign-scaling-plan?tabs=portal%2Cintune&pivots=power-management)
 
 ### What's next ?
 
