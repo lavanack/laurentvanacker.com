@@ -262,6 +262,7 @@ The script will deploy the following Azure resources (ordered by alphabetical or
   - Workspaces
   - Session Hosts (Azure Virtual Machines, Azure Disk, Azure Network Interface, Azure Virtual Machine Extension)
   - Scaling Plans
+- Backup Vault
 - Data Collection Rules
 - EntraID Conditional Access Policies
 - EntraID Dynamic Groups
@@ -271,6 +272,7 @@ The script will deploy the following Azure resources (ordered by alphabetical or
   - Intune Configuration Profiles
   - Intune Platform Scripts
 - Log Analytics Workspace
+- Recovery Services Vault
 
 ### What's next ?
 
