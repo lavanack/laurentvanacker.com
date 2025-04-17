@@ -13,6 +13,7 @@
   - [Deliverables](#deliverables)
     - [Limitations](#limitations)
     - [Azure Resources](#azure-resources)
+    - [Capabilities](#capabilities)
     - [What's next ?](#whats-next-)
 
 > [!IMPORTANT]
@@ -244,7 +245,7 @@ At the end of the deployment, the following deliverables are available (the foll
 
 ### Azure Resources
 
-The script will potentially deploy the following Azure resources (ordered by alphabetical order):
+The script will potentially deploy the following Azure resources (listed in alphabetical order):
 
 - [Azure Compute Gallery](https://learn.microsoft.com/azure/virtual-machines/azure-compute-gallery)
   - Image Definition
@@ -273,6 +274,23 @@ The script will potentially deploy the following Azure resources (ordered by alp
   - Intune Platform Scripts
 - Log Analytics Workspace
 - Recovery Services Vault
+
+### Capabilities
+
+You can deploy either Personal or Pooled HostPools with the following capabilities (depending of the HostPool type you choose and listed in alphabetical order:)
+
+- Active Directory Domain Services (ADDS),
+- Azure AppAttach
+- Azure Backup
+- Entra ID
+- FSLogix
+- FSLogix CloudCache
+- Intune
+- MSIX App Attach
+- Watermarking
+- Azure Site Recovery
+- Monitoring
+- ...
 
 ### What's next ?
 
