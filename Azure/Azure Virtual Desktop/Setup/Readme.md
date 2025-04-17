@@ -86,7 +86,7 @@ The [Scenarios](./Scenarios/) subfolder contains two folders:
 
 Each folder mainly contains some very small specific scripts (1 line sometimes) for creating Azure Virtual Desktop HostPools (Thanks to the [HostPool PowerShell Class](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/HostPool-PowerShell-Classes#hostpool-powershell-class-base-class) defined in the [PSAzureVirtualDesktop](https://www.powershellgallery.com/packages/PSAzureVirtualDesktop) PowerShell module) in a dedicated Azure region. The one you you used for deploying your Domain Controller (cf. [here](#prerequisites)). Two scripts are specific because they are used to deploy the HostPools :
 
-- Reset.ps1: Remove all resource groups matching the '^rg-avd-.\*-poc-.\*-\d+' pattern used in the [PSAzureVirtualDesktop](https://www.powershellgallery.com/packages/PSAzureVirtualDesktop) PowerShell module, the dedicated '[AVD] Require multifactor authentication for all users' Conditional Access Policy, the potential dedicated 'No-MFA Users' EntraID group for excluding some users/identities from MFA and call the Start.ps1 script. This script was mainly created to quickly remove all the Azure resources created by the Start.ps1 script.
+- Reset.ps1: Remove all resource groups matching the '^rg-avd-.\*-poc-.\*-\d+' pattern used in the [PSAzureVirtualDesktop](https://www.powershellgallery.com/packages/PSAzureVirtualDesktop) PowerShell module, the dedicated '[AVD] Require multifactor authentication for all users' Conditional Access Policy, the potential dedicated 'No-MFA Users' EntraID group for excluding some users/identities from MFA (Storage Account Service Principal for instance) and call the Start.ps1 script. This script was mainly created to quickly remove all the Azure resources created by the Start.ps1 script.
 - Start.ps1:
   
   This core script has 2 optional parameters:
@@ -244,7 +244,7 @@ At the end of the deployment, the following deliverables are available (the foll
 
 ### Azure Resources
 
-The script will deploy the following Azure resources (ordered by alphabetical order):
+The script will potentially deploy the following Azure resources (ordered by alphabetical order):
 
 - [Azure Compute Gallery](https://learn.microsoft.com/azure/virtual-machines/azure-compute-gallery)
   - Image Definition
@@ -262,6 +262,7 @@ The script will deploy the following Azure resources (ordered by alphabetical or
   - Workspaces
   - Session Hosts (Azure Virtual Machines, Azure Disk, Azure Network Interface, Azure Virtual Machine Extension)
   - Scaling Plans
+- Backup Vault
 - Data Collection Rules
 - EntraID Conditional Access Policies
 - EntraID Dynamic Groups
@@ -271,6 +272,7 @@ The script will deploy the following Azure resources (ordered by alphabetical or
   - Intune Configuration Profiles
   - Intune Platform Scripts
 - Log Analytics Workspace
+- Recovery Services Vault
 
 ### What's next ?
 
