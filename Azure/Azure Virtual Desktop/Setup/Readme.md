@@ -13,6 +13,7 @@
   - [Deliverables](#deliverables)
     - [Limitations](#limitations)
     - [Azure Resources](#azure-resources)
+    - [Capabilities](#capabilities)
     - [What's next ?](#whats-next-)
 
 > [!IMPORTANT]
@@ -86,7 +87,7 @@ The [Scenarios](./Scenarios/) subfolder contains two folders:
 
 Each folder mainly contains some very small specific scripts (1 line sometimes) for creating Azure Virtual Desktop HostPools (Thanks to the [HostPool PowerShell Class](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/HostPool-PowerShell-Classes#hostpool-powershell-class-base-class) defined in the [PSAzureVirtualDesktop](https://www.powershellgallery.com/packages/PSAzureVirtualDesktop) PowerShell module) in a dedicated Azure region. The one you you used for deploying your Domain Controller (cf. [here](#prerequisites)). Two scripts are specific because they are used to deploy the HostPools :
 
-- Reset.ps1: Remove all resource groups matching the '^rg-avd-.\*-poc-.\*-\d+' pattern used in the [PSAzureVirtualDesktop](https://www.powershellgallery.com/packages/PSAzureVirtualDesktop) PowerShell module, the dedicated '[AVD] Require multifactor authentication for all users' Conditional Access Policy, the potential dedicated 'No-MFA Users' EntraID group for excluding some users/identities from MFA and call the Start.ps1 script. This script was mainly created to quickly remove all the Azure resources created by the Start.ps1 script.
+- Reset.ps1: Remove all resource groups matching the '^rg-avd-.\*-poc-.\*-\d+' pattern used in the [PSAzureVirtualDesktop](https://www.powershellgallery.com/packages/PSAzureVirtualDesktop) PowerShell module, the dedicated '[AVD] Require multifactor authentication for all users' Conditional Access Policy, the potential dedicated 'No-MFA Users' EntraID group for excluding some users/identities from MFA (Storage Account Service Principal for instance) and call the Start.ps1 script. This script was mainly created to quickly remove all the Azure resources created by the Start.ps1 script.
 - Start.ps1:
   
   This core script has 2 optional parameters:
@@ -102,6 +103,7 @@ Each folder mainly contains some very small specific scripts (1 line sometimes) 
 
 This script is designed to quickly deploy multiple full Azure Virtual Desktop environments, in minutes to hours. It adheres to Microsoft documentation and recommended practices.
 Each time the script is run, a timestamped transcription file is created in the dedicated [Scenarios](./Scenarios/) subfolder.
+This script is a sample and can be used as-is or as a base for your own script.
 
 ### Script Explanation
 
@@ -244,7 +246,7 @@ At the end of the deployment, the following deliverables are available (the foll
 
 ### Azure Resources
 
-The script will deploy the following Azure resources (ordered by alphabetical order):
+The script will potentially deploy the following Azure resources (listed in alphabetical order):
 
 - [Azure Compute Gallery](https://learn.microsoft.com/azure/virtual-machines/azure-compute-gallery)
   - Image Definition
@@ -262,6 +264,7 @@ The script will deploy the following Azure resources (ordered by alphabetical or
   - Workspaces
   - Session Hosts (Azure Virtual Machines, Azure Disk, Azure Network Interface, Azure Virtual Machine Extension)
   - Scaling Plans
+- Backup Vault
 - Data Collection Rules
 - EntraID Conditional Access Policies
 - EntraID Dynamic Groups
@@ -271,6 +274,29 @@ The script will deploy the following Azure resources (ordered by alphabetical or
   - Intune Configuration Profiles
   - Intune Platform Scripts
 - Log Analytics Workspace
+- Recovery Services Vault
+
+### Capabilities
+
+You can deploy either Personal or Pooled HostPools with the following capabilities (depending of the HostPool type you choose and listed in alphabetical order:)
+
+- [Azure Compute Gallery](https://learn.microsoft.com/azure/virtual-machines/azure-compute-gallery)
+- Active Directory Domain Services (ADDS),
+- [Azure AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=app-attach)
+- Azure Backup
+- Entra ID
+- [Ephemeral OS disks for Azure VMs](https://learn.microsoft.com/en-us/azure/virtual-machines/ephemeral-os-disks)
+- [FSLogix](https://learn.microsoft.com/fslogix/overview-what-is-fslogix), [MSIX AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=msix-app-attach)
+- [FSLogix CloudCache](https://learn.microsoft.com/fslogix/concepts-fslogix-cloud-cache)
+- Full Desktop or RemoteApp
+- [Hibernation for Azure virtual machines](https://learn.microsoft.com/azure/virtual-machines/hibernate-resume)
+- Intune
+- [MSIX AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=msix-app-attach)
+- Watermarking
+- [Azure Site Recovery](https://azure.microsoft.com/products/site-recovery)
+- [Azure Spot Virtual Machines](https://azure.microsoft.com/products/virtual-machines/spot)
+- Monitoring
+- [Scaling Plan](https://learn.microsoft.com/azure/virtual-desktop/autoscale-create-assign-scaling-plan?tabs=portal%2Cintune&pivots=power-management)
 
 ### What's next ?
 
