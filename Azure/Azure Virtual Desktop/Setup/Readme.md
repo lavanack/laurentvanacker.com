@@ -103,6 +103,7 @@ Each folder mainly contains some very small specific scripts (1 line sometimes) 
 
 This script is designed to quickly deploy multiple full Azure Virtual Desktop environments, in minutes to hours. It adheres to Microsoft documentation and recommended practices.
 Each time the script is run, a timestamped transcription file is created in the dedicated [Scenarios](./Scenarios/) subfolder.
+This script is a sample and can be used as-is or as a base for your own script.
 
 ### Script Explanation
 
