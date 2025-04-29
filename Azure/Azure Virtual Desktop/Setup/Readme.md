@@ -13,6 +13,7 @@
   - [Deliverables](#deliverables)
     - [Limitations](#limitations)
     - [Azure Resources](#azure-resources)
+    - [Capabilities](#capabilities)
     - [What's next ?](#whats-next-)
 
 > [!IMPORTANT]
@@ -39,7 +40,7 @@
 
 ## Prerequisites
 
-It is recommended to use a dedicated Azure subscription when using the scripts I will explained just after. For Microsoft CSAs, you can request a new Azure subscription by clicking on this link [https://aka.ms/MCAPSNewAzureSub](https://aka.ms/MCAPSNewAzureSub) (Manager approval required).
+It is recommended to use a dedicated Azure subscription when using the scripts I will explain just after. For Microsoft CSAs, you can request a new Azure subscription by clicking on this link [https://aka.ms/MCAPSNewAzureSub](https://aka.ms/MCAPSNewAzureSub) (Manager approval required).
 
 Before proceeding, ensure that a domain controller is present in your Azure subscription. This requires a Windows Server with the Active Directory Directory Services role installed and configured. If this is not already set up, you can use the following links to create these resources. The options are listed from least to most preferred:
 
@@ -74,7 +75,7 @@ git clone https://github.com/lavanack/laurentvanacker.com.git
 - Then go to the dedicated subfolder
 
 ```powershell
-cd .\laurentvanacker.com\Azure\Azure Virtual Desktop\Setup
+cd ".\laurentvanacker.com\Azure\Azure Virtual Desktop\Setup"
 ```
 
 ## Scenarios
@@ -86,23 +87,23 @@ The [Scenarios](./Scenarios/) subfolder contains two folders:
 
 Each folder mainly contains some very small specific scripts (1 line sometimes) for creating Azure Virtual Desktop HostPools (Thanks to the [HostPool PowerShell Class](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/HostPool-PowerShell-Classes#hostpool-powershell-class-base-class) defined in the [PSAzureVirtualDesktop](https://www.powershellgallery.com/packages/PSAzureVirtualDesktop) PowerShell module) in a dedicated Azure region. The one you you used for deploying your Domain Controller (cf. [here](#prerequisites)). Two scripts are specific because they are used to deploy the HostPools :
 
-- [Reset.ps1](./Scenarios/1%20Azure%20Region/Reset.ps1): Remove all resource groups matching the
-'^rg-avd-.\*-poc-.\*-\d+' pattern used in the [PSAzureVirtualDesktop](https://www.powershellgallery.com/packages/PSAzureVirtualDesktop) PowerShell module, the dedicated Conditional Access Policy, the dedicated 'No-MFA Users' EntraID group for excluding some users/identities from MFA and call the [Start.ps1](./Scenarios/1%20Azure%20Region/Start.ps1) script. This script was mainly created to quickly remove all the Azure resources created by the [Start.ps1](./Scenarios/1%20Azure%20Region/Start.ps1) script.
-- [Start.ps1](./Scenarios/1%20Azure%20Region/Start.ps1):
+- Reset.ps1: Remove all resource groups matching the '^rg-avd-.\*-poc-.\*-\d+' pattern used in the [PSAzureVirtualDesktop](https://www.powershellgallery.com/packages/PSAzureVirtualDesktop) PowerShell module, the dedicated '[AVD] Require multifactor authentication for all users' Conditional Access Policy, the potential dedicated 'No-MFA Users' EntraID group for excluding some users/identities from MFA (Storage Account Service Principal for instance) and call the Start.ps1 script. This script was mainly created to quickly remove all the Azure resources created by the Start.ps1 script.
+- Start.ps1:
   
   This core script has 2 optional parameters:
-  - `-AsJob`: When specified, the HostPools  will be deployed in parallel (via the [Start-ThreadJob](https://learn.microsoft.com/en-us/powershell/module/threadjob/start-threadjob?view=powershell-7.4&viewFallbackFrom=powershell-5.1) cmdlet) instead of sequentially. The processing time is greatly reduced when deploying multiple HosPool configurations. Of course, the fewer configurations you define, the shorter the processing time will be (especially in sequential mode).
+  - `-AsJob`: When specified, the HostPools  will be deployed in parallel (via the [Start-ThreadJob](https://learn.microsoft.com/en-us/powershell/module/threadjob/start-threadjob) cmdlet) instead of sequentially. The processing time is greatly reduced when deploying multiple HostPool configurations. Of course, the fewer configurations you define, the shorter the processing time will be (especially in sequential mode).
   - `-LogDir`: The folder where you want to put the generated log files.
 
 > [!IMPORTANT]
-> The script was created to deployed all the required resources from a unique call. It is not designed (not tested for the moment to be honest) to be called in an incremental mode (deploying a HostPool and updating the infrastructure by adding another one after). So create your own dedicated scenario files with all the required resources.
+> The script was created to deploy all the required resources from a unique call. It is not designed (not tested for the moment to be honest) to be called in an incremental mode (deploying a HostPool and updating the infrastructure by adding another one after). So create your own dedicated scenario files with all the required resources.
 
 ## Start.ps1
 
 ### What this script does ?
 
 This script is designed to quickly deploy multiple full Azure Virtual Desktop environments, in minutes to hours. It adheres to Microsoft documentation and recommended practices.
-Each time the script is run, a transcription with a timestamp will be created in the dedicated [Scenarios](./Scenarios/) subfolder.
+Each time the script is run, a timestamped transcription file is created in the dedicated [Scenarios](./Scenarios/) subfolder.
+This script is a sample and can be used as-is or as a base for your own script.
 
 ### Script Explanation
 
@@ -121,7 +122,7 @@ This script is basically doing the following tasks:
 - Test if the running VM is the Domain Controller (Thanks to the [Test-DomainController](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Test-Domaincontroller) function)(if not, the script will stop)
 - Connect to Azure and Graph (if not already connected) via the [Connect-PsAvdAzure](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Connect-PsAvdAzure) function
 - Registering the required Azure Resource Providers (if not already registered) via the [Register-PsAvdRequiredResourceProviders](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Register-PsAvdRequiredResourceProvider) function
-- Install some GPO settings (if not already installed) for AVD and FSLogix via the [Install-PsAvdFSLogixGpoSettings](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Install-PsAvdFSLogixGpoSettings) and [Install-PsAvdAvdGpoSettings](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Install-PsAvdAvdGpoSettings) functions.
+- Install some GPO settings on the running Domain Controller (if not already installed) for AVD and FSLogix via the [Install-PsAvdFSLogixGpoSettings](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Install-PsAvdFSLogixGpoSettings) and [Install-PsAvdAvdGpoSettings](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Install-PsAvdAvdGpoSettings) functions.
 - Customize (Change to reflect your own settings) some settings related to the 1 or 2 Azure regions where you want to deploy your Azure resources
 
   - The ResourceGroup containing the Domain Controller
@@ -156,9 +157,9 @@ This script is basically doing the following tasks:
 - Listing Azure VMs with Ephemeral OS Disk in the Azure region (if any) via the [GetAzureEphemeralOsDiskSku](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/HostPool-PowerShell-Classes#hostpool-powershell-class--methods) static function). This call is used just for information purpose.
 
 - Generate a random starting number for numbering the Resource Groups  and the HostPools to limit or avoid duplicated names for Storage Accounts.
-- Apply a scenario from the [Scenarios](./Scenarios/) subfolder (Uncomment the scenario you want to deploy or create a new scenario)
+- Apply a scenario from the [Scenarios](./Scenarios/) subfolder (Uncomment the scenario you want to deploy or create a new one)
 - Do some cleanup tasks for removing the previously deployed Azure resources via the [Remove-PsAvdHostPoolSetup](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Remove-PsAvdHostPoolSetup) function.
-- Check the name availability for the genearted Storage Account and Key Vault (based on the used naming convention) respectively via the [Test-PsAvdStorageAccountNameAvailability](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Test-PsAvdStorageAccountNameAvailability) and [Test-PsAvdKeyVaultNameAvailability](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Test-PsAvdKeyVaultNameAvailability) functions.
+- Check the name availability for the generated Storage Account and Key Vault (based on the used naming convention) respectively via the [Test-PsAvdStorageAccountNameAvailability](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Test-PsAvdStorageAccountNameAvailability) and [Test-PsAvdKeyVaultNameAvailability](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Test-PsAvdKeyVaultNameAvailability) functions.
 - Backup the HostPool configuration in a JSON file via the [New-PsAvdHostPoolBackup](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/New-PsAvdHostPoolBackup) function. The backup location is specified via the `-Directory` input parameter.
 - Deploy the HostPools via the [New-PsAvdHostPoolSetup](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/New-PsAvdHostPoolSetup) function. The [New-PsAvdHostPoolSetup](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/New-PsAvdHostPoolSetup) is the core function and has some parameters
   - `$HostPool` as [HostPool](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/HostPool-PowerShell-Classes#hostpool-powershell-class-base-class) array (This variable is set directly from the scripts you can find in the [Scenarios](./Scenarios/) subfolders or set the value you want for the HostPool(s) you want to deploy). It will deploy all the resources needed for the HostPool(s) based on the specified value. All information on configuring the HostPool(s) can be found [here](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/HostPool-PowerShell-Classes).
@@ -170,7 +171,7 @@ This script is basically doing the following tasks:
   - `RDCMan`: if specified, the script will create a Remote Desktop Connection Manager (RDCMan) file at the end of the deployment (named \<domain name\>.rdg) on the Desktop with all information to connect to the deployed Azure VMs. You can use this file with the [Remote Desktop Connection Manager](https://download.sysinternals.com/files/RDCMan.zip) tool to connect to the Session Hosts. For the Azure AD/Microsoft Entra ID joined VM, the local admin credentials are stored in this file for an easier connection. For the AD Domain joined VM, the current logged in user is used. You just have to fill the password. Right click on the AVD section, go to the "Logon Credentials" tab, uncheck "Inherit from parent" and fill the password. It will be inherited at the lower levels.
   ![Remote Desktop Connection Manager](docs/rdcman.jpg)
 
-- `$AsJob`: The HostPool(s) will be deployed in parallel if specified or sequentially (if not specified).
+- `$AsJob`: The HostPool(s) will be deployed in parallel if specified or sequentially if not specified.
 
 > [!NOTE]
 > The impacted ressources by the parallel mode are only the HostPools and the Session Hosts. The Job Management is done at the end of the [New-PsAvdHostPoolSetup](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/New-PsAvdHostPoolSetup)  function.
@@ -179,7 +180,7 @@ This script is basically doing the following tasks:
 > Some Tags are added to every deployed AVD Host Pool with related information about the underlying configuration.
 
 - Run a Windows Explorer instance for every Azure file share created for the FSLogix and [MSIX AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=msix-app-attach)/[Azure AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=app-attach) resources via the [Get-PsAvdFSLogixProfileShare](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Get-PsAvdFSLogixProfileShare) and [Get-PsAvdMSIXProfileShare](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Get-PsAvdMSIXProfileShare) functions
-- Add the `AVD Users` group as member of every generated AD group (for the HostPool(s) you deployed)
+- Add the `AVD Users` group as member of every generated group (for the HostPool(s) you deployed)
 - Updating the location for all users to the specified location (2-Letter ISO format - "FR" for France for example) via the [Update-PsAvdMgBetaUserUsageLocation](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Update-PsAvdMgBetaUserUsageLocation) function
 - Assign some licences (if any available) to the users in the `AVD Users` group via the [Set-PsAvdMgBetaUsersGroupLicense](https://github.com/lavanack/PSAzureVirtualDesktop/wiki/Set-PsAvdMgBetaUsersGroupLicense) function. The SKU Part Number is specified in the `-SkuPartNumber` parameter.
 
@@ -191,7 +192,7 @@ Some scenarios look for Azure Compute Gallery in the deployment region. If none 
 
 ## Testing
 
-After a successful deployment, you can connect by using either [Remote Desktop Web Client](https://client.wvd.microsoft.com/arm/webclient/index.html), [Windows 365](https://windows365.microsoft.com/) or the [Windows App](https://www.microsoft.com/store/productId/9N1F85V9T8BN?ocid=pdpshare) site and use one of the test users (available in `AVD Users` AD group in the `OrgUsers` OU).
+After a successful deployment, you can connect by using either [Remote Desktop Web Client](https://client.wvd.microsoft.com/arm/webclient/index.html), [Windows 365](https://windows365.microsoft.com/) or the [Windows App](https://www.microsoft.com/store/productId/9N1F85V9T8BN?ocid=pdpshare) site and use one of the test users (available in `AVD Users` AD group in the `OrgUsers` Organizational Unit (OU)).
 
 ## Deliverables
 
@@ -200,7 +201,7 @@ At the end of the deployment, the following deliverables are available (the foll
 - A timestamped transcript file in the script directory
 - A timestamped JSON file `HostPool_yyyyMMddHHmmss.json` in the `Backup` subfolder of the script directory as a reminder of the deployed HostPool(s) configuration
 - A .rdg file on the Desktop with all the information to connect to the Session Hosts
-- A dedicated Organization Unit (OU) in the Active Directory domain for every HostPool
+- A dedicated Organizational Unit (OU) in the Active Directory domain for every HostPool
 
 ![Organization Units](docs/ou.jpg)
 
@@ -218,15 +219,15 @@ At the end of the deployment, the following deliverables are available (the foll
 
 ![HostPools](docs/hostpool.jpg)
 
-- Some Azure AD/Microsoft Entra ID Devices
+- Some Azure AD/Microsoft Entra ID Devices (if applicable)
   
 ![AD/Microsoft Entra ID Devices](docs/EntraIDDevices.jpg)
 
-- Some AD Computers Objects
+- Some AD Computers Objects (if applicable)
   
 ![ADDS Computers](docs/ADDSComputers.jpg)
 
-- Intune
+- Intune (if applicable)
   - Devices
   ![Intune Devices](docs/IntuneDevices.jpg)
   - Configuration Profiles
@@ -241,16 +242,16 @@ At the end of the deployment, the following deliverables are available (the foll
 ### Limitations
 
 - I'm not using Application Security Group (only Network Security Groups).
-- FSLogix, [MSIX AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=msix-app-attach) and [Azure AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=app-attach) features are only implemented for Pooled HostPools
+- [FSLogix](https://learn.microsoft.com/fslogix/overview-what-is-fslogix), [MSIX AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=msix-app-attach) and [Azure AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=app-attach) features are only implemented for Pooled HostPools
 
 ### Azure Resources
 
-The script will deploy the following Azure resources (ordered by alphabetical order):
+The script will potentially deploy the following Azure resources (listed in alphabetical order):
 
-- Azure Compute Gallery
+- [Azure Compute Gallery](https://learn.microsoft.com/azure/virtual-machines/azure-compute-gallery)
   - Image Definition
   - Image Version
-- Azure File Share (for FSLogix and [MSIX AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=msix-app-attach)/[Azure AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=app-attach))
+- Azure File Share (for [FSLogix](https://learn.microsoft.com/fslogix/overview-what-is-fslogix) and [MSIX AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=msix-app-attach)/[Azure AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=app-attach))
 - Azure Key Vault
 - Azure Private Endpoint (for Azure File Share and Azure Key Vault)
 - Azure Resource Group
@@ -263,6 +264,7 @@ The script will deploy the following Azure resources (ordered by alphabetical or
   - Workspaces
   - Session Hosts (Azure Virtual Machines, Azure Disk, Azure Network Interface, Azure Virtual Machine Extension)
   - Scaling Plans
+- Backup Vault
 - Data Collection Rules
 - EntraID Conditional Access Policies
 - EntraID Dynamic Groups
@@ -272,6 +274,29 @@ The script will deploy the following Azure resources (ordered by alphabetical or
   - Intune Configuration Profiles
   - Intune Platform Scripts
 - Log Analytics Workspace
+- Recovery Services Vault
+
+### Capabilities
+
+You can deploy either Personal or Pooled HostPools with the following capabilities (depending of the HostPool type you choose and listed in alphabetical order:)
+
+- [Azure Compute Gallery](https://learn.microsoft.com/azure/virtual-machines/azure-compute-gallery)
+- Active Directory Domain Services (ADDS),
+- [Azure AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=app-attach)
+- Azure Backup
+- Entra ID
+- [Ephemeral OS disks for Azure VMs](https://learn.microsoft.com/en-us/azure/virtual-machines/ephemeral-os-disks)
+- [FSLogix](https://learn.microsoft.com/fslogix/overview-what-is-fslogix), [MSIX AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=msix-app-attach)
+- [FSLogix CloudCache](https://learn.microsoft.com/fslogix/concepts-fslogix-cloud-cache)
+- Full Desktop or RemoteApp
+- [Hibernation for Azure virtual machines](https://learn.microsoft.com/azure/virtual-machines/hibernate-resume)
+- Intune
+- [MSIX AppAttach](https://learn.microsoft.com/en-us/azure/virtual-desktop/app-attach-overview?pivots=msix-app-attach)
+- Watermarking
+- [Azure Site Recovery](https://azure.microsoft.com/products/site-recovery)
+- [Azure Spot Virtual Machines](https://azure.microsoft.com/products/virtual-machines/spot)
+- Monitoring
+- [Scaling Plan](https://learn.microsoft.com/azure/virtual-desktop/autoscale-create-assign-scaling-plan?tabs=portal%2Cintune&pivots=power-management)
 
 ### What's next ?
 

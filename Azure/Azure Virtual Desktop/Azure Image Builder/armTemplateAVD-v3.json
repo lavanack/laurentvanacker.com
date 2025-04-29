@@ -46,7 +46,7 @@
                     "type": "PlatformImage",
                     "publisher": "MicrosoftWindowsDesktop",
                     "offer": "Windows-11",
-                    "sku": "win11-23h2-avd",
+                    "sku": "win11-24h2-avd",
                     "version": "latest"
                 },
                 "customize": [
@@ -105,7 +105,7 @@
                         "artifactTags": {
 							"publisher": "MicrosoftWindowsDesktop",
                             "offer": "Windows-11",
-                            "sku": "win11-23h2-avd"
+                            "sku": "win11-24h2-avd"
                         },
                         "targetRegions": <targetRegions>
                     }

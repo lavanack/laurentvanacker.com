@@ -70,13 +70,13 @@ function New-AzureComputeGallery {
 
 	# Image template and definition names
 	#AVD MultiSession Session Image Market Place Image + customizations: VSCode
-	$imageDefName01 = "win11-23h2-ent-avd-custom-vscode"
+	$imageDefName01 = "win11-24h2-ent-avd-custom-vscode"
 	$imageTemplateName01 = $imageDefName01 + "-template-" + $timeInt
 	#AVD MultiSession + Microsoft 365 Market Place Image + customizations: VSCode
-	$imageDefName02 = "win11-23h2-ent-avd-m365-vscode"
+	$imageDefName02 = "win11-24h2-ent-avd-m365-vscode"
 	$imageTemplateName02 = $imageDefName02 + "-template-" + $timeInt
 	#AVD MultiSession + Microsoft 365 Market Place Image + customizations: VSCode + Powershell 7+
-	$imageDefName03 = "win11-23h2-ent-avd-m365-vscode-posh"
+	$imageDefName03 = "win11-24h2-ent-avd-m365-vscode-posh"
 	$imageTemplateName03 = $imageDefName03 + "-template-" + $timeInt
 	Write-Verbose -Message "`$imageDefName01: $imageDefName01"
 	Write-Verbose -Message "`$imageTemplateName01: $imageTemplateName01"
@@ -216,7 +216,7 @@ function New-AzureComputeGallery {
 		PlatformImageSource = $true
 		Publisher           = 'MicrosoftWindowsDesktop'
 		Offer               = 'Office-365'    
-		Sku                 = 'win11-23h2-avd-m365'  
+		Sku                 = 'win11-24h2-avd-m365'  
 		Version             = 'latest'
 	}
 	Write-Verbose -Message "Creating Azure Image Builder Template Source Object  ..."
@@ -306,7 +306,7 @@ function New-AzureComputeGallery {
 		PlatformImageSource = $true
 		Publisher           = 'MicrosoftWindowsDesktop'
 		Offer               = 'Office-365'    
-		Sku                 = 'win11-23h2-avd-m365'  
+		Sku                 = 'win11-24h2-avd-m365'  
 		Version             = 'latest'
 	}
 	Write-Verbose -Message "Creating Azure Image Builder Template Source Object  ..."
