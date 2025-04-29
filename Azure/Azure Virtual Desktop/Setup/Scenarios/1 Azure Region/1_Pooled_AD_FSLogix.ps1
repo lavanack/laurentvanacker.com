@@ -1,1 +1,0 @@
-﻿[PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id)
