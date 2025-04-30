@@ -1,1 +1,0 @@
-﻿[PersonalHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetImage("microsoftwindowsdesktop", "windows-10", "win10-22h2-ent-g2")
