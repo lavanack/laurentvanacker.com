@@ -47,8 +47,12 @@ if ([string]::IsNullOrEmpty($LogDir)) {
 else {
     $CurrentLogDir = Join-Path -Path $LogDir -ChildPath $("HostPool_{0:yyyyMMddHHmmss}" -f $StartTime)
 }
+#Only This Scenario Backup Folder
 $BackupDir = Join-Path -Path $CurrentDir -ChildPath "Backup"
-$null = New-Item -Path $CurrentLogDir, $BackupDir -ItemType Directory -Force
+#All Backup Folders (cross scenario)
+$BackupDirs = Get-ChildItem -Path .. -Filter Backup -Directory -Recurse
+$null = New-Item -Path $BackupDirs -ItemType Directory -Force
+$null = New-Item -Path $CurrentLogDir -ItemType Directory -Force
 Set-Location -Path $CurrentDir
 #$TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}" -f $StartTime).txt"
 $TranscriptFile = Join-Path -Path $CurrentLogDir -ChildPath $($CurrentFileName -replace ".ps1$", $("_{0:yyyyMMddHHmmss}.txt" -f $StartTime))
@@ -152,7 +156,7 @@ $HostPools = $HostPools | Where-Object -FilterScript { $null -ne $_ }
 
 #region Removing previously existing resources
 #$LatestHostPoolJSONFile = Get-ChildItem -Path $CurrentDir -Filter "HostPool_*.json" -File | Sort-Object -Property Name -Descending | Select-Object -First 1
-$LatestHostPoolJSONFile = Get-ChildItem -Path $BackupDir -Filter "HostPool_*.json" -File | Sort-Object -Property Name -Descending
+$LatestHostPoolJSONFile = Get-ChildItem -Path $BackupDirs -Filter "HostPool_*.json" -File | Sort-Object -Property Name -Descending
 if ($LatestHostPoolJSONFile) {
     Remove-PsAvdHostPoolSetup -FullName $LatestHostPoolJSONFile.FullName #-KeepAzureAppAttachStorage
 }

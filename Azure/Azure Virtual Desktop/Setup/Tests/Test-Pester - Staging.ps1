@@ -24,9 +24,9 @@ $HostPoolSessionCredentialKeyVault = New-PsAvdHostPoolSessionHostCredentialKeyVa
 
 #region AVD Dedicated VNets and Subnets
 #region Primary Region
-$PrimaryRegionResourceGroupName = "rg-avd-ad-usw2-002"
-$PrimaryRegionVNetName          = "vnet-avd-ad-usw2-002"
-$PrimaryRegionSubnetName        = "snet-avd-ad-usw2-002"
+$PrimaryRegionResourceGroupName = "rg-avd-ad-usw2-001"
+$PrimaryRegionVNetName          = "vnet-avd-ad-usw2-001"
+$PrimaryRegionSubnetName        = "snet-avd-ad-usw2-001"
 $PrimaryRegionVNet              = Get-AzVirtualNetwork -Name $PrimaryRegionVNetName -ResourceGroupName $PrimaryRegionResourceGroupName
 $PrimaryRegionSubnet            = $PrimaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $PrimaryRegionSubnetName
 $PrimaryRegion                  = $PrimaryRegionVNet.Location
@@ -34,7 +34,7 @@ $PrimaryRegion                  = $PrimaryRegionVNet.Location
 #endregion
 #endregion
 
-[int] $RandomNumber = ((Get-AzWvdHostPool | Where-Object -FilterScript { $_.Name -match "^hp-"}).Name -replace ".*-(\d+)", '$1' | Sort-Object | Select-Object -First 1)-1
+[int] $RandomNumber = ((Get-AzWvdHostPool | Where-Object -FilterScript { $_.Name -match "^hp-pd|np-ad|ei-poc-mp|cg-\w{3,4}-\d{3}$"}).Name -replace ".*-(\d+)$", '$1' | Sort-Object | Select-Object -First 1)-1
 [PooledHostPool]::ResetIndex()
 [PersonalHostPool]::ResetIndex()
 
@@ -43,12 +43,24 @@ $PrimaryRegion                  = $PrimaryRegionVNet.Location
 
 [PooledHostPool]::AppAttachStorageAccountNameHT[$PrimaryRegion] = $(Get-AzStorageAccount | Where-Object -FilterScript { $_.PrimaryLocation -eq $PrimaryRegion -and $_.StorageAccountName -match "saavdappattachpoc"} | Select-Object -First 1)
 
-$HostPools = @(
-    # Use case 1: Deploy a Pooled HostPool with 3 (default value) Session Hosts for RemoteApp (AD Domain joined) with FSLogix and AppAttach
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetPreferredAppGroupType("RailApplications").EnableAppAttach()
-    # Use case 2: Deploy a Pooled HostPool with 3 (default value) Session Hosts for RemoteApp (Azure AD/Microsoft Entra ID joined) with FSLogix and AppAttach
-    [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID).SetPreferredAppGroupType("RailApplications").EnableAppAttach()
-)
+#Uncomment the best scenario for your usage or create your own
+$HostPools = & "..\2 Azure Regions\2_Pooled_AD_FSLogixCloudCache_Watermarking..ps1"
+#$HostPools = & "..\2 Azure Regions\3_Pooled_2_Personal_AD_Misc..ps1"
+#$HostPools = & "..\2 Azure Regions\4_Pooled_AD_AzureAppAttach..ps1"
+#$HostPools = & "..\2 Azure Regions\4_Pooled_EntraID_FSLogixCloudCache..ps1"
+#$HostPools = & "..\2 Azure Regions\4_Pooled_EntraID_Intune_AD_FSLogixCloudCache_Watermarking_SpotInstance..ps1"
+#$HostPools = & "..\2 Azure Regions\8_Pooled_EntraID_AD_AzureAppAttach..ps1"
+
+#$HostPools = & "..\1 Azure Region\1_Pooled_AD.ps1"
+#$HostPools = & "..\1 Azure Region\1_Personal_AD_Win10.ps1"
+#$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach.ps1"
+#$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_FSLogixCloudCache_AzureAppAttach.ps1"
+#$HostPools = & "..\1 Azure Region\2_Pooled_2_Personal_AD_Misc.ps1"
+#$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_AD_AzureAppAttach.ps1"
+#$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_Intune_AD_FSLogixCloudCache_Watermarking_SpotInstance.ps1"
+#$HostPools = & "..\1 Azure Region\3_Pooled_EntraID_AD_Misc.ps1"
+#$HostPools = & "..\1 Azure Region\6_Pooled_2_Personal_EntraID_AD_Misc.ps1"
+#$HostPools = & "..\1 Azure Region\X_Pooled_AD_ACG_NoFSLogix_NoMSIX.ps1"
 #endregion
 
 $HostPool = $HostPools
@@ -73,7 +85,7 @@ $FSLogixAzurePesterTests = Join-Path -Path $PesterDirectory -ChildPath 'FSLogix.
 $Container = New-PesterContainer -Path $FSLogixAzurePesterTests -Data @{ HostPool = $HostPool }
 Invoke-Pester -Container $Container -Output Detailed #-Verbose
 
-$MSIXAzurePesterTests = Join-Path -Path $PesterDirectory -ChildPath 'MSIX.Azure.Tests.ps1'
+$MSIXAzurePesterTests = Join-Path -Path $PesterDirectory -ChildPath 'AppAttach.Azure.Tests.ps1'
 $Container = New-PesterContainer -Path $MSIXAzurePesterTests -Data @{ HostPool = $HostPool }
 Invoke-Pester -Container $Container -Output Detailed #-Verbose
 
@@ -95,14 +107,21 @@ $WorkBooks = @{
     "Deep Insights Workbook - AVD Accelerator" = "https://raw.githubusercontent.com/Azure/avdaccelerator/main/workload/workbooks/deepInsightsWorkbook/deepInsights.workbook"
     #From https://github.com/scautomation/Azure-Inventory-Workbook/tree/master/galleryTemplate
     "Windows Virtual Desktop Workbook - Billy York" = "https://raw.githubusercontent.com/scautomation/WVD-Workbook/master/galleryTemplate/template.json"
-    #From https://blog.itprocloud.de/AVD-Azure-Virtual-Desktop-Error-Drill-Down-Workbook/
-    "AVD - Deep-Insights - ITProCloud" = "https://blog.itprocloud.de/assets/files/AzureDeployments/Workbook-AVD-Error-Logging.json"
     #From https://github.com/microsoft/Application-Insights-Workbooks/tree/master/Workbooks/Windows%20Virtual%20Desktop/AVD%20Insights
     "AVD Insights - Application-Insights-Workbooks" = "https://raw.githubusercontent.com/microsoft/Application-Insights-Workbooks/master/Workbooks/Windows%20Virtual%20Desktop/AVD%20Insights/AVDWorkbookV2.workbook"
 }
 
 $WorkbookAzurePesterTests = Join-Path -Path $PesterDirectory -ChildPath 'WorkBook.Azure.Tests.ps1'
 $Container = New-PesterContainer -Path $WorkbookAzurePesterTests -Data @{ WorkBook = $WorkBooks }
+Invoke-Pester -Container $Container -Output Detailed -Verbose
+
+$WorkBookTemplates = @{
+    #From https://blog.itprocloud.de/AVD-Azure-Virtual-Desktop-Error-Drill-Down-Workbook/
+    #Sometimes ==> Invoke-RestMethod : The remote name could not be resolved: 'blog.itprocloud.de' raised an error so I'm hosting a copy on my own github as fallback
+    "750ec0fd-74d1-4e80-be97-3001485303e8"          = "https://blog.itprocloud.de/assets/files/AzureDeployments/Workbook-AVD-Error-Logging.json", "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Virtual%20Desktop/Workbook/Workbook-AVD-Error-Logging.json"
+}
+$WorkBookTemplateAzurePesterTests = Join-Path -Path $PesterDirectory -ChildPath 'WorkbookTemplate.Azure.Tests.ps1'
+$Container = New-PesterContainer -Path $WorkBookTemplateAzurePesterTests -Data @{ $WorkBookTemplate = $WorkBookTemplates }
 Invoke-Pester -Container $Container -Output Detailed -Verbose
 
 $OSEphemeralDiskAzurePesterTests = Join-Path -Path $PesterDirectory -ChildPath 'OSEphemeralDisk.Azure.Tests.ps1'
