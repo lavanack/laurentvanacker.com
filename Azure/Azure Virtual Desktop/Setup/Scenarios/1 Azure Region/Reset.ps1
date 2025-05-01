@@ -46,7 +46,7 @@ try {
     $null = Get-AzAccessToken -ErrorAction Stop
 } catch {
     Connect-AzAccount
-    Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
+    #Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
 }
 
 #region Dirty Cleanup - Removing everything for a complete restart
