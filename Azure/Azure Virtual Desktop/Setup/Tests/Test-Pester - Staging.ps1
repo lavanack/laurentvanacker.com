@@ -1,4 +1,8 @@
 ﻿Clear-Host
+$CurrentScript = $MyInvocation.MyCommand.Path
+#Getting the current directory (where this script file resides)
+$CurrentDir = Split-Path -Path $CurrentScript -Parent
+Set-Location -Path $CurrentDir
 
 $Global:MaximumFunctionCount = 32768
 $null = Remove-Module -Name PSAzureVirtualDesktop -Force -ErrorAction Ignore
@@ -34,7 +38,8 @@ $PrimaryRegion                  = $PrimaryRegionVNet.Location
 #endregion
 #endregion
 
-[int] $RandomNumber = ((Get-AzWvdHostPool | Where-Object -FilterScript { $_.Name -match "^hp-pd|np-ad|ei-poc-mp|cg-\w{3,4}-\d{3}$"}).Name -replace ".*-(\d+)$", '$1' | Sort-Object | Select-Object -First 1)-1
+#[int] $RandomNumber = ((Get-AzWvdHostPool | Where-Object -FilterScript { $_.Name -match "^hp-pd|np-ad|ei-poc-mp|cg-\w{3,4}-\d{3}$"}).Name -replace ".*-(\d+)$", '$1' | Sort-Object | Select-Object -First 1)-1
+[int] $RandomNumber = ((Get-AzWvdHostPool | Where-Object -FilterScript { $_.Name -match "^hp-pd|np-ad|ei-poc-mp|cg-\w+-\d+$"}).Name -replace ".*-(\d+)$", '$1' | Sort-Object | Select-Object -First 1)-1
 [PooledHostPool]::ResetIndex()
 [PersonalHostPool]::ResetIndex()
 
@@ -44,23 +49,23 @@ $PrimaryRegion                  = $PrimaryRegionVNet.Location
 [PooledHostPool]::AppAttachStorageAccountNameHT[$PrimaryRegion] = $(Get-AzStorageAccount | Where-Object -FilterScript { $_.PrimaryLocation -eq $PrimaryRegion -and $_.StorageAccountName -match "saavdappattachpoc"} | Select-Object -First 1)
 
 #Uncomment the best scenario for your usage or create your own
-$HostPools = & "..\2 Azure Regions\2_Pooled_AD_FSLogixCloudCache_Watermarking..ps1"
-#$HostPools = & "..\2 Azure Regions\3_Pooled_2_Personal_AD_Misc..ps1"
-#$HostPools = & "..\2 Azure Regions\4_Pooled_AD_AzureAppAttach..ps1"
-#$HostPools = & "..\2 Azure Regions\4_Pooled_EntraID_FSLogixCloudCache..ps1"
-#$HostPools = & "..\2 Azure Regions\4_Pooled_EntraID_Intune_AD_FSLogixCloudCache_Watermarking_SpotInstance..ps1"
-#$HostPools = & "..\2 Azure Regions\8_Pooled_EntraID_AD_AzureAppAttach..ps1"
+$HostPools = & "..\Scenarios\2 Azure Regions\2_Pooled_AD_FSLogixCloudCache_Watermarking..ps1"
+#$HostPools = & "..\Scenarios\2 Azure Regions\3_Pooled_2_Personal_AD_Misc..ps1"
+#$HostPools = & "..\Scenarios\2 Azure Regions\4_Pooled_AD_AzureAppAttach..ps1"
+#$HostPools = & "..\Scenarios\2 Azure Regions\4_Pooled_EntraID_FSLogixCloudCache..ps1"
+#$HostPools = & "..\Scenarios\2 Azure Regions\4_Pooled_EntraID_Intune_AD_FSLogixCloudCache_Watermarking_SpotInstance..ps1"
+#$HostPools = & "..\Scenarios\2 Azure Regions\8_Pooled_EntraID_AD_AzureAppAttach..ps1"
 
-#$HostPools = & "..\1 Azure Region\1_Pooled_AD.ps1"
-#$HostPools = & "..\1 Azure Region\1_Personal_AD_Win10.ps1"
-#$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach.ps1"
-#$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_FSLogixCloudCache_AzureAppAttach.ps1"
-#$HostPools = & "..\1 Azure Region\2_Pooled_2_Personal_AD_Misc.ps1"
-#$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_AD_AzureAppAttach.ps1"
-#$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_Intune_AD_FSLogixCloudCache_Watermarking_SpotInstance.ps1"
-#$HostPools = & "..\1 Azure Region\3_Pooled_EntraID_AD_Misc.ps1"
-#$HostPools = & "..\1 Azure Region\6_Pooled_2_Personal_EntraID_AD_Misc.ps1"
-#$HostPools = & "..\1 Azure Region\X_Pooled_AD_ACG_NoFSLogix_NoMSIX.ps1"
+#$HostPools = & "..\Scenarios\1 Azure Region\1_Pooled_AD.ps1"
+#$HostPools = & "..\Scenarios\1 Azure Region\1_Personal_AD_Win10.ps1"
+#$HostPools = & "..\Scenarios\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach.ps1"
+#$HostPools = & "..\Scenarios\1 Azure Region\1_Pooled_EntraID_FSLogixCloudCache_AzureAppAttach.ps1"
+#$HostPools = & "..\Scenarios\1 Azure Region\2_Pooled_2_Personal_AD_Misc.ps1"
+#$HostPools = & "..\Scenarios\1 Azure Region\2_Pooled_EntraID_AD_AzureAppAttach.ps1"
+#$HostPools = & "..\Scenarios\1 Azure Region\2_Pooled_EntraID_Intune_AD_FSLogixCloudCache_Watermarking_SpotInstance.ps1"
+#$HostPools = & "..\Scenarios\1 Azure Region\3_Pooled_EntraID_AD_Misc.ps1"
+#$HostPools = & "..\Scenarios\1 Azure Region\6_Pooled_2_Personal_EntraID_AD_Misc.ps1"
+#$HostPools = & "..\Scenarios\1 Azure Region\X_Pooled_AD_ACG_NoFSLogix_NoMSIX.ps1"
 #endregion
 
 $HostPool = $HostPools
@@ -89,15 +94,22 @@ $MSIXAzurePesterTests = Join-Path -Path $PesterDirectory -ChildPath 'AppAttach.A
 $Container = New-PesterContainer -Path $MSIXAzurePesterTests -Data @{ HostPool = $HostPool }
 Invoke-Pester -Container $Container -Output Detailed #-Verbose
 
-$MFAAzurePesterTests = Join-Path -Path $PesterDirectory -ChildPath 'MFA.Azure.Tests.ps1'
-$Container = New-PesterContainer -Path $MFAAzurePesterTests -Data @{ HostPool = $HostPool }
-Invoke-Pester -Container $Container -Output Detailed #-Verbose
+$MicrosoftEntraIDHostPools = $HostPool | Where-Object -FilterScript {$_.IdentityProvider -eq [IdentityProvider]::MicrosoftEntraID}
+if ($MicrosoftEntraIDHostPools) {
+    $MFAAzurePesterTests = Join-Path -Path $PesterDirectory -ChildPath 'MFA.Azure.Tests.ps1'
+    $Container = New-PesterContainer -Path $MFAAzurePesterTests
+    Invoke-Pester -Container $Container -Output Detailed #-Verbose
 
-$ConditionalAccessPolicyAzurePesterTests = Join-Path -Path $PesterDirectory -ChildPath 'ConditionalAccessPolicy.Azure.Tests.ps1'
-$Container = New-PesterContainer -Path $ConditionalAccessPolicyAzurePesterTests
-Invoke-Pester -Container $Container -Output Detailed #-Verbose
+    $ConditionalAccessPolicyAzurePesterTests = Join-Path -Path $PesterDirectory -ChildPath 'ConditionalAccessPolicy.Azure.Tests.ps1'
+    $Container = New-PesterContainer -Path $ConditionalAccessPolicyAzurePesterTests
+    Invoke-Pester -Container $Container -Output Detailed #-Verbose
+}
+else {
+    Write-Warning -Message "No EntraID Host Pool"
+}
 
-$CurrentLogDir = Get-ChildItem -Path ~\Documents\ -Filter HostPool_* -Directory | Sort-Object -Property Name -Descending | Select-Object -First 1
+
+$CurrentLogDir = Get-ChildItem -Path .. -Filter HostPool_* -Directory -Recurse | Sort-Object -Property Name -Descending | Select-Object -First 1
 $ErrorLogFilePesterTests = Join-Path -Path $PesterDirectory -ChildPath 'Error.LogFile.Tests.ps1'
 $Container = New-PesterContainer -Path $ErrorLogFilePesterTests -Data @{ LogDir = $CurrentLogDir.FullName }
 Invoke-Pester -Container $Container -Output Detailed #-Verbose
@@ -120,8 +132,9 @@ $WorkBookTemplates = @{
     #Sometimes ==> Invoke-RestMethod : The remote name could not be resolved: 'blog.itprocloud.de' raised an error so I'm hosting a copy on my own github as fallback
     "750ec0fd-74d1-4e80-be97-3001485303e8"          = "https://blog.itprocloud.de/assets/files/AzureDeployments/Workbook-AVD-Error-Logging.json", "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Virtual%20Desktop/Workbook/Workbook-AVD-Error-Logging.json"
 }
+$ResourceGroupName = "rg-avd-workbook-poc-{0}-001" -f [HostPool]::AzLocationShortNameHT[$PrimaryRegion].shortName
 $WorkBookTemplateAzurePesterTests = Join-Path -Path $PesterDirectory -ChildPath 'WorkbookTemplate.Azure.Tests.ps1'
-$Container = New-PesterContainer -Path $WorkBookTemplateAzurePesterTests -Data @{ $WorkBookTemplate = $WorkBookTemplates }
+$Container = New-PesterContainer -Path $WorkBookTemplateAzurePesterTests -Data @{ WorkBookTemplate = $WorkBookTemplates; ResourceGroupName = $ResourceGroupName }
 Invoke-Pester -Container $Container -Output Detailed -Verbose
 
 $OSEphemeralDiskAzurePesterTests = Join-Path -Path $PesterDirectory -ChildPath 'OSEphemeralDisk.Azure.Tests.ps1'
