@@ -124,7 +124,7 @@ $WorkBooks = @{
 }
 
 $WorkbookAzurePesterTests = Join-Path -Path $PesterDirectory -ChildPath 'WorkBook.Azure.Tests.ps1'
-$Container = New-PesterContainer -Path $WorkbookAzurePesterTests -Data @{ WorkBook = $WorkBooks }
+$Container = New-PesterContainer -Path $WorkbookAzurePesterTests -Data @{ WorkBookName = $WorkBooks.Keys }
 Invoke-Pester -Container $Container -Output Detailed -Verbose
 
 $WorkBookTemplates = @{
@@ -134,7 +134,14 @@ $WorkBookTemplates = @{
 }
 $ResourceGroupName = "rg-avd-workbook-poc-{0}-001" -f [HostPool]::AzLocationShortNameHT[$PrimaryRegion].shortName
 $WorkBookTemplateAzurePesterTests = Join-Path -Path $PesterDirectory -ChildPath 'WorkbookTemplate.Azure.Tests.ps1'
-$Container = New-PesterContainer -Path $WorkBookTemplateAzurePesterTests -Data @{ WorkBookTemplate = $WorkBookTemplates; ResourceGroupName = $ResourceGroupName }
+$Container = New-PesterContainer -Path $WorkBookTemplateAzurePesterTests -Data @{ WorkBookTemplateName = $WorkBookTemplates.Keys; ResourceGroupName = $ResourceGroupName }
+Invoke-Pester -Container $Container -Output Detailed -Verbose
+
+$WorkBookName = foreach ($CurrentResourceGroupName in $HostPool.GetResourceGroupName()) {
+    (Get-AzApplicationInsightsWorkbook -Category 'workbook' -ResourceGroupName $HostPool.GetResourceGroupName()).DisplayName
+}
+$WorkbookAzurePesterTests = Join-Path -Path $PesterDirectory -ChildPath 'WorkBook.Azure.Tests.ps1'
+$Container = New-PesterContainer -Path $WorkbookAzurePesterTests -Data @{ WorkBookName = $WorkBookName }
 Invoke-Pester -Container $Container -Output Detailed -Verbose
 
 $OSEphemeralDiskAzurePesterTests = Join-Path -Path $PesterDirectory -ChildPath 'OSEphemeralDisk.Azure.Tests.ps1'
