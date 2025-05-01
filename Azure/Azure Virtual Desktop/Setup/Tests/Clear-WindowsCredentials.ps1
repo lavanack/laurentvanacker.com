@@ -23,7 +23,7 @@ Param (
 )
 
 Clear-Host
-$Pattern = "(fsl|msix).*"
+$Pattern = "(fsl|msix|apat).*"
 $StorageAccountCredentials = cmdkey /list | Select-string -Pattern "(?<Target>Target: (?<Domain>Domain:target=(?<FQDN>(?<Pattern>$Pattern)\.file\.core\.windows\.net)))" -AllMatches
 if ($StorageAccountCredentials.Matches) {
     Write-Verbose -Message "Processing $Matches"
