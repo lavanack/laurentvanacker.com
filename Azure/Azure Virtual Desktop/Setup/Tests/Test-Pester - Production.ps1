@@ -129,8 +129,8 @@ $FSLogixAzurePesterTests = Join-Path -Path $PesterDirectory -ChildPath 'FSLogix.
 $Container = New-PesterContainer -Path $FSLogixAzurePesterTests -Data @{ HostPool = $HostPool }
 Invoke-Pester -Container $Container -Output Detailed #-Verbose
 
-$MSIXAzurePesterTests = Join-Path -Path $PesterDirectory -ChildPath 'AppAttach.Azure.Tests.ps1'
-$Container = New-PesterContainer -Path $MSIXAzurePesterTests -Data @{ HostPool = $HostPool }
+$AppAttachAzurePesterTests = Join-Path -Path $PesterDirectory -ChildPath 'AppAttach.Azure.Tests.ps1'
+$Container = New-PesterContainer -Path $AppAttachAzurePesterTests -Data @{ HostPool = $HostPool }
 Invoke-Pester -Container $Container -Output Detailed #-Verbose
 
 $MicrosoftEntraIDHostPools = $HostPool | Where-Object -FilterScript {$_.IdentityProvider -eq [IdentityProvider]::MicrosoftEntraID}
