@@ -156,7 +156,7 @@ $HostPools = $HostPools | Where-Object -FilterScript { $null -ne $_ }
 
 #region Removing previously existing resources
 #$LatestHostPoolJSONFile = Get-ChildItem -Path $CurrentDir -Filter "HostPool_*.json" -File | Sort-Object -Property Name -Descending | Select-Object -First 1
-$LatestHostPoolJSONFile = Get-ChildItem -Path $BackupDirs -Filter "HostPool_*.json" -File | Sort-Object -Property Name -Descending
+$LatestHostPoolJSONFile = $BackupDirs | Get-ChildItem -Filter "HostPool_*.json" -File | Sort-Object -Property Name -Descending
 if ($LatestHostPoolJSONFile) {
     Remove-PsAvdHostPoolSetup -FullName $LatestHostPoolJSONFile.FullName #-KeepAzureAppAttachStorage
 }
