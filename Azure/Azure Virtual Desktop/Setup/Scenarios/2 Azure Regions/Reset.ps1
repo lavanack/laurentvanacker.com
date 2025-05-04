@@ -51,7 +51,7 @@ try {
 
 #region Dirty Cleanup - Removing everything for a complete restart
 try {
-    Get-ChildItem -Path $LogDir -Filter HostPool_* -Directory | Remove-Item -Force -Recurse -ErrorAction Stop
+    Get-ChildItem -Path ..\.. -Filter HostPool_* -Directory -Recurse | Remove-Item -Force -Recurse -ErrorAction Stop
 }
 catch {
     Stop-Process -Name notepad, powershell* -Force -ErrorAction Ignore
