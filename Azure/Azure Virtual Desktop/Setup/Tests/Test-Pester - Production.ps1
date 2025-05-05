@@ -108,6 +108,7 @@ $HostPools = & "..\Scenarios\1 Azure Region\1_Pooled_AD.ps1"
 #$HostPools = & "..\Scenarios\1 Azure Region\X_Pooled_AD_ACG_NoFSLogix_NoMSIX.ps1"
 #endregion
 
+#region Pester
 $HostPool = $HostPools
 $ModuleBase = (Get-Module -Name PSAzureVirtualDesktop -ListAvailable).ModuleBase
 $PesterDirectory = Join-Path -Path $ModuleBase -ChildPath 'Pester'
@@ -196,4 +197,5 @@ foreach ($CurrentHostPool in $HostPools) {
     $Container = New-PesterContainer -Path $HostPoolSessionHostAzurePesterTests -Data @{ HostPool = $CurrentHostPool; SessionHostName = $SessionHostName }
     Invoke-Pester -Container $Container -Output Detailed #-Verbose
 }
+#endregion
 #endregion

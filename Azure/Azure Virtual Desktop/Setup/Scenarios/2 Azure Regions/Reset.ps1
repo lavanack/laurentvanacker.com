@@ -49,9 +49,23 @@ try {
     #Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
 }
 
+#region Cleanup - Removing previously existing resources
+#$LatestHostPoolJSONFile = Get-ChildItem -Path $CurrentDir -Filter "HostPool_*.json" -File | Sort-Object -Property Name -Descending | Select-Object -First 1
+#All Backup Folders (cross scenario)
+$BackupDirs = Get-ChildItem -Path .. -Filter Backup -Directory -Recurse
+$LatestHostPoolJSONFile = $BackupDirs | Get-ChildItem -Filter "HostPool_*.json" -File | Sort-Object -Property Name -Descending
+if ($LatestHostPoolJSONFile) {
+    Remove-PsAvdHostPoolSetup -FullName $LatestHostPoolJSONFile.FullName #-KeepAzureAppAttachStorage
+}
+else {
+    Remove-PsAvdHostPoolSetup -HostPool $HostPools #-KeepAzureAppAttachStorage
+}
+#endregion
+
 #region Dirty Cleanup - Removing everything for a complete restart
 try {
-    Get-ChildItem -Path ..\.. -Filter HostPool_* -Directory -Recurse | Remove-Item -Force -Recurse -ErrorAction Stop
+    $LogDirs = Get-ChildItem -Path ..\.. -Filter HostPool_* -Directory -Recurse 
+    $LogDirs | Remove-Item -Force -Recurse -ErrorAction Stop
 }
 catch {
     Stop-Process -Name notepad, powershell* -Force -ErrorAction Ignore

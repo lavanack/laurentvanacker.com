@@ -49,14 +49,14 @@ $PrimaryRegion                  = $PrimaryRegionVNet.Location
 [PooledHostPool]::AppAttachStorageAccountNameHT[$PrimaryRegion] = $(Get-AzStorageAccount | Where-Object -FilterScript { $_.PrimaryLocation -eq $PrimaryRegion -and $_.StorageAccountName -match "saavdappattachpoc"} | Select-Object -First 1)
 
 #Uncomment the best scenario for your usage or create your own
-$HostPools = & "..\Scenarios\2 Azure Regions\2_Pooled_AD_FSLogixCloudCache_Watermarking..ps1"
+#$HostPools = & "..\Scenarios\2 Azure Regions\2_Pooled_AD_FSLogixCloudCache_Watermarking..ps1"
 #$HostPools = & "..\Scenarios\2 Azure Regions\3_Pooled_2_Personal_AD_Misc..ps1"
 #$HostPools = & "..\Scenarios\2 Azure Regions\4_Pooled_AD_AzureAppAttach..ps1"
 #$HostPools = & "..\Scenarios\2 Azure Regions\4_Pooled_EntraID_FSLogixCloudCache..ps1"
 #$HostPools = & "..\Scenarios\2 Azure Regions\4_Pooled_EntraID_Intune_AD_FSLogixCloudCache_Watermarking_SpotInstance..ps1"
 #$HostPools = & "..\Scenarios\2 Azure Regions\8_Pooled_EntraID_AD_AzureAppAttach..ps1"
 
-#$HostPools = & "..\Scenarios\1 Azure Region\1_Pooled_AD.ps1"
+$HostPools = & "..\Scenarios\1 Azure Region\1_Pooled_AD.ps1"
 #$HostPools = & "..\Scenarios\1 Azure Region\1_Personal_AD_Win10.ps1"
 #$HostPools = & "..\Scenarios\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach.ps1"
 #$HostPools = & "..\Scenarios\1 Azure Region\1_Pooled_EntraID_FSLogixCloudCache_AzureAppAttach.ps1"
@@ -68,11 +68,11 @@ $HostPools = & "..\Scenarios\2 Azure Regions\2_Pooled_AD_FSLogixCloudCache_Water
 #$HostPools = & "..\Scenarios\1 Azure Region\X_Pooled_AD_ACG_NoFSLogix_NoMSIX.ps1"
 #endregion
 
+#region Pester
 $HostPool = $HostPools
 $ModuleBase = (Get-Module -Name PSAzureVirtualDesktop -ListAvailable).ModuleBase
 $PesterDirectory = Join-Path -Path $ModuleBase -ChildPath 'Pester'
 
-$StartTime = Get-Date
 #region Pester Tests
 $HostPoolClassPesterTests    = Join-Path -Path $PesterDirectory -ChildPath 'HostPool.Class.Tests.ps1'
 $Container = New-PesterContainer -Path $HostPoolClassPesterTests -Data @{ HostPool = $HostPool }
@@ -161,6 +161,4 @@ foreach ($CurrentHostPool in $HostPools) {
 }
 #endregion
 $EndTime = Get-Date
-
-$TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
-$TimeSpan.ToString()
+#endregion

@@ -49,9 +49,6 @@ else {
 }
 #Only This Scenario Backup Folder
 $BackupDir = Join-Path -Path $CurrentDir -ChildPath "Backup"
-#All Backup Folders (cross scenario)
-$BackupDirs = Get-ChildItem -Path .. -Filter Backup -Directory -Recurse
-$null = New-Item -Path $BackupDirs -ItemType Directory -Force
 $null = New-Item -Path $CurrentLogDir -ItemType Directory -Force
 Set-Location -Path $CurrentDir
 #$TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}" -f $StartTime).txt"
@@ -152,17 +149,6 @@ $HostPools = & "..\1 Azure Region\1_Pooled_AD.ps1"
 
 #Removing $null object(s) if any.
 $HostPools = $HostPools | Where-Object -FilterScript { $null -ne $_ }
-#endregion
-
-#region Removing previously existing resources
-#$LatestHostPoolJSONFile = Get-ChildItem -Path $CurrentDir -Filter "HostPool_*.json" -File | Sort-Object -Property Name -Descending | Select-Object -First 1
-$LatestHostPoolJSONFile = $BackupDirs | Get-ChildItem -Filter "HostPool_*.json" -File | Sort-Object -Property Name -Descending
-if ($LatestHostPoolJSONFile) {
-    Remove-PsAvdHostPoolSetup -FullName $LatestHostPoolJSONFile.FullName #-KeepAzureAppAttachStorage
-}
-else {
-    Remove-PsAvdHostPoolSetup -HostPool $HostPools #-KeepAzureAppAttachStorage
-}
 #endregion
 
 #region Checking  Storage Account and Key Vault Name Availability
