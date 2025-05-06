@@ -90,11 +90,11 @@ $SecondaryRegion                  = $SecondaryRegionVNet.Location
 
 #Uncomment the best scenario for your usage or create your own
 #$HostPools = & "..\Scenarios\2 Azure Regions\2_Pooled_AD_FSLogixCloudCache_Watermarking.ps1"
-#$HostPools = & "..\Scenarios\2 Azure Regions\3_Pooled_2_Personal_AD_Misc..ps1"
-#$HostPools = & "..\Scenarios\2 Azure Regions\4_Pooled_AD_AzureAppAttach..ps1"
-#$HostPools = & "..\Scenarios\2 Azure Regions\4_Pooled_EntraID_FSLogixCloudCache..ps1"
-#$HostPools = & "..\Scenarios\2 Azure Regions\4_Pooled_EntraID_Intune_AD_FSLogixCloudCache_Watermarking_SpotInstance..ps1"
-#$HostPools = & "..\Scenarios\2 Azure Regions\8_Pooled_EntraID_AD_AzureAppAttach..ps1"
+#$HostPools = & "..\Scenarios\2 Azure Regions\3_Pooled_2_Personal_AD_Misc.ps1"
+#$HostPools = & "..\Scenarios\2 Azure Regions\4_Pooled_AD_AzureAppAttach.ps1"
+#$HostPools = & "..\Scenarios\2 Azure Regions\4_Pooled_EntraID_FSLogixCloudCache.ps1"
+#$HostPools = & "..\Scenarios\2 Azure Regions\4_Pooled_EntraID_Intune_AD_FSLogixCloudCache_Watermarking_SpotInstance.ps1"
+#$HostPools = & "..\Scenarios\2 Azure Regions\8_Pooled_EntraID_AD_AzureAppAttach.ps1"
 
 $HostPools = & "..\Scenarios\1 Azure Region\1_Pooled_AD.ps1"
 #$HostPools = & "..\Scenarios\1 Azure Region\1_Personal_AD_Win10.ps1"
@@ -111,7 +111,7 @@ $HostPools = & "..\Scenarios\1 Azure Region\1_Pooled_AD.ps1"
 #region AMBA
 $ResourceGroupName = "rg-avd-amba-poc-{0}-001" -f [HostPool]::AzLocationShortNameHT[$PrimaryRegion].shortName
 Remove-AzResourceGroup -Name $ResourceGroupName -Force -Verbose -ErrorAction Ignore
-$AMBAResourceGroup = New-PsAvdAzureMonitorBaselineAlertsDeployment -Location $PrimaryRegion -HostPool $HostPools -PassThru -Verbose
+$AMBAResourceGroup = New-PsAvdAzureMonitorBaselineAlertsDeployment -Location $PrimaryRegion -HostPool $HostPools -Enabled -PassThru -Verbose
 
 <#
 #region Cleanup
