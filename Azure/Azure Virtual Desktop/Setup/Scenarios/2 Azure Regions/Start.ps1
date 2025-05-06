@@ -100,12 +100,18 @@ $SecondaryRegion = $SecondaryRegionVNet.Location
 #endregion
 
 #region Azure Key Vault for storing ADJoin Credentials
-#Doesn't return a PSKeyVault object but a PSKeyVaultIdentityItem
-#$HostPoolSessionCredentialKeyVault = Get-AzKeyVault -Name kvavdhpcred* | Select-Object -First 1
+$HostPoolSessionCredentialKeyVault = $null
+$VaultName = $null
+
+#region Reusing existing Keyvault for credential management : Comment this for using a new Keyvault at every run
 #Returns a PSKeyVault object
 $VaultName = (Get-AzKeyVault | Where-Object -FilterScript { $_.VaultName -match "^kvavdhpcred" }).VaultName | Select-Object -First 1
+#Doesn't return a PSKeyVault object but a PSKeyVaultIdentityItem
+#$HostPoolSessionCredentialKeyVault = Get-AzKeyVault -Name kvavdhpcred* | Select-Object -First 1
+#endregion
+
 if (-not([string]::IsNullOrEmpty($VaultName))) {
-    $HostPoolSessionCredentialKeyVault = Get-AzKeyVault -VaultName $VaultName
+    $HostPoolSessionCredentialKeyVault = Get-AzKeyVault -VaultName $VaultName -ErrorAction Ignore
 }
 if ($null -eq $HostPoolSessionCredentialKeyVault) {
     #region ADJoin User
@@ -160,7 +166,8 @@ $HostPools = & "..\2 Azure Regions\2_Pooled_AD_FSLogixCloudCache_Watermarking.ps
 #$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_Intune_AD_FSLogixCloudCache_Watermarking_SpotInstance.ps1"
 #$HostPools = & "..\1 Azure Region\3_Pooled_EntraID_AD_Misc.ps1"
 #$HostPools = & "..\1 Azure Region\6_Pooled_2_Personal_EntraID_AD_Misc.ps1"
-#$HostPools = & "..\1 Azure Region\X_Pooled_AD_ACG_NoFSLogix_NoMSIX.ps1"
+#$HostPools = & "..\1 Azure Region\X_Pooled_ACG_NoFSLogix_NoMSIX.ps1".ps1"
+#$HostPools = & "..\1 Azure Region\X_Pooled_AD_ACG_NoFSLogix_NoMSIX.ps1".ps1"
 #endregion
 
 #Removing $null object(s) if any.

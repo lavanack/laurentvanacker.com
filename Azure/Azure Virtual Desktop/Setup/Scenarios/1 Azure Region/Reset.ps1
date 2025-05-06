@@ -62,7 +62,6 @@ else {
 }
 #endregion
 
-
 #region Dirty Cleanup - Removing everything for a complete restart
 try {
     $LogDirs = Get-ChildItem -Path ..\.. -Filter HostPool_* -Directory -Recurse 

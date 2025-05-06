@@ -66,9 +66,11 @@ if (-not(Test-DomainController)) {
 #$null = Update-AzConfig -DisplayBreakingChangeWarning $false
 
 Connect-PsAvdAzure
+#region Only needed once
 Register-PsAvdRequiredResourceProvider
 Install-PsAvdFSLogixGpoSettings #-Force
 Install-PsAvdAvdGpoSettings #-Force
+#endregion
 #endregion
 
 #region Getting Current Azure location (based on the Subnet location of this DC) to deploy the Azure compute Gallery in the same location that the other resources
