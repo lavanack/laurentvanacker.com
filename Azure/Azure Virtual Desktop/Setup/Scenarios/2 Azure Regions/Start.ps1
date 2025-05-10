@@ -157,6 +157,7 @@ $HostPools = & "..\2 Azure Regions\2_Pooled_AD_FSLogixCloudCache_Watermarking.ps
 #$HostPools = & "..\2 Azure Regions\4_Pooled_EntraID_Intune_AD_FSLogixCloudCache_Watermarking_SpotInstance.ps1"
 #$HostPools = & "..\2 Azure Regions\8_Pooled_EntraID_AD_AzureAppAttach.ps1"
 
+#$HostPools = & "..\1 Azure Region\1_Pooled_1 Personal_ SSO.ps1"
 #$HostPools = & "..\1 Azure Region\1_Personal_AD_Win10.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_AD.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach.ps1"
