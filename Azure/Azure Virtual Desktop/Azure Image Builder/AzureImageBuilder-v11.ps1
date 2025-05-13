@@ -263,8 +263,8 @@ function New-AzureComputeGallery {
 	$ImgWindowsRestartCustomizerParams = @{  
 		RestartCustomizer   = $true  
 		Name                = 'WindowsRestart'
-		RestartCheckCommand      = 'powershell -command "& {Write-Output "restarted."}"'
-		RestartCommand = 'shutdown /f /r /t 0 /c \"WindowsRestart Customizer Example\"'
+		RestartCheckCommand = 'powershell -command "& {Write-Output "restarted."}"'
+		RestartCommand      = 'shutdown /f /r /t 0 /c \"WindowsRestart Customizer Example\"'
 		RestartTimeout      = '10m'
 	}
 
