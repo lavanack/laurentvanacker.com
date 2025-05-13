@@ -79,9 +79,9 @@ $ThisDomainControllerSubnet = Get-AzVMSubnet
 
 #region AVD Dedicated VNets and Subnets
 #region Primary Region
-$PrimaryRegionResourceGroupName = "rg-avd-ad-use2-002"
-$PrimaryRegionVNetName = "vnet-avd-avd-use2-002"
-$PrimaryRegionSubnetName = "snet-avd-avd-use2-002"
+$PrimaryRegionResourceGroupName = "rg-avd-ad-use2-001"
+$PrimaryRegionVNetName = "vnet-avd-avd-use2-001"
+$PrimaryRegionSubnetName = "snet-avd-avd-use2-001"
 $PrimaryRegionVNet = Get-AzVirtualNetwork -Name $PrimaryRegionVNetName -ResourceGroupName $PrimaryRegionResourceGroupName
 $PrimaryRegionSubnet = $PrimaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $PrimaryRegionSubnetName
 $PrimaryRegion = $PrimaryRegionVNet.Location
