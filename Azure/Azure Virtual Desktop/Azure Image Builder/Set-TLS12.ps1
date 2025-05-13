@@ -21,10 +21,33 @@ of the Sample Code.
 param (
     [switch]$DisableLegacyTls
 )
-# Last updated: 2024-02-21
+# Last updated: 2025-05-13
 
-if($DisableLegacyTls) {
-    # Disable TLS 1.0 and 1.1
+if ($DisableLegacyTls) {
+    #region Disable SSL 2.0 and 3.0
+
+    # Disable SSL 2.0
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols" -Name "SSL 2.0" -ErrorAction SilentlyContinue
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0" -Name "Client" -ErrorAction SilentlyContinue
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0" -Name "Server" -ErrorAction SilentlyContinue
+    $null = Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0\Client" -Name "DisabledByDefault" -Value 1 -Type DWord
+    $null = Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0\Client" -Name "Enabled" -Value 0 -Type DWord
+    $null = Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0\Server" -Name "DisabledByDefault" -Value 1 -Type DWord
+    $null = Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0\Server" -Name "Enabled" -Value 0 -Type DWord
+
+    # Disable SSL 3.0
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols" -Name "SSL 3.0" -ErrorAction SilentlyContinue
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0" -Name "Client" -ErrorAction SilentlyContinue
+    $null = New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0" -Name "Server" -ErrorAction SilentlyContinue
+    $null = Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0\Client" -Name "DisabledByDefault" -Value 1 -Type DWord
+    $null = Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0\Client" -Name "Enabled" -Value 0 -Type DWord
+    $null = Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0\Server" -Name "DisabledByDefault" -Value 1 -Type DWord
+    $null = Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0\Server" -Name "Enabled" -Value 0 -Type DWord
+
+    Write-Host 'SSL 2.0 and 3.0 have been disabled.'
+    #endregion 
+
+    #region Disable TLS 1.0 and 1.1
     # Following https://learn.microsoft.com/exchange/plan-and-deploy/post-installation-tasks/security-best-practices/exchange-tls-configuration?view=exchserver-2019&WT.mc_id=M365-MVP-5003086
 
     # Disable TLS 1.0
@@ -46,6 +69,7 @@ if($DisableLegacyTls) {
     $null = Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server" -Name "Enabled" -Value 0 -Type DWord
 
     Write-Host 'TLS 1.0 and 1.1 have been disabled.'
+    #endregion 
 }
 else {
     Write-Host 'Tls 1.0 and 1.1 will NOT be disabled. Use -DisableLegacyTls to disable them.'
