@@ -136,7 +136,8 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 [PersonalHostPool]::SetIndex($RandomNumber, $PrimaryRegion)
 
 #Uncomment the best scenario for your usage or create your own
-$HostPools = & "..\1 Azure Region\1_Pooled_1 Personal_ SSO.ps1"
+#$HostPools = & "..\1 Azure Region\1_Pooled_1 Personal_SSO.ps1"
+$HostPools = & "..\1 Azure Region\1_Pooled_1 Personal_Intune.ps1"
 #$HostPools = & "..\1 Azure Region\1_Personal_AD_Win10.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_AD.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach.ps1"
