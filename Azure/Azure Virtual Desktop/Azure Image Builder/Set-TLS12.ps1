@@ -72,7 +72,7 @@ if ($DisableLegacyTls) {
     #endregion 
 }
 else {
-    Write-Host 'Tls 1.0 and 1.1 will NOT be disabled. Use -DisableLegacyTls to disable them.'
+    Write-Host 'SSL 2.0, SSL 3.0, TLS 1.0 and TLS 1.1 will NOT be disabled. Use -DisableLegacyTls to disable them.'
 }
 
 # Create .NET Framework 2.0/3.5 32-bit hive and enable strong TLS encryption
