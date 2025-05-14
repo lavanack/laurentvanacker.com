@@ -84,7 +84,7 @@
                     {
                         "type": "WindowsRestart",
                         "name": "WindowsRestart",
-                        "restartCommand": "shutdown /f /r /t 0 /c \"WindowsRestart Customizer Example\"",
+                        "restartCommand": "powershell -command \"& {Restart-Computer -Force}\"",
                         "restartCheckCommand": "powershell -command \"& {Write-Output 'restarted.'}\"",
                         "restartTimeout": "10m"
                     },

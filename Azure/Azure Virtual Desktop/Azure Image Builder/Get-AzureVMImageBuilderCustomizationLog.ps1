@@ -26,10 +26,14 @@ function Get-AzureVMImageBuilderCustomizationLog {
 		[Parameter(Mandatory = $false)]
         #Destination Folder for the downloaded files
 		[string]$Destination = '.',
+		[Parameter(Mandatory = $false)]
+        #Destination Folder for the downloaded files
+        [ValidatePattern("^IT_.*$")]
+		[string]$ResourceGroupName = "IT_*",
 		[switch]$TimeStamp
 	)
     #Getting all Image Builder Template ResourceGroup
-    $AzImageBuilderTemplateResourceGroup =  Get-AzResourceGroup -Name IT_* 
+    $AzImageBuilderTemplateResourceGroup =  Get-AzResourceGroup -Name $ResourceGroupName 
     foreach ($CurrentAzImageBuilderTemplateResourceGroup in $AzImageBuilderTemplateResourceGroup) {
         Write-Verbose -Message "Processing '$($CurrentAzImageBuilderTemplateResourceGroup.ResourceGroupName)' Resource Group (Image Template: $($CurrentAzImageBuilderTemplateResourceGroup.Tags.imageTemplateName) / Resource Group: $($CurrentAzImageBuilderTemplateResourceGroup.Tags.imageTemplateResourceGroupName))..."
         #Creating a dedicated directory per Image Builder Template ResourceGroup
@@ -47,10 +51,11 @@ function Get-AzureVMImageBuilderCustomizationLog {
                 if ($TimeStamp)
                 {
                     $Extension = (Get-Item -Path $DestinationFile).Extension
-                    $TimeStampDestinationFile = $DestinationFile -replace "\$($Extension)$", "_$("{0:yyyyMMddHHmmss}" -f (Get-Date))$Extension"
+                    #$TimeStampDestinationFile = $DestinationFile -replace "\$($Extension)$", "_$("{0:yyyyMMddHHmmss}" -f (Get-Date))$Extension"
+                    $TimeStampDestinationFile = $DestinationFile -replace "\$($Extension)$", $("_{0:yyyyMMddHHmmss}{1}" -f $(Get-Date), $Extension)
                     Rename-Item -Path $DestinationFile -NewName $TimeStampDestinationFile
-                    $TimeStampDestinationFile
                     Write-Verbose -Message "Destination File: '$TimeStampDestinationFile' ..."
+                    $TimeStampDestinationFile
                 }
                 #Else the file will be overwritten at each run
                 else
