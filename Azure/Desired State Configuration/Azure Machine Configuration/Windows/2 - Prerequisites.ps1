@@ -9,12 +9,14 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 #region Disabling IE Enhanced Security
 $AdminKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
 $UserKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}"
-Set-ItemProperty -Path $AdminKey -Name "IsInstalled" -Value 0
-Set-ItemProperty -Path $UserKey -Name "IsInstalled" -Value 0
+Set-ItemProperty -Path $AdminKey -Name "IsInstalled -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -value 0" -Value 0
+Set-ItemProperty -Path $UserKey -Name "IsInstalled -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -value 0" -Value 0
 Stop-Process -Name Explorer -Force
 #endregion
 
 #Installing the NuGet Provider
+$PreviousProgressPreferenceValue = $ProgressPreference
+$ProgressPreference = "SilentlyContinue"
 Get-PackageProvider -Name Nuget -ForceBootstrap -Force
 #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 #For Azure
@@ -25,6 +27,7 @@ Install-Module -Name PSDesiredStateConfiguration, PSDSCResources -Force
 Install-Module -Name GuestConfiguration -Force
 #For IIS
 Install-Module -Name WebAdministrationDsc -Force
+$ProgressPreference = $PreviousProgressPreferenceValue
 
 #Connection to Azure and Subscription selection
 Connect-AzAccount -UseDeviceAuthentication
