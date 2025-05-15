@@ -150,7 +150,7 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:DomainName'      = $FQDNDomainName
     'Add-LabMachineDefinition:MinMemory'       = 1GB
     'Add-LabMachineDefinition:MaxMemory'       = 2GB
-    'Add-LabMachineDefinition:Memory'          = 2GB
+    'Add-LabMachineDefinition:Memory'          = 1GB
     'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2022 Datacenter (Desktop Experience)'
     'Add-LabMachineDefinition:Processors'      = 2
 }
@@ -254,8 +254,8 @@ Invoke-LabCommand -ActivityName 'GPO Setup on DC' -ComputerName DC01 -ScriptBloc
 
     #region IE Settings
     $GPO = New-GPO -Name "IE Settings" | New-GPLink -Target $DefaultNamingContext
-    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}' -ValueName IsInstalled -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -value 1
-    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}' -ValueName IsInstalled -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -value 1
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}' -ValueName IsInstalled -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -value 0 
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}' -ValueName IsInstalled -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -value 0
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap' -ValueName IEHarden -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -value 0
     #Setting arr.contoso.com (and optionally all nodes) in the Local Intranet Zone for all servers : mandatory for Kerberos authentication       
     #Set-GPRegistryValue -Name $GPO.DisplayName -Key "HKLM\Software\Policies\Microsoft\Windows\CurrentVersion\Internet Settings" -ValueName Security_HKLM_only -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::Dword)

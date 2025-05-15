@@ -138,8 +138,8 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $machines -Scri
     #Disabling IE ESC
     $AdminKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}'
     $UserKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}'
-    Set-ItemProperty -Path $AdminKey -Name 'IsInstalled' -Value 0 -Force
-    Set-ItemProperty -Path $UserKey -Name 'IsInstalled' -Value 0 -Force
+    Set-ItemProperty -Path $AdminKey -Name 'IsInstalled -Value 0 -Force
+    Set-ItemProperty -Path $UserKey -Name 'IsInstalled -Value 0 -Force
     Rundll32 iesetup.dll, IEHardenLMSettings
     Rundll32 iesetup.dll, IEHardenUser
     Rundll32 iesetup.dll, IEHardenAdmin
@@ -182,8 +182,8 @@ Invoke-LabCommand -ActivityName 'DNS, AD & GPO Settings on DC' -ComputerName DC0
     #region IE Settings
     $GPO = New-GPO -Name "IE Settings" | New-GPLink -Target $DefaultNamingContext
     #Disabling IE ESC
-    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}' -ValueName IsInstalled -Type Dword -value 1
-    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}' -ValueName IsInstalled -Type Dword -value 1
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}' -ValueName IsInstalled -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -value 0 -Type Dword -value 0
+    Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}' -ValueName IsInstalled -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -value 0 -Type Dword -value 0
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap' -ValueName IEHarden -Type Dword -value 0
 
     #Setting MusicStore.contoso.com in the Local Intranet Zone for all servers : mandatory for MusicStore authentication       
