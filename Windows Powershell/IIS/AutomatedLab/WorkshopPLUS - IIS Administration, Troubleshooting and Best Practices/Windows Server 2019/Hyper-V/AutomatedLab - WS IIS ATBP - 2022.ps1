@@ -39,8 +39,8 @@ Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 $Now = Get-Date
 $10YearsFromNow = $Now.AddYears(10)
 $WebServerCertValidityPeriod = New-TimeSpan -Start $Now -End $10YearsFromNow
-$Logon = 'IISAdmin'
-$ClearTextPassword = 'Im@JediLikeMyFatherBe4Me'
+$Logon = 'Administrator'
+$ClearTextPassword = 'P@ssw0rd'
 $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
 $NetBiosDomainName = 'CONTOSO'
 $FQDNDomainName = 'contoso.com'
@@ -51,41 +51,39 @@ $WDeployConfigWriter = 'WDeployConfigWriter'
 $WebDeploySqlUsr = 'WebDeploySqlUsr'
 $CentralSSLUser = 'CentralSSLUser'
 
-$NetworkID = '192.168.0.0/16' 
-$DC01IPv4Address = '192.168.0.101'
-$SQL01IPv4Address = '192.168.0.111'
-$IIS01IPv4Address = '192.168.0.201'
-$IIS02IPv4Address = '192.168.0.202'
+$NetworkID = '10.0.0.0/16' 
+$DC01IPv4Address = '10.0.0.1'
+$SQL01IPv4Address = '10.0.0.11'
+$IIS01IPv4Address = '10.0.0.101'
+$IIS02IPv4Address = '10.0.0.102'
 
 $SecurityCCSSNINetBiosName = 'SecurityCCSSNI'
 $SecurityCCSSNIWebSiteName = "$SecurityCCSSNINetBiosName.$FQDNDomainName"
-$SecurityCCSSNIIPv4Address = '192.168.0.103'
+$SecurityCCSSNIIPv4Address = '10.0.0.103'
 
 $SecurityCCSNoSNINetBiosName = 'SecurityCCSNoSNI'
 $SecurityCCSNoSNIWebSiteName = "$SecurityCCSNoSNINetBiosName.$FQDNDomainName"
-$SecurityCCSNoSNIIPv4Address = '192.168.0.104'
+$SecurityCCSNoSNIIPv4Address = '10.0.0.104'
 
 $SecurityCCSWildcartCertNetBiosName = 'securityCCSWildcardCert'
 $SecurityCCSWildcartCertWebSiteName = "$SecurityCCSWildcartCertNetBiosName.$FQDNDomainName"
-$SecurityCCSWildcartCertIPv4Address = '192.168.0.105'
+$SecurityCCSWildcartCertIPv4Address = '10.0.0.105'
 
 $SecurityCCSSANCert0NetBiosName = 'SecurityCCSSANCert0'
 $SecurityCCSSANCert0WebSiteName = "$SecurityCCSSANCert0NetBiosName.$FQDNDomainName"
-$SecurityCCSSANCert0IPv4Address = '192.168.0.106'
+$SecurityCCSSANCert0IPv4Address = '10.0.0.106'
 
 $SecurityCCSSANCert1NetBiosName = 'SecurityCCSSANCert1'
 $SecurityCCSSANCert1WebSiteName = "$SecurityCCSSANCert1NetBiosName.$FQDNDomainName"
-$SecurityCCSSANCert1IPv4Address = '192.168.0.107'
+$SecurityCCSSANCert1IPv4Address = '10.0.0.107'
 
 $SecurityCCSSANCert2NetBiosName = 'SecurityCCSSANCert2'
 $SecurityCCSSANCert2WebSiteName = "$SecurityCCSSANCert2NetBiosName.$FQDNDomainName"
-$SecurityCCSSANCert2IPv4Address = '192.168.0.108'
+$SecurityCCSSANCert2IPv4Address = '10.0.0.108'
 
 $MSEdgeEntUri                   = "http://go.microsoft.com/fwlink/?LinkID=2093437"
 
-$LabName = 'AzureIISWSPlus2019'
-
-$azureDefaultLocation = 'France Central' 
+$LabName = 'IISWSPlus2022'
 #endregion
 
 #Cleaning previously existing lab
@@ -93,13 +91,15 @@ if ($LabName -in (Get-Lab -List)) {
     Remove-Lab -Name $LabName -Confirm:$false -ErrorAction SilentlyContinue
 }
 
-Add-LabAzureSubscription -DefaultLocationName $azureDefaultLocation
-
 #create an empty lab template and define where the lab XML files and the VMs will be stored
-New-LabDefinition -Name $LabName -DefaultVirtualizationEngine Azure
+New-LabDefinition -Name $LabName -DefaultVirtualizationEngine HyperV
 
 #make the network definition
-Add-LabVirtualNetworkDefinition -Name $LabName -AddressSpace $NetworkID
+Add-LabVirtualNetworkDefinition -Name $LabName -HyperVProperties @{
+    SwitchType = 'Internal'
+} -AddressSpace $NetworkID
+Add-LabVirtualNetworkDefinition -Name 'Default Switch' -HyperVProperties @{ SwitchType = 'External'; AdapterName = 'Wi-Fi' }
+
 
 #and the domain definition with the domain admin account
 Add-LabDomainDefinition -Name $FQDNDomainName -AdminUser $Logon -AdminPassword $ClearTextPassword
@@ -114,22 +114,22 @@ $PSDefaultParameterValues = @{
     'Add-LabMachineDefinition:MinMemory'       = 1GB
     'Add-LabMachineDefinition:MaxMemory'       = 2GB
     'Add-LabMachineDefinition:Memory'          = 2GB
-    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2019 Datacenter (Desktop Experience)'
+    'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2022 Datacenter (Desktop Experience)'
     #'Add-LabMachineDefinition:Processors'      = 4
 }
 
 $IIS01NetAdapter = @()
 $IIS01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $IIS01IPv4Address
-#$IIS01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp
+$IIS01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp
 
 $SQL01NetAdapter = @()
 $SQL01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $SQL01IPv4Address
 #Adding an Internet Connection on the DC (Required for the SQL Setup via AutomatedLab)
-#$SQL01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp
+$SQL01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp
 
 #SQL Server
 $SQLServer2019Role = Get-LabMachineRoleDefinition -Role SQLServer2019 -Properties @{ Features = 'SQL,Tools' }
-Add-LabIsoImageDefinition -Name SQLServer2019 -Path $labSources\ISOs\en_sql_server_2019_standard_x64_dvd_cdcd4b9f.iso
+Add-LabIsoImageDefinition -Name SQLServer2019 -Path $labSources\ISOs\en_sql_server_2019_enterprise_x64_dvd_5e1ecc6b.iso
 
 #region server definitions
 #Domain controller + Certificate Authority
@@ -166,7 +166,9 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $machines -Scri
     #Set-WinUserLanguageList -LanguageList "fr-FR" -Force
 
     #Renaming the main NIC adapter to Corp (used in the Security lab)
-    Get-NetAdapter | Rename-NetAdapter -NewName 'Corp' -PassThru -ErrorAction SilentlyContinue
+    Rename-NetAdapter -Name "$using:labName 0" -NewName 'Corp' -PassThru -ErrorAction SilentlyContinue
+    Rename-NetAdapter -Name "Ethernet" -NewName 'Corp' -PassThru -ErrorAction SilentlyContinue
+    Rename-NetAdapter -Name "Default Switch 0" -NewName 'Internet' -PassThru -ErrorAction SilentlyContinue
 }
 
 #Installing and setting up DNS
@@ -208,7 +210,7 @@ Invoke-LabCommand -ActivityName 'Adding some users to the SQL sysadmin group' -C
 #Get the CA
 $CertificationAuthority = Get-LabIssuingCA
 #Generating a new template for 10-year SSL Web Server certificate
-New-LabCATemplate -TemplateName WebServer10Years -DisplayName 'WebServer10Years' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers'-ComputerName $CertificationAuthority -ErrorAction Stop
+New-LabCATemplate -TemplateName WebServer10Years -DisplayName 'WebServer10Years' -SourceTemplateName WebServer -ApplicationPolicy 'Server Authentication' -EnrollmentFlags Autoenrollment -PrivateKeyFlags AllowKeyExport -Version 2 -SamAccountName 'Domain Computers' -ValidityPeriod $WebServerCertValidityPeriod -ComputerName $CertificationAuthority -ErrorAction Stop
 
 <#
 #Getting a New SSL Web Server Certificate for the basic website
@@ -236,14 +238,18 @@ Invoke-LabCommand -ActivityName 'Exporting the Web Server Certificate for the fu
 
 # Hastable for getting the ISO Path for every IIS Server (needed for .Net 2.0 setup)
 $IISServers = Get-LabVM | Where-Object -FilterScript { $_.Name -like "*IIS*" }
-#$IsoPathHashTable = $IISServers | Select-Object -Property Name, @{Name = "IsoPath"; Expression = { $_.OperatingSystem.IsoPath } } | Group-Object -Property Name -AsHashTable -AsString
+$IsoPathHashTable = $IISServers | Select-Object -Property Name, @{Name = "IsoPath"; Expression = { $_.OperatingSystem.IsoPath } } | Group-Object -Property Name -AsHashTable -AsString
 
 Copy-LabFileItem -Path $DemoFilesZipPath -ComputerName $IISServers
 Copy-LabFileItem -Path $LabFilesZipPath -ComputerName $IISServers
 foreach ($CurrentIISServerName in $IISServers.Name) {
-    Invoke-LabCommand -ActivityName 'Copying lab and demo files locally' -ComputerName $CurrentIISServerName -ScriptBlock {
+    $Drive = Mount-LabIsoImage -ComputerName $CurrentIISServerName -IsoPath $IsoPathHashTable[$CurrentIISServerName].IsoPath -PassThru
+    Invoke-LabCommand -ActivityName 'Copying .Net 2.0 cab, lab and demo files locally' -ComputerName $CurrentIISServerName -ScriptBlock {
         $Sxs = New-Item -Path "C:\Sources\Sxs" -ItemType Directory -Force
+        Copy-Item -Path "$($using:Drive.DriveLetter)\sources\sxs\*" -Destination $Sxs -Recurse -Force
+    }
 
+    Invoke-LabCommand -ActivityName 'Extracting lab and demo files' -ComputerName $CurrentIISServerName -ScriptBlock {
         $null = New-Item -Path "C:\Temp" -ItemType Directory -Force
         #Lab files
         $LocalLabFilesZipPath = $(Join-Path -Path $env:SystemDrive -ChildPath $(Split-Path -Path $using:LabFilesZipPath -Leaf ))
@@ -255,6 +261,7 @@ foreach ($CurrentIISServerName in $IISServers.Name) {
         Expand-Archive $LocalDemoFilesZipPath  -DestinationPath "$env:SystemDrive\" -Force
         Remove-Item $LocalDemoFilesZipPath -Force
     }
+    Dismount-LabIsoImage -ComputerName $CurrentIISServerName
 }
 
 $MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru -Force
@@ -263,6 +270,8 @@ Install-LabSoftwarePackage -ComputerName $machines -Path $MSEdgeEnt.FullName -Co
 Invoke-LabCommand -ActivityName 'Cleanup on SQL Server' -ComputerName SQL01 -ScriptBlock {
     Remove-Item -Path "C:\vcredist_x*.*" -Force
     Remove-Item -Path "C:\SSMS-Setup-ENU.exe" -Force
+    #Disabling the Internet Connection on the DC (Required only for the SQL Setup via AutomatedLab)
+    Get-NetAdapter -Name Internet | Disable-NetAdapter -Confirm:$false
 }
 
 
@@ -270,9 +279,15 @@ Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName
     Stop-Service WUAUSERV -PassThru | Set-Service -StartupType Disabled
 } 
 
-Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
+#Removing the Internet Connection on the SQL Server (Required only for the SQL Setup via AutomatedLab)
+Get-VM -Name 'SQL01' | Remove-VMNetworkAdapter -Name 'Default Switch' -ErrorAction SilentlyContinue
 
-Checkpoint-LabVM -SnapshotName 'FullInstall' -All
+#Setting processor number to 1 for all VMs (The AL deployment fails with 1 CPU)
+#Get-LabVM -All | Stop-VM -Passthru | Set-VMProcessor -Count 1
+#Start-LabVm -All -ProgressIndicator 1 -Wait
+
+#Waiting for background jobs
+Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
 
 <#
 Invoke-LabCommand -ActivityName 'Demos Setup' -ComputerName IIS01 -ScriptBlock {
@@ -281,7 +296,28 @@ Invoke-LabCommand -ActivityName 'Demos Setup' -ComputerName IIS01 -ScriptBlock {
 Checkpoint-LabVM -SnapshotName 'Demos' -All
 #>
 
+<#
+#region Merging disks with parent disks
+Stop-LabVM -Wait -ProgressIndicator 1 -All
+$VHD = Get-LabVM | Get-VM | Select-Object VMId | Get-VHD -ErrorAction Ignore
+$VHD | ForEach-Object -Process {
+    $VHDFolder = $(Split-Path -Path $_.Path -Parent)
+    $VHDFile = $(Split-Path -Path $_.Path -Leaf)
+    #Copying the parent disk to the same folder that the child disk
+    $NewParent = Copy-Item -Path $_.ParentPath -Destination $VHDFolder -PassThru -Verbose
+    #Changing the link to the parent disk to the new copied file
+    Set-VHD -Path $_.Path -ParentPath $NewParent -Verbose
+    #Merging the child disk with its parents
+    $NewVHD = Merge-VHD -Path $_.Path -Passthru -Force
+    #Renaming the merged disk with the same name that the original one.
+    Rename-Item -Path $NewVHD.Path -NewName $VHDFile -Verbose
+} 
+Start-LabVm -All -ProgressIndicator 1 -Wait
+#endregion
+#>
+
 Show-LabDeploymentSummary
+Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 
 $VerbosePreference = $PreviousVerbosePreference
 $ErrorActionPreference = $PreviousErrorActionPreference
