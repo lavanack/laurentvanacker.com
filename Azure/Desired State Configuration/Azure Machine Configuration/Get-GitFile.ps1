@@ -26,7 +26,10 @@ param
     [Parameter(Mandatory = $false)]
     [string]$FileRegExPattern = ".*",
     [Parameter(Mandatory = $true)]
-    [string]$Destination
+    [string]$Destination,
+    [Parameter(Mandatory = $false)]
+    [ValidateScript({$_ -in @([boolean]::TrueString, [boolean]::FalseString)})]
+    [string]$Recurse = [boolean]::FalseString
 ) 
 
 #region Function Definitions
@@ -174,6 +177,7 @@ function Get-GitFile {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$URI: $URI"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$FileRegExPattern: $FileRegExPattern"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Destination: $Destination"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Recurse: $Recurse"
 
     $null = New-Item -Path $Destination -ItemType Directory -Force -ErrorAction Ignore
 
@@ -196,12 +200,15 @@ function Get-GitFile {
     #region Getting all request files
     $Response = Invoke-WebRequest -Uri $GitHubURI -UseBasicParsing
     $Objects = $Response.Content | ConvertFrom-Json
-    $Files = $Objects | Where-Object -FilterScript { $_.type -eq "file" } | Select-Object -ExpandProperty download_url
+    [array] $Files = $Objects | Where-Object -FilterScript { $_.type -eq "file" } | Select-Object -ExpandProperty download_url
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Files:`r`n$($Files | Format-List -Property * | Out-String)"
     if ($Recurse) {
         $Directories = $Objects | Where-Object -FilterScript { $_.type -eq "dir" } | Select-Object -Property url, name
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Directories:`r`n$($Directories | Format-List -Property * | Out-String)"
         foreach ($CurrentDirectory in $Directories) {
             $CurrentDestination = Join-Path -Path $Destination -ChildPath $CurrentDirectory.name
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentDestination: $CurrentDestination"
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `URI: $($CurrentDirectory.url)"
             Get-GitFile -URI $CurrentDirectory.url -FileRegExPattern $FileRegExPattern -Destination $CurrentDestination -Recurse
         }
     }
@@ -294,6 +301,6 @@ Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 Set-Location -Path $CurrentDir 
 
 Write-Host "Transcript File : $TranscriptFile"
-Get-GitFile -URI $URI -FileRegExPattern $FileRegExPattern -Destination $Destination -Recurse -Verbose
+Get-GitFile -URI $URI -FileRegExPattern $FileRegExPattern -Destination $Destination -Recurse:$([boolean]::Parse($Recurse)) -Verbose
 Stop-Transcript
 #endregion
