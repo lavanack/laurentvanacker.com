@@ -21,8 +21,16 @@ of the Sample Code.
 Param (
 )
 
+Clear-Host
+$Error.Clear()
+$CurrentScript = $MyInvocation.MyCommand.Path
+#Getting the current directory (where this script file resides)
+$CurrentDir = Split-Path -Path $CurrentScript -Parent
+Set-Location -Path $CurrentDir
+
 #region Installing Hyper-V
-if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All).State -ne 'Enabled') {
+if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All).State -ne 'Enabled')
+{
     Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All -All -NoRestart
     Restart-Computer -Force
 }
@@ -81,10 +89,22 @@ winget install --exact --id=Brother.iPrintScan
 winget install --exact --id=Microsoft.WindowsTerminal
 winget install --exact --id=Microsoft.PowerShell
 winget install --exact --id=Microsoft.Azure.StorageExplorer
+winget install --exact --id GitHub.cli
+winget install --exact --id=Microsoft.WindowsApp
+
 #region Git
 winget install --exact --id=Git.Git
 git config --global user.name "Laurent VAN ACKER"
 git config --global user.email laurent.vanacker@free.fr
+git lfs install
+#From https://support.atlassian.com/bamboo/kb/git-checkouts-fail-on-windows-with-filename-too-long-error-unable-to-create-file-errors/
+git config --system core.longpaths true
+#region Repo cloning
+Push-Location -Path "$env:SystemDrive\Source Control\GitHub"
+git clone https://github.com/lavanack/laurentvanacker.com.git
+git clone https://github.com/lavanack/PSAzureVirtualDesktop.git
+Pop-Location 
+#endregion
 #endregion
 
 winget install "Microsoft Whiteboard" --accept-package-agreements --accept-source-agreements --source msstore
@@ -148,8 +168,8 @@ New-LabSourcesFolder -DriveLetter $env:SystemDrive
 #endregion
 
 #region Other applications
-start "https://aka.ms/casebuddy"
-start "ms-phone://"
+Start-Process "https://aka.ms/casebuddy"
+Start-Process "ms-phone://"
 #endregion
 
 #region Windows Subsystem for Linux
