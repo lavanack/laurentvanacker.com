@@ -552,7 +552,8 @@ Start-Sleep -Seconds 15
 #$Destination = Join-Path -Path $env:SystemDrive -ChildPath $((Get-Item -Path $CurrentDir).Parent.BaseName)
 $URI = "https://api.github.com/repos/lavanack/laurentvanacker.com/contents/Azure/Desired%20State%20Configuration/Azure%20Machine%20Configuration"
 $Destination = Join-Path -Path $env:SystemDrive -ChildPath $([System.Web.HttpUtility]::UrlDecode($(Split-Path -Path $URI -Leaf)))
-$Parameter = @{URI = $URI; Destination = $Destination}
+#Parameter value can be string type only when used with Invoke-AzVMRunCommand
+$Parameter = @{URI = $URI; Destination = $Destination; Recurse = [boolean]::TrueString}
 $ScriptPath = Join-Path -Path $CurrentDir -ChildPath "..\Get-GitFile.ps1" -Resolve
 
 While (Get-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName)  {
