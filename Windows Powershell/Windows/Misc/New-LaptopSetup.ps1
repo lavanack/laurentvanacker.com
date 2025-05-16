@@ -42,7 +42,7 @@ Set-VMHost -VirtualHardDiskPath $HyperVPath -VirtualMachinePath $HyperVPath
 #endregion
 
 
-#region Disbaling IP V6
+#region Disabling IP V6
 #Disable-NetAdapterBinding -Name "*" -ComponentID ms_tcpip6
 #endregion
 
@@ -80,6 +80,7 @@ winget install --exact --id=Foxit.FoxitReader
 winget install --exact --id=Intel.IntelDriverAndSupportAssistant
 winget install --exact --id=WiresharkFoundation.Wireshark
 winget install --exact --id=Microsoft.VisualStudioCode.Insiders
+#winget install --exact --id=Microsoft.VisualStudioCode
 winget install --exact --id=Microsoft.AzureCLI
 winget install --exact --id=Synology.SurveillanceStationClient
 winget install --exact --id=Synology.CloudStationDrive 
@@ -89,7 +90,7 @@ winget install --exact --id=Brother.iPrintScan
 winget install --exact --id=Microsoft.WindowsTerminal
 winget install --exact --id=Microsoft.PowerShell
 winget install --exact --id=Microsoft.Azure.StorageExplorer
-winget install --exact --id GitHub.cli
+winget install --exact --id=GitHub.cli
 winget install --exact --id=Microsoft.WindowsApp
 
 #region Git
@@ -171,6 +172,11 @@ New-LabSourcesFolder -DriveLetter $env:SystemDrive
 Start-Process "https://aka.ms/casebuddy"
 Start-Process "ms-phone://"
 #endregion
+
+#region Outlook: Enable Meeting Copy
+#From https://techcommunity.microsoft.com/discussions/outlookgeneral/enable-meeting-copy/3981146/replies/3999316
+Set-ItemProperty -Path  'HKCU:\Software\Microsoft\Office\16.0\Outlook\Options\Calendar' -Name "EnableMeetingCopy" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -value 1
+#endregion 
 
 #region Windows Subsystem for Linux
 wsl --install
