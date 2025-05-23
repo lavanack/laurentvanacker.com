@@ -110,7 +110,8 @@ Set-AzStorageBlobContent -Container $StorageContainerName -File $GuestConfigurat
 #Adding a 3-year expiration time from now for the SAS Token
 $StartTime = Get-Date
 $ExpiryTime = $StartTime.AddYears(3)
-$ContentURI = New-AzStorageBlobSASToken -Context $Context -FullUri -Container $StorageContainerName -Blob $GuestConfigurationPackageFileName -Permission rwd -StartTime $StartTime -ExpiryTime $ExpiryTime      
+#$ContentURI = New-AzStorageBlobSASToken -Context $Context -FullUri -Container $StorageContainerName -Blob $GuestConfigurationPackageFileName -Permission rwd -StartTime $StartTime -ExpiryTime $ExpiryTime      
+$ContentURI = New-AzStorageBlobSASToken -Context $Context -FullUri -Container $StorageContainerName -Blob $GuestConfigurationPackageFileName -Permission r -StartTime $StartTime -ExpiryTime $ExpiryTime      
 
 # Create a Policy Id
 $PolicyId = (New-Guid).Guid  
