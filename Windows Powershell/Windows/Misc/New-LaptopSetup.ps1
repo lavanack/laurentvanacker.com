@@ -92,6 +92,8 @@ winget install --exact --id=Microsoft.PowerShell
 winget install --exact --id=Microsoft.Azure.StorageExplorer
 winget install --exact --id=GitHub.cli
 winget install --exact --id=Microsoft.WindowsApp
+winget install --exact --id=Logitech.GHUB
+#winget install --exact --id=Hashicorp.Terraform
 
 #region Git
 winget install --exact --id=Git.Git
