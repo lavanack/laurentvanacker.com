@@ -437,7 +437,7 @@ $NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceG
 
 #Steps 4 + 5: Create Azure Virtual network using the virtual network subnet configuration
 $VirtualNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName  -AddressPrefix $VirtualNetworkAddressSpace -Location $Location
-Add-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork -AddressPrefix $SubnetIPRange -NetworkSecurityGroupId $NetworkSecurityGroup.Id
+$null = Add-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork -AddressPrefix $SubnetIPRange -NetworkSecurityGroupId $NetworkSecurityGroup.Id
 
 $VirtualNetwork = Set-AzVirtualNetwork -VirtualNetwork $VirtualNetwork
 $Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork
@@ -461,21 +461,21 @@ $image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.Publi
 # Step 9: Create a virtual machine configuration file (As a Spot Intance)
 $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1
 
-Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
+$null = Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 
 # Set VM operating system parameters
-Set-AzVMOperatingSystem -VM $VMConfig -Windows -ComputerName $VMName -Credential $Credential -ProvisionVMAgent -EnableAutoUpdate -PatchMode "AutomaticByPlatform"
+$null = Set-AzVMOperatingSystem -VM $VMConfig -Windows -ComputerName $VMName -Credential $Credential -ProvisionVMAgent -EnableAutoUpdate -PatchMode "AutomaticByPlatform"
 
 # Set boot diagnostic storage account
 #Set-AzVMBootDiagnostic -Enable -ResourceGroupName $ResourceGroupName -VM $VMConfig -StorageAccountName $StorageAccountName    
 # Set boot diagnostic to managed storage account
-Set-AzVMBootDiagnostic -VM $VMConfig -Enable 
+$null = Set-AzVMBootDiagnostic -VM $VMConfig -Enable 
 
 # The uncommented lines below replace Step #8 : Set virtual machine source image
-Set-AzVMSourceImage -VM $VMConfig -PublisherName $ImagePublisherName -Offer $ImageOffer -Skus $ImageSku -Version 'latest'
+$null = Set-AzVMSourceImage -VM $VMConfig -PublisherName $ImagePublisherName -Offer $ImageOffer -Skus $ImageSku -Version 'latest'
 
 # Set OsDisk configuration
-Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -CreateOption fromImage
+$null = Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -CreateOption fromImage
 
 #region Adding Data Disk
 <#
