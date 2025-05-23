@@ -14,18 +14,25 @@ $LabSourcesDir = (Get-ChildItem -Path (Get-PSDrive -PSProvider FileSystem | Wher
 
 Set-Location -Path $(Join-Path -Path $SourceControlDir -ChildPath "GitHub")
 git lfs install
+git config --global user.name "Laurent VAN ACKER"
+git config --global user.email laurent.vanacker@free.fr
+#From https://support.atlassian.com/bamboo/kb/git-checkouts-fail-on-windows-with-filename-too-long-error-unable-to-create-file-errors/
+git config --system core.longpaths true
+
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git clone https://github.com/lavanack/laurentvanacker.com.git" -Wait
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "C:\Tools\junction -accepteula c:\laurentvanacker.com laurentvanacker.com" -Wait
+
 Set-Location -Path "laurentvanacker.com"
 git lfs pull
 
 #region AutomatedLab ISO downloads
-Connect-AzAccount
+Connect-AzAccount -UseDeviceAuthentication
 $StartTime = Get-Date
 $EndTime = $StartTime.AddDays(1)
-$storageAccountName = "labsources"
+$storageAccountName = "automatedlablabsources"
 $ShareName = "isos"
-$ResourceGroup = "rg-automatedlab-storage-use-001"
-$storageAccountKey = (Get-AzStorageAccountKey -ResourceGroupName $ResourceGroup -AccountName $storageAccountName).Value[0]
+$ResourceGroupName = "rg-automatedlab-storage-use-001"
+$storageAccountKey = (Get-AzStorageAccountKey -ResourceGroupName $ResourceGroupName -AccountName $storageAccountName).Value[0]
 
 #region Get Download URL - Version #1
 $Context = New-AzStorageContext -StorageAccountName $storageAccountName -StorageAccountKey $storageAccountKey
@@ -46,6 +53,11 @@ $StorageShareSASToken = New-AzStorageShareSASToken -Context $Context -ExpiryTime
 #Adding /* add the end of the URI to avoid to copy the container name in the local destination folder
 $StorageShareSASToken = $StorageShareSASToken -replace "\?", "/*?"
 
+#region Set Storage Account Configuration
+$MyPublicIp = (Invoke-WebRequest -uri "https://ipv4.seeip.org").Content
+Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $storageAccountName -PublicNetworkAccess Enabled -AllowSharedKeyAccess $true -NetworkRuleSet (@{ipRules = (@{IPAddressOrRange = $MyPublicIp; Action = "allow" }); defaultAction = "deny" })
+#endregion
+
 Set-Location -Path "C:\Tools\azcopy_windows*"
 $DestinationFolder = $(Join-Path -Path $LabSourcesDir -ChildPath "ISOs")
 $env:AZCOPY_CRED_TYPE = "Anonymous";
@@ -53,4 +65,8 @@ $env:AZCOPY_CONCURRENCY_VALUE = "AUTO";
 ./azcopy.exe copy $StorageShareSASToken $DestinationFolder --overwrite=ifSourceNewer --check-md5 FailIfDifferent --from-to=FileLocal --preserve-smb-info=true --recursive --log-level=INFO #--trailing-dot=Enable
 $env:AZCOPY_CRED_TYPE = "";
 $env:AZCOPY_CONCURRENCY_VALUE = "";
+#endregion
+
+#region Set Storage Account Configuration
+Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $storageAccountName -PublicNetworkAccess Disabled -AllowSharedKeyAccess $false
 #endregion

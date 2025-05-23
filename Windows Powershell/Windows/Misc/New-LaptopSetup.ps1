@@ -157,7 +157,7 @@ Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubuserconten
 #Releasing Execution Policy
 Set-ExecutionPolicy -Scope LocalMachine -ExecutionPolicy Unrestricted -Force
 Set-PSRepository  -Name PSGallery -InstallationPolicy Trusted
-Install-Module -Name AutomatedLab, Az, Microsoft.Graph -Scope AllUsers -AllowClobber -SkipPublisherCheck -Verbose
+Install-Module -Name AutomatedLab, Az, Microsoft.Graph, PowerShellGet -Scope AllUsers -AllowClobber -SkipPublisherCheck -Verbose
 
 #region AutomatedLab 
 #  Disable (which is already the default) and in addition skip dialog

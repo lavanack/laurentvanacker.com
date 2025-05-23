@@ -82,7 +82,7 @@ $AzureVMNameMaxLength = 15
 $RDPPort = 3389
 $JitPolicyTimeInHours = 3
 $JitPolicyName = "Default"
-$Location = "eastus"
+$Location = "eastus2"
 $VMSize = "Standard_D16s_v5"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
@@ -144,7 +144,7 @@ $ConfigurationName = "AutomatedLabSetupDSC"
 #region Define Variables needed for Virtual Machine
 $ImagePublisherName = "MicrosoftWindowsDesktop"
 $ImageOffer = "Windows-11"
-$ImageSku = "win11-22h2-ent"
+$ImageSku = "win11-24h2-ent"
 $PublicIPName = "pip-$VMName" 
 $NICName = "nic-$VMName"
 $OSDiskName = '{0}_OSDisk' -f $VMName
@@ -226,10 +226,10 @@ $image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.Publi
 
 if ($Spot) {
     #Create a virtual machine configuration file (As a Spot Intance for saving costs . DON'T DO THAT IN A PRODUCTION ENVIRONMENT !!!)
-    $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -SecurityType Standard -IdentityType SystemAssigned -Priority "Spot" -MaxPrice -1
+    $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -SecurityType TrustedLaunch -IdentityType SystemAssigned -Priority "Spot" -MaxPrice -1
 }
 else {
-    $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -SecurityType Standard -IdentityType SystemAssigned -HibernationEnabled
+    $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -SecurityType TrustedLaunch -IdentityType SystemAssigned -HibernationEnabled
 }
 
 Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
@@ -325,8 +325,8 @@ try {
         $AzureStorageExplorerVersion = $Matches['Version']
     }
     else {
-        #Latest version in June 2024
-        $AzureStorageExplorerVersion = '1.34.0'
+        #Latest version in May 2025
+        $AzureStorageExplorerVersion = '1.38.0'
     }
     #endregion
     $ConfigurationArgument = @{
