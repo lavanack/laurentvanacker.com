@@ -43,7 +43,7 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
 #region Login to your Azure subscription.
-While (-not(Get-AzContext)) {
+While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount
     Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
     #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore

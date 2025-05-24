@@ -163,7 +163,7 @@ Clear-Host
 $Error.Clear()
 
 # Login to your Azure subscription.
-While (-not(Get-AzContext)) {
+While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount
 }
 

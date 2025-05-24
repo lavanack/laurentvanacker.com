@@ -67,7 +67,6 @@ Set-Location -Path $CurrentDir
 $null = Update-AzConfig -DisplayBreakingChangeWarning $false
 
 #region Defining variables 
-$SubscriptionName = "Cloud Solution Architect"
 #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
 $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
 $ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/main/src/repository/resourcelocations.json
@@ -75,11 +74,8 @@ $shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @
 #endregion
 
 # Login to your Azure subscription.
-While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName)) {
+While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount
-    Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
-    #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
-    #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
 }
 
 $AzureVMNameMaxLength = 15

@@ -57,12 +57,8 @@ if ($NWversion -lt "4.15.0") {
 #endregion
 
 #region Login to your Azure subscription.
-$SubscriptionName = "Cloud Solution Architect"
-While (-not(Get-AzContext)) {
+While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount
-    #Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
-    #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
-    #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
 }
 #endregion
 

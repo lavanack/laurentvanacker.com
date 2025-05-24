@@ -53,7 +53,7 @@ Set-Location -Path $CurrentDir
 $CSVFile = $CurrentScript -replace ".ps1$", $("_{0:yyyyMMddHHmmss}.csv" -f (Get-Date))
 
 #region Login to your Azure subscription.
-While (-not(Get-AzContext)) {
+While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount
 }
 #endregion
