@@ -66,6 +66,7 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
 #region Defining variables 
+$SubscriptionName = "Cloud Solution Architect"
 #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
 $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
 $ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/main/src/repository/resourcelocations.json
@@ -73,8 +74,11 @@ $shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @
 #endregion
 
 # Login to your Azure subscription.
-While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
+While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName)) {
     Connect-AzAccount
+    #Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
+    #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
+    #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
 }
 
 $AzureVMNameMaxLength = 15
@@ -447,7 +451,7 @@ $Argument = "-ResourceGroupName {0} -StorageAccountName {1} -ShareName {2}" -f $
 Set-AzVMCustomScriptExtension -StorageAccountName $StorageAccountName -ContainerName $ContainerName -FileName $PowershellScriptName -Run $PowershellScriptName -Argument $Argument -StorageAccountKey $StorageAccountKey -Name $PowershellScriptName -VMName $VMName -ResourceGroupName $ResourceGroupName -Location $Location
 
 #region RBAC Assignment Removal
-Get-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -Scope $SourceStorageAccount.Id | Remove-AzRoleAssignment
+#Get-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -Scope $SourceStorageAccount.Id | Remove-AzRoleAssignment
 #endregion
 
 #endregion
