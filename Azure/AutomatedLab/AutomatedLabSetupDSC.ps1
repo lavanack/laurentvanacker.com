@@ -340,8 +340,6 @@ Configuration AutomatedLabSetupDSC {
         xRemoteFile DownloadAzCopy
         {
             DestinationPath = "$env:SystemDrive\Temp\azcopy_windows_amd64_latest.zip"
-            #To always have the latest Git version for Windows x64
-            #Uri            = ((Invoke-WebRequest -Uri 'https://git-scm.com/download/win').Links | Where-Object -FilterScript { $_.InnerText -eq "64-bit Git For Windows Setup"}).href
             Uri             = 'https://aka.ms/downloadazcopy-v10-windows'
             UserAgent       = [Microsoft.PowerShell.Commands.PSUserAgent]::InternetExplorer
             Headers         = @{'Accept-Language' = 'en-US'}

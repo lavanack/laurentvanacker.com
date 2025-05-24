@@ -20,6 +20,9 @@ of the Sample Code.
 [CmdletBinding()]
 param
 (
+    [string] $SourceResourceGroupName = "rg-automatedlab-storage-use-001",
+    [string] $SourceStorageAccountName = "automatedlablabsources",
+    [string] $SourceShareNAme = "isos",
     [switch] $Spot
 )
 
@@ -73,7 +76,7 @@ $shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @
 # Login to your Azure subscription.
 While (-not((Get-AzContext).Subscription.Name -eq $SubscriptionName)) {
     Connect-AzAccount
-    Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
+    #Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
     #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
     #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
 }
@@ -83,7 +86,9 @@ $RDPPort = 3389
 $JitPolicyTimeInHours = 3
 $JitPolicyName = "Default"
 $Location = "eastus2"
-$VMSize = "Standard_D16s_v5"
+#$VMSize = "Standard_D16s_v6"
+#Always get the latest generation available in the Azure region
+$VMSize = (Get-AzComputeResourceSku -Location $Location | Where-Object -FilterScript {$_.Name -match "^Standard_D16s_v" } | Sort-Object -Property Name -Descending | Select-Object -First 1).Name
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
 $ResourceGroupPrefix = "rg"
@@ -255,8 +260,14 @@ $VM = Add-AzVMDataDisk -VM $VMConfig -Name $DataDiskName -Caching 'ReadWrite' -C
 #endregion
 
 #Step 10: Create Azure Virtual Machine
-New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig #-DisableBginfoExtension
-
+try {
+    New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig -ErrorAction Stop #-DisableBginfoExtension
+}
+catch [Microsoft.Rest.Azure.CloudException] {
+    Write-Warning -Message $_.Exception.Message
+    $VMConfig.AdditionalCapabilities.HibernationEnabled = $false
+    New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig -ErrorAction Stop #-DisableBginfoExtension
+}
 $VM = Get-AzVM -ResourceGroup $ResourceGroupName -Name $VMName
 #region JIT Access Management
 #region Enabling JIT Access
@@ -339,7 +350,6 @@ catch {}
 $VM | Update-AzVM -Verbose
 #endregion
 
-
 <#
 #region Setting up AutomatedLab via a PowerShell Script
 #Getting storage account
@@ -365,6 +375,85 @@ Set-AzStorageBlobContent -Context $StorageContext -File $PowershellScriptFullNam
 Set-AzVMCustomScriptExtension -StorageAccountName $StorageAccountName -ContainerName $ContainerName -FileName $PowershellScriptName -Run $PowershellScriptName -StorageAccountKey $StorageAccountKey -Name $PowershellScriptName -VMName $VMName -ResourceGroupName $ResourceGroupName -Location $Location
 #endregion
 #>
+
+#region Setting up AutomatedLab via a PowerShell Script
+#
+
+
+#Getting storage account
+$ContainerName = "scripts"
+$PowershellScriptName = "PostSetup.ps1"
+$PowershellScriptFullName = $(Join-Path -Path $CurrentDir -ChildPath $PowershellScriptName)
+
+$StorageAccountKey = ((Get-AzStorageAccountKey -ResourceGroupName $ResourceGroupName -Name $StorageAccountName)[0].Value)
+
+$StorageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName 
+
+#Getting context for blob upload
+$StorageContext = $StorageAccount.Context
+
+#Performing blob upload
+if(-not(Get-AzStorageContainer -Name $ContainerName -Context $StorageContext -ErrorAction SilentlyContinue)) {
+    New-AzStorageContainer -Name $ContainerName -Context $StorageContext
+}
+
+#Uploading script
+Set-AzStorageBlobContent -Context $StorageContext -File $PowershellScriptFullName -Container $ContainerName -Blob $PowershellScriptName -BlobType Block -Force
+
+#region Script Parameters
+$SourceResourceGroupName = "rg-automatedlab-storage-use-001"
+$SourceStorageAccountName = "automatedlablabsources"
+$SourceShareNAme = "isos"
+#endregion
+
+#region RBAC Assignment
+<#
+#region 'Storage File Data SMB Share Contributor' RBAC Assignment
+#For New-AzStorageContext
+$SourceStorageAccount = Get-AzStorageAccount -ResourceGroupName $SourceResourceGroupName -Name $SourceStorageAccountName
+$StorageFileDataSMBShareContributorRole = Get-AzRoleDefinition "Storage File Data SMB Share Contributor"
+While (-not(Get-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -RoleDefinitionName $StorageFileDataSMBShareContributorRole.Name -Scope $SourceStorageAccount.Id)) {
+    Write-Verbose -Message "Assigning the '$($StorageFileDataSMBShareContributorRole.Name)' RBAC role to the '$($VM.Identity.PrincipalId)' identity on the '$($SourceStorageAccount.Id)' StorageAccount"
+    $null = New-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -RoleDefinitionName $StorageFileDataSMBShareContributorRole.Name -Scope $SourceStorageAccount.Id
+    Write-Verbose -Message "Sleeping 30 seconds"
+    Start-Sleep -Seconds 30
+}
+#endregion 
+
+#region 'Storage Account Key Operator Service Role' RBAC Assignment
+#For Get-AzStorageAccountKey
+$SourceStorageAccount = Get-AzStorageAccount -ResourceGroupName $SourceResourceGroupName -Name $SourceStorageAccountName
+$StorageAccountKeyOperatorServiceRole = Get-AzRoleDefinition "Storage Account Key Operator Service Role"
+While (-not(Get-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -RoleDefinitionName $StorageAccountKeyOperatorServiceRole.Name -Scope $SourceStorageAccount.Id)) {
+    Write-Verbose -Message "Assigning the '$($StorageAccountKeyOperatorServiceRole.Name)' RBAC role to the '$($VM.Identity.PrincipalId)' identity on the '$($SourceStorageAccount.Id)' StorageAccount"
+    $null = New-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -RoleDefinitionName $StorageAccountKeyOperatorServiceRole.Name -Scope $SourceStorageAccount.Id
+    Write-Verbose -Message "Sleeping 30 seconds"
+    Start-Sleep -Seconds 30
+}
+#endregion 
+#>
+
+#region 'Storage Account Contributor' RBAC Assignment
+#For Set-AzStorageAccount
+$SourceStorageAccount = Get-AzStorageAccount -ResourceGroupName $SourceResourceGroupName -Name $SourceStorageAccountName
+$StorageAccountContributorRole = Get-AzRoleDefinition "Storage Account Contributor"
+While (-not(Get-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -RoleDefinitionName $StorageAccountContributorRole.Name -Scope $SourceStorageAccount.Id)) {
+    Write-Verbose -Message "Assigning the '$($StorageAccountContributorRole.Name)' RBAC role to the '$($VM.Identity.PrincipalId)' identity on the '$($SourceStorageAccount.Id)' StorageAccount"
+    $null = New-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -RoleDefinitionName $StorageAccountContributorRole.Name -Scope $SourceStorageAccount.Id
+    Write-Verbose -Message "Sleeping 30 seconds"
+    Start-Sleep -Seconds 30
+}
+#endregion 
+#endregion 
+
+$Argument = "-ResourceGroupName {0} -StorageAccountName {1} -ShareName {2}" -f $SourceResourceGroupName, $SourceStorageAccountName, $SourceShareName
+#Set-AzVMCustomScriptExtension -StorageAccountName $StorageAccountName -ContainerName $ContainerName -FileName $PowershellScriptName -Run $PowershellScriptName -Argument $Argument -StorageAccountKey $StorageAccountKey -Name $PowershellScriptName -VMName $VMName -ResourceGroupName $ResourceGroupName -Location $Location
+
+#region RBAC Assignment Removal
+Get-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -Scope $SourceStorageAccount.Id | Remove-AzRoleAssignment
+#endregion
+
+#endregion
 
 # Adding Credentials to the Credential Manager (and escaping the password)
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDN /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
