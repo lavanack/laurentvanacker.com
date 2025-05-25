@@ -366,14 +366,11 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 
 #region Login to your Azure subscription.
-try { 
-    $null = Get-AzAccessToken -ErrorAction Stop
-}
-catch {
-    Connect-AzAccount
-    #Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
+While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
+	Connect-AzAccount
 }
 #endregion
+
 
 #region To use Azure Image Builder, you have to register for the providers and to ensure that RegistrationState will be set to Registered.
 $RequiredResourceProviders = 'Microsoft.VirtualMachineImages', 'Microsoft.Storage', 'Microsoft.Compute', 'Microsoft.KeyVault', 'Microsoft.ManagedIdentity'

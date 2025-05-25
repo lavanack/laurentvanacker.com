@@ -42,12 +42,12 @@ $Global:MaximumFunctionCount = 32768
 Import-Module -Name PSAzureVirtualDesktop -DisableNameChecking -Force #-Verbose
 
 Connect-MgGraph -NoWelcome
-try { 
-    $null = Get-AzAccessToken -ErrorAction Stop
-} catch {
-    Connect-AzAccount
-    #Get-AzSubscription | Out-GridView -OutputMode Single | Select-AzSubscription
+#region Login to your Azure subscription.
+While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
+	Connect-AzAccount
 }
+#endregion
+
 
 #region Cleanup - Removing previously existing resources
 #$LatestHostPoolJSONFile = Get-ChildItem -Path $CurrentDir -Filter "HostPool_*.json" -File | Sort-Object -Property Name -Descending | Select-Object -First 1

@@ -23,13 +23,10 @@ function Remove-AzVMStaleCredential {
     Param
     (
     )
+
     #region Login to your Azure subscription.
-    try { 
-        $null = Get-AzAccessToken -ErrorAction Stop
-    }
-    catch {
+    While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
         Connect-AzAccount
-        #Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
     }
     #endregion
 

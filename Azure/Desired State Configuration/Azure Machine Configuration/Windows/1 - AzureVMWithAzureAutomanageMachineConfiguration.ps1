@@ -311,14 +311,11 @@ $shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @
 #endregion
 
 #region Login to your Azure subscription.
-try { 
-    $null = Get-AzAccessToken -ErrorAction Stop
-}
-catch {
-    Connect-AzAccount
-    #Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
+While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
+	Connect-AzAccount
 }
 #endregion
+
 
 $AzureVMNameMaxLength = 15
 $RDPPort = 3389
