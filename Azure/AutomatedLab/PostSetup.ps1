@@ -30,6 +30,12 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
+#region Set Storage Account Configuration
+$MyPublicIp = (Invoke-WebRequest -uri "https://ipv4.seeip.org" -UseBasicParsing).Content
+$null = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Enabled -AllowSharedKeyAccess $true -NetworkRuleSet (@{ipRules = (@{IPAddressOrRange = $MyPublicIp; Action = "allow" }); defaultAction = "deny" })
+Start-Sleep -Seconds 10
+#endregion
+
 #region Customizing Taksbar 
 #There is an invisible char (BOM) insite the double quotes. Do not remove It
 #Invoke-Expression -Command "& { $((Invoke-RestMethod https://raw.githubusercontent.com/Ccmexec/PowerShell/master/Customize%20TaskBar%20and%20Start%20Windows%2011/CustomizeTaskbar.ps1) -replace "﻿") } -MoveStartLeft -RemoveWidgets -RemoveChat -RemoveSearch -RunForExistingUsers" -Verbose
@@ -62,12 +68,6 @@ $AzureContext = (Connect-AzAccount -Identity).context
 $AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -DefaultProfile $AzureContext
 #endregion
 
-#region Set Storage Account Configuration
-$MyPublicIp = (Invoke-WebRequest -uri "https://ipv4.seeip.org" -UseBasicParsing).Content
-$null = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Enabled -AllowSharedKeyAccess $true -NetworkRuleSet (@{ipRules = (@{IPAddressOrRange = $MyPublicIp; Action = "allow" }); defaultAction = "deny" })
-Start-Sleep -Seconds 10
-#endregion
-
 #region AutomatedLab ISO downloads
 $StartTime = Get-Date
 $ExpiryTime = $StartTime.AddDays(1)
@@ -90,10 +90,10 @@ $StorageShareSASToken = New-AzStorageShareSASToken -Context $Context -ExpiryTime
 
 #Go to the latest azcopy folder
 Get-ChildItem -Path "C:\Tools\azcopy_windows*" | Sort-Object -Property Name -Descending | Select-Object -First 1 | Push-Location
-$DestinationFolder = $(Join-Path -Path $LabSourcesDir -ChildPath "ISOs")
+$ISOFolder = $(Join-Path -Path $LabSourcesDir -ChildPath "ISOs")
 $env:AZCOPY_CRED_TYPE = "Anonymous"
 $env:AZCOPY_CONCURRENCY_VALUE = "AUTO"
-./azcopy.exe sync $StorageShareSASToken $DestinationFolder --delete-destination=true --log-level=INFO --put-md5
+./azcopy.exe sync $StorageShareSASToken $ISOFolder --delete-destination=true --log-level=INFO --put-md5
 $env:AZCOPY_CRED_TYPE = ""
 $env:AZCOPY_CONCURRENCY_VALUE = ""
 Pop-Location

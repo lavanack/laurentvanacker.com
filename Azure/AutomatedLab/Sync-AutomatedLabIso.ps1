@@ -24,7 +24,7 @@ param
     [string] $StorageAccountName = "automatedlablabsources",
     [string] $ShareName = "isos",
     [Parameter(Mandatory = $true)]
-    [ValidateSet("pull", "push")]
+    [ValidateSet("Pull", "Push")]
     [string] $Mode
 )
 
@@ -78,12 +78,12 @@ $StorageShareSASToken = New-AzStorageShareSASToken -Context $Context -ExpiryTime
 #Looking for the LabSources Folder across the drives
 $LabSourcesDir = (Get-ChildItem -Path (Get-PSDrive -PSProvider FileSystem | Where-Object -FilterScript { $_.Used }).Root -Directory -Filter "LabSources").FullName
 #Creating the ISOs path
-$SourceFolder = Join-Path -Path $LabSourcesDir -ChildPath "\ISOs"
+$ISOFolder = Join-Path -Path $LabSourcesDir -ChildPath "\ISOs"
 
 <#
 #region Building the input file with iso file list
 $AzCopyLogFile = Join-Path -Path $env:Temp -ChildPath $("azcopy_{0}.log" -f (Get-Date -Format 'yyyyMMddHHmmss'))
-(Get-ChildItem -Path $SourceFolder).Name | Out-File -FilePath $AzCopyLogFile -Encoding utf8
+(Get-ChildItem -Path $ISOFolder).Name | Out-File -FilePath $AzCopyLogFile -Encoding utf8
 #& $AzCopyLogFile
 #endregion
 #>
@@ -93,11 +93,11 @@ Get-ChildItem -Path "C:\Tools\azcopy_windows*" | Sort-Object -Property Name -Des
 $env:AZCOPY_CRED_TYPE = "Anonymous"
 $env:AZCOPY_CONCURRENCY_VALUE = "AUTO"
 Switch ($Mode) {
-    "pull" {
-        ./azcopy.exe sync $SourceFolder $StorageShareSASToken --delete-destination=true --log-level=INFO --put-md5
+    "Pull" {
+        ./azcopy.exe sync $ISOFolder $StorageShareSASToken --delete-destination=true --log-level=INFO --put-md5
     }
-    "push" {
-        ./azcopy.exe sync  $StorageShareSASToken $SourceFolder --delete-destination=true --log-level=INFO --put-md5
+    "Push" {
+        ./azcopy.exe sync  $StorageShareSASToken $ISOFolder --delete-destination=true --log-level=INFO --put-md5
     }
 }
 $env:AZCOPY_CRED_TYPE = ""

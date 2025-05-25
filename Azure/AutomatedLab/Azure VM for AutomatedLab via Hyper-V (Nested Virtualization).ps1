@@ -22,7 +22,7 @@ param
 (
     [string] $SourceResourceGroupName = "rg-automatedlab-storage-use-001",
     [string] $SourceStorageAccountName = "automatedlablabsources",
-    [string] $SourceShareNAme = "isos",
+    [string] $SourceShareName = "isos",
     [switch] $Spot
 )
 
@@ -404,56 +404,34 @@ Set-AzStorageBlobContent -Context $StorageContext -File $PowershellScriptFullNam
 #region Script Parameters
 $SourceResourceGroupName = "rg-automatedlab-storage-use-001"
 $SourceStorageAccountName = "automatedlablabsources"
-$SourceShareNAme = "isos"
+$SourceShareName = "isos"
 #endregion
 
 #region RBAC Assignment
-<#
-#region 'Storage File Data SMB Share Contributor' RBAC Assignment
-#For New-AzStorageContext
-$SourceStorageAccount = Get-AzStorageAccount -ResourceGroupName $SourceResourceGroupName -Name $SourceStorageAccountName
-$StorageFileDataSMBShareContributorRole = Get-AzRoleDefinition "Storage File Data SMB Share Contributor"
-While (-not(Get-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -RoleDefinitionName $StorageFileDataSMBShareContributorRole.Name -Scope $SourceStorageAccount.Id)) {
-    Write-Verbose -Message "Assigning the '$($StorageFileDataSMBShareContributorRole.Name)' RBAC role to the '$($VM.Identity.PrincipalId)' identity on the '$($SourceStorageAccount.Id)' StorageAccount"
-    $null = New-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -RoleDefinitionName $StorageFileDataSMBShareContributorRole.Name -Scope $SourceStorageAccount.Id
-    Write-Verbose -Message "Sleeping 30 seconds"
-    Start-Sleep -Seconds 30
-}
-#endregion 
-
-#region 'Storage Account Key Operator Service Role' RBAC Assignment
-#For Get-AzStorageAccountKey
-$SourceStorageAccount = Get-AzStorageAccount -ResourceGroupName $SourceResourceGroupName -Name $SourceStorageAccountName
-$StorageAccountKeyOperatorServiceRole = Get-AzRoleDefinition "Storage Account Key Operator Service Role"
-While (-not(Get-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -RoleDefinitionName $StorageAccountKeyOperatorServiceRole.Name -Scope $SourceStorageAccount.Id)) {
-    Write-Verbose -Message "Assigning the '$($StorageAccountKeyOperatorServiceRole.Name)' RBAC role to the '$($VM.Identity.PrincipalId)' identity on the '$($SourceStorageAccount.Id)' StorageAccount"
-    $null = New-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -RoleDefinitionName $StorageAccountKeyOperatorServiceRole.Name -Scope $SourceStorageAccount.Id
-    Write-Verbose -Message "Sleeping 30 seconds"
-    Start-Sleep -Seconds 30
-}
-#endregion 
-#>
-
 #region 'Storage Account Contributor' RBAC Assignment
 #For Set-AzStorageAccount
-$SourceStorageAccount = Get-AzStorageAccount -ResourceGroupName $SourceResourceGroupName -Name $SourceStorageAccountName
-$StorageAccountContributorRole = Get-AzRoleDefinition "Storage Account Contributor"
-While (-not(Get-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -RoleDefinitionName $StorageAccountContributorRole.Name -Scope $SourceStorageAccount.Id)) {
-    Write-Verbose -Message "Assigning the '$($StorageAccountContributorRole.Name)' RBAC role to the '$($VM.Identity.PrincipalId)' identity on the '$($SourceStorageAccount.Id)' StorageAccount"
-    $null = New-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -RoleDefinitionName $StorageAccountContributorRole.Name -Scope $SourceStorageAccount.Id
-    Write-Verbose -Message "Sleeping 30 seconds"
-    Start-Sleep -Seconds 30
+$SourceStorageAccount = Get-AzStorageAccount -ResourceGroupName $SourceResourceGroupName -Name $SourceStorageAccountName -ErrorAction Ignore
+if ($SourceStorageAccount) {
+    $StorageAccountContributorRole = Get-AzRoleDefinition "Storage Account Contributor"
+    While (-not(Get-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -RoleDefinitionName $StorageAccountContributorRole.Name -Scope $SourceStorageAccount.Id)) {
+        Write-Verbose -Message "Assigning the '$($StorageAccountContributorRole.Name)' RBAC role to the '$($VM.Identity.PrincipalId)' identity on the '$($SourceStorageAccount.Id)' StorageAccount"
+        $null = New-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -RoleDefinitionName $StorageAccountContributorRole.Name -Scope $SourceStorageAccount.Id
+        Write-Verbose -Message "Sleeping 30 seconds"
+        Start-Sleep -Seconds 30
+    }
+    #endregion 
+    #endregion 
+
+    $Argument = "-ResourceGroupName {0} -StorageAccountName {1} -ShareName {2}" -f $SourceResourceGroupName, $SourceStorageAccountName, $SourceShareName
+    Set-AzVMCustomScriptExtension -StorageAccountName $StorageAccountName -ContainerName $ContainerName -FileName $PowershellScriptName -Run $PowershellScriptName -Argument $Argument -StorageAccountKey $StorageAccountKey -Name $PowershellScriptName -VMName $VMName -ResourceGroupName $ResourceGroupName -Location $Location
+
+    #region RBAC Assignment Removal
+    Get-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -Scope $SourceStorageAccount.Id | Remove-AzRoleAssignment
+    #endregion
 }
-#endregion 
-#endregion 
-
-$Argument = "-ResourceGroupName {0} -StorageAccountName {1} -ShareName {2}" -f $SourceResourceGroupName, $SourceStorageAccountName, $SourceShareName
-Set-AzVMCustomScriptExtension -StorageAccountName $StorageAccountName -ContainerName $ContainerName -FileName $PowershellScriptName -Run $PowershellScriptName -Argument $Argument -StorageAccountKey $StorageAccountKey -Name $PowershellScriptName -VMName $VMName -ResourceGroupName $ResourceGroupName -Location $Location
-
-#region RBAC Assignment Removal
-#Get-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -Scope $SourceStorageAccount.Id | Remove-AzRoleAssignment
-#endregion
-
+else {
+    Write-Warning -Message "The '$SourceStorageAccountName' StorageAccountName (into the '$SourceResourceGroupName' ResourceGroupName) doesn't exist ..."
+}
 #endregion
 
 # Adding Credentials to the Credential Manager (and escaping the password)
