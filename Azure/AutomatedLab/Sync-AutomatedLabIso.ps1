@@ -22,7 +22,10 @@ param
 (
     [string] $ResourceGroupName = "rg-automatedlab-storage-use-001",
     [string] $StorageAccountName = "automatedlablabsources",
-    [string] $ShareName = "isos"
+    [string] $ShareName = "isos",
+    [Parameter(Mandatory = $true)]
+    [ValidateSet("pull", "push")]
+    [string] $Mode
 )
 
 Clear-Host
@@ -37,6 +40,12 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
     #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
 }
+#endregion
+
+#region Set Storage Account Configuration
+$MyPublicIp = (Invoke-WebRequest -uri "https://ipv4.seeip.org").Content
+$null = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Enabled -AllowSharedKeyAccess $true -NetworkRuleSet (@{ipRules = (@{IPAddressOrRange = $MyPublicIp; Action = "allow" }); defaultAction = "deny" })
+Start-Sleep -Seconds 10
 #endregion
 
 #region Installing AzCopy
@@ -66,12 +75,6 @@ $Context = New-AzStorageContext -ConnectionString "DefaultEndpointsProtocol=http
 $StorageShareSASToken = New-AzStorageShareSASToken -Context $Context -ExpiryTime $ExpiryTime -Permission "rwdl" -ShareName $ShareName -FullUri 
 #endregion
 
-#region Set Storage Account Configuration
-$MyPublicIp = (Invoke-WebRequest -uri "https://ipv4.seeip.org").Content
-$null = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Enabled -AllowSharedKeyAccess $true -NetworkRuleSet (@{ipRules = (@{IPAddressOrRange = $MyPublicIp; Action = "allow" }); defaultAction = "deny" })
-Start-Sleep -Seconds 10
-#endregion
-
 #Looking for the LabSources Folder across the drives
 $LabSourcesDir = (Get-ChildItem -Path (Get-PSDrive -PSProvider FileSystem | Where-Object -FilterScript { $_.Used }).Root -Directory -Filter "LabSources").FullName
 #Creating the ISOs path
@@ -89,7 +92,14 @@ $AzCopyLogFile = Join-Path -Path $env:Temp -ChildPath $("azcopy_{0}.log" -f (Get
 Get-ChildItem -Path "C:\Tools\azcopy_windows*" | Sort-Object -Property Name -Descending | Select-Object -First 1 | Push-Location
 $env:AZCOPY_CRED_TYPE = "Anonymous"
 $env:AZCOPY_CONCURRENCY_VALUE = "AUTO"
-./azcopy.exe sync $SourceFolder $StorageShareSASToken --delete-destination=true --log-level=INFO --put-md5
+Switch ($Mode) {
+    "pull" {
+        ./azcopy.exe sync $SourceFolder $StorageShareSASToken --delete-destination=true --log-level=INFO --put-md5
+    }
+    "push" {
+        ./azcopy.exe sync  $StorageShareSASToken $SourceFolder --delete-destination=true --log-level=INFO --put-md5
+    }
+}
 $env:AZCOPY_CRED_TYPE = ""
 $env:AZCOPY_CONCURRENCY_VALUE = ""
 Pop-Location
