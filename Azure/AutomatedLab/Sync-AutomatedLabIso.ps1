@@ -53,6 +53,7 @@ $AzCopyURI = 'https://aka.ms/downloadazcopy-v10-windows'
 $OutputFile = Join-Path -Path $CurrentDir -ChildPath 'azcopy_windows_amd64_latest.zip'
 Invoke-WebRequest -Uri $AzCopyURI -OutFile $OutputFile
 Expand-Archive -Path $OutputFile -DestinationPath C:\Tools -Force
+Remove-Item -Path $OutputFile -Force
 #endregion
 
 #region AutomatedLab ISO uploads
