@@ -18,6 +18,19 @@ of the Sample Code.
 Clear-Host
 
 #region Function Definition
+#From https://learn.microsoft.com/en-us/azure/reliability/availability-zones-overview?tabs=azure-powershell#physical-and-logical-availability-zones
+#This function returns the physical and logical availability zones mapping
+function Get-AvailabilityZoneMapping {
+    [CmdletBinding()]
+    Param (
+    )
+    $subscriptionId = (Get-AzContext).Subscription.Id
+    Write-Verbose -Message "Processing '$subscriptionId' Subscription"
+    $response = Invoke-AzRestMethod -Method GET -Path "/subscriptions/$subscriptionId/locations?api-version=2022-12-01"
+    $locations = ($response.Content | ConvertFrom-Json).value
+    $locations | Where-Object {$null -ne $_.availabilityZoneMappings} | Select-Object -Property Name, DisplayName,@{name='availabilityZoneMappings';expression={$_.availabilityZoneMappings}} | Sort-Object -Property Name
+}
+
 #This function returns the available and non-available availablity zones for an Azure VM Size in an Azure Region
 function Get-AvailabilityZone {
     [CmdletBinding()]
@@ -38,7 +51,7 @@ function Get-AvailabilityZone {
         Register-AzProviderFeature -FeatureName "AvailabilityZonePeering" -ProviderNamespace "Microsoft.Resources"
         do {
             $featureStatus = (Get-AzProviderFeature -ProviderNamespace "Microsoft.Resources" -FeatureName "AvailabilityZonePeering").RegistrationState
-            Write-Verbose -Message"Waiting for AvailabilityZonePeering feature to be registered....waiting 35 seconds"
+            Write-Verbose -Message "Waiting for AvailabilityZonePeering feature to be registered....waiting 35 seconds"
             Start-Sleep -Seconds 35
         } until ($featureStatus -eq "Registered")
     }
@@ -184,6 +197,12 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
+#region Login to your Azure subscription.
+While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
+    Connect-AzAccount
+}
+#endregion
+
 $Location = "francecentral" 
 $SKU = "Standard_D4S_v4"
 #$SKU = "Standard_B2S"
@@ -195,6 +214,12 @@ $LocationAvailabilityZone
 $SKUAvailabilityZone = Get-AvailabilityZone -Location $Location, "eastus" -SKU @("Standard_D4AS_v5", "Standard_D8AS_v5") -Verbose
 $SKUAvailabilityZone
 #>
+
+#region Getting the Availability Zones for a specified SKU for a given Azure Region
+$AvailabilityZoneMapping = Get-AvailabilityZoneMapping
+$AvailabilityZoneMapping
+$LogicalZone = $AvailabilityZoneMapping | Select-Object -Property Name, @{Name="LogicalZone"; Expression = {$_.availabilityZoneMappings.logicalZone}}
+#endregion
 
 #region Getting the Availability Zones for a specified SKU for a given Azure Region
 $SKUAvailabilityZone = Get-AvailabilityZone -Location $Location -SKU $SKU -Verbose
