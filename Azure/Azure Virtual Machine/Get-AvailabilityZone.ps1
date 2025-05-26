@@ -28,7 +28,7 @@ function Get-AvailabilityZoneMapping {
     Write-Verbose -Message "Processing '$subscriptionId' Subscription"
     $response = Invoke-AzRestMethod -Method GET -Path "/subscriptions/$subscriptionId/locations?api-version=2022-12-01"
     $locations = ($response.Content | ConvertFrom-Json).value
-    $locations | Where-Object {$null -ne $_.availabilityZoneMappings} | Select-Object -Property Name, DisplayName,@{name='availabilityZoneMappings';expression={$_.availabilityZoneMappings}} | Sort-Object -Property Name
+    $locations | Where-Object { $null -ne $_.availabilityZoneMappings } | Select-Object -Property Name, DisplayName, @{name = 'availabilityZoneMappings'; expression = { $_.availabilityZoneMappings } } | Sort-Object -Property Name
 }
 
 #This function returns the available and non-available availablity zones for an Azure VM Size in an Azure Region
@@ -218,7 +218,8 @@ $SKUAvailabilityZone
 #region Getting the Availability Zones for a specified SKU for a given Azure Region
 $AvailabilityZoneMapping = Get-AvailabilityZoneMapping
 $AvailabilityZoneMapping
-$LogicalZone = $AvailabilityZoneMapping | Select-Object -Property Name, @{Name="LogicalZone"; Expression = {$_.availabilityZoneMappings.logicalZone}}
+$LogicalZone = $AvailabilityZoneMapping | Select-Object -Property Name, @{Name = "LogicalZone"; Expression = { $_.availabilityZoneMappings.logicalZone } }
+$LogicalZone
 #endregion
 
 #region Getting the Availability Zones for a specified SKU for a given Azure Region
