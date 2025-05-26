@@ -81,6 +81,15 @@ Configuration AutomatedLabSetupDSC {
 		}		
         #>
 
+        Registry DisablePrivacyExperience
+        {
+			Key       = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\OOBE'
+			ValueName = 'DisablePrivacyExperience'
+			ValueData = '1'
+			ValueType = 'DWORD'
+			Ensure    = 'Present'
+		}		
+
         IEEnhancedSecurityConfiguration 'DisableForAdministrators'
         {
             Role    = 'Administrators'
@@ -298,7 +307,7 @@ Configuration AutomatedLabSetupDSC {
             DestinationPath = "$env:SystemDrive\Temp\StorageExplorer.exe"
             #To always have the latest Git version for Windows x64
             #Uri             = 'https://go.microsoft.com/fwlink/?LinkId=708343&clcid=0x409'
-            Uri             = 'https://download.microsoft.com/download/A/E/3/AE32C485-B62B-4437-92F7-8B6B2C48CB40/StorageExplorer-windows-x64.exe'
+            Uri             = 'https://go.microsoft.com/fwlink/?linkid=2216182'
             UserAgent       = [Microsoft.PowerShell.Commands.PSUserAgent]::Chrome
             Headers         = @{'Accept-Language' = 'en-US'}
             MatchSource     = $false
@@ -310,6 +319,7 @@ Configuration AutomatedLabSetupDSC {
             Ensure    = "Present"
             Path      = "$env:SystemDrive\Temp\StorageExplorer.exe"
             Arguments = '/SILENT /CLOSEAPPLICATIONS /ALLUSERS'
+            #Name      = "Microsoft Azure Storage Explorer version $AzureStorageExplorerVersion"
             Name      = "Microsoft Azure Storage Explorer version $AzureStorageExplorerVersion"
             ProductId = ""
             DependsOn = "[xRemoteFile]DownloadStorageExplorer"
@@ -320,7 +330,7 @@ Configuration AutomatedLabSetupDSC {
             DestinationPath = "$env:SystemDrive\Temp\Git-Latest.exe"
             #To always have the latest Git version for Windows x64
             #Uri            = ((Invoke-WebRequest -Uri 'https://git-scm.com/download/win').Links | Where-Object -FilterScript { $_.InnerText -eq "64-bit Git For Windows Setup"}).href
-            Uri             = 'https://github.com/git-for-windows/git/releases/download/v2.41.0.windows.1/Git-2.41.0-64-bit.exe'
+            Uri             = 'https://github.com/git-for-windows/git/releases/download/v2.49.0.windows.1/Git-2.49.0-64-bit.exe'
             UserAgent       = [Microsoft.PowerShell.Commands.PSUserAgent]::InternetExplorer
             Headers         = @{'Accept-Language' = 'en-US'}
             MatchSource     = $false

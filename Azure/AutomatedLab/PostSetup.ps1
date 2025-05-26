@@ -30,34 +30,11 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
-#region Set Storage Account Configuration
-$MyPublicIp = (Invoke-WebRequest -uri "https://ipv4.seeip.org" -UseBasicParsing).Content
-$null = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Enabled -AllowSharedKeyAccess $true -NetworkRuleSet (@{ipRules = (@{IPAddressOrRange = $MyPublicIp; Action = "allow" }); defaultAction = "deny" })
-Start-Sleep -Seconds 10
-#endregion
-
-#region Customizing Taksbar 
-#There is an invisible char (BOM) insite the double quotes. Do not remove It
-#Invoke-Expression -Command "& { $((Invoke-RestMethod https://raw.githubusercontent.com/Ccmexec/PowerShell/master/Customize%20TaskBar%20and%20Start%20Windows%2011/CustomizeTaskbar.ps1) -replace "﻿") } -MoveStartLeft -RemoveWidgets -RemoveChat -RemoveSearch -RunForExistingUsers" -Verbose
-Invoke-Expression -Command "& { $((Invoke-RestMethod https://raw.githubusercontent.com/Ccmexec/PowerShell/master/Customize%20TaskBar%20and%20Start%20Windows%2011/CustomizeTaskbar%20v1.1.ps1) -replace "﻿") } -MoveStartLeft -RemoveWidgets -RemoveChat -RemoveSearch -RunForExistingUsers" -Verbose
-#endregion
-
-#region My Github Repo Local Setup
-$SourceControlDir = (Get-ChildItem -Path (Get-PSDrive -PSProvider FileSystem | Where-Object -FilterScript { $_.Used }).Root -Directory -Filter "Source Control").FullName
-$LabSourcesDir = (Get-ChildItem -Path (Get-PSDrive -PSProvider FileSystem | Where-Object -FilterScript { $_.Used }).Root -Directory -Filter "LabSources").FullName
-$GitHubDir = Join-Path -Path $SourceControlDir -ChildPath "GitHub"
-
-Set-Location -Path $GitHubDir
-Start-Process -FilePath "$env:comspec" -ArgumentList "/c", 'git lfs install' -Wait
-Start-Process -FilePath "$env:comspec" -ArgumentList "/c", 'git config --global user.name "Laurent VAN ACKER"' -Wait
-Start-Process -FilePath "$env:comspec" -ArgumentList "/c", 'git config --global user.email laurent.vanacker@free.fr' -Wait
-#From https://support.atlassian.com/bamboo/kb/git-checkouts-fail-on-windows-with-filename-too-long-error-unable-to-create-file-errors/
-Start-Process -FilePath "$env:comspec" -ArgumentList "/c", 'git config --system core.longpaths true' -Wait
-Start-Process -FilePath "$env:comspec" -ArgumentList "/c", 'git clone https://github.com/lavanack/laurentvanacker.com.git' -Wait
-Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "C:\Tools\junction -accepteula c:\laurentvanacker.com laurentvanacker.com" -Wait
-Set-Location -Path "laurentvanacker.com"
-Start-Process -FilePath "$env:comspec" -ArgumentList "/c", 'git lfs pull' -Wait
-#endregion
+$CurrentScriptName = Split-Path -Path $CurrentScript -Leaf
+#$TranscriptFileName = $CurrentScriptName -replace ".ps1$", "$("_{0:yyyyMMddHHmmss}.txt" -f (Get-Date))"
+$TranscriptFileName = $CurrentScriptName -replace ".ps1$", "$("_{0}.txt" -f (Get-Date -Format 'yyyyMMddHHmmss'))"
+$TranscriptFile = Join-Path -Path "C:\Temp" -ChildPath $TranscriptFileName
+Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 
 #region Azure Connection
 # Ensures you do not inherit an AzContext in your dirbook
@@ -66,6 +43,52 @@ Disable-AzContextAutosave -Scope Process
 $AzureContext = (Connect-AzAccount -Identity).context
 # set and store context
 $AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -DefaultProfile $AzureContext
+#endregion
+
+#region Set Storage Account Configuration
+$MyPublicIp = (Invoke-WebRequest -uri "https://ipv4.seeip.org" -UseBasicParsing).Content
+$null = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Enabled -AllowSharedKeyAccess $true -NetworkRuleSet (@{ipRules = (@{IPAddressOrRange = $MyPublicIp; Action = "allow" }); defaultAction = "deny" })
+Start-Sleep -Seconds 10
+#endregion
+
+#region Customizing Taksbar 
+#There is an invisible char (BOM) insite the double quotes. Do not remove It
+#Invoke-Expression -Command "& { $((Invoke-RestMethod https://raw.githubusercontent.com/ccmexec/PowerShell/master/customize%20TaskBar%20and%20Start%20Windows%2011/customizeTaskbar.ps1) -replace "﻿") } -MoveStartLeft -RemoveWidgets -RemoveChat -RemoveSearch -RunForExistingUsers" -Verbose
+Invoke-Expression -Command "& { $((Invoke-RestMethod https://raw.githubusercontent.com/Ccmexec/PowerShell/refs/heads/master/Customize%20TaskBar%20and%20Start%20Windows%2011/CustomizeTaskbar%20v1.1.ps1) -replace "﻿") } -MoveStartLeft -RemoveWidgets -RemoveChat -RemoveSearch -RunForExistingUsers" -Verbose
+#endregion
+
+#region My Github Repo Local Setup
+$SourceControlDir = (Get-ChildItem -Path (Get-PSDrive -PSProvider FileSystem | Where-Object -FilterScript { $_.Used }).Root -Directory -Filter "Source Control").FullName
+$LabSourcesDir = (Get-ChildItem -Path (Get-PSDrive -PSProvider FileSystem | Where-Object -FilterScript { $_.Used }).Root -Directory -Filter "LabSources").FullName
+$GitHubDir = Join-Path -Path $SourceControlDir -ChildPath "GitHub"
+$GitHubRepoName = "laurentvanacker.com"
+$GitHubRepoDir = Join-Path -Path $GitHubDir -ChildPath $GitHubRepoName
+$GitSetup = @"
+REM From https://support.atlassian.com/bamboo/cb/git-checkouts-fail-on-windows-with-filename-too-long-error-unable-to-create-file-errors/
+git config --system core.longpaths true
+git config --global user.name "Laurent VAN ACKER"
+git config --global user.email laurent.vanacker@free.fr
+git lfs install
+git clone https://github.com/lavanack/$GitHubRepoName.git "$GitHubRepoDir"
+C:\Tools\junction -accepteula $env:SystemDrive\$GitHubRepoName "$GitHubRepoDir"
+"@
+$GitSetupFilePath = "C:\Temp\GitSetup.cmd"
+$null = New-Item -Path $GitSetupFilePath -ItemType File -Value $GitSetup -Force
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "$GitSetupFilePath" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
+#Remove-Item -Path $GitSetupFilePath -Force
+
+<#
+#From https://support.atlassian.com/bamboo/cb/git-checkouts-fail-on-windows-with-filename-too-long-error-unable-to-create-file-errors/
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git config --system core.longpaths true" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git lfs install" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
+Set-Location -Path $GitHubDir
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git clone https://github.com/lavanack/laurentvanacker.com.git" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "C:\Tools\junction -accepteula c:\laurentvanacker.com ""$GitHubRepoDir""" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
+Set-Location -Path $GitHubRepoDir
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git lfs pull" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git config --global user.name ""Laurent VAN ACKER""" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git config --global user.email laurent.vanacker@free.fr" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
+#>
 #endregion
 
 #region AutomatedLab ISO downloads
@@ -100,10 +123,12 @@ Pop-Location
 #endregion
 
 #region Set Storage Account Configuration
-$null = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Disabled -AllowSharedKeyAccess $false
+#$null = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Disabled -AllowSharedKeyAccess $false
 #endregion
 
 #region Addition Software setup/upgrade
-winget upgrade --all --silent --accept-package-agreements --accept-source-agreements
-winget install --exact --id=Notepad++.Notepad++
+#Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "winget upgrade --all --silent --accept-package-agreements --accept-source-agreements" -Wait
+#Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "winget install --exact --id=Notepad++.Notepad++" -Wait
 #endregion
+
+Stop-Transcript

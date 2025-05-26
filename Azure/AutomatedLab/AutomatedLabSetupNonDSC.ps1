@@ -15,6 +15,20 @@ function Disable-IEESC {
     Write-Host "IE Enhanced Security Configuration (ESC) has been disabled." -ForegroundColor Green
 }
 #Disable-IEESC
+
+function Disable-PrivacyExperience {
+    $RegKey = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OOBE"
+
+    # Create the OOBE key if it doesn't exist
+    if (-not (Test-Path $RegKey)) {
+        New-Item -Path $RegKey -Force
+    }
+
+    # Set the DisablePrivacyExperience value
+    Set-ItemProperty -Path $RegKey -Name "DisablePrivacyExperience" -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Value 1
+    Write-Host "Privacy Experience has been disabled." -ForegroundColor Green
+}
+Disable-PrivacyExperience
 #endregion 
 
 Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Management-PowerShell -All
@@ -59,11 +73,20 @@ Enable-LabHostRemoting -Force
 New-LabSourcesFolder -DriveLetter $Disk.DriveLetter
 #endregion
 
+<#
+winget install --exact --id=Microsoft.Azure.StorageExplorer
+winget install --exact --id=Microsoft.Azure.AZCopy.10
+winget install --exact --id=GitHub.cli
+winget install --exact --id=Microsoft.PowerShell
+winget install --exact --id=sysinternals --location "C:\Tools"
+#>
+
 #region Installing AzCopy
 $AzCopyURI = 'https://aka.ms/downloadazcopy-v10-windows'
 $OutputFile = Join-Path -Path $CurrentDir -ChildPath 'azcopy_windows_amd64_latest.zip'
 Invoke-WebRequest -Uri $AzCopyURI -OutFile $OutputFile
 Expand-Archive -Path $OutputFile -DestinationPath C:\Tools -Force
+Remove-Item -Path $OutputFile -Force
 #endregion
 
 #region Installing StorageExplorer
@@ -72,6 +95,7 @@ $StorageExplorerURI = 'https://download.microsoft.com/download/A/E/3/AE32C485-B6
 $OutputFile = Join-Path -Path $CurrentDir -ChildPath 'StorageExplorer.exe'
 Invoke-WebRequest -Uri $StorageExplorerURI -OutFile $OutputFile
 Start-Process -FilePath $OutputFile -ArgumentList "/SILENT", "/CLOSEAPPLICATIONS", "/ALLUSERS" -Wait
+Remove-Item -Path $OutputFile -Force
 #endregion
 
 #region Installing Git
@@ -79,6 +103,7 @@ $GitURI = ((Invoke-WebRequest -Uri 'https://git-scm.com/download/win').Links | W
 $OutputFile = Join-Path -Path $CurrentDir -ChildPath $(Split-Path -Path $GitURI -Leaf)
 Invoke-WebRequest -Uri $GitURI -OutFile $OutputFile
 Start-Process -FilePath $OutputFile -ArgumentList "/SILENT", "/CLOSEAPPLICATIONS" -Wait
+Remove-Item -Path $OutputFile -Force
 #endregion
 
 #region Installing Powershell 7+ : Silent Install
@@ -106,6 +131,7 @@ Invoke-WebRequest -Uri $SysinternalsSuiteURI -OutFile $OutputFile
 Expand-Archive -Path $OutputFile -DestinationPath C:\Tools -Force
 New-Item -Path "$($Disk.DriveLetter):\AutomatedLab-VMs" -ItemType Directory -Force
 Start-Process -FilePath C:\Tools\junction.exe -ArgumentList '-accepteula', "C:\AutomatedLab-VMs", "$($Disk.DriveLetter):\AutomatedLab-VMs" -Wait
+Remove-Item -Path $OutputFile -Force
 #endregion
 
 <#

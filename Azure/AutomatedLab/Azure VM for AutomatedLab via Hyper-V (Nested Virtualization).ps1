@@ -345,8 +345,19 @@ try {
     }
     Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$ConfigurationFileName.zip" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $ConfigurationName -ConfigurationData $ConfigurationDataFileName -ConfigurationArgument $ConfigurationArgument  -Version "2.80" -Location $Location -AutoUpdate -Verbose #-ErrorAction Ignore
 }
-catch {}
+catch {
+    $_
+}
 $VM | Update-AzVM -Verbose
+Do {
+    Write-Verbose -Message "Sleeping 30 seconds"
+    Start-Sleep -Seconds 30
+    $ProvisioningState = (Get-AzVMExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -Name Microsoft.Powershell.DSC).ProvisioningState
+    Write-Verbose -Message "`$ProvisioningState: $ProvisioningState"
+} While ($ProvisioningState -match "ing$")
+
+
+
 #endregion
 
 <#
@@ -378,7 +389,7 @@ Set-AzVMCustomScriptExtension -StorageAccountName $StorageAccountName -Container
 #region Setting up AutomatedLab via a PowerShell Script
 #
 
-
+#region Post Setup 
 #Getting storage account
 $ContainerName = "scripts"
 $PowershellScriptName = "PostSetup.ps1"
@@ -406,11 +417,10 @@ $SourceShareName = "isos"
 #endregion
 
 #region RBAC Assignment
-#region 'Storage Account Contributor' RBAC Assignment
-#For Set-AzStorageAccount
 $SourceStorageAccount = Get-AzStorageAccount -ResourceGroupName $SourceResourceGroupName -Name $SourceStorageAccountName -ErrorAction Ignore
 if ($SourceStorageAccount) {
     $StorageAccountContributorRole = Get-AzRoleDefinition "Storage Account Contributor"
+    #region 'Storage Account Contributor' RBAC Assignment
     While (-not(Get-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -RoleDefinitionName $StorageAccountContributorRole.Name -Scope $SourceStorageAccount.Id)) {
         Write-Verbose -Message "Assigning the '$($StorageAccountContributorRole.Name)' RBAC role to the '$($VM.Identity.PrincipalId)' identity on the '$($SourceStorageAccount.Id)' StorageAccount"
         $null = New-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -RoleDefinitionName $StorageAccountContributorRole.Name -Scope $SourceStorageAccount.Id
@@ -418,18 +428,18 @@ if ($SourceStorageAccount) {
         Start-Sleep -Seconds 30
     }
     #endregion 
-    #endregion 
 
     $Argument = "-ResourceGroupName {0} -StorageAccountName {1} -ShareName {2}" -f $SourceResourceGroupName, $SourceStorageAccountName, $SourceShareName
     Set-AzVMCustomScriptExtension -StorageAccountName $StorageAccountName -ContainerName $ContainerName -FileName $PowershellScriptName -Run $PowershellScriptName -Argument $Argument -StorageAccountKey $StorageAccountKey -Name $PowershellScriptName -VMName $VMName -ResourceGroupName $ResourceGroupName -Location $Location
 
     #region RBAC Assignment Removal
-    Get-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -Scope $SourceStorageAccount.Id | Remove-AzRoleAssignment
+    #Get-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -Scope $SourceStorageAccount.Id | Remove-AzRoleAssignment
     #endregion
 }
 else {
     Write-Warning -Message "The '$SourceStorageAccountName' StorageAccountName (into the '$SourceResourceGroupName' ResourceGroupName) doesn't exist ..."
 }
+#endregion
 #endregion
 
 # Adding Credentials to the Credential Manager (and escaping the password)
