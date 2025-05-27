@@ -63,32 +63,32 @@ $LabSourcesDir = (Get-ChildItem -Path (Get-PSDrive -PSProvider FileSystem | Wher
 $GitHubDir = Join-Path -Path $SourceControlDir -ChildPath "GitHub"
 $GitHubRepoName = "laurentvanacker.com"
 $GitHubRepoDir = Join-Path -Path $GitHubDir -ChildPath $GitHubRepoName
+
+#region Version 1
 $GitSetup = @"
 REM From https://support.atlassian.com/bamboo/cb/git-checkouts-fail-on-windows-with-filename-too-long-error-unable-to-create-file-errors/
 git config --system core.longpaths true
 git config --global user.name "Laurent VAN ACKER"
 git config --global user.email laurent.vanacker@free.fr
 git lfs install
-git clone https://github.com/lavanack/$GitHubRepoName.git "$GitHubRepoDir"
-C:\Tools\junction -accepteula $env:SystemDrive\$GitHubRepoName "$GitHubRepoDir"
-"@
+git clone https://github.com/lavanack/{0}.git "{1}"
+C:\Tools\junction -accepteula $env:SystemDrive\{0} "{1}"
+"@ -f $GitHubRepoName, $GitHubRepoDir
+
 $GitSetupFilePath = "C:\Temp\GitSetup.cmd"
 $null = New-Item -Path $GitSetupFilePath -ItemType File -Value $GitSetup -Force
-Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "$GitSetupFilePath" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
+#Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "$GitSetupFilePath" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
 #Remove-Item -Path $GitSetupFilePath -Force
+#endregion
 
-<#
+#region Version 2
 #From https://support.atlassian.com/bamboo/cb/git-checkouts-fail-on-windows-with-filename-too-long-error-unable-to-create-file-errors/
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git config --system core.longpaths true" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
-Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git lfs install" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
-Set-Location -Path $GitHubDir
-Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git clone https://github.com/lavanack/laurentvanacker.com.git" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
-Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "C:\Tools\junction -accepteula c:\laurentvanacker.com ""$GitHubRepoDir""" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
-Set-Location -Path $GitHubRepoDir
-Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git lfs pull" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git config --global user.name ""Laurent VAN ACKER""" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git config --global user.email laurent.vanacker@free.fr" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
-#>
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git lfs install" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git clone https://github.com/lavanack/$GitHubRepoName.git ""$GitHubRepoDir""" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "C:\Tools\junction -accepteula $env:SystemDrive\$GitHubRepoName ""$GitHubRepoDir""" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
 #endregion
 
 #region AutomatedLab ISO downloads
@@ -127,8 +127,10 @@ Pop-Location
 #endregion
 
 #region Addition Software setup/upgrade
-#Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "winget upgrade --all --silent --accept-package-agreements --accept-source-agreements" -Wait
-#Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "winget install --exact --id=Notepad++.Notepad++" -Wait
+if (winget) { 
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "winget upgrade --all --silent --accept-package-agreements --accept-source-agreements" -Wait
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "winget install --exact --id=Notepad++.Notepad++" -Wait
+}
 #endregion
 
 Stop-Transcript

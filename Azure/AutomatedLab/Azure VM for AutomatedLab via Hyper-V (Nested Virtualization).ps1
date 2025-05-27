@@ -66,7 +66,6 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
 #region Defining variables 
-$SubscriptionName = "Cloud Solution Architect"
 #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
 $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
 $ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/main/src/repository/resourcelocations.json
@@ -86,7 +85,7 @@ $JitPolicyName = "Default"
 $Location = "eastus2"
 #$VMSize = "Standard_D16s_v6"
 #Always get the latest generation available in the Azure region
-$VMSize = (Get-AzComputeResourceSku -Location $Location | Where-Object -FilterScript {$_.Name -match "^Standard_D16s_v" } | Sort-Object -Property Name -Descending | Select-Object -First 1).Name
+$VMSize = (Get-AzComputeResourceSku -Location $Location | Where-Object -FilterScript { $_.Name -match "^Standard_D16s_v" } | Sort-Object -Property Name -Descending | Select-Object -First 1).Name
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
 $ResourceGroupPrefix = "rg"
@@ -327,35 +326,35 @@ Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 # Publishing DSC Configuration for AutomatedLab via Hyper-V (Nested Virtualization)
 Publish-AzVMDscConfiguration -ConfigurationPath $ConfigurationFilePath -ConfigurationDataPath $ConfigurationDataFilePath -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Force -Verbose
 
-
-try {
-    #region Getting the Azure Storage Explorer Version via an online request
-    $Response = (Invoke-WebRequest -Uri https://github.com/microsoft/AzureStorageExplorer/releases/latest)
-    if ($Response.ParsedHtml.title -match "v(?<Version>\d+\.\d+.\d+)") {
-        $AzureStorageExplorerVersion = $Matches['Version']
-    }
-    else {
-        #Latest version in May 2025
-        $AzureStorageExplorerVersion = '1.38.0'
-    }
-    #endregion
-    $ConfigurationArgument = @{
-        Credential                  = $Credential
-        AzureStorageExplorerVersion = $AzureStorageExplorerVersion
-    }
-    Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$ConfigurationFileName.zip" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $ConfigurationName -ConfigurationData $ConfigurationDataFileName -ConfigurationArgument $ConfigurationArgument  -Version "2.80" -Location $Location -AutoUpdate -Verbose #-ErrorAction Ignore
-}
-catch {
-    $_
-}
-$VM | Update-AzVM -Verbose
 Do {
-    Write-Verbose -Message "Sleeping 30 seconds"
-    Start-Sleep -Seconds 30
-    $ProvisioningState = (Get-AzVMExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -Name Microsoft.Powershell.DSC).ProvisioningState
-    Write-Verbose -Message "`$ProvisioningState: $ProvisioningState"
-} While ($ProvisioningState -match "ing$")
-
+    try {
+        #region Getting the Azure Storage Explorer Version via an online request
+        $Response = (Invoke-WebRequest -Uri https://github.com/microsoft/AzureStorageExplorer/releases/latest)
+        if ($Response.ParsedHtml.title -match "v(?<Version>\d+\.\d+.\d+)") {
+            $AzureStorageExplorerVersion = $Matches['Version']
+        }
+        else {
+            #Latest version in May 2025
+            $AzureStorageExplorerVersion = '1.38.0'
+        }
+        #endregion
+        $ConfigurationArgument = @{
+            Credential                  = $Credential
+            AzureStorageExplorerVersion = $AzureStorageExplorerVersion
+        }
+        Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$ConfigurationFileName.zip" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $ConfigurationName -ConfigurationData $ConfigurationDataFileName -ConfigurationArgument $ConfigurationArgument  -Version "2.80" -Location $Location -AutoUpdate -Verbose #-ErrorAction Ignore
+    }
+    catch {
+        $_
+    }
+    Do {
+        Write-Verbose -Message "Sleeping 30 seconds"
+        Start-Sleep -Seconds 30
+        $ProvisioningState = (Get-AzVMExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -Name Microsoft.Powershell.DSC).ProvisioningState
+        Write-Verbose -Message "`$ProvisioningState: $ProvisioningState"
+    } While ($ProvisioningState -match "ing$")
+} While ($ProvisioningState -eq "Failed")
+$VM | Update-AzVM -Verbose
 
 
 #endregion
@@ -403,7 +402,7 @@ $StorageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Na
 $StorageContext = $StorageAccount.Context
 
 #Performing blob upload
-if(-not(Get-AzStorageContainer -Name $ContainerName -Context $StorageContext -ErrorAction SilentlyContinue)) {
+if (-not(Get-AzStorageContainer -Name $ContainerName -Context $StorageContext -ErrorAction SilentlyContinue)) {
     New-AzStorageContainer -Name $ContainerName -Context $StorageContext
 }
 
