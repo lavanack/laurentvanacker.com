@@ -19,21 +19,60 @@ Clear-Host
 
 #region Function Definition
 #From https://learn.microsoft.com/en-us/azure/reliability/availability-zones-overview?tabs=azure-powershell#physical-and-logical-availability-zones
-#This function returns the physical and logical availability zones mapping
+#This function returns the physical and logical availability zones mapping in the current subscription
 function Get-AvailabilityZoneMapping {
-    [CmdletBinding()]
+    [CmdletBinding(PositionalBinding = $false)]
     Param (
+        [ValidateScript({$_ -in $((Get-AzSubscription).Id)})]
+        [string[]] $SubscriptionId = (Get-AzContext).Subscription.Id
     )
-    $subscriptionId = (Get-AzContext).Subscription.Id
-    Write-Verbose -Message "Processing '$subscriptionId' Subscription"
-    $response = Invoke-AzRestMethod -Method GET -Path "/subscriptions/$subscriptionId/locations?api-version=2022-12-01"
-    $locations = ($response.Content | ConvertFrom-Json).value
-    $locations | Where-Object { $null -ne $_.availabilityZoneMappings } | Select-Object -Property Name, DisplayName, @{name = 'availabilityZoneMappings'; expression = { $_.availabilityZoneMappings } } | Sort-Object -Property Name
+
+    $AvailabilityZoneMappingHT = @{}
+    $PreviousSubscriptionId = (Get-AzContext).Subscription.Id
+    Write-Verbose -Message "The Current Subscription is '$PreviousSubscriptionId'"
+
+    foreach ($CurrentSubscriptionId in $SubscriptionId) {
+        Write-Verbose -Message "Switching from '$((Get-AzContext).Subscription.Id)' to '$CurrentSubscriptionId' Subscription ..."
+        $null = Get-AzSubscription -SubscriptionId $CurrentSubscriptionId | Select-AzSubscription
+
+        $response = Invoke-AzRestMethod -Method GET -Path "/subscriptions/$CurrentSubscriptionId/locations?api-version=2022-12-01"
+        $locations = ($response.Content | ConvertFrom-Json).value
+        $AvailabilityZoneMapping = $locations | Where-Object { $null -ne $_.availabilityZoneMappings } | Select-Object -Property @{Name="SubscriptionId"; Expression={$CurrentSubscriptionId}}, Name, DisplayName, @{name = 'availabilityZoneMappings'; expression = { $_.availabilityZoneMappings } } | Sort-Object -Property Name
+        $AvailabilityZoneMappingHT[$CurrentSubscriptionId] = $AvailabilityZoneMapping
+    }
+
+    Write-Verbose -Message "Switching from '$((Get-AzContext).Subscription.Id)' to '$PreviousSubscriptionId' Subscription ..."
+    $null = Get-AzSubscription -SubscriptionId $PreviousSubscriptionId | Select-AzSubscription
+
+    #If we proceed only one subscription we directly return the data else the hashtable.
+    if ($AvailabilityZoneMappingHT.Count -eq 1) {
+        $AvailabilityZoneMappingHT.Values
+    }
+    else {
+        $AvailabilityZoneMappingHT
+    }
+}
+
+function Get-AvailabilityZoneMappingComparison {
+    [CmdletBinding(PositionalBinding = $false)]
+    Param (
+        [ValidateScript({$_ -in $((Get-AzSubscription).Id)})]
+        [string[]] $SubscriptionId = (Get-AzContext).Subscription.Id
+    )
+
+    $AvailabilityZoneMapping = Get-AvailabilityZoneMapping -SubscriptionId $SubscriptionId
+    if ($AvailabilityZoneMapping -is [hashtable]) {
+        $AvailabilityZoneMappingComparison = $AvailabilityZoneMapping.Values | ForEach-Object -Process { $_ } | Select-Object -Property SubscriptionId -ExpandProperty availabilityZoneMappings | Sort-Object -Property physicalZone
+    }
+    else {
+        $AvailabilityZoneMappingComparison = $AvailabilityZoneMapping | ForEach-Object -Process { $_ } | Select-Object -Property SubscriptionId -ExpandProperty availabilityZoneMappings | Sort-Object -Property physicalZone
+    }
+    $AvailabilityZoneMappingComparison
 }
 
 #This function returns the available and non-available availablity zones for an Azure VM Size in an Azure Region
 function Get-AvailabilityZone {
-    [CmdletBinding()]
+    [CmdletBinding(PositionalBinding = $false)]
     Param (
         [ValidateScript({ $_ -in (Get-AzLocation).Location })]
         [string[]] $Location = "francecentral",
@@ -41,7 +80,7 @@ function Get-AvailabilityZone {
     )
     # Get access token for authentication
     $accessToken = (Get-AzAccessToken).Token
-    $subscriptionId = (Get-AzContext).Subscription.Id
+    $SubscriptionId = (Get-AzContext).Subscription.Id
 
     #region  Register AvailabilityZonePeering feature if not registered
     $featureStatus = (Get-AzProviderFeature -ProviderNamespace "Microsoft.Resources" -FeatureName "AvailabilityZonePeering").RegistrationState
@@ -69,12 +108,12 @@ function Get-AvailabilityZone {
         Write-Verbose -Message "Processing '$CurrentLocation'"
         $body = @{
             location        = $CurrentLocation
-            subscriptionIds = @("subscriptions/$subscriptionId")
+            SubscriptionIds = @("subscriptions/$SubscriptionId")
         } | ConvertTo-Json
 
         # Calling the API endpoint and getting the supported availability zones
         try {
-            $apiEndpoint = "https://management.azure.com/subscriptions/$subscriptionId/providers/Microsoft.Resources/checkZonePeers/?api-version=2022-12-01"
+            $apiEndpoint = "https://management.azure.com/subscriptions/$SubscriptionId/providers/Microsoft.Resources/checkZonePeers/?api-version=2022-12-01"
             $response = Invoke-RestMethod -Method Post -Uri $apiEndpoint -Body $body -Headers $headers
             $zones = $response.AvailabilityZonePeers.AvailabilityZone
             [PSCustomObject]@{Location = $CurrentLocation; Zone = $Zones }
@@ -123,7 +162,7 @@ function Get-AvailabilityZone {
                 [PSCustomObject] @{
                     "Name"                    = $SkuName
                     "Location"                = $CurrentLocation
-                    "AppliesToSubscriptionID" = $SubId
+                    "AppliesToSubscriptionId" = $SubId
                     "SubscriptionRestriction" = $LocRestriction
                     "ZoneRestriction"         = $ZoneRestriction
                 }
@@ -135,7 +174,7 @@ function Get-AvailabilityZone {
 
 #This function returns the less busy Availablity Zone for an Azure VM Size in an Azure Region
 function Get-LeastBusyAvailabilityZone {
-    [CmdletBinding()]
+    [CmdletBinding(PositionalBinding = $false)]
     Param (
         [ValidateScript({ $_ -in (Get-AzLocation).Location })]
         [string] $Location = "francecentral",
@@ -176,7 +215,7 @@ function Get-LeastBusyAvailabilityZone {
 
 #This function returns the number of VMs deployed per VM Size, Azure Region and Availablity Zone 
 function Get-AzVMNumberPerAvailabilityZone {
-    [CmdletBinding()]
+    [CmdletBinding(PositionalBinding = $false)]
     Param (
     )
     Get-AzVM | Select-Object -Property Location, @{Name = "VMSize"; Expression = { $_.HardwareProfile.VmSize } }, @{Name = "Zone"; Expression = { if ($_.Zones) {
@@ -215,11 +254,18 @@ $SKUAvailabilityZone = Get-AvailabilityZone -Location $Location, "eastus" -SKU @
 $SKUAvailabilityZone
 #>
 
-#region Getting the Availability Zones for a specified SKU for a given Azure Region
-$AvailabilityZoneMapping = Get-AvailabilityZoneMapping
+#region Getting the Availability Zones Mapping for specified subscription (The Current by default)
+$AvailabilityZoneMapping = Get-AvailabilityZoneMapping -Verbose
 $AvailabilityZoneMapping
 $LogicalZone = $AvailabilityZoneMapping | Select-Object -Property Name, @{Name = "LogicalZone"; Expression = { $_.availabilityZoneMappings.logicalZone } }
 $LogicalZone
+#endregion
+
+#region Getting the Availability Zones Mapping for all subscriptions
+$AvailabilityZoneMapping = Get-AvailabilityZoneMapping -SubscriptionId (Get-AzSubscription).Id -Verbose
+$AvailabilityZoneMapping
+#Comapring the physical zone mapping across the subscription
+$AvailabilityZoneMappingComparison = Get-AvailabilityZoneMappingComparison -SubscriptionId (Get-AzSubscription).Id -Verbose
 #endregion
 
 #region Getting the Availability Zones for a specified SKU for a given Azure Region
