@@ -76,7 +76,6 @@ $SQLServer2022LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/
 #endregion
 
 $NetworkID='10.0.0.0/24' 
-$Ipv4Gateway = '10.0.0.254'
 $DC01IPv4Address = '10.0.0.1'
 $FS01IPv4Address = '10.0.0.21'
 $SQLNODE01IPv4Address = '10.0.0.11'
@@ -179,6 +178,7 @@ Add-LabMachineDefinition -Name FS01 -Roles FileServer -NetworkAdapter $FS01NetAd
 
 #Installing servers
 Install-Lab -Verbose
+
 $AllLabVMs = Get-LabVM -All
 Restart-LabVM -ComputerName $AllLabVMs -Wait -Verbose
 
@@ -187,7 +187,7 @@ Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 #Restore-LabVMSnapshot -SnapshotName 'FreshInstall' -All -Verbose
 
 #region Installing Required Windows Features
-$SQLServerNodes = $AllLabVMs | Where-Object -FilterScript { $_.Name -match "^SQLNode"}
+$SQLServerTargetNodes = $AllLabVMs | Where-Object -FilterScript { $_.Name -match "^SQLNode"}
 $Job += Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $AllLabVMs -IncludeManagementTools -AsJob -PassThru
 #endregion
 
@@ -220,7 +220,7 @@ Invoke-LabCommand -ActivityName 'DNS, AD & GPO Settings on DC' -ComputerName DC0
 
     #region DNS management
     #Reverse lookup zone creation
-    #Add-DnsServerPrimaryZone -NetworkID $using:NetworkID -ReplicationScope 'Forest' 
+    Add-DnsServerPrimaryZone -NetworkID $using:NetworkID -ReplicationScope 'Forest' 
     #endregion
 
     #Creating a GPO at the domain level for certificate autoenrollment
@@ -267,10 +267,10 @@ Invoke-LabCommand -ActivityName 'DNS, AD & GPO Settings on DC' -ComputerName DC0
 }
 
 #Restart if required to use Install-ADServiceAccount later
-Restart-LabVM -ComputerName $SQLServerNodes -Wait
+Restart-LabVM -ComputerName $SQLServerTargetNodes -Wait
 
 #Mouting the SQL Server ISO for Copying SQL Server setup binaries on the file server
-$WindowsServer2019StandardISO = ($SQLServerNodes | Select-Object -First 1).OperatingSystem.IsoPath
+$WindowsServer2019StandardISO = ($SQLServerTargetNodes | Select-Object -First 1).OperatingSystem.IsoPath
 
 #$SQLServer2019StandardMountedVolume = Mount-LabIsoImage -IsoPath $SQLServer2019StandardISO -ComputerName FS01 -PassThru
 $SQLServer2022EnterpriseMountedVolume = Mount-LabIsoImage -IsoPath $SQLServer2022EnterpriseISO -ComputerName FS01 -PassThru
@@ -285,7 +285,7 @@ $Job += Install-LabSoftwarePackage -ComputerName $AllLabVMs -Path $MSEdgeEnt.Ful
 
 #region Installing SQL Management Studio on the SQL Server Nodes
 $SQLServerManagementStudio = Get-LabInternetFile -Uri $SQLServerManagementStudioURI -Path $labSources\SoftwarePackages -FileName 'SSMS-Setup-ENU.exe' -PassThru -Force
-$Job += Install-LabSoftwarePackage -ComputerName $SQLServerNodes -Path $SQLServerManagementStudio.FullName -CommandLine "/install /passive /norestart" -AsJob -PassThru
+$Job += Install-LabSoftwarePackage -ComputerName $SQLServerTargetNodes -Path $SQLServerManagementStudio.FullName -CommandLine "/install /passive /norestart" -AsJob -PassThru
 #endregion
 
 #Taking a snapshot/checkpoint
@@ -430,6 +430,7 @@ Invoke-LabCommand -ActivityName 'Configuring Storage & Copying SQL Server 2019 a
     #Invoke-WebRequest -Uri $using:SQLServer2022LatestCUURI -OutFile $SQLServer2022LatestCUInstaller -Verbose
     #Start-BitsTransfer -Source $using:SQLServer2022LatestCUURI -Destination $SQLServer2022LatestCUInstaller -Verbose
 
+
     Start-BitsTransfer -Source $using:SQLServerManagementStudioURI, $using:SQLServer2019LatestGDRURI, $using:SQLServer2019LatestCUURI, $using:SQLServer2022LatestGDRURI, $using:SQLServer2022LatestCUURI  -Destination $SQLServerManagementStudioInstaller, $SQLServer2019LatestGDRInstaller, $SQLServer2019LatestCUInstaller, $SQLServer2022LatestGDRInstaller, $SQLServer2022LatestCUInstaller -Verbose  
 
     #Installing required PowerShell modules from PowerShell Gallery
@@ -448,13 +449,13 @@ Invoke-LabCommand -ActivityName 'Configuring Storage & Copying SQL Server 2019 a
 }
 
 #Enabling AD Windows feature for the target servers
-$Job += Install-LabWindowsFeature -FeatureName RSAT-AD-PowerShell -ComputerName $SQLServerNodes -IncludeManagementTools -AsJob -PassThru
+$Job += Install-LabWindowsFeature -FeatureName RSAT-AD-PowerShell -ComputerName $SQLServerTargetNodes -IncludeManagementTools -AsJob -PassThru
 
 #Enabling iSCSI Target with Admin Tools
 Install-LabWindowsFeature -FeatureName FS-iSCSITarget-Server -ComputerName FS01 -IncludeManagementTools
 
 #Getting SQL Nodes Initiator Ids
-$InitiatorIds = Invoke-LabCommand -ActivityName 'Getting SQL Nodes Initiator Ids' -ComputerName $SQLServerNodes -PassThru -ScriptBlock {
+$InitiatorIds = Invoke-LabCommand -ActivityName 'Getting SQL Nodes Initiator Ids' -ComputerName $SQLServerTargetNodes -PassThru -ScriptBlock {
     #Configuring MSiSCSI service
     Start-Service -Name MSiSCSI -PassThru | Set-Service -StartupType Automatic
     #Connecting to iSCSI
@@ -464,7 +465,7 @@ $InitiatorIds = Invoke-LabCommand -ActivityName 'Getting SQL Nodes Initiator Ids
 #Restore-LabVMSnapshot -SnapshotName 'BeforeiSCSI' -All -Verbose
 
 Invoke-LabCommand -ActivityName 'Setting up iSCSI' -ComputerName FS01 -ScriptBlock {
-    #$InitiatorIds = $using:SQLServerNodes | ForEach-Object -Process { "IQN:iqn.1991-05.com.microsoft:$($_.FQDN)"}
+    #$InitiatorIds = $using:SQLServerTargetNodes | ForEach-Object -Process { "IQN:iqn.1991-05.com.microsoft:$($_.FQDN)"}
     $iSCSIVirtualDiskFolder = New-Item -Path D:\iSCSIVirtualDisks -ItemType Directory -Force
     foreach($i in 1..$using:iSCSIVirtualDiskNumber) {
         $Index = "{0:D2}" -f $i
@@ -476,7 +477,7 @@ Invoke-LabCommand -ActivityName 'Setting up iSCSI' -ComputerName FS01 -ScriptBlo
     }
 }
 
-Invoke-LabCommand -ActivityName 'Installing required PowerShell modules from the file share & Configuring MSiSCSI service' -ComputerName $SQLServerNodes -ScriptBlock {
+Invoke-LabCommand -ActivityName 'Installing required PowerShell modules from the file share & Configuring MSiSCSI service' -ComputerName $SQLServerTargetNodes -ScriptBlock {
     #Adding the SQLAdmin as local administrator for all SQL servers
     Add-LocalGroupMember -Group Administrators -Member $using:NetBiosDomainName\$using:SQLAdmin
     #Installing the required PowerShell Modules via the file share (offline mode)
@@ -488,7 +489,7 @@ Invoke-LabCommand -ActivityName 'Installing required PowerShell modules from the
     #Get-ADServiceAccount $using:gMSASqlService -Property PasswordLastSet
 }
 
-Invoke-LabCommand -ActivityName 'Setting up iSCSI' -ComputerName $SQLServerNodes -ScriptBlock {
+Invoke-LabCommand -ActivityName 'Setting up iSCSI' -ComputerName $SQLServerTargetNodes -ScriptBlock {
     #Start-Process -FilePath "iscsicli" -ArgumentList "addTargetPortal", "FS01", "3260"
     New-IscsiTargetPortal -TargetPortalAddress "FS01"
     Get-IscsiTarget | Connect-IscsiTarget -IsPersistent $true
@@ -515,27 +516,23 @@ Invoke-LabCommand -ActivityName 'Taking the disk online and initialize it' -Comp
 }
 
 #Copying the DSC Script to the dedicated folder
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\AG") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\FCI") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\DefaultInstance") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
-#Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
+Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\AG") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
+Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\FCI") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
+Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\DefaultInstance") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
+#Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
 
-<#
-Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName $AllLabVMs -ScriptBlock {
-    Stop-Service WUAUSERV -PassThru | Set-Service -StartupType Disabled
-}
-#>
 
 #$Job | Wait-Job | Out-Null
 $null = $Job | Receive-Job -Wait -AutoRemoveJob
 
 <#
-Invoke-LabCommand -ActivityName 'Clearing "Microsoft-Windows-Dsc/Operational" eventlog' -ComputerName $SQLServerNodes -ScriptBlock {
+Invoke-LabCommand -ActivityName 'Clearing "Microsoft-Windows-Dsc/Operational" eventlog' -ComputerName $SQLServerTargetNodes -ScriptBlock {
     [System.Diagnostics.Eventing.Reader.EventLogSession]::GlobalSession.ClearLog("Microsoft-Windows-Dsc/Operational")
 }
 #>
 
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
+#Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All -Verbose
 
 #region Windows Update
 Invoke-LabCommand -ActivityName 'Windows Udpate via the PSWindowsUpdate PowerShell Module' -ComputerName $AllLabVMs -ScriptBlock {
@@ -564,9 +561,9 @@ Checkpoint-LabVM -SnapshotName 'Windows Update' -All
 Show-LabDeploymentSummary
 <#
 Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All
-Invoke-LabCommand -ActivityName "Removing $Labname folder" -ComputerName $SQLServerNodes -ScriptBlock { Remove-Item -Path $using:WorkSpace -Recurse -Force} -Verbose
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\AG") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\FCI") -ComputerName $SQLServerNodes -DestinationFolderPath $WorkSpace -Recurse
+Invoke-LabCommand -ActivityName "Removing $Labname folder" -ComputerName $SQLServerTargetNodes -ScriptBlock { Remove-Item -Path $using:WorkSpace -Recurse -Force} -Verbose
+Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\AG") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
+Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\FCI") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
 #>
 
 <#

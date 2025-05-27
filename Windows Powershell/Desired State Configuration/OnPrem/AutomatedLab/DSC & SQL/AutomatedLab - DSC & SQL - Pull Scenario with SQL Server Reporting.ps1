@@ -64,18 +64,18 @@ $SQLServerManagementStudioURI = 'https://aka.ms/ssmsfullsetup'
 
 #region SQL Server 2019
 $SQLServer2019EnterpriseISO = "$labSources\ISOs\en_sql_server_2019_enterprise_x64_dvd_5e1ecc6b.iso"
-#SQL Server 2019 Latest GDR: KB4583458 when writing/updating this script (January 2024)
-$SQLServer2019LatestGDRURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=102618 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"} | Select-Object -Unique).href
-#SQL Server 2019 Latest Cumulative Update: KB5031908 when writing/updating this script (January 2024)
-$SQLServer2019LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=100809 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"} | Select-Object -Unique).href
+#SQL Server 2019 Latest GDR: KB5046859 when writing/updating this script (May 2025)
+$SQLServer2019LatestGDRURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/details.aspx?id=106324 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"} | Select-Object -Unique).href
+#SQL Server 2019 Latest Cumulative Update: KB5054833 when writing/updating this script (May 2025)
+$SQLServer2019LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/details.aspx?id=100809 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"} | Select-Object -Unique).href
 #endregion
 
 #region SQL Server 2022
 $SQLServer2022EnterpriseISO = "$labSources\ISOs\enu_sql_server_2022_enterprise_edition_x64_dvd_aa36de9e.iso"
-#SQL Server 2022 Latest GDR: KB5021522 when writing/updating this script (January 2024)
-$SQLServer2022LatestGDRURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=105003 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"} | Select-Object -Unique).href
-#SQL Server 2022 Latest Cumulative Update: KB5032679 when writing/updating this script (January 2024)
-$SQLServer2022LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/confirmation.aspx?id=105013 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"} | Select-Object -Unique).href
+#SQL Server 2022 Latest GDR: KB5021522 when writing/updating this script (May 2025)
+$SQLServer2022LatestGDRURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/details.aspx?id=106322 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"} | Select-Object -Unique).href
+#SQL Server 2022 Latest Cumulative Update: KB5032679 when writing/updating this script (May 2025)
+$SQLServer2022LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/details.aspx?id=105013 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe"} | Select-Object -Unique).href
 #endregion
 #endregion
 
@@ -140,32 +140,45 @@ $PSDefaultParameterValues = @{
     #'Add-LabMachineDefinition:Processors'      = $LabMachineDefinitionProcessors
 }
 
+#region Net Adapter definitions
+$DC01NetAdapter = @()
+$DC01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $DC01IPv4Address -InterfaceName Corp
+#Adding an Internet Connection
+$DC01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp -InterfaceName Internet
+
+$SQLNODE01NetAdapter = @()
+$SQLNODE01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $SQLNODE01IPv4Address -InterfaceName Corp
+#Adding an Internet Connection
+$SQLNODE01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp -InterfaceName Internet
+
+$SQLNODE02NetAdapter = @()
+$SQLNODE02NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $SQLNODE02IPv4Address -InterfaceName Corp
+#Adding an Internet Connection
+$SQLNODE02NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp -InterfaceName Internet
+
+$SQLNODE03NetAdapter = @()
+$SQLNODE03NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $SQLNODE03IPv4Address -InterfaceName Corp
+#Adding an Internet Connection
+$SQLNODE03NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp -InterfaceName Internet
+
 $FS01NetAdapter = @()
 $FS01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $FS01IPv4Address -InterfaceName Corp
 #Adding an Internet Connection
 $FS01NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp -InterfaceName Internet
-
-$PULLNetAdapter = @()
-$PULLNetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $PULLIPv4Address -InterfaceName Corp
-#Adding an Internet Connection on the DC (Required for PowerShell Gallery)
-$PULLNetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp -InterfaceName Internet
+#endregion 
 
 #region server definitions
 #Domain controller
-Add-LabMachineDefinition -Name DC01 -Roles RootDC, CARoot -IpAddress $DC01IPv4Address -Memory 1GB -MaxMemory 1GB -Processors 1
-
-#PULL Server
-Add-LabMachineDefinition -Name PULL -NetworkAdapter $PULLNetAdapter
-
-#SQL Servers as Target Nodes
+Add-LabMachineDefinition -Name DC01 -Roles RootDC, CARoot -NetworkAdapter $DC01NetAdapter -Memory 1GB -MaxMemory 1GB -Processors 1
+#SQL Servers
 Add-LabDiskDefinition -Name DataSQLNODE01 -DiskSizeInGb 10 -Label "SQL" -DriveLetter D
-Add-LabMachineDefinition -Name SQLNODE01 -IpAddress $SQLNODE01IPv4Address -Disk DataSQLNODE01
+Add-LabMachineDefinition -Name SQLNODE01 -NetworkAdapter $SQLNODE01NetAdapter -Disk DataSQLNODE01
 
 Add-LabDiskDefinition -Name DataSQLNODE02 -DiskSizeInGb 10 -Label "SQL" -DriveLetter D
-Add-LabMachineDefinition -Name SQLNODE02 -IpAddress $SQLNODE02IPv4Address -Disk DataSQLNODE02
+Add-LabMachineDefinition -Name SQLNODE02 -NetworkAdapter $SQLNODE02NetAdapter -Disk DataSQLNODE02
 
 Add-LabDiskDefinition -Name DataSQLNODE03 -DiskSizeInGb 10 -Label "SQL" -DriveLetter D
-Add-LabMachineDefinition -Name SQLNODE03 -IpAddress $SQLNODE03IPv4Address -Disk DataSQLNODE03
+Add-LabMachineDefinition -Name SQLNODE03 -NetworkAdapter $SQLNODE03NetAdapter -Disk DataSQLNODE03
 
 #SQL Server for DSC Reporting
 $SQLServer2022Role = Get-LabMachineRoleDefinition -Role SQLServer2022
@@ -238,6 +251,7 @@ Invoke-LabCommand -ActivityName "Disabling IE ESC" -ComputerName $AllLabVMs -Scr
     Rename-NetAdapter -Name "Ethernet" -NewName 'Corp' -PassThru -ErrorAction SilentlyContinue
     Rename-NetAdapter -Name "Default Switch 0" -NewName 'Internet' -PassThru -ErrorAction SilentlyContinue
 }
+
 
 #Installing and setting up DNS
 Invoke-LabCommand -ActivityName 'DNS, AD & GPO Settings on DC' -ComputerName DC01 -ScriptBlock {
@@ -342,6 +356,20 @@ $SQLServer2022EnterpriseMountedVolume = Mount-LabIsoImage -IsoPath $SQLServer202
 $SQLServer2019EnterpriseMountedVolume = Mount-LabIsoImage -IsoPath $SQLServer2019EnterpriseISO -ComputerName FS01 -PassThru
 $WindowsServer2019StandardMountedVolume = Mount-LabIsoImage -IsoPath $WindowsServer2019StandardISO -ComputerName FS01 -PassThru
 
+#region Installing Edge on all machines
+$MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru -Force
+$Job += Install-LabSoftwarePackage -ComputerName $AllLabVMs -Path $MSEdgeEnt.FullName -CommandLine "/passive /norestart" -AsJob -PassThru
+#endregion
+
+
+#region Installing SQL Management Studio on the SQL Server Nodes
+$SQLServerManagementStudio = Get-LabInternetFile -Uri $SQLServerManagementStudioURI -Path $labSources\SoftwarePackages -FileName 'SSMS-Setup-ENU.exe' -PassThru -Force
+$Job += Install-LabSoftwarePackage -ComputerName $SQLServerNodes -Path $SQLServerManagementStudio.FullName -CommandLine "/install /passive /norestart" -AsJob -PassThru
+#endregion
+
+#Taking a snapshot/checkpoint
+Checkpoint-LabVM -SnapshotName BeforeStorage -All -Verbose
+#Restore-LabVMSnapshot -SnapshotName 'BeforeStorage' -All -Verbose
 
 Invoke-LabCommand -ActivityName 'Configuring Storage & Copying SQL Server 2019 and 2022 ISOs & Tools' -ComputerName FS01 -ScriptBlock {
     <#
@@ -451,6 +479,7 @@ Invoke-LabCommand -ActivityName 'Configuring Storage & Copying SQL Server 2019 a
     Copy-Item -Path $SQLServer2019ISOContent -Destination $SQLServer2019Folder -Recurse -Force
     Copy-Item -Path $SQLServer2022ISOContent -Destination $SQLServer2022Folder -Recurse -Force
 
+
     #Copying Sources\Sxs folder from the OS ISO
     #Copy-Item -Path $WindowsServer2019ISOContent -Destination $WindowsServer2019SourcesFolder -Recurse -Force
     #Copy-Item -Path $WindowsServer2022ISOContent -Destination $WindowsServer2022SourcesFolder -Recurse -Force
@@ -484,7 +513,8 @@ Invoke-LabCommand -ActivityName 'Configuring Storage & Copying SQL Server 2019 a
     Start-BitsTransfer -Source $using:SQLServerManagementStudioURI, $using:SQLServer2019LatestGDRURI, $using:SQLServer2019LatestCUURI, $using:SQLServer2022LatestGDRURI, $using:SQLServer2022LatestCUURI  -Destination $SQLServerManagementStudioInstaller, $SQLServer2019LatestGDRInstaller, $SQLServer2019LatestCUInstaller, $SQLServer2022LatestGDRInstaller, $SQLServer2022LatestCUInstaller -Verbose  
 
     #Installing required PowerShell modules from PowerShell Gallery
-    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+    #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+    Get-PackageProvider -Name Nuget -ForceBootstrap -Force
     #Save-Module -Name ActiveDirectoryDsc, SqlServerDsc, SqlServer, ComputerManagementDsc, xPSDesiredStateConfiguration, xFailOverCluster -Path $PowerShellModules -Repository PSGallery -Verbose
     Save-Module -Name ActiveDirectoryDsc, SqlServerDsc, SqlServer, ComputerManagementDsc, xPSDesiredStateConfiguration, FailOverClusterDsc -Path $PowerShellModules -Repository PSGallery -Verbose
     #endregion
@@ -514,7 +544,7 @@ $InitiatorIds = Invoke-LabCommand -ActivityName 'Getting SQL Nodes Initiator Ids
 #Restore-LabVMSnapshot -SnapshotName 'BeforeiSCSI' -All -Verbose
 
 Invoke-LabCommand -ActivityName 'Setting up iSCSI' -ComputerName FS01 -ScriptBlock {
-    #$InitiatorIds = $using:SQLServerNodes | ForEach-Object -Process { "IQN:iqn.1991-05.com.microsoft:$($_.FQDN)"}
+    #$InitiatorIds = $using:SQLServerTargetNodes | ForEach-Object -Process { "IQN:iqn.1991-05.com.microsoft:$($_.FQDN)"}
     $iSCSIVirtualDiskFolder = New-Item -Path D:\iSCSIVirtualDisks -ItemType Directory -Force
     foreach($i in 1..$using:iSCSIVirtualDiskNumber) {
         $Index = "{0:D2}" -f $i
@@ -555,6 +585,7 @@ Invoke-LabCommand -ActivityName 'Taking the disk online and initialize it' -Comp
     $OfflineDisks | Initialize-Disk -PassThru | ForEach-Object -Process {
         if ($DriveLetter -eq 'Z')
         {
+                #No drive letter available
                 break   
         }
         #Next drive letter (in the alphabetical order)
@@ -657,11 +688,9 @@ Invoke-LabCommand -ActivityName 'Setting up the HTTPS Pull Server' -ComputerName
     #>
 } -Variable (Get-Variable -Name PULLWebSiteSSLCert) -Verbose
 
-$Job | Wait-Job | Out-Null
 
-Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName $AllLabVMs -ScriptBlock {
-    Stop-Service WUAUSERV -PassThru | Set-Service -StartupType Disabled
-} 
+#$Job | Wait-Job | Out-Null
+$null = $Job | Receive-Job -Wait -AutoRemoveJob
 
 <#
 Invoke-LabCommand -ActivityName 'Clearing "Microsoft-Windows-Dsc/Operational" eventlog' -ComputerName $SQLServerTargetNodes -ScriptBlock {
@@ -669,10 +698,52 @@ Invoke-LabCommand -ActivityName 'Clearing "Microsoft-Windows-Dsc/Operational" ev
 }
 #>
 
-Show-LabDeploymentSummary
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 #Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All -Verbose
 
+#region Windows Update
+Invoke-LabCommand -ActivityName 'Windows Udpate via the PSWindowsUpdate PowerShell Module' -ComputerName $AllLabVMs -ScriptBlock {
+    #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+    Get-PackageProvider -Name Nuget -ForceBootstrap -Force
+    Install-Module -Name PSWindowsUpdate -Force -AllowClobber
+    Import-Module -Name PSWindowsUpdate 
+    #From https://windows-hexerror.linestarve.com/q/so58570077-how-to-install-windows-updates-on-remote-computer-with-powershell: You can't Download or Install Updates on a machine from another remote machine. 
+    #Get-WindowsUpdate -Install -AcceptAll -AutoReboot
+    Invoke-WUJob -ComputerName localhost -Script { Import-Module PSWindowsUpdate ; Get-WindowsUpdate -Install -AcceptAll -AutoReboot -Verbose | Out-File "C:\PSWindowsUpdate_$('{0:yyyyMMddHHmmss}' -f (Get-Date)).log" -Append } -Confirm:$false -Verbose -RunNow
+    #Start-ScheduledTask -TaskName PSWindowsUpdate -Verbose
+    Do { Start-Sleep -Seconds 60 } While ((Get-ScheduledTask -TaskName PSWindowsUpdate).State -eq 'Running') 
+}
+
+
+Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName $AllLabVMs -ScriptBlock {
+    Stop-Service WUAUSERV -PassThru | Set-Service -StartupType Disabled
+} 
+
+#Removing the Internet Connection on all VMS
+Get-VM -Name $AllLabVMs | Remove-VMNetworkAdapter -Name 'Default Switch' -ErrorAction SilentlyContinue
+
+Checkpoint-LabVM -SnapshotName 'Windows Update' -All
+#endregion
+
+Show-LabDeploymentSummary
+<#
+Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All
+Invoke-LabCommand -ActivityName "Removing $Labname folder" -ComputerName $SQLServerTargetNodes -ScriptBlock { Remove-Item -Path $using:WorkSpace -Recurse -Force} -Verbose
+Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\AG") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
+Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\FCI") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
+#>
+
+<#
+Invoke-LabCommand -ActivityName 'Setting up AG Cluster' -ComputerName SQLNode01 -ScriptBlock {
+    & "$($using:Workspace)\AG\CreateClusterWithTwoNodes.ps1"
+} -AsJob
+#>
+
+<#
+Invoke-LabCommand -ActivityName 'Setting up FCI Cluster' -ComputerName SQLNode01 -ScriptBlock {
+    & "$($using:Workspace)\FCI\CreateClusterWithThreeNodes.ps1"
+} -AsJob
+#>
 $VerbosePreference = $PreviousVerbosePreference
 $ErrorActionPreference = $PreviousErrorActionPreference
 
