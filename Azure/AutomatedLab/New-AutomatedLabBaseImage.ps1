@@ -32,7 +32,7 @@ trap {
     break
 } 
 Import-Module -Name AutomatedLab -Verbose
-try { while (Stop-Transcript) {} } catch {}
+try {while (Stop-Transcript) {}} catch {}
 Clear-Host
 
 $CurrentScript = $MyInvocation.MyCommand.Path
@@ -43,11 +43,11 @@ Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 
 #region Listing the OS in a hashtable (for getting the latest version)
 try {
-    $OperatingSystemHT = (Get-LabAvailableOperatingSystem -ErrorAction Stop | Where-Object -FilterScript { $_.OperatingSystemImageName -match "DataCenter.*Desktop|Enterprise$" }) | Group-Object -Property OperatingSystemImageName -AsHashTable -AsString
+    $OperatingSystemHT = (Get-LabAvailableOperatingSystem -ErrorAction Stop | Where-Object -FilterScript {$_.OperatingSystemImageName -match "DataCenter.*Desktop|Enterprise$"}) | Group-Object -Property OperatingSystemImageName -AsHashTable -AsString
 }
 catch {
     Clear-LabCache
-    $OperatingSystemHT = (Get-LabAvailableOperatingSystem -ErrorAction Stop | Where-Object -FilterScript { $_.OperatingSystemImageName -match "DataCenter.*Desktop|Enterprise$" }) | Group-Object -Property OperatingSystemImageName -AsHashTable -AsString
+    $OperatingSystemHT = (Get-LabAvailableOperatingSystem -ErrorAction Stop | Where-Object -FilterScript {$_.OperatingSystemImageName -match "DataCenter.*Desktop|Enterprise$"}) | Group-Object -Property OperatingSystemImageName -AsHashTable -AsString
 }
 $LastestOperatingSystem = foreach ($OperatingSystemName in $OperatingSystemHT.Keys) {
     if ($OperatingSystemHT[$OperatingSystemName].Count -eq 1) {
@@ -60,7 +60,7 @@ $LastestOperatingSystem = foreach ($OperatingSystemName in $OperatingSystemHT.Ke
         Write-Host -Object "'$OperatingSystemName' exists only in multiple versions. We will keep only the '$Latest' version"
         #Removing the old ISO files
         Write-Warning -Message "Removing: $($ToRemove | Out-String)"
-        Remove-Item -Path $ToRemove.IsoPath
+        Remove-Item -Path $ToRemove.IsoPath -Force
         $Latest
     }
 }
@@ -90,16 +90,16 @@ Add-LabVirtualNetworkDefinition -Name $LabName -HyperVProperties @{
     SwitchType = 'Internal'
 } -AddressSpace $NetworkID
 Add-LabVirtualNetworkDefinition -Name 'Default Switch' -HyperVProperties @{ SwitchType = 'External'; AdapterName = 'Wi-Fi' }
-c:
+
 #these credentials are used for connecting to the machines. As this is a lab we use clear-text passwords
 Set-LabInstallationCredential -Username $Logon -Password $ClearTextPassword
 
 #defining default parameter values, as these ones are the same for all the machines
 $PSDefaultParameterValues = @{
-    'Add-LabMachineDefinition:Network'   = $LabName
-    'Add-LabMachineDefinition:MinMemory' = 1GB
-    'Add-LabMachineDefinition:MaxMemory' = 2GB
-    'Add-LabMachineDefinition:Memory'    = 2GB
+    'Add-LabMachineDefinition:Network'         = $LabName
+    'Add-LabMachineDefinition:MinMemory'       = 1GB
+    'Add-LabMachineDefinition:MaxMemory'       = 2GB
+    'Add-LabMachineDefinition:Memory'          = 2GB
     #'Add-LabMachineDefinition:Processors'      = 4
 }
 
@@ -109,7 +109,7 @@ $Index = 0
 foreach ($CurrentOperatingSystem in $LastestOperatingSystem) {
     $Index++
     $IPv4Address = "10.0.0.{0}" -f $Index
-    $Name = $CurrentOperatingSystem.OperatingSystemName -replace "\s*", "" -replace "Windows", "Win" -replace "Server*" -replace "(\d+).*", '$1'
+    $Name = $CurrentOperatingSystem.OperatingSystemName -replace "\s*", ""  -replace "Windows", "Win" -replace "Server*" -replace "(\d+).*", '$1'
     Add-LabMachineDefinition -Name $Name -IpAddress $IPv4Address -OperatingSystem $CurrentOperatingSystem.OperatingSystemName
 }
 #endregion
@@ -118,15 +118,19 @@ foreach ($CurrentOperatingSystem in $LastestOperatingSystem) {
 Install-Lab
 
 Show-LabDeploymentSummary
-#Cleanup
+#region Cleanup
+#region Cleaning up the lab
 Remove-Lab -Name $LabName -Confirm:$false -ErrorAction SilentlyContinue
-Stop-Transcript
+#endregion
 
 #region Cleaning up the old base images
-$BaseImages = Get-ChildItem -Path C:\AutomatedLab-VMs\ -Filter *.vhdx |  Select-Object -Property *, @{Name = "Prefix"; Expression = { $_.BaseName -replace "_\d.*" } } | Group-Object -Property Prefix  -AsHashTable -AsString
+$BaseImages =  Get-ChildItem -Path C:\AutomatedLab-VMs\ -Filter *.vhdx |  Select-Object -Property *, @{Name="Prefix"; Expression = {$_.BaseName -replace "_\d.*"}} | Group-Object -Property Prefix  -AsHashTable -AsString
 foreach ($CurrentBaseImage in $BaseImages.Keys) {
     if ($BaseImages[$CurrentBaseImage].Count -gt 1) {
-        $BaseImages[$CurrentBaseImage] | Sort-Object -Property FullName -Descending | Select-Object -Skip 1 | Remove-Item
+        $BaseImages[$CurrentBaseImage] | Sort-Object -Property FullName -Descending | Select-Object -Skip 1 | Remove-Item -Force
     }
 }
 #endregion
+#endregion
+
+Stop-Transcript
