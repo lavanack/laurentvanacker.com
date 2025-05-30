@@ -243,7 +243,7 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 #endregion
 
 $Location = "francecentral" 
-$SKU = "Standard_D4S_v4"
+$SKU = "Standard_D8as_v5"
 #$SKU = "Standard_B2S"
 
 <#
