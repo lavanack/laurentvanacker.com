@@ -149,7 +149,7 @@ $AzureVMNameMaxLength = 15
 $RDPPort = 3389
 $JitPolicyTimeInHours = 3
 $JitPolicyName = "Default"
-$Location = "eastus2"
+$Location = "francecentral"
 $VMSize = "Standard_D4s_v5"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
@@ -403,3 +403,4 @@ Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -Com
 #mstsc /v $PublicIP.IpAddress
 #mstsc /v $FQDN
 Add-RDPCredential -ComputerName $FQDN -Credential $Credential -Connect
+#endregion
