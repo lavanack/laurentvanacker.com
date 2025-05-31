@@ -20,9 +20,6 @@ of the Sample Code.
 [CmdletBinding()]
 param
 (
-    [string] $SourceResourceGroupName = "rg-automatedlab-storage-use-001",
-    [string] $SourceStorageAccountName = "automatedlablabsources",
-    [string] $SourceShareName = "isos",
     [switch] $Spot
 )
 
@@ -83,9 +80,9 @@ $RDPPort = 3389
 $JitPolicyTimeInHours = 3
 $JitPolicyName = "Default"
 $Location = "eastus2"
-#$VMSize = "Standard_D16s_v6"
+$VMSize = "Standard_D8ds_v5"
 #Always get the latest generation available in the Azure region
-$VMSize = (Get-AzComputeResourceSku -Location $Location | Where-Object -FilterScript { $_.Name -match "^Standard_D16s_v" } | Sort-Object -Property Name -Descending | Select-Object -First 1).Name
+#$VMSize = (Get-AzComputeResourceSku -Location $Location | Where-Object -FilterScript { $_.Name -match "^Standard_D16s_v" } | Sort-Object -Property Name -Descending | Select-Object -First 1).Name
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
 $ResourceGroupPrefix = "rg"
@@ -144,9 +141,9 @@ $ConfigurationFilePath = Join-Path -Path $CurrentDir -ChildPath $ConfigurationFi
 $ConfigurationName = "HyperVSetupDSC"
 
 #region Define Variables needed for Virtual Machine
-$ImagePublisherName = "MicrosoftWindowsDesktop"
-$ImageOffer = "Windows-11"
-$ImageSku = "win11-24h2-ent"
+$ImagePublisherName = "MicrosoftWindowsServer"
+$ImageOffer = "WindowsServer"
+$ImageSku = "2019-Datacenter"
 $PublicIPName = "pip-$VMName" 
 $NICName = "nic-$VMName"
 $OSDiskName = '{0}_OSDisk' -f $VMName
@@ -218,9 +215,9 @@ $PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $Resour
 $NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -PublicIpAddressId $PublicIP.Id #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
 
 <# Optional : Step 8: Get Virtual Machine publisher, Image Offer, Sku and Image
-$ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq "MicrosoftWindowsDesktop"}
-$ImageOffer = Get-AzVMImageOffer -Location $Location -publisher $ImagePublisherName.PublisherName | Where-Object -FilterScript { $_.Offer  -eq "Windows-11"}
-$ImageSku = Get-AzVMImageSku -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer | Where-Object -FilterScript { $_.Skus  -eq "win11-21h2-pro"}
+$ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq "MicrosoftWindowsServer"}
+$ImageOffer = Get-AzVMImageOffer -Location $Location -publisher $ImagePublisherName.PublisherName | Where-Object -FilterScript { $_.Offer  -eq "WindowsServer"}
+$ImageSku = Get-AzVMImageSku -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer | Where-Object -FilterScript { $_.Skus  -eq "2019-DataCenter"}
 $image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer -sku $ImageSku.Skus | Sort-Object -Property Version -Descending | Select-Object -First 1
 #>
 
@@ -228,10 +225,10 @@ $image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.Publi
 
 if ($Spot) {
     #Create a virtual machine configuration file (As a Spot Intance for saving costs . DON'T DO THAT IN A PRODUCTION ENVIRONMENT !!!)
-    $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -SecurityType TrustedLaunch -IdentityType SystemAssigned -Priority "Spot" -MaxPrice -1
+    $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -SecurityType Standard -IdentityType SystemAssigned -Priority "Spot" -MaxPrice -1
 }
 else {
-    $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -SecurityType TrustedLaunch -IdentityType SystemAssigned -HibernationEnabled
+    $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -SecurityType Standard -IdentityType SystemAssigned -HibernationEnabled
 }
 
 Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
@@ -329,9 +326,11 @@ Publish-AzVMDscConfiguration -ConfigurationPath $ConfigurationFilePath -Configur
 Do {
     try {
         $ConfigurationArgument = @{
+            DriveLetter = 'F'
+            DiskId = 2
         }
-        #Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$ConfigurationFileName.zip" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $ConfigurationName -ConfigurationData $ConfigurationDataFileName -ConfigurationArgument $ConfigurationArgument  -Version "2.80" -Location $Location -AutoUpdate -Verbose #-ErrorAction Ignore
-        Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$ConfigurationFileName.zip" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $ConfigurationName -ConfigurationData $ConfigurationDataFileName -Version "2.80" -Location $Location -AutoUpdate -Verbose #-ErrorAction Ignore
+        #Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$ConfigurationFileName.zip" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $ConfigurationName -ConfigurationData $ConfigurationDataFileName -Version "2.80" -Location $Location -AutoUpdate -Verbose #-ErrorAction Ignore
+        Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$ConfigurationFileName.zip" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $ConfigurationName -ConfigurationData $ConfigurationDataFileName -ConfigurationArgument $ConfigurationArgument  -Version "2.80" -Location $Location -AutoUpdate -Verbose #-ErrorAction Ignore
     }
     catch {
         $_

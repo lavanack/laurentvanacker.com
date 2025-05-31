@@ -35,7 +35,9 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Configuration HyperVSetupDSC {
     param(
         [ValidateScript({$_ -match "^[E-Z]$"})]
-        [string] $DriveLetter = 'F'
+        [string] $DriveLetter = 'F',
+        [ValidateScript({$_  -gt 0})]
+        [int16] $DiskId = 1
     )
 
     #Import-DscResource -ModuleName 'PSDesiredStateConfiguration'
@@ -75,17 +77,24 @@ Configuration HyperVSetupDSC {
             Enabled = $false
         }
         
-        WindowsOptionalFeature  HyperVAll
-        {
-            Name   = 'Microsoft-Hyper-V-All'
-            Ensure = 'Present'
+        WindowsFeature HyperV {
+            Name                 = 'Hyper-V'
+            Ensure               = 'Present'
         }
+        
+        WindowsFeature RSATHyperVTools {
+            Name                 = 'RSAT-Hyper-V-Tools'
+            Ensure               = 'Present'
+            DependsOn            = '[WindowsFeature]HyperV'
+        }
+        
 
+         
         <#
         PendingReboot RebootAfterHyperVInstall
         {
             Name      = 'RebootNeededAfterHyperVInstall'
-            DependsOn = '[WindowsOptionalFeature]HyperVAll'
+            DependsOn = '[WindowsFeature]HyperV'
         }
         #>
         
@@ -100,28 +109,28 @@ Configuration HyperVSetupDSC {
             }
  
             SetScript = {
-                    Get-Disk -Number 1 | Initialize-Disk
+                    Get-Disk -Number $using:DiskId | Initialize-Disk
             }
 
             TestScript = {
-                return ((Get-Disk -Number 1).Partitionstyle -ne 'raw')
+                return ((Get-Disk -Number $using:DiskId).Partitionstyle -ne 'raw')
             }
         }
 
-        WaitForDisk Disk1
+        WaitForDisk "Disk$DiskId"
         {
-            DiskId           = 1
+            DiskId           = $DiskId
             RetryIntervalSec = 60
             RetryCount       = 60
         }
         
         Disk DataDisk
         {
-            DiskId      = 1
+            DiskId      = $DiskId
             DriveLetter = $DriveLetter
             FSLabel     = 'Data'
             FSFormat    = 'NTFS'
-            DependsOn   = '[WaitForDisk]Disk1'
+            DependsOn   = "[WaitForDisk]Disk$DiskId"
         }
 
         File TempFolder
@@ -138,6 +147,7 @@ Configuration HyperVSetupDSC {
             Type            = 'Directory'
             Ensure          = "Present"
             Force           = $true
+            DependsOn       = "[Disk]DataDisk"
         }
 
         VMHost HyperVHostPaths
@@ -145,7 +155,7 @@ Configuration HyperVSetupDSC {
             IsSingleInstance    = 'Yes'
             VirtualHardDiskPath = "$($DriveLetter):\Virtual Machines\Hyper-V"
             VirtualMachinePath  = "$($DriveLetter):\Virtual Machines\Hyper-V"
-            DependsOn           = '[File]HyperVPath'
+            DependsOn           = '[File]HyperVPath', '[WindowsFeature]RSATHyperVTools'
         }
 
 	    Script RelaxExecutionPolicy 
@@ -217,7 +227,8 @@ Set-Location -Path $CurrentDir
 Try {
     Enable-PSRemoting -Force 
 } catch {}
-HyperVSetupDSC -Credential $(Get-Credential -Message "User Credential") -ConfigurationData $CurrentDir\ConfigurationData.psd1
+HyperVSetupDSC -DIskId 2 -ConfigurationData $CurrentDir\ConfigurationData.psd1
+
 
 Set-DscLocalConfigurationManager -Path .\HyperVSetupDSC -Force -Verbose
 Start-DscConfiguration -Path .\HyperVSetupDSC -Force -Wait -Verbose
