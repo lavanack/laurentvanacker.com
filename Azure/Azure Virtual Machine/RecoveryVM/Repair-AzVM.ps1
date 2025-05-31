@@ -32,7 +32,7 @@ function Repair-AzVM {
     }
     process {
         foreach ($CurrentVM in $VM) {
-            Write-Host -Object "Processing '$($CurrentVM.Name)'..."
+            Write-Host -Object "Processing '$($CurrentVM.Name)' ..."
 
             $CurrentDataDiskLun = ($RecoveryVM.StorageProfile.DataDisks.Lun | Measure-Object -Maximum).Maximum+1
             #region OS Disk SnapShot
@@ -40,113 +40,117 @@ function Repair-AzVM {
             $CurrentVMOSDisk = $CurrentVM.StorageProfile.OSDisk.ManagedDisk
             $CurrentVMOSAzDisk = Get-AzResource -ResourceId $CurrentVMOSDisk.Id | Get-AzDisk
             #endregion
-            
-            $NewOSDiskName = "{0}_FromSnapShot" -f $CurrentVMOSAzDisk.Name
-            $NewOSDisk = Get-AzDisk -ResourceGroupName $CurrentVM.ResourceGroupName -DiskName $NewOSDiskName -ErrorAction Ignore
-            if ($NewOSDisk) {
-                Write-Warning -Message "The '$NewOSDiskName' in the '$($CurrentVM.ResourceGroupName)' already exists. We take it. If you don't want this then unattach it if any, delete it and rerun the process"
-            } else {
-                Write-Host -Object "The '$NewOSDiskName' in the '$($CurrentVM.ResourceGroupName)' DOESN'T exist."
+
+            if ($CurrentVMOSAzDisk.Name -notmatch "_FromSnapShot$") {
+                $NewOSDiskName = "{0}_FromSnapShot" -f $CurrentVMOSAzDisk.Name
+                $NewOSDisk = Get-AzDisk -ResourceGroupName $CurrentVM.ResourceGroupName -DiskName $NewOSDiskName -ErrorAction Ignore
+                if ($NewOSDisk) {
+                    Write-Warning -Message "The '$NewOSDiskName' in the '$($CurrentVM.ResourceGroupName)' already exists. We take it. If you don't want this then unattach it if any, delete it and rerun the process"
+                } else {
+                    Write-Host -Object "The '$NewOSDiskName' in the '$($CurrentVM.ResourceGroupName)' DOESN'T exist."
                 
-                #region SnapShot Creation
-                $TimeStamp = '{0:yyyyMMddHHmmss}' -f (Get-Date)
-                $SnapshotName = "{0}_{1}" -f $CurrentVMOSAzDisk.Name, $TimeStamp
-                Write-Host -Object "Creating the '$SnapshotName' Snapshot from the '$($CurrentVMOSAzDisk.Name)' Snapshot ..."
-                $SnapshotConfig = New-AzSnapshotConfig -SourceResourceId $CurrentVMOSAzDisk.Id -Location $CurrentVM.Location -CreateOption Copy
-                $AzSnapshot = New-AzSnapshot -ResourceGroupName $CurrentVM.ResourceGroupName -SnapshotName $SnapshotName -Snapshot $SnapshotConfig
+                    #region SnapShot Creation
+                    $TimeStamp = '{0:yyyyMMddHHmmss}' -f (Get-Date)
+                    $SnapshotName = "{0}_{1}" -f $CurrentVMOSAzDisk.Name, $TimeStamp
+                    Write-Host -Object "Creating the '$SnapshotName' Snapshot from the '$($CurrentVMOSAzDisk.Name)' Snapshot ..."
+                    $SnapshotConfig = New-AzSnapshotConfig -SourceResourceId $CurrentVMOSAzDisk.Id -Location $CurrentVM.Location -CreateOption Copy
+                    $AzSnapshot = New-AzSnapshot -ResourceGroupName $CurrentVM.ResourceGroupName -SnapshotName $SnapshotName -Snapshot $SnapshotConfig
+                    #endregion
+
+                    #region Disk Creation
+                    Write-Host -Object "Creating the '$NewOSDiskName' OS Disk from the '$($AzSnapshot.Name)' Disk ..."
+                    $DiskConfig = New-AzDiskConfig -SkuName $CurrentVMOSAzDisk.Sku.Name -Location $CurrentVMOSAzDisk.Location -CreateOption Copy -SourceResourceId $AzSnapshot.Id -DiskSizeGB $CurrentVMOSAzDisk.DiskSizeGB -OsType $CurrentVMOSAzDisk.OsType
+                    $NewOSDisk = New-AzDisk -ResourceGroupName $CurrentVM.ResourceGroupName -DiskName $NewOSDiskName -Disk $DiskConfig        
+                    #endregion
+
+                    #region Removing Disk Snapshot
+                    Write-Host -Object "Deleting the '$($AzSnapshot.Name)' Snapshot ..."
+                    $null = $AzSnapshot | Remove-AzSnapshot -Force -AsJob
+                    #endregion
+                }
+
+                #region Adding the data disk to a virtual machine
+                if ($NewOSDisk.Id -notin $(($RecoveryVM.StorageProfile.DataDisks | Get-AzDisk).Id)) {
+                    Write-Host -Object "Attaching the '$($NewOSDisk.Name)' disk to the '$($RecoveryVM.Name)' VM (Lun: $CurrentDataDiskLun) ..."
+                    $null = Add-AzVMDataDisk -VM $RecoveryVM -Name $NewOSDisk.Name -Caching 'ReadWrite' -CreateOption Attach -ManagedDiskId $NewOSDisk.Id -Lun $CurrentDataDiskLun
+                    $null = $RecoveryVM | Update-AzVM
+                } else {
+                    $CurrentDataDiskLun = ($RecoveryVM.StorageProfile.DataDisks | Where-Object -FilterScript { $_.Name -eq $NewOSDisk.Name}).Lun
+                    Write-Warning "The '$($NewOSDisk.Name)' disk is already attached to the '$($RecoveryVM.Name)' VM (Lun: $CurrentDataDiskLun). We don't add it as a Data disk"
+                }
                 #endregion
 
-                #region Disk Creation
-                Write-Host -Object "Creating the '$NewOSDiskName' OS Disk from the '$($AzSnapshot.Name)' Disk ..."
-                $DiskConfig = New-AzDiskConfig -SkuName $CurrentVMOSAzDisk.Sku.Name -Location $CurrentVMOSAzDisk.Location -CreateOption Copy -SourceResourceId $AzSnapshot.Id -DiskSizeGB $CurrentVMOSAzDisk.DiskSizeGB -OsType $CurrentVMOSAzDisk.OsType
-                $NewOSDisk = New-AzDisk -ResourceGroupName $CurrentVM.ResourceGroupName -DiskName $NewOSDiskName -Disk $DiskConfig        
-                #endregion
-
-                #region Removing Disk Snapshot
-                Write-Host -Object "Deleting the '$($AzSnapshot.Name)' Snapshot ..."
-                $null = $AzSnapshot | Remove-AzSnapshot -Force -AsJob
-                #endregion
-            }
-
-            #region Adding the data disk to a virtual machine
-            if ($NewOSDisk.Id -notin $(($RecoveryVM.StorageProfile.DataDisks | Get-AzDisk).Id)) {
-                Write-Host -Object "Attaching the '$($NewOSDisk.Name)' disk to the '$($RecoveryVM.Name)' VM (Lun: $CurrentDataDiskLun) ..."
-                $null = Add-AzVMDataDisk -VM $RecoveryVM -Name $NewOSDisk.Name -Caching 'ReadWrite' -CreateOption Attach -ManagedDiskId $NewOSDisk.Id -Lun $CurrentDataDiskLun
-                $null = $RecoveryVM | Update-AzVM
-            } else {
-                $CurrentDataDiskLun = ($RecoveryVM.StorageProfile.DataDisks | Where-Object -FilterScript { $_.Name -eq $NewOSDisk.Name}).Lun
-                Write-Warning "The '$($NewOSDisk.Name)' disk is already attached to the '$($RecoveryVM.Name)' VM (Lun: $CurrentDataDiskLun). We don't add it as a Data disk"
-            }
-            #endregion
-
-            #region Hyper-V VM Management
-            $ScriptBlock = {
-                param([string] $VMName, $Lun)
-                $DiskNumber = (Get-WmiObject -Class Win32_DiskDrive | Where-Object { ($_.InterfaceType -eq "SCSI") -and ($_.SCSILogicalUnit -eq $Lun) }).Index
-                if ($DiskNumber) {
-                    Write-Host -Object "`$DiskNumber: $DiskNumber"
-                    Get-Disk -Number $DiskNumber | Set-Disk -IsOffline $true
-                    if (-not(Get-VM -Name $VMName -ErrorAction Ignore)) {
-                        $VM = New-VM -Name $VMName -MemoryStartupBytes 4GB -NoVHD -Generation 2 -Force
-                        Set-VMProcessor -VMName $VMName -Count 4
-                        Get-VMScsiController -VMName $VMName -ControllerNumber 0 | Add-VMHardDiskDrive -DiskNumber $DiskNumber
-                        Write-Host -Object "Starting '$($VMName)' VM "
-                        $null = $VM | Start-VM
-                        $StartTime = Get-Date
-                        Write-Host -Object "Start Time: $StartTime"
-                        Do {
-                            Write-Host -Object "Sleeping 30 seconds"
-                            Start-Sleep -Seconds 30
-                            $status = Get-VMIntegrationService -VMName $VMName | Where-Object -FilterScript {$_.Name -eq "Heartbeat"} | Select-Object VMName, Enabled, PrimaryStatusDescription
-                            Write-Host -Object "Primary Status Description: $($Status.PrimaryStatusDescription)"
-                            Write-Host -Object "Primary Operational Status: $($Status.PrimaryOperationalStatus)"
-                        #} While ($Status.PrimaryOperationalStatus -ne [Microsoft.HyperV.PowerShell.VMIntegrationComponentOperationalStatus]::Ok)
-                        } While ($Status.PrimaryStatusDescription -ne "OK")
-                        $EndTime = Get-Date
-                        Write-Host -Object "End Time: $EndTime"
-                        $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
-                        Write-Host -Object "'$VMName' VM Processing Time: $($TimeSpan.ToString())"
-                        Write-Host -Object "Stopping '$($VMName)' VM "
-                        $null = $VM | Stop-VM -Force
-                        Write-Host -Object "Deleting '$($VMName)' VM "
-                        $VMName | Remove-VM -Force
+                #region Hyper-V VM Management
+                $ScriptBlock = {
+                    param([string] $VMName, $Lun)
+                    $DiskNumber = (Get-WmiObject -Class Win32_DiskDrive | Where-Object { ($_.InterfaceType -eq "SCSI") -and ($_.SCSILogicalUnit -eq $Lun) }).Index
+                    if ($DiskNumber) {
+                        Write-Host -Object "`$DiskNumber: $DiskNumber"
+                        Get-Disk -Number $DiskNumber | Set-Disk -IsOffline $true
+                        if (-not(Get-VM -Name $VMName -ErrorAction Ignore)) {
+                            $VM = New-VM -Name $VMName -MemoryStartupBytes 4GB -NoVHD -Generation 2 -Force
+                            Set-VMProcessor -VMName $VMName -Count 4
+                            Get-VMScsiController -VMName $VMName -ControllerNumber 0 | Add-VMHardDiskDrive -DiskNumber $DiskNumber
+                            Write-Host -Object "Starting '$($VMName)' VM "
+                            $StartTime = Get-Date
+                            $null = $VM | Start-VM
+                            Write-Host -Object "Start Time: $StartTime"
+                            Do {
+                                Write-Host -Object "Sleeping 30 seconds"
+                                Start-Sleep -Seconds 30
+                                $status = Get-VMIntegrationService -VMName $VMName | Where-Object -FilterScript {$_.Name -eq "Heartbeat"} | Select-Object VMName, Enabled, PrimaryStatusDescription
+                                Write-Host -Object "Primary Status Description: $($Status.PrimaryStatusDescription)"
+                                Write-Host -Object "Primary Operational Status: $($Status.PrimaryOperationalStatus)"
+                            #} While ($Status.PrimaryOperationalStatus -ne [Microsoft.HyperV.PowerShell.VMIntegrationComponentOperationalStatus]::Ok)
+                            } While ($Status.PrimaryStatusDescription -ne "OK")
+                            Write-Host -Object "Stopping '$($VMName)' VM "
+                            $null = $VM | Stop-VM -Force
+                            Write-Host -Object "Deleting '$($VMName)' VM "
+                            $null = $VMName | Remove-VM -Force
+                            $EndTime = Get-Date
+                            Write-Host -Object "End Time: $EndTime"
+                            $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
+                            Write-Host -Object "'$VMName' VM Processing Time: $($TimeSpan.ToString())"
+                        }
+                        else {
+                            Write-Warning "The '$VMName' Hyper-V VM already exists. We don't (re)create it !"
+                        }
                     }
                     else {
-                        Write-Warning "The '$VMName' Hyper-V VM already exists. We don't (re)create it !"
+                        Write-Error -Message "No Disk Number found for LUN $Lun"
                     }
                 }
-                else {
-                    Write-Error -Message "No Disk Number found for LUN $Lun"
+                $ScriptString = [scriptblock]::create($ScriptBlock)
+                $Parameter = @{
+                    VMName = $CurrentVM.Name
+                    Lun = $CurrentDataDiskLun
                 }
-            }
-            $ScriptString = [scriptblock]::create($ScriptBlock)
-            $Parameter = @{
-                VMName = $CurrentVM.Name
-                Lun = $CurrentDataDiskLun
-            }
-            Write-Verbose -Message "`$Parameter:`r`n$($Parameter | Out-String)"
-            Write-Host -Object "Creating a '$($CurrentVM.Name)' VM on '$($RecoveryVM.Name)' Recovery VM (with Hyper-V)"
-            $Result = Invoke-AzVMRunCommand -ResourceGroupName $RecoveryVM.ResourceGroupName -VMName $RecoveryVM.Name -CommandId 'RunPowerShellScript' -ScriptString  $ScriptString  -Parameter $Parameter -Verbose
+                Write-Verbose -Message "`$Parameter:`r`n$($Parameter | Out-String)"
+                Write-Host -Object "Creating a '$($CurrentVM.Name)' VM on '$($RecoveryVM.Name)' Recovery VM (with Hyper-V)"
+                $Result = Invoke-AzVMRunCommand -ResourceGroupName $RecoveryVM.ResourceGroupName -VMName $RecoveryVM.Name -CommandId 'RunPowerShellScript' -ScriptString  $ScriptString  -Parameter $Parameter -Verbose
             
-            # Display the output
-            Write-Host -Object "Result:`r`n$($Result.Value.Message | Out-String)"
-            #endregion
+                # Display the output
+                Write-Host -Object "Result:`r`n$($Result.Value.Message | Out-String)"
+                #endregion
 
-            #region Removing the data disk from a virtual machine
-            $null = Remove-AzVMDataDisk -VM $RecoveryVM -Name $NewOSDisk.Name
-            $null = $RecoveryVM | Update-AzVM
-            #endregion
+                #region Removing the data disk from a virtual machine
+                $null = Remove-AzVMDataDisk -VM $RecoveryVM -Name $NewOSDisk.Name
+                $null = $RecoveryVM | Update-AzVM
+                #endregion
 
-            #region Swapping the OS Disk on the VM
-            Write-Host -Object "Stopping the '$($CurrentVM.Name)' VM"
-            $CurrentVM | Stop-AzVM -Force
-            Write-Host -Object "Swapping the OS Disk for the '$($CurrentVM.Name)' VM"
-            $CurrentVM.StorageProfile.OsDisk.ManagedDisk.Id = $NewOSDisk.Id
-            $CurrentVM.StorageProfile.OsDisk.Name = $NewOSDisk.Name
-            $null = $CurrentVM | Update-AzVM
-            Write-Host -Object "Starting the '$($CurrentVM.Name)' VM"
-            $CurrentVM | Start-AzVM
-            #endregion
+                #region Swapping the OS Disk on the VM
+                Write-Host -Object "Stopping the '$($CurrentVM.Name)' VM"
+                $CurrentVM | Stop-AzVM -Force
+                Write-Host -Object "Swapping the OS Disk for the '$($CurrentVM.Name)' VM"
+                $CurrentVM.StorageProfile.OsDisk.ManagedDisk.Id = $NewOSDisk.Id
+                $CurrentVM.StorageProfile.OsDisk.Name = $NewOSDisk.Name
+                $null = $CurrentVM | Update-AzVM
+                Write-Host -Object "Starting the '$($CurrentVM.Name)' VM"
+                $CurrentVM | Start-AzVM
+                #endregion
+            } else {
+                Write-Warning -Message "The '$($CurrentVM.Name)' was already processed (OS Disk Name ending with '_FromSnapShot': '$($CurrentVMOSAzDisk.Name)')"
+            }
         }
     }
     end {
@@ -165,6 +169,6 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 $RecoveryVMName = "vmalhypvuse2858"
 $RecoveryVM = Get-AzVM -Name $RecoveryVMName
 
-$VMToRepair = Get-AzVM -ResourceGroupName rg-vm-rand-* | Select-Object -First 1 
+$VMToRepair = Get-AzVM -ResourceGroupName rg-vm-rand-*
 $VMToRepair | Repair-AzVM -RecoveryVM $RecoveryVM -Verbose
 #endregion 
