@@ -29,6 +29,7 @@ function Repair-AzVM {
     )
 
     begin {
+        $SnapshotDiskPattern = "_FromSnapShot"
     }
     process {
         foreach ($CurrentVM in $VM) {
@@ -41,8 +42,8 @@ function Repair-AzVM {
             $CurrentVMOSAzDisk = Get-AzResource -ResourceId $CurrentVMOSDisk.Id | Get-AzDisk
             #endregion
 
-            if ($CurrentVMOSAzDisk.Name -notmatch "_FromSnapShot$") {
-                $NewOSDiskName = "{0}_FromSnapShot" -f $CurrentVMOSAzDisk.Name
+            if ($CurrentVMOSAzDisk.Name -notmatch "$SnapshotDiskPattern$") {
+                $NewOSDiskName = "{0}{1}" -f $CurrentVMOSAzDisk.Name, $SnapshotDiskPattern
                 $NewOSDisk = Get-AzDisk -ResourceGroupName $CurrentVM.ResourceGroupName -DiskName $NewOSDiskName -ErrorAction Ignore
                 if ($NewOSDisk) {
                     Write-Warning -Message "The '$NewOSDiskName' in the '$($CurrentVM.ResourceGroupName)' already exists. We take it. If you don't want this then unattach it if any, delete it and rerun the process"
@@ -149,7 +150,7 @@ function Repair-AzVM {
                 $CurrentVM | Start-AzVM
                 #endregion
             } else {
-                Write-Warning -Message "The '$($CurrentVM.Name)' was already processed (OS Disk Name ending with '_FromSnapShot': '$($CurrentVMOSAzDisk.Name)')"
+                Write-Warning -Message "The '$($CurrentVM.Name)' was already processed (OS Disk Name ending with '$SnapshotDiskPattern': '$($CurrentVMOSAzDisk.Name)')"
             }
         }
     }

@@ -30,7 +30,9 @@ function Move-AzResource {
         [Parameter(Mandatory = $true)]
         [ValidateSet(1, 2, 3)]
         [Alias("AvailabilityZone")]
-        [string] $TargetAvailabilityZone
+        [string] $TargetAvailabilityZone,
+        [ValidateSet("ResourceGroup" ,"VM")]
+        [string] $KeepName = "VM"
     )
 
     #region Registering provider
@@ -91,8 +93,18 @@ function Move-AzResource {
         #region Creating target resource setting object 
         $TargetResourceSettings = New-Object Microsoft.Azure.PowerShell.Cmdlets.ResourceMover.Models.Api20230801.VirtualMachineResourceSettings
         $TargetResourceSettings.ResourceType = $CurrentSourceVM.Type
-        #$TargetResourceSettings.TargetResourceGroupName = $SourceResourceGroupName		
-        $TargetResourceSettings.TargetResourceName = "{0}" -f $CurrentSourceVM.Name
+        if ($KeepName -eq "VM") {
+            #Default action and naming convention
+            $TargetResourceGroupName = "{0}-{1}" -f $SourceResourceGroupName, $CurrentSourceVM.Location
+            Write-Host -Object "Moving the '$($CurrentSourceVM.Name)' to another ResourceGroup ('$TargetResourceGroupName'). The VM name will be the same '$($CurrentSourceVM.Name)' ..."
+            $TargetResourceSettings.TargetResourceGroupName = $TargetResourceGroupName		
+            $TargetResourceSettings.TargetResourceName = $CurrentSourceVM.Name
+        } else {
+            $TargetResourceName = "{0}-az{1}" -f $CurrentSourceVM.Name, $TargetAvailabilityZone
+            Write-Host -Object "Moving the '$($CurrentSourceVM.Name)' to the same VM ResourceGroup ('$SourceResourceGroupName'). The VM name will change ('$TargetResourceName') ..."
+            $TargetResourceSettings.TargetResourceGroupName = $SourceResourceGroupName		
+            $TargetResourceSettings.TargetResourceName = $TargetResourceName
+        }
         $TargetResourceSettings.TargetAvailabilityZone = $TargetAvailabilityZone
         #endregion
 
@@ -164,6 +176,7 @@ Clear-Host
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
+Set-Location -Path $CurrentDir
 
 #$SourceResourceGroupName = (Get-AzResourceGroup -ResourceGroupName "rg-al-hypv*" | Where-Object { $_.ResourceGroupName -notmatch "744$"}).ResourceGroupName
 #Excluding RG already processed for a move (ie. having a duplicate RG with a name ending with -<location>)

@@ -20,7 +20,8 @@ of the Sample Code.
 [CmdletBinding()]
 Param (
     [Alias("Number")]
-    [int16] $VMNumber = 3
+    [int16] $VMNumber = 3,
+    [switch] $RandomVMLocation
 )
 
 #region function definitions
@@ -74,7 +75,7 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount
 }
 
-$Location = "francecentral"
+$Location = "eastus2"
 $VMSize = "Standard_D2s_v3"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
@@ -106,12 +107,33 @@ $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Locatio
 #region Quickly create a random Spot Windows VM(s)
 $Jobs = 1..$VMNumber | ForEach-Object -Process {
     $ScriptBlock = {
-        param($VMName, $Credential, $ResourceGroupName)
-        New-AzVM -Name $VMName  -Credential $Credential -ResourceGroupName $ResourceGroupName -Image Win2022AzureEdition -Priority Spot #-Verbose
+        param(
+            [Parameter(Mandatory = $true)]
+            [string] $VMName, 
+            [Parameter(Mandatory = $true)]
+            [PSCredential] $Credential, 
+            [Parameter(Mandatory = $true)]
+            [string] $ResourceGroupName,
+            [Parameter(Mandatory = $false)]
+            [string] $Location
+        )
+        if ($Location) {
+            New-AzVM -Name $VMName  -Credential $Credential -ResourceGroupName $ResourceGroupName -Image Win2022AzureEdition -Priority Spot -Location $Location #-Verbose
+        }
+        else {
+            New-AzVM -Name $VMName  -Credential $Credential -ResourceGroupName $ResourceGroupName -Image Win2022AzureEdition -Priority Spot #-Verbose
+        }
     }
     $VMName = "{0}{1:yyMMddHHmmss}" -f $VirtualMachinePrefix, (Get-Date)
-    Write-Host -Object "Creating '$VMName' VM in the '$ResourceGroupName' ResourceGroup"
-    Start-ThreadJob -ScriptBlock $ScriptBlock -ArgumentList $VMName, $Credential, $ResourceGroupName #-StreamingHost $Host
+    if ($RandomVMLocation) {
+        $CurrentRandomVMLocation = (Get-AzLocation).Location | Get-Random
+        Write-Host -Object "Creating '$VMName' VM in the '$ResourceGroupName' ResourceGroup (Location: $CurrentRandomVMLocation)"
+        Start-ThreadJob -ScriptBlock $ScriptBlock -ArgumentList $VMName, $Credential, $ResourceGroupName, $CurrentRandomVMLocation #-StreamingHost $Host
+    }
+    else {
+        Write-Host -Object "Creating '$VMName' VM in the '$ResourceGroupName' ResourceGroup (Location: $Location)"
+        Start-ThreadJob -ScriptBlock $ScriptBlock -ArgumentList $VMName, $Credential, $ResourceGroupName #-StreamingHost $Host
+    }
     Start-Sleep -Seconds 1
 }
 Write-Host -Object "Waiting Jobs complete"
