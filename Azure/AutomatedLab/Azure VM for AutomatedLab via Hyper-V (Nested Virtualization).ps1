@@ -385,9 +385,6 @@ Set-AzVMCustomScriptExtension -StorageAccountName $StorageAccountName -Container
 #endregion
 #>
 
-#region Setting up AutomatedLab via a PowerShell Script
-#
-
 #region Post Setup 
 #Getting storage account
 $ContainerName = "scripts"
@@ -415,7 +412,7 @@ $SourceStorageAccountName = "automatedlablabsources"
 $SourceShareName = "isos"
 #endregion
 
-#region RBAC Assignment
+#region RBAC Assignment and calling script
 $SourceStorageAccount = Get-AzStorageAccount -ResourceGroupName $SourceResourceGroupName -Name $SourceStorageAccountName -ErrorAction Ignore
 if ($SourceStorageAccount) {
     $StorageAccountContributorRole = Get-AzRoleDefinition "Storage Account Contributor"
@@ -431,8 +428,18 @@ if ($SourceStorageAccount) {
     $Argument = "-ResourceGroupName {0} -StorageAccountName {1} -ShareName {2}" -f $SourceResourceGroupName, $SourceStorageAccountName, $SourceShareName
     Set-AzVMCustomScriptExtension -StorageAccountName $StorageAccountName -ContainerName $ContainerName -FileName $PowershellScriptName -Run $PowershellScriptName -Argument $Argument -StorageAccountKey $StorageAccountKey -Name $PowershellScriptName -VMName $VMName -ResourceGroupName $ResourceGroupName -Location $Location
 
+    <#
+    #Alternative
+    $Parameter = @{
+        ResourceGroupName  = $SourceResourceGroupName
+        StorageAccountName = $SourceStorageAccountName
+        ShareName          = $SourceShareName
+    }
+    Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptPath $PowershellScriptFullName -Parameter $Parameter
+    #>
+
     #region RBAC Assignment Removal
-    #Get-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -Scope $SourceStorageAccount.Id | Remove-AzRoleAssignment
+    Get-AzRoleAssignment -ObjectId $VM.Identity.PrincipalId -Scope $SourceStorageAccount.Id | Remove-AzRoleAssignment
     #endregion
 }
 else {

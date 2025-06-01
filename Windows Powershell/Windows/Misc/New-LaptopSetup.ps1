@@ -80,7 +80,6 @@ winget install --exact --id=Foxit.FoxitReader
 winget install --exact --id=Intel.IntelDriverAndSupportAssistant
 winget install --exact --id=WiresharkFoundation.Wireshark
 winget install --exact --id=Microsoft.VisualStudioCode.Insiders
-#winget install --exact --id=Microsoft.VisualStudioCode
 winget install --exact --id=Microsoft.AzureCLI
 winget install --exact --id=Synology.SurveillanceStationClient
 winget install --exact --id=Synology.CloudStationDrive 
@@ -93,7 +92,10 @@ winget install --exact --id=Microsoft.Azure.StorageExplorer
 winget install --exact --id=GitHub.cli
 winget install --exact --id=Microsoft.WindowsApp
 winget install --exact --id=Logitech.GHUB
+winget install --exact --id=Microsoft.Azure.AZCopy.10
+winget install --exact --id=WinDirStat.WinDirStat
 #winget install --exact --id=Hashicorp.Terraform
+#winget install --exact --id=Microsoft.VisualStudioCode
 
 #region Git
 winget install --exact --id=Git.Git
