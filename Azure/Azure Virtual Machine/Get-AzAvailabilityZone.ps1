@@ -20,7 +20,7 @@ of the Sample Code.
 #region Function Definition
 #From https://learn.microsoft.com/en-us/azure/reliability/availability-zones-overview?tabs=azure-powershell#physical-and-logical-availability-zones
 #This function returns the physical and logical availability zones mapping in the current subscription
-function Get-AvailabilityZoneMapping {
+function Get-AzAvailabilityZoneMapping {
     [CmdletBinding(PositionalBinding = $false)]
     Param (
         [ValidateScript({$_ -in $((Get-AzSubscription).Id)})]
@@ -53,14 +53,14 @@ function Get-AvailabilityZoneMapping {
     }
 }
 
-function Get-AvailabilityZoneMappingComparison {
+function Get-AzAvailabilityZoneMappingComparison {
     [CmdletBinding(PositionalBinding = $false)]
     Param (
         [ValidateScript({$_ -in $((Get-AzSubscription).Id)})]
         [string[]] $SubscriptionId = (Get-AzContext).Subscription.Id
     )
 
-    $AvailabilityZoneMapping = Get-AvailabilityZoneMapping -SubscriptionId $SubscriptionId
+    $AvailabilityZoneMapping = Get-AzAvailabilityZoneMapping -SubscriptionId $SubscriptionId
     if ($AvailabilityZoneMapping -is [hashtable]) {
         $AvailabilityZoneMappingComparison = $AvailabilityZoneMapping.Values | ForEach-Object -Process { $_ } | Select-Object -Property SubscriptionId -ExpandProperty availabilityZoneMappings | Sort-Object -Property physicalZone
     }
@@ -71,7 +71,7 @@ function Get-AvailabilityZoneMappingComparison {
 }
 
 #This function returns the available and non-available availablity zones for an Azure VM Size in an Azure Region
-function Get-AvailabilityZone {
+function Get-AzVMSkuAvailabilityZone {
     [CmdletBinding(PositionalBinding = $false)]
     Param (
         [ValidateScript({ $_ -in (Get-AzLocation).Location })]
@@ -79,7 +79,6 @@ function Get-AvailabilityZone {
         [string[]] $SKU
     )
     # Get access token for authentication
-    $accessToken = (Get-AzAccessToken).Token
     $SubscriptionId = (Get-AzContext).Subscription.Id
 
     #region  Register AvailabilityZonePeering feature if not registered
@@ -98,9 +97,13 @@ function Get-AvailabilityZone {
     #endregion
 
     #From https://www.seifbassem.com/blogs/posts/tips-get-region-availability-zones/
+    $AzContext = Get-AzContext
+    $AzProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile
+    $ProfileClient = New-Object -TypeName Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient -ArgumentList ($AzProfile)
+    $Token = $ProfileClient.AcquireAccessToken($AzContext.Subscription.TenantId)
     $headers = @{
-        "Authorization" = "Bearer $accessToken"
-        "Content-Type"  = "application/json"
+        'Content-Type'  = 'application/json'
+        'Authorization' = 'Bearer ' + $Token.AccessToken
     }
 
     $LocationAvailabilityZone = foreach ($CurrentLocation in $Location) {
@@ -120,11 +123,7 @@ function Get-AvailabilityZone {
             Write-Verbose -Message "The region '$CurrentLocation' supports availability zones: $($zones -join ', ')"
         }
         catch {
-            Write-Verbose -Message "The region '$CurrentLocation' doesn't support availability zones!"
-            [PSCustomObject] @{
-                Location = $CurrentLocation
-                Zone     = $null
-            }
+            Write-Verbose -Message $($_.ErrorDetails.Message)
         }
     }
     if ($null -eq $SKU) {
@@ -173,7 +172,7 @@ function Get-AvailabilityZone {
 }
 
 #This function returns the less busy Availablity Zone for an Azure VM Size in an Azure Region
-function Get-LeastBusyAvailabilityZone {
+function Get-AzLeastBusyAvailabilityZone {
     [CmdletBinding(PositionalBinding = $false)]
     Param (
         [ValidateScript({ $_ -in (Get-AzLocation).Location })]
@@ -183,7 +182,7 @@ function Get-LeastBusyAvailabilityZone {
     Write-Verbose -Message "`$Location: $Location"
     Write-Verbose -Message "`$SKU: $SKU"
     #Getting the Availability Zones for a specified SKU for a given Azure Region
-    $SKUAvailabilityZone = Get-AvailabilityZone -Location $Location -SKU $SKU
+    $SKUAvailabilityZone = Get-AzVMSkuAvailabilityZone -Location $Location -SKU $SKU
 
     #Getting the distribution data per Availability Zone
     $Data = Get-AzVM -Location $Location | Where-Object -FilterScript { $_.HardwareProfile.VmSize -eq $SKU } | Select-Object -Property @{Name = "Zone"; Expression = { if ($_.Zones) {
@@ -247,29 +246,29 @@ $SKU = "Standard_D8as_v5"
 #$SKU = "Standard_B2S"
 
 <#
-$LocationAvailabilityZone = Get-AvailabilityZone -Location $Location, "eastus" -Verbose
+$LocationAvailabilityZone = Get-AzVMSkuAvailabilityZone -Location $Location, "eastus" -Verbose
 $LocationAvailabilityZone
 
-$SKUAvailabilityZone = Get-AvailabilityZone -Location $Location, "eastus" -SKU @("Standard_D4AS_v5", "Standard_D8AS_v5") -Verbose
+$SKUAvailabilityZone = Get-AzVMSkuAvailabilityZone -Location $Location, "eastus" -SKU @("Standard_D4AS_v5", "Standard_D8AS_v5") -Verbose
 $SKUAvailabilityZone
 #>
 
 #region Getting the Availability Zones Mapping for specified subscription (The Current by default)
-$AvailabilityZoneMapping = Get-AvailabilityZoneMapping -Verbose
+$AvailabilityZoneMapping = Get-AzAvailabilityZoneMapping -Verbose
 $AvailabilityZoneMapping
 $LogicalZone = $AvailabilityZoneMapping | Select-Object -Property Name, @{Name = "LogicalZone"; Expression = { $_.availabilityZoneMappings.logicalZone } }
 $LogicalZone
 #endregion
 
 #region Getting the Availability Zones Mapping for all subscriptions
-$AvailabilityZoneMapping = Get-AvailabilityZoneMapping -SubscriptionId (Get-AzSubscription).Id -Verbose
+$AvailabilityZoneMapping = Get-AzAvailabilityZoneMapping -SubscriptionId (Get-AzSubscription).Id -Verbose
 $AvailabilityZoneMapping
 #Comapring the physical zone mapping across the subscription
-$AvailabilityZoneMappingComparison = Get-AvailabilityZoneMappingComparison -SubscriptionId (Get-AzSubscription).Id -Verbose
+$AvailabilityZoneMappingComparison = Get-AzAvailabilityZoneMappingComparison -SubscriptionId (Get-AzSubscription).Id -Verbose
 #endregion
 
 #region Getting the Availability Zones for a specified SKU for a given Azure Region
-$SKUAvailabilityZone = Get-AvailabilityZone -Location $Location -SKU $SKU -Verbose
+$SKUAvailabilityZone = Get-AzVMSkuAvailabilityZone -Location $Location -SKU $SKU -Verbose
 $SKUAvailabilityZone | ConvertTo-Json -Depth 100
 $SKUAvailabilityZone.ZoneRestriction.AvailableInZone
 #endregion
@@ -283,7 +282,7 @@ $AzVMNumberPerAvailabilityZone | Format-List -Property Name, Count -Force
 $VMNumber = 10
 1..$VMNumber | ForEach-Object -Process {
     $VMIndex = $_
-    $LeastBusyAvailabilityZone = Get-LeastBusyAvailabilityZone -Location $Location -SKU $SKU -Verbose
+    $LeastBusyAvailabilityZone = Get-AzLeastBusyAvailabilityZone -Location $Location -SKU $SKU -Verbose
     $LeastBusyAvailabilityZone
     Write-Progress -Activity "[$VMIndex/$VMNumber] Creating a '$SKU' VM in '$Location' Azure Region in the '$LeastBusyAvailabilityZone' Availability Zone" -Status "Percent : $('{0:N0}' -f $($VMIndex/$VMNumber * 100)) %" -PercentComplete ($VMIndex / $VMNumber * 100)
 

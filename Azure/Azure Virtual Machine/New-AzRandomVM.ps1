@@ -20,7 +20,9 @@ of the Sample Code.
 [CmdletBinding()]
 Param (
     [Alias("Number")]
-    [int16] $VMNumber = 3,
+    [uint16] $VMNumber = 3,
+    [ValidateScript({$_ -in (Get-AzLocation).Location})]
+    [string] $Location = "eastus2",
     [switch] $RandomVMLocation
 )
 
@@ -75,7 +77,6 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount
 }
 
-$Location = "eastus2"
 $VMSize = "Standard_D2s_v3"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
