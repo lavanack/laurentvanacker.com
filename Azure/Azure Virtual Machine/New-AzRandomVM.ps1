@@ -22,17 +22,17 @@ Param (
     [Alias("Number")]
     [uint16] $VMNumber = 3,
 
-    [ValidateScript({$_ -in (Get-AzLocation).Location})]
+    [ValidateScript({ $_ -in (Get-AzLocation).Location })]
     [string] $Location = "eastus2",
 
     [switch] $RandomVMLocation,
-    [ValidateSet(1,2,3)]
 
+    [ValidateSet(1, 2, 3)]
     [Alias("Zone")]
-    [int] $AvailabilityZone = 1,
+    [uint16] $AvailabilityZone,
 
-    [Alias("Sku")]
-    [string] $VMSize = "Standard_D2s_v3"
+    [Alias('VMSize', 'Sku')]
+    [string] $Size = "Standard_D2s_v3"
 )
 
 #region function definitions
@@ -118,7 +118,9 @@ $Jobs = 1..$VMNumber | ForEach-Object -Process {
     $ScriptBlock = {
         param(
             [Parameter(Mandatory = $true)]
-            [string] $VMName, 
+            [string] $Name, 
+            [Parameter(Mandatory = $true)]
+            [string] $Size, 
             [Parameter(Mandatory = $true)]
             [PSCredential] $Credential, 
             [Parameter(Mandatory = $true)]
@@ -126,37 +128,52 @@ $Jobs = 1..$VMNumber | ForEach-Object -Process {
             [Parameter(Mandatory = $false)]
             [string] $Location,
             [Parameter(Mandatory = $false)]
-            [ValidateSet(1,2,3)]
-            [int] $AvailabilityZone
+            [ValidateSet(0, 1, 2, 3)]
+            [uint16] $AvailabilityZone
         )
         $Parameters = @{
-            Name              = $VMName 
+            Name              = $Name 
+            Size              = $Size 
             Credential        = $Credential 
             ResourceGroupName = $ResourceGroupName 
             Image             = 'Win2022AzureEdition'
             Priority          = 'Spot' 
         }
         
-        if ($Location) {
+        if (-not([string]::IsNullOrEmpty($Location))) {
             $Parameters['Location'] = $Location
         }
-        if ($Zone) {
+        if ($AvailabilityZone -gt 0) {
             $Parameters['Zone'] = $AvailabilityZone
         }
 
-        Write-Host -Object "`$Parameters:`r`n$(Parameters |Out-Str)"
+        Write-Host -Object "`$Parameters:`r`n$($Parameters | Out-String)"
         New-AzVM @Parameters
     }
-    $VMName = "{0}{1:yyMMddHHmmss}" -f $VirtualMachinePrefix, (Get-Date)
+
+    $Name = "{0}{1:yyMMddHHmmss}" -f $VirtualMachinePrefix, (Get-Date)
+    $ArgumentList = $Name, $Size, $Credential, $ResourceGroupName
+    $Message = "Creating '$Name' VM (Size: $Size)"
     if ($RandomVMLocation) {
         $CurrentRandomVMLocation = (Get-AzLocation).Location | Get-Random
-        Write-Host -Object "Creating '$VMName' VM in the '$ResourceGroupName' ResourceGroup (Location: $CurrentRandomVMLocation)"
-        Start-ThreadJob -ScriptBlock $ScriptBlock -ArgumentList $VMName, $Credential, $ResourceGroupName, $CurrentRandomVMLocation #-StreamingHost $Host
+        $ArgumentList += $CurrentRandomVMLocation
+        $Message += " (Location: $CurrentRandomVMLocation)"
     }
     else {
-        Write-Host -Object "Creating '$VMName' VM in the '$ResourceGroupName' ResourceGroup (Location: $Location)"
-        Start-ThreadJob -ScriptBlock $ScriptBlock -ArgumentList $VMName, $Credential, $ResourceGroupName #-StreamingHost $Host
+        $ArgumentList += ""
     }
+
+    if ($AvailabilityZone) {
+        $ArgumentList += $AvailabilityZone
+        $Message += " (Availability Zone: $AvailabilityZone)"
+    }
+    $Message += " in the '$ResourceGroupName' ResourceGroup (Location: $Location)"
+
+    Write-Verbose -Message "`$ArgumentList:`r`n$($ArgumentList | Out-String)"
+    Write-Host -Object $Message
+
+    Start-ThreadJob -ScriptBlock $ScriptBlock -ArgumentList $ArgumentList #-StreamingHost $Host
+    #Invoke-Command -ScriptBlock $ScriptBlock -ArgumentList $ArgumentList #-AsJob
     Start-Sleep -Seconds 1
 }
 Write-Host -Object "Waiting Jobs complete"

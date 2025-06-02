@@ -287,8 +287,7 @@ $VMNumber = 10
     Write-Progress -Activity "[$VMIndex/$VMNumber] Creating a '$SKU' VM in '$Location' Azure Region in the '$LeastBusyAvailabilityZone' Availability Zone" -Status "Percent : $('{0:N0}' -f $($VMIndex/$VMNumber * 100)) %" -PercentComplete ($VMIndex / $VMNumber * 100)
 
     #.\New-AzVMInAvailabilityZone.ps1 -AvailabilityZone $LeastBusyAvailabilityZone -Location $Location -VMSize $SKU -Verbose
-    .\New-AzRandomVM -AvailabilityZone $LeastBusyAvailabilityZone -Location $Location -VMSize $SKU -VMNumber 1 -Verbose
-
+    .\New-AzRandomVM -AvailabilityZone $LeastBusyAvailabilityZone -Location $Location -Size $SKU -VMNumber 1 -Verbose
 }
 Write-Progress -Activity "Completed" -Completed
 #endregion 
