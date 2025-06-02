@@ -148,12 +148,12 @@ $Jobs = 1..$VMNumber | ForEach-Object -Process {
         }
 
         Write-Host -Object "`$Parameters:`r`n$($Parameters | Out-String)"
-        New-AzVM @Parameters
+        New-AzVM @Parameters | Set-AzVMBootDiagnostic -Enable | Update-AzVM 
     }
 
     $Name = "{0}{1:yyMMddHHmmss}" -f $VirtualMachinePrefix, (Get-Date)
     $ArgumentList = $Name, $Size, $Credential, $ResourceGroupName
-    $Message = "Creating '$Name' VM (Size: $Size)"
+    $Message = "Creating '$Name' VM (Size: '$Size')"
     if ($RandomVMLocation) {
         $CurrentRandomVMLocation = (Get-AzLocation).Location | Get-Random
         $ArgumentList += $CurrentRandomVMLocation
@@ -167,13 +167,12 @@ $Jobs = 1..$VMNumber | ForEach-Object -Process {
         $ArgumentList += $AvailabilityZone
         $Message += " (Availability Zone: $AvailabilityZone)"
     }
-    $Message += " in the '$ResourceGroupName' ResourceGroup (Location: $Location)"
+    $Message += " in the '$ResourceGroupName' ResourceGroup (Location: '$Location')"
 
     Write-Verbose -Message "`$ArgumentList:`r`n$($ArgumentList | Out-String)"
     Write-Host -Object $Message
 
     Start-ThreadJob -ScriptBlock $ScriptBlock -ArgumentList $ArgumentList #-StreamingHost $Host
-    #Invoke-Command -ScriptBlock $ScriptBlock -ArgumentList $ArgumentList #-AsJob
     Start-Sleep -Seconds 1
 }
 Write-Host -Object "Waiting Jobs complete"
