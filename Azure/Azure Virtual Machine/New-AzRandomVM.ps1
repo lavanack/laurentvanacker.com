@@ -109,7 +109,7 @@ $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
 if ($ResourceGroup) {
     #Step 0: Remove previously existing Azure Resource Group with the same name
-    $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
+    $ResourceGroup | Remove-AzResourceGroup -Force
 }
 $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 
