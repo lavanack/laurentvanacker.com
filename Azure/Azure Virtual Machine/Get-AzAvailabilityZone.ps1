@@ -23,7 +23,7 @@ of the Sample Code.
 function Get-AzAvailabilityZoneMapping {
     [CmdletBinding(PositionalBinding = $false)]
     Param (
-        [ValidateScript({$_ -in $((Get-AzSubscription).Id)})]
+        [ValidateScript({ $_ -in $((Get-AzSubscription).Id) })]
         [string[]] $SubscriptionId = (Get-AzContext).Subscription.Id
     )
 
@@ -37,7 +37,7 @@ function Get-AzAvailabilityZoneMapping {
 
         $response = Invoke-AzRestMethod -Method GET -Path "/subscriptions/$CurrentSubscriptionId/locations?api-version=2022-12-01"
         $locations = ($response.Content | ConvertFrom-Json).value
-        $AvailabilityZoneMapping = $locations | Where-Object { $null -ne $_.availabilityZoneMappings } | Select-Object -Property @{Name="SubscriptionId"; Expression={$CurrentSubscriptionId}}, Name, DisplayName, @{name = 'availabilityZoneMappings'; expression = { $_.availabilityZoneMappings } } | Sort-Object -Property Name
+        $AvailabilityZoneMapping = $locations | Where-Object { $null -ne $_.availabilityZoneMappings } | Select-Object -Property @{Name = "SubscriptionId"; Expression = { $CurrentSubscriptionId } }, Name, DisplayName, @{name = 'availabilityZoneMappings'; expression = { $_.availabilityZoneMappings } } | Sort-Object -Property Name
         $AvailabilityZoneMappingHT[$CurrentSubscriptionId] = $AvailabilityZoneMapping
     }
 
@@ -56,7 +56,7 @@ function Get-AzAvailabilityZoneMapping {
 function Get-AzAvailabilityZoneMappingComparison {
     [CmdletBinding(PositionalBinding = $false)]
     Param (
-        [ValidateScript({$_ -in $((Get-AzSubscription).Id)})]
+        [ValidateScript({ $_ -in $((Get-AzSubscription).Id) })]
         [string[]] $SubscriptionId = (Get-AzContext).Subscription.Id
     )
 
@@ -255,9 +255,9 @@ $SKUAvailabilityZone
 
 #region Getting the Availability Zones Mapping for specified subscription (The Current by default)
 $AvailabilityZoneMapping = Get-AzAvailabilityZoneMapping -Verbose
-$AvailabilityZoneMapping
+$AvailabilityZoneMapping | Format-Table -Property * -Force
 $LogicalZone = $AvailabilityZoneMapping | Select-Object -Property Name, @{Name = "LogicalZone"; Expression = { $_.availabilityZoneMappings.logicalZone } }
-$LogicalZone
+$LogicalZone | Format-Table -Property * -Force
 #endregion
 
 #region Getting the Availability Zones Mapping for all subscriptions
@@ -265,6 +265,7 @@ $AvailabilityZoneMapping = Get-AzAvailabilityZoneMapping -SubscriptionId (Get-Az
 $AvailabilityZoneMapping
 #Comapring the physical zone mapping across the subscription
 $AvailabilityZoneMappingComparison = Get-AzAvailabilityZoneMappingComparison -SubscriptionId (Get-AzSubscription).Id -Verbose
+$AvailabilityZoneMappingComparison | Format-Table -Property * -Force
 #endregion
 
 #region Getting the Availability Zones for a specified SKU for a given Azure Region
