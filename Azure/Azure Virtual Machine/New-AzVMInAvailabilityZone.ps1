@@ -15,15 +15,17 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources
+#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.Network, Az.Resources, Az.Security, Az.Storage
 
 [CmdletBinding()]
 param
 (
+    [Alias("Zone")]
     [ValidateSet(1,2,3)]
     [int] $AvailabilityZone = 1,
     [ValidateScript({$_ -in (Get-AzLocation).Location})]
     [string] $Location = "francecentral",
+    [Alias("Sku")]
     [string] $VMSize = "Standard_D4S_v4"
 )
 

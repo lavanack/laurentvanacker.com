@@ -15,15 +15,24 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Accounts, Az.Compute, Microsoft.PowerShell.ThreadJob
+#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.Resources, Microsoft.PowerShell.ThreadJob
 
 [CmdletBinding()]
 Param (
     [Alias("Number")]
     [uint16] $VMNumber = 3,
+
     [ValidateScript({$_ -in (Get-AzLocation).Location})]
     [string] $Location = "eastus2",
-    [switch] $RandomVMLocation
+
+    [switch] $RandomVMLocation,
+    [ValidateSet(1,2,3)]
+
+    [Alias("Zone")]
+    [int] $AvailabilityZone = 1,
+
+    [Alias("Sku")]
+    [string] $VMSize = "Standard_D2s_v3"
 )
 
 #region function definitions
@@ -77,7 +86,6 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount
 }
 
-$VMSize = "Standard_D2s_v3"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
 $AzureVMNameMaxLength = 15
@@ -116,14 +124,28 @@ $Jobs = 1..$VMNumber | ForEach-Object -Process {
             [Parameter(Mandatory = $true)]
             [string] $ResourceGroupName,
             [Parameter(Mandatory = $false)]
-            [string] $Location
+            [string] $Location,
+            [Parameter(Mandatory = $false)]
+            [ValidateSet(1,2,3)]
+            [int] $AvailabilityZone
         )
+        $Parameters = @{
+            Name              = $VMName 
+            Credential        = $Credential 
+            ResourceGroupName = $ResourceGroupName 
+            Image             = 'Win2022AzureEdition'
+            Priority          = 'Spot' 
+        }
+        
         if ($Location) {
-            New-AzVM -Name $VMName  -Credential $Credential -ResourceGroupName $ResourceGroupName -Image Win2022AzureEdition -Priority Spot -Location $Location #-Verbose
+            $Parameters['Location'] = $Location
         }
-        else {
-            New-AzVM -Name $VMName  -Credential $Credential -ResourceGroupName $ResourceGroupName -Image Win2022AzureEdition -Priority Spot #-Verbose
+        if ($Zone) {
+            $Parameters['Zone'] = $AvailabilityZone
         }
+
+        Write-Host -Object "`$Parameters:`r`n$(Parameters |Out-Str)"
+        New-AzVM @Parameters
     }
     $VMName = "{0}{1:yyMMddHHmmss}" -f $VirtualMachinePrefix, (Get-Date)
     if ($RandomVMLocation) {
