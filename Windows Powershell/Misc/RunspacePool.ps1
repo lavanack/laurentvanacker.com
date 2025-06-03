@@ -49,7 +49,7 @@ function Get-RunspaceState {
 #endregion
 
 Clear-Host
-$RunspacePoolSize = 5
+$RunspacePoolSize = 2
 $InstanceNumber = 10
 $RunspacePool = [runspacefactory]::CreateRunspacePool(1, $RunspacePoolSize)
 $RunspacePool.Open()
@@ -60,14 +60,14 @@ $StartTime = Get-Date
 Foreach ($Instance in 1..$InstanceNumber ) {
     $PowerShell = [powershell]::Create()
     $PowerShell.RunspacePool = $RunspacePool
+    $ScriptBlock = {
+        param ($InstanceNumber)
+        $timeToSleep = Get-Random -Minimum 10 -Maximum 20
+        Start-Sleep -Seconds $timeToSleep
+        Write-Output -InputObject $("Runspace {0:D2} took {1:D2} seconds!" -f $InstanceNumber, $timeToSleep)
+    }
 
-    $null = $PowerShell.AddScript({
-            param ($InstanceNumber)
-            $timeToSleep = Get-Random -Minimum 10 -Maximum 30
-            Start-Sleep -Seconds $timeToSleep
-            "Runspace {0:D2} took {1:D2} seconds!" -f $InstanceNumber, $timeToSleep
-            #Get-ChildItem Function:\ | Out-String
-        })
+    $null = $PowerShell.AddScript($ScriptBlock)
     $null = $PowerShell.AddParameter("InstanceNumber", $Instance)
 
     $null = $RunspaceList.Add([pscustomobject]@{
@@ -94,9 +94,9 @@ Foreach ($Instance in $RunspaceList) {
     $Instance.Result = $Instance.PowerShell.Endinvoke($Instance.AsyncResult)
     $Instance.PowerShell.Dispose()
 }
-$EndTime = Get-Date
 $RunspacePool.Dispose() 
 $RunspaceList.Result
 
+$EndTime = Get-Date
 $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
 $TimeSpan
