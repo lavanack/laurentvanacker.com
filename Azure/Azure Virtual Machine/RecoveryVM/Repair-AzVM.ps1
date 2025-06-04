@@ -302,7 +302,7 @@ function Repair-AzVMWithRunSpace {
     $RecoveryVMNumberOfLogicalProcessors = ((Get-AzComputeResourceSku -Location $RecoveryVM.Location | Where-Object -FilterScript { $_.Name -eq $RecoveryVMSize }).Capabilities | Where-Object -FilterScript { $_.Name -eq "vCPUs" }).Value
     Write-Verbose -Message "`$RecoveryVMNumberOfLogicalProcessors: $RecoveryVMNumberOfLogicalProcessors"
     #We calculate the RunSpace Pool Size based on the vCPU Number of the Recovery VM divised by the vCPU Number for every Hyper-V VM and keep on occurence for the Guest OS.
-    #For instance on a Standard D16s v5 (16 vcpus, 64 GiB memory) = (16/4)-1 = 3 (so we will be able to repair 3 Azure VMs at once)
+    #For instance on a Standard D16ds v5 (16 vcpus, 64 GiB memory) = (16/4)-1 = 3 (so we will be able to repair 3 Azure VMs at once)
     #For instance on a Standard D8ds v5 (8 vcpus, 32 GiB memory) = (8/4)-1 = 1 (so we will only be able to repair 1 Azure VM at once)
     $RunspacePoolSize = [math]::Max(1, $RecoveryVMNumberOfLogicalProcessors / $vCPUNumberPerHyperVVM - 1)
     Write-Verbose -Message "`$RunspacePoolSize: $RunspacePoolSize"
