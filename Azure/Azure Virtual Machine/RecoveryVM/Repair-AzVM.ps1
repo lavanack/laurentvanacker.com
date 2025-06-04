@@ -66,7 +66,8 @@ function New-AzVMBSOD {
                 Write-Verbose -Message "Starting '$($CurrentVM.Name)' VM"
                 $null = $CurrentVM | Start-AzVM
                 Write-Verbose -Message "'$($CurrentVM.Name)' VM Started"
-            } else {
+            }
+            else {
                 Write-Verbose -Message "'$($CurrentVM.Name)' VM is running"
             }
             Write-Verbose -Message "Setting up CrashControl on '$($CurrentVM.Name)' VM"
@@ -153,7 +154,7 @@ function Repair-AzVM {
         foreach ($CurrentVM in $VM) {
             Write-Output -InputObject "Processing '$($CurrentVM.Name)' VM"
 
-            $CurrentDataDiskLun = ($RecoveryVM.StorageProfile.DataDisks.Lun | Measure-Object -Maximum).Maximum+1
+            $CurrentDataDiskLun = ($RecoveryVM.StorageProfile.DataDisks.Lun | Measure-Object -Maximum).Maximum + 1
             #region Getting OS Disk
             $CurrentVMOSDisk = $CurrentVM.StorageProfile.OSDisk.ManagedDisk
             $CurrentVMOSAzDisk = Get-AzResource -ResourceId $CurrentVMOSDisk.Id | Get-AzDisk
@@ -164,7 +165,8 @@ function Repair-AzVM {
                 $NewOSDisk = Get-AzDisk -ResourceGroupName $CurrentVM.ResourceGroupName -DiskName $NewOSDiskName -ErrorAction Ignore
                 if ($NewOSDisk) {
                     Write-Warning -Message "[WARNING] The '$NewOSDiskName' in the '$($CurrentVM.ResourceGroupName)' already exists. We take it. If you don't want this then unattach it if any, delete it and rerun the process"
-                } else {
+                }
+                else {
                     Write-Verbose -Message "The '$NewOSDiskName' in the '$($CurrentVM.ResourceGroupName)' DOESN'T exist."
                 
                     #region SnapShot Creation
@@ -192,8 +194,9 @@ function Repair-AzVM {
                     Write-Output -InputObject "Attaching the '$($NewOSDisk.Name)' disk to the '$($RecoveryVM.Name)' VM (Lun: $CurrentDataDiskLun) ..."
                     $null = Add-AzVMDataDisk -VM $RecoveryVM -Name $NewOSDisk.Name -Caching 'ReadWrite' -CreateOption Attach -ManagedDiskId $NewOSDisk.Id -Lun $CurrentDataDiskLun
                     $null = $RecoveryVM | Update-AzVM
-                } else {
-                    $CurrentDataDiskLun = ($RecoveryVM.StorageProfile.DataDisks | Where-Object -FilterScript { $_.Name -eq $NewOSDisk.Name}).Lun
+                }
+                else {
+                    $CurrentDataDiskLun = ($RecoveryVM.StorageProfile.DataDisks | Where-Object -FilterScript { $_.Name -eq $NewOSDisk.Name }).Lun
                     Write-Warning -Message "[WARNING] The '$($NewOSDisk.Name)' disk is already attached to the '$($RecoveryVM.Name)' VM (Lun: $CurrentDataDiskLun). We don't add it as a Data disk"
                 }
                 #endregion
@@ -223,7 +226,7 @@ function Repair-AzVM {
                             Do {
                                 Write-Output -InputObject "Sleeping 30 seconds"
                                 Start-Sleep -Seconds 30
-                                $status = Get-VMIntegrationService -VMName $VMName | Where-Object -FilterScript {$_.Name -eq "Heartbeat"} | Select-Object VMName, Enabled, PrimaryStatusDescription
+                                $status = Get-VMIntegrationService -VMName $VMName | Where-Object -FilterScript { $_.Name -eq "Heartbeat" } | Select-Object VMName, Enabled, PrimaryStatusDescription
                                 Write-Output -InputObject "Primary Status Description: $($Status.PrimaryStatusDescription)"
                             } While ($Status.PrimaryStatusDescription -ne "OK")
                             Write-Output -InputObject "Stopping '$($VMName)' Hyper-V VM"
@@ -245,8 +248,8 @@ function Repair-AzVM {
                 }
                 $ScriptString = [scriptblock]::create($ScriptBlock)
                 $Parameter = @{
-                    VMName = $CurrentVM.Name
-                    Lun = $CurrentDataDiskLun
+                    VMName                = $CurrentVM.Name
+                    Lun                   = $CurrentDataDiskLun
                     vCPUNumberPerHyperVVM = $vCPUNumberPerHyperVVM
                 }
                 Write-Verbose -Message "`$Parameter:`r`n$($Parameter | Out-String)"
@@ -272,7 +275,8 @@ function Repair-AzVM {
                 Write-Output -InputObject "Starting the '$($CurrentVM.Name)' VM"
                 $CurrentVM | Start-AzVM -NoWait
                 #endregion
-            } else {
+            }
+            else {
                 Write-Warning -Message "[WARNING] The '$($CurrentVM.Name)' was already processed (OS Disk Name ending with '$SnapshotDiskPattern': '$($CurrentVMOSAzDisk.Name)')"
             }
         }
@@ -294,14 +298,14 @@ function Repair-AzVMWithRunSpace {
     )
 
     $RecoveryVMSize = $RecoveryVM.HardwareProfile.VmSize
-	Write-Verbose -Message "`$RecoveryVMSize: $RecoveryVMSize"
-    $RecoveryVMNumberOfLogicalProcessors = ((Get-AzComputeResourceSku -Location $RecoveryVM.Location | Where-Object -FilterScript { $_.Name -eq $RecoveryVMSize }).Capabilities | Where-Object -FilterScript { $_.Name -eq "vCPUs"}).Value
-	Write-Verbose -Message "`$RecoveryVMNumberOfLogicalProcessors: $RecoveryVMNumberOfLogicalProcessors"
+    Write-Verbose -Message "`$RecoveryVMSize: $RecoveryVMSize"
+    $RecoveryVMNumberOfLogicalProcessors = ((Get-AzComputeResourceSku -Location $RecoveryVM.Location | Where-Object -FilterScript { $_.Name -eq $RecoveryVMSize }).Capabilities | Where-Object -FilterScript { $_.Name -eq "vCPUs" }).Value
+    Write-Verbose -Message "`$RecoveryVMNumberOfLogicalProcessors: $RecoveryVMNumberOfLogicalProcessors"
     #We calculate the RunSpace Pool Size based on the vCPU Number of the Recovery VM divised by the vCPU Number for every Hyper-V VM and keep on occurence for the Guest OS.
     #For instance on a Standard D16s v5 (16 vcpus, 64 GiB memory) = (16/4)-1 = 3 (so we will be able to repair 3 Azure VMs at once)
     #For instance on a Standard D8ds v5 (8 vcpus, 32 GiB memory) = (8/4)-1 = 1 (so we will only be able to repair 1 Azure VM at once)
-    $RunspacePoolSize = [math]::Max(1, $RecoveryVMNumberOfLogicalProcessors/$vCPUNumberPerHyperVVM-1)
-	Write-Verbose -Message "`$RunspacePoolSize: $RunspacePoolSize"
+    $RunspacePoolSize = [math]::Max(1, $RecoveryVMNumberOfLogicalProcessors / $vCPUNumberPerHyperVVM - 1)
+    Write-Verbose -Message "`$RunspacePoolSize: $RunspacePoolSize"
 
     #[scriptblock] $scriptblock = Get-Content -Path Function:\Repair-AzVM
     [scriptblock] $scriptblock = [Scriptblock]::Create(((Get-Content -Path Function:\Repair-AzVM) -replace "Write-Verbose\s+(-Message)?\s*", "Write-Output -InputObject "))
@@ -334,14 +338,14 @@ function Repair-AzVMWithRunSpace {
             })
     }
 
-	# View available runspaces
-	Write-Verbose -Message "Available Runspaces: $($RunspacePool.GetAvailableRunspaces())"
+    # View available runspaces
+    Write-Verbose -Message "Available Runspaces: $($RunspacePool.GetAvailableRunspaces())"
 
-	# View the list object runspace status
-	Write-Verbose -Message "Runspace Status:`r`n$($RunspaceList.AsyncResult | Out-String)"
+    # View the list object runspace status
+    Write-Verbose -Message "Runspace Status:`r`n$($RunspaceList.AsyncResult | Out-String)"
 
-	# View the list using the function declared at the top of this file !!!
-	Write-Verbose -Message "Runspace State:`r`n$($RunspaceList | Get-RunspaceState | Out-String)"
+    # View the list using the function declared at the top of this file !!!
+    Write-Verbose -Message "Runspace State:`r`n$($RunspaceList | Get-RunspaceState | Out-String)"
 
     Foreach ($Instance in $RunspaceList) {
         $Instance.Result = $Instance.PowerShell.Endinvoke($Instance.AsyncResult)
@@ -352,7 +356,7 @@ function Repair-AzVMWithRunSpace {
     $EndTime = Get-Date
     Write-Host -Object "End Time: $EndTime"
 
-	Write-Host -Object "Runspace Results:`r`n$($RunspaceList.Result | Out-String)"
+    Write-Host -Object "Runspace Results:`r`n$($RunspaceList.Result | Out-String)"
 
     $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
     Write-Host -Object "Processing Time: $($TimeSpan.ToString())"

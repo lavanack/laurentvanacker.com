@@ -283,7 +283,7 @@ function Move-AzResource {
 }
 #endregion 
 
-#region Main Cpode
+#region Main Code
 Clear-Host
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
