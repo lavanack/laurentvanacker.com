@@ -302,8 +302,9 @@ function Repair-AzVMWithRunSpace {
     $RecoveryVMNumberOfLogicalProcessors = ((Get-AzComputeResourceSku -Location $RecoveryVM.Location | Where-Object -FilterScript { $_.Name -eq $RecoveryVMSize }).Capabilities | Where-Object -FilterScript { $_.Name -eq "vCPUs" }).Value
     Write-Verbose -Message "`$RecoveryVMNumberOfLogicalProcessors: $RecoveryVMNumberOfLogicalProcessors"
     #We calculate the RunSpace Pool Size based on the vCPU Number of the Recovery VM divised by the vCPU Number for every Hyper-V VM and keep on occurence for the Guest OS.
-    #For instance on a Standard D16ds v5 (16 vcpus, 64 GiB memory) = (16/4)-1 = 3 (so we will be able to repair 3 Azure VMs at once)
-    #For instance on a Standard D8ds v5 (8 vcpus, 32 GiB memory) = (8/4)-1 = 1 (so we will only be able to repair 1 Azure VM at once)
+    #For instance on a Standard D32ds v5 (32 vcpus, 128 GiB memory) = (32/4)-1 = 7 (so we will be able to repair 7 Azure VMs at once)
+    #For instance on a Standard D16ds v5 (16 vcpus, 64 GiB memory)  = (16/4)-1 = 3 (so we will be able to repair 3 Azure VMs at once)
+    #For instance on a Standard D8ds v5 (8 vcpus, 32 GiB memory)    =  (8/4)-1 = 1 (so we will only be able to repair 1 Azure VM at once)
     $RunspacePoolSize = [math]::Max(1, $RecoveryVMNumberOfLogicalProcessors / $vCPUNumberPerHyperVVM - 1)
     Write-Verbose -Message "`$RunspacePoolSize: $RunspacePoolSize"
 
@@ -347,6 +348,8 @@ function Repair-AzVMWithRunSpace {
     # View the list using the function declared at the top of this file !!!
     Write-Verbose -Message "Runspace State:`r`n$($RunspaceList | Get-RunspaceState | Out-String)"
 
+    Write-Host -Object "Waiting the overall processing completes ..."
+
     Foreach ($Instance in $RunspaceList) {
         $Instance.Result = $Instance.PowerShell.Endinvoke($Instance.AsyncResult)
         $Instance.PowerShell.Dispose()
@@ -374,10 +377,13 @@ Set-Location -Path $CurrentDir
 $RecoveryVMName = "vmalhypvuse2858"
 $RecoveryVM = Get-AzVM -Name $RecoveryVMName
 
-Get-AzResourceGroup rg-vm-rand-* | Remove-AzResourceGroup -AsJob -Force
+Write-Host -Object "Removing any previously existing rg-vm-rand-* ResourceGroup ..."
+$null = Get-AzResourceGroup rg-vm-rand-* | Remove-AzResourceGroup -AsJob -Force
 & '..\New-AzRandomVM.ps1' -Location $RecoveryVM.Location -VMNumber 10
 
 $VMToRepair = Get-AzVM -ResourceGroupName rg-vm-rand-*
+Write-Host -Object "OS Disk Names:`r`n$($VMToRepair | Select-Object -Property Name, @{Name="OSDiskName"; Expression = { $_.StorageProfile.OSDisk.Name }} | Out-String)"
+
 #$VMToRepair | Start-AzVM -AsJob | Receive-Job -Wait -AutoRemoveJob
 #region Creating BSOD on the VM(s) with No Restart
 #$Jobs = $VMToRepair | New-AzVMBSOD -Verbose
@@ -388,6 +394,6 @@ $VMToRepair = Get-AzVM -ResourceGroupName rg-vm-rand-*
 #$VMToRepair | Repair-AzVM -RecoveryVM $RecoveryVM -Verbose
 Repair-AzVMWithRunSpace -VM $VMToRepair -RecoveryVM $RecoveryVM -Verbose
 #Checking if the OS Disk Name end with _FromSnapShot
-$VMToRepair.StorageProfile.OSDisk.Name
+Write-Host -Object "OS Disk Names:`r`n$($VMToRepair | Select-Object -Property Name, @{Name="OSDiskName"; Expression = { $_.StorageProfile.OSDisk.Name }} | Out-String)"
 #endregion
-#endregion 
+#endregion
