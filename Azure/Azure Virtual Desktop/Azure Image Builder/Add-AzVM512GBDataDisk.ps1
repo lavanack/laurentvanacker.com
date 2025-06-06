@@ -124,7 +124,7 @@ $ThisVM = $ThisVMCompute | Get-AzVM
 $Location = $ThisVM.Location
 $DataDiskName = "{0}-DataDisk01" -f $ThisVM.Name
 $DataDiskSizeGB = 512
-#$OSDiskType = "Premium_LRS"
+#$OSDiskType = "StandardSSD_LRS"
 $OSDiskType = $ThisVM.StorageProfile.OsDisk.ManagedDisk.StorageAccountType 
 $ResourceGroupName = $ThisVM.ResourceGroupName
 #endregion

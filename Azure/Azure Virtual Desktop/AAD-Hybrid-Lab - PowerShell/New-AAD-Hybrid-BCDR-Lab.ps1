@@ -28,8 +28,8 @@ function New-AAD-Hybrid-BCDR-Lab {
         [parameter(Mandatory = $false, HelpMessage = 'Select a VM SKU (please ensure the SKU is available in your selected region).')]
         [string] $VMSize = "Standard_D2s_v5",
         [parameter(Mandatory = $false, HelpMessage = 'Select an OS Disk Type')]
-        [ValidateSet("Standard_LRS", "Premium_LRS")] 
-        [string] $OSDiskType = "Premium_LRS",
+        [ValidateSet("StandardSSD_LRS", "Premium_LRS")] 
+        [string] $OSDiskType = "StandardSSD_LRS",
         [parameter(Mandatory = $false, HelpMessage = 'Please specify the project')]
         [ValidateLength(2, 4)] 
         [string] $Project = "avd",
@@ -131,7 +131,7 @@ function New-AAD-Hybrid-BCDR-Lab {
     #$DataDiskName          = "$VMName-DataDisk01"
     $OSDiskSize = "127"
     $StorageAccountSkuName = "Standard_LRS"
-    #$OSDiskType = "Premium_LRS"
+    #$OSDiskType = "StandardSSD_LRS"
     $DSCZipFileUri = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell/DSC/adBCDRDSC.zip"
     $DSCConfigurationName = "AdditionalDomainController"
 
@@ -499,7 +499,7 @@ $Instance = 1
 $Parameters = @{
     "AdminCredential"      = $AdminCredential
     "VMSize"               = "Standard_D2s_v5"
-    "OSDiskType"           = "Premium_LRS"
+    "OSDiskType"           = "StandardSSD_LRS"
     "Project"              = "avd"
     "Role"                 = "ad"
     "ADDomainName"         = "csa.fr"

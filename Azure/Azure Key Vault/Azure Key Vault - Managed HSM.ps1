@@ -149,7 +149,7 @@ $OSDiskName = '{0}_OSDisk' -f $VMName
 $DataDiskName = '{0}_DataDisk' -f $VMName
 $OSDiskSize = "127"
 $StorageAccountSkuName = "Standard_LRS"
-$OSDiskType = "Premium_LRS"
+$OSDiskType = "StandardSSD_LRS"
 
 Write-Verbose "`$VMName: $VMName"
 Write-Verbose "`$NetworkSecurityGroupName: $NetworkSecurityGroupName"         

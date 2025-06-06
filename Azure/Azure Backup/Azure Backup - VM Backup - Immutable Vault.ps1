@@ -150,7 +150,7 @@ $OSDiskName = '{0}_OSDisk' -f $VMName
 $DataDisk1Name = '{0}_DataDisk1' -f $VMName
 $DataDisk2Name = '{0}_DataDisk2' -f $VMName
 $OSDiskSize = "127"
-$DiskType = "Premium_LRS"
+$DiskType = "StandardSSD_LRS"
 
 Write-Verbose "`$VMName: $VMName"
 Write-Verbose "`$ResourceGroupName: $ResourceGroupName"

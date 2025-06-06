@@ -183,7 +183,7 @@ $DataDisk1Name = '{0}_DataDisk1' -f $VMName
 $DataDisk2Name = '{0}_DataDisk2' -f $VMName
 $OSDiskSize = "127"
 $StorageAccountSkuName = "Standard_LRS"
-$DiskType = "Premium_LRS"
+$DiskType = "StandardSSD_LRS"
 
 Write-Verbose "`$VMName: $VMName"
 Write-Verbose "`$PrimaryLocationNetworkSecurityGroupName: $PrimaryLocationNetworkSecurityGroupName"         
