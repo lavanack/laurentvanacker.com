@@ -94,7 +94,8 @@ winget install --exact --id=Microsoft.WindowsApp
 winget install --exact --id=Logitech.GHUB
 winget install --exact --id=Microsoft.Azure.AZCopy.10
 winget install --exact --id=WinDirStat.WinDirStat
-#winget install --exact --id=Hashicorp.Terraform
+winget install --exact --id=Microsoft.Bicep
+winget install --exact --id=Hashicorp.Terraform
 #winget install --exact --id=Microsoft.VisualStudioCode
 
 #region Git
