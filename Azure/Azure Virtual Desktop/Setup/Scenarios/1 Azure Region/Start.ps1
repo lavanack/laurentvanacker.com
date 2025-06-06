@@ -79,9 +79,9 @@ $ThisDomainControllerSubnet = Get-AzVMSubnet
 
 #region AVD Dedicated VNets and Subnets
 #region Primary Region
-$PrimaryRegionResourceGroupName = "rg-avd-ad-use2-001"
-$PrimaryRegionVNetName = "vnet-avd-avd-use2-001"
-$PrimaryRegionSubnetName = "snet-avd-avd-use2-001"
+$PrimaryRegionResourceGroupName = "rg-avd-ad-use2-002"
+$PrimaryRegionVNetName = "vnet-avd-avd-use2-002"
+$PrimaryRegionSubnetName = "snet-avd-avd-use2-002"
 $PrimaryRegionVNet = Get-AzVirtualNetwork -Name $PrimaryRegionVNetName -ResourceGroupName $PrimaryRegionResourceGroupName
 $PrimaryRegionSubnet = $PrimaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $PrimaryRegionSubnetName
 $PrimaryRegion = $PrimaryRegionVNet.Location
@@ -136,8 +136,9 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 [PersonalHostPool]::SetIndex($RandomNumber, $PrimaryRegion)
 
 #Uncomment the best scenario for your usage or create your own
+$HostPools = & "..\1 Azure Region\2_Pooled_1_Personal_AD.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_1_Personal_SSO.ps1"
-$HostPools = & "..\1 Azure Region\1_Pooled_1_Personal_Intune.ps1"
+#$HostPools = & "..\1 Azure Region\1_Pooled_1_Personal_Intune.ps1"
 #$HostPools = & "..\1 Azure Region\1_Personal_AD_Win10.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_AD.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach.ps1"
@@ -147,8 +148,8 @@ $HostPools = & "..\1 Azure Region\1_Pooled_1_Personal_Intune.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_Intune_AD_FSLogixCloudCache_Watermarking_SpotInstance.ps1"
 #$HostPools = & "..\1 Azure Region\3_Pooled_EntraID_AD_Misc.ps1"
 #$HostPools = & "..\1 Azure Region\6_Pooled_2_Personal_EntraID_AD_Misc.ps1"
-#$HostPools = & "..\1 Azure Region\X_Pooled_ACG_NoFSLogix_NoMSIX.ps1".ps1"
-#$HostPools = & "..\1 Azure Region\X_Pooled_AD_ACG_NoFSLogix_NoMSIX.ps1".ps1"
+#$HostPools = & "..\1 Azure Region\X_Pooled_ACG_NoFSLogix_NoAppAttach.ps1".ps1"
+#$HostPools = & "..\1 Azure Region\X_Pooled_AD_ACG_NoFSLogix_NoAppAttach.ps1".ps1"
 #endregion
 
 #Removing $null object(s) if any.
@@ -181,7 +182,7 @@ New-PsAvdHostPoolSetup -HostPool $HostPools -NoMFAEntraIDGroupName $NoMFAEntraID
 #Starting a Windows Explorer instance per FSLogix profiles share
 Get-PsAvdFSLogixProfileShare -HostPool $HostPools
 
-#Starting a Windows Explorer instance per MSIX profiles share
+#Starting a Windows Explorer instance per AppAttach profiles share
 Get-PsAvdAppAttachProfileShare -HostPool $HostPools
 
 #region Adding Test Users (under the OrgUsers OU) as HostPool Users (for all HostPools)
