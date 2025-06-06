@@ -1,2 +1,2 @@
-﻿#Deploy a Personal HostPool with 3 (default value) Session Hosts (AD Domain joined and without FSLogix and MSIX - Not necessary for Personal Desktops) and using Windows 10 22H2 as OS
+﻿#Deploy a Personal HostPool with 3 (default value) Session Hosts (AD Domain joined and without FSLogix and Azure App Attach - Not necessary for Personal Desktops) and using Windows 10 22H2 as OS
 [PersonalHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetImage("microsoftwindowsdesktop", "windows-10", "win10-22h2-ent-g2")
