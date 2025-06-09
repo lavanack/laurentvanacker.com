@@ -158,7 +158,7 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 $HostPools = & "..\2 Azure Regions\2_Pooled_EntraID_Intune_AD_OneDrive_Watermarking_SpotInstance.ps1"
 #$HostPools = & "..\2 Azure Regions\8_Pooled_EntraID_AD_AzureAppAttach.ps1"
 
-#$HostPools = & "..\1 Azure Region\1_Pooled_1_Personal_SSO.ps1"
+#$HostPools = & "..\1 Azure Region\2_Pooled_1_Personal_AD_SpotInstance.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_1_Personal_SSO.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_1_Personal_Intune.ps1"
 #$HostPools = & "..\1 Azure Region\1_Personal_AD_Win10.ps1"
