@@ -23,25 +23,35 @@ Param (
 
 
 #region Function Definitions
-function Get-AzQuotaLocation {
+function Get-AzVMQuotaLocation {
     [CmdletBinding(PositionalBinding = $false)]
     Param (
         [ValidateScript({$_ -in $((Get-AzLocation).Location)})]
         [string[]] $Location = $((Get-AzLocation).Location),
         #[ValidateScript({$_ -in $((Get-AzComputeResourceSku | Where-Object { $_.ResourceType -eq "virtualMachines" }).Family)})]
-        [string[]] $ResourceName=@("virtualMachines")
+        [string[]] $ResourceName=@("virtualMachines"),
+        [ValidateScript({$_ -in $((Get-AzSubscription).Id)})]
+        [string[]] $SubscriptionId=(Get-AzSubscription).Id
     )
 
-    $QuotaPerAzLocation = foreach ($CurrentLocation in $Location) {
-        Write-Verbose -Message "Processing '$CurrentLocation' Azure Location"
-        foreach ($currentResourceName in $ResourceName) {
-            Write-Verbose -Message "Processing '$currentResourceName' Azure Resource"
-            $Limit = (Get-AzQuota -Scope "/subscriptions/$((Get-AzContext).Subscription.Id)/providers/Microsoft.Compute/locations/$CurrentLocation" -ResourceName $currentResourceName -ErrorAction Ignore).Limit.Value
-            if ([string]::IsNullOrEmpty($Limit)) {
-                $Limit = "N/A"
-                Write-Warning "No data for '$CurrentLocation'"
+    $QuotaPerAzLocation = foreach ($CurrentSubscriptionId in $SubscriptionId) {
+        Write-Verbose -Message "Processing '$CurrentSubscriptionId' Subscription"
+        foreach ($CurrentLocation in $Location) {
+            Write-Verbose -Message "Processing '$CurrentLocation' Azure Location"
+            foreach ($currentResourceName in $ResourceName) {
+                Write-Verbose -Message "Processing '$currentResourceName' Azure Resource"
+                try {
+                    $Limit = (Get-AzQuota -Scope "/subscriptions/$CurrentSubscriptionId/providers/Microsoft.Compute/locations/$CurrentLocation" -ResourceName $currentResourceName -ErrorAction Stop).Limit.Value
+                } catch {
+                    Write-Warning "$($_.Exception.Message)"
+                    $Limit = $null
+                }
+                if ([string]::IsNullOrEmpty($Limit)) {
+                    $Limit = "N/A"
+                    Write-Warning "No data for '$CurrentLocation'"
+                }
+                [pscustomobject]@{"SubscriptionId"=$CurrentSubscriptionId; "Location"=$CurrentLocation; ResourceName = $currentResourceName; Limit = $Limit} 
             }
-            [pscustomobject]@{"Location"=$CurrentLocation; ResourceName = $currentResourceName; Limit = $Limit} 
         }
     }
     $QuotaPerAzLocation
@@ -62,6 +72,6 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 }
 #endregion
 
-Get-AzQuotaLocation -Location francecentral -ResourceName StandardDASv5Family -Verbose
-#Get-AzQuotaLocation
-#Get-AzQuotaLocation -Location francecentral, eastus2 -ResourceName StandardDASv5Family, StandardDv5Family -Verbose
+Get-AzVMQuotaLocation -Location francecentral -ResourceName StandardDASv5Family -Verbose
+#Get-AzVMQuotaLocation
+#Get-AzVMQuotaLocation -Location francecentral, eastus2 -ResourceName StandardDASv5Family, StandardDv5Family -Verbose
