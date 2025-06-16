@@ -25,7 +25,9 @@ of the Sample Code.
 [CmdletBinding()]
 param
 (
-    [uint16] $FrequencyInMinutes = 5
+    [uint16] $FrequencyInMinutes = 5,
+    [ValidateSet('Personal', 'Pooled')]
+    [string[]] $HostPoolType = 'Personal'
 )
 
 
@@ -204,7 +206,7 @@ param($Timer)
 $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 Write-Host "PowerShell timer trigger function executed at: $timestamp"
 
-$AzInactiveRunningVMs = Get-AzWvdHostPool | Where-Object -FilterScript { $_.HostPoolType -eq "Personal" } | ForEach-Object -Process {
+$AzInactiveRunningVMs = Get-AzWvdHostPool | Where-Object -FilterScript { $_.HostPoolType -in <HostPoolType> } | ForEach-Object -Process {
     (Get-AzWvdSessionHost -HostPoolName $_.Name -ResourceGroupName $_.ResourceGroupName) | Where-Object -FilterScript { $_.Session -le 0 } | Select-Object -Property ResourceId | Get-AzVM -Status | Where-Object -FilterScript { ($_.Statuses.code -eq "PowerState/running") -and ($_.Statuses.DisplayStatus -eq "VM running") }
 }
 
@@ -215,7 +217,7 @@ if (-not([string]::IsNullOrEmpty($AzInactiveRunningVMs))) {
     Write-Host -Object "Waiting the hibernation jobs complete ..."
     $null = $Jobs | Receive-Job -Wait -AutoRemoveJob -ErrorAction SilentlyContinue
 
-    $AzInactiveRunningVMs = Get-AzWvdHostPool | Where-Object -FilterScript { $_.HostPoolType -eq "Personal" } | ForEach-Object -Process {
+    $AzInactiveRunningVMs = Get-AzWvdHostPool | Where-Object -FilterScript { $_.HostPoolType -in <HostPoolType> } | ForEach-Object -Process {
         (Get-AzWvdSessionHost -HostPoolName $_.Name -ResourceGroupName $_.ResourceGroupName) | Where-Object -FilterScript { $_.Session -le 0 } | Select-Object -Property ResourceId | Get-AzVM -Status | Where-Object -FilterScript { ($_.Statuses.code -eq "PowerState/running") -and ($_.Statuses.DisplayStatus -eq "VM running") }
     }
     if (-not([string]::IsNullOrEmpty($AzInactiveRunningVMs))) {
@@ -225,7 +227,7 @@ if (-not([string]::IsNullOrEmpty($AzInactiveRunningVMs))) {
         $null = $Jobs | Receive-Job -Wait -AutoRemoveJob #-ErrorAction SilentlyContinue
     }
 }
-'@
+'@ -replace "<HostPoolType>", $("'{0}'" -f $($HostPoolType -join "', '"))
 
 $FunctionJSONContent = @"
 {
