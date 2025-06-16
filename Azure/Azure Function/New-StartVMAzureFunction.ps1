@@ -268,7 +268,6 @@ Set-Location -Path $FunctionName
 Get-Content -Path host.json | ConvertFrom-Json | Add-Member -Name "functionTimeout" -Value "00:10:00" -MemberType NoteProperty -PassThru | ConvertTo-Json | Set-Content -Path host.json
 #endregion
 
-#Set-Location -Path $FunctionName
 $FuncProcess = Start-Process -FilePath """$Func""" -ArgumentList "start", "--verbose" -PassThru
 
 #Waiting some seconds the process be available

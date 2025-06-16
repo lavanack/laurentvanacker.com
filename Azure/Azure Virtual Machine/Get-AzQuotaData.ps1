@@ -167,7 +167,7 @@ Get-AzCoreQuota -Location $Location -Verbose
 #Get-AzCoreQuota
 #endregion
 
-#region VM Number Availability
+#region VM SKU Number Availability
 $ComputeResourceSku = "Standard_D8as_v5"
 Get-AzAvailableComputeResourceSku -Location $Location -ComputeResourceSku $ComputeResourceSku -Verbose
 #endregion

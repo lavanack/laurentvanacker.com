@@ -37,10 +37,9 @@ Set-Location -Path $CurrentDir
 
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
-	Connect-AzAccount
+    Connect-AzAccount
 }
 #endregion
-
 
 <#
 #region Graph
@@ -83,9 +82,16 @@ $Result = Invoke-AzOperationalInsightsQuery -WorkspaceId $LogAnalyticsWorkspaceI
 $SessionHosts = $Result.Results
 #endregion 
 
+<#
+#Alternative to stop all Session Host without session
+Get-AzWvdHostPool | ForEach-Object -Process {
+    (Get-AzWvdSessionHost -HostPoolName $_.Name -ResourceGroupName $_.ResourceGroupName) | Where-Object -FilterScript {$_.Session -eq 0} | Select-Object -Property ResourceId | Get-AzVM | Stop-AzVM -AsJob -Force
+}
+#>
+
 $AzRunningVMs = (($SessionHosts | Get-AzVM -Status) | Where-Object -FilterScript { ($_.Statuses.code -eq "PowerState/running") -and ($_.Statuses.DisplayStatus -eq "VM running") } )
 if (-not([string]::IsNullOrEmpty($AzRunningVMs))) {
-    Write-Host -Object "The following VMs will be hibernated :`r`n$($AzRunningVMs | Select-Object -Property ResourceGroupName, Name | Out-String)"
+    Write-Host -Object "The following VMs will be hibernated:`r`n$($AzRunningVMs | Select-Object -Property ResourceGroupName, Name | Out-String)"
     $Jobs = $AzRunningVMs | Stop-AzVM -Hibernate -Force -AsJob -Verbose
     if ($Wait) {
         Write-Host -Object "Waiting the hibernation jobs complete ..."
@@ -101,7 +107,7 @@ if (-not([string]::IsNullOrEmpty($AzRunningVMs))) {
         $AzRunningVMs = (($SessionHosts | Get-AzVM -Status) | Where-Object -FilterScript { ($_.Statuses.code -eq "PowerState/running") -and ($_.Statuses.DisplayStatus -eq "VM running") })
 
         if (-not([string]::IsNullOrEmpty($AzRunningVMs))) {
-            Write-Warning -Message "The following VMs will be shutdown :`r`n$($AzRunningVMs | Select-Object -Property ResourceGroupName, Name | Out-String)"
+            Write-Warning -Message "The following VMs will be shutdown (hibernation failed):`r`n$($AzRunningVMs | Select-Object -Property ResourceGroupName, Name | Out-String)"
             $Jobs = $AzRunningVMs | Stop-AzVM -Force -AsJob -Verbose
             if ($Wait) {
                 Write-Host -Object "Waiting the shutdown jobs complete ..."
