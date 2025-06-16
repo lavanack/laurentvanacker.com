@@ -30,17 +30,18 @@ Set-Location -Path $CurrentDir
 
 #region Latest DotNet Core Hosting Bundle
 $LatestDotNetCoreHostingBundleURI = (Invoke-WebRequest https://dotnet.microsoft.com/permalink/dotnetcore-current-windows-runtime-bundle-installer).links.href | Where-Object -FilterScript { $_ -match "\.exe$"} | Select-Object -Unique
-$LatestDotNetCoreHostingBundleFilePath = Join-Path -Path $CurrentDir -ChildPath $(($LatestDotNetCoreHostingBundleURI -split "/")[-1])
+$LatestDotNetCoreHostingBundleFileName = Split-Path -Path $LatestDotNetCoreHostingBundleURI -Leaf
+$LatestDotNetCoreHostingBundleFilePath = Join-Path -Path $CurrentDir -ChildPath $LatestDotNetCoreHostingBundleFileName
 Start-BitsTransfer -Source $LatestDotNetCoreHostingBundleURI -Destination $LatestDotNetCoreHostingBundleFilePath
 Write-Verbose "Latest DotNet Core Hosting Bundle is available at '$LatestDotNetCoreHostingBundleFilePath'"
 #endregion
 
 #region Latest DotNet SDK
-$LatestDotNetCoreSDKURI = (Invoke-WebRequest https://dotnet.microsoft.com/en-us/download).links.href | Where-Object -FilterScript { $_ -match "sdk.*windows.*-x64"} | Sort-Object -Descending | Select-Object -First 1
-$LatestDotNetCoreSDKURI = "https://dotnet.microsoft.com$($LatestDotNetCoreSDKURI)"
-$LatestDotNetCoreSDKURI = (Invoke-WebRequest $LatestDotNetCoreSDKURI).links.href | Where-Object -FilterScript { $_ -match "sdk.*win.*-x64"} | Select-Object -Unique
-$LatestDotNetCoreSDKFilePath = Join-Path -Path $CurrentDir -ChildPath $(($LatestDotNetCoreSDKURI -split "/")[-1])
-
-Start-BitsTransfer -Source $LatestDotNetCoreSDKURI -Destination $LatestDotNetCoreSDKFilePath
-Write-Verbose "Latest DotNet Core SDK is available at '$LatestDotNetCoreSDKFilePath'"
+$LatestDotNetCoreSDKURIPath = (Invoke-WebRequest https://dotnet.microsoft.com/en-us/download).links.href | Where-Object -FilterScript { $_ -match "sdk.*windows.*-x64" } | Sort-Object -Descending | Select-Object -First 1
+$LatestDotNetCoreSDKURI = "https://dotnet.microsoft.com$($LatestDotNetCoreSDKURIPath)"
+$LatestDotNetCoreSDKSetupURI = (Invoke-WebRequest $LatestDotNetCoreSDKURI).links.href | Where-Object -FilterScript { $_ -match "sdk.*win.*-x64" } | Select-Object -Unique
+$LatestDotNetCoreSDKSetupFileName = Split-Path -Path $LatestDotNetCoreSDKSetupURI -Leaf
+$LatestDotNetCoreSDKSetupFilePath = Join-Path -Path $CurrentDir -ChildPath $LatestDotNetCoreSDKSetupFileName 
+Start-BitsTransfer -Source $LatestDotNetCoreSDKSetupURI -Destination $LatestDotNetCoreSDKSetupFilePath
+Write-Verbose "Latest DotNet Core SDK is available at '$LatestDotNetCoreSDKSetupFilePath'"
 #endregion
