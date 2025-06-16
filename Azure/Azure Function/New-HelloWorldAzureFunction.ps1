@@ -172,27 +172,25 @@ Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" init $Func
 
 
 #region Latest DotNet SDK
-
-$LatestDotNetCoreSDKURI = (Invoke-WebRequest https://dotnet.microsoft.com/en-us/download).links.href | Where-Object -FilterScript { $_ -match "sdk.*windows.*-x64" } | Sort-Object -Descending | Select-Object -First 1
-$Version = [regex]::Match($LatestDotNetCoreSDKURI, "sdk-(?<Version>\d+\.\d+)").Groups["Version"].Value
+$LatestDotNetCoreSDKURIPath = (Invoke-WebRequest https://dotnet.microsoft.com/en-us/download).links.href | Where-Object -FilterScript { $_ -match "sdk.*windows.*-x64" } | Sort-Object -Descending | Select-Object -First 1
+$Version = [regex]::Match($LatestDotNetCoreSDKURIPath, "sdk-(?<Version>\d+\.\d+)").Groups["Version"].Value
 if ($null -eq $(Get-WmiObject -Class Win32Reg_AddRemovePrograms -Filter "DisplayName LIKE '%sdk%$Version%'")) {
     #region Downloading
-    $LatestDotNetCoreSDKURI = "https://dotnet.microsoft.com$($LatestDotNetCoreSDKURI)"
-    $LatestDotNetCoreSDKURI = (Invoke-WebRequest $LatestDotNetCoreSDKURI).links.href | Where-Object -FilterScript { $_ -match "sdk.*win.*-x64" } | Select-Object -Unique
-    $LatestDotNetCoreSDKFileName = Split-Path -Path $LatestDotNetCoreSDKFilePath -Leaf
-    $LatestDotNetCoreSDKFilePath = Join-Path -Path $CurrentDir -ChildPath $LatestDotNetCoreSDKFileName 
-    Start-BitsTransfer -Source $LatestDotNetCoreSDKURI -Destination $LatestDotNetCoreSDKFilePath
-    Write-Host -Object "Latest DotNet Core SDK is available at '$LatestDotNetCoreSDKFilePath'"
+    $LatestDotNetCoreSDKURI = "https://dotnet.microsoft.com$($LatestDotNetCoreSDKURIPath)"
+    $LatestDotNetCoreSDKSetupURI = (Invoke-WebRequest $LatestDotNetCoreSDKURI).links.href | Where-Object -FilterScript { $_ -match "sdk.*win.*-x64" } | Select-Object -Unique
+    $LatestDotNetCoreSDKSetupFileName = Split-Path -Path $LatestDotNetCoreSDKSetupURI -Leaf
+    $LatestDotNetCoreSDKSetupFilePath = Join-Path -Path $CurrentDir -ChildPath $LatestDotNetCoreSDKSetupFileName 
+    Start-BitsTransfer -Source $LatestDotNetCoreSDKSetupURI -Destination $LatestDotNetCoreSDKSetupFilePath
+    Write-Host -Object "Latest DotNet Core SDK is available at '$LatestDotNetCoreSDKSetupFilePath'"
     #endregion
 
     #region Installing
-    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$LatestDotNetCoreSDKFilePath"" /install /passive /norestart"
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$LatestDotNetCoreSDKSetupFilePath"" /install /passive /norestart" -Wait
     #endregion
 }
 else {
     Write-Warning ".Net SDK $Version is already installed"
 }
-
 #endregion
 
 #region Local code
@@ -238,7 +236,7 @@ New-Item -Path $(Join-Path -Path $Directory -ChildPath "run.ps1") -Value $Script
 New-Item -Path $(Join-Path -Path $Directory -ChildPath "function.json") -Value $FunctionJSONContent -Force
 
 Set-Location -Path $FunctionName
-$FuncProcess = Start-Process -FilePath """$Func""" -ArgumentList "start" -PassThru
+$FuncProcess = Start-Process -FilePath """$Func""" -ArgumentList "start", "--verbose" -PassThru
 
 #Waiting some seconds the process be available
 Start-Sleep -Second 30
