@@ -196,11 +196,11 @@ $FunctionApp = New-AzFunctionApp -Name $AzureFunctionName -ResourceGroupName $Re
 $AzureFunctionsCoreToolsDirectory = "$env:ProgramFiles\Microsoft\Azure Functions Core Tools\"
 $Func = Join-Path -Path $AzureFunctionsCoreToolsDirectory -ChildPath "func"
 $FunctionName = "PowerShellFunctionProject"
+$null = Remove-Item -Path $FunctionName -Recurse -ErrorAction Ignore -Force
 #Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$env:ProgramFiles\Microsoft\Azure Functions Core Tools\func"" init $FunctionName --powershell" -WorkingDirectory $CurrentDir
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" init $FunctionName --powershell"
 
 #region Local code
-$null = Remove-Item -Path $FunctionName -Recurse -Force
 $Directory = New-Item -Path $FunctionName\$FunctionName -ItemType Directory -Force
 $ScriptContent = @'
 using namespace System.Net
@@ -246,9 +246,10 @@ Set-Location -Path $FunctionName
 $FuncProcess = Start-Process -FilePath """$Func""" -ArgumentList "start", "--verbose" -PassThru
 
 #Waiting some seconds the process be available
-While (-not(Get-NetTCPConnection -LocalPort 7071 -ErrorAction Ignore)) {
+Do {
     Start-Sleep -Second 30
-}
+} While (-not(Get-NetTCPConnection -LocalPort 7071 -ErrorAction Ignore))
+
 
 $Name = (Get-AzContext).Account.Id
 $Body = @{Name = $Name }
@@ -269,6 +270,12 @@ While (-not((Test-NetConnection -ComputerName "$AzureFunctionName.azurewebsites.
 #region Testing the Azure Function
 Invoke-RestMethod -Uri "https://$AzureFunctionName.azurewebsites.net/api/$FunctionName" -Body $Body
 #endregion
+
+<#
+#region Adding CORS for testing from the Azure Portal (Not directly possible via PowerShell)
+az functionapp cors add -g $ResourceGroupName -n $FunctionApp.Name --allowed-origins https://portal.azure.com
+#endregion
+#>
 
 #region Cleanup
 Set-Location -Path $CurrentDir
