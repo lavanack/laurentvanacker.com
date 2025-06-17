@@ -88,6 +88,7 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
+$RuntimeVersion = "7.4"
 
 #region Defining variables 
 #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
@@ -127,18 +128,6 @@ $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix
 $AzureFunctionName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $AzureFunctionPrefix, $Project, $Role, $LocationShortName, $Instance                       
 #endregion
 
-#region Prerequisites
-if ($null -eq $(Get-WmiObject -Class Win32Reg_AddRemovePrograms -Filter "DisplayName LIKE 'Azure Functions Core Tools%'")) {
-    $AzureFunctionsCoreToolsURI = "https://go.microsoft.com/fwlink/?linkid=2174087"
-    $OutFile = Join-Path -Path $CurrentDir -ChildPath "func-cli-x64.msi"
-    Start-BitsTransfer -Source $AzureFunctionsCoreToolsURI -Destination $OutFile -DisplayName $AzureFunctionsCoreToolsURI
-    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$OutFile"" /qn"
-}
-else {
-    Write-Warning "Azure Functions Core Tools is already installed"
-}
-#endregion
-
 #region Resource Group Setup
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
 if ($ResourceGroup) {
@@ -153,24 +142,28 @@ $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Locatio
 #Create Azure Storage Account
 $StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true
 
+#region Prerequisites
+#region Azure Functions Core Tools
+if ($null -eq $(Get-WmiObject -Class Win32Reg_AddRemovePrograms -Filter "DisplayName LIKE 'Azure Functions Core Tools%'")) {
+    $AzureFunctionsCoreToolsURI = "https://go.microsoft.com/fwlink/?linkid=2174087"
+    $OutFile = Join-Path -Path $CurrentDir -ChildPath "func-cli-x64.msi"
+    Start-BitsTransfer -Source $AzureFunctionsCoreToolsURI -Destination $OutFile -DisplayName $AzureFunctionsCoreToolsURI
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$OutFile"" /qn"
+}
+else {
+    Write-Warning "Azure Functions Core Tools is already installed"
+}
+#endregion
+
 #region Installing/Updating Powershell 7+ : Silent Install
-Invoke-Expression -Command "& { $(Invoke-RestMethod https://aka.ms/install-powershell.ps1) } -UseMSI -Quiet"
 $PowerShellVersion = [version]::Parse($(pwsh -v) -replace "[^\d|\.]")
+if ($PowerShellVersion -lt [version]::Parse($RuntimeVersion)) {
+    Invoke-Expression -Command "& { $(Invoke-RestMethod https://aka.ms/install-powershell.ps1) } -UseMSI -Quiet"
+    $PowerShellVersion = [version]::Parse($(pwsh -v) -replace "[^\d|\.]")
+}
 #endregion 
 
-#Create Azure Function
-$RuntimeVersion = "{0}.{1}" -f $PowerShellVersion.Major, $PowerShellVersion.Minor
-$RuntimeVersion = "7.4"
-$FunctionApp = New-AzFunctionApp -Name $AzureFunctionName -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Runtime "PowerShell" -RuntimeVersion $RuntimeVersion -OSType "Linux" -Location $Location
-
-#region Creating the Function Locally
-$AzureFunctionsCoreToolsDirectory = "$env:ProgramFiles\Microsoft\Azure Functions Core Tools\"
-$Func = Join-Path -Path $AzureFunctionsCoreToolsDirectory -ChildPath "func"
-$FunctionName = "PowerShellFunctionProject"
-#Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$env:ProgramFiles\Microsoft\Azure Functions Core Tools\func"" init $FunctionName --powershell" -WorkingDirectory $CurrentDir
-Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" init $FunctionName --powershell"
-
-
+<#
 #region Latest DotNet SDK
 $LatestDotNetCoreSDKURIPath = (Invoke-WebRequest https://dotnet.microsoft.com/en-us/download).links.href | Where-Object -FilterScript { $_ -match "sdk.*windows.*-x64" } | Sort-Object -Descending | Select-Object -First 1
 $Version = [regex]::Match($LatestDotNetCoreSDKURIPath, "sdk-(?<Version>\d+\.\d+)").Groups["Version"].Value
@@ -192,8 +185,22 @@ else {
     Write-Warning ".Net SDK $Version is already installed"
 }
 #endregion
+#>
+#endregion
+
+#Create Azure Function
+#$RuntimeVersion = "{0}.{1}" -f $PowerShellVersion.Major, $PowerShellVersion.Minor
+$FunctionApp = New-AzFunctionApp -Name $AzureFunctionName -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Runtime "PowerShell" -RuntimeVersion $RuntimeVersion -OSType "Linux" -Location $Location
+
+#region Creating the Function Locally
+$AzureFunctionsCoreToolsDirectory = "$env:ProgramFiles\Microsoft\Azure Functions Core Tools\"
+$Func = Join-Path -Path $AzureFunctionsCoreToolsDirectory -ChildPath "func"
+$FunctionName = "PowerShellFunctionProject"
+#Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$env:ProgramFiles\Microsoft\Azure Functions Core Tools\func"" init $FunctionName --powershell" -WorkingDirectory $CurrentDir
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" init $FunctionName --powershell"
 
 #region Local code
+$null = Remove-Item -Path $FunctionName -Recurse -Force
 $Directory = New-Item -Path $FunctionName\$FunctionName -ItemType Directory -Force
 $ScriptContent = @'
 using namespace System.Net
@@ -239,7 +246,9 @@ Set-Location -Path $FunctionName
 $FuncProcess = Start-Process -FilePath """$Func""" -ArgumentList "start", "--verbose" -PassThru
 
 #Waiting some seconds the process be available
-Start-Sleep -Second 30
+While (-not(Get-NetTCPConnection -LocalPort 7071 -ErrorAction Ignore)) {
+    Start-Sleep -Second 30
+}
 
 $Name = (Get-AzContext).Account.Id
 Invoke-RestMethod -Uri "http://localhost:7071/api/$FunctionName" -Body @{Name = $Name }
@@ -249,7 +258,9 @@ Invoke-RestMethod -Uri "http://localhost:7071/api/$FunctionName" -Body @{Name = 
 #region Publishing the Azure Function
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" azure functionapp publish $($FunctionApp.Name)" -Wait
 #Waiting some seconds the process be available
-Start-Sleep -Second 10
+While (-not((Test-NetConnection -ComputerName "$AzureFunctionName.azurewebsites.net" -Port 80).TcpTestSucceeded)) {
+    Start-Sleep -Second 10
+}
 Invoke-RestMethod -Uri "https://$AzureFunctionName.azurewebsites.net/api/$FunctionName" -Body @{Name = $Name }
 #endregion
 
@@ -265,5 +276,3 @@ Remove-AzResourceGroup -Name $ResourceGroupName -Force -AsJob
 Get-AzResourceGroup -Name rg-func-poc* | Remove-AzResourceGroup -Force -AsJob
 #>
 #endregion
-
-#Next Step : https://dev.to/pwd9000/power-virtual-machines-on-or-off-using-azure-functions-4k8o
