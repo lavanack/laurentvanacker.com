@@ -251,17 +251,23 @@ While (-not(Get-NetTCPConnection -LocalPort 7071 -ErrorAction Ignore)) {
 }
 
 $Name = (Get-AzContext).Account.Id
-Invoke-RestMethod -Uri "http://localhost:7071/api/$FunctionName" -Body @{Name = $Name }
+$Body = @{Name = $Name }
+Invoke-RestMethod -Uri "http://localhost:7071/api/$FunctionName" -Body $Body
 #endregion
 #endregion
 
 #region Publishing the Azure Function
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" azure functionapp publish $($FunctionApp.Name)" -Wait
+# Enable Logs
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" azure functionapp logstream $($FunctionApp.Name) --browser" -Wait
+#endregion
 #Waiting some seconds the process be available
 While (-not((Test-NetConnection -ComputerName "$AzureFunctionName.azurewebsites.net" -Port 80).TcpTestSucceeded)) {
     Start-Sleep -Second 10
 }
-Invoke-RestMethod -Uri "https://$AzureFunctionName.azurewebsites.net/api/$FunctionName" -Body @{Name = $Name }
+
+#region Testing the Azure Function
+Invoke-RestMethod -Uri "https://$AzureFunctionName.azurewebsites.net/api/$FunctionName" -Body $Body
 #endregion
 
 #region Cleanup
