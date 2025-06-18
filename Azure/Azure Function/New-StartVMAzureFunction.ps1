@@ -111,7 +111,6 @@ $StorageAccountSkuName = "Standard_LRS"
 $Location = "EastUS"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
-$RunBookPrefix = "runbk"
 $ResourceGroupPrefix = "rg"
 $StorageAccountPrefix = "sa"
 $AzureFunctionPrefix = "func"
@@ -126,7 +125,6 @@ Do {
 } While ((-not(Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable) -or (-not(Test-FunctionAppNameAvailability -FunctionAppName $AzureFunctionName)))
 
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
-$AzureFunctionName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $AzureFunctionPrefix, $Project, $Role, $LocationShortName, $Instance                       
 #endregion
 
 #region Resource Group Setup
@@ -276,7 +274,7 @@ While (-not(Test-Path -Path requirements.psd1)) {
 
 (Get-Content -Path requirements.psd1) -replace "# 'Az'", "'Az'" | Set-Content -Path requirements.psd1 
 #Increasing Timeout from 5 to 10 minutes
-Get-Content -Path host.json | ConvertFrom-Json | Add-Member -Name "functionTimeout" -Value "00:10:00" -MemberType NoteProperty -PassThru | ConvertTo-Json | Set-Content -Path host.json
+Get-Content -Path host.json | ConvertFrom-Json | Add-Member -Name "functionTimeout" -Value "00:10:00" -MemberType NoteProperty -PassThru -Force | ConvertTo-Json | Set-Content -Path host.json
 #endregion
 
 $FuncProcess = Start-Process -FilePath """$Func""" -ArgumentList "start", "--verbose" -PassThru
@@ -299,7 +297,7 @@ Invoke-RestMethod -Uri "http://localhost:7071/api/$FunctionName" -Body $Body
 #endregion
 
 #region Publishing the Azure Function
-Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" azure functionapp publish $($FunctionApp.Name)" -Wait
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" azure functionapp publish $($FunctionApp.Name) --powershell" -Wait
 # Enable Logs
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" azure functionapp logstream $($FunctionApp.Name) --browser" -Wait
 #endregion

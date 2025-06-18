@@ -110,7 +110,6 @@ $StorageAccountSkuName = "Standard_LRS"
 $Location = "EastUS"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
-$RunBookPrefix = "runbk"
 $ResourceGroupPrefix = "rg"
 $StorageAccountPrefix = "sa"
 $AzureFunctionPrefix = "func"
@@ -125,7 +124,6 @@ Do {
 } While ((-not(Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable) -or (-not(Test-FunctionAppNameAvailability -FunctionAppName $AzureFunctionName)))
 
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
-$AzureFunctionName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $AzureFunctionPrefix, $Project, $Role, $LocationShortName, $Instance                       
 #endregion
 
 #region Resource Group Setup
@@ -163,7 +161,6 @@ if ($PowerShellVersion -lt [version]::Parse($RuntimeVersion)) {
 }
 #endregion 
 
-<#
 #region Latest DotNet SDK
 $LatestDotNetCoreSDKURIPath = (Invoke-WebRequest https://dotnet.microsoft.com/en-us/download).links.href | Where-Object -FilterScript { $_ -match "sdk.*windows.*-x64" } | Sort-Object -Descending | Select-Object -First 1
 $Version = [regex]::Match($LatestDotNetCoreSDKURIPath, "sdk-(?<Version>\d+\.\d+)").Groups["Version"].Value
@@ -185,17 +182,17 @@ else {
     Write-Warning ".Net SDK $Version is already installed"
 }
 #endregion
-#>
+
 #endregion
 
 #Create Azure Function
 #$RuntimeVersion = "{0}.{1}" -f $PowerShellVersion.Major, $PowerShellVersion.Minor
-$FunctionApp = New-AzFunctionApp -Name $AzureFunctionName -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Runtime "PowerShell" -RuntimeVersion $RuntimeVersion -OSType "Linux" -Location $Location
+$FunctionApp = New-AzFunctionApp -Name $AzureFunctionName -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Runtime "PowerShell" -RuntimeVersion $RuntimeVersion -OSType "Linux" -Location $Location -IdentityType SystemAssigned
 
 #region Creating the Function Locally
 $AzureFunctionsCoreToolsDirectory = "$env:ProgramFiles\Microsoft\Azure Functions Core Tools\"
 $Func = Join-Path -Path $AzureFunctionsCoreToolsDirectory -ChildPath "func"
-$FunctionName = "PowerShellFunctionProject"
+$FunctionName = (Get-Item -Path $CurrentScript).BaseName
 $null = Remove-Item -Path $FunctionName -Recurse -ErrorAction Ignore -Force
 #Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$env:ProgramFiles\Microsoft\Azure Functions Core Tools\func"" init $FunctionName --powershell" -WorkingDirectory $CurrentDir
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" init $FunctionName --powershell"
@@ -258,7 +255,7 @@ Invoke-RestMethod -Uri "http://localhost:7071/api/$FunctionName" -Body $Body
 #endregion
 
 #region Publishing the Azure Function
-Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" azure functionapp publish $($FunctionApp.Name)" -Wait
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" azure functionapp publish $($FunctionApp.Name) --powershell" -Wait
 # Enable Logs
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" azure functionapp logstream $($FunctionApp.Name) --browser" -Wait
 #endregion
@@ -273,7 +270,7 @@ Invoke-RestMethod -Uri "https://$AzureFunctionName.azurewebsites.net/api/$Functi
 
 <#
 #region Adding CORS for testing from the Azure Portal (Not directly possible via PowerShell)
-az functionapp cors add -g $ResourceGroupName -n $FunctionApp.Name --allowed-origins https://portal.azure.com
+az functionapp cors add -g $FunctionApp.ResourceGroupName -n $FunctionApp.Name --allowed-origins https://portal.azure.com
 #endregion
 #>
 
