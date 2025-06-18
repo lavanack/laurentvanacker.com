@@ -193,7 +193,7 @@ $FunctionApp = New-AzFunctionApp -Name $AzureFunctionName -ResourceGroupName $Re
 #region Creating the Function Locally
 $AzureFunctionsCoreToolsDirectory = "$env:ProgramFiles\Microsoft\Azure Functions Core Tools\"
 $Func = Join-Path -Path $AzureFunctionsCoreToolsDirectory -ChildPath "func"
-$FunctionName = "PowerShellFunctionProject"
+$FunctionName = (Get-Item -Path $CurrentScript).BaseName
 $null = Remove-Item -Path $FunctionName -Recurse -ErrorAction Ignore -Force
 #Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$env:ProgramFiles\Microsoft\Azure Functions Core Tools\func"" init $FunctionName --powershell" -WorkingDirectory $CurrentDir
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" init $FunctionName --powershell"
@@ -277,12 +277,15 @@ While (-not(Test-Path -Path requirements.psd1)) {
 Get-Content -Path host.json | ConvertFrom-Json | Add-Member -Name "functionTimeout" -Value "00:10:00" -MemberType NoteProperty -PassThru -Force | ConvertTo-Json | Set-Content -Path host.json
 #endregion
 
+
+<#
 $FuncProcess = Start-Process -FilePath """$Func""" -ArgumentList "start", "--verbose" -PassThru
 
 #Waiting some seconds the process be available
 Do {
     Start-Sleep -Second 30
 } While (-not(Get-NetTCPConnection -LocalPort 7071 -ErrorAction Ignore))
+#>
 
 $SubscriptionId = $((Get-AzContext).Subscription.Id)
 #Getting randomly a Resource Group with at least one VM
@@ -292,7 +295,7 @@ $Body  = @{
     action         = "start"
 }
 $Body
-Invoke-RestMethod -Uri "http://localhost:7071/api/$FunctionName" -Body $Body
+#Invoke-RestMethod -Uri "http://localhost:7071/api/$FunctionName" -Body $Body
 #endregion
 #endregion
 
@@ -313,6 +316,7 @@ While (-not((Test-NetConnection -ComputerName "$AzureFunctionName.azurewebsites.
     Start-Sleep -Second 10
 }
 
+#You have to wait some minutes before invoking this Azure function because some Az modules are downloading in the background ...
 #region Testing the Azure Function
 Invoke-RestMethod -Uri "https://$AzureFunctionName.azurewebsites.net/api/$FunctionName" -Body $Body
 #endregion
@@ -325,7 +329,7 @@ az functionapp cors add -g $FunctionApp.ResourceGroupName -n $FunctionApp.Name -
 
 #region Cleanup
 Set-Location -Path $CurrentDir
-Stop-Process -InputObject $FuncProcess -Force
+#Stop-Process -InputObject $FuncProcess -Force
 
 Remove-Item -Path $FunctionName -Recurse -Force
 

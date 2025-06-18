@@ -91,6 +91,7 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
+$RuntimeVersion = "7.4"
 
 #region Defining variables 
 #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
@@ -112,7 +113,6 @@ $StorageAccountSkuName = "Standard_LRS"
 $Location = "EastUS"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
-$RunBookPrefix = "runbk"
 $ResourceGroupPrefix = "rg"
 $StorageAccountPrefix = "sa"
 $AzureFunctionPrefix = "func"
@@ -127,19 +127,6 @@ Do {
 } While ((-not(Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable) -or (-not(Test-FunctionAppNameAvailability -FunctionAppName $AzureFunctionName)))
 
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
-$AzureFunctionName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $AzureFunctionPrefix, $Project, $Role, $LocationShortName, $Instance                       
-#endregion
-
-#region Prerequisites
-if ($null -eq $(Get-WmiObject -Class Win32Reg_AddRemovePrograms -Filter "DisplayName LIKE 'Azure Functions Core Tools%'")) {
-    $AzureFunctionsCoreToolsURI = "https://go.microsoft.com/fwlink/?linkid=2174087"
-    $OutFile = Join-Path -Path $CurrentDir -ChildPath "func-cli-x64.msi"
-    Start-BitsTransfer -Source $AzureFunctionsCoreToolsURI -Destination $OutFile -DisplayName $AzureFunctionsCoreToolsURI
-    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$OutFile"" /qn"
-}
-else {
-    Write-Warning "Azure Functions Core Tools is already installed"
-}
 #endregion
 
 #region Resource Group Setup
@@ -156,23 +143,26 @@ $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Locatio
 #Create Azure Storage Account
 $StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true
 
+#region Prerequisites
+#region Azure Functions Core Tools
+if ($null -eq $(Get-WmiObject -Class Win32Reg_AddRemovePrograms -Filter "DisplayName LIKE 'Azure Functions Core Tools%'")) {
+    $AzureFunctionsCoreToolsURI = "https://go.microsoft.com/fwlink/?linkid=2174087"
+    $OutFile = Join-Path -Path $CurrentDir -ChildPath "func-cli-x64.msi"
+    Start-BitsTransfer -Source $AzureFunctionsCoreToolsURI -Destination $OutFile -DisplayName $AzureFunctionsCoreToolsURI
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$OutFile"" /qn"
+}
+else {
+    Write-Warning "Azure Functions Core Tools is already installed"
+}
+#endregion
+
 #region Installing/Updating Powershell 7+ : Silent Install
-Invoke-Expression -Command "& { $(Invoke-RestMethod https://aka.ms/install-powershell.ps1) } -UseMSI -Quiet"
 $PowerShellVersion = [version]::Parse($(pwsh -v) -replace "[^\d|\.]")
+if ($PowerShellVersion -lt [version]::Parse($RuntimeVersion)) {
+    Invoke-Expression -Command "& { $(Invoke-RestMethod https://aka.ms/install-powershell.ps1) } -UseMSI -Quiet"
+    $PowerShellVersion = [version]::Parse($(pwsh -v) -replace "[^\d|\.]")
+}
 #endregion 
-
-#Create Azure Function
-$RuntimeVersion = "{0}.{1}" -f $PowerShellVersion.Major, $PowerShellVersion.Minor
-$RuntimeVersion = "7.4"
-$FunctionApp = New-AzFunctionApp -Name $AzureFunctionName -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Runtime "PowerShell" -RuntimeVersion $RuntimeVersion -OSType "Linux" -Location $Location -IdentityType SystemAssigned
-
-#region Creating the Function Locally
-$AzureFunctionsCoreToolsDirectory = "$env:ProgramFiles\Microsoft\Azure Functions Core Tools\"
-$Func = Join-Path -Path $AzureFunctionsCoreToolsDirectory -ChildPath "func"
-$FunctionName = "PowerShellFunctionProject"
-#Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$env:ProgramFiles\Microsoft\Azure Functions Core Tools\func"" init $FunctionName --powershell" -WorkingDirectory $CurrentDir
-Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" init $FunctionName --powershell"
-
 
 #region Latest DotNet SDK
 $LatestDotNetCoreSDKURIPath = (Invoke-WebRequest https://dotnet.microsoft.com/en-us/download).links.href | Where-Object -FilterScript { $_ -match "sdk.*windows.*-x64" } | Sort-Object -Descending | Select-Object -First 1
@@ -196,6 +186,20 @@ else {
 }
 #endregion
 
+#endregion
+
+#Create Azure Function
+#$RuntimeVersion = "{0}.{1}" -f $PowerShellVersion.Major, $PowerShellVersion.Minor
+$FunctionApp = New-AzFunctionApp -Name $AzureFunctionName -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Runtime "PowerShell" -RuntimeVersion $RuntimeVersion -OSType "Linux" -Location $Location -IdentityType SystemAssigned
+
+#region Creating the Function Locally
+$AzureFunctionsCoreToolsDirectory = "$env:ProgramFiles\Microsoft\Azure Functions Core Tools\"
+$Func = Join-Path -Path $AzureFunctionsCoreToolsDirectory -ChildPath "func"
+$FunctionName = (Get-Item -Path $CurrentScript).BaseName
+$null = Remove-Item -Path $FunctionName -Recurse -ErrorAction Ignore -Force
+#Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$env:ProgramFiles\Microsoft\Azure Functions Core Tools\func"" init $FunctionName --powershell" -WorkingDirectory $CurrentDir
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" init $FunctionName --powershell"
+
 #region Local code
 $Directory = New-Item -Path $FunctionName\$FunctionName -ItemType Directory -Force
 #From https://faultbucket.ca/2019/08/use-azure-function-to-start-vms/
@@ -204,7 +208,7 @@ $ScriptContent = @'
 param($Timer)
 
 $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-Write-Host "PowerShell timer trigger function executed at: $timestamp"
+Write-Host -Object "PowerShell timer trigger function executed at: $timestamp"
 
 $AzInactiveRunningVMs = Get-AzWvdHostPool | Where-Object -FilterScript { $_.HostPoolType -in <HostPoolType> } | ForEach-Object -Process {
     (Get-AzWvdSessionHost -HostPoolName $_.Name -ResourceGroupName $_.ResourceGroupName) | Where-Object -FilterScript { $_.Session -le 0 } | Select-Object -Property ResourceId | Get-AzVM -Status | Where-Object -FilterScript { ($_.Statuses.code -eq "PowerState/running") -and ($_.Statuses.DisplayStatus -eq "VM running") }
@@ -248,10 +252,24 @@ New-Item -Path $(Join-Path -Path $Directory -ChildPath "function.json") -Value $
 
 #region Requiring Az PowerShell modules
 Set-Location -Path $FunctionName
+While (-not(Test-Path -Path requirements.psd1)) {
+    Start-Sleep -Seconds 10
+}
+
 (Get-Content -Path requirements.psd1) -replace "# 'Az'", "'Az'" | Set-Content -Path requirements.psd1 
 #Increasing Timeout from 5 to 10 minutes
 Get-Content -Path host.json | ConvertFrom-Json | Add-Member -Name "functionTimeout" -Value "00:10:00" -MemberType NoteProperty -PassThru -Force | ConvertTo-Json | Set-Content -Path host.json
 #endregion
+
+
+<#
+$FuncProcess = Start-Process -FilePath """$Func""" -ArgumentList "start", "--verbose" -PassThru
+
+#Waiting some seconds the process be available
+Do {
+    Start-Sleep -Second 30
+} While (-not(Get-NetTCPConnection -LocalPort 7071 -ErrorAction Ignore))
+#>
 
 $SubscriptionId = $((Get-AzContext).Subscription.Id)
 #endregion
@@ -277,15 +295,13 @@ New-AzRoleAssignment -ObjectId $FunctionApp.IdentityPrincipalId -RoleDefinitionN
 
 <#
 #region Adding CORS for testing from the Azure Portal (Not directly possible via PowerShell)
-az functionapp cors add -g $ResourceGroupName -n $FunctionApp.Name --allowed-origins https://portal.azure.com
+az functionapp cors add -g $FunctionApp.ResourceGroupName -n $FunctionApp.Name --allowed-origins https://portal.azure.com
 #endregion
 #>
 
-#Waiting some seconds the process be available
-Start-Sleep -Second 30
-
 #region Cleanup
 Set-Location -Path $CurrentDir
+#Stop-Process -InputObject $FuncProcess -Force
 
 Remove-Item -Path $FunctionName -Recurse -Force
 
