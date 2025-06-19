@@ -140,8 +140,9 @@ if ($ResourceGroup) {
 $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 #endregion
 
-#Create Azure Storage Account
+#region Create Azure Storage Account
 $StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true
+#endregion
 
 #region Prerequisites
 #region Azure Functions Core Tools
@@ -188,7 +189,7 @@ else {
 
 #endregion
 
-#Create Azure Function
+#region Create Azure Function
 #$RuntimeVersion = "{0}.{1}" -f $PowerShellVersion.Major, $PowerShellVersion.Minor
 $FunctionApp = New-AzFunctionApp -Name $AzureFunctionName -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Runtime "PowerShell" -RuntimeVersion $RuntimeVersion -OSType "Linux" -Location $Location -IdentityType SystemAssigned
 
@@ -279,6 +280,8 @@ $SubscriptionId = $((Get-AzContext).Subscription.Id)
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" azure functionapp publish $($FunctionApp.Name) --powershell" -Wait
 # Enable Logs
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" azure functionapp logstream $($FunctionApp.Name) --browser" -Wait
+#endregion
+
 #endregion
 
 #region RBAC Assignment
