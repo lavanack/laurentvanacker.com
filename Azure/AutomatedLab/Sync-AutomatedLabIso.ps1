@@ -24,7 +24,7 @@ param
     [string] $StorageAccountName = "automatedlablabsources",
     [string] $ShareName = "isos",
     [Parameter(Mandatory = $true)]
-    [ValidateSet("Pull", "Push")]
+    [ValidateSet("Pull", "Push", "FromStorageAccount", "ToStorageAccount")]
     [string] $Mode
 )
 
@@ -94,10 +94,10 @@ Get-ChildItem -Path "C:\Tools\azcopy_windows*" | Sort-Object -Property Name -Des
 $env:AZCOPY_CRED_TYPE = "Anonymous"
 $env:AZCOPY_CONCURRENCY_VALUE = "AUTO"
 Switch ($Mode) {
-    "Pull" {
+    {$_ -in "Push","ToStorageAccount"} {
         ./azcopy.exe sync $ISOFolder $StorageShareSASToken --delete-destination=true --log-level=INFO --put-md5
     }
-    "Push" {
+    {$_ -in "Pull","FromStorageAccount"}  {
         ./azcopy.exe sync  $StorageShareSASToken $ISOFolder --delete-destination=true --log-level=INFO --put-md5
     }
 }
