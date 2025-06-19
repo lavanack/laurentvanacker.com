@@ -84,7 +84,7 @@ winget install --exact --id=Microsoft.AzureCLI
 winget install --exact --id=Synology.SurveillanceStationClient
 winget install --exact --id=Synology.CloudStationDrive 
 winget install --exact --id=WinMerge.WinMerge
-winget install --exact --id=NordSecurity.NordVPN
+#winget install --exact --id=NordSecurity.NordVPN
 winget install --exact --id=Brother.iPrintScan
 winget install --exact --id=Microsoft.WindowsTerminal
 winget install --exact --id=Microsoft.PowerShell
@@ -123,7 +123,7 @@ winget install "Portail d'entreprise" --accept-package-agreements --accept-sourc
 winget install "Power BI Desktop" --accept-package-agreements --accept-source-agreements --source msstore
 winget install "Disney+" --accept-package-agreements --accept-source-agreements --source msstore
 winget install "Netflix" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "Prime Video pour Windows" --accept-package-agreements --accept-source-agreements --source msstore
+winget install "Prime Video for Windows" --accept-package-agreements --accept-source-agreements --source msstore
 #winget install "Windows Terminal" --accept-package-agreements --accept-source-agreements --source msstore
 #endregion
 
