@@ -166,7 +166,7 @@ function New-AzureComputeGallery {
 	}
 
     While (-not(Get-AzRoleAssignment @Parameters)) {
-        Write-Verbose -Message "Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity"
+        Write-Verbose -Message "Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
         $RoleAssignment = New-AzRoleAssignment @Parameters
         Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
         if ($null -eq $RoleAssignment) {

@@ -92,7 +92,7 @@
                         "artifactTags": {
                             "publisher": "<publisher>",
                             "offer": "<offer>",
-                            "sku": "<sku>",
+                            "sku": "<sku>"
                         },
                         "targetRegions": <targetRegions>
                     }
