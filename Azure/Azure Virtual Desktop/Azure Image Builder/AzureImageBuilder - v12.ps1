@@ -23,7 +23,7 @@ function New-AzureComputeGallery {
 	[CmdletBinding()]
 	Param(
 		[Parameter(Mandatory = $false)]
-		[string]$Location = "EastUS",
+		[string]$Location = "EastUS2",
 		[Parameter(Mandatory = $false)]
 		[string[]]$TargetRegions = @($Location),
 		[Parameter(Mandatory = $false)]
@@ -54,7 +54,7 @@ function New-AzureComputeGallery {
         $TargetRegions += $Location
     }
 	Write-Verbose -Message "`$TargetRegions: $($TargetRegions -join ', ')"
-    [array] $TargetRegionsettings = foreach ($CurrentTargetRegion in $TargetRegions)
+    [array] $TargetRegionSettings = foreach ($CurrentTargetRegion in $TargetRegions)
     {
         @{"name"=$CurrentTargetRegion;"replicaCount"=$ReplicaCount;"storageAccountType"="Premium_LRS"}
     }
@@ -206,7 +206,7 @@ function New-AzureComputeGallery {
 
     ((Get-Content -path $templateFilePath -Raw) -replace '<imageDefName>', $imageDefName01) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<sharedImageGalName>', $GalleryName) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<TargetRegions>', $(ConvertTo-Json -InputObject $TargetRegionsettings)) | Set-Content -Path $templateFilePath
+    ((Get-Content -path $templateFilePath -Raw) -replace '<TargetRegions>', $(ConvertTo-Json -InputObject $TargetRegionSettings)) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<imgBuilderId>', $AssignedIdentity.Id) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<version>', $version) | Set-Content -Path $templateFilePath
 
@@ -294,7 +294,7 @@ function New-AzureComputeGallery {
 		#ReplicationRegion = $location
 
 		# 2. Uncomment following line if the custom image should be replicated to another region(s).
-		TargetRegion           = $TargetRegionsettings
+		TargetRegion           = $TargetRegionSettings
 
 		RunOutputName          = $runOutputName02
 		ExcludeFromLatest      = $false

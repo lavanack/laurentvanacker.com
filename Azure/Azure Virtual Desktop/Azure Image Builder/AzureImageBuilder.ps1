@@ -23,7 +23,7 @@ function New-AzureComputeGallery {
 	[CmdletBinding()]
 	Param(
 		[Parameter(Mandatory = $false)]
-		[string]$Location = "EastUS",
+		[string]$Location = "EastUS2",
 		[Parameter(Mandatory = $false)]
 		[string[]]$TargetRegions = @($Location),
 		[Parameter(Mandatory = $false)]
@@ -54,7 +54,7 @@ function New-AzureComputeGallery {
         $TargetRegions += $Location
     }
 	Write-Verbose -Message "`$TargetRegions: $($TargetRegions -join ', ')"
-    [array] $TargetRegionsettings = foreach ($CurrentTargetRegion in $TargetRegions)
+    [array] $TargetRegionSettings = foreach ($CurrentTargetRegion in $TargetRegions)
     {
         @{"name"=$CurrentTargetRegion;"replicaCount"=$ReplicaCount;"storageAccountType"="Premium_LRS"}
     }
@@ -67,18 +67,35 @@ function New-AzureComputeGallery {
 	$ResourceGroupName = $ResourceGroupName.ToLower()
 	Write-Verbose -Message "`$ResourceGroupName: $ResourceGroupName"
 
+	#region Source Image 
+	$SrcObjParams1 = @{
+		Publisher           = 'MicrosoftWindowsDesktop'
+		Offer               = 'Windows-11'    
+		Sku                 = 'win11-24h2-avd'  
+		Version             = 'latest'
+	}
 
-	# Image template and definition names
-	#AVD MultiSession Session Image Market Place Image + customizations: VSCode
-	$imageDefName01 = "win11-24h2-ent-avd-custom-vscode"
-	$imageTemplateName01 = $imageDefName01 + "-template-" + $timeInt
-	#AVD MultiSession + Microsoft 365 Market Place Image + customizations: VSCode
-	$imageDefName02 = "win11-24h2-ent-avd-m365-vscode"
-	$imageTemplateName02 = $imageDefName02 + "-template-" + $timeInt
+	$SrcObjParams2 = @{
+		Publisher           = 'MicrosoftWindowsDesktop'
+		Offer               = 'Office-365'    
+		Sku                 = 'win11-24h2-avd-m365'  
+		Version             = 'latest'
+	}
+    #endregion
+
+	#region Image template and definition names
+	#Image Market Place Image + customizations: VSCode
+	$imageDefName01 = "{0}-json-vscode" -f $SrcObjParams1.Sku
+	$imageTemplateName01 = "{0}-template-{1}" -f $imageDefName01, $timeInt
 	Write-Verbose -Message "`$imageDefName01: $imageDefName01"
 	Write-Verbose -Message "`$imageTemplateName01: $imageTemplateName01"
+
+	#Image Market Place Image + customizations: VSCode
+	$imageDefName02 = "{0}-powershell-vscode" -f $SrcObjParams2.Sku
+	$imageTemplateName02 = "{0}-template-{1}" -f $imageDefName02, $timeInt
 	Write-Verbose -Message "`$imageDefName02: $imageDefName02"
 	Write-Verbose -Message "`$imageTemplateName02: $imageTemplateName02"
+    #endregion
 
 	# Distribution properties object name (runOutput). Gives you the properties of the managed image on completion
 	$runOutputName01 = "cgOutput01"
@@ -170,14 +187,11 @@ function New-AzureComputeGallery {
 
 	#region Template #1 via a customized JSON file
 	#Based on https://github.com/Azure/azvmimagebuilder/tree/main/solutions/14_Building_Images_WVD
-	# Create the gallery definition
-	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefName01' (From Customized JSON)..."
-	$GalleryImageDefinition01 = New-AzGalleryImageDefinition -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -Location $location -Name $imageDefName01 -OsState generalized -OsType Windows -Publisher 'Contoso' -Offer 'Windows' -Sku 'avd-win11-custom' -HyperVGeneration V2
 
 	#region Download and configure the template
 	#$templateUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/14_Building_Images_WVD/armTemplateWVD.json"
 	#$templateFilePath = "armTemplateWVD.json"
-	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVD.json"
+	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVD-v12.json"
 	$templateFilePath = Join-Path -Path $env:TEMP -ChildPath $(Split-Path $templateUrl -Leaf)
 	#Generate a unique file name 
 	$templateFilePath = $templateFilePath -replace ".json$", "_$timeInt.json"
@@ -192,10 +206,43 @@ function New-AzureComputeGallery {
 
     ((Get-Content -path $templateFilePath -Raw) -replace '<imageDefName>', $imageDefName01) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<sharedImageGalName>', $GalleryName) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<TargetRegions>', $(ConvertTo-Json -InputObject $TargetRegionsettings)) | Set-Content -Path $templateFilePath
+    ((Get-Content -path $templateFilePath -Raw) -replace '<TargetRegions>', $(ConvertTo-Json -InputObject $TargetRegionSettings)) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<imgBuilderId>', $AssignedIdentity.Id) | Set-Content -Path $templateFilePath
     ((Get-Content -path $templateFilePath -Raw) -replace '<version>', $version) | Set-Content -Path $templateFilePath
+
+    ((Get-Content -path $templateFilePath -Raw) -replace '<publisher>', $SrcObjParams1.Publisher) | Set-Content -Path $templateFilePath
+    ((Get-Content -path $templateFilePath -Raw) -replace '<offer>', $SrcObjParams1.Offer) | Set-Content -Path $templateFilePath
+    ((Get-Content -path $templateFilePath -Raw) -replace '<sku>', $SrcObjParams1.sku) | Set-Content -Path $templateFilePath
 	#endregion
+
+	#region Create the gallery definition
+	$GalleryParams = @{
+		GalleryName       = $GalleryName
+		ResourceGroupName = $ResourceGroupName
+		Location          = $location
+		Name              = $imageDefName01
+		OsState           = 'generalized'
+		OsType            = 'Windows'
+		Publisher         = "{0}-json" -f $SrcObjParams2.Publisher
+		Offer             = "{0}-json" -f $SrcObjParams2.Offer
+		Sku               = "{0}-json" -f $SrcObjParams2.Sku
+		HyperVGeneration  = 'V2'
+	}
+    Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefName01' (From Customized JSON)..."
+    $Result = (Get-Content -path $templateFilePath -Raw) -replace "`r|`n" -replace "\s+", ' ' -match '"source".*(?<Source>{.*}),\s+"customize"'
+    if ($Result) {
+        $Source = $Matches["Source"] | ConvertFrom-Json
+        $GalleryImageDefinition01 = New-AzGalleryImageDefinition @GalleryParams
+    }
+    else {
+	    $GalleryParams = @{
+		    $GalleryParams['Publisher'] = 'Contoso'
+		    $GalleryParams['Offer']     = 'Windows'
+		    $GalleryParams['Sku']       = 'Windows Client'
+	    }
+	    $GalleryImageDefinition01 = New-AzGalleryImageDefinition @GalleryParams
+    }
+    #endregion
 
 	#region Submit the template
 	Write-Verbose -Message "Starting Resource Group Deployment from '$templateFilePath' ..."
@@ -217,29 +264,22 @@ function New-AzureComputeGallery {
 		Name              = $imageDefName02
 		OsState           = 'generalized'
 		OsType            = 'Windows'
-		Publisher         = 'Contoso'
-		Offer             = 'Windows'
-		Sku               = 'avd-win11-m365'
+		Publisher         = "{0}-powershell" -f $SrcObjParams2.Publisher
+		Offer             = "{0}-powershell" -f $SrcObjParams2.Offer
+		Sku               = "{0}-powershell" -f $SrcObjParams2.Sku
 		HyperVGeneration  = 'V2'
 	}
-	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefName02' (From A Market Place Image)..."
+	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefName02' (From Powershell)..."
 	$GalleryImageDefinition02 = New-AzGalleryImageDefinition @GalleryParams
 
-	$SrcObjParams = @{
-		PlatformImageSource = $true
-		Publisher           = 'MicrosoftWindowsDesktop'
-		Offer               = 'Office-365'    
-		Sku                 = 'win11-24h2-avd-m365'  
-		Version             = 'latest'
-	}
 	Write-Verbose -Message "Creating Azure Image Builder Template Source Object  ..."
-	$srcPlatform = New-AzImageBuilderTemplateSourceObject @SrcObjParams
+	$srcPlatform = New-AzImageBuilderTemplateSourceObject @SrcObjParams2 -PlatformImageSource
 
     <# 
     #Optional : Get Virtual Machine publisher, Image Offer, Sku and Image
-    $ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq $SrcObjParams.Publisher}
-    $ImageOffer = Get-AzVMImageOffer -Location $Location -publisher $ImagePublisherName.PublisherName | Where-Object -FilterScript { $_.Offer  -eq $SrcObjParams.Offer}
-    $ImageSku = Get-AzVMImageSku -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer | Where-Object -FilterScript { $_.Skus  -eq $SrcObjParams.Sku}
+    $ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq $SrcObjParams2.Publisher}
+    $ImageOffer = Get-AzVMImageOffer -Location $Location -publisher $ImagePublisherName.PublisherName | Where-Object -FilterScript { $_.Offer  -eq $SrcObjParams2.Offer}
+    $ImageSku = Get-AzVMImageSku -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer | Where-Object -FilterScript { $_.Skus  -eq $SrcObjParams2.Sku}
     $AllImages = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer -sku $ImageSku.Skus | Sort-Object -Property Version -Descending
     $LatestImage = $AllImages | Select-Object -First 1
     #>
@@ -248,13 +288,13 @@ function New-AzureComputeGallery {
 	$disObjParams = @{
 		SharedImageDistributor = $true
 		GalleryImageId         = "$($GalleryImageDefinition02.Id)/versions/$version"
-		ArtifactTag            = @{source = 'avd-win11'; baseosimg = 'windows11' }
+		ArtifactTag            = @{Publisher = $SrcObjParams2.Publisher; Offer = $SrcObjParams2.Publisher; Sku = $SrcObjParams2.Publisher}
 
 		# 1. Uncomment following line for a single region deployment.
 		#ReplicationRegion = $location
 
 		# 2. Uncomment following line if the custom image should be replicated to another region(s).
-		TargetRegion           = $TargetRegionsettings
+		TargetRegion           = $TargetRegionSettings
 
 		RunOutputName          = $runOutputName02
 		ExcludeFromLatest      = $false
