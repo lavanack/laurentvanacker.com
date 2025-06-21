@@ -134,8 +134,8 @@ $GITCmdExe = "$env:ProgramFiles\Git\git-cmd.exe"
 $GITBashExe = "$env:ProgramFiles\Git\git-bash.exe"
 
 $MSEdgeEntUri = 'http://go.microsoft.com/fwlink/?LinkID=2093437'
-$GITURI = ((Invoke-WebRequest -Uri 'https://git-scm.com/download/win').Links | Where-Object -FilterScript { $_.OuterHTML -match "64-bit Git For Windows Setup"}).href
-
+#From https://raw.githubusercontent.com/lavanack/infrastructure-as-code-utilities/refs/heads/main/shared-bootstrap/Install-GitForWindows.ps1
+$GITURI = $(((Invoke-RestMethod  -Uri "https://api.github.com/repos/git-for-windows/git/releases/latest").assets | Where-Object -FilterScript { $_.name.EndsWith("64-bit.exe") }).browser_download_url)
 $UserHome = (Join-Path -Path $env:HOMEDRIVE -ChildPath $env:HOMEPATH)
 #Run ssh-keygen to generate keys if needed
 $SSHPublicKeyPath = Join-Path -Path $UserHome -Child "\.ssh\id_rsa.pub"

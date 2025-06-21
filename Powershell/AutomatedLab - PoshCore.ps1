@@ -46,7 +46,6 @@ $NetBiosDomainName = 'CONTOSO'
 $FQDNDomainName = 'contoso.com'
 
 $MSEdgeEntUri = 'http://go.microsoft.com/fwlink/?LinkID=2093437'
-#$GitURI = ((Invoke-WebRequest -Uri 'https://git-scm.com/download/win').Links | Where-Object -FilterScript { $_.InnerText -eq "64-bit Git For Windows Setup"}).href
 #From https://raw.githubusercontent.com/lavanack/infrastructure-as-code-utilities/refs/heads/main/shared-bootstrap/Install-GitForWindows.ps1
 $GitURI = ((Invoke-RestMethod  -Uri "https://api.github.com/repos/git-for-windows/git/releases/latest").assets | Where-Object -FilterScript { $_.name.EndsWith("64-bit.exe") }).browser_download_url
 

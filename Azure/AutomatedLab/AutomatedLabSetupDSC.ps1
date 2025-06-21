@@ -328,9 +328,10 @@ Configuration AutomatedLabSetupDSC {
         xRemoteFile DownloadGit
         {
             DestinationPath = "$env:SystemDrive\Temp\Git-Latest.exe"
+            #Uri             = 'https://github.com/git-for-windows/git/releases/download/v2.49.0.windows.1/Git-2.49.0-64-bit.exe'
             #To always have the latest Git version for Windows x64
-            #Uri            = ((Invoke-WebRequest -Uri 'https://git-scm.com/download/win').Links | Where-Object -FilterScript { $_.InnerText -eq "64-bit Git For Windows Setup"}).href
-            Uri             = 'https://github.com/git-for-windows/git/releases/download/v2.49.0.windows.1/Git-2.49.0-64-bit.exe'
+			#From https://raw.githubusercontent.com/lavanack/infrastructure-as-code-utilities/refs/heads/main/shared-bootstrap/Install-GitForWindows.ps1
+            Uri             = $(((Invoke-RestMethod  -Uri "https://api.github.com/repos/git-for-windows/git/releases/latest").assets | Where-Object -FilterScript { $_.name.EndsWith("64-bit.exe") }).browser_download_url)
             UserAgent       = [Microsoft.PowerShell.Commands.PSUserAgent]::InternetExplorer
             Headers         = @{'Accept-Language' = 'en-US'}
             MatchSource     = $false
