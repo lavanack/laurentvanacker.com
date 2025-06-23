@@ -92,7 +92,7 @@ function Get-AzureImageBuilderRunOutput {
     $urlRunOutputStatus = [System.String]::Format("{0}subscriptions/{1}/resourceGroups/$imageResourceGroup/providers/Microsoft.VirtualMachineImages/imageTemplates/$imageTemplateName/runOutputs/{2}?api-version=2023-07-01", $managementEp, $SubcriptionID, $runOutputName)
     Write-Verbose "`$urlRunOutputStatus: $urlRunOutputStatus"
     try {
-        $runOutStatusResult = Invoke-WebRequest -Method GET  -Uri $urlRunOutputStatus -UseBasicParsing -Headers $authHeader
+        $runOutStatusResult = Invoke-WebRequest -Method GET -Uri $urlRunOutputStatus -UseBasicParsing -Headers $authHeader
         $runOutJsonStatus =$runOutStatusResult.Content
     }
     catch [System.Net.WebException] {   

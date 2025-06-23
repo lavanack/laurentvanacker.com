@@ -1,7 +1,7 @@
 {
   "Name": "Azure Image Builder Service Networking Role",
   "IsCustom": true,
-  "Description": "Image Builder access to create resources for the image build",
+  "Description": "Image Builder access to access resources in a vnet for the image build, you should delete or split out as appropriate",
   "Actions": [
     "Microsoft.Network/virtualNetworks/read",
     "Microsoft.Network/virtualNetworks/subnets/join/action"
