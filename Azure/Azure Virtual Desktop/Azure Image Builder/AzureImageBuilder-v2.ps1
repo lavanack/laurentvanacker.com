@@ -90,7 +90,7 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "`$imageTemplateName01: $imageTemplateName01"
 
 	#Image Market Place Image + customizations: VSCode
-	$imageDefName02 = "{0}-powershell-vscode" -f $SrcObjParams2.Sku
+	$imageDefName02 = "{0}-posh-vscode" -f $SrcObjParams2.Sku
 	$imageTemplateName02 = "{0}-template-{1}" -f $imageDefName02, $timeInt
 	Write-Verbose -Message "`$imageDefName02: $imageDefName02"
 	Write-Verbose -Message "`$imageTemplateName02: $imageTemplateName02"
@@ -270,9 +270,9 @@ function New-AzureComputeGallery {
 		Name              = $imageDefName02
 		OsState           = 'generalized'
 		OsType            = 'Windows'
-		Publisher         = "{0}-powershell" -f $SrcObjParams2.Publisher
-		Offer             = "{0}-powershell" -f $SrcObjParams2.Offer
-		Sku               = "{0}-powershell" -f $SrcObjParams2.Sku
+		Publisher         = "{0}-posh" -f $SrcObjParams2.Publisher
+		Offer             = "{0}-posh" -f $SrcObjParams2.Offer
+		Sku               = "{0}-posh" -f $SrcObjParams2.Sku
 		HyperVGeneration  = 'V2'
 	}
 	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefName02' (From Powershell)..."
@@ -376,7 +376,7 @@ function New-AzureComputeGallery {
 		UserAssignedIdentityId = $AssignedIdentity.Id
 		VMProfileVmsize        = "Standard_D4s_v5"
 		VMProfileOsdiskSizeGb  = 127
-		BuildTimeoutInMinute   = 180
+		BuildTimeoutInMinute   = 240
 	}
 	Write-Verbose -Message "Creating Azure Image Builder Template from '$imageTemplateName02' Image Template Name ..."
 	$ImageBuilderTemplate = New-AzImageBuilderTemplate @ImgTemplateParams
