@@ -41,10 +41,7 @@
 
                 "vmProfile": {
                     "vmSize": "Standard_D4s_v5",
-                    "osDiskSizeGB": 127,
-                    "userAssignedIdentities": [
-                        "<imgBuilderId>"
-                    ]
+                    "osDiskSizeGB": 127
                 },
 
                 "source": {
@@ -68,13 +65,6 @@
                         "runElevated": true,
                         "runAsSystem": true,
                         "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/Install-VSCode.ps1"
-                    },
-                    {
-                        "type": "PowerShell",
-                        "name": "Add a 512 GB Data Disk",
-                        "runElevated": true,
-                        "runAsSystem": true,
-                        "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/Add-AzVM512GBDataDisk.ps1"
                     },
                     {
                         "type": "WindowsUpdate",

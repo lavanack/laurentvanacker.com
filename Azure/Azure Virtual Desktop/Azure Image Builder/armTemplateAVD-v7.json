@@ -46,34 +46,12 @@
 
                 "source": {
                     "type": "PlatformImage",
-                    "publisher": "MicrosoftWindowsServer",
-                    "offer": "WindowsServer",
-                    "sku": "2016-datacenter-gensecond",
+                    "publisher": "<publisher>",
+                    "offer": "<offer>",
+                    "sku": "<sku>",
                     "version": "latest"
                 },
                 "customize": [
-                    {
-                        "name": "DisableLegacyTLS",
-                        "type": "File",
-                        "destination": "C:\\AVDImage\\Set-TLS12.ps1",
-                        "sourceUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/Set-TLS12.ps1"
-                    },
-                    {
-                        "name": "DisableLegacyTLS-parameter",
-                        "type": "PowerShell",
-                        "inline": [
-                            "C:\\AVDImage\\Set-TLS12.ps1 -DisableLegacyTls"
-                        ],
-                        "runAsSystem": true,
-                        "runElevated": true
-                    },
-                    {
-                        "type": "WindowsRestart",
-                        "name": "WindowsRestart",
-                        "restartCommand": "powershell -command \"& {Restart-Computer -Force}\"",
-                        "restartCheckCommand": "powershell -command \"& {Write-Output 'restarted.'}\"",
-                        "restartTimeout": "10m"
-                    },
                     {
                         "type": "PowerShell",
                         "name": "Timezone Redirection",
@@ -112,9 +90,9 @@
                         "galleryImageId": "/subscriptions/<subscriptionID>/resourceGroups/<rgName>/providers/Microsoft.Compute/galleries/<sharedImageGalName>/images/<imageDefName>/versions/<version>",
                         "runOutputName": "<runOutputName>",
                         "artifactTags": {
-							"publisher": "MicrosoftWindowsServer",
-                            "offer": "WindowsServer",
-                            "sku": "2016-datacenter-gensecond"
+                            "publisher": "<publisher>",
+                            "offer": "<offer>",
+                            "sku": "<sku>"
                         },
                         "targetRegions": <targetRegions>
                     }
