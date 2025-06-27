@@ -37,7 +37,7 @@
             },
 
             "properties": {
-                "buildTimeoutInMinutes": 240,
+                "buildTimeoutInMinutes": 120,
 
                 "vmProfile": {
                     "vmSize": "Standard_D4s_v5",
@@ -46,9 +46,9 @@
 
                 "source": {
                     "type": "PlatformImage",
-                    "publisher": "<publisher>",
-                    "offer": "<offer>",
-                    "sku": "<sku>",
+                    "publisher": "MicrosoftWindowsServer",
+                    "offer": "WindowsServer",
+                    "sku": "2016-datacenter-gensecond",
                     "version": "latest"
                 },
                 "customize": [
@@ -112,9 +112,9 @@
                         "galleryImageId": "/subscriptions/<subscriptionID>/resourceGroups/<rgName>/providers/Microsoft.Compute/galleries/<sharedImageGalName>/images/<imageDefName>/versions/<version>",
                         "runOutputName": "<runOutputName>",
                         "artifactTags": {
-                            "publisher": "<publisher>",
-                            "offer": "<offer>",
-                            "sku": "<sku>"
+							"publisher": "MicrosoftWindowsServer",
+                            "offer": "WindowsServer",
+                            "sku": "2016-datacenter-gensecond"
                         },
                         "targetRegions": <targetRegions>
                     }
