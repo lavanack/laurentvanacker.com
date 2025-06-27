@@ -50,14 +50,13 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "`$Location: $Location"
 	$LocationShortName = $shortNameHT[$Location].shortName
 	Write-Verbose -Message "`$LocationShortName: $LocationShortName"
-    if ($Location -notin $TargetRegions) {
-        $TargetRegions += $Location
-    }
+	if ($Location -notin $TargetRegions) {
+		$TargetRegions += $Location
+	}
 	Write-Verbose -Message "`$TargetRegions: $($TargetRegions -join ', ')"
-    [array] $TargetRegionSettings = foreach ($CurrentTargetRegion in $TargetRegions)
-    {
-        @{"name"=$CurrentTargetRegion;"replicaCount"=$ReplicaCount;"storageAccountType"="Premium_LRS"}
-    }
+	[array] $TargetRegionSettings = foreach ($CurrentTargetRegion in $TargetRegions) {
+		@{"name" = $CurrentTargetRegion; "replicaCount" = $ReplicaCount; "storageAccountType" = "Premium_LRS" }
+	}
 
 	$Project = "avd"
 	$Role = "aib"
@@ -69,19 +68,19 @@ function New-AzureComputeGallery {
 
 	#region Source Image 
 	$SrcObjParams1 = @{
-		Publisher           = 'MicrosoftWindowsDesktop'
-		Offer               = 'Windows-11'    
-		Sku                 = 'win11-24h2-ent'  
-		Version             = 'latest'
+		Publisher = 'MicrosoftWindowsDesktop'
+		Offer     = 'Windows-11'    
+		Sku       = 'win11-24h2-ent'  
+		Version   = 'latest'
 	}
 
 	$SrcObjParams2 = @{
-		Publisher           = 'MicrosoftWindowsDesktop'
-		Offer               = 'Windows-11'    
-		Sku                 = 'win11-24h2-ent'  
-		Version             = 'latest'
+		Publisher = 'MicrosoftWindowsDesktop'
+		Offer     = 'Windows-11'    
+		Sku       = 'win11-24h2-ent'  
+		Version   = 'latest'
 	}
-    #endregion
+	#endregion
 
 	#region Image template and definition names
 	#Image Market Place Image + customizations: VSCode
@@ -91,11 +90,11 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "`$imageTemplateName01: $imageTemplateName01"
 
 	#Image Market Place Image + customizations: VSCode
-	$imageDefName02 = "{0}-powershell-vscode" -f $SrcObjParams2.Sku
+	$imageDefName02 = "{0}-posh-vscode" -f $SrcObjParams2.Sku
 	$imageTemplateName02 = "{0}-template-{1}" -f $imageDefName02, $timeInt
 	Write-Verbose -Message "`$imageDefName02: $imageDefName02"
 	Write-Verbose -Message "`$imageTemplateName02: $imageTemplateName02"
-    #endregion
+	#endregion
 
 	# Distribution properties object name (runOutput). Gives you the properties of the managed image on completion
 	$runOutputName01 = "cgOutput01"
@@ -106,26 +105,30 @@ function New-AzureComputeGallery {
 	$Jobs = @()
 	#endregion
 
-	# Create resource group
+	#region Create resource group
 	if (Get-AzResourceGroup -Name $ResourceGroupName -Location $location -ErrorAction Ignore) {
 		Write-Verbose -Message "Removing '$ResourceGroupName' Resource Group Name ..."
 		Remove-AzResourceGroup -Name $ResourceGroupName -Force
 	}
 	Write-Verbose -Message "Creating '$ResourceGroupName' Resource Group Name ..."
 	$ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $location -Force
-
+	#endregion
+    
 	#region Permissions, user identity, and role
-	# setup role def names, these need to be unique
+	#region setup role def names, these need to be unique
 	$imageRoleDefName = "Azure Image Builder Image Def - $timeInt"
 	$identityName = "aibIdentity-$timeInt"
 	Write-Verbose -Message "`$imageRoleDefName: $imageRoleDefName"
 	Write-Verbose -Message "`$identityName: $identityName"
+	#endregion
 
-
-	# Create the identity
+	#region Create the identity
 	Write-Verbose -Message "Creating User Assigned Identity '$identityName' ..."
 	$AssignedIdentity = New-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name $identityName -Location $location
+	#endregion
 
+	#region RBAC Assignment(s)
+	#region aibRoleImageCreation.json creation and RBAC Assignment
 	#$aibRoleImageCreationUrl="https://raw.githubusercontent.com/PeterR-msft/M365AVDWS/master/Azure%20Image%20Builder/aibRoleImageCreation.json"
 	#$aibRoleImageCreationUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/12_Creating_AIB_Security_Roles/aibRoleImageCreation.json"
 	#$aibRoleImageCreationUrl="https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/aibRoleImageCreation.json"
@@ -139,18 +142,19 @@ function New-AzureComputeGallery {
 	# Download the config
 	Invoke-WebRequest -Uri $aibRoleImageCreationUrl -OutFile $aibRoleImageCreationPath -UseBasicParsing
 
-    ((Get-Content -path $aibRoleImageCreationPath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $aibRoleImageCreationPath
-    ((Get-Content -path $aibRoleImageCreationPath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $aibRoleImageCreationPath
-    ((Get-Content -path $aibRoleImageCreationPath -Raw) -replace 'Azure Image Builder Service Image Creation Role', $imageRoleDefName) | Set-Content -Path $aibRoleImageCreationPath
+    ((Get-Content -Path $aibRoleImageCreationPath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $aibRoleImageCreationPath
+    ((Get-Content -Path $aibRoleImageCreationPath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $aibRoleImageCreationPath
+    ((Get-Content -Path $aibRoleImageCreationPath -Raw) -replace 'Azure Image Builder Service Image Creation Role', $imageRoleDefName) | Set-Content -Path $aibRoleImageCreationPath
 
-	# Create a role definition
+	#region Create a role definition
 	Write-Verbose -Message "Creating '$imageRoleDefName' Role Definition ..."
 	$RoleDefinition = New-AzRoleDefinition -InputFile $aibRoleImageCreationPath
+	#endregion
 
 	# Grant the role definition to the VM Image Builder service principal
 	Write-Verbose -Message "Assigning '$($RoleDefinition.Name)' Role to '$($AssignedIdentity.Name)' ..."
-    $Scope = $ResourceGroup.ResourceId
-    <#
+	$Scope = $ResourceGroup.ResourceId
+	<#
     if (-not(Get-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $Scope)) {
         Write-Verbose -Message "Assigning the '$($RoleDefinition.Name)' RBAC role to the '$($AssignedIdentity.PrincipalId)' System Assigned Managed Identity"
         $RoleAssignment = New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $Scope
@@ -160,20 +164,22 @@ function New-AzureComputeGallery {
     } 
     #> 
 	$Parameters = @{
-		ObjectId            = $AssignedIdentity.PrincipalId
-		RoleDefinitionName  = $RoleDefinition.Name
-		Scope               = $Scope
+		ObjectId           = $AssignedIdentity.PrincipalId
+		RoleDefinitionName = $RoleDefinition.Name
+		Scope              = $Scope
 	}
 
-    While (-not(Get-AzRoleAssignment @Parameters)) {
-        Write-Verbose -Message "Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
-        $RoleAssignment = New-AzRoleAssignment @Parameters
-        Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-        if ($null -eq $RoleAssignment) {
-            Write-Verbose -Message "Sleeping 30 seconds"
-            Start-Sleep -Seconds 30
-        }
-    }
+	While (-not(Get-AzRoleAssignment @Parameters)) {
+		Write-Verbose -Message "Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
+		$RoleAssignment = New-AzRoleAssignment @Parameters
+		Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+		if ($null -eq $RoleAssignment) {
+			Write-Verbose -Message "Sleeping 30 seconds"
+			Start-Sleep -Seconds 30
+		}
+	}
+	#endregion
+	#endregion
 	#endregion
 
 	#region Create an Azure Compute Gallery
@@ -199,20 +205,20 @@ function New-AzureComputeGallery {
 
 	Invoke-WebRequest -Uri $templateUrl -OutFile $templateFilePath -UseBasicParsing
 
-    ((Get-Content -path $templateFilePath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $templateFilePath
-	#((Get-Content -path $templateFilePath -Raw) -replace '<region>',$location) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<runOutputName>', $runOutputName01) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $templateFilePath
+	#((Get-Content -Path $templateFilePath -Raw) -replace '<region>',$location) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<runOutputName>', $runOutputName01) | Set-Content -Path $templateFilePath
 
-    ((Get-Content -path $templateFilePath -Raw) -replace '<imageDefName>', $imageDefName01) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<sharedImageGalName>', $GalleryName) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<TargetRegions>', $(ConvertTo-Json -InputObject $TargetRegionSettings)) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<imgBuilderId>', $AssignedIdentity.Id) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<version>', $version) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<imageDefName>', $imageDefName01) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<sharedImageGalName>', $GalleryName) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<TargetRegions>', $(ConvertTo-Json -InputObject $TargetRegionSettings)) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<imgBuilderId>', $AssignedIdentity.Id) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<version>', $version) | Set-Content -Path $templateFilePath
 
-    ((Get-Content -path $templateFilePath -Raw) -replace '<publisher>', $SrcObjParams1.Publisher) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<offer>', $SrcObjParams1.Offer) | Set-Content -Path $templateFilePath
-    ((Get-Content -path $templateFilePath -Raw) -replace '<sku>', $SrcObjParams1.sku) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<publisher>', $SrcObjParams1.Publisher) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<offer>', $SrcObjParams1.Offer) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<sku>', $SrcObjParams1.sku) | Set-Content -Path $templateFilePath
 	#endregion
 
 	#region Create the gallery definition
@@ -228,25 +234,25 @@ function New-AzureComputeGallery {
 		Sku               = "{0}-json" -f $SrcObjParams2.Sku
 		HyperVGeneration  = 'V2'
 	}
-    Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefName01' (From Customized JSON)..."
-    $Result = (Get-Content -path $templateFilePath -Raw) -replace "`r|`n" -replace "\s+", ' ' -match '"source".*(?<Source>{.*}),\s+"customize"'
-    if ($Result) {
-        $Source = $Matches["Source"] | ConvertFrom-Json
-        $GalleryImageDefinition01 = New-AzGalleryImageDefinition @GalleryParams
-    }
-    else {
-	    $GalleryParams = @{
-		    $GalleryParams['Publisher'] = 'Contoso'
-		    $GalleryParams['Offer']     = 'Windows'
-		    $GalleryParams['Sku']       = 'Windows Client'
-	    }
-	    $GalleryImageDefinition01 = New-AzGalleryImageDefinition @GalleryParams
-    }
-    #endregion
+	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefName01' (From Customized JSON)..."
+	$Result = (Get-Content -Path $templateFilePath -Raw) -replace "`r|`n" -replace "\s+", ' ' -match '"source".*(?<Source>{.*}),\s+"customize"'
+	if ($Result) {
+		$Source = $Matches["Source"] | ConvertFrom-Json
+		$GalleryImageDefinition01 = New-AzGalleryImageDefinition @GalleryParams
+	}
+	else {
+		$GalleryParams = @{
+			$GalleryParams['Publisher'] = 'Contoso'
+			$GalleryParams['Offer']     = 'Windows'
+			$GalleryParams['Sku']       = 'Windows Client'
+		}
+		$GalleryImageDefinition01 = New-AzGalleryImageDefinition @GalleryParams
+	}
+	#endregion
 
 	#region Submit the template
 	Write-Verbose -Message "Starting Resource Group Deployment from '$templateFilePath' ..."
-	$ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2022-07-01"; "imageTemplateName" = $imageTemplateName01; "svclocation" = $location}
+	$ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2022-07-01"; "imageTemplateName" = $imageTemplateName01; "svclocation" = $location }
 
 	#region Build the image
 	Write-Verbose -Message "Starting Image Builder Template from '$imageTemplateName01' (As Job) ..."
@@ -264,9 +270,9 @@ function New-AzureComputeGallery {
 		Name              = $imageDefName02
 		OsState           = 'generalized'
 		OsType            = 'Windows'
-		Publisher         = "{0}-powershell" -f $SrcObjParams2.Publisher
-		Offer             = "{0}-powershell" -f $SrcObjParams2.Offer
-		Sku               = "{0}-powershell" -f $SrcObjParams2.Sku
+		Publisher         = "{0}-posh" -f $SrcObjParams2.Publisher
+		Offer             = "{0}-posh" -f $SrcObjParams2.Offer
+		Sku               = "{0}-posh" -f $SrcObjParams2.Sku
 		HyperVGeneration  = 'V2'
 	}
 	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefName02' (From Powershell)..."
@@ -275,7 +281,7 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "Creating Azure Image Builder Template Source Object  ..."
 	$srcPlatform = New-AzImageBuilderTemplateSourceObject @SrcObjParams2 -PlatformImageSource
 
-    <# 
+	<# 
     #Optional : Get Virtual Machine publisher, Image Offer, Sku and Image
     $ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq $SrcObjParams2.Publisher}
     $ImageOffer = Get-AzVMImageOffer -Location $Location -publisher $ImagePublisherName.PublisherName | Where-Object -FilterScript { $_.Offer  -eq $SrcObjParams2.Offer}
@@ -288,7 +294,7 @@ function New-AzureComputeGallery {
 	$disObjParams = @{
 		SharedImageDistributor = $true
 		GalleryImageId         = "$($GalleryImageDefinition02.Id)/versions/$version"
-		ArtifactTag            = @{Publisher = $SrcObjParams2.Publisher; Offer = $SrcObjParams2.Publisher; Sku = $SrcObjParams2.Publisher}
+		ArtifactTag            = @{Publisher = $SrcObjParams2.Publisher; Offer = $SrcObjParams2.Publisher; Sku = $SrcObjParams2.Publisher }
 
 		# 1. Uncomment following line for a single region deployment.
 		#ReplicationRegion = $location
@@ -350,7 +356,7 @@ function New-AzureComputeGallery {
 		UserAssignedIdentityId = $AssignedIdentity.Id
 		VMProfileVmsize        = "Standard_D4s_v5"
 		VMProfileOsdiskSizeGb  = 127
-        BuildTimeoutInMinute   = 120
+		BuildTimeoutInMinute   = 240
 	}
 	Write-Verbose -Message "Creating Azure Image Builder Template from '$imageTemplateName02' Image Template Name ..."
 	$ImageBuilderTemplate = New-AzImageBuilderTemplate @ImgTemplateParams
@@ -362,9 +368,10 @@ function New-AzureComputeGallery {
 	#endregion
 	#endregion
 	
+	#region Waiting for jobs to complete
 	Write-Verbose -Message "Waiting for jobs to complete ..."
 	$Jobs | Wait-Job | Out-Null
-`	
+	#endregion
 
 	#region imageTemplateName01 status 
 	#To determine whenever or not the template upload process was successful, run the following command.
@@ -376,10 +383,9 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "'$imageTemplateName01' LastRunStatusRunState: $($getStatus01.LastRunStatusRunState) "
 	Write-Verbose -Message "'$imageTemplateName01' LastRunStatusMessage: $($getStatus01.LastRunStatusMessage) "
 	Write-Verbose -Message "'$imageTemplateName01' LastRunStatusRunSubState: $($getStatus01.LastRunStatusRunSubState) "
-    if ($getStatus01.LastRunStatusRunState -eq "Failed")
-    {
-        Write-Error -Message "The Image Builder Template for '$imageTemplateName01' has failed:\r\n$($getStatus01.LastRunStatusMessage)"
-    }
+	if ($getStatus01.LastRunStatusRunState -eq "Failed") {
+		Write-Error -Message "The Image Builder Template for '$imageTemplateName01' has failed:\r\n$($getStatus01.LastRunStatusMessage)"
+	}
 	Write-Verbose -Message "Removing Azure Image Builder Template for '$imageTemplateName01' ..."
 	#$Jobs += $getStatus01 | Remove-AzImageBuilderTemplate -AsJob
 	$getStatus01 | Remove-AzImageBuilderTemplate -NoWait
@@ -398,10 +404,9 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "'$imageTemplateName02' LastRunStatusRunState: $($getStatus02.LastRunStatusRunState) "
 	Write-Verbose -Message "'$imageTemplateName02' LastRunStatusMessage: $($getStatus02.LastRunStatusMessage) "
 	Write-Verbose -Message "'$imageTemplateName02' LastRunStatusRunSubState: $($getStatus02.LastRunStatusRunSubState) "
-    if ($getStatus02.LastRunStatusRunState -eq "Failed")
-    {
-        Write-Error -Message "The Image Builder Template for '$imageTemplateName02' has failed:\r\n$($getStatus02.LastRunStatusMessage)"
-    }
+	if ($getStatus02.LastRunStatusRunState -eq "Failed") {
+		Write-Error -Message "The Image Builder Template for '$imageTemplateName02' has failed:\r\n$($getStatus02.LastRunStatusMessage)"
+	}
 	Write-Verbose -Message "Removing Azure Image Builder Template for '$imageTemplateName02' ..."
 	#$Jobs += $getStatus02 | Remove-AzImageBuilderTemplate -AsJob
 	$getStatus02 | Remove-AzImageBuilderTemplate -NoWait
@@ -418,10 +423,12 @@ function New-AzureComputeGallery {
     #>
 	#endregion
   
+	#region Waiting for jobs to complete
 	$Jobs | Wait-Job | Out-Null
 	Write-Verbose -Message "Removing jobs ..."
 	$Jobs | Remove-Job -Force
 	return $Gallery
+	#endregion
 }
 #endregion
 
