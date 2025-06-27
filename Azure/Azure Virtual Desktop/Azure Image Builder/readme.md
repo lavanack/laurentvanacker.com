@@ -14,6 +14,7 @@
   - [AzureImageBuilder-v9.ps1](#azureimagebuilder-v9ps1)
   - [AzureImageBuilder-v10.ps1](#azureimagebuilder-v10ps1)
   - [AzureImageBuilder-v11.ps1](#azureimagebuilder-v11ps1)
+  - [AzureImageBuilder-v12.ps1](#azureimagebuilder-v12ps1)
   - [AzureImageBuilder with CMK.ps1](#azureimagebuilder-with-cmkps1)
   - [New-AzureComputeGalleryVM.ps1](#new-azurecomputegalleryvmps1)
   - [Get-AzureVMImageBuilderCustomizationLog.ps1](#get-azurevmimagebuildercustomizationlogps1)
@@ -89,13 +90,17 @@ The [AzureImageBuilder-v9.ps1](AzureImageBuilder-v9.ps1) script is an update of 
 
 ## AzureImageBuilder-v10.ps1
 
-The [AzureImageBuilder-v10.ps1](AzureImageBuilder-v10.ps1) script is an update of the [AzureImageBuilder.ps1](AzureImageBuilder.ps1) script because we add a second disk (ie. a data disk) during the Azure Image Builder process. We reuse the User Assigned Managed Identity create for Azure Image Builder as User Assigned Managed Identity for the generated VM (more details [here](https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-json?tabs=json%2Cazure-powershell#user-assigned-identity-for-the-image-builder-build-vm)). We also add some role assignments to this identity (cf. [aibRoleImageCreation-v10.json](aibRoleImageCreation-v10.json) - you can compare with [aibRoleImageCreation.json](aibRoleImageCreation.json) for the differences)
+The [AzureImageBuilder-v10.ps1](AzureImageBuilder-v10.ps1) script is an update of the [AzureImageBuilder.ps1](AzureImageBuilder.ps1) script because we add a second disk (ie. a data disk) during the Azure Image Builder process. We reuse the User Assigned Managed Identity created for Azure Image Builder as User Assigned Managed Identity for the generated VM (more details [here](https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-json?tabs=json%2Cazure-powershell#user-assigned-identity-for-the-image-builder-build-vm)). We also add some role assignments to this identity (cf. [aibRoleImageCreation-v10.json](aibRoleImageCreation-v10.json) - you can compare with [aibRoleImageCreation.json](aibRoleImageCreation.json) for the differences)
 > [!NOTE]
 > Unfortunately, this data disk is not captured for Azure VM Image Builder. It is a limitation of the service. The data disk is attached to the VM but not captured in the image. The data disk is not captured because the data disk is not part of the image definition. The image definition is only for the OS disk. The data disk is attached to the VM during the build process.
 
 ## AzureImageBuilder-v11.ps1
 
 The [AzureImageBuilder-v11.ps1](AzureImageBuilder-v11.ps1) script is an update of of the [AzureImageBuilder.ps1](AzureImageBuilder.ps1) script but using a Windows Server 2016 image and with a [Windows restart customizer](<https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-json?tabs=json%2Cazure-powershell#windows-restart-customizer>) (like the [AzureImageBuilder-v6.ps1](AzureImageBuilder-v6.ps1) script) because we need to enable TLS 1.2 for this OS and we have to restart the VM after to apply this settings at the OS level. Without this restart the TLS 1.2 settings are not applied and the VM is not able to connect to GitHub and PowerShell Gallery fir the other customizations.
+
+## AzureImageBuilder-v12.ps1
+
+The [AzureImageBuilder-v12.ps1](AzureImageBuilder-v12.ps1) script is an update of of the [AzureImageBuilder.ps1](AzureImageBuilder.ps1) script but using a Windows 11 24h2 mono-session image (tested for a customer scenario).
 
 ## AzureImageBuilder with CMK.ps1
 

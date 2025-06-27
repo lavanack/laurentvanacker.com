@@ -67,8 +67,8 @@ $LatestDotNetCoreSDKURI = "https://dotnet.microsoft.com$($LatestDotNetCoreSDKURI
 $LatestDotNetCoreSDKURI = (Invoke-WebRequest $LatestDotNetCoreSDKURI).links.href | Where-Object -FilterScript { $_ -match "sdk.*win.*-x64" } | Select-Object -Unique
 #endregion
 
-#$GitURI = "https://github.com/git-for-windows/git/releases/download/v2.47.0.windows.2/Git-2.47.0.2-64-bit.exe"
-$GitURI = "https://github.com{0}" -f ((Invoke-WebRequest -Uri 'https://github.com/git-for-windows/git/releases').Links | Where-Object -FilterScript { $_.InnerText -match "64-bit.exe" }).href
+#From https://raw.githubusercontent.com/lavanack/infrastructure-as-code-utilities/refs/heads/main/shared-bootstrap/Install-GitForWindows.ps1
+$GitURI = ((Invoke-RestMethod  -Uri "https://api.github.com/repos/git-for-windows/git/releases/latest").assets | Where-Object -FilterScript { $_.name.EndsWith("64-bit.exe") }).browser_download_url
 #endregion
 
 #Cleaning previously existing lab

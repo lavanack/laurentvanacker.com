@@ -37,7 +37,7 @@
             },
 
             "properties": {
-                "buildTimeoutInMinutes": 120,
+                "buildTimeoutInMinutes": 240,
 
                 "vmProfile": {
                     "vmSize": "Standard_D4s_v5",
@@ -46,9 +46,9 @@
 
                 "source": {
                     "type": "PlatformImage",
-                    "publisher": "MicrosoftWindowsDesktop",
-                    "offer": "Windows-11",
-                    "sku": "win11-24h2-avd",
+                    "publisher": "<publisher>",
+                    "offer": "<offer>",
+                    "sku": "<sku>",
                     "version": "latest"
                 },
                 "customize": [
@@ -97,9 +97,9 @@
                         "galleryImageId": "/subscriptions/<subscriptionID>/resourceGroups/<rgName>/providers/Microsoft.Compute/galleries/<sharedImageGalName>/images/<imageDefName>/versions/<version>",
                         "runOutputName": "<runOutputName>",
                         "artifactTags": {
-							"publisher": "MicrosoftWindowsDesktop",
-                            "offer": "Windows-11",
-                            "sku": "win11-24h2-avd"
+                            "publisher": "<publisher>",
+                            "offer": "<offer>",
+                            "sku": "<sku>"
                         },
                         "targetRegions": <targetRegions>
                     }

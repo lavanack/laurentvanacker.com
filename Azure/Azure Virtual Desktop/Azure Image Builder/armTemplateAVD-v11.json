@@ -25,7 +25,7 @@
             "location": "[parameters('svclocation')]",
             "dependsOn": [],
             "tags": {
-                "imagebuilderTemplate": "AzureVMImageBuilderVNET",
+                "imagebuilderTemplate": "AzureImageBuilderSIG",
                 "userIdentity": "enabled"
             },
             "identity": {
@@ -35,14 +35,13 @@
 
                 }
             },
+
             "properties": {
                 "buildTimeoutInMinutes": 240,
+
                 "vmProfile": {
-                    "vmSize": "Standard_D8s_v5",
-                    "osDiskSizeGB": 127,
-                    "vnetConfig": {
-                        "subnetId": "/subscriptions/<subscriptionID>/resourceGroups/<vnetRgName>/providers/Microsoft.Network/virtualNetworks/<vnetName>/subnets/<subnetName>"
-                    }
+                    "vmSize": "Standard_D4s_v5",
+                    "osDiskSizeGB": 127
                 },
 
                 "source": {
@@ -54,19 +53,26 @@
                 },
                 "customize": [
                     {
-                        "name": "avdBuiltInScript_installLanguagePacks",
+                        "name": "DisableLegacyTLS",
                         "type": "File",
-                        "destination": "C:\\AVDImage\\installLanguagePacks.ps1",
-                        "sourceUri": "https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-11-20/InstallLanguagePacks.ps1"
+                        "destination": "C:\\AVDImage\\Set-TLS12.ps1",
+                        "sourceUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/Set-TLS12.ps1"
                     },
                     {
-                        "name": "avdBuiltInScript_installLanguagePacks-parameter",
+                        "name": "DisableLegacyTLS-parameter",
                         "type": "PowerShell",
                         "inline": [
-                            "C:\\AVDImage\\installLanguagePacks.ps1 -LanguageList \"German (Germany)\",\"French (France)\""
+                            "C:\\AVDImage\\Set-TLS12.ps1 -DisableLegacyTls"
                         ],
                         "runAsSystem": true,
                         "runElevated": true
+                    },
+                    {
+                        "type": "WindowsRestart",
+                        "name": "WindowsRestart",
+                        "restartCommand": "powershell -command \"& {Restart-Computer -Force}\"",
+                        "restartCheckCommand": "powershell -command \"& {Write-Output 'restarted.'}\"",
+                        "restartTimeout": "10m"
                     },
                     {
                         "type": "PowerShell",

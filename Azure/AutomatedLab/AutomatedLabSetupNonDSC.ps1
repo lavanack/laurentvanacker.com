@@ -99,7 +99,8 @@ Remove-Item -Path $OutputFile -Force
 #endregion
 
 #region Installing Git
-$GitURI = ((Invoke-WebRequest -Uri 'https://git-scm.com/download/win').Links | Where-Object -FilterScript { $_.InnerText -eq "64-bit Git For Windows Setup"}).href
+#From https://raw.githubusercontent.com/lavanack/infrastructure-as-code-utilities/refs/heads/main/shared-bootstrap/Install-GitForWindows.ps1
+$GitURI = $(((Invoke-RestMethod  -Uri "https://api.github.com/repos/git-for-windows/git/releases/latest").assets | Where-Object -FilterScript { $_.name.EndsWith("64-bit.exe") }).browser_download_url)
 $OutputFile = Join-Path -Path $CurrentDir -ChildPath $(Split-Path -Path $GitURI -Leaf)
 Invoke-WebRequest -Uri $GitURI -OutFile $OutputFile
 Start-Process -FilePath $OutputFile -ArgumentList "/SILENT", "/CLOSEAPPLICATIONS" -Wait

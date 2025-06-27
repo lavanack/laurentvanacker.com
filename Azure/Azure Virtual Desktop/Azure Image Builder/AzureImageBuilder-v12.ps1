@@ -68,16 +68,16 @@ function New-AzureComputeGallery {
 
 	#region Source Image 
 	$SrcObjParams1 = @{
-		Publisher = 'MicrosoftWindowsServer'
-		Offer     = 'WindowsServer'    
-		Sku       = '2016-datacenter-gensecond'  
+		Publisher = 'MicrosoftWindowsDesktop'
+		Offer     = 'Windows-11'    
+		Sku       = 'win11-24h2-ent'  
 		Version   = 'latest'
 	}
 
 	$SrcObjParams2 = @{
-		Publisher = 'MicrosoftWindowsServer'
-		Offer     = 'WindowsServer'    
-		Sku       = '2016-datacenter-gensecond'  
+		Publisher = 'MicrosoftWindowsDesktop'
+		Offer     = 'Windows-11'    
+		Sku       = 'win11-24h2-ent'  
 		Version   = 'latest'
 	}
 	#endregion
@@ -197,7 +197,7 @@ function New-AzureComputeGallery {
 	#region Download and configure the template
 	#$templateUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/14_Building_Images_WVD/armTemplateWVD.json"
 	#$templateFilePath = "armTemplateWVD.json"
-	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVD.json"
+	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVD-v12.json"
 	$templateFilePath = Join-Path -Path $env:TEMP -ChildPath $(Split-Path $templateUrl -Leaf)
 	#Generate a unique file name 
 	$templateFilePath = $templateFilePath -replace ".json$", "_$timeInt.json"
@@ -308,37 +308,6 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "Creating Azure Image Builder Template Distributor Object  ..."
 	$disSharedImg = New-AzImageBuilderTemplateDistributorObject @disObjParams
 
-	$ImgCopySetTLSFileCustomizerParams = @{  
-		FileCustomizer = $true  
-		Name           = 'CopySetTLS'  
-		sourceUri      = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/Set-TLS12.ps1'
-		destination    = "C:\AVDImage\Set-TLS12.ps1"
-	}
-
-	Write-Verbose -Message "Creating Azure Image Builder Template Customizer Object for copying 'Set-TLS12.ps1' from the RDS-Templates Github repository ..."
-	$CopySetTLSCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgCopySetTLSFileCustomizerParams 
-
-	$ImgSetTLSFileCustomizerParams = @{  
-		PowerShellCustomizer = $true  
-		Name                 = 'SetTLS'  
-		RunElevated          = $true  
-		runAsSystem          = $true
-		inline               = "C:\AVDImage\Set-TLS12.ps1 -DisableLegacyTls"
-	}
-	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for running 'Set-TLS12.ps1' ..."
-	$SetTLSCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgSetTLSFileCustomizerParams 
-
-	$ImgWindowsRestartCustomizerParams = @{  
-		RestartCustomizer   = $true  
-		Name                = 'WindowsRestart'
-		RestartCheckCommand = 'powershell -Command "& {Write-Output "restarted."}"'
-		RestartCommand      = 'powershell -Command "& {Restart-Computer -Force}"'
-		RestartTimeout      = '10m'
-	}
-
-	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgWindowsRestartCustomizerParams.Name)' ..."
-	$WindowsRestartCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgWindowsRestartCustomizerParams 
-
 	$ImgTimeZoneRedirectionPowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
 		Name                 = 'Timezone Redirection'  
@@ -376,7 +345,7 @@ function New-AzureComputeGallery {
 	$DisableAutoUpdatesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgDisableAutoUpdatesPowerShellCustomizerParams 
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
-	$Customize = $CopySetTLSCustomizer, $SetTLSCustomizer, $WindowsRestartCustomizer, $TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
+	$Customize = $TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
 	$ImgTemplateParams = @{
 		ImageTemplateName      = $imageTemplateName02
 		ResourceGroupName      = $ResourceGroupName

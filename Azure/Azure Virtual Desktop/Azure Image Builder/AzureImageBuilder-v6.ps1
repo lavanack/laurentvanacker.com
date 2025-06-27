@@ -23,7 +23,7 @@ function New-AzureComputeGallery {
 	[CmdletBinding()]
 	Param(
 		[Parameter(Mandatory = $false)]
-		[string]$Location = "EastUS",
+		[string]$Location = "EastUS2",
 		[Parameter(Mandatory = $false)]
 		[string[]]$TargetRegions = @($Location),
 		[Parameter(Mandatory = $false)]
@@ -50,11 +50,11 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "`$Location: $Location"
 	$LocationShortName = $shortNameHT[$Location].shortName
 	Write-Verbose -Message "`$LocationShortName: $LocationShortName"
-	if ($Location -notin $targetRegions) {
-		$targetRegions += $Location
+	if ($Location -notin $TargetRegions) {
+		$TargetRegions += $Location
 	}
-	Write-Verbose -Message "`$targetRegions: $($targetRegions -join ', ')"
-	[array] $targetRegionSettings = foreach ($CurrentTargetRegion in $targetRegions) {
+	Write-Verbose -Message "`$TargetRegions: $($TargetRegions -join ', ')"
+	[array] $TargetRegionSettings = foreach ($CurrentTargetRegion in $TargetRegions) {
 		@{"name" = $CurrentTargetRegion; "replicaCount" = $ReplicaCount; "storageAccountType" = "Premium_LRS" }
 	}
 
@@ -66,18 +66,35 @@ function New-AzureComputeGallery {
 	$ResourceGroupName = $ResourceGroupName.ToLower()
 	Write-Verbose -Message "`$ResourceGroupName: $ResourceGroupName"
 
+	#region Source Image 
+	$SrcObjParams1 = @{
+		Publisher = 'MicrosoftWindowsDesktop'
+		Offer     = 'Windows-11'    
+		Sku       = 'win11-24h2-avd'  
+		Version   = 'latest'
+	}
 
-	# Image template and definition names
-	#AVD MultiSession Session Image Market Place Image + customizations: VSCode
-	$imageDefName01 = "win11-24h2-ent-avd-custom-vscode"
-	$imageTemplateName01 = $imageDefName01 + "-template-" + $timeInt
-	#AVD MultiSession + Microsoft 365 Market Place Image + customizations: VSCode
-	$imageDefName02 = "win11-24h2-ent-avd-m365-vscode"
-	$imageTemplateName02 = $imageDefName02 + "-template-" + $timeInt
+	$SrcObjParams2 = @{
+		Publisher = 'MicrosoftWindowsDesktop'
+		Offer     = 'Office-365'    
+		Sku       = 'win11-24h2-avd-m365'  
+		Version   = 'latest'
+	}
+	#endregion
+
+	#region Image template and definition names
+	#Image Market Place Image + customizations: VSCode
+	$imageDefName01 = "{0}-json-vscode" -f $SrcObjParams1.Sku
+	$imageTemplateName01 = "{0}-template-{1}" -f $imageDefName01, $timeInt
 	Write-Verbose -Message "`$imageDefName01: $imageDefName01"
 	Write-Verbose -Message "`$imageTemplateName01: $imageTemplateName01"
+
+	#Image Market Place Image + customizations: VSCode
+	$imageDefName02 = "{0}-posh-vscode" -f $SrcObjParams2.Sku
+	$imageTemplateName02 = "{0}-template-{1}" -f $imageDefName02, $timeInt
 	Write-Verbose -Message "`$imageDefName02: $imageDefName02"
 	Write-Verbose -Message "`$imageTemplateName02: $imageTemplateName02"
+	#endregion
 
 	# Distribution properties object name (runOutput). Gives you the properties of the managed image on completion
 	$runOutputName01 = "cgOutput01"
@@ -88,26 +105,30 @@ function New-AzureComputeGallery {
 	$Jobs = @()
 	#endregion
 
-	# Create resource group
+	#region Create resource group
 	if (Get-AzResourceGroup -Name $ResourceGroupName -Location $location -ErrorAction Ignore) {
 		Write-Verbose -Message "Removing '$ResourceGroupName' Resource Group Name ..."
 		Remove-AzResourceGroup -Name $ResourceGroupName -Force
 	}
 	Write-Verbose -Message "Creating '$ResourceGroupName' Resource Group Name ..."
 	$ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $location -Force
-
+	#endregion
+    
 	#region Permissions, user identity, and role
-	# setup role def names, these need to be unique
+	#region setup role def names, these need to be unique
 	$imageRoleDefName = "Azure Image Builder Image Def - $timeInt"
 	$identityName = "aibIdentity-$timeInt"
 	Write-Verbose -Message "`$imageRoleDefName: $imageRoleDefName"
 	Write-Verbose -Message "`$identityName: $identityName"
+	#endregion
 
-
-	# Create the identity
+	#region Create the identity
 	Write-Verbose -Message "Creating User Assigned Identity '$identityName' ..."
 	$AssignedIdentity = New-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name $identityName -Location $location
+	#endregion
 
+	#region RBAC Assignment(s)
+	#region aibRoleImageCreation.json creation and RBAC Assignment
 	#$aibRoleImageCreationUrl="https://raw.githubusercontent.com/PeterR-msft/M365AVDWS/master/Azure%20Image%20Builder/aibRoleImageCreation.json"
 	#$aibRoleImageCreationUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/12_Creating_AIB_Security_Roles/aibRoleImageCreation.json"
 	#$aibRoleImageCreationUrl="https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/aibRoleImageCreation.json"
@@ -125,18 +146,40 @@ function New-AzureComputeGallery {
     ((Get-Content -Path $aibRoleImageCreationPath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $aibRoleImageCreationPath
     ((Get-Content -Path $aibRoleImageCreationPath -Raw) -replace 'Azure Image Builder Service Image Creation Role', $imageRoleDefName) | Set-Content -Path $aibRoleImageCreationPath
 
-	# Create a role definition
+	#region Create a role definition
 	Write-Verbose -Message "Creating '$imageRoleDefName' Role Definition ..."
 	$RoleDefinition = New-AzRoleDefinition -InputFile $aibRoleImageCreationPath
+	#endregion
 
 	# Grant the role definition to the VM Image Builder service principal
 	Write-Verbose -Message "Assigning '$($RoleDefinition.Name)' Role to '$($AssignedIdentity.Name)' ..."
-	Do {
-		Write-Verbose -Message "Sleeping 10 seconds ..."
-		Start-Sleep -Seconds 10
-		$RoleAssignment = New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $ResourceGroup.ResourceId -ErrorAction Ignore #-Debug
-	} While ($null -eq $RoleAssignment)
-  
+	$Scope = $ResourceGroup.ResourceId
+	<#
+    if (-not(Get-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $Scope)) {
+        Write-Verbose -Message "Assigning the '$($RoleDefinition.Name)' RBAC role to the '$($AssignedIdentity.PrincipalId)' System Assigned Managed Identity"
+        $RoleAssignment = New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $Scope
+        Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+    } else {
+        Write-Verbose -Message "The '$($RoleDefinition.Name)' RBAC role is already assigned to the '$($AssignedIdentity.PrincipalId)' System Assigned Managed Identity"
+    } 
+    #> 
+	$Parameters = @{
+		ObjectId           = $AssignedIdentity.PrincipalId
+		RoleDefinitionName = $RoleDefinition.Name
+		Scope              = $Scope
+	}
+
+	While (-not(Get-AzRoleAssignment @Parameters)) {
+		Write-Verbose -Message "Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
+		$RoleAssignment = New-AzRoleAssignment @Parameters
+		Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+		if ($null -eq $RoleAssignment) {
+			Write-Verbose -Message "Sleeping 30 seconds"
+			Start-Sleep -Seconds 30
+		}
+	}
+	#endregion
+	#endregion
 	#endregion
 
 	#region Create an Azure Compute Gallery
@@ -150,14 +193,11 @@ function New-AzureComputeGallery {
 
 	#region Template #1 via a customized JSON file
 	#Based on https://github.com/Azure/azvmimagebuilder/tree/main/solutions/14_Building_Images_WVD
-	# Create the gallery definition
-	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefName01' (From Customized JSON)..."
-	$GalleryImageDefinition01 = New-AzGalleryImageDefinition -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -Location $location -Name $imageDefName01 -OsState generalized -OsType Windows -Publisher 'Contoso' -Offer 'Windows' -Sku 'avd-win11-custom' -HyperVGeneration V2
 
 	#region Download and configure the template
 	#$templateUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/14_Building_Images_WVD/armTemplateWVD.json"
 	#$templateFilePath = "armTemplateWVD.json"
-	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVD-v6.json"
+	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVD-v2.json"
 	$templateFilePath = Join-Path -Path $env:TEMP -ChildPath $(Split-Path $templateUrl -Leaf)
 	#Generate a unique file name 
 	$templateFilePath = $templateFilePath -replace ".json$", "_$timeInt.json"
@@ -167,14 +207,47 @@ function New-AzureComputeGallery {
 
     ((Get-Content -Path $templateFilePath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $templateFilePath
     ((Get-Content -Path $templateFilePath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $templateFilePath
-	#((Get-Content -path $templateFilePath -Raw) -replace '<region>',$location) | Set-Content -Path $templateFilePath
+	#((Get-Content -Path $templateFilePath -Raw) -replace '<region>',$location) | Set-Content -Path $templateFilePath
     ((Get-Content -Path $templateFilePath -Raw) -replace '<runOutputName>', $runOutputName01) | Set-Content -Path $templateFilePath
 
     ((Get-Content -Path $templateFilePath -Raw) -replace '<imageDefName>', $imageDefName01) | Set-Content -Path $templateFilePath
     ((Get-Content -Path $templateFilePath -Raw) -replace '<sharedImageGalName>', $GalleryName) | Set-Content -Path $templateFilePath
-    ((Get-Content -Path $templateFilePath -Raw) -replace '<targetRegions>', $(ConvertTo-Json -InputObject $TargetRegionsettings)) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<TargetRegions>', $(ConvertTo-Json -InputObject $TargetRegionSettings)) | Set-Content -Path $templateFilePath
     ((Get-Content -Path $templateFilePath -Raw) -replace '<imgBuilderId>', $AssignedIdentity.Id) | Set-Content -Path $templateFilePath
     ((Get-Content -Path $templateFilePath -Raw) -replace '<version>', $version) | Set-Content -Path $templateFilePath
+
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<publisher>', $SrcObjParams1.Publisher) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<offer>', $SrcObjParams1.Offer) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<sku>', $SrcObjParams1.sku) | Set-Content -Path $templateFilePath
+	#endregion
+
+	#region Create the gallery definition
+	$GalleryParams = @{
+		GalleryName       = $GalleryName
+		ResourceGroupName = $ResourceGroupName
+		Location          = $location
+		Name              = $imageDefName01
+		OsState           = 'generalized'
+		OsType            = 'Windows'
+		Publisher         = "{0}-json" -f $SrcObjParams2.Publisher
+		Offer             = "{0}-json" -f $SrcObjParams2.Offer
+		Sku               = "{0}-json" -f $SrcObjParams2.Sku
+		HyperVGeneration  = 'V2'
+	}
+	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefName01' (From Customized JSON)..."
+	$Result = (Get-Content -Path $templateFilePath -Raw) -replace "`r|`n" -replace "\s+", ' ' -match '"source".*(?<Source>{.*}),\s+"customize"'
+	if ($Result) {
+		$Source = $Matches["Source"] | ConvertFrom-Json
+		$GalleryImageDefinition01 = New-AzGalleryImageDefinition @GalleryParams
+	}
+	else {
+		$GalleryParams = @{
+			$GalleryParams['Publisher'] = 'Contoso'
+			$GalleryParams['Offer']     = 'Windows'
+			$GalleryParams['Sku']       = 'Windows Client'
+		}
+		$GalleryImageDefinition01 = New-AzGalleryImageDefinition @GalleryParams
+	}
 	#endregion
 
 	#region Submit the template
@@ -197,34 +270,37 @@ function New-AzureComputeGallery {
 		Name              = $imageDefName02
 		OsState           = 'generalized'
 		OsType            = 'Windows'
-		Publisher         = 'Contoso'
-		Offer             = 'Windows'
-		Sku               = 'avd-win11-m365'
+		Publisher         = "{0}-posh" -f $SrcObjParams2.Publisher
+		Offer             = "{0}-posh" -f $SrcObjParams2.Offer
+		Sku               = "{0}-posh" -f $SrcObjParams2.Sku
 		HyperVGeneration  = 'V2'
 	}
-	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefName02' (From A Market Place Image)..."
+	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefName02' (From Powershell)..."
 	$GalleryImageDefinition02 = New-AzGalleryImageDefinition @GalleryParams
 
-	$SrcObjParams = @{
-		PlatformImageSource = $true
-		Publisher           = 'MicrosoftWindowsDesktop'
-		Offer               = 'Office-365'    
-		Sku                 = 'win11-24h2-avd-m365'  
-		Version             = 'latest'
-	}
 	Write-Verbose -Message "Creating Azure Image Builder Template Source Object  ..."
-	$srcPlatform = New-AzImageBuilderTemplateSourceObject @SrcObjParams
+	$srcPlatform = New-AzImageBuilderTemplateSourceObject @SrcObjParams2 -PlatformImageSource
+
+	<# 
+    #Optional : Get Virtual Machine publisher, Image Offer, Sku and Image
+    $ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq $SrcObjParams2.Publisher}
+    $ImageOffer = Get-AzVMImageOffer -Location $Location -publisher $ImagePublisherName.PublisherName | Where-Object -FilterScript { $_.Offer  -eq $SrcObjParams2.Offer}
+    $ImageSku = Get-AzVMImageSku -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer | Where-Object -FilterScript { $_.Skus  -eq $SrcObjParams2.Sku}
+    $AllImages = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer -sku $ImageSku.Skus | Sort-Object -Property Version -Descending
+    $LatestImage = $AllImages | Select-Object -First 1
+    #>
+
 
 	$disObjParams = @{
 		SharedImageDistributor = $true
 		GalleryImageId         = "$($GalleryImageDefinition02.Id)/versions/$version"
-		ArtifactTag            = @{source = 'avd-win11'; baseosimg = 'windows11' }
+		ArtifactTag            = @{Publisher = $SrcObjParams2.Publisher; Offer = $SrcObjParams2.Publisher; Sku = $SrcObjParams2.Publisher }
 
 		# 1. Uncomment following line for a single region deployment.
 		#ReplicationRegion = $location
 
 		# 2. Uncomment following line if the custom image should be replicated to another region(s).
-		TargetRegion           = $targetRegionSettings
+		TargetRegion           = $TargetRegionSettings
 
 		RunOutputName          = $runOutputName02
 		ExcludeFromLatest      = $false
@@ -277,8 +353,8 @@ function New-AzureComputeGallery {
 	$ImgWindowsRestartCustomizerParams = @{  
 		RestartCustomizer   = $true  
 		Name                = 'WindowsRestart'
-		RestartCheckCommand = 'powershell -command "& {Write-Output "restarted."}"'
 		RestartCommand      = 'powershell -Command "& {Restart-Computer -Force}"'
+		RestartCheckCommand = 'powershell -command "& {Write-Output "restarted."}"'
 		RestartTimeout      = '10m'
 	}
 
@@ -311,6 +387,7 @@ function New-AzureComputeGallery {
 		UserAssignedIdentityId = $AssignedIdentity.Id
 		VMProfileVmsize        = "Standard_D4s_v5"
 		VMProfileOsdiskSizeGb  = 127
+		BuildTimeoutInMinute   = 240
 	}
 	Write-Verbose -Message "Creating Azure Image Builder Template from '$imageTemplateName02' Image Template Name ..."
 	$ImageBuilderTemplate = New-AzImageBuilderTemplate @ImgTemplateParams
@@ -320,9 +397,12 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "Starting Image Builder Template from '$imageTemplateName02' (As Job) ..."
 	$Jobs += Start-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName02 -AsJob
 	#endregion
-
+	#endregion
+	
+	#region Waiting for jobs to complete
 	Write-Verbose -Message "Waiting for jobs to complete ..."
 	$Jobs | Wait-Job | Out-Null
+	#endregion
 
 	#region imageTemplateName01 status 
 	#To determine whenever or not the template upload process was successful, run the following command.
@@ -374,10 +454,12 @@ function New-AzureComputeGallery {
     #>
 	#endregion
   
+	#region Waiting for jobs to complete
 	$Jobs | Wait-Job | Out-Null
 	Write-Verbose -Message "Removing jobs ..."
 	$Jobs | Remove-Job -Force
 	return $Gallery
+	#endregion
 }
 #endregion
 
@@ -397,6 +479,7 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 }
 #endregion
 
+
 #region To use Azure Image Builder, you have to register for the providers and to ensure that RegistrationState will be set to Registered.
 $RequiredResourceProviders = 'Microsoft.VirtualMachineImages', 'Microsoft.Storage', 'Microsoft.Compute', 'Microsoft.KeyVault', 'Microsoft.ManagedIdentity'
 $Jobs = foreach ($CurrentRequiredResourceProvider in $RequiredResourceProviders) {
@@ -410,7 +493,7 @@ While (Get-AzResourceProvider -ProviderNamespace $RequiredResourceProviders | Wh
 $Jobs | Remove-Job -Force
 #endregion
 
-$AzureComputeGallery = New-AzureComputeGallery -Verbose
+$AzureComputeGallery = New-AzureComputeGallery -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
 $AzureComputeGallery
 
 $EndTime = Get-Date
