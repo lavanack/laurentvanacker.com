@@ -284,26 +284,44 @@ function New-PsAvdStopInactiveSessionHostAzFunction {
 
     #region RBAC Assignment
     #region 'Virtual Machine Contributor' RBAC Assignment
-    $VirtualMachineContributorRole = Get-AzRoleDefinition "Virtual Machine Contributor"
+    $RoleDefinition = Get-AzRoleDefinition "Virtual Machine Contributor"
+    $objId = $FunctionApp.IdentityPrincipalId
+    $SubscriptionId = $AzContext.Subscription.Id
     $Scope = "/subscriptions/$SubscriptionId"
-    if (-not(Get-AzRoleAssignment -ObjectId $FunctionApp.IdentityPrincipalId -RoleDefinitionName $VirtualMachineContributorRole.Name -Scope $Scope)) {
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($VirtualMachineContributorRole.Name)' RBAC role to the '$($FunctionApp.IdentityPrincipalId)' System Assigned Managed Identity"
-        $RoleAssignment = New-AzRoleAssignment -ObjectId $FunctionApp.IdentityPrincipalId -RoleDefinitionName $VirtualMachineContributorRole.Name -Scope $Scope
+
+    $Parameters = @{
+        ObjectId           = $objId
+		RoleDefinitionName = $RoleDefinition.Name
+		Scope              = $Scope
+    }
+
+    While (-not(Get-AzRoleAssignment @Parameters)) {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' scope"
+        $RoleAssignment = New-AzRoleAssignment @Parameters
         Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-    } else {
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The '$($VirtualMachineContributorRole.Name)' RBAC role is already assigned to the '$($FunctionApp.IdentityPrincipalId)' System Assigned Managed Identity"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+        Start-Sleep -Seconds 30
     }
     #endregion
 
     #region 'Desktop Virtualization Reader' RBAC Assignment
-    $VirtualMachineContributorRole = Get-AzRoleDefinition "Virtual Machine Contributor"
+    $RoleDefinition = Get-AzRoleDefinition "Desktop Virtualization Reader"
+    $objId = $FunctionApp.IdentityPrincipalId
+    $SubscriptionId = $AzContext.Subscription.Id
     $Scope = "/subscriptions/$SubscriptionId"
-    if (-not(Get-AzRoleAssignment -ObjectId $FunctionApp.IdentityPrincipalId -RoleDefinitionName $VirtualMachineContributorRole.Name -Scope $Scope)) {
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($VirtualMachineContributorRole.Name)' RBAC role to the '$($FunctionApp.IdentityPrincipalId)' System Assigned Managed Identity"
-        $RoleAssignment = New-AzRoleAssignment -ObjectId $FunctionApp.IdentityPrincipalId -RoleDefinitionName $VirtualMachineContributorRole.Name -Scope $Scope
+
+    $Parameters = @{
+        ObjectId           = $objId
+		RoleDefinitionName = $RoleDefinition.Name
+		Scope              = $Scope
+    }
+
+    While (-not(Get-AzRoleAssignment @Parameters)) {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' scope"
+        $RoleAssignment = New-AzRoleAssignment @Parameters
         Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-    } else {
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The '$($VirtualMachineContributorRole.Name)' RBAC role is already assigned to the '$($FunctionApp.IdentityPrincipalId)' System Assigned Managed Identity"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+        Start-Sleep -Seconds 30
     }
     #endregion
     #endregion
