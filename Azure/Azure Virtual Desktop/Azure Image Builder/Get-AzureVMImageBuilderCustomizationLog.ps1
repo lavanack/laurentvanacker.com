@@ -63,6 +63,9 @@ function Get-AzureVMImageBuilderCustomizationLog {
                     Write-Verbose -Message "Destination File: '$DestinationFile' ..."
                     $DestinationFile
                 }
+            } else {
+                Write-Verbose -Message "Removing '$CurrentDestination' (No customization.log file found/processed) ..."
+                $CurrentDestination | Remove-Item -Force
             }
         }
         catch {}

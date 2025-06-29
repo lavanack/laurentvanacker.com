@@ -49,6 +49,7 @@ if (-not(Test-Path -Path $PFXFilePath)) {
 }
 
 #Getting notepad++ latest version if possible
+<#
 $HTMLResponse = Invoke-WebRequest -Uri "https://notepad-plus-plus.org/downloads/"
 if ($HTMLResponse.Content -match "Current Version (?<version>\d\.\d(\.\d)?)") {
     #Get the latest version
@@ -59,8 +60,11 @@ else {
     #Updated : December 14, 2024
     $NotepadPlusPlusVersion = "8.7.4"
 }
-#Downloading notepad++ 
 $NotepadPlusPlusUri = "https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v$NotepadPlusPlusVersion/npp.$NotepadPlusPlusVersion.Installer.x64.exe"
+#>
+$NotepadPlusPlusVersion = (Invoke-RestMethod  -Uri "https://api.github.com/repos/notepad-plus-plus/notepad-plus-plus/releases/latest").tag_name -replace "v"
+#Downloading notepad++ 
+$NotepadPlusPlusUri = $(((Invoke-RestMethod  -Uri "https://api.github.com/repos/notepad-plus-plus/notepad-plus-plus/releases/latest").assets | Where-Object -FilterScript { $_.name.EndsWith("x64.exe") }).browser_download_url)
 $Outfile = Join-Path -Path $CurrentDir -ChildPath $(Split-Path -Path $NotepadPlusPlusUri -Leaf)
 If (-not(Test-Path -Path $Outfile)) {
     Write-Verbose -Message "Downloading Notepad++ v$NotepadPlusPlusVersion ..."

@@ -186,3 +186,7 @@ Set-ItemProperty -Path  'HKCU:\Software\Microsoft\Office\16.0\Outlook\Options\Ca
 #region Windows Subsystem for Linux
 wsl --install
 #endregion
+
+#region Updating Powershell Help
+Update-Help -Force -Verbose
+#endregion
