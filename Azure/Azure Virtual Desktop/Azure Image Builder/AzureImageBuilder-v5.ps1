@@ -271,7 +271,7 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "`$imageTemplateName01: $imageTemplateName01"
 
 	#Image Market Place Image + customizations: VSCode
-	$imageDefName02 = "{0}-powershell-vscode" -f $SrcObjParams2.Sku
+	$imageDefName02 = "{0}-posh-vscode" -f $SrcObjParams2.Sku
 	$imageTemplateName02 = "{0}-template-{1}" -f $imageDefName02, $timeInt
 	Write-Verbose -Message "`$imageDefName02: $imageDefName02"
 	Write-Verbose -Message "`$imageTemplateName02: $imageTemplateName02"
@@ -469,7 +469,7 @@ function New-AzureComputeGallery {
 	#region Download and configure the template
 	#$templateUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/14_Building_Images_WVD/armTemplateWVD.json"
 	#$templateFilePath = "armTemplateWVD.json"
-	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVD-v4.json"
+	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVD-v5.json"
 	$templateFilePath = Join-Path -Path $env:TEMP -ChildPath $(Split-Path $templateUrl -Leaf)
 	#Generate a unique file name 
 	$templateFilePath = $templateFilePath -replace ".json$", "_$timeInt.json"
@@ -545,9 +545,9 @@ function New-AzureComputeGallery {
 		Name              = $imageDefName02
 		OsState           = 'generalized'
 		OsType            = 'Windows'
-		Publisher         = "{0}-powershell" -f $SrcObjParams2.Publisher
-		Offer             = "{0}-powershell" -f $SrcObjParams2.Offer
-		Sku               = "{0}-powershell" -f $SrcObjParams2.Sku
+		Publisher         = "{0}-posh" -f $SrcObjParams2.Publisher
+		Offer             = "{0}-posh" -f $SrcObjParams2.Offer
+		Sku               = "{0}-posh" -f $SrcObjParams2.Sku
 		HyperVGeneration  = 'V2'
 	}
 	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefName02' (From Powershell)..."
