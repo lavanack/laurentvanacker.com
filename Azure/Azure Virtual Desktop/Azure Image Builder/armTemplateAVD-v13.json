@@ -57,6 +57,11 @@
                     },
                     {
                         "type": "Shell",
+                        "name": "InstallPowershell",
+                        "scriptUri": "https://raw.githubusercontent.com/PowerShell/PowerShell/master/tools/install-powershell.sh"
+                    },
+                    {
+                        "type": "Shell",
                         "name": "InstallUpgrades",
                         "inline": [
                             "sudo apt install unattended-upgrades"
