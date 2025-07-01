@@ -15,6 +15,7 @@
   - [AzureImageBuilder-v10.ps1](#azureimagebuilder-v10ps1)
   - [AzureImageBuilder-v11.ps1](#azureimagebuilder-v11ps1)
   - [AzureImageBuilder-v12.ps1](#azureimagebuilder-v12ps1)
+  - [AzureImageBuilder-v13.ps1](#azureimagebuilder-v13ps1)
   - [AzureImageBuilder with CMK.ps1](#azureimagebuilder-with-cmkps1)
   - [New-AzureComputeGalleryVM.ps1](#new-azurecomputegalleryvmps1)
   - [Get-AzureVMImageBuilderCustomizationLog.ps1](#get-azurevmimagebuildercustomizationlogps1)
@@ -96,11 +97,15 @@ The [AzureImageBuilder-v10.ps1](AzureImageBuilder-v10.ps1) script is an update o
 
 ## AzureImageBuilder-v11.ps1
 
-The [AzureImageBuilder-v11.ps1](AzureImageBuilder-v11.ps1) script is an update of of the [AzureImageBuilder.ps1](AzureImageBuilder.ps1) script but using a Windows Server 2016 image and with a [Windows restart customizer](<https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-json?tabs=json%2Cazure-powershell#windows-restart-customizer>) (like the [AzureImageBuilder-v6.ps1](AzureImageBuilder-v6.ps1) script) because we need to enable TLS 1.2 for this OS and we have to restart the VM after to apply this settings at the OS level. Without this restart the TLS 1.2 settings are not applied and the VM is not able to connect to GitHub and PowerShell Gallery fir the other customizations.
+The [AzureImageBuilder-v11.ps1](AzureImageBuilder-v11.ps1) script is an update of the [AzureImageBuilder.ps1](AzureImageBuilder.ps1) script but using a Windows Server 2016 image and with a [Windows restart customizer](<https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-json?tabs=json%2Cazure-powershell#windows-restart-customizer>) (like the [AzureImageBuilder-v6.ps1](AzureImageBuilder-v6.ps1) script) because we need to enable TLS 1.2 for this OS and we have to restart the VM after to apply this settings at the OS level. Without this restart the TLS 1.2 settings are not applied and the VM is not able to connect to GitHub and PowerShell Gallery fir the other customizations.
 
 ## AzureImageBuilder-v12.ps1
 
-The [AzureImageBuilder-v12.ps1](AzureImageBuilder-v12.ps1) script is an update of of the [AzureImageBuilder.ps1](AzureImageBuilder.ps1) script but using a Windows 11 24h2 mono-session image (tested for a customer scenario).
+The [AzureImageBuilder-v12.ps1](AzureImageBuilder-v12.ps1) script is an update of the [AzureImageBuilder.ps1](AzureImageBuilder.ps1) script but using a Windows 11 24h2 mono-session image (tested for a customer scenario).
+
+## AzureImageBuilder-v13.ps1
+
+The [AzureImageBuilder-v13.ps1](AzureImageBuilder-v13.ps1) script is similar to [AzureImageBuilder.ps1](AzureImageBuilder.ps1) script (with different customization scripts) but using an Ubuntu mono-session image (tested for a customer scenario).
 
 ## AzureImageBuilder with CMK.ps1
 
