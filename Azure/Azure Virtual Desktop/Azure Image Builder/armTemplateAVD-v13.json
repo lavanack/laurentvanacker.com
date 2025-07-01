@@ -1,0 +1,84 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "imageTemplateName": {
+            "type": "string"
+        },
+        "api-version": {
+            "type": "string"
+        },
+        "svclocation": {
+            "type": "string"
+        }
+    },
+
+    "variables": {
+    },
+
+
+    "resources": [
+        {
+            "name": "[parameters('imageTemplateName')]",
+            "type": "Microsoft.VirtualMachineImages/imageTemplates",
+            "apiVersion": "[parameters('api-version')]",
+            "location": "[parameters('svclocation')]",
+            "dependsOn": [],
+            "tags": {
+                "imagebuilderTemplate": "AzureImageBuilderSIG",
+                "userIdentity": "enabled"
+            },
+            "identity": {
+                "type": "UserAssigned",
+                "userAssignedIdentities": {
+                    "<imgBuilderId>": {}
+
+                }
+            },
+
+            "properties": {
+                "buildTimeoutInMinutes": 240,
+
+                "vmProfile": {
+                    "vmSize": "Standard_D4s_v5",
+                    "osDiskSizeGB": 127
+                },
+
+                "source": {
+                    "type": "PlatformImage",
+                    "publisher": "<publisher>",
+                    "offer": "<offer>",
+                    "sku": "<sku>",
+                    "version": "latest"
+                },
+                "customize": [
+                    {
+                        "type": "Shell",
+                        "name": "RunScriptFromSource",
+                        "scriptUri": "https://raw.githubusercontent.com/danielsollondon/azvmimagebuilder/master/quickquickstarts/customizeScript.sh"
+                    },
+                    {
+                        "type": "Shell",
+                        "name": "InstallUpgrades",
+                        "inline": [
+                            "sudo apt install unattended-upgrades"
+                        ]
+                    }
+                ],
+                "distribute": [
+                    {
+                        "type": "SharedImage",
+                        "galleryImageId": "/subscriptions/<subscriptionID>/resourceGroups/<rgName>/providers/Microsoft.Compute/galleries/<sharedImageGalName>/images/<imageDefName>/versions/<version>",
+                        "runOutputName": "<runOutputName>",
+                        "artifactTags": {
+                            "publisher": "<publisher>",
+                            "offer": "<offer>",
+                            "sku": "<sku>"
+                        },
+                        "targetRegions": <targetRegions>
+                    }
+                ]
+            }
+        }
+    ]
+}
