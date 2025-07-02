@@ -51,7 +51,7 @@ function New-AzP2SVPN {
     $VirtualMachinePrefix = $ResourceTypeShortNameHT["Compute/virtualMachines"].ShortName
     $VirtualNetworkPrefix = $ResourceTypeShortNameHT["Network/virtualNetworks"].ShortName
     $SubnetPrefix = $ResourceTypeShortNameHT["Network/virtualnetworks/subnets"].ShortName
-    $VirtualNetworkGatewaysPrefix = $ResourceTypeShortNameHT["Network/virtualNetworkGateways"].ShortName
+    $VirtualNetworkGatewayPrefix = $ResourceTypeShortNameHT["Network/virtualNetworkGateways"].ShortName
     $ResourceGroupPrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
     $publicIPAddressPrefix = $ResourceTypeShortNameHT["Network/publicIPAddresses"].ShortName
     $Project = "p2s"
@@ -62,23 +62,23 @@ function New-AzP2SVPN {
     $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
     $VirtualNetworkName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $VirtualNetworkPrefix, $Project, $Role, $LocationShortName, $Instance                       
     $SubnetName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $SubnetPrefix, $Project, $Role, $LocationShortName, $Instance                       
-    $VirtualNetworkGatewaysName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $VirtualNetworkGatewaysPrefix, $Project, $Role, $LocationShortName, $Instance                       
-    $GatewayIpConfigName = "{0}-ipconfig-{1:D$DigitNumber}" -f $VirtualNetworkGatewaysPrefix, $Instance         
+    $VirtualNetworkGatewayName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $VirtualNetworkGatewayPrefix, $Project, $Role, $LocationShortName, $Instance                       
+    $GatewayIpConfigName = "{0}-ipconfig-{1:D$DigitNumber}" -f $VirtualNetworkGatewayPrefix, $Instance         
     $PublicIpAddressName = "{0}-{1}" -f $publicIPAddressPrefix, $GatewayIpConfigName
     $ResourceGroupName = $ResourceGroupName.ToLower()
     $VirtualNetworkName = $VirtualNetworkName.ToLower()
     $SubnetName = $SubnetName.ToLower()
-    $VirtualNetworkGatewaysName = $VirtualNetworkGatewaysName.ToLower()
+    $VirtualNetworkGatewayName = $VirtualNetworkGatewayName.ToLower()
     $GatewayIpConfigName = $GatewayIpConfigName.ToLower()
     $PublicIpAddressName = $PublicIpAddressName.ToLower()
 
     $VPNClientAddressPool = "172.16.201.0/24"
-    $subnetConfigFrontendName = "Frontend"
-    #$subnetConfigFrontendName = $SubnetName
-    $subnetConfigGWName = "GatewaySubnet"
+    #$SubnetConfigFrontendName = "Frontend"
+    $SubnetConfigFrontendName = $SubnetName
+    $SubnetConfigGWName = "GatewaySubnet"
     $vnetAddressPrefix = "10.1.0.0/16"
-    $subnetConfigFrontendAddressPrefix = "10.1.0.0/24"
-    $subnetConfigGWAddressPrefix = "10.1.255.0/27"
+    $SubnetConfigFrontendAddressPrefix = "10.1.0.0/24"
+    $SubnetConfigGWAddressPrefix = "10.1.255.0/27"
     $ClearTextPassword = 'P@ssw0rd'
     $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
     #endregion
@@ -88,22 +88,23 @@ function New-AzP2SVPN {
     #region Create a VNet
     Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore | Remove-AzResourceGroup -Force
     $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location
-    $vnet = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Location $Location -Name $VirtualNetworkName -AddressPrefix $vnetAddressPrefix
-    $subnetConfigFrontend = Add-AzVirtualNetworkSubnetConfig -Name $subnetConfigFrontendName -AddressPrefix $subnetConfigFrontendAddressPrefix -VirtualNetwork $vnet
-    $subnetConfigGW = Add-AzVirtualNetworkSubnetConfig -Name $subnetConfigGWName -AddressPrefix $subnetConfigGWAddressPrefix -VirtualNetwork $vnet
-    $vnet | Set-AzVirtualNetwork
+    $VirtualNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Location $Location -Name $VirtualNetworkName -AddressPrefix $vnetAddressPrefix
+    $SubnetConfigFrontend = Add-AzVirtualNetworkSubnetConfig -Name $SubnetConfigFrontendName -AddressPrefix $SubnetConfigFrontendAddressPrefix -VirtualNetwork $VirtualNetwork
+    $SubnetConfigGW = Add-AzVirtualNetworkSubnetConfig -Name $SubnetConfigGWName -AddressPrefix $SubnetConfigGWAddressPrefix -VirtualNetwork $VirtualNetwork
+    $VirtualNetwork | Set-AzVirtualNetwork
     #endregion
 
     #region Create the VPN gateway
-    $gwpip = New-AzPublicIpAddress -Name $PublicIpAddressName -ResourceGroupName $ResourceGroupName -Location $Location -AllocationMethod Static -Sku Standard
-    $vnet = Get-AzVirtualNetwork -Name $VirtualNetworkName -ResourceGroupName $ResourceGroupName
-    $gwsubnet = Get-AzVirtualNetworkSubnetConfig -Name $subnetConfigGWName -VirtualNetwork $vnet
-    $gwipconfig = New-AzVirtualNetworkGatewayIpConfig -Name $GatewayIpConfigName -SubnetId $gwsubnet.Id -PublicIpAddressId $gwpip.Id
-    $Gateway = New-AzVirtualNetworkGateway -Name $VirtualNetworkGatewaysName -ResourceGroupName $ResourceGroupName -Location $Location -IpConfigurations $gwipconfig -GatewayType Vpn -VpnType RouteBased -EnableBgp $false -GatewaySku VpnGw2 -VpnGatewayGeneration "Generation2" -VpnClientProtocol IkeV2,OpenVPN
+    $GatewayPIP = New-AzPublicIpAddress -Name $PublicIpAddressName -ResourceGroupName $ResourceGroupName -Location $Location -AllocationMethod Static -Sku Standard
+    $VirtualNetwork = Get-AzVirtualNetwork -Name $VirtualNetworkName -ResourceGroupName $ResourceGroupName
+    $GatewaySubnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetConfigGWName -VirtualNetwork $VirtualNetwork
+    $GatewayIPConfig = New-AzVirtualNetworkGatewayIpConfig -Name $GatewayIpConfigName -SubnetId $GatewaySubnet.Id -PublicIpAddressId $GatewayPIP.Id
+    #$Gateway = New-AzVirtualNetworkGateway -Name $VirtualNetworkGatewayName -ResourceGroupName $ResourceGroupName -Location $Location -IpConfigurations $GatewayIPConfig -GatewayType Vpn -VpnType RouteBased -EnableBgp $false -GatewaySku VpnGw2 -VpnGatewayGeneration "Generation2" -VpnClientProtocol IkeV2,OpenVPN
+    $Gateway = New-AzVirtualNetworkGateway -Name $VirtualNetworkGatewayName -ResourceGroupName $ResourceGroupName -Location $Location -IpConfigurations $GatewayIPConfig -GatewayType Vpn -VpnType RouteBased -EnableBgp $false -GatewaySku VpnGw1 -VpnGatewayGeneration "Generation1" -VpnClientProtocol IkeV2,OpenVPN
     #endregion
 
     #region Add the VPN client address pool
-    $Gateway = Get-AzVirtualNetworkGateway -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkGatewaysName
+    $Gateway = Get-AzVirtualNetworkGateway -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkGatewayName
     Set-AzVirtualNetworkGateway -VirtualNetworkGateway $Gateway -VpnClientAddressPool $VPNClientAddressPool
     #endregion
 
@@ -165,19 +166,23 @@ function New-AzP2SVPN {
     $CertBase64 = [system.convert]::ToBase64String($cert.RawData)
 
     $P2SRootCertName = Split-Path -Path $RootCertFilePath -Leaf
-    Add-AzVpnClientRootCertificate -VpnClientRootCertificateName $P2SRootCertName -VirtualNetworkGatewayname $VirtualNetworkGatewaysName -ResourceGroupName $ResourceGroupName -PublicCertData $CertBase64
+    Add-AzVpnClientRootCertificate -VpnClientRootCertificateName $P2SRootCertName -VirtualNetworkGatewayname $VirtualNetworkGatewayName -ResourceGroupName $ResourceGroupName -PublicCertData $CertBase64
     #endregion
 
     #region Generate and download the VPN client profile configuration package
-    $profile = New-AzVpnClientConfiguration -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkGatewaysName -AuthenticationMethod "EapTls"
-    $DestinationFile = Join-Path -Path $DestinationFolder -ChildPath $((Split-Path $profile.VPNProfileSASUrl -Leaf) -replace "\?.*$")
+    $profile = New-AzVpnClientConfiguration -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkGatewayName -AuthenticationMethod "EapTls"
+    #Removing the query string
+	$DestinationFile = Join-Path -Path $DestinationFolder -ChildPath $((Split-Path $profile.VPNProfileSASUrl -Leaf) -replace "\?.*$")
+    #Adding a timestamp to the filename
     $DestinationFile = $DestinationFile -replace "(\.\w*)$", $('_{0}$1' -f $TimeStamp)
+    #Creating a dedicater folder with the same name that the filename above but without the extension (for extracting the files from the downloaded zip file)
     $DestinationPath = $DestinationFile -replace "(\.\w*)$", $('_{0}' -f $TimeStamp)
 
     Start-BitsTransfer -Source $profile.VPNProfileSASUrl -Destination $DestinationFile
     Expand-Archive -Path $DestinationFile -DestinationPath $DestinationPath
     $VpnProfileSetupPowerShellScript = (Get-ChildItem -Path $DestinationPath -Filter VpnProfileSetup.ps1 -Recurse).FullName
-    & $VpnProfileSetupPowerShellScript -Force
+    #Return an error if the VpnConnection doesn't exist (around line 61 - an -ErrorAction Ignore could solve this)
+	& $VpnProfileSetupPowerShellScript -Force 2>&1 | Out-Null
     #endregion
 
     if ($Connect) {
