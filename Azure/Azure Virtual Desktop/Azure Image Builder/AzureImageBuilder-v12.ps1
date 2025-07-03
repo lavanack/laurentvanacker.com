@@ -450,7 +450,7 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 
 
 #region To use Azure Image Builder, you have to register for the providers and to ensure that RegistrationState will be set to Registered.
-$RequiredResourceProviders = 'Microsoft.VirtualMachineImages', 'Microsoft.Storage', 'Microsoft.Compute', 'Microsoft.KeyVault', 'Microsoft.ManagedIdentity'
+$RequiredResourceProviders = $RequiredResourceProviders = 'Microsoft.VirtualMachineImages', 'Microsoft.Storage', 'Microsoft.Compute', 'Microsoft.KeyVault', 'Microsoft.ManagedIdentity', 'Microsoft.Network', 'Microsoft.ContainerInstance'
 $Jobs = foreach ($CurrentRequiredResourceProvider in $RequiredResourceProviders) {
 	Register-AzResourceProvider -ProviderNamespace $CurrentRequiredResourceProvider -AsJob
 }
