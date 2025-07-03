@@ -105,6 +105,10 @@ function Add-AzP2SVPN {
     #region Variables
     $TimeStamp = "{0:yyyyMMddHHmmss}" -f (Get-Date)
 
+    $ResourceGroupName = $VirtualNetwork.ResourceGroupName
+    $VirtualNetworkName = $VirtualNetwork.Name
+    $Location = $VirtualNetwork.Location
+
     $LocationShortName = $ResourceLocationShortNameHT[$Location].shortName
     #Naming convention based on https://github.com/mspnp/AzureNamingTool/blob/main/src/repository/resourcetypes.json
     $AzureVMNameMaxLength = $ResourceTypeShortNameHT["Compute/virtualMachines"].lengthMax
@@ -112,10 +116,6 @@ function Add-AzP2SVPN {
     $VirtualNetworkPrefix = $ResourceTypeShortNameHT["Network/virtualNetworks"].ShortName
     $VirtualNetworkGatewayPrefix = $ResourceTypeShortNameHT["Network/virtualNetworkGateways"].ShortName
     $publicIPAddressPrefix = $ResourceTypeShortNameHT["Network/publicIPAddresses"].ShortName
-
-    $ResourceGroupName = $VirtualNetwork.ResourceGroupName
-    $VirtualNetworkName = $VirtualNetwork.Name
-    $Location = $VirtualNetwork.Location
 
     if ($VirtualNetworkName -match $("{0}-(?<Project>\w+)-(?<Role>\w+)-(?<LocationShortName>\w+)-(?<Instance>\d+)" -f $VirtualNetworkPrefix)) {
         $Project = $Matches["Project"]
