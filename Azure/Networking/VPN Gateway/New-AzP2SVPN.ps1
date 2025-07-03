@@ -105,10 +105,6 @@ function Add-AzP2SVPN {
     #region Variables
     $TimeStamp = "{0:yyyyMMddHHmmss}" -f (Get-Date)
 
-    $ResourceGroupName = $VirtualNetwork.ResourceGroupName
-    $VirtualNetworkName = $VirtualNetwork.Name
-    $Location = $VirtualNetwork.Location
-
     $LocationShortName = $ResourceLocationShortNameHT[$Location].shortName
     #Naming convention based on https://github.com/mspnp/AzureNamingTool/blob/main/src/repository/resourcetypes.json
     $AzureVMNameMaxLength = $ResourceTypeShortNameHT["Compute/virtualMachines"].lengthMax
@@ -117,12 +113,18 @@ function Add-AzP2SVPN {
     $VirtualNetworkGatewayPrefix = $ResourceTypeShortNameHT["Network/virtualNetworkGateways"].ShortName
     $publicIPAddressPrefix = $ResourceTypeShortNameHT["Network/publicIPAddresses"].ShortName
 
+    $ResourceGroupName = $VirtualNetwork.ResourceGroupName
+    $VirtualNetworkName = $VirtualNetwork.Name
+    $Location = $VirtualNetwork.Location
+
     if ($VirtualNetworkName -match $("{0}-(?<Project>\w+)-(?<Role>\w+)-(?<LocationShortName>\w+)-(?<Instance>\d+)" -f $VirtualNetworkPrefix)) {
         $Project = $Matches["Project"]
         $Role = $Matches["Role"]
         #$LocationShortName = $Matches["LocationShortName"]
         $Instance = $Matches["Instance"]
         $DigitNumber = $Instance.Length
+        #Taking the 2 first tokens  vNet adress prefix and adding a *.255.0/27 subnet mask for the gateway subnet
+        $SubnetConfigGatewayAddressPrefix = $VirtualNetwork.AddressSpace.AddressPrefixes -replace "(\d+)\.(\d+)\.(\d+)\.(\d+)/(\d+)", '$1.$2.255.0/27'
     } 
     else {
         $Project = "p2s"
@@ -143,7 +145,6 @@ function Add-AzP2SVPN {
     #$SubnetConfigFrontendName = "Frontend"
     #We take the first subnet as Frontend subnet
     $SubnetConfigGatewayName = "GatewaySubnet"
-    #Taking the 2 first tokens  vNet adress prefix and adding a *.255.0/27 subnet mask for the gateway subnet
     $SubnetConfigGatewayAddressPrefix = $VirtualNetwork.AddressSpace.AddressPrefixes -replace "(\d+)\.(\d+)\.(\d+)\.(\d+)/(\d+)", '$1.$2.255.0/27'
     $ClearTextPassword = 'P@ssw0rd'
     $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
@@ -161,20 +162,15 @@ function Add-AzP2SVPN {
     $VirtualNetwork = Get-AzVirtualNetwork -Name $VirtualNetworkName -ResourceGroupName $ResourceGroupName
     $GatewaySubnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetConfigGatewayName -VirtualNetwork $VirtualNetwork
     $GatewayIPConfig = New-AzVirtualNetworkGatewayIpConfig -Name $GatewayIpConfigName -SubnetId $GatewaySubnet.Id -PublicIpAddressId $GatewayPIP.Id
-    #$Gateway = New-AzVirtualNetworkGateway -Name $VirtualNetworkGatewayName -ResourceGroupName $ResourceGroupName -Location $Location -IpConfigurations $GatewayIPConfig -GatewayType Vpn -VpnType RouteBased -EnableBgp $false -GatewaySku VpnGw2 -VpnGatewayGeneration "Generation2" -VpnClientProtocol IkeV2,OpenVPN
-    $Gateway = New-AzVirtualNetworkGateway -Name $VirtualNetworkGatewayName -ResourceGroupName $ResourceGroupName -Location $Location -IpConfigurations $GatewayIPConfig -GatewayType Vpn -VpnType RouteBased -EnableBgp $false -GatewaySku VpnGw1 -VpnGatewayGeneration "Generation1" -VpnClientProtocol IkeV2, OpenVPN
-    #endregion
-
-    #region Add the VPN client address pool
-    $Gateway = Get-AzVirtualNetworkGateway -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkGatewayName
-    Set-AzVirtualNetworkGateway -VirtualNetworkGateway $Gateway -VpnClientAddressPool $VPNClientAddressPool
+    #$Gateway = New-AzVirtualNetworkGateway -Name $VirtualNetworkGatewayName -ResourceGroupName $ResourceGroupName -Location $Location -IpConfigurations $GatewayIPConfig -GatewayType Vpn -VpnType RouteBased -EnableBgp $false -GatewaySku VpnGw2 -VpnGatewayGeneration "Generation2" -VpnClientProtocol IkeV2,OpenVPN -VpnClientAddressPool $VPNClientAddressPool
+    $Gateway = New-AzVirtualNetworkGateway -Name $VirtualNetworkGatewayName -ResourceGroupName $ResourceGroupName -Location $Location -IpConfigurations $GatewayIPConfig -GatewayType Vpn -VpnType RouteBased -EnableBgp $false -GatewaySku VpnGw1 -VpnGatewayGeneration "Generation1" -VpnClientProtocol IkeV2, OpenVPN -VpnClientAddressPool $VPNClientAddressPool
     #endregion
 
     #region Generate certificates
     #region Root certificate
     $params = @{
         Type              = 'Custom'
-        Subject           = $('CN=P2SRootCert_{0}' -f $Instance)
+        Subject           = 'CN=P2SRootCert'
         KeySpec           = 'Signature'
         KeyExportPolicy   = 'Exportable'
         KeyUsage          = 'CertSign'
@@ -203,8 +199,8 @@ function Add-AzP2SVPN {
     #region Client certificate
     $params = @{
         Type              = 'Custom'
-        Subject           = $('CN=P2SChildCert_{0}' -f $Instance)
-        DnsName           = $('P2SChildCert_{0}' -f $Instance)
+        Subject           = 'CN=P2SChildCert'
+        DnsName           = 'P2SChildCert'
         KeySpec           = 'Signature'
         KeyExportPolicy   = 'Exportable'
         KeyLength         = 2048
