@@ -62,7 +62,7 @@ function New-AzureComputeGallery {
 	$Project = "avd"
 	$Role = "aib"
 	#Timestamp
-	$timeInt = (Get-Date $([datetime]::UtcNow) -UFormat "%s").Split(".")[0]
+	$timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 	$ResourceGroupName = "{0}-{1}-{2}-{3}-{4}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $TimeInt 
 	$ResourceGroupName = $ResourceGroupName.ToLower()
 	Write-Verbose -Message "`$ResourceGroupName: $ResourceGroupName"
