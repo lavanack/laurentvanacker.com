@@ -141,13 +141,15 @@ function New-AzTerraformStateStorageAccountDemo {
     terraform -chdir="$($WorkingDir.FullName)" fmt
     terraform -chdir="$($WorkingDir.FullName)" init
     terraform -chdir="$($WorkingDir.FullName)" plan
+    terraform -chdir="$($WorkingDir.FullName)" validate
     terraform -chdir="$($WorkingDir.FullName)" apply -auto-approve
     #endregion
 
     if ($Destroy) {
         Write-Verbose -Message "`Destroying resources"
-        $null = Remove-Item $WorkingDir -Recurse -Force
         terraform -chdir="$($WorkingDir.FullName)" destroy -auto-approve
+        $null = $WorkingDir | Remove-Item  -Recurse -Force
+        $StorageResourceGroup | Remove-AzResourceGroup -AsJob -Force
     }
 }
 
@@ -161,7 +163,7 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 
 #region Demo for a Terraform State on a StorageAccount
-New-AzTerraformStateStorageAccountDemo -Verbose
+New-AzTerraformStateStorageAccountDemo -Verbose -Destroy
 #endregion
 
 <#
