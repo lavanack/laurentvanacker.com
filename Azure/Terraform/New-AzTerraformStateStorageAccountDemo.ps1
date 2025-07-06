@@ -55,7 +55,7 @@ function Install-Terraform {
     #endregion
 }
 
-function New-AzTerraformStateStorageAccount {
+function New-AzTerraformStateStorageAccountDemo {
     [CmdletBinding(PositionalBinding = $false)]
     param
     (
@@ -129,7 +129,6 @@ function New-AzTerraformStateStorageAccount {
 	((Get-Content -Path $MainTerraformPath -Raw) -replace '<resource_group_name>', $ResourceGroupName) | Set-Content -Path $MainTerraformPath
 	((Get-Content -Path $MainTerraformPath -Raw) -replace '<tf_resource_group_name>', $TFResourceGroupName) | Set-Content -Path $MainTerraformPath
 	((Get-Content -Path $MainTerraformPath -Raw) -replace '<container_name>', $ContainerName) | Set-Content -Path $MainTerraformPath
-    psedit $MainTerraformPath
     #endregion
 
     #region Terraform Setup
@@ -142,6 +141,7 @@ function New-AzTerraformStateStorageAccount {
     #endregion
 
     $null = Remove-Item $WorkingDir -Recurse -Force
+    #terraform -chdir="$($WorkingDir.FullName)" destroy -auto-approve
 }
 
 #region Main Code
@@ -153,8 +153,8 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 
-#region Creating a new Virtual Network with P2S VPN Gateway
-New-AzTerraformStateStorageAccount -Verbose
+#region Demo for a Terraform State on a StorageAccount
+New-AzTerraformStateStorageAccountDemo -Verbose
 #endregion
 
 <#
