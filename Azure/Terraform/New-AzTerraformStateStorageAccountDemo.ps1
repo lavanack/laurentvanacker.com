@@ -138,7 +138,9 @@ function New-AzTerraformStateStorageAccountDemo {
     #endregion
 
     #region Terraform
+    terraform -chdir="$($WorkingDir.FullName)" fmt
     terraform -chdir="$($WorkingDir.FullName)" init
+    terraform -chdir="$($WorkingDir.FullName)" plan
     terraform -chdir="$($WorkingDir.FullName)" apply -auto-approve
     #endregion
 
