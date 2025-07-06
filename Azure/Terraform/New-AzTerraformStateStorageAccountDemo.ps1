@@ -35,9 +35,10 @@ function Install-Terraform {
         if (winget) {
             Write-Host -Object "Installing Terraform with winget"
             winget install --exact --id=Hashicorp.Terraform --silent --accept-package-agreements --accept-source-agreements
-        } else {
+        }
+        else {
             Write-Host -Object "Installing Terraform from GitHub"
-            $LatestTerraformBuild = (((Invoke-RestMethod  -Uri "https://api.releases.hashicorp.com/v1/releases/terraform")) | Where-Object -FilterScript { -not($_.is_prerelease) }) | Select-Object -Property version -ExpandProperty builds | Where-Object -FilterScript { ($_.arch -eq "amd64") -and ($_.os -eq "windows")} | Sort-Object -Property version -Descending | Select-Object -First 1
+            $LatestTerraformBuild = (((Invoke-RestMethod  -Uri "https://api.releases.hashicorp.com/v1/releases/terraform")) | Where-Object -FilterScript { -not($_.is_prerelease) }) | Select-Object -Property version -ExpandProperty builds | Where-Object -FilterScript { ($_.arch -eq "amd64") -and ($_.os -eq "windows") } | Sort-Object -Property version -Descending | Select-Object -First 1
             $LatestTerraformZipURI = $LatestTerraformBuild.url
             $OutFile = Join-Path -Path $env:TEMP -ChildPath $(Split-Path -Path $LatestTerraformBuild.url -Leaf)
             Invoke-WebRequest -Uri $LatestTerraformBuild.url -OutFile $OutFile
@@ -60,7 +61,8 @@ function New-AzTerraformStateStorageAccountDemo {
     param
     (
         [ValidateScript({ $_ -in (Get-AzLocation).Location })]
-        [string] $Location = "eastus2"
+        [string] $Location = "eastus2",
+        [switch] $Destroy
     )
 
 
@@ -98,37 +100,37 @@ function New-AzTerraformStateStorageAccountDemo {
 
 
     #region Configure ResourceGroup
-	if (Get-AzResourceGroup -Name $ResourceGroupName -Location $Location -ErrorAction Ignore) {
-		Write-Verbose -Message "Removing '$ResourceGroupName' Resource Group Name ..."
-		Remove-AzResourceGroup -Name $ResourceGroupName -Force
-	}
-	Write-Verbose -Message "Creating '$ResourceGroupName' Resource Group Name ..."
-	$StorageResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
+    if (Get-AzResourceGroup -Name $ResourceGroupName -Location $Location -ErrorAction Ignore) {
+        Write-Verbose -Message "Removing '$ResourceGroupName' Resource Group Name ..."
+        Remove-AzResourceGroup -Name $ResourceGroupName -Force
+    }
+    Write-Verbose -Message "Creating '$ResourceGroupName' Resource Group Name ..."
+    $StorageResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
     #endregion
 
     #region Configure remote state storage account
-	$StorageAccountSkuName = "Standard_LRS"
-    $ContainerName='tfstate'
+    $StorageAccountSkuName = "Standard_LRS"
+    $ContainerName = 'tfstate'
     # Create storage account
-	$StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true  -AllowBlobPublicAccess $true
+    $StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true  -AllowBlobPublicAccess $true
     # Create blob container
-	$StorageContext = $StorageAccount.Context
-	$StorageContainer = New-AzStorageContainer -Name $ContainerName -Context $StorageContext
+    $StorageContext = $StorageAccount.Context
+    $StorageContainer = New-AzStorageContainer -Name $ContainerName -Context $StorageContext
     #endregion
 
     #region Maint.tf Management
-	$MainTerraformTemplatePath = Join-Path -Path $PSScriptRoot -ChildPath "template_main.tf"
+    $MainTerraformTemplatePath = Join-Path -Path $PSScriptRoot -ChildPath "template_main.tf"
     $WorkingDir = New-Item -Path $(Join-Path -Path $PSScriptRoot -ChildPath $ResourceGroupName) -ItemType Directory -Force
     Write-Verbose -Message "`$WorkingDir: $WorkingDir"
-	$MainTerraformPath = Join-Path -Path $WorkingDir -ChildPath "main.tf"
-	Write-Verbose -Message "`$MainTerraformTemplatePath: $MainTerraformTemplatePath"
+    $MainTerraformPath = Join-Path -Path $WorkingDir -ChildPath "main.tf"
+    Write-Verbose -Message "`$MainTerraformTemplatePath: $MainTerraformTemplatePath"
     Copy-Item -Path $MainTerraformTemplatePath -Destination $MainTerraformPath -Force
 
-	((Get-Content -Path $MainTerraformPath -Raw) -replace '<location>', $Location) | Set-Content -Path $MainTerraformPath
-	((Get-Content -Path $MainTerraformPath -Raw) -replace '<storage_account_name>', $StorageAccountName) | Set-Content -Path $MainTerraformPath
-	((Get-Content -Path $MainTerraformPath -Raw) -replace '<resource_group_name>', $ResourceGroupName) | Set-Content -Path $MainTerraformPath
-	((Get-Content -Path $MainTerraformPath -Raw) -replace '<tf_resource_group_name>', $TFResourceGroupName) | Set-Content -Path $MainTerraformPath
-	((Get-Content -Path $MainTerraformPath -Raw) -replace '<container_name>', $ContainerName) | Set-Content -Path $MainTerraformPath
+    ((Get-Content -Path $MainTerraformPath -Raw) -replace '<location>', $Location) | Set-Content -Path $MainTerraformPath
+    ((Get-Content -Path $MainTerraformPath -Raw) -replace '<storage_account_name>', $StorageAccountName) | Set-Content -Path $MainTerraformPath
+    ((Get-Content -Path $MainTerraformPath -Raw) -replace '<resource_group_name>', $ResourceGroupName) | Set-Content -Path $MainTerraformPath
+    ((Get-Content -Path $MainTerraformPath -Raw) -replace '<tf_resource_group_name>', $TFResourceGroupName) | Set-Content -Path $MainTerraformPath
+    ((Get-Content -Path $MainTerraformPath -Raw) -replace '<container_name>', $ContainerName) | Set-Content -Path $MainTerraformPath
     #endregion
 
     #region Terraform Setup
@@ -140,8 +142,11 @@ function New-AzTerraformStateStorageAccountDemo {
     terraform -chdir="$($WorkingDir.FullName)" apply -auto-approve
     #endregion
 
-    $null = Remove-Item $WorkingDir -Recurse -Force
-    #terraform -chdir="$($WorkingDir.FullName)" destroy -auto-approve
+    if ($Destroy) {
+        Write-Verbose -Message "`Destroying resources"
+        $null = Remove-Item $WorkingDir -Recurse -Force
+        terraform -chdir="$($WorkingDir.FullName)" destroy -auto-approve
+    }
 }
 
 #region Main Code
