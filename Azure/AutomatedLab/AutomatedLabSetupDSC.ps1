@@ -38,10 +38,13 @@ Configuration AutomatedLabSetupDSC {
     param(
         [Parameter(Mandatory = $true)]
         [PSCredential] $Credential,
-        [ValidateScript({$_ -match "^[E-Z]$"})]
+        [ValidateScript({ $_ -match "^[E-Z]$" })]
         [string] $DriveLetter = 'F',
         [Parameter(Mandatory = $true)]
-        [string] $AzureStorageExplorerVersion
+        [string] $AzureStorageExplorerVersion,
+        [Parameter(Mandatory = $false)]
+        [string] $GitURI = $(((Invoke-RestMethod  -Uri "https://api.github.com/repos/git-for-windows/git/releases/latest").assets | Where-Object -FilterScript { $_.name.EndsWith("64-bit.exe") }).browser_download_url),
+        [string] $AzCopyURI = $(((Invoke-RestMethod  -Uri "https://api.github.com/repos/Azure/azure-storage-azcopy/releases/latest").assets | Where-Object -FilterScript { $_.name -match "windows_amd64" }).browser_download_url)
     )
 
     #Import-DscResource -ModuleName 'PSDesiredStateConfiguration'
@@ -53,11 +56,10 @@ Configuration AutomatedLabSetupDSC {
 
     Node localhost 
     {
-        LocalConfigurationManager 
-        {
-            ConfigurationMode = 'ApplyOnly'
+        LocalConfigurationManager {
+            ConfigurationMode  = 'ApplyOnly'
             RebootNodeIfNeeded = $true
-            ActionAfterReboot = 'ContinueConfiguration'
+            ActionAfterReboot  = 'ContinueConfiguration'
         }
         <#
         #Alternative https://github.com/dsccommunity/ComputerManagementDsc/wiki/IEEnhancedSecurityConfiguration
@@ -81,29 +83,25 @@ Configuration AutomatedLabSetupDSC {
 		}		
         #>
 
-        Registry DisablePrivacyExperience
-        {
-			Key       = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\OOBE'
-			ValueName = 'DisablePrivacyExperience'
-			ValueData = '1'
-			ValueType = 'DWORD'
-			Ensure    = 'Present'
-		}		
+        Registry DisablePrivacyExperience {
+            Key       = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\OOBE'
+            ValueName = 'DisablePrivacyExperience'
+            ValueData = '1'
+            ValueType = 'DWORD'
+            Ensure    = 'Present'
+        }		
 
-        IEEnhancedSecurityConfiguration 'DisableForAdministrators'
-        {
+        IEEnhancedSecurityConfiguration 'DisableForAdministrators' {
             Role    = 'Administrators'
             Enabled = $false
         }
         
-        IEEnhancedSecurityConfiguration 'DisableForUsers'
-        {
+        IEEnhancedSecurityConfiguration 'DisableForUsers' {
             Role    = 'Users'
             Enabled = $false
         }
         
-        WindowsOptionalFeature  HyperVAll
-        {
+        WindowsOptionalFeature  HyperVAll {
             Name   = 'Microsoft-Hyper-V-All'
             Ensure = 'Present'
         }
@@ -116,9 +114,8 @@ Configuration AutomatedLabSetupDSC {
         }
         #>
         
-	    Script InitializeDisk 
-        {
-            GetScript = {
+        Script InitializeDisk {
+            GetScript  = {
                 @{
                     GetScript  = $GetScript
                     SetScript  = $SetScript
@@ -126,8 +123,8 @@ Configuration AutomatedLabSetupDSC {
                 }
             }
  
-            SetScript = {
-                    Get-Disk -Number 1 | Initialize-Disk
+            SetScript  = {
+                Get-Disk -Number 1 | Initialize-Disk
             }
 
             TestScript = {
@@ -135,15 +132,13 @@ Configuration AutomatedLabSetupDSC {
             }
         }
 
-        WaitForDisk Disk1
-        {
+        WaitForDisk Disk1 {
             DiskId           = 1
             RetryIntervalSec = 60
             RetryCount       = 60
         }
 
-        Disk AutomatedLabVolume
-        {
+        Disk AutomatedLabVolume {
             DiskId      = 1
             DriveLetter = $DriveLetter
             FSLabel     = 'Data'
@@ -151,24 +146,21 @@ Configuration AutomatedLabSetupDSC {
             DependsOn   = '[WaitForDisk]Disk1'
         }
 
-        File TempFolder
-        {
+        File TempFolder {
             DestinationPath = "$($env:SystemDrive)\Temp"
             Type            = 'Directory'
             Ensure          = "Present"
             Force           = $true
         }
 
-        File GitHubFolder
-        {
+        File GitHubFolder {
             DestinationPath = "$($DriveLetter):\Source Control\GitHub"
             Type            = 'Directory'
             Ensure          = "Present"
             Force           = $true
         }
 
-        File HyperVPath
-        {
+        File HyperVPath {
             DestinationPath = "$($DriveLetter):\Virtual Machines\Hyper-V"
             Type            = 'Directory'
             Ensure          = "Present"
@@ -176,17 +168,15 @@ Configuration AutomatedLabSetupDSC {
             DependsOn       = '[Disk]AutomatedLabVolume'
         }
 
-        VMHost HyperVHostPaths
-        {
+        VMHost HyperVHostPaths {
             IsSingleInstance    = 'Yes'
             VirtualHardDiskPath = "$($DriveLetter):\Virtual Machines\Hyper-V"
             VirtualMachinePath  = "$($DriveLetter):\Virtual Machines\Hyper-V"
             DependsOn           = '[File]HyperVPath'
         }
 
-	    Script InstallAutomatedLabModule 
-        {
-            GetScript = {
+        Script InstallAutomatedLabModule {
+            GetScript  = {
                 @{
                     GetScript  = $GetScript
                     SetScript  = $SetScript
@@ -194,7 +184,7 @@ Configuration AutomatedLabSetupDSC {
                 }
             }
  
-            SetScript = {
+            SetScript  = {
                 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
                 Install-Module -Name AutomatedLab -SkipPublisherCheck -AllowClobber -Force
             }
@@ -208,9 +198,8 @@ Configuration AutomatedLabSetupDSC {
         }
 
 
-	    Script InstallAzureLabModule 
-        {
-            GetScript = {
+        Script InstallAzureLabModule {
+            GetScript  = {
                 @{
                     GetScript  = $GetScript
                     SetScript  = $SetScript
@@ -218,7 +207,7 @@ Configuration AutomatedLabSetupDSC {
                 }
             }
  
-            SetScript = {
+            SetScript  = {
                 $AzModules = "Az.Accounts", "Az.Storage", "Az.Compute", "Az.Network", "Az.Resources", "Az.Websites"
                 Install-Module -Name $AzModules -Force -Verbose
             }
@@ -233,8 +222,7 @@ Configuration AutomatedLabSetupDSC {
             }
         }
 
-        Environment DisableAutomatedLabTelemetry
-        {
+        Environment DisableAutomatedLabTelemetry {
             Name      = 'AUTOMATEDLAB_TELEMETRY_OPTIN'
             Value     = 'False'
             Ensure    = "Present"
@@ -243,9 +231,8 @@ Configuration AutomatedLabSetupDSC {
             DependsOn = '[Script]InstallAutomatedLabModule'
         }
 
-	    Script RelaxExecutionPolicy 
-        {
-            GetScript = {
+        Script RelaxExecutionPolicy {
+            GetScript  = {
                 @{
                     GetScript  = $GetScript
                     SetScript  = $SetScript
@@ -253,7 +240,7 @@ Configuration AutomatedLabSetupDSC {
                 }
             }
  
-            SetScript = {
+            SetScript  = {
                 Set-ExecutionPolicy -Scope LocalMachine -ExecutionPolicy Unrestricted -Force
             }
  
@@ -262,9 +249,14 @@ Configuration AutomatedLabSetupDSC {
             }
         }
 
-	    Script EnableLabHostRemoting 
-        {
-            GetScript = {
+        Service WinRM {
+            Name   = "WinRM"
+            Ensure = "Present"
+            State  = 'Running'
+        }
+
+        Script EnableLabHostRemoting {
+            GetScript  = {
                 @{
                     GetScript  = $GetScript
                     SetScript  = $SetScript
@@ -272,19 +264,18 @@ Configuration AutomatedLabSetupDSC {
                 }
             }
  
-            SetScript = {
+            SetScript  = {
                 Enable-LabHostRemoting -Force
             }
  
             TestScript = {
                 return Test-LabHostRemoting
             }
-            DependsOn = '[Environment]DisableAutomatedLabTelemetry', '[Script]RelaxExecutionPolicy'
+            DependsOn  = '[Environment]DisableAutomatedLabTelemetry', '[Script]RelaxExecutionPolicy', '[Service]WinRM'
         }
 
-        Script AutomatedLabModuleLabSourcesLocation
-        {
-            GetScript = {
+        Script AutomatedLabModuleLabSourcesLocation {
+            GetScript  = {
                 @{
                     GetScript  = $GetScript
                     SetScript  = $SetScript
@@ -292,30 +283,28 @@ Configuration AutomatedLabSetupDSC {
                 }
             }
            
-            SetScript = {
+            SetScript  = {
                 New-LabSourcesFolder -DriveLetter $using:DriveLetter
             }
  
             TestScript = {
                 return ([boolean]$(Get-LabSourcesLocation))
             }
-            DependsOn = '[Script]EnableLabHostRemoting'
+            DependsOn  = '[Script]EnableLabHostRemoting'
         }
         
-        xRemoteFile DownloadStorageExplorer
-        {
+        xRemoteFile DownloadStorageExplorer {
             DestinationPath = "$env:SystemDrive\Temp\StorageExplorer.exe"
             #To always have the latest Git version for Windows x64
             #Uri             = 'https://go.microsoft.com/fwlink/?LinkId=708343&clcid=0x409'
             Uri             = 'https://go.microsoft.com/fwlink/?linkid=2216182'
             UserAgent       = [Microsoft.PowerShell.Commands.PSUserAgent]::Chrome
-            Headers         = @{'Accept-Language' = 'en-US'}
+            Headers         = @{'Accept-Language' = 'en-US' }
             MatchSource     = $false
             DependsOn       = '[File]TempFolder'
         }
 
-        Package InstallStorageExplorer
-        {
+        Package InstallStorageExplorer {
             Ensure    = "Present"
             Path      = "$env:SystemDrive\Temp\StorageExplorer.exe"
             Arguments = '/SILENT /CLOSEAPPLICATIONS /ALLUSERS'
@@ -325,21 +314,19 @@ Configuration AutomatedLabSetupDSC {
             DependsOn = "[xRemoteFile]DownloadStorageExplorer"
         }
 
-        xRemoteFile DownloadGit
-        {
+        xRemoteFile DownloadGit {
             DestinationPath = "$env:SystemDrive\Temp\Git-Latest.exe"
-            #Uri             = 'https://github.com/git-for-windows/git/releases/download/v2.49.0.windows.1/Git-2.49.0-64-bit.exe'
+            Uri             = $GitURI
             #To always have the latest Git version for Windows x64
-			#From https://raw.githubusercontent.com/lavanack/infrastructure-as-code-utilities/refs/heads/main/shared-bootstrap/Install-GitForWindows.ps1
-            Uri             = $(((Invoke-RestMethod  -Uri "https://api.github.com/repos/git-for-windows/git/releases/latest").assets | Where-Object -FilterScript { $_.name.EndsWith("64-bit.exe") }).browser_download_url)
-            UserAgent       = [Microsoft.PowerShell.Commands.PSUserAgent]::InternetExplorer
-            Headers         = @{'Accept-Language' = 'en-US'}
+            #From https://raw.githubusercontent.com/lavanack/infrastructure-as-code-utilities/refs/heads/main/shared-bootstrap/Install-GitForWindows.ps1
+            #Uri             =  $(((Invoke-RestMethod  -Uri "https://api.github.com/repos/git-for-windows/git/releases/latest").assets | Where-Object -FilterScript { $_.name.EndsWith("64-bit.exe") }).browser_download_url)
+            UserAgent       = [Microsoft.PowerShell.Commands.PSUserAgent]::Chrome
+            Headers         = @{'Accept-Language' = 'en-US' }
             MatchSource     = $false
             DependsOn       = '[File]TempFolder'
         }
 
-        Package InstallGit
-        {
+        Package InstallGit {
             Ensure    = "Present"
             Path      = "$env:SystemDrive\Temp\Git-Latest.exe"
             Arguments = '/SILENT /CLOSEAPPLICATIONS'
@@ -348,30 +335,27 @@ Configuration AutomatedLabSetupDSC {
             DependsOn = "[xRemoteFile]DownloadGit"
         }
 
-        xRemoteFile DownloadAzCopy
-        {
+        xRemoteFile DownloadAzCopy {
             DestinationPath = "$env:SystemDrive\Temp\azcopy_windows_amd64_latest.zip"
-            Uri             = 'https://aka.ms/downloadazcopy-v10-windows'
-            UserAgent       = [Microsoft.PowerShell.Commands.PSUserAgent]::InternetExplorer
-            Headers         = @{'Accept-Language' = 'en-US'}
+            Uri             = $AzCopyURI
+            UserAgent       = [Microsoft.PowerShell.Commands.PSUserAgent]::Chrome
+            Headers         = @{'Accept-Language' = 'en-US' }
             MatchSource     = $false
             DependsOn       = '[File]TempFolder'
         }
 
-        Archive ExpandAzCopyZipFile
-        {
+        Archive ExpandAzCopyZipFile {
             Path        = "$env:SystemDrive\Temp\azcopy_windows_amd64_latest.zip"
             Destination = 'C:\Tools'
             DependsOn   = '[xRemoteFile]DownloadAzCopy'
             Force       = $true
         }
 
-	    Script InstallPowerShellCrossPlatform 
-        {
+        Script InstallPowerShellCrossPlatform {
             GetScript  = {
                 @{
-                    GetScript = $GetScript
-                    SetScript = $SetScript
+                    GetScript  = $GetScript
+                    SetScript  = $SetScript
                     TestScript = $TestScript
                 }
             }
@@ -386,9 +370,8 @@ Configuration AutomatedLabSetupDSC {
         }
 
 
-	    Script InstallVSCode 
-        {
-            GetScript  = {
+        Script InstallVSCode {
+            GetScript            = {
                 @{
                     GetScript  = $GetScript
                     SetScript  = $SetScript
@@ -396,64 +379,61 @@ Configuration AutomatedLabSetupDSC {
                 }
             }
  
-            SetScript  = {
+            SetScript            = {
                 #Variables below are needed by the Install-VSCode.ps1 in this script DSC ressource (Not needed in a normal call)
-                $IsLinux   = $false
-                $IsMacOS   = $false
+                $IsLinux = $false
+                $IsMacOS = $false
                 $IsWindows = $true
-                $pacMan    = ''
+                $pacMan = ''
                 $VSCodeExtension = [ordered]@{
-                    "PowerShell" = 'ms-vscode.powershell'
+                    "PowerShell"                 = 'ms-vscode.powershell'
                     #'Live Share Extension Pack' = 'ms-vsliveshare.vsliveshare-pack'
-                    'Git Graph' = 'mhutchie.git-graph'
-                    'Git History' = 'donjayamanne.githistory'
+                    'Git Graph'                  = 'mhutchie.git-graph'
+                    'Git History'                = 'donjayamanne.githistory'
                     'GitLens - Git supercharged' = 'eamodio.gitlens'
-                    'Git File History' = 'pomber.git-file-history'
-                    'indent-rainbow' = 'oderwat.indent-rainbow'
+                    'Git File History'           = 'pomber.git-file-history'
+                    'indent-rainbow'             = 'oderwat.indent-rainbow'
                 }
                 $AdditionalExtensions = $VSCodeExtension.Values -join ','
                 Write-Verbose "`$AdditionalExtensions : $AdditionalExtensions"
                 #try is necessary because the addition extensions raised some errors for the moment :code.cmd : (node:4812) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
-                try
-                {
+                try {
                     $AdditionalExtensions | Out-File C:\Install-VSCode.log
                     Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) } -AdditionalExtensions $AdditionalExtensions" -ErrorAction Ignore -Verbose *>&1 | Out-File C:\Install-VSCode.log -Append
                     #Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) } -AdditionalExtensions 'ms-vscode.powershell', 'mhutchie.git-graph', 'donjayamanne.githistory', 'eamodio.gitlens', 'pomber.git-file-history', 'oderwat.indent-rainbow'" -ErrorAction Ignore -Verbose *>&1 | Out-File C:\Install-VSCode.log -Append
-                } catch {}
+                }
+                catch {}
             }
  
-            TestScript = {
+            TestScript           = {
                 return (Test-Path -Path "$($env:ProgramFiles)\Microsoft VS Code\Code.exe" -PathType Leaf)
             }
-            DependsOn  = @("[Script]InstallPowerShellCrossPlatform", "[Package]InstallGit")
+            DependsOn            = @("[Script]InstallPowerShellCrossPlatform", "[Package]InstallGit")
             PsDscRunAsCredential = $Credential
         }    
 
 
-        xRemoteFile DownloadSysinternalsSuiteZipFile
-        {
+        xRemoteFile DownloadSysinternalsSuiteZipFile {
             DestinationPath = "$env:SystemDrive\Temp\SysinternalsSuite.zip"
             Uri             = 'https://download.sysinternals.com/files/SysinternalsSuite.zip'
-            UserAgent       = [Microsoft.PowerShell.Commands.PSUserAgent]::InternetExplorer
-            Headers         = @{'Accept-Language' = 'en-US'}
+            UserAgent       = [Microsoft.PowerShell.Commands.PSUserAgent]::Chrome
+            Headers         = @{'Accept-Language' = 'en-US' }
             MatchSource     = $false
             DependsOn       = '[File]TempFolder'            
         }
 
-        Archive ExpandSysinternalsSuiteZipFile
-        {
+        Archive ExpandSysinternalsSuiteZipFile {
             Path        = "$env:SystemDrive\Temp\SysinternalsSuite.zip"
             Destination = 'C:\Tools'
             DependsOn   = '[xRemoteFile]DownloadSysinternalsSuiteZipFile'
             Force       = $true
         }
 
-	    Script JunctionAutomatedLab-VMs
-        {
+        Script JunctionAutomatedLab-VMs {
             GetScript  = {
                 @{
-                    GetScript = $GetScript
-                    SetScript = $SetScript
+                    GetScript  = $GetScript
+                    SetScript  = $SetScript
                     TestScript = $TestScript
                 }
             }
@@ -467,7 +447,7 @@ Configuration AutomatedLabSetupDSC {
                 return (Test-Path -Path "$($using:DriveLetter):\AutomatedLab-VMs" -PathType Container)
 
             }
-            DependsOn = '[Script]InstallAutomatedLabModule'
+            DependsOn  = '[Script]InstallAutomatedLabModule'
         }    
     }
 }

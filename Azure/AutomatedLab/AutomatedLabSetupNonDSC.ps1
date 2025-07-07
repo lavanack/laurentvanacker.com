@@ -34,8 +34,7 @@ Disable-PrivacyExperience
 Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Management-PowerShell -All
 
 #region Installing Hyper-V
-if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All).State -ne 'Enabled')
-{
+if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All).State -ne 'Enabled') {
     Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All -All -NoRestart
     Restart-Computer -Force
 }
@@ -68,6 +67,7 @@ $env:AUTOMATEDLAB_TELEMETRY_OPTIN = 'false'
 Set-ExecutionPolicy -Scope LocalMachine -ExecutionPolicy Unrestricted -Force
 
 # Pre-configure Lab Host Remoting
+Start-Service -Name WinRM
 Enable-LabHostRemoting -Force
 
 New-LabSourcesFolder -DriveLetter $Disk.DriveLetter
@@ -91,7 +91,7 @@ Remove-Item -Path $OutputFile -Force
 
 #region Installing StorageExplorer
 #$StorageExplorerURI = 'https://go.microsoft.com/fwlink/?LinkId=708343&clcid=0x409'
-$StorageExplorerURI = 'https://download.microsoft.com/download/A/E/3/AE32C485-B62B-4437-92F7-8B6B2C48CB40/StorageExplorer-windows-x64.exe'
+$StorageExplorerURI = $(((Invoke-RestMethod  -Uri "https://api.github.com/repos/microsoft/AzureStorageExplorer/releases/latest").assets | Where-Object -FilterScript { $_.name.EndsWith("x64.exe") }).browser_download_url)
 $OutputFile = Join-Path -Path $CurrentDir -ChildPath 'StorageExplorer.exe'
 Invoke-WebRequest -Uri $StorageExplorerURI -OutFile $OutputFile
 Start-Process -FilePath $OutputFile -ArgumentList "/SILENT", "/CLOSEAPPLICATIONS", "/ALLUSERS" -Wait
@@ -113,13 +113,13 @@ Invoke-Expression -Command "& { $(Invoke-RestMethod https://aka.ms/install-power
 
 #region Installing VSCode with useful extensions : Silent Install
 $VSCodeExtension = [ordered]@{
-    "PowerShell" = "ms-vscode.powershell"
+    "PowerShell"                 = "ms-vscode.powershell"
     #'Live Share Extension Pack' = 'ms-vsliveshare.vsliveshare-pack'
-    'Git Graph' = 'mhutchie.git-graph'
-    'Git History' = 'donjayamanne.githistory'
+    'Git Graph'                  = 'mhutchie.git-graph'
+    'Git History'                = 'donjayamanne.githistory'
     'GitLens - Git supercharged' = 'eamodio.gitlens'
-    'Git File History' = 'pomber.git-file-history'
-    'indent-rainbow' = 'oderwat.indent-rainbow'
+    'Git File History'           = 'pomber.git-file-history'
+    'indent-rainbow'             = 'oderwat.indent-rainbow'
 }
 
 Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) }  -AdditionalExtensions $($VSCodeExtension.Values -join ',')" -Verbose
