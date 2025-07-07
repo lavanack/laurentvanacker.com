@@ -39,7 +39,6 @@ function Install-Terraform {
         else {
             Write-Host -Object "Installing Terraform from GitHub"
             $LatestTerraformBuild = (((Invoke-RestMethod  -Uri "https://api.releases.hashicorp.com/v1/releases/terraform")) | Where-Object -FilterScript { -not($_.is_prerelease) }) | Select-Object -Property version -ExpandProperty builds | Where-Object -FilterScript { ($_.arch -eq "amd64") -and ($_.os -eq "windows") } | Sort-Object -Property version -Descending | Select-Object -First 1
-            $LatestTerraformZipURI = $LatestTerraformBuild.url
             $OutFile = Join-Path -Path $env:TEMP -ChildPath $(Split-Path -Path $LatestTerraformBuild.url -Leaf)
             Invoke-WebRequest -Uri $LatestTerraformBuild.url -OutFile $OutFile
 
@@ -116,6 +115,8 @@ function New-AzTerraformStateStorageAccountDemo {
     # Create blob container
     $StorageContext = $StorageAccount.Context
     $StorageContainer = New-AzStorageContainer -Name $ContainerName -Context $StorageContext
+    $StorageAccountKey = (Get-AzStorageAccountKey -ResourceGroupName $ResourceGroupName -Name $StorageAccountName | Select-Object -First 1).value
+    $env:ARM_ACCESS_KEY = $StorageAccountKey
     #endregion
 
     #region Maint.tf Management
@@ -139,7 +140,7 @@ function New-AzTerraformStateStorageAccountDemo {
 
     #region Terraform
     terraform -chdir="$($WorkingDir.FullName)" fmt
-    terraform -chdir="$($WorkingDir.FullName)" init
+    terraform -chdir="$($WorkingDir.FullName)" init #-backend-config="access_key=StorageAccountKey"
     terraform -chdir="$($WorkingDir.FullName)" plan
     terraform -chdir="$($WorkingDir.FullName)" validate
     terraform -chdir="$($WorkingDir.FullName)" apply -auto-approve
