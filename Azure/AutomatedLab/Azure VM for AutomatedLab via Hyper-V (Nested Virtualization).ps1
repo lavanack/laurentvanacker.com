@@ -329,13 +329,18 @@ Publish-AzVMDscConfiguration -ConfigurationPath $ConfigurationFilePath -Configur
 Do {
     try {
         #region Getting the Azure Storage Explorer Version via an online request
+        <#
         $Response = (Invoke-WebRequest -Uri https://github.com/microsoft/AzureStorageExplorer/releases/latest)
         if ($Response.ParsedHtml.title -match "v(?<Version>\d+\.\d+.\d+)") {
+        #>
+
+        $Response = (Invoke-RestMethod  -Uri "https://api.github.com/repos/microsoft/AzureStorageExplorer/releases/latest").name
+        if ($Response -match "v(?<Version>\d+\.\d+.\d+)") {
             $AzureStorageExplorerVersion = $Matches['Version']
         }
         else {
-            #Latest version in May 2025
-            $AzureStorageExplorerVersion = '1.38.0'
+            #Latest version in July 2025
+            $AzureStorageExplorerVersion = '1.39.0'
         }
         #endregion
         $ConfigurationArgument = @{
