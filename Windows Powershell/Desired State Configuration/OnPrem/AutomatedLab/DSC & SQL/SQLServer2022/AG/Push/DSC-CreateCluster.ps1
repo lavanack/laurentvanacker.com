@@ -332,7 +332,7 @@ Configuration CreateClusterWithTwoNodes {
             ServerName           = $Node.NodeName
             InstanceName         = $Node.InstanceName
             PsDscRunAsCredential = $SqlInstallCredential
-            DependsOn      = '[SqlSetup]DefaultInstance', '[SqlConfiguration]ShowAdvancedOptions'
+            DependsOn      = '[SqlSetup]InstallAG', '[SqlConfiguration]ShowAdvancedOptions'
         }
         <#
         SqlConfiguration MaxDegreeOfParallelism
