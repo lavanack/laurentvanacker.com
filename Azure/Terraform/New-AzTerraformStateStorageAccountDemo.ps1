@@ -116,7 +116,7 @@ function New-AzTerraformStateStorageAccountDemo {
     $StorageContext = $StorageAccount.Context
     $StorageContainer = New-AzStorageContainer -Name $ContainerName -Context $StorageContext
     $StorageAccountKey = (Get-AzStorageAccountKey -ResourceGroupName $ResourceGroupName -Name $StorageAccountName | Select-Object -First 1).value
-    $env:ARM_ACCESS_KEY = $StorageAccountKey
+    #$env:ARM_ACCESS_KEY = $StorageAccountKey
     #endregion
 
     #region Maint.tf Management
@@ -140,7 +140,7 @@ function New-AzTerraformStateStorageAccountDemo {
 
     #region Terraform
     terraform -chdir="$($WorkingDir.FullName)" fmt
-    terraform -chdir="$($WorkingDir.FullName)" init #-backend-config="access_key=StorageAccountKey"
+    terraform -chdir="$($WorkingDir.FullName)" init -backend-config="access_key=$StorageAccountKey"
     terraform -chdir="$($WorkingDir.FullName)" plan
     terraform -chdir="$($WorkingDir.FullName)" validate
     terraform -chdir="$($WorkingDir.FullName)" apply -auto-approve
@@ -164,7 +164,7 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 
 #region Demo for a Terraform State on a StorageAccount
-New-AzTerraformStateStorageAccountDemo -Verbose -Destroy
+New-AzTerraformStateStorageAccountDemo -Destroy -Verbose
 #endregion
 
 <#
