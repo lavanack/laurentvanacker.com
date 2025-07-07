@@ -141,9 +141,9 @@ function New-AzTerraformStateStorageAccountDemo {
     #region Terraform
     terraform -chdir="$($WorkingDir.FullName)" fmt
     terraform -chdir="$($WorkingDir.FullName)" init -backend-config="access_key=$StorageAccountKey"
-    terraform -chdir="$($WorkingDir.FullName)" plan
+    terraform -chdir="$($WorkingDir.FullName)" plan -out tfplan
     terraform -chdir="$($WorkingDir.FullName)" validate
-    terraform -chdir="$($WorkingDir.FullName)" apply -auto-approve
+    terraform -chdir="$($WorkingDir.FullName)" apply tfplan
     #endregion
 
     if ($Destroy) {
