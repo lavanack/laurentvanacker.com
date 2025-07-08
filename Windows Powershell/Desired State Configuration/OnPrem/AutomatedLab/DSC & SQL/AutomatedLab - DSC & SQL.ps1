@@ -220,7 +220,7 @@ Invoke-LabCommand -ActivityName 'DNS, AD & GPO Settings on DC' -ComputerName DC0
 
     #region DNS management
     #Reverse lookup zone creation
-    Add-DnsServerPrimaryZone -NetworkID $using:NetworkID -ReplicationScope 'Forest' 
+    #Add-DnsServerPrimaryZone -NetworkID $using:NetworkID -ReplicationScope 'Forest' 
     #endregion
 
     #Creating a GPO at the domain level for certificate autoenrollment
