@@ -16,7 +16,7 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 
-#requires -Module Az.Compute
+#requires -Module Az.Accounts, Az.Compute, Az.Security
 
 Clear-Host
 
@@ -39,6 +39,9 @@ function Set-AzVMJITAccess {
         $JitPolicyTimeInHours = 3
         $JitPolicyName = "Default"
         #endregion
+
+        $JitNetworkAccessPolicyVM = ((Get-AzJitNetworkAccessPolicy | Where-Object -FilterScript { $_.Name -eq $JitPolicyName })).VirtualMachines.Id
+        Write-Verbose -Message "Jit Network Access Policy VM(s) : $($JitNetworkAccessPolicyVM -join ', ')"
     }
 
     process {
@@ -57,7 +60,7 @@ function Set-AzVMJITAccess {
                 })
 
             Write-Host "Get Existing JIT Policy. You can Ignore the error if not found."
-            $ExistingJITPolicy = (Get-AzJitNetworkAccessPolicy -ResourceGroupName $CurrentVM.ResourceGroupName -Location $CurrentVM.Location -Name $JitPolicyName -ErrorAction Ignore).VirtualMachines
+            $ExistingJITPolicy = (Get-AzJitNetworkAccessPolicy -ResourceGroupName $CurrentVM.ResourceGroupName -Location $CurrentVM.Location -Name $JitPolicyName).VirtualMachines
             $UpdatedJITPolicy = $ExistingJITPolicy.Where{ $_.id -ne "$($CurrentVM.Id)" } # Exclude existing policy for $CurrentVM.Name
             $UpdatedJITPolicy.Add($NewJitPolicy)
 	
