@@ -20,9 +20,12 @@ of the Sample Code.
 
 #region Function definitions
 function New-AzureVMsWithPublicIPRDCManRDGFile {
-    [CmdletBinding()]
-    Param ()
-
+    [CmdletBinding(PositionalBinding = $false)]
+    Param (
+        [Parameter(Mandatory = $False)]
+        [Alias("Destination")]
+        [String] $DestinationFolder = $([Environment]::GetFolderPath("Desktop"))
+    )
 
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
     #region variables
@@ -67,7 +70,7 @@ function New-AzureVMsWithPublicIPRDCManRDGFile {
 </RDCMan>
 "@
     $CurrentSubscription = (Get-AzContext).Subscription
-    $RDGFilePath = $(Join-Path -Path $([Environment]::GetFolderPath("MyDocuments")) -ChildPath "AzureVMsWithPublicIP.rdg")
+    $RDGFilePath = $(Join-Path -Path $DestinationFolder -ChildPath "AzureVMsWithPublicIP.rdg")
     #endregion
 
     #region Listing all Azure VM with a Public IP Address
