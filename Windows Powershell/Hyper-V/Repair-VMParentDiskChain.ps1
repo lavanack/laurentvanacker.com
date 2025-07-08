@@ -11,7 +11,8 @@ function Repair-VMParentDiskChain {
             Write-Verbose -Message "Path: $($VHD.Path)"
             Write-Verbose -Message "ParentPath: $($VHD.ParentPath)"
             if ($VHD.ParentPath) {
-                Set-VHD -Path $VHD.Path -ParentPath $VHD.ParentPath -IgnoreIdMismatch -Passthru:$Passthru -Verbose
+                Write-Verbose -Message "$($VHD.Path) ==> $($VHD.ParentPath)"
+                Set-VHD -Path $VHD.Path -ParentPath $VHD.ParentPath -IgnoreIdMismatch -Passthru:$Passthru
                 Repair-VMParentDiskChain -Path $VHD.ParentPath
             }
         }
