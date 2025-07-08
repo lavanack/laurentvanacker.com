@@ -16,7 +16,7 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 
-#requires -Module Az.Compute
+#requires -Module Az.Accounts, Az.Compute, Az.Security
 
 Clear-Host
 
