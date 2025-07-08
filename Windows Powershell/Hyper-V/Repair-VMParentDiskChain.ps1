@@ -1,22 +1,42 @@
 ﻿#region function definitions
 function Repair-VMParentDiskChain {
+    [CmdletBinding(PositionalBinding = $false, DefaultParameterSetName = 'Passthru')]
     Param (
         [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [string[]]$Path,
-        [switch]$Passthru
+        [Parameter(ParameterSetName='Passthru')]
+        [switch]$Passthru,
+        [Parameter(ParameterSetName='Link')]
+        [switch]$Link
     )
+    begin {
+    }
     process {
         foreach ($CurrentPath in $Path) {
             $VHD = Get-VHD -Path $CurrentPath
             Write-Verbose -Message "Path: $($VHD.Path)"
             Write-Verbose -Message "ParentPath: $($VHD.ParentPath)"
             if ($VHD.ParentPath) {
-                Write-Verbose -Message "$($VHD.Path) ==> $($VHD.ParentPath)"
+                Write-Verbose -Message "$($VHD.Path) -> $($VHD.ParentPath)"
                 Set-VHD -Path $VHD.Path -ParentPath $VHD.ParentPath -IgnoreIdMismatch -Passthru:$Passthru
+                if ($Link) {
+                    "{0} -> {1}" -f $($VHD.Path), $(Repair-VMParentDiskChain -Path $VHD.ParentPath -Link)
+                }
+                else {
+                    #Recursive call to fix the parent disk
+                    Repair-VMParentDiskChain -Path $VHD.ParentPath
+                }
                 #Recursive call to fix the parent disk
-                Repair-VMParentDiskChain -Path $VHD.ParentPath
+                Repair-VMParentDiskChain -Path $VHD.ParentPath -Passthru:$Passthru
+            }
+            else {
+                if ($Link) {
+                    "{0}" -f $($VHD.Path)
+                }
             }
         }
+    }
+    end {
     }
 }
 #endregion
@@ -40,7 +60,7 @@ $RunningVM | Stop-VM -Force -AsJob | Receive-Job -Wait -AutoRemoveJob
 Get-VM | Get-VMHardDiskDrive | Get-VHD | Select-Object -Property Path, ParentPath
 
 #Fixing Disk Chain
-Get-VM | Get-VMHardDiskDrive | Get-VHD | Repair-VMParentDiskChain -Passthru -Verbose
+Get-VM | Get-VMHardDiskDrive | Get-VHD | Repair-VMParentDiskChain -Link #-Verbose
 
 #Getting Disk Chain
 Get-VM | Get-VMHardDiskDrive | Get-VHD | Select-Object -Property Path, ParentPath
