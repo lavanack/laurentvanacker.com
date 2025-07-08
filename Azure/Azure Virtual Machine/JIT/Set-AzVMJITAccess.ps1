@@ -27,13 +27,10 @@ function Set-AzVMJITAccess {
     (
         [Parameter(ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
         [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachineList[]] $VM = $(Get-AzVM),
-        [Alias('PublicIP')]
-        [string[]] $IP = $((Invoke-RestMethod -Uri http://ip-api.com/json/?fields=query).query),
         [switch] $PassThru
     )
 
     begin {
-        Write-Verbose -Message "Public IP(s) : $($IP -join ', ')"
         #region Defining variables 
         $RDPPort = 3389
         $JitPolicyTimeInHours = 3
