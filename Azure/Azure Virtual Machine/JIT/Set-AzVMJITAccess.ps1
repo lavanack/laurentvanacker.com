@@ -26,8 +26,7 @@ function Set-AzVMJITAccess {
     param
     (
         [Parameter(ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
-        [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachineList[]] $VM = $(Get-AzVM),
-        [switch] $PassThru
+        [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachineList[]] $VM = $(Get-AzVM)
     )
 
     begin {
@@ -69,9 +68,6 @@ function Set-AzVMJITAccess {
         #endregion
     }
     end {
-        if ($PassThru) {
-            $AzJitNetworkAccessPolicy
-        }
     }
 
 }
@@ -80,5 +76,5 @@ function Set-AzVMJITAccess {
 #region Main code
 #Get-AzVM | Set-AzVMJITAccess -Verbose | Format-List * -Force
 #Set-AzVMJITAccess -Verbose -PassThru | Format-List * -Force
-Set-AzVMJITAccess -PassThru -Verbose | Format-List -Property * -Force 
+Set-AzVMJITAccess -Verbose | Format-List -Property * -Force 
 #endregion
