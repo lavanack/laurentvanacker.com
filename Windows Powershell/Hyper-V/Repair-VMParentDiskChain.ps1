@@ -20,7 +20,7 @@ function Repair-VMParentDiskChain {
                 Write-Verbose -Message "$($VHD.Path) -> $($VHD.ParentPath)"
                 Set-VHD -Path $VHD.Path -ParentPath $VHD.ParentPath -IgnoreIdMismatch -Passthru:$Passthru
                 if ($Link) {
-                    "{0} -> {1}" -f $($VHD.Path), $(Repair-VMParentDiskChain -Path $VHD.ParentPath -Link)
+                    "{0}`r`n> {1}" -f $(Repair-VMParentDiskChain -Path $VHD.ParentPath -Link), $($VHD.Path)
                 }
                 else {
                     #Recursive call to fix the parent disk
@@ -31,7 +31,7 @@ function Repair-VMParentDiskChain {
             }
             else {
                 if ($Link) {
-                    "{0}" -f $($VHD.Path)
+                    "`r`n{0}" -f $($VHD.Path)
                 }
             }
         }
@@ -57,13 +57,13 @@ $RunningVM = Get-VM | Where-Object -FilterScript { $_.State -eq "Running" }
 $RunningVM | Stop-VM -Force -AsJob | Receive-Job -Wait -AutoRemoveJob
 
 #Getting Disk Chain
-Get-VM | Get-VMHardDiskDrive | Get-VHD | Select-Object -Property Path, ParentPath
+#Get-VM | Get-VMHardDiskDrive | Get-VHD | Select-Object -Property Path, ParentPath
 
 #Fixing Disk Chain
 Get-VM | Get-VMHardDiskDrive | Get-VHD | Repair-VMParentDiskChain -Link #-Verbose
 
 #Getting Disk Chain
-Get-VM | Get-VMHardDiskDrive | Get-VHD | Select-Object -Property Path, ParentPath
+#Get-VM | Get-VMHardDiskDrive | Get-VHD | Select-Object -Property Path, ParentPath
 
 
 #Restarting Running VMs
