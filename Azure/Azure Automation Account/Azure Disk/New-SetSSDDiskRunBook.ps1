@@ -275,7 +275,7 @@ New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefi
 #region Schedule Setup
 #region Azure Disk - Set Configuration - Daily Schedule
 $TimeZone = ([System.TimeZoneInfo]::Local).Id
-$StartTime = Get-Date "01:00:00"
+$StartTime = Get-Date "04:00:00"
 if ($(Get-Date) -gt $StartTime) {
     $StartTime = $StartTime.AddDays(1)
 }
