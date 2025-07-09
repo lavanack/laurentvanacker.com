@@ -288,7 +288,10 @@ Configuration AutomatedLabSetupDSC {
             }
  
             TestScript = {
-                return ([boolean]$(Get-LabSourcesLocation))
+                #return ([boolean]$(Get-LabSourcesLocation))
+                #return (($(Get-LabSourcesLocation) -split ":" | Select-Object -First 1) -eq $using:DriveLetter)
+                #return (Split-Path $(Get-LabSourcesLocation) -Parent) -match "^$($using:DriveLetter):\\"
+                return $(Get-LabSourcesLocation) -match "^$($using:DriveLetter):\\"
             }
             DependsOn  = '[Script]EnableLabHostRemoting'
         }
