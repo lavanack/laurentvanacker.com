@@ -25,8 +25,9 @@ function Set-AzVMJITAccess {
     [CmdletBinding(PositionalBinding = $false)]
     param
     (
+        #All VM by default but not the AVD Session Hosts
         [Parameter(ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
-        [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachineList[]] $VM = $(Get-AzVM)
+        [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachineList[]] $VM = $(Get-AzVM | Where-Object -FilterScript { $_.Id -notin $(Get-AzWvdHostPool | ForEach-Object { (Get-AzWvdSessionHost -HostPoolName $_.Name -ResourceGroupName $_.ResourceGroupName).ResourceId }) })
     )
 
     begin {
