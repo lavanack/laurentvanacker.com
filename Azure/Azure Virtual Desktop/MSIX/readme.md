@@ -26,6 +26,8 @@ After completion you'll have:
 - a Domain Controller for the contoso.com domain: DC01.
 - a Windows server for creating a MSIX package via the installed 'MSIX Packaging Tool': MSIX.
 
+An alternative is to use the [New-AzMSIXAppAttachVM.ps1](New-AzMSIXAppAttachVM) script to deploy a Windows VM in Azure with the MSIX App Attach Tools pre-installed.
+
 All Windows Servers are running 'Windows Server 2022 Datacenter (Desktop Experience)'. Credentials will be displayed at the end of the deployment process. Just connect via RDP to the MSIX server.
 
 ## Other Option
