@@ -60,7 +60,10 @@ $RunningVM | Stop-VM -Force -AsJob | Receive-Job -Wait -AutoRemoveJob
 #Get-VM | Get-VMHardDiskDrive | Get-VHD | Select-Object -Property Path, ParentPath
 
 #Fixing Disk Chain
+#With Pipeline use
 Get-VM | Get-VMHardDiskDrive | Get-VHD | Repair-VMParentDiskChain -Link #-Verbose
+#Without Pipeline use
+#Repair-VMParentDiskChain -Path $(Get-VM | Get-VMHardDiskDrive | Get-VHD).Path -Link #-Verbose
 
 #Getting Disk Chain
 #Get-VM | Get-VMHardDiskDrive | Get-VHD | Select-Object -Property Path, ParentPath
