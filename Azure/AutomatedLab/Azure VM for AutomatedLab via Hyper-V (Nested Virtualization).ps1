@@ -411,11 +411,6 @@ if (-not(Get-AzStorageContainer -Name $ContainerName -Context $StorageContext -E
 #Uploading script
 Set-AzStorageBlobContent -Context $StorageContext -File $PowershellScriptFullName -Container $ContainerName -Blob $PowershellScriptName -BlobType Block -Force
 
-#region Script Parameters
-$SourceResourceGroupName = "rg-automatedlab-storage-use-001"
-$SourceStorageAccountName = "automatedlablabsources"
-$SourceShareName = "isos"
-#endregion
 
 #region RBAC Assignment and calling script
 $SourceStorageAccount = Get-AzStorageAccount -ResourceGroupName $SourceResourceGroupName -Name $SourceStorageAccountName -ErrorAction Ignore

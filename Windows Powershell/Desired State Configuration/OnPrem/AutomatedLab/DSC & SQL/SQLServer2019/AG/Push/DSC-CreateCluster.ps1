@@ -264,6 +264,7 @@ Configuration CreateClusterWithTwoNodes {
         }
         
         #region SQL Server Registry Management
+        <#
         Registry DisableNp {
             Ensure    = "Present"
             Key       = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL15.$($Node.InstanceName)\$($Node.InstanceName)\SuperSocketNetLib\Np"
@@ -272,6 +273,7 @@ Configuration CreateClusterWithTwoNodes {
             ValueType = "Dword"
             DependsOn = '[SqlSetup]InstallAG'
         }
+        #>
 
         Registry DisableSm {
             Ensure    = "Present"

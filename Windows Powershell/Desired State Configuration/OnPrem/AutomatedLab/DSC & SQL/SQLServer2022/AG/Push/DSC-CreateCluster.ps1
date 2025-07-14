@@ -268,7 +268,7 @@ Configuration CreateClusterWithTwoNodes {
             RestartTimeout       = 120
             DependsOn            = '[SqlSetup]InstallAG'
         }
-        
+        <#
         #region SQL Server Registry Management
         Registry DisableNp
         {
@@ -279,7 +279,7 @@ Configuration CreateClusterWithTwoNodes {
             ValueType   = "Dword"
             DependsOn   = '[SqlSetup]InstallAG'
         }
-
+        #>
         Registry DisableSm
         {
             Ensure      = "Present"
