@@ -25,7 +25,7 @@ Function Get-LatestSQLServerUpdate {
         [ValidateSet('SQLServer2019', 'SQLServer2022')]
         [Alias('SQLServerVersion')]
         [string[]] $Version = @('SQLServer2019', 'SQLServer2022'),
-        [switch] $Download
+        [string] $DownloadFolder
     )
     $DataURI = @{
         "SQLServer2019" = "https://raw.githubusercontent.com/MicrosoftDocs/SupportArticles-docs/refs/heads/main/support/sql/releases/sqlserver-2019/build-versions.md"
@@ -56,8 +56,7 @@ Function Get-LatestSQLServerUpdate {
     }
     $LatestSQLServerUpdate
 
-    if ($Download) {
-        $DownloadFolder = (Resolve-Path -Path ~/Downloads).Path
+    if ($DownloadFolder) {
         [string[]]$Source = $LatestSQLServerUpdate.LatestCUURI
         $Source += $LatestSQLServerUpdate.LatestGDRURI
         Start-BitsTransfer -Source $Source  -Destination (@($DownloadFolder) * $($Source.Count))
@@ -73,5 +72,5 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 
-Get-LatestSQLServerUpdate -Download -Verbose
+Get-LatestSQLServerUpdate -DownloadFolder $CurrentDir -Verbose
 #endregion
