@@ -52,29 +52,27 @@ Configuration CreateClusterWithTwoNodes {
     {
         #$ClusterOUDistinguishedName = "OU=Clusters,DC=contoso,DC=com"
         $ClusterOUDistinguishedName = $Node.ClusterOUDistinguishedNam
-        $ClusterOUName, $ClusterOUPath =  $ClusterOUDistinguishedName -split ",", 2
-        if ($ClusterOUDistinguishedName -match "OU=(?<ClusterOUName>[^,]*),(?<ClusterOUPath>DC=.*)")
-        {
-            $ClusterOUName =  $Matches['ClusterOUName']
-            $ClusterOUPath =  $Matches['ClusterOUPath']
+        $ClusterOUName, $ClusterOUPath = $ClusterOUDistinguishedName -split ",", 2
+        if ($ClusterOUDistinguishedName -match "OU=(?<ClusterOUName>[^,]*),(?<ClusterOUPath>DC=.*)") {
+            $ClusterOUName = $Matches['ClusterOUName']
+            $ClusterOUPath = $Matches['ClusterOUPath']
             $DomainNetBIOSName = (Get-ADDomain -Identity $ClusterOUPath).NetBIOSName
         }
-        else
-        {
+        else {
             $ClusterOUName = "Clusters"
             $ClusterOUPath = (Get-ADDomain).DistinguishedName
             $DomainNetBIOSName = (Get-ADDomain).NetBIOSName
         }
         #region AD Management : OU & Computer Object Creation and Settings
         #From https://docs.microsoft.com/en-us/windows-server/failover-clustering/prestage-cluster-adds
-	    ADOrganizationalUnit 'ClustersOU'
+        ADOrganizationalUnit 'ClustersOU'
         {
             Name                            = $ClusterOUName
             Path                            = $ClusterOUPath
             ProtectedFromAccidentalDeletion = $true
             Description                     = "$ClusterOUName OU"
             Ensure                          = 'Present'
-            PsDscRunAsCredential = $ActiveDirectoryAdministratorCredential 
+            PsDscRunAsCredential            = $ActiveDirectoryAdministratorCredential 
         }
 
         ADComputer ClusterNameObject
@@ -88,7 +86,7 @@ Configuration CreateClusterWithTwoNodes {
         }
 
         Script SetCNOProtectedFromAccidentalDeletion {
-            GetScript  = {
+            GetScript            = {
                 #$Result = [string](Get-ADComputer -Filter "Name -eq '$($using:Node.ClusterName)'" -SearchBase "OU=$($using:ClusterOUName),$ClusterOUPath" -Properties ProtectedFromAccidentalDeletion).ProtectedFromAccidentalDeletion
                 $Result = [string](Get-ADComputer -Filter "Name -eq '$($using:Node.ClusterName)'" -SearchBase "OU=$($using:ClusterOUName),$($using:ClusterOUPath)" -Properties ProtectedFromAccidentalDeletion).ProtectedFromAccidentalDeletion
                 @{
@@ -99,12 +97,12 @@ Configuration CreateClusterWithTwoNodes {
                 }
             }
      
-            SetScript  = {
+            SetScript            = {
                 #Get-ADComputer -Filter "Name -eq '$($using:Node.ClusterName)'" -SearchBase "OU=$($using:ClusterOUName),$ClusterOUPath" | Set-ADObject -ProtectedFromAccidentalDeletion $true
                 Get-ADComputer -Filter "Name -eq '$($using:Node.ClusterName)'" -SearchBase "OU=$($using:ClusterOUName),$($using:ClusterOUPath)" | Set-ADObject -ProtectedFromAccidentalDeletion $true
             }
      
-            TestScript = {
+            TestScript           = {
                 # Create and invoke a scriptblock using the $GetScript automatic variable, which contains a string representation of the GetScript.
                 $state = [scriptblock]::Create($GetScript).Invoke()
                 return [system.boolean]::Parse($state.Result)
@@ -143,29 +141,25 @@ Configuration CreateClusterWithTwoNodes {
         #endregion
 
         #region Required Windows Features
-        WindowsFeature AddFailoverFeature
-        {
-            Ensure = 'Present'
-            Name = 'Failover-clustering'
+        WindowsFeature AddFailoverFeature {
+            Ensure               = 'Present'
+            Name                 = 'Failover-clustering'
             IncludeAllSubFeature = $true
-            DependsOn = '[WindowsFeature]AddRSATClustering'
+            DependsOn            = '[WindowsFeature]AddRSATClustering'
         }
 
-        WindowsFeature AddRSATClustering
-        {
-            Ensure = 'Present'
-            Name = 'RSAT-Clustering'
+        WindowsFeature AddRSATClustering {
+            Ensure               = 'Present'
+            Name                 = 'RSAT-Clustering'
             IncludeAllSubFeature = $true
         }
 
-        WindowsFeature 'NetFramework45'
-        {
+        WindowsFeature 'NetFramework45' {
             Name   = 'NET-Framework-45-Core'
             Ensure = 'Present'
         }
 
-        WindowsFeature 'SNMPWMIProvider'
-        {
+        WindowsFeature 'SNMPWMIProvider' {
             Name   = 'SNMP-WMI-Provider'
             Ensure = 'Present'
         }
@@ -207,36 +201,36 @@ Configuration CreateClusterWithTwoNodes {
         #Installing SQL server as Standalone Instance
         SqlSetup 'InstallAG'
         {
-            InstanceName         = $Node.InstanceName
+            InstanceName           = $Node.InstanceName
             #InstanceID           = $Node.InstanceName
-            Features             = $Node.Features
-            SourcePath           = "$($Node.SourceShareRoot)\SQLServer2022"
-            InstallSQLDataDir    = "$($Node.Drive)\System"
+            Features               = $Node.Features
+            SourcePath             = "$($Node.SourceShareRoot)\SQLServer2022"
+            InstallSQLDataDir      = "$($Node.Drive)\System"
             # Windows account(s) to provision as SQL Server system administrators.
-            SQLSysAdminAccounts  = $Node.SQLSysAdminAccounts
+            SQLSysAdminAccounts    = $Node.SQLSysAdminAccounts
             #UpdateEnabled        = 'False'
-            UpdateEnabled        = 'True'
-            UpdateSource         = "$($Node.SourceShareRoot)\SQLServer2022\Updates"
-            AgtSvcAccount        = $SqlAgentServiceCredential
-            AgtSvcStartupType    = 'Automatic'
-            SQLSvcAccount        = $SqlServiceCredential
-            SqlSvcStartupType    = 'Automatic'
-            SAPwd                = $SqlSACredential
+            UpdateEnabled          = 'True'
+            UpdateSource           = "$($Node.SourceShareRoot)\SQLServer2022\Updates"
+            AgtSvcAccount          = $SqlAgentServiceCredential
+            AgtSvcStartupType      = 'Automatic'
+            SQLSvcAccount          = $SqlServiceCredential
+            SqlSvcStartupType      = 'Automatic'
+            SAPwd                  = $SqlSACredential
             # Specifies a Windows collation or an SQL collation to use for the Database Engine.
-            SQLCollation         = "Latin1_General_CI_AS"
+            SQLCollation           = "Latin1_General_CI_AS"
             # The default is Windows Authentication. Use "SQL" for Mixed Mode Authentication.
-            SecurityMode         = 'SQL'
+            SecurityMode           = 'SQL'
             # The number of Database Engine TempDB files.
-            SqlTempdbFileCount   = 8
+            SqlTempdbFileCount     = 8
             # Specifies the initial size of a Database Engine TempDB data file in MB.
             #SqlTempdbFileSize    = 1024
-            SqlTempdbFileSize    = 128
+            SqlTempdbFileSize      = 128
             # Specifies the automatic growth increment of each Database Engine TempDB data file in MB.
             #SqlTempdbFileGrowth  = 1024
-            SqlTempdbFileGrowth  = 128
+            SqlTempdbFileGrowth    = 128
             # Specifies the initial size of the Database Engine TempDB log file in MB.
             #SqlTempdbLogFileSize = 1024
-            SqlTempdbLogFileSize = 128
+            SqlTempdbLogFileSize   = 128
             # Specifies the automatic growth increment of the Database Engine TempDB log file in MB.
             SqlTempdbLogFileGrowth = 512
             # Default directory for the Database Engine user databases.
@@ -262,11 +256,11 @@ Configuration CreateClusterWithTwoNodes {
         #SQL Server AlwaysOn Service
         SqlAlwaysOnService 'EnableAlwaysOn'
         {
-            Ensure               = 'Present'
-            ServerName           = $Node.NodeName
-            InstanceName         = $Node.InstanceName
-            RestartTimeout       = 120
-            DependsOn            = '[SqlSetup]InstallAG'
+            Ensure         = 'Present'
+            ServerName     = $Node.NodeName
+            InstanceName   = $Node.InstanceName
+            RestartTimeout = 120
+            DependsOn      = '[SqlSetup]InstallAG'
         }
         <#
         #region SQL Server Registry Management
@@ -280,34 +274,31 @@ Configuration CreateClusterWithTwoNodes {
             DependsOn   = '[SqlSetup]InstallAG'
         }
         #>
-        Registry DisableSm
-        {
-            Ensure      = "Present"
-            Key         = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.$($Node.InstanceName)\$($Node.InstanceName)\SuperSocketNetLib\sm"
-            ValueName   = "Enabled"
-            ValueData   = "0"
-            ValueType   = "Dword"
-            DependsOn   = '[SqlSetup]InstallAG'
+        Registry DisableSm {
+            Ensure    = "Present"
+            Key       = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.$($Node.InstanceName)\$($Node.InstanceName)\SuperSocketNetLib\sm"
+            ValueName = "Enabled"
+            ValueData = "0"
+            ValueType = "Dword"
+            DependsOn = '[SqlSetup]InstallAG'
         }
 
-        Registry TcpPort
-        {
-            Ensure      = "Present"
-            Key         = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.$($Node.InstanceName)\$($Node.InstanceName)\SuperSocketNetLib\Tcp\IpAll"
-            ValueName   = "TcpPort"
-            ValueData   = $Node.SQLTCPPort
-            ValueType   = "String"
-            DependsOn   = '[SqlSetup]InstallAG'
+        Registry TcpPort {
+            Ensure    = "Present"
+            Key       = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.$($Node.InstanceName)\$($Node.InstanceName)\SuperSocketNetLib\Tcp\IpAll"
+            ValueName = "TcpPort"
+            ValueData = $Node.SQLTCPPort
+            ValueType = "String"
+            DependsOn = '[SqlSetup]InstallAG'
         }
 
-        Registry TcpDynamicPorts
-        {
-            Ensure      = "Present"
-            Key         = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.$($Node.InstanceName)\$($Node.InstanceName)\SuperSocketNetLib\Tcp\IpAll"
-            ValueName   = "TcpDynamicPorts"
-            ValueData   = ""
-            ValueType   = "String"
-            DependsOn   = '[SqlSetup]InstallAG'
+        Registry TcpDynamicPorts {
+            Ensure    = "Present"
+            Key       = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.$($Node.InstanceName)\$($Node.InstanceName)\SuperSocketNetLib\Tcp\IpAll"
+            ValueName = "TcpDynamicPorts"
+            ValueData = ""
+            ValueType = "String"
+            DependsOn = '[SqlSetup]InstallAG'
         }
         #endregion
 
@@ -315,13 +306,13 @@ Configuration CreateClusterWithTwoNodes {
         SqlConfiguration ShowAdvancedOptions
         {
  
-            ServerName     = $Node.NodeName
-            InstanceName   = $Node.InstanceName
-            OptionName     = 'show advanced options'
-            OptionValue    = 1
-            RestartService = $false
-            PsDscRunAsCredential   = $SqlInstallCredential
-            DependsOn      = '[SqlSetup]InstallAG'
+            ServerName           = $Node.NodeName
+            InstanceName         = $Node.InstanceName
+            OptionName           = 'show advanced options'
+            OptionValue          = 1
+            RestartService       = $false
+            PsDscRunAsCredential = $SqlInstallCredential
+            DependsOn            = '[SqlSetup]InstallAG'
         }
 
         SqlMaxDop 'MaxDegreeOfParallelism'
@@ -332,7 +323,7 @@ Configuration CreateClusterWithTwoNodes {
             ServerName           = $Node.NodeName
             InstanceName         = $Node.InstanceName
             PsDscRunAsCredential = $SqlInstallCredential
-            DependsOn      = '[SqlSetup]InstallAG', '[SqlConfiguration]ShowAdvancedOptions'
+            DependsOn            = '[SqlSetup]InstallAG', '[SqlConfiguration]ShowAdvancedOptions'
         }
         <#
         SqlConfiguration MaxDegreeOfParallelism
@@ -351,37 +342,37 @@ Configuration CreateClusterWithTwoNodes {
         SqlConfiguration AgentXPs
         {
  
-            ServerName     = $Node.NodeName
-            InstanceName   = $Node.InstanceName
-            OptionName     = 'Agent XPs'
-            OptionValue    = 1
-            RestartService = $false
-            PsDscRunAsCredential   = $SqlInstallCredential
-            DependsOn      = '[SqlSetup]InstallAG', '[SqlConfiguration]ShowAdvancedOptions'
+            ServerName           = $Node.NodeName
+            InstanceName         = $Node.InstanceName
+            OptionName           = 'Agent XPs'
+            OptionValue          = 1
+            RestartService       = $false
+            PsDscRunAsCredential = $SqlInstallCredential
+            DependsOn            = '[SqlSetup]InstallAG', '[SqlConfiguration]ShowAdvancedOptions'
         }
 
         SqlConfiguration CostThresholdForParallelism
         {
  
-            ServerName     = $Node.NodeName
-            InstanceName   = $Node.InstanceName
-            OptionName     = 'cost threshold for parallelism'
-            OptionValue    = 32767
-            RestartService = $false
-            PsDscRunAsCredential   = $SqlInstallCredential
-            DependsOn      = '[SqlSetup]InstallAG', '[SqlConfiguration]ShowAdvancedOptions'
+            ServerName           = $Node.NodeName
+            InstanceName         = $Node.InstanceName
+            OptionName           = 'cost threshold for parallelism'
+            OptionValue          = 32767
+            RestartService       = $false
+            PsDscRunAsCredential = $SqlInstallCredential
+            DependsOn            = '[SqlSetup]InstallAG', '[SqlConfiguration]ShowAdvancedOptions'
         }
 
         SqlConfiguration MaxServerMemoryMB
         {
  
-            ServerName     = $Node.NodeName
-            InstanceName   = $Node.InstanceName
-            OptionName     = 'max server memory (MB)'
-            OptionValue    = 480000
-            RestartService = $false
-            PsDscRunAsCredential   = $SqlInstallCredential
-            DependsOn      = '[SqlSetup]InstallAG', '[SqlConfiguration]ShowAdvancedOptions'
+            ServerName           = $Node.NodeName
+            InstanceName         = $Node.InstanceName
+            OptionName           = 'max server memory (MB)'
+            OptionValue          = 480000
+            RestartService       = $false
+            PsDscRunAsCredential = $SqlInstallCredential
+            DependsOn            = '[SqlSetup]InstallAG', '[SqlConfiguration]ShowAdvancedOptions'
         }
         #endregion
 
@@ -394,17 +385,17 @@ Configuration CreateClusterWithTwoNodes {
             ServerName           = $Node.NodeName
             InstanceName         = $Node.InstanceName
             PsDscRunAsCredential = $SqlInstallCredential
-            DependsOn      = '[SqlSetup]InstallAG'
+            DependsOn            = '[SqlSetup]InstallAG'
         }
 
         #Adding SQL Server Permissions for 'NT SERVICE\ClusSvc'
         # Add the required permissions to the cluster service login
         SqlPermission 'AddNTServiceClusSvcPermissions'
         {
-            DependsOn            = '[SqlLogin]AddNTServiceClusSvc'
-            ServerName           = $Node.NodeName
-            InstanceName         = $Node.InstanceName
-            Name                 = 'NT SERVICE\ClusSvc'
+            DependsOn    = '[SqlLogin]AddNTServiceClusSvc'
+            ServerName   = $Node.NodeName
+            InstanceName = $Node.InstanceName
+            Name         = 'NT SERVICE\ClusSvc'
             Permission   = @(
                 ServerPermission
                 {
@@ -438,7 +429,7 @@ Configuration CreateClusterWithTwoNodes {
             DependsOn            = '[SqlSetup]InstallAG'
         }
 
-<#
+        <#
         # To uncomment if you want to install SSMS
         Package SSMS
         {
@@ -450,6 +441,7 @@ Configuration CreateClusterWithTwoNodes {
         }
 #>
 
+        <#
         #region LCM Setup
         LocalConfigurationManager     
 	    {
@@ -461,35 +453,35 @@ Configuration CreateClusterWithTwoNodes {
 		    RefreshMode        = 'Push'
         }
         #endregion
+#>
     }
 
-    Node $AllNodes.Where{$_.Role -eq 'PrimaryReplica' }.NodeName
+    Node $AllNodes.Where{ $_.Role -eq 'PrimaryReplica' }.NodeName
     {
         #region WSFC
         #Cluster Creation: First Node
         Cluster CreateCluster
         {
-            Name = $Node.ClusterName
-            StaticIPAddress = $Node.ClusterIPAddress
+            Name                          = $Node.ClusterName
+            StaticIPAddress               = $Node.ClusterIPAddress
             # This user must have the permission to create the CNO (Cluster Name Object) in Active Directory, unless it is prestaged.
             DomainAdministratorCredential = $ActiveDirectoryAdministratorCredential
             # IgnoreNetwork = '10.0.0.0/8'
             #DependsOn = '[WindowsFeature]AddRSATClusteringCmdInterfaceFeature'
-            DependsOn = '[WindowsFeature]AddRSATClustering', '[ADObjectPermissionEntry]SetCNOCreateChildRightOnsOU', '[ADObjectPermissionEntry]SetCNOReadPropertyandGenericExecuteRightsOnsOU'
+            DependsOn                     = '[WindowsFeature]AddRSATClustering', '[ADObjectPermissionEntry]SetCNOCreateChildRightOnsOU', '[ADObjectPermissionEntry]SetCNOReadPropertyandGenericExecuteRightsOnsOU'
         }
 
         #Waiting all secondary replica nodes be up and running before validating the cluster.
-        WaitForAll JoinAdditionalServerNodeToCluster
-        {
-            ResourceName      = '[Cluster]JoinNodeToCluster'
-            NodeName          = $AllNodes.Where{$_.Role -eq 'SecondaryReplica' }.NodeName
-            RetryIntervalSec  = 30
-            RetryCount        = 60
+        WaitForAll JoinAdditionalServerNodeToCluster {
+            ResourceName     = '[Cluster]JoinNodeToCluster'
+            NodeName         = $AllNodes.Where{ $_.Role -eq 'SecondaryReplica' }.NodeName
+            RetryIntervalSec = 30
+            RetryCount       = 60
         }        
 
         #Cluster validation
         Script TestCluster {
-            GetScript  = {
+            GetScript            = {
                 @{
                     GetScript  = $GetScript
                     SetScript  = $SetScript
@@ -497,13 +489,12 @@ Configuration CreateClusterWithTwoNodes {
                 }
             }
      
-            SetScript  = {
+            SetScript            = {
                 Test-Cluster -ReportName C:\DSC-Test-Cluster
             }
      
-            TestScript = {
-                if (-not(Test-Path -Path C:\DSC-Test-Cluster.htm -PathType Leaf))
-                {
+            TestScript           = {
+                if (-not(Test-Path -Path C:\DSC-Test-Cluster.htm -PathType Leaf)) {
                     [scriptblock]::Create($SetScript).Invoke()
                 }
                 <#
@@ -514,29 +505,27 @@ Configuration CreateClusterWithTwoNodes {
                     $return ($NodeData | Where-Object -FilterScript {($_.Status -eq 'Validated')}).Count -eq ($using:AllNodes.NodeName | Where-Object -FilterScript {$_ -ne '*'}).Count
                 #>
                 [string]$reportContent = Get-Content -Path C:\DSC-Test-Cluster.htm
-                $MyMatches= [regex]::Matches(($reportContent),"(?m)Node:.*Validated</div>")
-                $Output = $MyMatches.Value -replace "<[^>]*>" -replace "Node:\s+([^\s]+)\s+", '$1=' -replace "\s+", " "  -split " "
-                return (($Output -replace ".*=") | Where-Object -FilterScript {($_ -eq 'Validated')}).Count -eq ($using:AllNodes.NodeName | Where-Object -FilterScript {$_ -ne '*'}).Count
+                $MyMatches = [regex]::Matches(($reportContent), "(?m)Node:.*Validated</div>")
+                $Output = $MyMatches.Value -replace "<[^>]*>" -replace "Node:\s+([^\s]+)\s+", '$1=' -replace "\s+", " " -split " "
+                return (($Output -replace ".*=") | Where-Object -FilterScript { ($_ -eq 'Validated') }).Count -eq ($using:AllNodes.NodeName | Where-Object -FilterScript { $_ -ne '*' }).Count
             }
             PsDscRunAsCredential = $ActiveDirectoryAdministratorCredential
-            DependsOn = '[WaitForAll]JoinAdditionalServerNodeToCluster'
+            DependsOn            = '[WaitForAll]JoinAdditionalServerNodeToCluster'
         }
         #endregion        
 
         #region SQL Server       
         #Disabling And Enabling the SQL Server AlwaysOn feature
         Script DisableAndEnableSqlAlwaysOn {
-            GetScript  = {
-                if ($($using:Node).InstanceName -eq "MSSQLServer")
-                {
+            GetScript            = {
+                if ($($using:Node).InstanceName -eq "MSSQLServer") {
                     $InstanceName = $env:COMPUTERNAME
                 }
-                else
-                {
+                else {
                     $InstanceName = Join-Path -Path $($using:Node).NodeName -ChildPath $($using:Node).InstanceName
                 }
 
-                $PrimaryReplica = $($($using:AllNodes).Where{$_.Role -eq 'PrimaryReplica' }.NodeName)
+                $PrimaryReplica = $($($using:AllNodes).Where{ $_.Role -eq 'PrimaryReplica' }.NodeName)
                 $AvailabilityGroups = [string]$(Invoke-Sqlcmd -Query "SELECT Groups.[Name] AS AGname FROM sys.dm_hadr_availability_group_states States INNER JOIN master.sys.availability_groups Groups ON States.group_id = Groups.group_id WHERE primary_replica = '$PrimaryReplica';"  -ServerInstance $InstanceName -Encrypt Optional).AGname -join ','
                 @{
                     GetScript  = $GetScript
@@ -546,13 +535,11 @@ Configuration CreateClusterWithTwoNodes {
                 }
             }
      
-            SetScript  = {
-                if ($($using:Node).InstanceName -eq 'MSSQLSERVER')
-                {
+            SetScript            = {
+                if ($($using:Node).InstanceName -eq 'MSSQLSERVER') {
                     $InstanceName = "Default"
                 }
-                else
-                {
+                else {
                     $InstanceName = $($using:Node).InstanceName
                 }
                 $SqlAlwaysOnPath = "SQLSERVER:\SQL\$($using:Node.NodeName)\$InstanceName"
@@ -562,13 +549,13 @@ Configuration CreateClusterWithTwoNodes {
                 Enable-SqlAlwaysOn $SqlAlwaysOnPath -Force -Verbose
             }
      
-            TestScript = {
+            TestScript           = {
                 # Create and invoke a scriptblock using the $GetScript automatic variable, which contains a string representation of the GetScript.
                 $state = [scriptblock]::Create($GetScript).Invoke()
                 return ($state.Result -split ",") -contains $($using:Node).AvailabilityGroupName
             }
             PsDscRunAsCredential = $SqlInstallCredential
-            DependsOn             = '[SqlAlwaysOnService]EnableAlwaysOn', '[SqlEndpoint]HADREndpoint', '[SqlPermission]AddNTServiceClusSvcPermissions'
+            DependsOn            = '[SqlAlwaysOnService]EnableAlwaysOn', '[SqlEndpoint]HADREndpoint', '[SqlPermission]AddNTServiceClusSvcPermissions'
         }
 
         #region SQL Availability Group Management
@@ -587,31 +574,30 @@ Configuration CreateClusterWithTwoNodes {
         }
 
         SqlAGListener AvailabilityGroupListener
-		{	
+        {	
             Ensure               = 'Present'
-		    Port 				 = 1433
+            Port                 = 1433
             ServerName           = $Node.NodeName
             InstanceName         = $Node.InstanceName
             AvailabilityGroup    = $Node.AvailabilityGroupName
             Name                 = $Node.AvailabilityGroupName
-            IpAddress 			 = $Node.AvailabilityGroupIPAddress
+            IpAddress            = $Node.AvailabilityGroupIPAddress
 			
 			
             DependsOn            = '[SqlAG]AddAG'
-		    PsDscRunAsCredential = $SqlInstallCredential
+            PsDscRunAsCredential = $SqlInstallCredential
 		
-		}
+        }
 
-        WaitForAll WaitForAddReplica
-        {
-            ResourceName      = '[SqlAGReplica]AddReplica'
-            NodeName          = $AllNodes.Where{ $_.Role -eq 'SecondaryReplica' }.NodeName
-            RetryIntervalSec  = 30
-            RetryCount        = 30
+        WaitForAll WaitForAddReplica {
+            ResourceName     = '[SqlAGReplica]AddReplica'
+            NodeName         = $AllNodes.Where{ $_.Role -eq 'SecondaryReplica' }.NodeName
+            RetryIntervalSec = 30
+            RetryCount       = 30
         }        
 
         Script SetClusterOwnerNode {
-            GetScript  = {
+            GetScript            = {
                 $Result = Get-ClusterResource | Get-ClusterOwnerNode | Out-String
                 @{
                     GetScript  = $GetScript
@@ -621,12 +607,12 @@ Configuration CreateClusterWithTwoNodes {
                 }
             }
      
-            SetScript  = {
+            SetScript            = {
                 Get-ClusterResource | Set-ClusterOwnerNode -Owners ($using:AllNodes).NodeName
             }
      
-            TestScript = {
-                return ((Get-ClusterResource | Get-ClusterOwnerNode | Where-Object -FilterScript {$_.OwnerNodes.Count -lt ($using:AllNodes).Count}) -eq $null)
+            TestScript           = {
+                return ((Get-ClusterResource | Get-ClusterOwnerNode | Where-Object -FilterScript { $_.OwnerNodes.Count -lt ($using:AllNodes).Count }) -eq $null)
             }
             PsDscRunAsCredential = $ActiveDirectoryAdministratorCredential
             DependsOn            = '[SqlSetup]InstallAG', '[WaitForAll]WaitForAddReplica'#, '[SqlAGListener]AvailabilityGroupListener'
@@ -657,31 +643,28 @@ Configuration CreateClusterWithTwoNodes {
 
         SqlAGDatabase 'AddAGDatabase'
         {
-            AvailabilityGroupName   = $Node.AvailabilityGroupName
-            BackupPath              = $Node.BackupPath
-            DatabaseName            = $Node.SampleDatabaseName
-            InstanceName            = $Node.InstanceName
-            ServerName              = $Node.NodeName
-            Ensure                  = 'Present'
-            ReplaceExisting         = $false
-            PsDscRunAsCredential    = $SqlInstallCredential
+            AvailabilityGroupName = $Node.AvailabilityGroupName
+            BackupPath            = $Node.BackupPath
+            DatabaseName          = $Node.SampleDatabaseName
+            InstanceName          = $Node.InstanceName
+            ServerName            = $Node.NodeName
+            Ensure                = 'Present'
+            ReplaceExisting       = $false
+            PsDscRunAsCredential  = $SqlInstallCredential
             #DependsOn              = '[SqlScriptQuery]GrantCreateAnyDatabaseToAG', '[SqlDatabase]CreateSampleDatabase', '[SqlAG]AddAG'
-            DependsOn              = '[SqlDatabase]CreateSampleDatabase'
+            DependsOn             = '[SqlDatabase]CreateSampleDatabase'
         }
         #endregion
 
         #region SQL Server Service Management
-        if ($Node.InstanceName -eq "MSSQLServer")
-        {
+        if ($Node.InstanceName -eq "MSSQLServer") {
             $ServiceName = 'SQLSERVERAGENT'
         }
-        else
-        {
+        else {
             $ServiceName = 'SQLAGENT${0}' -f $Node.InstanceName
         }
 
-        Service SQLServerAgent
-        {
+        Service SQLServerAgent {
             Name        = $ServiceName
             Ensure      = 'Present'
             State       = 'Running'
@@ -698,20 +681,20 @@ Configuration CreateClusterWithTwoNodes {
         #Waiting the cluster be up and running before joining additional node(s)
         WaitForCluster WaitForCluster
         {
-            Name = $Node.ClusterName
+            Name             = $Node.ClusterName
             RetryIntervalSec = 10
-            RetryCount = 60
+            RetryCount       = 60
             #DependsOn = '[WindowsFeature]AddRSATClusteringCmdInterfaceFeature'
-            DependsOn = '[WindowsFeature]AddRSATClustering'
+            DependsOn        = '[WindowsFeature]AddRSATClustering'
         }
 
         #Joining the cluster
         Cluster JoinNodeToCluster
         {
-            Name = $Node.ClusterName
-            StaticIPAddress = $Node.ClusterIPAddress
+            Name                          = $Node.ClusterName
+            StaticIPAddress               = $Node.ClusterIPAddress
             DomainAdministratorCredential = $ActiveDirectoryAdministratorCredential
-            DependsOn = '[WaitForCluster]WaitForCluster'
+            DependsOn                     = '[WaitForCluster]WaitForCluster'
         }
         #endregion 
 
@@ -728,17 +711,15 @@ Configuration CreateClusterWithTwoNodes {
             PsDscRunAsCredential = $SqlInstallCredential
         }
     
-       Script DisableAndEnableSqlAlwaysOn {
-            GetScript  = {
-                if ($($using:Node).InstanceName -eq "MSSQLServer")
-                {
+        Script DisableAndEnableSqlAlwaysOn {
+            GetScript            = {
+                if ($($using:Node).InstanceName -eq "MSSQLServer") {
                     $InstanceName = $env:COMPUTERNAME
                 }
-                else
-                {
+                else {
                     $InstanceName = Join-Path -Path $($using:Node).NodeName -ChildPath $($using:Node).InstanceName
                 }
-                $PrimaryReplica = $($($using:AllNodes).Where{$_.Role -eq 'PrimaryReplica' }.NodeName)
+                $PrimaryReplica = $($($using:AllNodes).Where{ $_.Role -eq 'PrimaryReplica' }.NodeName)
                 $AvailabilityGroups = [string]$(Invoke-Sqlcmd -Query "SELECT Groups.[Name] AS AGname FROM sys.dm_hadr_availability_group_states States INNER JOIN master.sys.availability_groups Groups ON States.group_id = Groups.group_id WHERE primary_replica = '$PrimaryReplica';"  -ServerInstance $InstanceName -Encrypt Optional).AGname -join ','
                 @{
                     GetScript  = $GetScript
@@ -748,13 +729,11 @@ Configuration CreateClusterWithTwoNodes {
                 }
             }
      
-            SetScript  = {
-                if ($($using:Node).InstanceName -eq 'MSSQLSERVER')
-                {
+            SetScript            = {
+                if ($($using:Node).InstanceName -eq 'MSSQLSERVER') {
                     $InstanceName = "Default"
                 }
-                else
-                {
+                else {
                     $InstanceName = $($using:Node).InstanceName
                 }
                 $SqlAlwaysOnPath = "SQLSERVER:\SQL\$($using:Node.NodeName)\$InstanceName"
@@ -764,13 +743,13 @@ Configuration CreateClusterWithTwoNodes {
                 Enable-SqlAlwaysOn $SqlAlwaysOnPath -Force -Verbose
             }
      
-            TestScript = {
+            TestScript           = {
                 # Create and invoke a scriptblock using the $GetScript automatic variable, which contains a string representation of the GetScript.
                 $state = [scriptblock]::Create($GetScript).Invoke()
                 return ($state.Result -split ",") -contains $($using:Node).AvailabilityGroupName
             }
             PsDscRunAsCredential = $SqlInstallCredential
-            DependsOn             = '[SqlAlwaysOnService]EnableAlwaysOn', '[SqlWaitForAG]SQLConfigureAGWait'
+            DependsOn            = '[SqlAlwaysOnService]EnableAlwaysOn', '[SqlWaitForAG]SQLConfigureAGWait'
         }
         
         # Add the availability group replica to the availability group
@@ -791,17 +770,14 @@ Configuration CreateClusterWithTwoNodes {
         #endregion
 
         #region SQL Server Service Management
-        if ($Node.InstanceName -eq "MSSQLServer")
-        {
+        if ($Node.InstanceName -eq "MSSQLServer") {
             $ServiceName = 'SQLSERVERAGENT'
         }
-        else
-        {
+        else {
             $ServiceName = 'SQLAGENT${0}' -f $Node.InstanceName
         }
 
-        Service SQLServerAgent
-        {
+        Service SQLServerAgent {
             Name        = $ServiceName
             Ensure      = 'Present'
             State       = 'Running'

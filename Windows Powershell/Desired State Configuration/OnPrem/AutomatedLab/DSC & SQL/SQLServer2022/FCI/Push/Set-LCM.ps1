@@ -1,4 +1,4 @@
-<#
+﻿<#
 This Sample Code is provided for the purpose of illustration only
 and is not intended to be used in a production environment.  THIS
 SAMPLE CODE AND ANY RELATED INFORMATION ARE PROVIDED "AS IS" WITHOUT
@@ -16,35 +16,44 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 #requires -Version 5 -RunAsAdministrator 
+
 Clear-Host 
-$CurrentScript = $MyInvocation.MyCommand.Path
-#Getting the current directory (where this script file resides)
-$CurrentDir = Split-Path -Path $CurrentScript -Parent
+$CurrentDir = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
 
 Set-Location -Path $CurrentDir
 
-[DscLocalConfigurationManager()]
-Configuration Disable-LCM
+[DSCLocalConfigurationManager()]
+configuration Set-LCM
 {
 	param(
-        [string[]] $ComputerName = 'localhost'
+        [string[]] $ComputerName = 'localhost',
+        [string] $RegistrationKey
     )
-
     Node $ComputerName
 	{
 		Settings
 		{
-			RefreshMode = 'Disabled'
+			RefreshMode = 'Push'
 		}
+
+		ReportServerWeb  PullServer
+		{
+			ServerURL = 'https://PULL.contoso.com/PSDSCPullServer.svc'
+			RegistrationKey = $RegistrationKey
+		}      
 	}
 }
 
-$TargetNodes = 'SQLNODE01' #, 'SQLNODE02'
-# Generating the MOF file(s)
-Disable-LCM -ComputerName $TargetNodes
+$RegistrationKey = Invoke-Command -ComputerName PULL { Get-Content -Path "$env:ProgramFiles\WindowsPowerShell\DscService\RegistrationKeys.txt" } 
+$TargetNodes = 'SQLNODE01', 'SQLNODE02' #, 'SQLNODE03'
+# Generating the LCM MOF file(s)
+Set-LCM -ComputerName $TargetNodes -RegistrationKey $RegistrationKey
 
-# Setting the local LCM configuration
-Set-DscLocalConfigurationManager -Path .\Disable-LCM -Verbose
+# Getting the LCM Configuration on the targeted nodes
+Get-DscLocalConfigurationManager -CimSession $TargetNodes
 
-# Getting the local LCM configuration (for checking of the configuration was applied)
-Get-DscLocalConfigurationManager
+# Setting the LCM Configuration on the targeted nodes
+Set-DscLocalConfigurationManager -Path .\Set-LCM -Verbose -CimSession $TargetNodes
+
+# Getting the LCM Configuration on the targeted nodes
+Get-DscLocalConfigurationManager -CimSession $TargetNodes

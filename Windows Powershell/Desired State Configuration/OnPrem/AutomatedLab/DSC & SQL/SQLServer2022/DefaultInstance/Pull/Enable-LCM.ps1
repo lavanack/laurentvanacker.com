@@ -24,9 +24,11 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 
 [DscLocalConfigurationManager()]
-Configuration DisableLCM
+Configuration Enable-LCM
 {
-	Node localhost
+	param(
+        [string[]] $ComputerName = 'localhost'
+    )
 	{
 		Settings
 		{
@@ -34,11 +36,13 @@ Configuration DisableLCM
 		}
 	}
 }
+$TargetNodes = 'SQLNODE01' #, 'SQLNODE02'
 # Generating the MOF file(s)
-DisableLCM
+Enable-LCM -ComputerName $TargetNodes
+
 
 # Setting the local LCM configuration
-Set-DscLocalConfigurationManager -Path .\DisableLCM -Verbose
+Set-DscLocalConfigurationManager -Path .\Enable-LCM -Verbose
 
 # Getting the local LCM configuration (for checking of the configuration was applied)
 Get-DscLocalConfigurationManager
