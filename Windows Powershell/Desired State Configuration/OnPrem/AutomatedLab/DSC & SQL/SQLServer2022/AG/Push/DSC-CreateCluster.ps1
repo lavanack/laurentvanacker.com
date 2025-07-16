@@ -264,14 +264,13 @@ Configuration CreateClusterWithTwoNodes {
         }
         <#
         #region SQL Server Registry Management
-        Registry DisableNp
-        {
-            Ensure      = "Present"
-            Key         = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.$($Node.InstanceName)\$($Node.InstanceName)\SuperSocketNetLib\Np"
-            ValueName   = "Enabled"
-            ValueData   = "0"
-            ValueType   = "Dword"
-            DependsOn   = '[SqlSetup]InstallAG'
+        Registry DisableNp {
+            Ensure    = "Present"
+            Key       = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.$($Node.InstanceName)\$($Node.InstanceName)\SuperSocketNetLib\Np"
+            ValueName = "Enabled"
+            ValueData = "0"
+            ValueType = "Dword"
+            DependsOn = '[SqlSetup]InstallAG'
         }
         #>
         Registry DisableSm {
@@ -441,16 +440,15 @@ Configuration CreateClusterWithTwoNodes {
         }
 #>
 
-        <#
+<#
         #region LCM Setup
-        LocalConfigurationManager     
-	    {
+        LocalConfigurationManager {
             #ConfigurationMode  = "ApplyAndAutoCorrect"
             ConfigurationMode  = 'ApplyOnly'
-		    ActionAfterReboot  = 'ContinueConfiguration'
-		    # Allowing to reboot if needed even in the middle of a configuration.
+            ActionAfterReboot  = 'ContinueConfiguration'
+            # Allowing to reboot if needed even in the middle of a configuration.
             RebootNodeIfNeeded = $True
-		    RefreshMode        = 'Push'
+            RefreshMode        = 'Push'
         }
         #endregion
 #>
