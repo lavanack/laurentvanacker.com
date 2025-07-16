@@ -444,8 +444,8 @@ Configuration CreateClusterWithTwoNodes {
         }
         #endregion
 
-		<#
         #region SQL Server Registry Management
+		<#
         Registry DisableNp
         {
             Ensure      = "Present"

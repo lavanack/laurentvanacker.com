@@ -36,18 +36,17 @@ Set-WinUserLanguageList fr-fr -Force
 #region Applying the configuration
 #region Credential Management
 #Variable for credentials
-#Variable for credentials
 $SQLAdmin = "$((Get-ADDomain).Name)\SQLAdministrator"
 $ClearTextPassword = 'P@ssw0rd'
 #Just use CTRL+V when prompted for the password(s)
 $ClearTextPassword | Set-Clipboard
 
-$SecurePassword                         = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
-$ActiveDirectoryAdministratorCredential = New-Object System.Management.Automation.PSCredential($(whoami),$SecurePassword)
-$SqlInstallCredential                   = New-Object System.Management.Automation.PSCredential($(whoami),$SecurePassword)
-$SqlServiceCredential                   = New-Object System.Management.Automation.PSCredential($SQLAdmin,$SecurePassword)
-$SqlAgentServiceCredential              = New-Object System.Management.Automation.PSCredential($SQLAdmin,$SecurePassword)
-$SqlSACredential                        = New-Object System.Management.Automation.PSCredential('SA',$SecurePassword)
+$SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
+$ActiveDirectoryAdministratorCredential = New-Object System.Management.Automation.PSCredential($(whoami), $SecurePassword)
+$SqlInstallCredential = New-Object System.Management.Automation.PSCredential($(whoami), $SecurePassword)
+$SqlServiceCredential = New-Object System.Management.Automation.PSCredential($SQLAdmin, $SecurePassword)
+$SqlAgentServiceCredential = New-Object System.Management.Automation.PSCredential($SQLAdmin, $SecurePassword)
+$SqlSACredential = New-Object System.Management.Automation.PSCredential('SA', $SecurePassword)
 
 $DSCConfigurationParameters = @{
     ActiveDirectoryAdministratorCredential = $ActiveDirectoryAdministratorCredential 
@@ -67,16 +66,14 @@ Invoke-Command -ComputerName $TargetNodes -ScriptBlock {
     #wevtutil set-log "Microsoft-Windows-Dsc/Debug" /q:True /e:true
 
     #We have to increase the data authorized to transit via WinRM (Set to 8Mb Here)
-    if ((Get-Item -Path WSMan:\localhost\MaxEnvelopeSizeKb).Value -lt 8192)
-	{
-		Set-Item -Path WSMan:\localhost\MaxEnvelopeSizeKb -Value 8192		
-	}
+    if ((Get-Item -Path WSMan:\localhost\MaxEnvelopeSizeKb).Value -lt 8192) {
+        Set-Item -Path WSMan:\localhost\MaxEnvelopeSizeKb -Value 8192		
+    }
 
     "Microsoft-Windows-Dsc/Debug", "Microsoft-Windows-Dsc/Analytic" | ForEach-Object -Process {
         $log = New-Object System.Diagnostics.Eventing.Reader.EventLogConfiguration $_
-        if (-not($log.IsEnabled))
-        {
-            $log.IsEnabled=$true
+        if (-not($log.IsEnabled)) {
+            $log.IsEnabled = $true
             $log.SaveChanges()
         }
     }
@@ -89,10 +86,10 @@ Invoke-Command -ComputerName $TargetNodes -ScriptBlock {
 #Removing any previously existing MOF files
 Remove-Item -Path "$CurrentDir\CreateDefaultInstance" -Recurse -Force -ErrorAction Ignore
  
-CreateDefaultInstance @DSCConfigurationParameters
+CreateDefaultInstance @DSCConfigurationParameters -Verbose
 
 #Applying the new LCM settings
-Set-DscLocalConfigurationManager $CurrentDir\CreateDefaultInstance -Force -Verbose
+#Set-DscLocalConfigurationManager $CurrentDir\CreateDefaultInstance -Force -Verbose
 #Enable-DscDebug -BreakAll -CimSession $TargetNodes
 
 #Applying the configuration to create a 2-node cluster 
@@ -113,12 +110,11 @@ $OutputDir = $env:Temp
 #For DSC event log filtering
 $StartTime = [datetime]::Today.ToString('s')
 $JSONFile = $TargetNodes | ForEach-Object -Process {
-    $ComputerName=$_
+    $ComputerName = $_
     #eventvwr $ComputerName /c:Microsoft-Windows-Dsc/Operational #/f:"*[System[((EventID=4512) or (EventID=4513))]]"
     (Get-WinEvent -LogName "Microsoft-Windows-Dsc/Operational" -FilterXPath "*[System[((EventID=4512) or (EventID=4513)) and TimeCreated[@SystemTime>'$StartTime']]]" -ComputerName $ComputerName) | Sort-Object -Property TimeCreated | ForEach-Object {
-        if ($_.Message -match "[to|for]\s+(?<JSONFile>.*)")
-        {
-            [PSCustomObject]@{"ComputerName"=$ComputerName;"FullName"=$Matches['JSONFile']; "UNCPath"='\\' + $ComputerName + '\' + $Matches['JSONFile'] -replace ':', '$'; TimeCreated=$_.TimeCreated}
+        if ($_.Message -match "[to|for]\s+(?<JSONFile>.*)") {
+            [PSCustomObject]@{"ComputerName" = $ComputerName; "FullName" = $Matches['JSONFile']; "UNCPath" = '\\' + $ComputerName + '\' + $Matches['JSONFile'] -replace ':', '$'; TimeCreated = $_.TimeCreated }
         }
     }
 } | Sort-Object -Property TimeCreated, ComputerName
