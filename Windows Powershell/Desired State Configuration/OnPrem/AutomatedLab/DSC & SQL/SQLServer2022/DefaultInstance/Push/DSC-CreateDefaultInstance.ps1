@@ -244,8 +244,8 @@ Configuration CreateDefaultInstance {
             Arguments = "/install /passive /norestart"
             ProductId = "ECC23FD6-535B-43CB-894B-F47FA605EBB3" 
         }
-#>
-
+        #>
+        <#
         #region LCM Setup
         LocalConfigurationManager {
             #ConfigurationMode  = "ApplyAndAutoCorrect"
@@ -256,5 +256,6 @@ Configuration CreateDefaultInstance {
             RefreshMode        = 'Push'
         }
         #endregion
+        #>
     }
 }
