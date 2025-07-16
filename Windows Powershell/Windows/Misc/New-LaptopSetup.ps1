@@ -29,8 +29,7 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 
 #region Installing Hyper-V
-if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All).State -ne 'Enabled')
-{
+if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All).State -ne 'Enabled') {
     Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All -All -NoRestart
     Restart-Computer -Force
 }
@@ -80,7 +79,6 @@ winget install --exact --id=Foxit.FoxitReader
 winget install --exact --id=Intel.IntelDriverAndSupportAssistant
 winget install --exact --id=WiresharkFoundation.Wireshark
 winget install --exact --id=Microsoft.VisualStudioCode.Insiders
-winget install --exact --id=Microsoft.AzureCLI
 winget install --exact --id=Synology.SurveillanceStationClient
 winget install --exact --id=Synology.CloudStationDrive 
 winget install --exact --id=WinMerge.WinMerge
@@ -95,6 +93,7 @@ winget install --exact --id=Logitech.GHUB
 winget install --exact --id=Microsoft.Azure.AZCopy.10
 winget install --exact --id=WinDirStat.WinDirStat
 winget install --exact --id=Microsoft.Bicep
+winget install --exact --id=Microsoft.AzureCLI
 winget install --exact --id=Hashicorp.Terraform
 #winget install --exact --id=Microsoft.VisualStudioCode
 
@@ -139,16 +138,16 @@ Invoke-WebRequest -Uri "https://download.mozilla.org/?product=firefox-latest&os=
 
 $VSCodeExtension = [ordered]@{
     #'Live Share Extension Pack' = 'ms-vsliveshare.vsliveshare-pack'
-    "PowerShell" = "ms-vscode.powershell"
-    'Git Graph' = 'mhutchie.git-graph'
-    'Git History' = 'donjayamanne.githistory'
+    "PowerShell"                 = "ms-vscode.powershell"
+    'Git Graph'                  = 'mhutchie.git-graph'
+    'Git History'                = 'donjayamanne.githistory'
     'GitLens - Git supercharged' = 'eamodio.gitlens'
-    'Git File History' = 'pomber.git-file-history'
-    'indent-rainbow' = 'oderwat.indent-rainbow'
-    'markdownlint' = 'davidanson.vscode-markdownlint'
-    'Markdown All in One' = 'yzhang.markdown-all-in-one'
-    'GitHub Copilot' = 'github.copilot'
-    'GitHub Copilot Chat' = 'github.copilot-chat'
+    'Git File History'           = 'pomber.git-file-history'
+    'indent-rainbow'             = 'oderwat.indent-rainbow'
+    'markdownlint'               = 'davidanson.vscode-markdownlint'
+    'Markdown All in One'        = 'yzhang.markdown-all-in-one'
+    'GitHub Copilot'             = 'github.copilot'
+    'GitHub Copilot Chat'        = 'github.copilot-chat'
 
 }
 #Installing VSCode with Powershell extension (and optional additional ones)
