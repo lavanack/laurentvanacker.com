@@ -1,4 +1,5 @@
 *.cab
+*.bak
 *.txt
 *_Keys.*
 .vscode/*
