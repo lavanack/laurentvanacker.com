@@ -27,13 +27,12 @@ Set-Location -Path $CurrentDir
 Configuration Disable-LCM
 {
 	param(
-        [string[]] $ComputerName = 'localhost'
-    )
+		[string[]] $ComputerName = 'localhost'
+	)
 
-    Node $ComputerName
+	Node $ComputerName
 	{
-		Settings
-		{
+		Settings {
 			RefreshMode = 'Disabled'
 		}
 	}

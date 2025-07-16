@@ -210,6 +210,7 @@ Configuration CreateClusterWithTwoNodes {
         }
         #>
 
+		<#
         #region LCM Setup
         LocalConfigurationManager     
 	    {
@@ -221,6 +222,7 @@ Configuration CreateClusterWithTwoNodes {
 		    RefreshMode        = 'Push'
         }
         #endregion
+		#>
     }
 
     Node $AllNodes.Where{$_.Role -eq 'FirstServerNode' }.NodeName
@@ -372,7 +374,7 @@ Configuration CreateClusterWithTwoNodes {
             # Specify 0 to disable or 1 to enable the TCP/IP protocol.
             #TcpEnabled                   = 1 
             # Specify 0 to disable or 1 to enable the Named Pipes protocol.
-            #NpEnabled                    = 0
+            NpEnabled                    = 0
             # Startup type for Browser Service         
             #BrowserSvcStartupType  = "Automatic"
             ForceReboot                  = $true
@@ -442,6 +444,7 @@ Configuration CreateClusterWithTwoNodes {
         }
         #endregion
 
+		<#
         #region SQL Server Registry Management
         Registry DisableNp
         {
@@ -452,7 +455,7 @@ Configuration CreateClusterWithTwoNodes {
             ValueType   = "Dword"
             DependsOn   = '[SqlSetup]InstallFailoverCluster'
         }
-
+		#>
         Registry DisableSm
         {
             Ensure      = "Present"
@@ -627,7 +630,7 @@ Configuration CreateClusterWithTwoNodes {
             # Specify 0 to disable or 1 to enable the TCP/IP protocol.
             #TcpEnabled                   = 1 
             # Specify 0 to disable or 1 to enable the Named Pipes protocol.
-            #NpEnabled                    = 0
+            NpEnabled                    = 0
             # Startup type for Browser Service         
             #BrowserSvcStartupType  = "Automatic"
             #ForceReboot                  = $true

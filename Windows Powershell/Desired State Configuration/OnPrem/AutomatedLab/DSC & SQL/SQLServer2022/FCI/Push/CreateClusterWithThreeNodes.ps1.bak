@@ -43,6 +43,7 @@ $ClearTextPassword = 'P@ssw0rd'
 #Just use CTRL+V when prompted for the password(s)
 $ClearTextPassword | Set-Clipboard
 
+
 $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
 $ActiveDirectoryAdministratorCredential = New-Object System.Management.Automation.PSCredential($(whoami), $SecurePassword)
 $SqlInstallCredential = New-Object System.Management.Automation.PSCredential($(whoami), $SecurePassword)

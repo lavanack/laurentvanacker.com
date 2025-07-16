@@ -26,26 +26,38 @@ Set-Location -Path $CurrentDir
 configuration Set-LCM
 {
 	param(
-        [string[]] $ComputerName = 'localhost',
-        [string] $RegistrationKey
-    )
-    Node $ComputerName
+		[string[]] $ComputerName = 'localhost',
+		[string] $RegistrationKey
+	)
+	Node $ComputerName
 	{
-		Settings
-		{
-			RefreshMode = 'Push'
+		Settings {
+			#ConfigurationMode  = "ApplyAndAutoCorrect"
+			ConfigurationMode  = 'ApplyOnly'
+			ActionAfterReboot  = 'ContinueConfiguration'
+			# Allowing to reboot if needed even in the middle of a configuration.
+			RebootNodeIfNeeded = $True
+			RefreshMode        = 'Push'
 		}
 
-		ReportServerWeb  PullServer
+		<#
+		ConfigurationRepositoryWeb PullServer
 		{
 			ServerURL = 'https://PULL.contoso.com/PSDSCPullServer.svc'
+			RegistrationKey = $RegistrationKey
+			ConfigurationNames = $ConfigurationName
+		}      
+		#>
+
+		ReportServerWeb  PullServer {
+			ServerURL       = 'https://PULL.contoso.com/PSDSCPullServer.svc'
 			RegistrationKey = $RegistrationKey
 		}      
 	}
 }
 
 $RegistrationKey = Invoke-Command -ComputerName PULL { Get-Content -Path "$env:ProgramFiles\WindowsPowerShell\DscService\RegistrationKeys.txt" } 
-$TargetNodes = 'SQLNODE01', 'SQLNODE02' #, 'SQLNODE03'
+$TargetNodes = 'SQLNODE01', 'SQLNODE02', 'SQLNODE03'
 # Generating the LCM MOF file(s)
 Set-LCM -ComputerName $TargetNodes -RegistrationKey $RegistrationKey
 
@@ -53,7 +65,7 @@ Set-LCM -ComputerName $TargetNodes -RegistrationKey $RegistrationKey
 Get-DscLocalConfigurationManager -CimSession $TargetNodes
 
 # Setting the LCM Configuration on the targeted nodes
-Set-DscLocalConfigurationManager -Path .\Set-LCM -Verbose -CimSession $TargetNodes
+Set-DscLocalConfigurationManager -Path .\Set-LCM -Verbose -CimSession $TargetNodes -Force
 
 # Getting the LCM Configuration on the targeted nodes
 Get-DscLocalConfigurationManager -CimSession $TargetNodes
