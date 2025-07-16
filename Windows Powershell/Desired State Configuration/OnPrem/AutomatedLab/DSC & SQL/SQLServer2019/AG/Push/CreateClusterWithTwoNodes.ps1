@@ -38,7 +38,6 @@ Set-WinUserLanguageList fr-fr -Force
 #region Applying the configuration
 #region Credential Management
 #Variable for credentials
-#Variable for credentials
 $SQLAdmin = "$((Get-ADDomain).Name)\SQLAdministrator"
 $ClearTextPassword = 'P@ssw0rd'
 #Just use CTRL+V when prompted for the password(s)
