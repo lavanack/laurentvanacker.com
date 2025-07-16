@@ -51,8 +51,7 @@ Configuration CreateDefaultInstance {
     Node $AllNodes.NodeName
     {
         #region Required Windows Features
-        WindowsFeature 'NetFramework45'
-        {
+        WindowsFeature 'NetFramework45' {
             Name   = 'NET-Framework-45-Core'
             Ensure = 'Present'
         }
@@ -68,36 +67,36 @@ Configuration CreateDefaultInstance {
         #Installing SQL server as Standalone Instance
         SqlSetup 'DefaultInstance'
         {
-            InstanceName         = $Node.InstanceName
+            InstanceName           = $Node.InstanceName
             #InstanceID           = $Node.InstanceName
-            Features             = $Node.Features
-            SourcePath           = "$($Node.SourceShareRoot)\SQLServer2022"
-            InstallSQLDataDir    = "$($Node.Drive)\System"
+            Features               = $Node.Features
+            SourcePath             = "$($Node.SourceShareRoot)\SQLServer2022"
+            InstallSQLDataDir      = "$($Node.Drive)\System"
             # Windows account(s) to provision as SQL Server system administrators.
-            SQLSysAdminAccounts  = $Node.SQLSysAdminAccounts
+            SQLSysAdminAccounts    = $Node.SQLSysAdminAccounts
             #UpdateEnabled        = 'False'
-            UpdateEnabled        = 'True'
-            UpdateSource         = "$($Node.SourceShareRoot)\SQLServer2022\Updates"
-            AgtSvcAccount        = $SqlAgentServiceCredential
-            AgtSvcStartupType    = 'Automatic'
-            SQLSvcAccount        = $SqlServiceCredential
-            SqlSvcStartupType    = 'Automatic'
-            SAPwd                = $SqlSACredential
+            UpdateEnabled          = 'True'
+            UpdateSource           = "$($Node.SourceShareRoot)\SQLServer2022\Updates"
+            AgtSvcAccount          = $SqlAgentServiceCredential
+            AgtSvcStartupType      = 'Automatic'
+            SQLSvcAccount          = $SqlServiceCredential
+            SqlSvcStartupType      = 'Automatic'
+            SAPwd                  = $SqlSACredential
             # Specifies a Windows collation or an SQL collation to use for the Database Engine.
-            SQLCollation         = "Latin1_General_CI_AS"
+            SQLCollation           = "Latin1_General_CI_AS"
             # The default is Windows Authentication. Use "SQL" for Mixed Mode Authentication.
-            SecurityMode         = 'SQL'
+            SecurityMode           = 'SQL'
             # The number of Database Engine TempDB files.
-            SqlTempdbFileCount   = 8
+            SqlTempdbFileCount     = 8
             # Specifies the initial size of a Database Engine TempDB data file in MB.
             #SqlTempdbFileSize    = 1024
-            SqlTempdbFileSize    = 128
+            SqlTempdbFileSize      = 128
             # Specifies the automatic growth increment of each Database Engine TempDB data file in MB.
             #SqlTempdbFileGrowth  = 1024
-            SqlTempdbFileGrowth  = 128
+            SqlTempdbFileGrowth    = 128
             # Specifies the initial size of the Database Engine TempDB log file in MB.
             #SqlTempdbLogFileSize = 1024
-            SqlTempdbLogFileSize = 128
+            SqlTempdbLogFileSize   = 128
             # Specifies the automatic growth increment of the Database Engine TempDB log file in MB.
             SqlTempdbLogFileGrowth = 512
             # Default directory for the Database Engine user databases.
@@ -121,6 +120,7 @@ Configuration CreateDefaultInstance {
         }
 
         #region SQL Server Registry Management
+        <#
         Registry DisableNp
         {
             Ensure      = "Present"
@@ -130,35 +130,32 @@ Configuration CreateDefaultInstance {
             ValueType   = "Dword"
             DependsOn   = '[SqlSetup]DefaultInstance'
         }
-
-        Registry DisableSm
-        {
-            Ensure      = "Present"
-            Key         = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.$($Node.InstanceName)\$($Node.InstanceName)\SuperSocketNetLib\sm"
-            ValueName   = "Enabled"
-            ValueData   = "0"
-            ValueType   = "Dword"
-            DependsOn   = '[SqlSetup]DefaultInstance'
+		#>
+        Registry DisableSm {
+            Ensure    = "Present"
+            Key       = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.$($Node.InstanceName)\$($Node.InstanceName)\SuperSocketNetLib\sm"
+            ValueName = "Enabled"
+            ValueData = "0"
+            ValueType = "Dword"
+            DependsOn = '[SqlSetup]DefaultInstance'
         }
 
-        Registry TcpPort
-        {
-            Ensure      = "Present"
-            Key         = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.$($Node.InstanceName)\$($Node.InstanceName)\SuperSocketNetLib\Tcp\IpAll"
-            ValueName   = "TcpPort"
-            ValueData   = $Node.SQLTCPPort
-            ValueType   = "String"
-            DependsOn   = '[SqlSetup]DefaultInstance'
+        Registry TcpPort {
+            Ensure    = "Present"
+            Key       = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.$($Node.InstanceName)\$($Node.InstanceName)\SuperSocketNetLib\Tcp\IpAll"
+            ValueName = "TcpPort"
+            ValueData = $Node.SQLTCPPort
+            ValueType = "String"
+            DependsOn = '[SqlSetup]DefaultInstance'
         }
 
-        Registry TcpDynamicPorts
-        {
-            Ensure      = "Present"
-            Key         = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.$($Node.InstanceName)\$($Node.InstanceName)\SuperSocketNetLib\Tcp\IpAll"
-            ValueName   = "TcpDynamicPorts"
-            ValueData   = ""
-            ValueType   = "String"
-            DependsOn   = '[SqlSetup]DefaultInstance'
+        Registry TcpDynamicPorts {
+            Ensure    = "Present"
+            Key       = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.$($Node.InstanceName)\$($Node.InstanceName)\SuperSocketNetLib\Tcp\IpAll"
+            ValueName = "TcpDynamicPorts"
+            ValueData = ""
+            ValueType = "String"
+            DependsOn = '[SqlSetup]DefaultInstance'
         }
         #endregion
 
@@ -166,13 +163,13 @@ Configuration CreateDefaultInstance {
         SqlConfiguration ShowAdvancedOptions
         {
  
-            ServerName     = $Node.NodeName
-            InstanceName   = $Node.InstanceName
-            OptionName     = 'show advanced options'
-            OptionValue    = 1
-            RestartService = $false
-            PsDscRunAsCredential   = $SqlInstallCredential
-            DependsOn      = '[SqlSetup]DefaultInstance'
+            ServerName           = $Node.NodeName
+            InstanceName         = $Node.InstanceName
+            OptionName           = 'show advanced options'
+            OptionValue          = 1
+            RestartService       = $false
+            PsDscRunAsCredential = $SqlInstallCredential
+            DependsOn            = '[SqlSetup]DefaultInstance'
         }
 
         SqlMaxDop 'MaxDegreeOfParallelism'
@@ -183,7 +180,7 @@ Configuration CreateDefaultInstance {
             ServerName           = $Node.NodeName
             InstanceName         = $Node.InstanceName
             PsDscRunAsCredential = $SqlInstallCredential
-            DependsOn      = '[SqlSetup]DefaultInstance', '[SqlConfiguration]ShowAdvancedOptions'
+            DependsOn            = '[SqlSetup]DefaultInstance', '[SqlConfiguration]ShowAdvancedOptions'
         }
         <#
         SqlConfiguration MaxDegreeOfParallelism
@@ -216,41 +213,41 @@ Configuration CreateDefaultInstance {
         SqlConfiguration AgentXPs
         {
  
-            ServerName     = $Node.NodeName
-            InstanceName   = $Node.InstanceName
-            OptionName     = 'Agent XPs'
-            OptionValue    = 1
-            RestartService = $false
-            PsDscRunAsCredential   = $SqlInstallCredential
-            DependsOn      = '[SqlSetup]DefaultInstance', '[SqlConfiguration]ShowAdvancedOptions'
+            ServerName           = $Node.NodeName
+            InstanceName         = $Node.InstanceName
+            OptionName           = 'Agent XPs'
+            OptionValue          = 1
+            RestartService       = $false
+            PsDscRunAsCredential = $SqlInstallCredential
+            DependsOn            = '[SqlSetup]DefaultInstance', '[SqlConfiguration]ShowAdvancedOptions'
         }
 
         SqlConfiguration CostThresholdForParallelism
         {
  
-            ServerName     = $Node.NodeName
-            InstanceName   = $Node.InstanceName
-            OptionName     = 'cost threshold for parallelism'
-            OptionValue    = 32767
-            RestartService = $false
-            PsDscRunAsCredential   = $SqlInstallCredential
-            DependsOn      = '[SqlSetup]DefaultInstance', '[SqlConfiguration]ShowAdvancedOptions'
+            ServerName           = $Node.NodeName
+            InstanceName         = $Node.InstanceName
+            OptionName           = 'cost threshold for parallelism'
+            OptionValue          = 32767
+            RestartService       = $false
+            PsDscRunAsCredential = $SqlInstallCredential
+            DependsOn            = '[SqlSetup]DefaultInstance', '[SqlConfiguration]ShowAdvancedOptions'
         }
 
         SqlConfiguration MaxServerMemoryMB
         {
  
-            ServerName     = $Node.NodeName
-            InstanceName   = $Node.InstanceName
-            OptionName     = 'max server memory (MB)'
-            OptionValue    = 480000
-            RestartService = $false
-            PsDscRunAsCredential   = $SqlInstallCredential
-            DependsOn      = '[SqlSetup]DefaultInstance', '[SqlConfiguration]ShowAdvancedOptions'
+            ServerName           = $Node.NodeName
+            InstanceName         = $Node.InstanceName
+            OptionName           = 'max server memory (MB)'
+            OptionValue          = 480000
+            RestartService       = $false
+            PsDscRunAsCredential = $SqlInstallCredential
+            DependsOn            = '[SqlSetup]DefaultInstance', '[SqlConfiguration]ShowAdvancedOptions'
         }
         #endregion
 
-<#
+        <#
         # To uncomment if you want to install SSMS
         Package SSMS
         {

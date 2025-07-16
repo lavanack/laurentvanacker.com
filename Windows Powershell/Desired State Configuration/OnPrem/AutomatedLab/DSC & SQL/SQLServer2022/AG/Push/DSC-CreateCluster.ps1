@@ -262,8 +262,8 @@ Configuration CreateClusterWithTwoNodes {
             RestartTimeout = 120
             DependsOn      = '[SqlSetup]InstallAG'
         }
-        <#
         #region SQL Server Registry Management
+        <#
         Registry DisableNp {
             Ensure    = "Present"
             Key       = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.$($Node.InstanceName)\$($Node.InstanceName)\SuperSocketNetLib\Np"
@@ -440,7 +440,7 @@ Configuration CreateClusterWithTwoNodes {
         }
 #>
 
-<#
+        <#
         #region LCM Setup
         LocalConfigurationManager {
             #ConfigurationMode  = "ApplyAndAutoCorrect"
