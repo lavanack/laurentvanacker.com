@@ -22,8 +22,8 @@ of the Sample Code.
 # For installing prerequisites
 #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 Get-PackageProvider -Name Nuget -ForceBootstrap -Force
-Install-Module -Name 'PSDscResources', 'StorageDsc', 'xPSDesiredStateConfiguration', 'ComputerManagementDsc' -Force -Verbose 
-Install-Module -Name HyperVDsc -AllowPrerelease -Force -Verbose 
+Install-Module -Name 'PSDscResources', 'StorageDsc', 'xPSDesiredStateConfiguration', 'ComputerManagementDsc' -Scope AllUsers -Force -Verbose 
+Install-Module -Name HyperVDsc -AllowPrerelease -Scope AllUsers -Force -Verbose 
 #>
 
 
@@ -186,7 +186,7 @@ Configuration AutomatedLabSetupDSC {
  
             SetScript  = {
                 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-                Install-Module -Name AutomatedLab -SkipPublisherCheck -AllowClobber -Force
+                Install-Module -Name AutomatedLab -Scope AllUsers -RequiredVersion 5.56.0 -SkipPublisherCheck -AllowClobber -Force
             }
  
             TestScript = {
@@ -209,7 +209,7 @@ Configuration AutomatedLabSetupDSC {
  
             SetScript  = {
                 $AzModules = "Az.Accounts", "Az.Storage", "Az.Compute", "Az.Network", "Az.Resources", "Az.Websites"
-                Install-Module -Name $AzModules -Force -Verbose
+                Install-Module -Name $AzModules -Scope AllUsers -Force -Verbose
             }
  
             TestScript = {
@@ -291,7 +291,7 @@ Configuration AutomatedLabSetupDSC {
                 #return ([boolean]$(Get-LabSourcesLocation))
                 #return (($(Get-LabSourcesLocation) -split ":" | Select-Object -First 1) -eq $using:DriveLetter)
                 #return (Split-Path $(Get-LabSourcesLocation) -Parent) -match "^$($using:DriveLetter):\\"
-                return $(Get-LabSourcesLocation) -match "^$($using:DriveLetter):\\"
+                return [boolean]$($(Get-LabSourcesLocation) -match "^$($using:DriveLetter):\\")
             }
             DependsOn  = '[Script]EnableLabHostRemoting'
         }

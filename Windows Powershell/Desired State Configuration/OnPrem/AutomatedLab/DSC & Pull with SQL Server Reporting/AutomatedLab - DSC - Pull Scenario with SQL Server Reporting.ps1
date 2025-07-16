@@ -15,7 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules AutomatedLab -RunAsAdministrator 
+#requires -Version 5 -Modules AutomatedLab, iSCSIDsc -RunAsAdministrator 
 
 trap {
     Write-Host "Stopping Transcript ..."
@@ -27,8 +27,6 @@ trap {
     break
 }
 
-Import-Module -Name AutomatedLab -Verbose
-try {while (Stop-Transcript) {}} catch {}
 Clear-Host
 
 $PreviousVerbosePreference = $VerbosePreference
@@ -46,7 +44,6 @@ $Now = Get-Date
 $5YearsFromNow = $Now.AddYears(5)
 $CertValidityPeriod = New-TimeSpan -Start $Now -End $5YearsFromNow
 $Logon = 'Administrator'
-#$ClearTextPassword = 'PowerShell5!'
 $ClearTextPassword = 'P@ssw0rd'
 $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
 $NetBiosDomainName = 'CONTOSO'

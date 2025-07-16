@@ -96,17 +96,17 @@ $StartTime = Get-Date
 $ExpiryTime = $StartTime.AddDays(1)
 $storageAccountKey = (Get-AzStorageAccountKey -ResourceGroupName $ResourceGroupName -AccountName $StorageAccountName).Value[0]
 
-#region Get Download Urwdl - Version #1
+#region Get Download Url - Version #1
 $Context = New-AzStorageContext -StorageAccountName $StorageAccountName -StorageAccountKey $storageAccountKey
 $StorageShareSASToken = New-AzStorageShareSASToken -Context $context -ExpiryTime $ExpiryTime -Permission "rwdl" -ShareName $ShareName -FullUri
 #endregion
 
-#region Get Download Urwdl - Version #2
+#region Get Download Url - Version #2
 $env:AZURE_STORAGE_CONNECTION_STRING = "DefaultEndpointsProtocol=https;AccountName=$StorageAccountName;AccountKey=$storageAccountKey;EndpointSuffix=core.windows.net"
 $StorageShareSASToken = New-AzStorageShareSASToken -ExpiryTime $ExpiryTime -Permission "rwdl" -ShareName $ShareName -FullUri 
 #endregion
 
-#region Get Download Urwdl - Version #3
+#region Get Download Url - Version #3
 $Context = New-AzStorageContext -ConnectionString "DefaultEndpointsProtocol=https;AccountName=$StorageAccountName;AccountKey=$StorageAccountKey"
 $StorageShareSASToken = New-AzStorageShareSASToken -Context $Context -ExpiryTime $ExpiryTime -Permission rwdl -ShareName $ShareName -FullUri 
 #endregion

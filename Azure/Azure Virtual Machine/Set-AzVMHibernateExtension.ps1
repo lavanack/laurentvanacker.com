@@ -20,7 +20,7 @@ of the Sample Code.
 #requires -Version 5 -Modules Az.Accounts, Az.Compute
 
 function Set-AzVMHibernateExtension {
-    [CmdletBinding()]
+    [CmdletBinding(PositionalBinding = $false)]
     Param(
         [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $false)]
         [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachineList[]] $CurrentVM,
