@@ -81,14 +81,6 @@ $LabSourcesDir = (Get-ChildItem -Path (Get-PSDrive -PSProvider FileSystem | Wher
 #Creating the ISOs path
 $ISOFolder = Join-Path -Path $LabSourcesDir -ChildPath "\ISOs"
 
-<#
-#region Building the input file with iso file list
-$AzCopyLogFile = Join-Path -Path $env:Temp -ChildPath $("azcopy_{0}.log" -f (Get-Date -Format 'yyyyMMddHHmmss'))
-(Get-ChildItem -Path $ISOFolder).Name | Out-File -FilePath $AzCopyLogFile -Encoding utf8
-#& $AzCopyLogFile
-#endregion
-#>
-
 #Go to the latest azcopy folder
 Get-ChildItem -Path "C:\Tools\azcopy_windows*" | Sort-Object -Property Name -Descending | Select-Object -First 1 | Push-Location
 $env:AZCOPY_CRED_TYPE = "Anonymous"
