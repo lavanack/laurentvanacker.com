@@ -1,5 +1,7 @@
 # main.tftest.hcl
 
+#mock_provider "azurerm" {}
+
 # Test resource group
 run "verify_resource_group" {
 	command = plan
