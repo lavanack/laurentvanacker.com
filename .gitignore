@@ -3,3 +3,4 @@
 *.txt
 *_Keys.*
 .vscode/*
+*.tfstate
