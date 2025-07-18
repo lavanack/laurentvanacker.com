@@ -174,14 +174,6 @@ $PSWSAppPoolUsr = 'PSWSAppPoolUsr'
 $SQLServerManagementStudioURI = 'https://aka.ms/ssms/21/release/vs_SSMS.exe'
 $SQLServerManagementStudioSetupFileName = Split-Path -Path $SQLServerManagementStudioURI -Leaf
 
-#region SQL Server 2019
-$SQLServer2019EnterpriseISO = "$labSources\ISOs\en_sql_server_2019_enterprise_x64_dvd_5e1ecc6b.iso"
-#SQL Server 2019 Latest GDR: KB5046859 when writing/updating this script (May 2025)
-#$SQLServer2019LatestGDRURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/details.aspx?id=106324 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe" } | Select-Object -Unique).href
-#SQL Server 2019 Latest Cumulative Update: KB5054833 when writing/updating this script (May 2025)
-#$SQLServer2019LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/details.aspx?id=100809 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe" } | Select-Object -Unique).href
-#endregion
-
 #region SQL Server 2022
 $SQLServer2022EnterpriseISO = "$labSources\ISOs\enu_sql_server_2022_enterprise_edition_x64_dvd_aa36de9e.iso"
 #SQL Server 2022 Latest GDR: KB5021522 when writing/updating this script (May 2025)
@@ -191,9 +183,7 @@ $SQLServer2022EnterpriseISO = "$labSources\ISOs\enu_sql_server_2022_enterprise_e
 #endregion
 
 #region Alternative by using the Get-LatestSQLServerUpdate function
-$LatestSQLServerUpdateHT = Get-LatestSQLServerUpdate | Group-Object -Property Version -AsHashTable -AsString
-$SQLServer2019LatestGDRURI = $LatestSQLServerUpdateHT["SQLServer2019"].GDR.URI
-$SQLServer2019LatestCUURI = $LatestSQLServerUpdateHT["SQLServer2019"].CU.URI
+$LatestSQLServerUpdateHT = Get-LatestSQLServerUpdate -Version SQLServer2022 | Group-Object -Property Version -AsHashTable -AsString
 $SQLServer2022LatestGDRURI = $LatestSQLServerUpdateHT["SQLServer2022"].GDR.URI
 $SQLServer2022LatestCUURI = $LatestSQLServerUpdateHT["SQLServer2022"].CU.URI
 #endregion
@@ -458,9 +448,7 @@ Restart-LabVM -ComputerName $SQLServerTargetNodes -Wait
 #Mouting the SQL Server ISO for Copying SQL Server setup binaries on the file server
 $WindowsServer2022ISO = ($SQLServerTargetNodes | Select-Object -First 1).OperatingSystem.IsoPath
 
-#$SQLServer2019StandardMountedVolume = Mount-LabIsoImage -IsoPath $SQLServer2019StandardISO -ComputerName FS01 -PassThru
 $SQLServer2022EnterpriseMountedVolume = Mount-LabIsoImage -IsoPath $SQLServer2022EnterpriseISO -ComputerName FS01 -PassThru
-$SQLServer2019EnterpriseMountedVolume = Mount-LabIsoImage -IsoPath $SQLServer2019EnterpriseISO -ComputerName FS01 -PassThru
 $WindowsServer2022ISOMountedVolume = Mount-LabIsoImage -IsoPath $WindowsServer2022ISO -ComputerName FS01 -PassThru
 
 #region Installing Edge on all machines
@@ -493,7 +481,7 @@ $null = $Job | Receive-Job -Wait #-AutoRemoveJob
 Checkpoint-LabVM -SnapshotName BeforeStorage -All -Verbose
 #Restore-LabVMSnapshot -SnapshotName 'BeforeStorage' -All -Verbose
 
-Invoke-LabCommand -ActivityName 'Configuring Storage & Copying SQL Server 2019 and 2022 ISOs & Tools' -ComputerName FS01 -ScriptBlock {
+Invoke-LabCommand -ActivityName 'Configuring Storage & Copying SQL Server 2022 ISOs & Tools' -ComputerName FS01 -ScriptBlock {
     <#
     Get-VirtualDisk | Remove-VirtualDisk -Confirm:$false
     Get-StoragePool | Remove-StoragePool -Confirm:$false
@@ -588,17 +576,12 @@ Invoke-LabCommand -ActivityName 'Configuring Storage & Copying SQL Server 2019 a
     $QLogic = New-Item -Path $SourcesFolder -Name "QLogic" -ItemType Directory -Force    
     $WindowsServer2022SourcesFolder = New-Item -Path $SourcesFolder -Name "WindowsServer2022\sources" -ItemType Directory -Force
     $WindowsServer2022ISOContent = Join-Path -Path $using:WindowsServer2022ISOMountedVolume.DriveLetter -ChildPath 'sources\sxs'
-    $SQLServer2019Folder = New-Item -Path $SourcesFolder -Name "SQLServer2019" -ItemType Directory -Force
-    $SQLServer2019UpdatesFolder = New-Item -Path $SQLServer2019Folder -Name "Updates" -ItemType Directory -Force
-    #$SQLServer2019ISOContent = Join-Path -Path $using:SQLServer2019StandardMountedVolume.DriveLetter -ChildPath '*'
-    $SQLServer2019ISOContent = Join-Path -Path $using:SQLServer2019EnterpriseMountedVolume.DriveLetter -ChildPath '*'
     $SQLServer2022Folder = New-Item -Path $SourcesFolder -Name "SQLServer2022" -ItemType Directory -Force
     $SQLServer2022UpdatesFolder = New-Item -Path $SQLServer2022Folder -Name "Updates" -ItemType Directory -Force
     #$SQLServer2022ISOContent = Join-Path -Path $using:SQLServer2022StandardMountedVolume.DriveLetter -ChildPath '*'
     $SQLServer2022ISOContent = Join-Path -Path $using:SQLServer2022EnterpriseMountedVolume.DriveLetter -ChildPath '*'
 
     #Copying SQL Server ISO content
-    Copy-Item -Path $SQLServer2019ISOContent -Destination $SQLServer2019Folder -Recurse -Force
     Copy-Item -Path $SQLServer2022ISOContent -Destination $SQLServer2022Folder -Recurse -Force
 
 
@@ -609,16 +592,6 @@ Invoke-LabCommand -ActivityName 'Configuring Storage & Copying SQL Server 2019 a
     $SQLServerManagementStudioInstaller = Join-Path -Path $SQLServerTools -ChildPath $using:SQLServerManagementStudioSetupFileName
     #Invoke-WebRequest -Uri $using:SQLServerManagementStudioURI -OutFile $SQLServerManagementStudioInstaller -Verbose
     #Start-BitsTransfer -Source $using:SQLServerManagementStudioURI -Destination $SQLServerManagementStudioInstaller -Verbose
-
-    #SQL Server 2019 Latest GDR
-    $SQLServer2019LatestGDRInstaller = Join-Path -Path $SQLServer2019UpdatesFolder -ChildPath $(Split-Path -Path $using:SQLServer2019LatestGDRURI -Leaf)
-    #Invoke-WebRequest -Uri $using:SQLServer2019LatestGDRURI -OutFile $SQLServer2019LatestGDRInstaller -Verbose
-    #Start-BitsTransfer -Source $using:SQLServer2019LatestGDRURI -Destination $SQLServer2019LatestGDRInstaller -Verbose
-
-    #SQL Server 2019 Latest Cumulative Update
-    $SQLServer2019LatestCUInstaller = Join-Path -Path $SQLServer2019UpdatesFolder -ChildPath $(Split-Path -Path $using:SQLServer2019LatestCUURI -Leaf)
-    #Invoke-WebRequest -Uri $using:SQLServer2019LatestCUURI -OutFile $SQLServer2019LatestCUInstaller -Verbose
-    #Start-BitsTransfer -Source $using:SQLServer2019LatestCUURI -Destination $SQLServer2019LatestCUInstaller -Verbose
 
     #SQL Server 2022 Latest GDR
     $SQLServer2022LatestGDRInstaller = Join-Path -Path $SQLServer2022UpdatesFolder -ChildPath $(Split-Path -Path $using:SQLServer2022LatestGDRURI -Leaf)
@@ -631,7 +604,7 @@ Invoke-LabCommand -ActivityName 'Configuring Storage & Copying SQL Server 2019 a
     #Start-BitsTransfer -Source $using:SQLServer2022LatestCUURI -Destination $SQLServer2022LatestCUInstaller -Verbose
 
 
-    Start-BitsTransfer -Source $using:SQLServerManagementStudioURI, $using:SQLServer2019LatestGDRURI, $using:SQLServer2019LatestCUURI, $using:SQLServer2022LatestGDRURI, $using:SQLServer2022LatestCUURI  -Destination $SQLServerManagementStudioInstaller, $SQLServer2019LatestGDRInstaller, $SQLServer2019LatestCUInstaller, $SQLServer2022LatestGDRInstaller, $SQLServer2022LatestCUInstaller -Verbose  
+    Start-BitsTransfer -Source $using:SQLServerManagementStudioURI, $using:SQLServer2022LatestGDRURI, $using:SQLServer2022LatestCUURI  -Destination $SQLServerManagementStudioInstaller, $SQLServer2022LatestGDRInstaller, $SQLServer2022LatestCUInstaller -Verbose  
 
     #Installing required PowerShell modules from PowerShell Gallery
     #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
