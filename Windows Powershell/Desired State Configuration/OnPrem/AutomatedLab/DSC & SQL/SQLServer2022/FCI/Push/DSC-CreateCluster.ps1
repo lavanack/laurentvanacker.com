@@ -321,7 +321,7 @@ Configuration CreateClusterWithTwoNodes {
             PsDscRunAsCredential = $ActiveDirectoryAdministratorCredential
             DependsOn = '[Script]AddClusterDisk'
         }
-        
+
         #Installing SQL server in Failover Cluster Mode : First Node
         SqlSetup 'InstallFailoverCluster'
         {
@@ -425,7 +425,7 @@ Configuration CreateClusterWithTwoNodes {
         #endregion
 
         #region SQL Server Service Management
-        if ($Node.InstanceName -eq "MSSQLServer")
+        if ($Node.FailoverClusterInstanceName -eq "MSSQLServer")
         {
             $ServiceName = 'SQLSERVERAGENT'
         }
@@ -505,7 +505,7 @@ Configuration CreateClusterWithTwoNodes {
             DynamicAlloc         = $false
             MaxDop               = 1
             ServerName           = $Node.NodeName
-            InstanceName         = $Node.InstanceName
+            InstanceName         = $Node.FailoverClusterInstanceName
             PsDscRunAsCredential = $SqlInstallCredential
             DependsOn      = '[SqlSetup]InstallFailoverCluster', '[SqlConfiguration]ShowAdvancedOptions'
         }
@@ -515,7 +515,7 @@ Configuration CreateClusterWithTwoNodes {
         {
  
             ServerName     = $Node.NodeName
-            InstanceName   = $Node.InstanceName
+            InstanceName   = $Node.FailoverClusterInstanceName
             OptionName     = 'max degree of parallelism'
             OptionValue    = 1
             RestartService = $false
