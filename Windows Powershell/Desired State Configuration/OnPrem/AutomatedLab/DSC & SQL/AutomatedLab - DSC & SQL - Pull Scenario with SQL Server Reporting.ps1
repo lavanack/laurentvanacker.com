@@ -848,7 +848,7 @@ Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName
 } 
 
 #Removing the Internet Connection on all VMS
-Get-VM -Name $AllLabVMs | Where-Object -filterScript { $_.Name -notin "PULL"} | Remove-VMNetworkAdapter -Name 'Default Switch' -ErrorAction SilentlyContinue
+Get-VM -Name $AllLabVMs | Where-Object -filterScript { $_.Name -notin "PULL" } | Remove-VMNetworkAdapter -Name 'Default Switch' -ErrorAction SilentlyContinue
 
 $null = $Job | Receive-Job -Wait #-AutoRemoveJob
 #Taking a snapshot/checkpoint
