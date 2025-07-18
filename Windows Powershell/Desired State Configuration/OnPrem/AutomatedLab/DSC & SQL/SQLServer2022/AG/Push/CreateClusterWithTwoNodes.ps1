@@ -82,6 +82,9 @@ Invoke-Command -ComputerName $2NodeClusterTargetNodes -ScriptBlock {
 }
 #endregion
 
+#Setting LCM configuration
+& "$CurrentDir\Set-LCM.ps1"
+
 #Dot sourcing the DSC configuration
 . "$CurrentDir\DSC-CreateCluster.ps1"
 
