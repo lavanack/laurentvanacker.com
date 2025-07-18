@@ -177,17 +177,17 @@ $SQLServerManagementStudioSetupFileName = Split-Path -Path $SQLServerManagementS
 #region SQL Server 2019
 $SQLServer2019EnterpriseISO = "$labSources\ISOs\en_sql_server_2019_enterprise_x64_dvd_5e1ecc6b.iso"
 #SQL Server 2019 Latest GDR: KB5046859 when writing/updating this script (May 2025)
-$SQLServer2019LatestGDRURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/details.aspx?id=106324 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe" } | Select-Object -Unique).href
+#$SQLServer2019LatestGDRURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/details.aspx?id=106324 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe" } | Select-Object -Unique).href
 #SQL Server 2019 Latest Cumulative Update: KB5054833 when writing/updating this script (May 2025)
-$SQLServer2019LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/details.aspx?id=100809 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe" } | Select-Object -Unique).href
+#$SQLServer2019LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/details.aspx?id=100809 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe" } | Select-Object -Unique).href
 #endregion
 
 #region SQL Server 2022
 $SQLServer2022EnterpriseISO = "$labSources\ISOs\enu_sql_server_2022_enterprise_edition_x64_dvd_aa36de9e.iso"
 #SQL Server 2022 Latest GDR: KB5021522 when writing/updating this script (May 2025)
-$SQLServer2022LatestGDRURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/details.aspx?id=106322 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe" } | Select-Object -Unique).href
+#$SQLServer2022LatestGDRURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/details.aspx?id=106322 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe" } | Select-Object -Unique).href
 #SQL Server 2022 Latest Cumulative Update: KB5032679 when writing/updating this script (May 2025)
-$SQLServer2022LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/details.aspx?id=105013 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe" } | Select-Object -Unique).href
+#$SQLServer2022LatestCUURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/details.aspx?id=105013 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe" } | Select-Object -Unique).href
 #endregion
 
 #region Alternative by using the Get-LatestSQLServerUpdate function
@@ -848,7 +848,7 @@ Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName
 } 
 
 #Removing the Internet Connection on all VMS
-Get-VM -Name $AllLabVMs | Remove-VMNetworkAdapter -Name 'Default Switch' -ErrorAction SilentlyContinue
+Get-VM -Name $AllLabVMs | Where-Object -filterScript { $_.Name -notin "PULL"} | Remove-VMNetworkAdapter -Name 'Default Switch' -ErrorAction SilentlyContinue
 
 $null = $Job | Receive-Job -Wait #-AutoRemoveJob
 #Taking a snapshot/checkpoint
