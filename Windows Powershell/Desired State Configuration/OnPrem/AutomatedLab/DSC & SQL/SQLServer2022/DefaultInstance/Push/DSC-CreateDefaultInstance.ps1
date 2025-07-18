@@ -193,7 +193,7 @@ Configuration CreateDefaultInstance {
             OptionValue    = 1
             RestartService = $false
             PsDscRunAsCredential   = $SqlInstallCredential
-            DependsOn      = '[SqlSetup]InstallAG', '[SqlConfiguration]ShowAdvancedOptions'
+            DependsOn      = '[SqlSetup]DefaultInstance', '[SqlConfiguration]ShowAdvancedOptions'
         }
         #>
 

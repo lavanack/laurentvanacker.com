@@ -27,21 +27,20 @@ Set-Location -Path $CurrentDir
 Configuration Disable-LCM
 {
 	param(
-        [string[]] $ComputerName = 'localhost'
-    )
+		[string[]] $ComputerName = 'localhost'
+	)
 
-    Node $ComputerName
+	Node $ComputerName
 	{
-		Settings
-		{
+		Settings {
 			RefreshMode = 'Disabled'
 		}
 	}
 }
 
-$TargetNodes = 'SQLNODE01' #, 'SQLNODE02'
-# Generating the MOF file(s)
-Disable-LCM -ComputerName $TargetNodes
+$TargetNodes = 'SQLNODE01', 'SQLNODE02', 'SQLNODE03'
+# Generating the LCM MOF file(s)
+Disable-LCM  -ComputerName $TargetNodes
 
 # Setting the local LCM configuration
 Set-DscLocalConfigurationManager -Path .\Disable-LCM -Verbose

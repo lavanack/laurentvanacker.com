@@ -27,19 +27,20 @@ Set-Location -Path $CurrentDir
 Configuration Enable-LCM
 {
 	param(
-        [string[]] $ComputerName = 'localhost'
-    )
+		[string[]] $ComputerName = 'localhost'
+	)
+
+	Node $ComputerName
 	{
-		Settings
-		{
-			RefreshMode = 'Pull'
+		Settings {
+			RefreshMode = 'Push'
 		}
 	}
 }
-$TargetNodes = 'SQLNODE01' #, 'SQLNODE02'
-# Generating the MOF file(s)
-Enable-LCM -ComputerName $TargetNodes
 
+$TargetNodes = 'SQLNODE01', 'SQLNODE02', 'SQLNODE03'
+# Generating the LCM MOF file(s)
+Enable-LCM  -ComputerName $TargetNodes
 
 # Setting the local LCM configuration
 Set-DscLocalConfigurationManager -Path .\Enable-LCM -Verbose

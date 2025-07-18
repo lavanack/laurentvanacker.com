@@ -182,19 +182,6 @@ Configuration CreateDefaultInstance {
             PsDscRunAsCredential = $SqlInstallCredential
             DependsOn            = '[SqlSetup]DefaultInstance', '[SqlConfiguration]ShowAdvancedOptions'
         }
-        <#
-        SqlConfiguration MaxDegreeOfParallelism
-        {
- 
-            ServerName     = $Node.NodeName
-            InstanceName   = $Node.InstanceName
-            OptionName     = 'max degree of parallelism'
-            OptionValue    = 1
-            RestartService = $false
-            PsDscRunAsCredential   = $SqlInstallCredential
-            DependsOn      = '[SqlSetup]InstallAG', '[SqlConfiguration]ShowAdvancedOptions'
-        }
-        #>
 
         <#
         SqlConfiguration MaxDegreeOfParallelism

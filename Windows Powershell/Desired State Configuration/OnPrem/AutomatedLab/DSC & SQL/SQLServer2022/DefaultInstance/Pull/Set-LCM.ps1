@@ -26,49 +26,44 @@ Set-Location -Path $CurrentDir
 configuration Set-LCM
 {
 	param(
-        [string[]] $ComputerName = 'localhost',
-        [string] $RegistrationKey,
-        [string[]] $ConfigurationName
-    )
-    Node $ComputerName
+		[string[]] $ComputerName = 'localhost',
+		[string] $RegistrationKey
+	)
+	Node $ComputerName
 	{
-		Settings
-		{
-			RefreshMode = 'Pull'
-			RefreshFrequencyMins = 30 
-			RebootNodeIfNeeded = $true
+		Settings {
+			#ConfigurationMode  = "ApplyAndAutoCorrect"
+			ConfigurationMode  = 'ApplyOnly'
+			ActionAfterReboot  = 'ContinueConfiguration'
+			# Allowing to reboot if needed even in the middle of a configuration.
+			RebootNodeIfNeeded = $True
+			RefreshMode        = 'Pull'
 		}
+
 		ConfigurationRepositoryWeb PullServer
 		{
 			ServerURL = 'https://PULL.contoso.com/PSDSCPullServer.svc'
 			RegistrationKey = $RegistrationKey
 			ConfigurationNames = $ConfigurationName
 		}      
-		ReportServerWeb  PullServer
-		{
-			ServerURL = 'https://PULL.contoso.com/PSDSCPullServer.svc'
+
+		ReportServerWeb  PullServer {
+			ServerURL       = 'https://PULL.contoso.com/PSDSCPullServer.svc'
 			RegistrationKey = $RegistrationKey
 		}      
 	}
 }
 
-$ConfigurationName = "CreateDefaultInstance"
-$RegistrationKey = Get-Content -Path "C:\Program Files\WindowsPowerShell\DscService\RegistrationKeys.txt"
-$TargetNodes = 'SQLNODE01' #, 'SQLNODE02'
+$RegistrationKey = Invoke-Command -ComputerName PULL { Get-Content -Path "$env:ProgramFiles\WindowsPowerShell\DscService\RegistrationKeys.txt" } 
+$TargetNodes = 'SQLNODE01', 'SQLNODE02', 'SQLNODE03'
 # Generating the LCM MOF file(s)
-Set-LCM -ComputerName $TargetNodes -ConfigurationName $ConfigurationName -RegistrationKey $RegistrationKey
+Set-LCM -ComputerName $TargetNodes -RegistrationKey $RegistrationKey
 
 # Getting the LCM Configuration on the targeted nodes
 Get-DscLocalConfigurationManager -CimSession $TargetNodes
 
 # Setting the LCM Configuration on the targeted nodes
-Set-DscLocalConfigurationManager -Path .\Set-LCM -Verbose -CimSession $TargetNodes
+Set-DscLocalConfigurationManager -Path .\Set-LCM -Verbose -CimSession $TargetNodes -Force
 
 # Getting the LCM Configuration on the targeted nodes
 Get-DscLocalConfigurationManager -CimSession $TargetNodes
-(Get-DscLocalConfigurationManager -CimSession $TargetNodes).ConfigurationDownloadManagers
-
-# Forcing the configuration to refresh
-Update-DscConfiguration -CimSession $TargetNodes -Wait -Verbose
-
-Test-DscConfiguration -ComputerName $TargetNodes -Detailed

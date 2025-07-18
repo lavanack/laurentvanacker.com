@@ -80,6 +80,9 @@ Invoke-Command -ComputerName $TargetNodes -ScriptBlock {
 }
 #endregion
 
+#Setting LCM configuration
+& "$CurrentDir\Set-LCM.ps1"
+
 #Dot sourcing the DSC configuration
 . "$CurrentDir\DSC-CreateDefaultInstance.ps1"
 

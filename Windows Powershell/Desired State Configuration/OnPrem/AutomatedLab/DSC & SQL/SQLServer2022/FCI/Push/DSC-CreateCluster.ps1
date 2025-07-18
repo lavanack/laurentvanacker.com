@@ -374,7 +374,7 @@ Configuration CreateClusterWithTwoNodes {
             # Specify 0 to disable or 1 to enable the TCP/IP protocol.
             #TcpEnabled                   = 1 
             # Specify 0 to disable or 1 to enable the Named Pipes protocol.
-            NpEnabled                    = 0
+            #NpEnabled                    = 0
             # Startup type for Browser Service         
             #BrowserSvcStartupType  = "Automatic"
             ForceReboot                  = $true
@@ -587,7 +587,7 @@ Configuration CreateClusterWithTwoNodes {
             ResourceName      = '[SqlSetup]InstallFailoverCluster'
             NodeName          = $AllNodes.Where{$_.Role -eq 'FirstServerNode' }.NodeName
             RetryIntervalSec  = 30
-            RetryCount        = 30
+            RetryCount        = 60
         }        
 
         #Installing SQL server in Failover Cluster Mode : Additional Node(s)
