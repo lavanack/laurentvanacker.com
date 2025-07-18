@@ -41,8 +41,8 @@ Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 
 #region Global variables definition
 $Now = Get-Date
-$5YearsFromNow = $Now.AddYears(5)
-$CertValidityPeriod = New-TimeSpan -Start $Now -End $5YearsFromNow
+$10YearsFromNow = $Now.AddYears(10)
+$CertValidityPeriod = New-TimeSpan -Start $Now -End $10YearsFromNow
 $Logon = 'Administrator'
 $ClearTextPassword = 'P@ssw0rd'
 $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
