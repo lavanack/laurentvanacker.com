@@ -858,8 +858,9 @@ Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 Show-LabDeploymentSummary
 <#
 Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All
-Invoke-LabCommand -ActivityName "Removing $Labname folder" -ComputerName $SQLServerTargetNodes -ScriptBlock { Remove-Item -Path $using:WorkSpace -Recurse -Force} -Verbose
+Invoke-LabCommand -ActivityName "Removing '$WorkSpace' folder" -ComputerName $SQLServerTargetNodes -ScriptBlock { Remove-Item -Path $using:WorkSpace -Recurse -Force} -Verbose
 Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\AG") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
+Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\DefaultInstance") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
 Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\FCI") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
 #>
 
