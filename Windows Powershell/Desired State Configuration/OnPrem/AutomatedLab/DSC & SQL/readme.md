@@ -27,7 +27,9 @@ After completion you'll have:
 - a FileServer for hosting some shares for the required dependencies (Powershell modules, setup binaries ...), the required backups id needed : FS01.
 ![](docs/fs01.jpg)
 
-- an option DSC pull server: PULL
+- an optional DSC pull server (With DSC Reporting feature like explained [here](https://learn.microsoft.com/en-us/powershell/dsc/pull-server/reportserver)): PULL. This server has also [Power BI Desktop](https://learn.microsoft.com/en-us/power-bi/fundamentals/desktop-get-the-desktop) installed and the following [PowerBI DashBoard](./DSC%20Dashboard.pbix) available at the root of the system drive. More details on [https://learn.microsoft.com/en-us/archive/blogs/fieldcoding/visualize-dsc-reporting-with-powerbi](https://learn.microsoft.com/en-us/archive/blogs/fieldcoding/visualize-dsc-reporting-with-powerbi). You will be able to monitor the deployed configurations (in pull or push mode) and the compliance status of the nodes.
+![](docs/powerbi.jpg)
+
 - 3 Nodes for deploying SQL Servers: SQLNODE01, SQLNODE02, SQLNODE03 (SQL Management Studio is already installed for future SQL Server administration purpose).
 
 All Windows Servers are running 'Windows Server 2022 Datacenter (Desktop Experience)'. The SQL Server SKU is 'SQL Server 2022 Enterprise'. Credentials will be displayed at the end of the deployment process.
