@@ -1,5 +1,7 @@
 name: Deploy Azure Infra with Terraform
 on:
+  push:
+    branches: [ "master" ]
   pull_request:
     branches:
       - main
