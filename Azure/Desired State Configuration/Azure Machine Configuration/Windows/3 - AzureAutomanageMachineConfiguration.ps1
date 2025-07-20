@@ -13,6 +13,14 @@ Get-AzResourceGroup -Name rg-dsc-amc* | Select-Object -Property @{Name="Scope"; 
 Get-AzPolicyDefinition | Where-Object -filterScript {$_.metadata.category -eq "Guest Configuration" -and $_.DisplayName -like "*CreateAdminUserDSCConfiguration*"} | Remove-AzPolicyDefinition -Verbose -Force #-WhatIf
 Get-AzResourceGroup -Name rg-dsc-amc* | Remove-AzResourceGroup -AsJob -Force -Verbose 
 #>
+
+[CmdletBinding(PositionalBinding = $false)]
+Param(
+        [ValidateScript({$_ -in $((Get-ChildItem -Path $PSSCriptRoot -Filter *DSCConfiguration.ps1 -File).BaseName)})]
+        [string] $ConfigurationName = "CreateAdminUserDSCConfiguration"
+        #[string] $ConfigurationName = "IISSetupDSCConfiguration"
+)
+
 #region Function defintions
 #Get The Azure VM Compute Object for the VM executing this function
 function Get-AzVMCompute {
@@ -48,8 +56,6 @@ $ResourceGroupName = $AzVM.ResourceGroupName
 $StorageAccount = Get-AzStorageAccount -ResourceGroupName $resourceGroupName
 $StorageAccountName = $StorageAccount.StorageAccountName
 $StorageContainerName = "guestconfiguration"
-$ConfigurationName = "CreateAdminUserDSCConfiguration"
-#$ConfigurationName = "IISSetupDSCConfiguration"
 $GuestConfigurationPackageName = "$ConfigurationName.zip"
 #$GuestConfigurationPackageFullName  = "$CurrentDir\$ConfigurationName\$GuestConfigurationPackageName"
 
