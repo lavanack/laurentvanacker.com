@@ -459,7 +459,8 @@ $Job += Install-LabSoftwarePackage -ComputerName $AllLabVMs -Path $MSEdgeEnt.Ful
 #region Installing PowerBI on PULL server
 $PBIDesktopX64 = Get-LabInternetFile -Uri $PBIDesktopX64Uri -Path $labSources\SoftwarePackages -PassThru -Force
 $PBIDesktopX64LogFile = Join-Path -Path $env:Temp -ChildPath "$((Get-Item -Path $PBIDesktopX64.FullName).BaseName).log"
-$Job += Install-LabSoftwarePackage -ComputerName PULL -Path $PBIDesktopX64.FullName -CommandLine "-passive -norestart LANGUAGE=en-us ACCEPT_EULA=1 INSTALLDESKTOPSHORTCUT=0 -log $PBIDesktopX64LogFile" -PassThru -AsJob 
+#$Job += Install-LabSoftwarePackage -ComputerName PULL -Path $PBIDesktopX64.FullName -CommandLine "-passive -norestart LANGUAGE=en-us ACCEPT_EULA=1 INSTALLDESKTOPSHORTCUT=0 -log $PBIDesktopX64LogFile" -PassThru -AsJob 
+Install-LabSoftwarePackage -ComputerName PULL -Path $PBIDesktopX64.FullName -CommandLine "-passive -norestart LANGUAGE=en-us ACCEPT_EULA=1 INSTALLDESKTOPSHORTCUT=0 -log $PBIDesktopX64LogFile" -PassThru
 #endregion
 
 #region Copying PowerBI Dashboard on PULL server
