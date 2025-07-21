@@ -119,7 +119,7 @@ function New-AzTerraformStateStorageAccountDemo {
     #endregion
 
     #region Maint.tf Management (from template_main.tf)
-    $MainTerraformTemplatePath = Join-Path -Path $PSScriptRoot -ChildPath "template_main.tf"
+    $MainTerraformTemplatePath = Join-Path -Path $PSScriptRoot -ChildPath "template_main_tf.txt"
     $WorkingDir = New-Item -Path $(Join-Path -Path $PSScriptRoot -ChildPath $ResourceGroupName) -ItemType Directory -Force
     Write-Verbose -Message "`$WorkingDir: $WorkingDir"
     $MainTerraformPath = Join-Path -Path $WorkingDir -ChildPath "main.tf"
