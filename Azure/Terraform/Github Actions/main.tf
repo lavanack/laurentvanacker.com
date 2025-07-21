@@ -22,8 +22,3 @@ resource "azurerm_resource_group" "rg-tf-sample-use2-3726" {
   name     = "rg-tf-sample-use2-3726"
   location = "eastus2"
 }
-
-
-
-
-
