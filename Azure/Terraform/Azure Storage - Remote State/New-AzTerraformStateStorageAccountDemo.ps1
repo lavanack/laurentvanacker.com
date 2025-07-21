@@ -64,7 +64,6 @@ function New-AzTerraformStateStorageAccountDemo {
         [switch] $Destroy
     )
 
-
     #region Defining variables 
     #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
     $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
@@ -93,10 +92,10 @@ function New-AzTerraformStateStorageAccountDemo {
     $TFResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $TFRole, $LocationShortName, $Instance                       
     $StorageAccountName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $StorageAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
     $ResourceGroupName = $ResourceGroupName.ToLower()
+    $TFResourceGroupName = $TFResourceGroupName.ToLower()
     $StorageAccountName = $StorageAccountName.ToLower()
     #endregion
     #endregion
-
 
     #region Configure ResourceGroup
     if (Get-AzResourceGroup -Name $ResourceGroupName -Location $Location -ErrorAction Ignore) {
@@ -119,7 +118,7 @@ function New-AzTerraformStateStorageAccountDemo {
     #$env:ARM_ACCESS_KEY = $StorageAccountKey
     #endregion
 
-    #region Maint.tf Management
+    #region Maint.tf Management (from template_main.tf)
     $MainTerraformTemplatePath = Join-Path -Path $PSScriptRoot -ChildPath "template_main.tf"
     $WorkingDir = New-Item -Path $(Join-Path -Path $PSScriptRoot -ChildPath $ResourceGroupName) -ItemType Directory -Force
     Write-Verbose -Message "`$WorkingDir: $WorkingDir"
@@ -128,10 +127,10 @@ function New-AzTerraformStateStorageAccountDemo {
     Copy-Item -Path $MainTerraformTemplatePath -Destination $MainTerraformPath -Force
 
     ((Get-Content -Path $MainTerraformPath -Raw) -replace '<location>', $Location) | Set-Content -Path $MainTerraformPath
-    ((Get-Content -Path $MainTerraformPath -Raw) -replace '<storage_account_name>', $StorageAccountName) | Set-Content -Path $MainTerraformPath
-    ((Get-Content -Path $MainTerraformPath -Raw) -replace '<resource_group_name>', $ResourceGroupName) | Set-Content -Path $MainTerraformPath
-    ((Get-Content -Path $MainTerraformPath -Raw) -replace '<tf_resource_group_name>', $TFResourceGroupName) | Set-Content -Path $MainTerraformPath
-    ((Get-Content -Path $MainTerraformPath -Raw) -replace '<container_name>', $ContainerName) | Set-Content -Path $MainTerraformPath
+    ((Get-Content -Path $MainTerraformPath -Raw) -replace '<backend_storage_account_name>', $StorageAccountName) | Set-Content -Path $MainTerraformPath
+    ((Get-Content -Path $MainTerraformPath -Raw) -replace '<backend_resource_group_name>', $ResourceGroupName) | Set-Content -Path $MainTerraformPath
+    ((Get-Content -Path $MainTerraformPath -Raw) -replace '<resource_group_name>', $TFResourceGroupName) | Set-Content -Path $MainTerraformPath
+    ((Get-Content -Path $MainTerraformPath -Raw) -replace '<backend_container_name>', $ContainerName) | Set-Content -Path $MainTerraformPath
     #endregion
 
     #region Terraform Setup
@@ -139,19 +138,21 @@ function New-AzTerraformStateStorageAccountDemo {
     #endregion
 
     #region Terraform
-    terraform -chdir="$($WorkingDir.FullName)" fmt
+    #Setting the Subscription Id in an Environment variable.
+    $env:ARM_SUBSCRIPTION_ID = (Get-AzContext).Subscription.Id
     terraform -chdir="$($WorkingDir.FullName)" init -backend-config="access_key=$StorageAccountKey"
-    terraform -chdir="$($WorkingDir.FullName)" plan -out tfplan
+    terraform -chdir="$($WorkingDir.FullName)" fmt
     terraform -chdir="$($WorkingDir.FullName)" validate
+    terraform -chdir="$($WorkingDir.FullName)" plan -out tfplan
     terraform -chdir="$($WorkingDir.FullName)" apply tfplan
-    #endregion
 
     if ($Destroy) {
         Write-Verbose -Message "`Destroying resources"
         terraform -chdir="$($WorkingDir.FullName)" destroy -auto-approve
-        $null = $WorkingDir | Remove-Item  -Recurse -Force
-        $StorageResourceGroup | Remove-AzResourceGroup -AsJob -Force
+        $null = $WorkingDir | Remove-Item -Recurse -Force
+        $StorageResourceGroup | Remove-AzResourceGroup -Force -AsJob 
     }
+    #endregion
 }
 
 #region Main Code
@@ -163,6 +164,11 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 
+#region Login to your Azure subscription.
+While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
+	Connect-AzAccount
+}
+#endregion
 #region Demo for a Terraform State on a StorageAccount
 New-AzTerraformStateStorageAccountDemo -Destroy -Verbose
 #endregion
