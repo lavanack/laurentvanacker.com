@@ -19,6 +19,7 @@ Param(
         [ValidateScript({$_ -in $((Get-ChildItem -Path $PSSCriptRoot -Filter *DSCConfiguration.ps1 -File).BaseName)})]
         [string] $ConfigurationName = "CreateAdminUserDSCConfiguration"
         #[string] $ConfigurationName = "IISSetupDSCConfiguration"
+        #[string] $ConfigurationName = "TLSHardeningDSCConfiguration"
 )
 
 #region Function defintions
