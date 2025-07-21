@@ -23,7 +23,7 @@ env:
 jobs:
   terraform-plan:
     defaults:
-      run:
+      #run:
         #working-directory: './Azure/Terraform/Github Actions'
     name: Terraform Plan
     runs-on: ubuntu-latest
