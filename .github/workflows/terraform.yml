@@ -152,7 +152,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: dev
     defaults:
-      run:
+      #run:
         #working-directory: './Azure/Terraform/Github Actions'
 
     steps:
