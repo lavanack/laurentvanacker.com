@@ -22,9 +22,9 @@ env:
 
 jobs:
   terraform-plan:
-    #defaults:
-      #run:
-        #working-directory: './Azure/Terraform/Github Actions'
+    defaults:
+      run:
+        working-directory: './Azure/Terraform/Github Actions'
     name: Terraform Plan
     runs-on: ubuntu-latest
     steps:
@@ -73,7 +73,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tfplan
-          #path: './Azure/Terraform/Github Actions/main.tfplan'
+          path: './Azure/Terraform/Github Actions/main.tfplan'
 
       - name: Update Pull Request
         uses: actions/github-script@v6
@@ -151,9 +151,9 @@ jobs:
     name: Terraform Apply
     runs-on: ubuntu-latest
     environment: dev
-   # defaults:
-      #run:
-        #working-directory: './Azure/Terraform/Github Actions'
+    defaults:
+      run:
+        working-directory: './Azure/Terraform/Github Actions'
 
     steps:
       - name: Checkout code
@@ -170,7 +170,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: tfplan
-          #path: './Azure/Terraform/Github Actions'
+          path: './Azure/Terraform/Github Actions'
 
       - name: Terraform Apply
         run: terraform apply -auto-approve "./main.tfplan"
