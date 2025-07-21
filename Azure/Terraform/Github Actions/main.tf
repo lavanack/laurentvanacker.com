@@ -6,10 +6,10 @@ terraform {
     }
   }
   backend "azurerm" {
-      resource_group_name  = "rg-tf-ghact-use2-4361"
-      storage_account_name = "sttfghactuse24361"
-      container_name       = "tfstate"
-      key                  = "terraform.tfstate"
+    resource_group_name  = "rg-tf-ghact-use2-4361"
+    storage_account_name = "sttfghactuse24361"
+    container_name       = "tfstate"
+    key                  = "terraform.tfstate"
   }
 
 }
