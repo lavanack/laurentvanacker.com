@@ -88,7 +88,7 @@ function New-AzTerraformGitHubActionsSetup {
     #endregion
 
     #region Maint.tf Management
-    $MainTerraformTemplatePath = Join-Path -Path $PSScriptRoot -ChildPath "template_main.tf"
+    $MainTerraformTemplatePath = Join-Path -Path $PSScriptRoot -ChildPath "template_main_tf.txt"
     $WorkingDir = New-Item -Path $(Join-Path -Path $PSScriptRoot -ChildPath $ResourceGroupName) -ItemType Directory -Force
     Write-Verbose -Message "`$WorkingDir: $WorkingDir"
     $MainTerraformPath = Join-Path -Path $WorkingDir -ChildPath "main.tf"
@@ -155,8 +155,7 @@ function New-AzTerraformGitHubActionsSetup {
     gh secret set BACKEND_AZURE_RESOURCE_GROUP_NAME --body $ResourceGroupName
     gh secret set BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME  --body $ContainerName
     gh secret set BACKEND_AZURE_STORAGE_ACCOUNT_NAME  --body $StorageAccountName
-    gh secret set AZURE_OBJECT_ID --body $UserAssignedIdentity.PrincipalId
-
+    gh secret set BACKEND_AZURE_STORAGE_ACCOUNT_KEY  --body $StorageAccountKey
     #endregion
 
     #region Github Environement Management
