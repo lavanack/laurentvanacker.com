@@ -6,7 +6,7 @@ on:
     branches:
       - main
     paths:
-      - 'Azure/Terraform/Tests/**'
+      - 'Azure/Terraform/Github Actions/**'
   workflow_dispatch:
 
 permissions:
@@ -24,7 +24,7 @@ jobs:
   terraform-plan:
     defaults:
       run:
-        working-directory: ./Azure/Terraform/Tests
+        working-directory: './Azure/Terraform/Github Actions'
     name: Terraform Plan
     runs-on: ubuntu-latest
     steps:
@@ -72,7 +72,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tfplan
-          path: ./Azure/Terraform/Tests/main.tfplan
+          path: './Azure/Terraform/Github Actions/main.tfplan'
 
       - name: Update Pull Request
         uses: actions/github-script@v6
@@ -152,7 +152,7 @@ jobs:
     environment: dev
     defaults:
       run:
-        working-directory: ./Azure/Terraform/Tests
+        working-directory: './Azure/Terraform/Github Actions'
 
     steps:
       - name: Checkout code
@@ -169,7 +169,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: tfplan
-          path: ./Azure/Terraform/Tests
+          path: './Azure/Terraform/Github Actions'
 
       - name: Terraform Apply
         run: terraform apply -auto-approve "./main.tfplan"
