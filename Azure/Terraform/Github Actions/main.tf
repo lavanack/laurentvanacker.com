@@ -28,6 +28,3 @@ resource "azurerm_resource_group" "rg-tf-sample-use2-2763" {
 
 
 
-
-
-
