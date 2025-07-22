@@ -205,7 +205,7 @@ New-AzTerraformGitHubActionsSetup -Destroy -Verbose
 <#
 #region Cleaning
 #Cleaning Up the Resource Groups
-Get-AzResourceGroup rg-tf-state-* | Remove-AzResourceGroup -AsJob -Force
+Get-AzResourceGroup rg-tf-ghact-* | Remove-AzResourceGroup -AsJob -Force
 Get-AzResourceGroup rg-tf-sample-* | Remove-AzResourceGroup -AsJob -Force
 #endregion
 #>
