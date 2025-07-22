@@ -127,15 +127,6 @@ function New-AzTerraformGitHubActionsSetup {
 
     #endregion
 
-    #region Federated identity credential
-    #$GitHubRepoURI = "https://github.com/lavanack/laurentvanacker.com"
-    $GitHubRepoURI = (git remote get-url origin) -replace ".git$"
-    $Tokens = $GitHubRepoURI -split "/"
-    $GitHubUserName = $Tokens[-2]
-    $GitHubRepoName = $Tokens[-1]
-    $FederatedIdentityCredential = New-AzFederatedIdentityCredential -ResourceGroupName $ResourceGroupName -IdentityName $UserAssignedIdentity.Name -Name "terraform-github-env-poc" -Issuer "https://token.actions.githubusercontent.com" -Subject "repo:${gitHubUser}/${gitHubRepo}:environment:poc" -Audience @('api://AzureADTokenExchange')
-    #endregion
-
     #region Github CLI Setup
     if (-not(gh)) {
         $GithubCLIURI = $(((Invoke-RestMethod -Uri "https://api.github.com/repos/cli/cli/releases/latest").assets | Where-Object -FilterScript { $_.name.EndsWith("windows_amd64.msi") }).browser_download_url)
@@ -145,17 +136,46 @@ function New-AzTerraformGitHubActionsSetup {
     }
     #endregion
 
+    <#
+    #region Federated identity credential on Dev Environement
+    #$GitHubRepoURI = "https://github.com/lavanack/laurentvanacker.com"
+    $GitHubUserName, $GitHubRepoName = $(gh repo view --json nameWithOwner -q .nameWithOwner) -split "/"
+    $FederatedIdentityCredential = New-AzFederatedIdentityCredential -ResourceGroupName $ResourceGroupName -IdentityName $UserAssignedIdentity.Name -Name "terraform-github-env-dev" -Issuer "https://token.actions.githubusercontent.com" -Subject "repo:$($GitHubUserName)/$($GitHubRepoName):environment:dev" -Audience @('api://AzureADTokenExchange')
+    #endregion
+    #>
+
+    <#
+    #region Federated identity credential for Pull Request
+    #$GitHubRepoURI = "https://github.com/lavanack/laurentvanacker.com"
+    $GitHubUserName, $GitHubRepoName = $(gh repo view --json nameWithOwner -q .nameWithOwner) -split "/"
+    $FederatedIdentityCredential = New-AzFederatedIdentityCredential -ResourceGroupName $ResourceGroupName -IdentityName $UserAssignedIdentity.Name -Name "terraform-github-pull-request" -Issuer "https://token.actions.githubusercontent.com" -Subject "repo:$($GitHubUserName)/$($GitHubRepoName):pull_request" -Audience @('api://AzureADTokenExchange')
+    #endregion
+    #>
+
+    #region Federated identity credential for Push on Master Branch
+    #$GitHubRepoURI = "https://github.com/lavanack/laurentvanacker.com"
+    <#
+    $GitHubRepoURI = (git remote get-url origin) -replace ".git$"
+    $Tokens = $GitHubRepoURI -split "/"
+    $GitHubUserName = $Tokens[-2]
+    $GitHubRepoName = $Tokens[-1]
+    #>
+    $GitHubUserName, $GitHubRepoName = $(gh repo view --json nameWithOwner -q .nameWithOwner) -split "/"
+    $FederatedIdentityCredential = New-AzFederatedIdentityCredential -ResourceGroupName $ResourceGroupName -IdentityName $UserAssignedIdentity.Name -Name "terraform-github-push-branch-master" -Issuer "https://token.actions.githubusercontent.com" -Subject "repo:$($GitHubUserName)/$($GitHubRepoName):ref:refs/heads/master" -Audience @('api://AzureADTokenExchange')
+    #endregion
+
+
     #region Github Secret Management
     $AzContext = Get-AzContext
     $SubscriptionId = $AzContext.Subscription.Id
     $TenantId = $AzContext.Tenant.Id
     gh secret set AZURE_CLIENT_ID --body $UserAssignedIdentity.ClientId
-    gh secret set AZURE_SUBSCRIPTION_ID  --body $SubscriptionId
-    gh secret set AZURE_TENANT_ID  --body $TenantId
+    gh secret set AZURE_SUBSCRIPTION_ID --body $SubscriptionId
+    gh secret set AZURE_TENANT_ID --body $TenantId
     gh secret set BACKEND_AZURE_RESOURCE_GROUP_NAME --body $ResourceGroupName
-    gh secret set BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME  --body $ContainerName
-    gh secret set BACKEND_AZURE_STORAGE_ACCOUNT_NAME  --body $StorageAccountName
-    gh secret set BACKEND_AZURE_STORAGE_ACCOUNT_KEY  --body $StorageAccountKey
+    gh secret set BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME --body $ContainerName
+    gh secret set BACKEND_AZURE_STORAGE_ACCOUNT_NAME --body $StorageAccountName
+    gh secret set BACKEND_AZURE_STORAGE_ACCOUNT_KEY --body $StorageAccountKey
     #endregion
 
     #region Github Environement Management
