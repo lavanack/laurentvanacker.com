@@ -2,6 +2,8 @@ name: Deploy Azure Infra with Terraform
 on:
   push:
     branches: [ "master" ]
+    paths:
+      - 'Azure/Terraform/Github Actions/**'
   pull_request:
     branches:
       - main
