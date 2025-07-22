@@ -150,6 +150,7 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 [PersonalHostPool]::SetIndex($RandomNumber, $SecondaryRegion)
 
 #Uncomment the best scenario for your usage or create your own
+#$HostPools = & "..\2 Azure Regions\2_Pooled_AD_FSLogix_AzureAppAttach.ps1"
 $HostPools = & "..\2 Azure Regions\2_Pooled_AD_FSLogixCloudCache_1_Personal_AD.ps1"
 #$HostPools = & "..\2 Azure Regions\2_Pooled_AD_FSLogixCloudCache_Watermarking.ps1"
 #$HostPools = & "..\2 Azure Regions\3_Pooled_2_Personal_AD_Misc.ps1"
