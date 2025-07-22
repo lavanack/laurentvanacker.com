@@ -34,7 +34,7 @@ function Clear-GithubWorkFlowRun {
     }
     #endregion
     Do {
-        $Jobs = gh run list --json databaseId, workflowName, createdAt -q '.[]' | ConvertFrom-Json | ForEach-Object -Process {
+        $Jobs = gh run list --json databaseId,workflowName,createdAt -q '.[]' | ConvertFrom-Json | ForEach-Object -Process {
             Write-Verbose -Message "Removing the '$($_.databaseId) - $($_.workflowName) - $([datetime]::Parse($_.createdAt))' run"
             if ($AsJob) {
                 $DatabaseId = $_.databaseId
