@@ -33,21 +33,29 @@ function Clear-GithubWorkFlowRun {
         Start-Process -FilePath $env:ComSpec -ArgumentList "/c", "msiexec /i $LocatGithubCLIURI /passive /norestart" -Wait
     }
     #endregion
-    Do {
-        $Jobs = gh run list --json databaseId,workflowName,createdAt -q '.[]' | ConvertFrom-Json | ForEach-Object -Process {
-            Write-Verbose -Message "Removing the '$($_.databaseId) - $($_.workflowName) - $([datetime]::Parse($_.createdAt))' run"
+
+
+    $null = gh run list 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error -Message "The '$pwd' folder is not a git repository (or any of the parent directories)" -ErrorAction Stop
+    }
+    else {
+        Do {
+            $Jobs = gh run list --json databaseId,workflowName,createdAt -q '.[]' | ConvertFrom-Json | ForEach-Object -Process {
+                Write-Verbose -Message "Removing the '$($_.databaseId) - $($_.workflowName) - $([datetime]::Parse($_.createdAt))' run"
+                if ($AsJob) {
+                    $DatabaseId = $_.databaseId
+                    Start-Job -ScriptBlock { Set-Location -Path $using:PSScriptRoot; gh api "repos/$(gh repo view --json nameWithOwner -q .nameWithOwner)/actions/runs/$($using:DatabaseId)" -X DELETE }
+                }
+                else {
+                    gh api "repos/$(gh repo view --json nameWithOwner -q .nameWithOwner)/actions/runs/$($_.databaseId)" -X DELETE
+                }
+            }
             if ($AsJob) {
-                $DatabaseId = $_.databaseId
-                Start-Job -ScriptBlock { Set-Location -Path $using:PSScriptRoot; gh api "repos/$(gh repo view --json nameWithOwner -q .nameWithOwner)/actions/runs/$($using:DatabaseId)" -X DELETE }
+                $null = $Jobs | Receive-Job -Wait -AutoRemoveJob
             }
-            else {
-                gh api "repos/$(gh repo view --json nameWithOwner -q .nameWithOwner)/actions/runs/$($_.databaseId)" -X DELETE
-            }
-        }
-        if ($AsJob) {
-            $null = $Jobs | Receive-Job -Wait -AutoRemoveJob
-        }
-    } while (gh run list)
+        } while (gh run list)
+    }
 }
 #endregion
 
