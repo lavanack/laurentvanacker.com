@@ -123,7 +123,7 @@ function Add-AzP2SVPN {
         #$LocationShortName = $Matches["LocationShortName"]
         $Instance = $Matches["Instance"]
         $DigitNumber = $Instance.Length
-        #Taking the 2 first tokens  vNet adress prefix and adding a *.255.0/27 subnet mask for the gateway subnet
+        #Taking the 2 first tokens vNet adress prefix and adding a *.255.0/27 subnet mask for the gateway subnet
         $SubnetConfigGatewayAddressPrefix = $VirtualNetwork.AddressSpace.AddressPrefixes -replace "(\d+)\.(\d+)\.(\d+)\.(\d+)/(\d+)", '$1.$2.255.0/27'
     } 
     else {
@@ -266,6 +266,8 @@ Set-Location -Path $CurrentDir
 
 #region Creating a new Virtual Network with P2S VPN Gateway
 New-AzP2SVPN -Connect -Verbose
+
+Get-NetIPConfiguration -InterfaceAlias vnet-p2s*
 #endregion
 
 #region Updating an existing Virtual Network by adding a P2S VPN Gateway
@@ -280,5 +282,6 @@ Get-VpnConnection  | Where-Object -FilterScript { $_.Name -match "^vnet-p2s-vpn"
 #Cleaning Up the Resource Groups
 Get-AzResourceGroup rg-p2s-vpn-* | Remove-AzResourceGroup -AsJob -Force
 #endregion
+Get-ChildItem Cert:\CurrentUser\My\ | Where-Object { $_.Subject -match "^CN=P2S"} | Remove-Item
 #>
 #endregion
