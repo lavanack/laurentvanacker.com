@@ -29,6 +29,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
       - name: Setup tf-summarize
         uses: kishaningithub/setup-tf-summarize@v2
 
@@ -36,10 +39,7 @@ jobs:
         run: |
           tf-summarize -v
           tf-summarize -h
-  
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-
+      
       - name: Terraform Fmt
         id: fmt
         run: terraform fmt -check
