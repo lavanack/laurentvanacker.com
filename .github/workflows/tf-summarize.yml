@@ -1,4 +1,4 @@
-name: Demo Workflow
+name: TF Summarize
 
 on:
   push:
