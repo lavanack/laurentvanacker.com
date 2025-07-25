@@ -22,7 +22,7 @@ function Clear-GithubWorkFlowRun {
     [CmdletBinding(PositionalBinding = $false)]
     param
     (
-        [ValidateScript({Test-Path -Path $_ -PathType Container})]
+        [ValidateScript({ Test-Path -Path $_ -PathType Container })]
         [alias('Fullname')]
         [string] $Directory,
         [switch] $AsJob
@@ -31,7 +31,8 @@ function Clear-GithubWorkFlowRun {
     #region Github CLI Setup
     try { 
         $null = gh 
-    } catch {
+    }
+    catch {
         $GithubCLIURI = $(((Invoke-RestMethod -Uri "https://api.github.com/repos/cli/cli/releases/latest").assets | Where-Object -FilterScript { $_.name.EndsWith("windows_amd64.msi") }).browser_download_url)
         Start-BitsTransfer -Source $GithubCLIURI -Destination $Env:TEMP
         $LocalGithubCLIURI = Join-Path -Path $Env:TEMP -ChildPath $(Split-Path -Path $GithubCLIURI -Leaf)
@@ -44,7 +45,8 @@ function Clear-GithubWorkFlowRun {
     #region Git CLI Setup
     try { 
         $null = git 
-    } catch {
+    }
+    catch {
         $GitCLIURI = $(((Invoke-RestMethod  -Uri "https://api.github.com/repos/git-for-windows/git/releases/latest").assets | Where-Object -FilterScript { $_.name.EndsWith("64-bit.exe") }).browser_download_url)
         Start-BitsTransfer -Source $GitCLIURI -Destination $Env:TEMP
         $LocalGitCLIURI = Join-Path -Path $Env:TEMP -ChildPath $(Split-Path -Path $GitCLIURI -Leaf)
@@ -73,7 +75,8 @@ function Clear-GithubWorkFlowRun {
     }
     else {
         Do {
-            $Jobs = gh run list --json databaseId,workflowName,createdAt -q '.[]' | ConvertFrom-Json | ForEach-Object -Process {
+            #Listing non "in-progress" actions
+            $Jobs = gh run list --json databaseId, workflowName, createdAt, status -q '.[]' | ConvertFrom-Json | Where-Object -FilterScript { $_.status -ne "in_progress" } | ForEach-Object -Process {
                 Write-Verbose -Message "Removing the '$($_.databaseId) - $($_.workflowName) - $([datetime]::Parse($_.createdAt))' run"
                 if ($AsJob) {
                     $DatabaseId = $_.databaseId
@@ -86,7 +89,7 @@ function Clear-GithubWorkFlowRun {
             if ($AsJob) {
                 $null = $Jobs | Receive-Job -Wait -AutoRemoveJob
             }
-        } while (gh run list)
+        } while (gh run list --json status -q '.[]' | ConvertFrom-Json | Where-Object -FilterScript { $_.status -ne "in_progress" })
     }
     if ($Directory) {
         Pop-Location

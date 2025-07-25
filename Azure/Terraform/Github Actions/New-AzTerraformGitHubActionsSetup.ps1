@@ -83,8 +83,9 @@ function New-AzTerraformGitHubActionsSetup {
     #$env:ARM_ACCESS_KEY = $StorageAccountKey
     #endregion
 
-    #region providers.tf Management
-    $ProvidersTerraformTemplatePath = Join-Path -Path $PSScriptRoot -ChildPath "template_providers_tf.txt"
+    #region Terraform Files Management
+    $TerraformFilesDir = Join-Path -Path $PSScriptRoot -ChildPath "Terraform Files"
+    $ProvidersTerraformTemplatePath = Join-Path -Path $TerraformFilesDir -ChildPath "template_providers_tf.txt"
     $WorkingDir = New-Item -Path $(Join-Path -Path $PSScriptRoot -ChildPath $ResourceGroupName) -ItemType Directory -Force
     Write-Verbose -Message "`$WorkingDir: $WorkingDir"
     $ProvidersTerraformPath = Join-Path -Path $WorkingDir -ChildPath "providers.tf"
@@ -97,7 +98,7 @@ function New-AzTerraformGitHubActionsSetup {
     #endregion
 
     #region Copying Terraform files
-    Copy-Item -Path $PSScriptRoot\*.tf -Destination $WorkingDir
+    Copy-Item -Path $TerraformFilesDir\*.tf -Destination $WorkingDir
     #endregion
 
     #region User Assigned Managed Identity
