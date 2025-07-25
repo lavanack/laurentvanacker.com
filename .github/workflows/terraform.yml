@@ -119,9 +119,9 @@ jobs:
       #  run: terraform show -json main.tfplan | tf-summarize -separate-tree
       #  working-directory: './Azure/Terraform/Github Actions'
 
-      - name: summary in draw visual tree format
-        run: terraform show -json main.tfplan | tf-summarize -tree -draw
-        working-directory: './Azure/Terraform/Github Actions'
+      #- name: summary in draw visual tree format
+      #  run: terraform show -json main.tfplan | tf-summarize -tree -draw
+      #  working-directory: './Azure/Terraform/Github Actions'
 
   terraform-apply:
     needs: terraform-plan
