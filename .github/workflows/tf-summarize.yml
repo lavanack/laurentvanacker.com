@@ -38,24 +38,24 @@ jobs:
 
       - name: Terraform Init
         run: terraform init
-        working-directory: ./example
+        working-directory: './Azure/Terraform/Github Actions'
 
       - name: Terraform Plan
         run: terraform plan -out=tfplan -refresh=false # -refresh=false is only for demo workflow
-        working-directory: ./example
+        working-directory: './Azure/Terraform/Github Actions'
 
       - name: summary in table format
         run: terraform show -json tfplan | tf-summarize
-        working-directory: ./example
+        working-directory: './Azure/Terraform/Github Actions'
 
       - name: summary in tree format
         run: terraform show -json tfplan | tf-summarize -tree
-        working-directory: ./example
+        working-directory: './Azure/Terraform/Github Actions'
 
       - name: summary in separate tree format
         run: terraform show -json tfplan | tf-summarize -separate-tree
-        working-directory: ./example
+        working-directory: './Azure/Terraform/Github Actions'
 
       - name: summary in draw visual tree format
         run: terraform show -json tfplan | tf-summarize -tree -draw
-        working-directory: ./example
+        working-directory: './Azure/Terraform/Github Actions'
