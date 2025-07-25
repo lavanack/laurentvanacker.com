@@ -31,7 +31,9 @@ jobs:
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
-
+        with:
+          terraform_wrapper: false
+  
       - name: Setup tf-summarize
         uses: kishaningithub/setup-tf-summarize@v2
 
