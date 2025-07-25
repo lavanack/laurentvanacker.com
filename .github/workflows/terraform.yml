@@ -62,8 +62,8 @@ jobs:
         id: plan
         run: |
           export exitcode=0
-          #terraform plan -no-color -var-file="./tfvars/terraform.tfvars" -var="azure_object_id=${{ secrets.AZURE_OBJECT_ID }}" -out main.tfplan || export exitcode=$?
-          terraform plan -no-color -out main.tfplan || export exitcode=$?
+          #terraform plan -no-color -var-file="./tfvars/terraform.tfvars" -var="azure_object_id=${{ secrets.AZURE_OBJECT_ID }}" -out tfplan || export exitcode=$?
+          terraform plan -no-color -out tfplan || export exitcode=$?
 
           echo "exitcode=$exitcode" >> $GITHUB_OUTPUT
 
@@ -79,7 +79,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tfplan
-          path: './Azure/Terraform/Github Actions/main.tfplan'
+          path: './Azure/Terraform/Github Actions/tfplan'
 
       - name: Terraform Plan Status
         if: steps.plan.outcome == 'failure'
@@ -88,7 +88,7 @@ jobs:
       - name: Create String Output
         id: tf-plan-string
         run: |
-            TERRAFORM_PLAN=$(terraform show -no-color main.tfplan)
+            TERRAFORM_PLAN=$(terraform show -no-color tfplan)
             
             delimiter="$(openssl rand -hex 8)"
             echo "summary<<${delimiter}" >> $GITHUB_OUTPUT
@@ -108,19 +108,19 @@ jobs:
           echo "$SUMMARY" >> $GITHUB_STEP_SUMMARY
 
       #- name: summary in table format
-      #  run: terraform show -json main.tfplan | tf-summarize
+      #  run: terraform show -json tfplan | tf-summarize
       #  working-directory: './Azure/Terraform/Github Actions'
 
       #- name: summary in tree format
-      #  run: terraform show -json main.tfplan | tf-summarize -tree
+      #  run: terraform show -json tfplan | tf-summarize -tree
       #  working-directory: './Azure/Terraform/Github Actions'
 
       #- name: summary in separate tree format
-      #  run: terraform show -json main.tfplan | tf-summarize -separate-tree
+      #  run: terraform show -json tfplan | tf-summarize -separate-tree
       #  working-directory: './Azure/Terraform/Github Actions'
 
       #- name: summary in draw visual tree format
-      #  run: terraform show -json main.tfplan | tf-summarize -tree -draw
+      #  run: terraform show -json tfplan | tf-summarize -tree -draw
       #  working-directory: './Azure/Terraform/Github Actions'
 
   terraform-apply:
@@ -150,4 +150,4 @@ jobs:
           path: './Azure/Terraform/Github Actions'
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve "./main.tfplan"
+        run: terraform apply -auto-approve "./tfplan"
