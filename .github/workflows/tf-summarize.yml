@@ -28,16 +28,8 @@ jobs:
           terraform_wrapper: false
           terraform_version: ${{ steps.set-terraform-version.outputs.terraform-version }}
 
-      - name: Install terraform-plan-summary
-        run: |
-          REPO="dineshba/tf-summarize"
-          curl -LO https://github.com/$REPO/releases/latest/download/tf-summarize_linux_amd64.zip
-          tmpDir=$(mktemp -d -t tmp.XXXXXXXXXX)
-          mv tf-summarize_linux_amd64.zip $tmpDir
-          cd $tmpDir
-          unzip tf-summarize_linux_amd64.zip
-          chmod +x tf-summarize
-          echo $PWD >> $GITHUB_PATH
+      - name: Setup tf-summarize
+        uses: kishaningithub/setup-tf-summarize@v2
 
       - name: Print tf-summarize version and help
         run: |
