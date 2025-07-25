@@ -111,13 +111,13 @@ jobs:
       #  run: terraform show -json main.tfplan | tf-summarize
       #  working-directory: './Azure/Terraform/Github Actions'
 
-      - name: summary in tree format
-        run: terraform show -json main.tfplan | tf-summarize -tree
-        working-directory: './Azure/Terraform/Github Actions'
+      #- name: summary in tree format
+      #  run: terraform show -json main.tfplan | tf-summarize -tree
+      #  working-directory: './Azure/Terraform/Github Actions'
 
-      - name: summary in separate tree format
-        run: terraform show -json main.tfplan | tf-summarize -separate-tree
-        working-directory: './Azure/Terraform/Github Actions'
+      #- name: summary in separate tree format
+      #  run: terraform show -json main.tfplan | tf-summarize -separate-tree
+      #  working-directory: './Azure/Terraform/Github Actions'
 
       - name: summary in draw visual tree format
         run: terraform show -json main.tfplan | tf-summarize -tree -draw
