@@ -1,6 +1,11 @@
 name: Demo Workflow
 
 on:
+  push:
+    branches: [ "master" ]
+    paths:
+      - 'Azure/Terraform/Github Actions/**'
+  pull_request:
   workflow_dispatch:
 
 defaults:
