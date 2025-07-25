@@ -107,9 +107,9 @@ jobs:
         run: |
           echo "$SUMMARY" >> $GITHUB_STEP_SUMMARY
 
-      - name: summary in table format
-        run: terraform show -json main.tfplan | tf-summarize
-        working-directory: './Azure/Terraform/Github Actions'
+      #- name: summary in table format
+      #  run: terraform show -json main.tfplan | tf-summarize
+      #  working-directory: './Azure/Terraform/Github Actions'
 
       - name: summary in tree format
         run: terraform show -json main.tfplan | tf-summarize -tree
