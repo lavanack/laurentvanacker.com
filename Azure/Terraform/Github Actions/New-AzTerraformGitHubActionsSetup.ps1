@@ -26,8 +26,7 @@ function New-AzTerraformGitHubActionsSetup {
     param
     (
         [ValidateScript({ $_ -in (Get-AzLocation).Location })]
-        [string] $Location = "eastus2",
-        [switch] $Destroy
+        [string] $Location = "eastus2"
     )
 
     #region Defining variables 
@@ -51,16 +50,13 @@ function New-AzTerraformGitHubActionsSetup {
     $UserAssignedIdentityPrefix = $ResourceTypeShortNameHT["ManagedIdentity/userAssignedIdentities"].ShortName
     $Project = "tf"
     $Role = "ghact"
-    $TFRole = "sample"
     #$DigitNumber = 4
     $DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role + $LocationShortName).Length
     $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
     $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
-    $TFResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $TFRole, $LocationShortName, $Instance                       
     $StorageAccountName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $StorageAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
     $UserAssignedIdentityName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $UserAssignedIdentityPrefix, $Project, $Role, $LocationShortName, $Instance                       
     $ResourceGroupName = $ResourceGroupName.ToLower()
-    $TFResourceGroupName = $TFResourceGroupName.ToLower()
     $StorageAccountName = $StorageAccountName.ToLower()
     $UserAssignedIdentityName = $UserAssignedIdentityName.ToLower()
     #endregion
@@ -87,19 +83,21 @@ function New-AzTerraformGitHubActionsSetup {
     #$env:ARM_ACCESS_KEY = $StorageAccountKey
     #endregion
 
-    #region Maint.tf Management
-    $MainTerraformTemplatePath = Join-Path -Path $PSScriptRoot -ChildPath "template_main_tf.txt"
+    #region providers.tf Management
+    $ProvidersTerraformTemplatePath = Join-Path -Path $PSScriptRoot -ChildPath "template_providers_tf.txt"
     $WorkingDir = New-Item -Path $(Join-Path -Path $PSScriptRoot -ChildPath $ResourceGroupName) -ItemType Directory -Force
     Write-Verbose -Message "`$WorkingDir: $WorkingDir"
-    $MainTerraformPath = Join-Path -Path $WorkingDir -ChildPath "main.tf"
-    Write-Verbose -Message "`$MainTerraformTemplatePath: $MainTerraformTemplatePath"
-    Copy-Item -Path $MainTerraformTemplatePath -Destination $MainTerraformPath -Force
+    $ProvidersTerraformPath = Join-Path -Path $WorkingDir -ChildPath "providers.tf"
+    Write-Verbose -Message "`$ProvidersTerraformTemplatePath: $ProvidersTerraformTemplatePath"
+    Copy-Item -Path $ProvidersTerraformTemplatePath -Destination $ProvidersTerraformPath -Force
 
-    ((Get-Content -Path $MainTerraformPath -Raw) -replace '<location>', $Location) | Set-Content -Path $MainTerraformPath
-    ((Get-Content -Path $MainTerraformPath -Raw) -replace '<backend_storage_account_name>', $StorageAccountName) | Set-Content -Path $MainTerraformPath
-    ((Get-Content -Path $MainTerraformPath -Raw) -replace '<backend_resource_group_name>', $ResourceGroupName) | Set-Content -Path $MainTerraformPath
-    ((Get-Content -Path $MainTerraformPath -Raw) -replace '<resource_group_name>', $TFResourceGroupName) | Set-Content -Path $MainTerraformPath
-    ((Get-Content -Path $MainTerraformPath -Raw) -replace '<backend_container_name>', $ContainerName) | Set-Content -Path $MainTerraformPath
+    ((Get-Content -Path $ProvidersTerraformPath -Raw) -replace '<backend_storage_account_name>', $StorageAccountName) | Set-Content -Path $ProvidersTerraformPath
+    ((Get-Content -Path $ProvidersTerraformPath -Raw) -replace '<backend_resource_group_name>', $ResourceGroupName) | Set-Content -Path $ProvidersTerraformPath
+    ((Get-Content -Path $ProvidersTerraformPath -Raw) -replace '<backend_container_name>', $ContainerName) | Set-Content -Path $ProvidersTerraformPath
+    #endregion
+
+    #region Copying Terraform files
+    Copy-Item -Path $PSScriptRoot\*.tf -Destination $WorkingDir
     #endregion
 
     #region User Assigned Managed Identity
@@ -178,8 +176,8 @@ function New-AzTerraformGitHubActionsSetup {
     gh secret set BACKEND_AZURE_STORAGE_ACCOUNT_KEY --body $StorageAccountKey
     #endregion
 
-    #region Github Environement Management
-    $null = gh api --method PUT -H "Accept: application/vnd.github+json" repos/$GitHubUserName/$GitHubRepoName/environments/dev
+    #region Github Environment Management
+    #$null = gh api --method PUT -H "Accept: application/vnd.github+json" repos/$GitHubUserName/$GitHubRepoName/environments/dev
     #endregion
 }
 #endregion
@@ -199,7 +197,7 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 }
 #endregion
 #region Demo for a Terraform State on a StorageAccount
-New-AzTerraformGitHubActionsSetup -Destroy -Verbose
+New-AzTerraformGitHubActionsSetup -Verbose
 #endregion
 
 <#
