@@ -76,7 +76,7 @@ function Clear-GithubWorkFlowRun {
     else {
         Do {
             #Listing non "in-progress" actions
-            $Jobs = gh run list --json databaseId, workflowName, createdAt, status -q '.[]' | ConvertFrom-Json | Where-Object -FilterScript { $_.status -ne "in_progress" } | ForEach-Object -Process {
+            $Jobs = gh run list --json databaseId,workflowName,createdAt,status -q '.[]' | ConvertFrom-Json | Where-Object -FilterScript { $_.status -ne "in_progress" } | ForEach-Object -Process {
                 Write-Verbose -Message "Removing the '$($_.databaseId) - $($_.workflowName) - $([datetime]::Parse($_.createdAt))' run"
                 if ($AsJob) {
                     $DatabaseId = $_.databaseId
@@ -107,5 +107,9 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 #$GitHubDirectories = (Get-ChildItem -Path (Get-PSDrive -PSProvider FileSystem | Where-Object -FilterScript { $_.Used }).Root -Directory -Filter ".github" -Recurse -ErrorAction Ignore).Parent
 
-Clear-GithubWorkFlowRun -Directory (Resolve-Path -Path ..\..\..).Path -AsJob -Verbose
+#If you put this script in any location inside a github repo
+Clear-GithubWorkFlowRun -AsJob -Verbose
+
+#If you put this script in any location outside a github repo you have to specify the path of the github repo
+#Clear-GithubWorkFlowRun -Directory (Resolve-Path -Path ..\..\..).Path -AsJob -Verbose
 #endregion
