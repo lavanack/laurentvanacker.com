@@ -30,3 +30,15 @@ run "verify_virtual_network" {
     error_message = "Resource group location does not match expected value"
   }
 }
+
+
+
+run "verify_windows_virtual_machine" {
+	command = plan
+	#command = apply
+
+  assert {
+    condition     = azurerm_windows_virtual_machine.main.size == "Standard_F2"
+    error_message = "windows virtual machine size does not match expected value"
+  }
+}
