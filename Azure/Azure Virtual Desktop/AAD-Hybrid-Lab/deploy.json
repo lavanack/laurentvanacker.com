@@ -165,6 +165,7 @@
         "name": "[parameters('adSubnetName')]",
         "properties": {
           "addressprefix": "[parameters('adSubnetAddressRange')]",
+          "defaultoutboundaccess": true,
           "networkSecurityGroup": {
             "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('adNSGName'))]"
           }
