@@ -254,6 +254,7 @@ function Add-AzP2SVPN {
     }
     #endregion
 }
+#endregion 
 
 #region Main Code
 Clear-Host
