@@ -104,7 +104,7 @@ Add-LabMachineDefinition -Name DC01 -Roles RootDC, CaRoot -IpAddress $DC01IPv4Ad
 $netAdapter = @()
 $netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch $LabName -Ipv4Address $MSIXIPv4Address -InterfaceName Corp
 $netAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Default Switch' -UseDhcp -InterfaceName Internet
-Add-LabMachineDefinition -Name MSIX -NetworkAdapter $netAdapter -OperatingSystem 'Windows 11 Enterprise' #-Memory 4GB
+Add-LabMachineDefinition -Name MSIX -NetworkAdapter $netAdapter -OperatingSystem 'Windows 11 Enterprise' -Memory 4GB -Processors 4
 #endregion
 
 #Installing servers
