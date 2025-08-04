@@ -152,7 +152,7 @@ if ($VMName.Length -gt $AzureVMNameMaxLength) {
 elseif (-not($LocationShortName)) {
     Write-Error "No location short name found for '$Location'" -ErrorAction Stop
 }
-elseif ($null -eq (Get-AzVMSize -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
+elseif ($null -eq (Get-AzComputeResourceSku -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
     Write-Error "The '$VMSize' is not available in the '$Location' location ..." -ErrorAction Stop
 }
 
