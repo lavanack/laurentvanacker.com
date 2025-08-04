@@ -16,6 +16,7 @@ Write-Output -InputObject $AzureContext
 
 #region Set Subnet Configuration
 foreach ($vNet in Get-AzVirtualNetwork) {
+    Write-Output -InputObject "Processing '$($vNet.Name)'"
     foreach ($subnet in $vNet.Subnets) {
         if (-not($subnet.DefaultOutboundAccess)) {
             Write-Output -InputObject "Enabling DefaultOutboundAccess for '$($subnet.Name)'"
