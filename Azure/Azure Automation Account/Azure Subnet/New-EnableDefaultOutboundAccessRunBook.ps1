@@ -289,7 +289,7 @@ $RunBookName = "{0}-EnableDefaultOutboundAccess" -f $RunBookPrefix
 # Publish the runbook
 #Publish-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName
 
-$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20Subnet/EnableDefaultOutboundAccessRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Setting Azure Subnet Configuration" -Verbose 
+$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20Subnet/EnableDefaultOutboundAccess.ps1" -Description "PowerShell Azure Automation Runbook for Setting Azure Subnet Configuration" -Verbose 
 
 #endregion
 

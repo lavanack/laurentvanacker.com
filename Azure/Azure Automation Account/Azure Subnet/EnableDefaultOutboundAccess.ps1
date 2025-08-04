@@ -18,11 +18,11 @@ Write-Output -InputObject $AzureContext
 foreach ($vNet in Get-AzVirtualNetwork) {
     foreach ($subnet in $vNet.Subnets) {
         if (-not($subnet.DefaultOutboundAccess)) {
-            Write-Verbose -Message "Enabling DefaultOutboundAccess for '$($subnet.Name)'"
+            Write-Output -InputObject "Enabling DefaultOutboundAccess for '$($subnet.Name)'"
             $subnet.DefaultOutboundAccess = $true
         }
         else {
-            Write-Verbose -Message "DefaultOutboundAccess already enabled for '$($subnet.Name)'"
+            Write-Output -InputObject "DefaultOutboundAccess already enabled for '$($subnet.Name)'"
         }
     }
     $null = Set-AzVirtualNetwork -VirtualNetwork $vNet
