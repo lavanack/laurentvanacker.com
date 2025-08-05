@@ -66,17 +66,25 @@ powercfg /s $SchemeId
 #region WinGet
 winget upgrade --all --silent --accept-package-agreements --accept-source-agreements
 
+winget install --exact --id=Intel.IntelDriverAndSupportAssistant
+winget install "Lenovo Vantage" --accept-package-agreements --accept-source-agreements --source msstore
+winget install "NVIDIA Control Panel" --accept-package-agreements --accept-source-agreements --source msstore
+winget install "Portail d'entreprise" --accept-package-agreements --accept-source-agreements --source msstore
+winget install "Power BI Desktop" --accept-package-agreements --accept-source-agreements --source msstore
+winget install "Microsoft Whiteboard" --accept-package-agreements --accept-source-agreements --source msstore
+winget install "Microsoft 365 Copilot" --accept-package-agreements --accept-source-agreements --source msstore
+winget install --exact --id=Microsoft.WindowsTerminal
+
 winget install --exact --id=Microsoft.Office
 winget install --exact --id=Microsoft.Teams
+winget install --exact --id=Microsoft.PowerToys
+winget install --exact --id=Notepad++.Notepad++
 winget install --exact --id=Mozilla.Firefox
 winget install --exact --id=Mozilla.Thunderbird
-winget install --exact --id=Notepad++.Notepad++
-winget install --exact --id=Microsoft.PowerToys
 winget install --exact --id=VideoLAN.VLC
 winget install --exact --id=RARLab.WinRAR
 winget install --exact --id=Bitwarden.Bitwarden
 winget install --exact --id=Foxit.FoxitReader
-winget install --exact --id=Intel.IntelDriverAndSupportAssistant
 winget install --exact --id=WiresharkFoundation.Wireshark
 winget install --exact --id=Microsoft.VisualStudioCode.Insiders
 winget install --exact --id=Synology.SurveillanceStationClient
@@ -84,7 +92,6 @@ winget install --exact --id=Synology.CloudStationDrive
 winget install --exact --id=WinMerge.WinMerge
 #winget install --exact --id=NordSecurity.NordVPN
 winget install --exact --id=Brother.iPrintScan
-winget install --exact --id=Microsoft.WindowsTerminal
 winget install --exact --id=Microsoft.PowerShell
 winget install --exact --id=Microsoft.Azure.StorageExplorer
 winget install --exact --id=GitHub.cli
@@ -112,18 +119,11 @@ Pop-Location
 #endregion
 #endregion
 
-winget install "Microsoft Whiteboard" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "Lenovo Vantage" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "Microsoft 365 Copilot" --accept-package-agreements --accept-source-agreements --source msstore
 winget install "WhatsApp" --accept-package-agreements --accept-source-agreements --source msstore
 winget install "Snapchat" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "NVIDIA Control Panel" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "Portail d'entreprise" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "Power BI Desktop" --accept-package-agreements --accept-source-agreements --source msstore
 winget install "Disney+" --accept-package-agreements --accept-source-agreements --source msstore
 winget install "Netflix" --accept-package-agreements --accept-source-agreements --source msstore
 winget install "Prime Video for Windows" --accept-package-agreements --accept-source-agreements --source msstore
-#winget install "Windows Terminal" --accept-package-agreements --accept-source-agreements --source msstore
 #endregion
 
 #region Other Ways
