@@ -173,7 +173,7 @@ New-LabSourcesFolder -DriveLetter $env:SystemDrive
 #endregion
 
 #region Other applications
-Start-Process "https://aka.ms/casebuddy"
+#Start-Process "https://aka.ms/casebuddy"
 Start-Process "ms-phone://"
 #endregion
 
