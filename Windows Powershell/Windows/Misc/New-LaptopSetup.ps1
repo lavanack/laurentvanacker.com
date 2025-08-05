@@ -52,13 +52,17 @@ Add-LocalGroupMember -Group "Administrators" -Member $LocalAdminUser
 #endregion
 
 #region Folder Setup
-$null = New-Item -Path "$env:SystemDrive\Temp", "$env:SystemDrive\Tools", "$env:SystemDrive\Source Control\GitHub" -ItemType Directory -Force
-[Environment]::SetEnvironmentVariable("PATH", "$env:Path;$env:SystemDrive\Tools;$env:SystemDrive\LabSources\Tools\SysInternals", "Machine")
+$Temp = New-Item -Path "$env:SystemDrive\Temp" -ItemType Directory -Force
+[Environment]::SetEnvironmentVariable("TEMP", $Temp.FullName, "Machine")
+[Environment]::SetEnvironmentVariable("TMP", $Temp.FullName, "Machine")
+[Environment]::SetEnvironmentVariable("TEMP", $Temp.FullName, "User")
+[Environment]::SetEnvironmentVariable("TMP", $Temp.FullName, "User")
+[Environment]::SetEnvironmentVariable("PATH", "$env:Path;$env:SystemDrive\LabSources\Tools\SysInternals;$env:SystemDrive\Tools;", "Machine")
 #endregion
 
 #region High performance
 $Result = powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 | Out-string | Select-String -Pattern "GUID:\s(?<guid>.*)\s+\("
-$SchemeId = $Result.Matches.Captures[0].Groups["guid"].Value
+$SchemeId = $Result.Matches.Captures[0].Groups["guid"].Value.Trim()
 powercfg /s $SchemeId
 #endregion
 
@@ -66,20 +70,24 @@ powercfg /s $SchemeId
 #region WinGet
 winget upgrade --all --silent --accept-package-agreements --accept-source-agreements
 
+winget install --exact --id=Microsoft.Sysinternals.Suite --location "C:\LabSources\Tools\SysInternals"
 winget install --exact --id=Microsoft.Office
-winget install --exact --id=Microsoft.Teams
-winget install --exact --id=Mozilla.Firefox
-winget install --exact --id=Mozilla.Thunderbird
+#winget install --exact --id=Microsoft.Teams
 winget install --exact --id=Notepad++.Notepad++
 winget install --exact --id=Microsoft.PowerToys
-winget install --exact --id=VideoLAN.VLC
+#winget install "Microsoft Whiteboard" --accept-package-agreements --accept-source-agreements --source msstore
+winget install "Lenovo Vantage" --accept-package-agreements --accept-source-agreements --source msstore
+winget install "Microsoft 365 Copilot" --accept-package-agreements --accept-source-agreements --source msstore
+winget install "NVIDIA Control Panel" --accept-package-agreements --accept-source-agreements --source msstore
+winget install "Portail d'entreprise" --accept-package-agreements --accept-source-agreements --source msstore
+winget install "Power BI Desktop" --accept-package-agreements --accept-source-agreements --source msstore
 winget install --exact --id=RARLab.WinRAR
 winget install --exact --id=Bitwarden.Bitwarden
 winget install --exact --id=Foxit.FoxitReader
 winget install --exact --id=Intel.IntelDriverAndSupportAssistant
 winget install --exact --id=WiresharkFoundation.Wireshark
-winget install --exact --id=Microsoft.VisualStudioCode.Insiders
-winget install --exact --id=Synology.SurveillanceStationClient
+#winget install --exact --id=Microsoft.VisualStudioCode.Insiders
+#winget install --exact --id=Synology.SurveillanceStationClient
 winget install --exact --id=Synology.CloudStationDrive 
 winget install --exact --id=WinMerge.WinMerge
 #winget install --exact --id=NordSecurity.NordVPN
@@ -104,22 +112,25 @@ git config --global user.email laurent.vanacker@free.fr
 git lfs install
 #From https://support.atlassian.com/bamboo/kb/git-checkouts-fail-on-windows-with-filename-too-long-error-unable-to-create-file-errors/
 git config --system core.longpaths true
+
 #region Repo cloning
+C:\LabSources\Tools\SysInternals\junction.exe -accepteula "C:\Source Control", "$env:OneDriveCommercial\Source Control"
+C:\LabSources\Tools\SysInternals\junction.exe -accepteula "C:\laurentvanacker.com", "$env:OneDriveCommercial\Source Control\GitHub\laurentvanacker.com"
+C:\LabSources\Tools\SysInternals\junction.exe -accepteula "C:\Tools", "$env:OneDriveCommercial\Tools"
+<#
 Push-Location -Path "$env:SystemDrive\Source Control\GitHub"
 git clone https://github.com/lavanack/laurentvanacker.com.git
 git clone https://github.com/lavanack/PSAzureVirtualDesktop.git
 Pop-Location 
+#>
 #endregion
 #endregion
 
-winget install "Microsoft Whiteboard" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "Lenovo Vantage" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "Microsoft 365 Copilot" --accept-package-agreements --accept-source-agreements --source msstore
+winget install --exact --id=Mozilla.Firefox
+winget install --exact --id=Mozilla.Thunderbird
+winget install --exact --id=VideoLAN.VLC
 winget install "WhatsApp" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "Snapchat" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "NVIDIA Control Panel" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "Portail d'entreprise" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "Power BI Desktop" --accept-package-agreements --accept-source-agreements --source msstore
+#winget install "Snapchat" --accept-package-agreements --accept-source-agreements --source msstore
 winget install "Disney+" --accept-package-agreements --accept-source-agreements --source msstore
 winget install "Netflix" --accept-package-agreements --accept-source-agreements --source msstore
 winget install "Prime Video for Windows" --accept-package-agreements --accept-source-agreements --source msstore
@@ -138,7 +149,7 @@ Invoke-WebRequest -Uri "https://download.mozilla.org/?product=firefox-latest&os=
 
 $VSCodeExtension = [ordered]@{
     #'Live Share Extension Pack' = 'ms-vsliveshare.vsliveshare-pack'
-    "PowerShell"                 = "ms-vscode.powershell"
+    'PowerShell'                 = "ms-vscode.powershell"
     'Git Graph'                  = 'mhutchie.git-graph'
     'Git History'                = 'donjayamanne.githistory'
     'GitLens - Git supercharged' = 'eamodio.gitlens'
@@ -173,7 +184,7 @@ New-LabSourcesFolder -DriveLetter $env:SystemDrive
 #endregion
 
 #region Other applications
-Start-Process "https://aka.ms/casebuddy"
+#Start-Process "https://aka.ms/casebuddy"
 Start-Process "ms-phone://"
 #endregion
 
@@ -183,7 +194,7 @@ Set-ItemProperty -Path  'HKCU:\Software\Microsoft\Office\16.0\Outlook\Options\Ca
 #endregion 
 
 #region Windows Subsystem for Linux
-wsl --install
+#wsl --install
 #endregion
 
 #region Updating Powershell Help

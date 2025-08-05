@@ -49,11 +49,16 @@ Start-Sleep -Seconds 10
 #endregion
 
 #region Installing AzCopy
-$AzCopyURI = 'https://aka.ms/downloadazcopy-v10-windows'
-$OutputFile = Join-Path -Path $CurrentDir -ChildPath 'azcopy_windows_amd64_latest.zip'
-Invoke-WebRequest -Uri $AzCopyURI -OutFile $OutputFile
-Expand-Archive -Path $OutputFile -DestinationPath C:\Tools -Force
-Remove-Item -Path $OutputFile -Force
+$AzCopy=where.exe azcopy
+if(-not($AzCopy)) {
+    $AzCopyURI = 'https://aka.ms/downloadazcopy-v10-windows'
+    $OutputFile = Join-Path -Path $CurrentDir -ChildPath 'azcopy_windows_amd64_latest.zip'
+    Invoke-WebRequest -Uri $AzCopyURI -OutFile $OutputFile
+    Expand-Archive -Path $OutputFile -DestinationPath C:\Tools -Force
+    Remove-Item -Path $OutputFile -Force
+    $AzCopy=(Get-ChildItem -Path "C:\Tools\azcopy_windows*" -Filter azcopy.exe -Recurse  | Sort-Object -Property Name -Descending | Select-Object -First 1).Fullname
+
+}
 #endregion
 
 #region AutomatedLab ISO uploads
@@ -82,20 +87,20 @@ $LabSourcesDir = (Get-ChildItem -Path (Get-PSDrive -PSProvider FileSystem | Wher
 $ISOFolder = Join-Path -Path $LabSourcesDir -ChildPath "\ISOs"
 
 #Go to the latest azcopy folder
-Get-ChildItem -Path "C:\Tools\azcopy_windows*" | Sort-Object -Property Name -Descending | Select-Object -First 1 | Push-Location
+#Get-ChildItem -Path "C:\Tools\azcopy_windows*" | Sort-Object -Property Name -Descending | Select-Object -First 1 | Push-Location
 $env:AZCOPY_CRED_TYPE = "Anonymous"
 $env:AZCOPY_CONCURRENCY_VALUE = "AUTO"
 Switch ($Mode) {
     {$_ -in "Push","ToStorageAccount"} {
-        ./azcopy.exe sync $ISOFolder $StorageShareSASToken --delete-destination=true --log-level=INFO --put-md5
+        & $AzCopy sync $ISOFolder $StorageShareSASToken --delete-destination=true --log-level=INFO --put-md5
     }
     {$_ -in "Pull","FromStorageAccount"}  {
-        ./azcopy.exe sync  $StorageShareSASToken $ISOFolder --delete-destination=true --log-level=INFO --put-md5
+        & $AzCopy sync  $StorageShareSASToken $ISOFolder --delete-destination=true --log-level=INFO --put-md5
     }
 }
 $env:AZCOPY_CRED_TYPE = ""
 $env:AZCOPY_CONCURRENCY_VALUE = ""
-Pop-Location
+#Pop-Location
 #endregion
 
 #region Set Storage Account Configuration
