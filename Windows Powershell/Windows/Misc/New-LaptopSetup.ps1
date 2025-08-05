@@ -53,7 +53,7 @@ Add-LocalGroupMember -Group "Administrators" -Member $LocalAdminUser
 
 #region Folder Setup
 $null = New-Item -Path "$env:SystemDrive\Temp", "$env:SystemDrive\Tools", "$env:SystemDrive\Source Control\GitHub" -ItemType Directory -Force
-[Environment]::SetEnvironmentVariable("PATH", "$env:Path;$env:SystemDrive\Tools;$env:SystemDrive\LabSources\Tools\SysInternals", "Machine")
+[Environment]::SetEnvironmentVariable("PATH", "$env:Path;$env:SystemDrive\LabSources\Tools\SysInternals;$env:SystemDrive\Tools", "Machine")
 #endregion
 
 #region High performance
@@ -183,7 +183,7 @@ Set-ItemProperty -Path  'HKCU:\Software\Microsoft\Office\16.0\Outlook\Options\Ca
 #endregion 
 
 #region Windows Subsystem for Linux
-wsl --install
+#wsl --install
 #endregion
 
 #region Updating Powershell Help
