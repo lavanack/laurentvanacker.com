@@ -106,7 +106,7 @@ Get-GuestConfigurationPackageComplianceStatus -Path $GuestConfigurationPackage.P
 
 # Creates a new container
 if (-not($storageAccount | Get-AzStorageContainer -Name $StorageContainerName -ErrorAction Ignore)) {
-    $storageAccount | New-AzStorageContainer -Name $StorageContainerName -Permission Blob
+    $storageAccount | New-AzStorageContainer -Name $StorageContainerName #-Permission Blob
 }
 $StorageAccountKey = (($storageAccount | Get-AzStorageAccountKey) | Where-Object -FilterScript { $_.KeyName -eq "key1" }).Value
 $Context = New-AzStorageContext -ConnectionString "DefaultEndpointsProtocol=https;AccountName=$StorageAccountName;AccountKey=$StorageAccountKey"

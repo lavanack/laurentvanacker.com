@@ -335,6 +335,7 @@ $Project = "dsc"
 $Role = "amc"
 #$DigitNumber = 4
 $DigitNumber = $AzureVMNameMaxLength-($VirtualMachinePrefix+$Project+$Role+$LocationShortName).Length
+#$StorageContainerName = "guestconfiguration"
 
 Do {
     $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
@@ -416,6 +417,13 @@ $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Locatio
 
 #Step 2: Create Azure Storage Account
 $StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true -AllowBlobPublicAccess $true
+
+<#
+# Creates a new container
+if (-not($storageAccount | Get-AzStorageContainer -Name $StorageContainerName -ErrorAction Ignore)) {
+    $storageAccount | New-AzStorageContainer -Name $StorageContainerName #-Permission Blob
+}
+#>
 
 #Step 3: Create Azure Network Security Group
 #RDP only for my public IP address
