@@ -1,2 +1,2 @@
-﻿#Deploy 1 Pooled HostPool with FSLogix and Azure App Attach
+﻿#Deploy 1 Pooled HostPool with FSLogix and AppAttach
 [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id)
