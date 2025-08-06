@@ -52,12 +52,8 @@ Add-LocalGroupMember -Group "Administrators" -Member $LocalAdminUser
 #endregion
 
 #region Folder Setup
-$Temp = New-Item -Path "$env:SystemDrive\Temp" -ItemType Directory -Force
-[Environment]::SetEnvironmentVariable("TEMP", $Temp.FullName, "Machine")
-[Environment]::SetEnvironmentVariable("TMP", $Temp.FullName, "Machine")
-[Environment]::SetEnvironmentVariable("TEMP", $Temp.FullName, "User")
-[Environment]::SetEnvironmentVariable("TMP", $Temp.FullName, "User")
-[Environment]::SetEnvironmentVariable("PATH", "$env:Path;$env:SystemDrive\LabSources\Tools\SysInternals;$env:SystemDrive\Tools;", "Machine")
+$null = New-Item -Path "$env:SystemDrive\Temp", "$env:SystemDrive\Tools", "$env:SystemDrive\Source Control\GitHub" -ItemType Directory -Force
+[Environment]::SetEnvironmentVariable("PATH", "$env:Path;$env:SystemDrive\Tools;$env:SystemDrive\LabSources\Tools\SysInternals", "Machine")
 #endregion
 
 #region High performance
@@ -70,21 +66,26 @@ powercfg /s $SchemeId
 #region WinGet
 winget upgrade --all --silent --accept-package-agreements --accept-source-agreements
 
-winget install --exact --id=Microsoft.Sysinternals.Suite --location "C:\LabSources\Tools\SysInternals"
-winget install --exact --id=Microsoft.Office
-#winget install --exact --id=Microsoft.Teams
-winget install --exact --id=Notepad++.Notepad++
-winget install --exact --id=Microsoft.PowerToys
-#winget install "Microsoft Whiteboard" --accept-package-agreements --accept-source-agreements --source msstore
+winget install --exact --id=Intel.IntelDriverAndSupportAssistant
 winget install "Lenovo Vantage" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "Microsoft 365 Copilot" --accept-package-agreements --accept-source-agreements --source msstore
 winget install "NVIDIA Control Panel" --accept-package-agreements --accept-source-agreements --source msstore
 winget install "Portail d'entreprise" --accept-package-agreements --accept-source-agreements --source msstore
 winget install "Power BI Desktop" --accept-package-agreements --accept-source-agreements --source msstore
+winget install "Microsoft Whiteboard" --accept-package-agreements --accept-source-agreements --source msstore
+winget install "Microsoft 365 Copilot" --accept-package-agreements --accept-source-agreements --source msstore
+winget install --exact --id=Microsoft.WindowsTerminal
+
+winget install --exact --id=Microsoft.Sysinternals.Suite --location "C:\LabSources\Tools\SysInternals"
+winget install --exact --id=Microsoft.Office
+winget install --exact --id=Microsoft.Teams
+winget install --exact --id=Mozilla.Firefox
+winget install --exact --id=Mozilla.Thunderbird
+winget install --exact --id=Notepad++.Notepad++
+winget install --exact --id=Microsoft.PowerToys
+winget install --exact --id=VideoLAN.VLC
 winget install --exact --id=RARLab.WinRAR
 winget install --exact --id=Bitwarden.Bitwarden
 winget install --exact --id=Foxit.FoxitReader
-winget install --exact --id=Intel.IntelDriverAndSupportAssistant
 winget install --exact --id=WiresharkFoundation.Wireshark
 #winget install --exact --id=Microsoft.VisualStudioCode.Insiders
 #winget install --exact --id=Synology.SurveillanceStationClient
@@ -92,7 +93,6 @@ winget install --exact --id=Synology.CloudStationDrive
 winget install --exact --id=WinMerge.WinMerge
 #winget install --exact --id=NordSecurity.NordVPN
 winget install --exact --id=Brother.iPrintScan
-winget install --exact --id=Microsoft.WindowsTerminal
 winget install --exact --id=Microsoft.PowerShell
 winget install --exact --id=Microsoft.Azure.StorageExplorer
 winget install --exact --id=GitHub.cli
@@ -126,15 +126,17 @@ Pop-Location
 #endregion
 #endregion
 
-winget install --exact --id=Mozilla.Firefox
-winget install --exact --id=Mozilla.Thunderbird
-winget install --exact --id=VideoLAN.VLC
+winget install "Microsoft Whiteboard" --accept-package-agreements --accept-source-agreements --source msstore
+winget install "Lenovo Vantage" --accept-package-agreements --accept-source-agreements --source msstore
+winget install "Microsoft 365 Copilot" --accept-package-agreements --accept-source-agreements --source msstore
 winget install "WhatsApp" --accept-package-agreements --accept-source-agreements --source msstore
-#winget install "Snapchat" --accept-package-agreements --accept-source-agreements --source msstore
+winget install "Snapchat" --accept-package-agreements --accept-source-agreements --source msstore
+winget install "NVIDIA Control Panel" --accept-package-agreements --accept-source-agreements --source msstore
+winget install "Portail d'entreprise" --accept-package-agreements --accept-source-agreements --source msstore
+winget install "Power BI Desktop" --accept-package-agreements --accept-source-agreements --source msstore
 winget install "Disney+" --accept-package-agreements --accept-source-agreements --source msstore
 winget install "Netflix" --accept-package-agreements --accept-source-agreements --source msstore
 winget install "Prime Video for Windows" --accept-package-agreements --accept-source-agreements --source msstore
-#winget install "Windows Terminal" --accept-package-agreements --accept-source-agreements --source msstore
 #endregion
 
 #region Other Ways
