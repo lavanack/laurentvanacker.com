@@ -52,15 +52,17 @@ Add-LocalGroupMember -Group "Administrators" -Member $LocalAdminUser
 #endregion
 
 #region Folder Setup
-$null = New-Item -Path "$env:SystemDrive\Temp", "$env:SystemDrive\Tools", "$env:SystemDrive\Source Control\GitHub" -ItemType Directory -Force
-[Environment]::SetEnvironmentVariable("PATH", "$env:Path;$env:SystemDrive\Tools;$env:SystemDrive\LabSources\Tools\SysInternals", "Machine")
+$null = New-Item -Path "$env:SystemDrive\Temp" -ItemType Directory -Force
+[Environment]::SetEnvironmentVariable("PATH", "$env:Path;$env:SystemDrive\LabSources\Tools\SysInternals;$env:SystemDrive\Tools;", "Machine")
 #endregion
 
+<#
 #region High performance
 $Result = powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 | Out-string | Select-String -Pattern "GUID:\s(?<guid>.*)\s+\("
 $SchemeId = $Result.Matches.Captures[0].Groups["guid"].Value.Trim()
-powercfg /s $SchemeId
+& "powercfg /s $SchemeId"
 #endregion
+#>
 
 #region Software Setup
 #region WinGet
@@ -98,8 +100,8 @@ winget install --exact --id=Microsoft.Azure.StorageExplorer
 winget install --exact --id=GitHub.cli
 winget install --exact --id=Microsoft.WindowsApp
 winget install --exact --id=Logitech.GHUB
-winget install --exact --id=Microsoft.Azure.AZCopy.10
 winget install --exact --id=WinDirStat.WinDirStat
+winget install --exact --id=Microsoft.Azure.AZCopy.10
 winget install --exact --id=Microsoft.Bicep
 winget install --exact --id=Microsoft.AzureCLI
 winget install --exact --id=Hashicorp.Terraform
@@ -126,14 +128,8 @@ Pop-Location
 #endregion
 #endregion
 
-winget install "Microsoft Whiteboard" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "Lenovo Vantage" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "Microsoft 365 Copilot" --accept-package-agreements --accept-source-agreements --source msstore
 winget install "WhatsApp" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "Snapchat" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "NVIDIA Control Panel" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "Portail d'entreprise" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "Power BI Desktop" --accept-package-agreements --accept-source-agreements --source msstore
+#winget install "Snapchat" --accept-package-agreements --accept-source-agreements --source msstoremsstore
 winget install "Disney+" --accept-package-agreements --accept-source-agreements --source msstore
 winget install "Netflix" --accept-package-agreements --accept-source-agreements --source msstore
 winget install "Prime Video for Windows" --accept-package-agreements --accept-source-agreements --source msstore
