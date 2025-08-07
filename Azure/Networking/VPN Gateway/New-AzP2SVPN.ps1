@@ -267,14 +267,16 @@ Set-Location -Path $CurrentDir
 
 #region Creating a new Virtual Network with P2S VPN Gateway
 New-AzP2SVPN -Connect -Verbose
-
+#Checking the IP address after P2S VPN connection
 Get-NetIPConfiguration -InterfaceAlias vnet-p2s*
 #endregion
 
+<#
 #region Updating an existing Virtual Network by adding a P2S VPN Gateway
 #Taking a Virtual Network without a Gateway Subnet
-#Get-AzVirtualNetwork -Name "vnet-p2s-vpn-*" | Where-Object -FilterScript { "GatewaySubnet" -notin $_.Subnets.Name } | Select-Object -First 1 | Add-AzP2SVPN -Connect -Verbose
+Get-AzVirtualNetwork -Name "vnet-avd-ad-use2-002" | Where-Object -FilterScript { "GatewaySubnet" -notin $_.Subnets.Name } | Select-Object -First 1 | Add-AzP2SVPN -Connect -Verbose
 #endregion
+#>
 
 <#
 #region Cleaning
