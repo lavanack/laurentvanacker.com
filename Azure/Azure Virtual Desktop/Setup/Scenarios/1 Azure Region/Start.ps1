@@ -30,6 +30,7 @@ $Error.Clear()
 $PSDefaultParameterValues = @{
     #To avoid warning message like: WARNING: The names of some imported commands from the module 'Microsoft.Azure.PowerShell.Cmdlets.Network' include unapproved verbs that might make them less discoverable
     'Import-Module:DisableNameChecking' = $true
+    'Import-Module:Verbose' = $false
 }
 #From https://helloitsliam.com/2021/10/25/powershell-function-and-variable-issue/
 $Global:MaximumFunctionCount = 32768
@@ -141,8 +142,8 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 #$HostPools = & "..\1 Azure Region\1_Pooled_1_Personal_SSO.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_1_Personal_Intune.ps1"
 #$HostPools = & "..\1 Azure Region\1_Personal_AD_Win10.ps1"
-#$HostPools = & "..\1 Azure Region\1_Pooled_AD.ps1"
-$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach.ps1"
+$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach_PrivateEndpoint.ps1"
+#$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_FSLogix_AzureAppAttach.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_2_Personal_AD_Misc.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_AD_AzureAppAttach.ps1"
@@ -176,15 +177,15 @@ $HostPoolBackup = New-PsAvdHostPoolBackup -HostPool $HostPools -Directory $Backu
 #region Setting up
 #Setting up the hostpool(s)
 $NoMFAEntraIDGroupName = "No-MFA Users"
-New-PsAvdHostPoolSetup -HostPool $HostPools -NoMFAEntraIDGroupName $NoMFAEntraIDGroupName -LogDir $CurrentLogDir  -AMBA -WorkBook -Restart -RDCMan -AsJob:$AsJob
+New-PsAvdHostPoolSetup -HostPool $HostPools -NoMFAEntraIDGroupName $NoMFAEntraIDGroupName -LogDir $CurrentLogDir  -AMBA -WorkBook -Restart -RDCMan -Pester -AsJob:$AsJob
 #Or pipeline processing call
 #$HostPools | New-PsAvdHostPoolSetup #-AsJob 
 
 #Starting a Windows Explorer instance per FSLogix profiles share
-Get-PsAvdFSLogixProfileShare -HostPool $HostPools
+Get-PsAvdFSLogixProfileShare -HostPool $HostPools -Pester
 
 #Starting a Windows Explorer instance per AppAttach profiles share
-Get-PsAvdAppAttachProfileShare -HostPool $HostPools
+Get-PsAvdAppAttachProfileShare -HostPool $HostPools -Pester
 
 #region Adding Test Users (under the OrgUsers OU) as HostPool Users (for all HostPools)
 $AVDUserGroupName = 'AVD Users'

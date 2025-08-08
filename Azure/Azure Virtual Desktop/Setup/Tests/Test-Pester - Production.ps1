@@ -89,23 +89,32 @@ $SecondaryRegion                  = $SecondaryRegionVNet.Location
 [PooledHostPool]::AppAttachStorageAccountNameHT[$SecondaryRegion] = $(Get-AzStorageAccount | Where-Object -FilterScript { $_.PrimaryLocation -eq $SecondaryRegion -and $_.StorageAccountName -match "saavdappattachpoc"} | Select-Object -First 1)
 
 #Uncomment the best scenario for your usage or create your own
-#$HostPools = & "..\Scenarios\2 Azure Regions\2_Pooled_AD_FSLogixCloudCache_Watermarking.ps1"
-#$HostPools = & "..\Scenarios\2 Azure Regions\3_Pooled_2_Personal_AD_Misc..ps1"
-#$HostPools = & "..\Scenarios\2 Azure Regions\4_Pooled_AD_AzureAppAttach..ps1"
-#$HostPools = & "..\Scenarios\2 Azure Regions\4_Pooled_EntraID_FSLogixCloudCache..ps1"
-#$HostPools = & "..\Scenarios\2 Azure Regions\4_Pooled_EntraID_Intune_AD_FSLogixCloudCache_Watermarking_SpotInstance..ps1"
-#$HostPools = & "..\Scenarios\2 Azure Regions\8_Pooled_EntraID_AD_AzureAppAttach..ps1"
+#$HostPools = & "..\2 Azure Regions\2_Pooled_AD_FSLogix_AzureAppAttach.ps1"
+#$HostPools = & "..\2 Azure Regions\2_Pooled_AD_FSLogixCloudCache_1_Personal_AD.ps1"
+#$HostPools = & "..\2 Azure Regions\2_Pooled_AD_FSLogixCloudCache_Watermarking.ps1"
+#$HostPools = & "..\2 Azure Regions\3_Pooled_2_Personal_AD_Misc.ps1"
+#$HostPools = & "..\2 Azure Regions\4_Pooled_AD_AzureAppAttach.ps1"
+#$HostPools = & "..\2 Azure Regions\4_Pooled_EntraID_FSLogixCloudCache.ps1"
+#$HostPools = & "..\2 Azure Regions\4_Pooled_EntraID_Intune_AD_FSLogixCloudCache_Watermarking_SpotInstance.ps1"
+#$HostPools = & "..\2 Azure Regions\2_Pooled_EntraID_Intune_AD_OneDrive_Watermarking_SpotInstance.ps1"
+#$HostPools = & "..\2 Azure Regions\8_Pooled_EntraID_AD_AzureAppAttach.ps1"
 
-$HostPools = & "..\Scenarios\1 Azure Region\1_Pooled_AD.ps1"
-#$HostPools = & "..\Scenarios\1 Azure Region\1_Personal_AD_Win10.ps1"
-#$HostPools = & "..\Scenarios\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach.ps1"
-#$HostPools = & "..\Scenarios\1 Azure Region\1_Pooled_EntraID_FSLogixCloudCache_AzureAppAttach.ps1"
-#$HostPools = & "..\Scenarios\1 Azure Region\2_Pooled_2_Personal_AD_Misc.ps1"
-#$HostPools = & "..\Scenarios\1 Azure Region\2_Pooled_EntraID_AD_AzureAppAttach.ps1"
-#$HostPools = & "..\Scenarios\1 Azure Region\2_Pooled_EntraID_Intune_AD_FSLogixCloudCache_Watermarking_SpotInstance.ps1"
-#$HostPools = & "..\Scenarios\1 Azure Region\3_Pooled_EntraID_AD_Misc.ps1"
-#$HostPools = & "..\Scenarios\1 Azure Region\6_Pooled_2_Personal_EntraID_AD_Misc.ps1"
-#$HostPools = & "..\Scenarios\1 Azure Region\X_Pooled_AD_ACG_NoFSLogix_NoMSIX.ps1"
+#Uncomment the best scenario for your usage or create your own
+#$HostPools = & "..\1 Azure Region\1_Pooled_Intune_FSLogix_ScalingPlan_Watermarking.ps1"
+#$HostPools = & "..\1 Azure Region\2_Pooled_1_Personal_AD_SpotInstance.ps1"
+#$HostPools = & "..\1 Azure Region\1_Pooled_1_Personal_SSO.ps1"
+#$HostPools = & "..\1 Azure Region\1_Pooled_1_Personal_Intune.ps1"
+#$HostPools = & "..\1 Azure Region\1_Personal_AD_Win10.ps1"
+#$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach_PrivateEndpoint.ps1"
+$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach.ps1"
+#$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_FSLogix_AzureAppAttach.ps1"
+#$HostPools = & "..\1 Azure Region\2_Pooled_2_Personal_AD_Misc.ps1"
+#$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_AD_AzureAppAttach.ps1"
+#$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_Intune_AD_FSLogix_Watermarking_SpotInstance.ps1"
+#$HostPools = & "..\1 Azure Region\3_Pooled_EntraID_AD_Misc.ps1"
+#$HostPools = & "..\1 Azure Region\6_Pooled_2_Personal_EntraID_AD_Misc.ps1"
+#$HostPools = & "..\1 Azure Region\X_Pooled_ACG_NoFSLogix_NoAppAttach.ps1".ps1"
+#$HostPools = & "..\1 Azure Region\X_Pooled_AD_ACG_NoFSLogix_NoAppAttach.ps1".ps1"
 #endregion
 
 #region Pester
