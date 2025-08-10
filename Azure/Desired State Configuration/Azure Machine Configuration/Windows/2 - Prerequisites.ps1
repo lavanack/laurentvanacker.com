@@ -27,6 +27,11 @@ Install-Module -Name PSDesiredStateConfiguration, PSDSCResources -Force
 Install-Module -Name GuestConfiguration -Force
 #For IIS
 Install-Module -Name WebAdministrationDsc -Force
+#For Audit Policy
+Install-Module -Name AuditPolicyDsc -Force
+#For Certificates
+Install-Module -Name CertificateDSC -Force
+
 $ProgressPreference = $PreviousProgressPreferenceValue
 
 #Connection to Azure and Subscription selection

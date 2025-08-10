@@ -18,7 +18,6 @@ of the Sample Code.
 
 Configuration TLSHardeningDSCConfiguration {
 	Param ( 
-		[String[]] $ComputerName = "localhost"
 	)
     Import-DscResource -ModuleName 'PSDscResources'
 
@@ -64,14 +63,6 @@ Configuration TLSHardeningDSCConfiguration {
             #endregion 
 
         }
-
-        #region LCM
-        LocalConfigurationManager
-        {
-            RebootNodeIfNeeded = $True
-            ConfigurationMode  = "ApplyAndAutoCorrect"
-        }
-        #endregion
 	}
 }
 #endregion
