@@ -29,6 +29,7 @@ Configuration EnableSMBSigningDSCConfiguration {
 			ValueData = '1'
 			ValueType = 'DWORD'
 			Ensure = 'Present'
+			Force = $true
 		}
 	}
 }

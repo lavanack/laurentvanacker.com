@@ -64,6 +64,7 @@ Configuration DisableSMBv1DSCConfiguration {
 			ValueData = '0'
 			ValueType = 'DWORD'
 			Ensure = 'Present'
+			Force = $true
 		}
 	}
 }
