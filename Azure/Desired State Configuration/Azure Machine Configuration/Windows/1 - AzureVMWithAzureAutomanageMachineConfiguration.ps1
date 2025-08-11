@@ -573,6 +573,7 @@ $RunPowerShellScript
 
 
 #region Run PowerShell Script: Setting TimeZone to the local one
+#Testing if an AzRunCommand is already running
 While (Get-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName)  {
     Start-Sleep -Seconds 30 
 }

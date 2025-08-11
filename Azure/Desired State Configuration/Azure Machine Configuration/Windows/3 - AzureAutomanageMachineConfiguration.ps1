@@ -54,7 +54,7 @@ Set-Location -Path $PSScriptRoot
 $AzVM = Get-AzVMCompute
 $Location = $AzVM.Location
 $ResourceGroupName = $AzVM.ResourceGroupName
-$StorageAccount = Get-AzStorageAccount -ResourceGroupName $resourceGroupName
+$StorageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName
 $StorageAccountName = $StorageAccount.StorageAccountName
 $StorageGuestConfigurationContainerName = "guestconfiguration"
 $StorageCertificateContainerName = "certificates"
@@ -72,9 +72,9 @@ $ExpiryTime = $StartTime.AddYears(3)
 
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName
 $PolicySetDefinition = Get-AzPolicySetDefinition | Where-Object -FilterScript { $_.DisplayName -eq "Deploy prerequisites to enable Guest Configuration policies on virtual machines" }
-$PolicyAssignment = Get-AzPolicyAssignment -Name "$($resourceGroupName)-deployPrereqForGuestConfigurationPolicies" -Scope $ResourceGroup.ResourceId -ErrorAction Ignore
+$PolicyAssignment = Get-AzPolicyAssignment -Name "$($ResourceGroupName)-deployPrereqForGuestConfigurationPolicies" -Scope $ResourceGroup.ResourceId -ErrorAction Ignore
 if (-not($PolicyAssignment)) {
-    $PolicyAssignment = New-AzPolicyAssignment -Name "$($resourceGroupName)-deployPrereqForGuestConfigurationPolicies" -DisplayName 'Deploy prerequisites to enable Guest Configuration policies on virtual machines' -Scope $ResourceGroup.ResourceId -PolicySetDefinition $PolicySetDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $Location
+    $PolicyAssignment = New-AzPolicyAssignment -Name "$($ResourceGroupName)-deployPrereqForGuestConfigurationPolicies" -DisplayName "[$ResourceGroupName] Deploy prerequisites to enable Guest Configuration policies on virtual machines" -Scope $ResourceGroup.ResourceId -PolicySetDefinition $PolicySetDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $Location
     $PolicyState = $null
 } 
 else {
@@ -93,8 +93,8 @@ if (($null -eq $PolicyState) -or (($PolicyState.ComplianceState | Select-Object 
     if ($roleDefinitionIds.Count -gt 0) {
         $roleDefinitionIds | ForEach-Object {
             $roleDefId = $_.Split("/") | Select-Object -Last 1
-            if (-not(Get-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.IdentityPrincipalId -RoleDefinitionId $roleDefId)) {
-                New-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.IdentityPrincipalId -RoleDefinitionId $roleDefId
+            if (-not(Get-AzRoleAssignment -Scope $ResourceGroup.ResourceId -ObjectId $PolicyAssignment.IdentityPrincipalId -RoleDefinitionId $roleDefId)) {
+                New-AzRoleAssignment -Scope $ResourceGroup.ResourceId -ObjectId $PolicyAssignment.IdentityPrincipalId -RoleDefinitionId $roleDefId
             }
         }
     }
@@ -209,8 +209,8 @@ foreach ($CurrentDSCConfiguration in $DSCConfigurations) {
     if ($roleDefinitionIds.Count -gt 0) {
         $roleDefinitionIds | ForEach-Object {
             $roleDefId = $_.Split("/") | Select-Object -Last 1
-            if (-not(Get-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.IdentityPrincipalId -RoleDefinitionId $roleDefId)) {
-                New-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.IdentityPrincipalId -RoleDefinitionId $roleDefId
+            if (-not(Get-AzRoleAssignment -Scope $ResourceGroup.ResourceId -ObjectId $PolicyAssignment.IdentityPrincipalId -RoleDefinitionId $roleDefId)) {
+                New-AzRoleAssignment -Scope $ResourceGroup.ResourceId -ObjectId $PolicyAssignment.IdentityPrincipalId -RoleDefinitionId $roleDefId
             }
         }
     }
