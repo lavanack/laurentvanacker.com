@@ -589,6 +589,22 @@ $RunPowerShellScript = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupNa
 $RunPowerShellScript
 #endregion
 
+#region Run PowerShell Script: Do Not Open ServerManager At Logon
+#Testing if an AzRunCommand is already running
+While (Get-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName)  {
+    Start-Sleep -Seconds 30 
+}
+
+$ScriptBlock = {
+    param(
+    )
+    New-ItemProperty -Path HKCU:\Software\Microsoft\ServerManager -Name DoNotOpenServerManagerAtLogon -PropertyType DWORD -Value "0x1" –Force
+}
+$ScriptString = [scriptblock]::create($ScriptBlock)
+$RunPowerShellScript = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptString $ScriptString
+$RunPowerShellScript
+#endregion
+
 #Step 13: Start RDP Session
 #mstsc /v $PublicIP.IpAddress
 mstsc /v $FQDN
