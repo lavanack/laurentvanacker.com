@@ -33,14 +33,6 @@ jobs:
           exit-code: '0'
           severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
 
-      - name: Install libssl
-        run: sudo apt-get update && sudo apt-get install -y libssl-dev
-        
-      - name: Install .NET Core 3.1 runtime
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '3.1.x'
-
       - name: Validate SARIF output
         run: |
           dotnet tool install --global Sarif.Multitool
