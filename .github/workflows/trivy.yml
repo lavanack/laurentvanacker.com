@@ -1,0 +1,35 @@
+name: Trivy Terraform Security Scan
+on:
+  push:
+    branches: [ "master" ]
+    paths:
+      - 'Azure/Terraform/Github Actions/**'
+  pull_request:
+  workflow_dispatch:
+ 
+permissions:
+  actions: read
+  security-events: write
+ 
+jobs:
+  terraform_security_scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+       
+      - name: Scan Terraform  
+        uses: aquasecurity/trivy-action@0.30.0
+        with: 
+          scan-type: 'fs' 
+          scan-ref: 'terraform/'  # Path to your Terraform files  
+          format: 'sarif'
+          scanners: 'vuln,secret,misconfig'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN' 
+          exit-code: 0
+          output: 'trivy-terraform-results.sarif' 
+ 
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+            sarif_file: 'trivy-terraform-results.sarif'
