@@ -3,10 +3,9 @@ on:
   push:
     branches: [ "master" ]
     paths:
-      - 'Azure/Terraform/Github Actions/'      
+      - 'Azure/Terraform/Github Actions/**'
   pull_request:
   workflow_dispatch:
- 
 
 jobs:
   terraform_security_scan:
@@ -26,7 +25,7 @@ jobs:
           scan-type: 'config'
           hide-progress: true
           format: 'sarif'
-          output: 'trivy-terraform-results.sarif'
+          sarif_file: 'trivy-terraform-results.sarif'
           exit-code: '0'
           severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
 
