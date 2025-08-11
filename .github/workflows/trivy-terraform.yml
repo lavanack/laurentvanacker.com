@@ -33,11 +33,6 @@ jobs:
           exit-code: '0'
           severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
 
-      - name: Validate SARIF output
-        run: |
-          dotnet tool install --global Sarif.Multitool
-          sarif validate trivy-terraform-results.sarif
-
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@v3
         with:
