@@ -25,7 +25,7 @@ jobs:
           scan-type: 'config'
           hide-progress: true
           format: 'sarif'
-          sarif_file: 'trivy-terraform-results.sarif'
+          output: 'trivy-terraform-results.sarif'
           exit-code: '0'
           severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
 
