@@ -15,7 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources -RunAsAdministrator
+#requires -Version 5 -Modules Az.Compute, Az.Network, Az.Storage, Az.Resources
 
 [CmdletBinding()]
 param
@@ -24,7 +24,7 @@ param
 )
 
 
-#region function definitions 
+#region function definitions
 #Based from https://adamtheautomator.com/powershell-random-password/
 function New-RandomPassword {
     [CmdletBinding(PositionalBinding = $false)]
@@ -52,10 +52,18 @@ function New-RandomPassword {
         $RandomPassword
     }
 }
+
 #endregion
 
 Clear-Host
 $Error.Clear()
+
+
+<#
+Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
+Set-Location $HOME
+ssh-keygen -t rsa
+#>
 
 $SSHPublicKeyProfilePath = Join-Path -Path $HOME -ChildPath '.ssh\id_rsa.pub'
 if (([string]::IsNullOrEmpty($SSHPublicKeyPath)) -and (-not(Test-Path -Path $SSHPublicKeyProfilePath -PathType Leaf))) {
@@ -314,9 +322,6 @@ $JitPolicy = (
 $ActivationVM = @($JitPolicy)
 Write-Host "Requesting Temporary Acces via Just in Time for $($VM.Name) on port number(s) $($JitPolicy.ports.number -join ', ') for maximum $JitPolicyTimeInHours hours ..."
 Start-AzJitNetworkAccessPolicy -ResourceGroupName $($VM.ResourceGroupName) -Location $VM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM
-#endregion
-#endregion
-
 #endregion
 
 #region Enabling auto-shutdown at 11:00 PM in the user time zome
