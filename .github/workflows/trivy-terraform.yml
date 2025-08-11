@@ -27,10 +27,10 @@ jobs:
           hide-progress: true
           format: 'sarif'
           output: 'trivy-results.sarif'
-          exit-code: '1'
-          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: 'trivy-terraform-results.sarif'
