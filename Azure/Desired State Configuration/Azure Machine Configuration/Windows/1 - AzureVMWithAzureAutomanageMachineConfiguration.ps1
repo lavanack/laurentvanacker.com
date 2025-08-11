@@ -319,6 +319,7 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 
 $AzureVMNameMaxLength = 15
 $RDPPort = 3389
+$JITPolicyPorts = $RDPPort
 $JitPolicyTimeInHours = 3
 $JitPolicyName = "Default"
 $Location = "eastus2"
@@ -335,7 +336,6 @@ $Project = "dsc"
 $Role = "amc"
 #$DigitNumber = 4
 $DigitNumber = $AzureVMNameMaxLength-($VirtualMachinePrefix+$Project+$Role+$LocationShortName).Length
-#$StorageContainerName = "guestconfiguration"
 
 Do {
     $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
@@ -418,13 +418,6 @@ $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Locatio
 #Step 2: Create Azure Storage Account
 $StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true -AllowBlobPublicAccess $true
 
-<#
-# Creates a new container
-if (-not($storageAccount | Get-AzStorageContainer -Name $StorageContainerName -ErrorAction Ignore)) {
-    $storageAccount | New-AzStorageContainer -Name $StorageContainerName #-Permission Blob
-}
-#>
-
 #Step 3: Create Azure Network Security Group
 #RDP only for my public IP address
 $SecurityRules = @(
@@ -494,43 +487,52 @@ $VM = Add-AzVMDataDisk -VM $VMConfig -Name $DataDiskName -Caching 'ReadWrite' -C
 New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig #-DisableBginfoExtension
 
 $VM = Get-AzVM -ResourceGroup $ResourceGroupName -Name $VMName
+
 #region JIT Access Management
 #region Enabling JIT Access
-$NewJitPolicy = (@{
+$NewJitPolicy = (
+    @{
         id    = $VM.Id
-        ports = (@{
-                number                     = $RDPPort;
-                protocol                   = "*";
-                allowedSourceAddressPrefix = "*";
-                maxRequestAccessDuration   = "PT$($JitPolicyTimeInHours)H"
-            })   
-    })
-
+        ports = 
+            foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
+                @{
+                    number                     = $CurrentJITPolicyPort;
+                    protocol                   = "*";
+                    allowedSourceAddressPrefix = "*";
+                    maxRequestAccessDuration   = "PT$($JitPolicyTimeInHours)H"
+                }
+            }
+    }
+)
 
 Write-Host "Get Existing JIT Policy. You can Ignore the error if not found."
 $ExistingJITPolicy = (Get-AzJitNetworkAccessPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -ErrorAction Ignore).VirtualMachines
 $UpdatedJITPolicy = $ExistingJITPolicy.Where{ $_.id -ne "$($VM.Id)" } # Exclude existing policy for $VMName
 $UpdatedJITPolicy.Add($NewJitPolicy)
-	
+
 # Enable Access to the VM including management Port, and Time Range in Hours
-Write-Host "Enabling Just in Time VM Access Policy for ($VMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
+Write-Host "Enabling Just in Time VM Access Policy for ($($VM.Name)) on port number(s) $($NewJitPolicy.ports.number -join ', ') for maximum $JitPolicyTimeInHours hours ..."
 $null = Set-AzJitNetworkAccessPolicy -VirtualMachine $UpdatedJITPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -Kind "Basic"
+#endregion
 #endregion
 
 #region Requesting Temporary Access : 3 hours
-$JitPolicy = (@{
+$JitPolicy = (
+    @{
         id    = $VM.Id
-        ports = (@{
-                number                     = $RDPPort;
-                endTimeUtc                 = (Get-Date).AddHours(3).ToUniversalTime()
-                allowedSourceAddressPrefix = @($MyPublicIP) 
-            })
-    })
+        ports = 
+            foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
+                @{
+                    number                     = $CurrentJITPolicyPort;
+                    endTimeUtc                 = (Get-Date).AddHours($JitPolicyTimeInHours).ToUniversalTime()
+                    allowedSourceAddressPrefix = @($MyPublicIP) 
+                }
+            }
+    }
+)
 $ActivationVM = @($JitPolicy)
-Write-Host "Requesting Temporary Acces via Just in Time for ($VMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
+Write-Host "Requesting Temporary Acces via Just in Time for $($VM.Name) on port number(s) $($JitPolicy.ports.number -join ', ') for maximum $JitPolicyTimeInHours hours ..."
 Start-AzJitNetworkAccessPolicy -ResourceGroupName $($VM.ResourceGroupName) -Location $VM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM
-#endregion
-
 #endregion
 
 #region Enabling auto-shutdown at 11:00 PM in the user time zome
@@ -569,6 +571,22 @@ $RunPowerShellScript = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupNa
 $RunPowerShellScript
 #endregion
 
+
+#region Run PowerShell Script: Setting TimeZone to the local one
+While (Get-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName)  {
+    Start-Sleep -Seconds 30 
+}
+
+$ScriptBlock = {
+    param(
+        [string] $NewTimeZone
+    )
+    Set-TimeZone -Id $NewTimeZone
+}
+$ScriptString = [scriptblock]::create($ScriptBlock)
+$RunPowerShellScript = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptString $ScriptString -Parameter @{'NewTimeZone' = (Get-TimeZone).Id}
+$RunPowerShellScript
+#endregion
 
 #Step 13: Start RDP Session
 #mstsc /v $PublicIP.IpAddress
