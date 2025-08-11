@@ -22,7 +22,7 @@ jobs:
         uses: aquasecurity/trivy-action@0.30.0
         with: 
           scan-type: 'fs' 
-          scan-ref: 'Azure/Terraform/Github Actions/'  # Path to your Terraform files  
+          scan-ref: '.'  # Path to your Terraform files  
           format: 'sarif'
           scanners: 'vuln,secret,misconfig'
           severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN' 
