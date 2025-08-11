@@ -12,8 +12,8 @@ terraform {
     }
   }
   backend "azurerm" {
-    resource_group_name  = "rg-tf-ghact-use2-15"
-    storage_account_name = "sttfghactuse215"
+    resource_group_name  = "rg-tf-ghact-use2-0611"
+    storage_account_name = "sttfghactuse20611"
     container_name       = "tfstate"
     key                  = "terraform.tfstate"
     use_oidc             = true
