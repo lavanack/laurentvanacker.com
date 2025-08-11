@@ -127,11 +127,23 @@ function New-AzTerraformGitHubActionsSetup {
     #endregion
 
     #region Github CLI Setup
-    if (-not(gh)) {
+    try { 
+        $null = gh 
+    }
+    catch {
         $GithubCLIURI = $(((Invoke-RestMethod -Uri "https://api.github.com/repos/cli/cli/releases/latest").assets | Where-Object -FilterScript { $_.name.EndsWith("windows_amd64.msi") }).browser_download_url)
         Start-BitsTransfer -Source $GithubCLIURI -Destination $Env:TEMP
-        $LocatGithubCLIURI = Join-Path -Path $Env:TEMP -ChildPath $(Split-Path -Path $GithubCLIURI -Leaf)
-        Start-Process -FilePath $env:ComSpec -ArgumentList "/c", "msiexec /i $LocatGithubCLIURI /passive /norestart" -Wait
+        $LocalGithubCLIURI = Join-Path -Path $Env:TEMP -ChildPath $(Split-Path -Path $GithubCLIURI -Leaf)
+        Write-Verbose -Message "Installing $GithubCLIURI"
+        Start-Process -FilePath $env:ComSpec -ArgumentList "/c", "msiexec /i $LocalGithubCLIURI /passive /norestart" -Wait
+        $env:Path = "$env:Path;$env:ProgramFiles\GitHub CLI\"
+    }
+    #endregion
+    
+    #region Git Login
+    $null = gh auth status 
+    if (-not($?)) {
+        gh auth login
     }
     #endregion
 
