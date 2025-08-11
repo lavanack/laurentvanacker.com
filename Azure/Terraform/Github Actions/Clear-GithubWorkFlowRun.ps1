@@ -76,7 +76,7 @@ function Clear-GithubWorkFlowRun {
     else {
         Do {
             #Listing non "in-progress" actions
-            $Jobs = gh run list --json databaseId,workflowName,createdAt,status -q '.[]' | ConvertFrom-Json | Where-Object -FilterScript { $_.status -ne "in_progress" } | ForEach-Object -Process {
+            $Jobs = gh run list --json databaseId,workflowName,createdAt,status -q '.[]' | ConvertFrom-Json | Where-Object -FilterScript { $_.status -eq "completed" } | ForEach-Object -Process {
                 Write-Verbose -Message "Removing the '$($_.databaseId) - $($_.workflowName) - $([datetime]::Parse($_.createdAt))' run"
                 if ($AsJob) {
                     $DatabaseId = $_.databaseId
