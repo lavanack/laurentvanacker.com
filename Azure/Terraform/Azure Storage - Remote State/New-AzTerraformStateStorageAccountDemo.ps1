@@ -170,7 +170,8 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 }
 #endregion
 #region Demo for a Terraform State on a StorageAccount
-New-AzTerraformStateStorageAccountDemo -Destroy -Verbose
+#New-AzTerraformStateStorageAccountDemo -Destroy -Verbose
+New-AzTerraformStateStorageAccountDemo -Verbose
 #endregion
 
 <#
