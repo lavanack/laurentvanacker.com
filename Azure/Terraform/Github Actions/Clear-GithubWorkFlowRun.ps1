@@ -61,7 +61,7 @@ function Clear-GithubWorkFlowRun {
     }
 
 
-    #region Git Login
+    #region GitHub CLI Login
     $null = gh auth status 
     if (-not($?)) {
         gh auth login
