@@ -31,6 +31,9 @@ jobs:
         with:
           sarif_file: tfsec.sarif
 
+      - name: Print SARIF file for debugging
+        run: cat tfsec.sarif
+
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@v3
         with:
