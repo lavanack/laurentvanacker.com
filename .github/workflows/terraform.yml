@@ -72,7 +72,6 @@ jobs:
         id: plan
         run: |
           export exitcode=0
-          #terraform plan -no-color -var-file="./tfvars/terraform.tfvars" -var="azure_object_id=${{ secrets.AZURE_OBJECT_ID }}" -out tfplan || export exitcode=$?
           terraform plan -no-color -out tfplan || export exitcode=$?
 
           echo "exitcode=$exitcode" >> $GITHUB_OUTPUT
