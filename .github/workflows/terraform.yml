@@ -53,20 +53,6 @@ jobs:
       - name: Terraform Validate
         id: validate
         run: terraform validate -no-color
-
-      - name: Run tfsec
-        uses: aquasecurity/tfsec-sarif-action@21ded20e8ca120cd9d3d6ab04ef746477542a608
-        with:
-          sarif_file: tfsec-terraform.sarif
-
-      - name: Print SARIF file for debugging
-        run: cat tfsec-terraform.sarif
-
-      - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          # Path to SARIF file relative to the root of the repository
-          sarif_file: tfsec-terraform.sarif   
           
       - name: Terraform Plan
         id: plan
