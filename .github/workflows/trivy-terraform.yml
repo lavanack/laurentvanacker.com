@@ -23,7 +23,7 @@ jobs:
         uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: 'config'
-          scan-ref: "tree/master/Azure/Terraform/Github Actions/"
+          scan-ref: "Azure/Terraform/Github Actions/"
           hide-progress: true
           format: 'sarif'
           output: 'trivy-terraform-results.sarif'
