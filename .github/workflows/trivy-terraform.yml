@@ -3,7 +3,7 @@ on:
   push:
     branches: [ "master" ]
     paths:
-      - 'tree/master/Azure/Terraform/Github Actions/**'
+      - 'Azure/Terraform/Github Actions/**'
   pull_request:
   workflow_dispatch:
 
