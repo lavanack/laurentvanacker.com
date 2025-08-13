@@ -1,0 +1,39 @@
+name: Trivy Terraform Security Scan
+on:
+  push:
+    branches: [ "master" ]
+    paths:
+      - 'Azure/Terraform/Github Actions/**'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  terraform_security_scan:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner in IaC mode
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'config'
+          scan-ref: "Azure/Terraform/Github Actions/"
+          hide-progress: true
+          format: 'sarif'
+          output: 'trivy-terraform-results.sarif'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
+
+      - name: Print SARIF file for debugging
+        run: cat trivy-terraform-results.sarif
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-terraform-results.sarif
