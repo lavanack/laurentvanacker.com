@@ -1,16 +1,14 @@
-name: Deploy Azure Infra with Terraform
+name: Deploy Azure Infra with Terraform (Test)
 on:
   push:
     branches: [ "master" ]
     paths:
-      - 'Azure/Terraform/Github Actions/**'
-  pull_request:
+      - 'Azure/Terraform/Github Actions/*'
   workflow_dispatch:
 
 permissions:
   contents: read
   id-token: write
-  pull-requests: write
   security-events: write
 
 env:
@@ -20,6 +18,51 @@ env:
   ARM_USE_AZUREAD: true
 
 jobs:
+  terraform-security-scans:
+    name: Terraform Security Scans
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-sarif-action@21ded20e8ca120cd9d3d6ab04ef746477542a608
+        with:
+          sarif_file: tfsec.sarif
+
+      - name: Print SARIF file for debugging
+        run: cat tfsec.sarif
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          # Path to SARIF file relative to the root of the repository
+          sarif_file: tfsec.sarif
+
+      - name: Run Trivy vulnerability scanner in IaC mode
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'config'
+          scan-ref: "Azure/Terraform/Github Actions/"
+          hide-progress: true
+          format: 'sarif'
+          output: 'trivy-terraform-results.sarif'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
+
+      - name: Print SARIF file for debugging
+        run: cat trivy-terraform-results.sarif
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-terraform-results.sarif
+
   terraform-plan:
     defaults:
       run:
@@ -55,12 +98,6 @@ jobs:
         id: validate
         run: terraform validate -no-color
 
-      - name: tfsec
-        uses: aquasecurity/tfsec-pr-commenter-action@v1.2.0
-        with:
-          tfsec_args: --soft-fail
-          github_token: ${{ github.token }}
-    
       - name: Terraform Plan
         id: plan
         run: |
