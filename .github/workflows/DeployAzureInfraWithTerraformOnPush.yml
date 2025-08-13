@@ -1,4 +1,4 @@
-name: Deploy Azure Infra with Terraform on Push
+name: Deploy Azure Infra with Terraform On Push
 on:
   push:
     branches: [ "master" ]
