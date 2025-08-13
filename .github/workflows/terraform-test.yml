@@ -1,0 +1,201 @@
+name: Deploy Azure Infra with Terraform (Test)
+on:
+  push:
+    branches: [ "master" ]
+    paths:
+      - 'Azure/Terraform/Github Actions/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  security-events: write
+
+env:
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  ARM_USE_AZUREAD: true
+
+jobs:
+  terraform-plan:
+    defaults:
+      run:
+        working-directory: './Azure/Terraform/Github Actions'
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-sarif-action@21ded20e8ca120cd9d3d6ab04ef746477542a608
+        with:
+          sarif_file: tfsec.sarif
+
+      - name: Print SARIF file for debugging
+        run: cat tfsec.sarif
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          # Path to SARIF file relative to the root of the repository
+          sarif_file: tfsec.sarif
+
+      - name: Run Trivy vulnerability scanner in IaC mode
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'config'
+          scan-ref: "Azure/Terraform/Github Actions/"
+          hide-progress: true
+          format: 'sarif'
+          output: 'trivy-terraform-results.sarif'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
+
+      - name: Print SARIF file for debugging
+        run: cat trivy-terraform-results.sarif
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-terraform-results.sarif
+
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-sarif-action@21ded20e8ca120cd9d3d6ab04ef746477542a608
+        with:
+          sarif_file: tfsec.sarif
+
+      - name: Print SARIF file for debugging
+        run: cat tfsec.sarif
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          # Path to SARIF file relative to the root of the repository
+          sarif_file: tfsec.sarif
+
+        - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+  
+      - name: Setup tf-summarize
+        uses: kishaningithub/setup-tf-summarize@v2
+
+      - name: Print tf-summarize version and help
+        run: |
+          tf-summarize -v
+          tf-summarize -h
+      
+      - name: Terraform Fmt
+        id: fmt
+        run: terraform fmt -check
+
+      - name: Terraform Init
+        id: init
+        run: terraform init -backend-config="access_key=${{secrets.BACKEND_AZURE_STORAGE_ACCOUNT_KEY}}" -backend-config="resource_group_name=${{secrets.BACKEND_AZURE_RESOURCE_GROUP_NAME}}" -backend-config="storage_account_name=${{secrets.BACKEND_AZURE_STORAGE_ACCOUNT_NAME}}" -backend-config="container_name=${{secrets.BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME}}"
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+
+      - name: tfsec
+        uses: aquasecurity/tfsec-pr-commenter-action@v1.2.0
+        with:
+          tfsec_args: --soft-fail
+          github_token: ${{ github.token }}
+    
+      - name: Terraform Plan
+        id: plan
+        run: |
+          export exitcode=0
+          #terraform plan -no-color -var-file="./tfvars/terraform.tfvars" -var="azure_object_id=${{ secrets.AZURE_OBJECT_ID }}" -out tfplan || export exitcode=$?
+          terraform plan -no-color -out tfplan || export exitcode=$?
+
+          echo "exitcode=$exitcode" >> $GITHUB_OUTPUT
+
+          if [ $exitcode -eq 1 ]; then
+            echo "Error: Terraform plan failed"
+            exit 1
+          else
+            echo "Terraform plan was successful"
+            exit 0
+          fi
+        
+      - name: Publish Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: './Azure/Terraform/Github Actions/tfplan'
+
+      - name: Terraform Plan Status
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
+
+      - name: Create String Output
+        id: tf-plan-string
+        run: |
+            TERRAFORM_PLAN=$(terraform show -no-color tfplan)
+            
+            delimiter="$(openssl rand -hex 8)"
+            echo "summary<<${delimiter}" >> $GITHUB_OUTPUT
+            echo "## Terraform Plan Output" >> $GITHUB_OUTPUT
+            echo "<details><summary>Click to expand</summary>" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo '```terraform' >> $GITHUB_OUTPUT
+            echo "$TERRAFORM_PLAN" >> $GITHUB_OUTPUT
+            echo '```' >> $GITHUB_OUTPUT
+            echo "</details>" >> $GITHUB_OUTPUT
+            echo "${delimiter}" >> $GITHUB_OUTPUT
+
+      - name: Publish Terraform Plan to Task Summary
+        env:
+          SUMMARY: ${{ steps.tf-plan-string.outputs.summary }}
+        run: |
+          echo "$SUMMARY" >> $GITHUB_STEP_SUMMARY
+
+      - name: summary in table format
+        run: terraform show -json tfplan | tf-summarize
+        working-directory: './Azure/Terraform/Github Actions'
+
+      - name: summary in tree format
+        run: terraform show -json tfplan | tf-summarize -tree
+        working-directory: './Azure/Terraform/Github Actions'
+
+      - name: summary in separate tree format
+        run: terraform show -json tfplan | tf-summarize -separate-tree
+        working-directory: './Azure/Terraform/Github Actions'
+
+      - name: summary in draw visual tree format
+        run: terraform show -json tfplan | tf-summarize -tree -draw
+        working-directory: './Azure/Terraform/Github Actions'
+
+  terraform-apply:
+    needs: terraform-plan
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    #environment: dev
+    defaults:
+      run:
+        working-directory: './Azure/Terraform/Github Actions'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Terraform Init
+        id: init
+        run: terraform init -backend-config="access_key=${{secrets.BACKEND_AZURE_STORAGE_ACCOUNT_KEY}}" -backend-config="resource_group_name=${{secrets.BACKEND_AZURE_RESOURCE_GROUP_NAME}}" -backend-config="storage_account_name=${{secrets.BACKEND_AZURE_STORAGE_ACCOUNT_NAME}}" -backend-config="container_name=${{secrets.BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME}}"
+
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: './Azure/Terraform/Github Actions'
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve "./tfplan"
