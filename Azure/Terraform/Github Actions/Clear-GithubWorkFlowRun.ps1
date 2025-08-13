@@ -137,7 +137,8 @@ Set-Location -Path $CurrentDir
 #$GitHubDirectories = (Get-ChildItem -Path (Get-PSDrive -PSProvider FileSystem | Where-Object -FilterScript { $_.Used }).Root -Directory -Filter ".github" -Recurse -ErrorAction Ignore).Parent
 
 #If you put this script in any location inside a github repo
-Clear-GithubWorkFlowRun -Exclude "Deploy Azure Infra with Terraform" -AsJob -Verbose
+#Clear-GithubWorkFlowRun -Exclude "Deploy Azure Infra with Terraform" -AsJob -Verbose
+Clear-GithubWorkFlowRun -AsJob -Verbose
 
 #If you put this script in any location outside a github repo you have to specify the path of the github repo
 #Clear-GithubWorkFlowRun -Directory (Resolve-Path -Path ..\..\..).Path -AsJob -Verbose
