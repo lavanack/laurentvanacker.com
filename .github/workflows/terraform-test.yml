@@ -3,11 +3,13 @@ on:
   push:
     branches: [ "master" ]
     paths:
-      - 'Azure/Terraform/Github Actions/**'
+      - 'Azure/Terraform/Github Actions/*'
   workflow_dispatch:
 
 permissions:
   contents: read
+  id-token: write
+  pull-requests: write
   security-events: write
 
 env:
@@ -41,7 +43,6 @@ jobs:
         with:
           # Path to SARIF file relative to the root of the repository
           sarif_file: tfsec.sarif
-
 
       - name: Run Trivy vulnerability scanner in IaC mode
         uses: aquasecurity/trivy-action@0.28.0
