@@ -9,7 +9,6 @@ on:
 permissions:
   contents: read
   id-token: write
-  pull-requests: write
   security-events: write
 
 env:
@@ -19,7 +18,8 @@ env:
   ARM_USE_AZUREAD: true
 
 jobs:
-  terraform_security_scan:
+  terraform-security-scans:
+    name: Terraform Security Scans
     runs-on: ubuntu-latest
     permissions:
       actions: read
