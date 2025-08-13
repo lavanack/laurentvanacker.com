@@ -95,7 +95,7 @@ function Clear-GithubWorkFlowRun {
             elseif ($Exclude) {
                 $CompletedGitHubActions = $CompletedGitHubActions | Where-Object -FilterScript { $_.workflowName -notin $Exclude }
             }
-            Write-Verbose -Message "`$GitHubActions:`r`n$($GitHubActions | Out-String)"
+            #Write-Verbose -Message "`$GitHubActions:`r`n$($GitHubActions | Out-String)"
             $Jobs = $CompletedGitHubActions | ForEach-Object -Process {
                 Write-Verbose -Message "Removing the '$($_.databaseId) - $($_.workflowName) - $([datetime]::Parse($_.createdAt))' run"
                 if ($AsJob) {
@@ -117,7 +117,7 @@ function Clear-GithubWorkFlowRun {
             elseif ($Exclude) {
                 $CompletedGitHubActions = $CompletedGitHubActions | Where-Object -FilterScript { $_.workflowName -notin $Exclude }
             }
-            Write-Verbose -Message "`$GitHubActions:`r`n$($GitHubActions | Out-String)"
+            #Write-Verbose -Message "`$GitHubActions:`r`n$($GitHubActions | Out-String)"
         } while ($CompletedGitHubActions)
     }
     if ($Directory) {

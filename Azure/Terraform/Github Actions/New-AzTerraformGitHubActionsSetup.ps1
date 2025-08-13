@@ -98,7 +98,10 @@ function New-AzTerraformGitHubActionsSetup {
     #endregion
 
     #region Copying Terraform files
+    #Copying template files to the working directory
     Copy-Item -Path $TerraformFilesDir\*.tf -Destination $WorkingDir
+    #Copying template files from the working directory to this directory for a future github push
+    Copy-Item -Path $WorkingDir\*.tf -Destination $PSScriptRoot
     #endregion
 
     #region User Assigned Managed Identity
@@ -117,7 +120,7 @@ function New-AzTerraformGitHubActionsSetup {
 
     While (-not(Get-AzRoleAssignment @Parameters)) {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' scope"
-        $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
+        $RoleAssignment = New-AzRoleAssignment @Parameters #-ErrorAction Ignore
         Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
         Start-Sleep -Seconds 30
