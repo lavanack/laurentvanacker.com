@@ -19,12 +19,23 @@ of the Sample Code.
 #region function definitions
 #From https://blog.oddbit.com/post/2022-09-22-delete-workflow-runs/
 function Clear-GithubWorkFlowRun {
-    [CmdletBinding(PositionalBinding = $false)]
+    [CmdletBinding(PositionalBinding = $false, DefaultParameterSetName = 'Default')]
     param
     (
+        [Parameter(ParameterSetName = 'Default')]
         [ValidateScript({ Test-Path -Path $_ -PathType Container })]
         [alias('Fullname')]
         [string] $Directory,
+
+        [Parameter(ParameterSetName = 'Default')]
+        [Parameter(ParameterSetName = 'Exclude')]
+        [string[]] $Exclude,
+        
+        [Parameter(ParameterSetName = 'Default')]
+        [Parameter(ParameterSetName = 'Include')]
+        [string[]] $Include,
+        
+        [Parameter(ParameterSetName = 'Default')]
         [switch] $AsJob
     )
 
@@ -76,7 +87,16 @@ function Clear-GithubWorkFlowRun {
     else {
         Do {
             #Listing non "in-progress" actions
-            $Jobs = gh run list --json databaseId,workflowName,createdAt,status -q '.[]' | ConvertFrom-Json | Where-Object -FilterScript { $_.status -eq "completed" } | ForEach-Object -Process {
+
+            $CompletedGitHubActions = gh run list --json databaseId,workflowName,createdAt,status -q '.[]' | ConvertFrom-Json | Where-Object -FilterScript { $_.status -eq "completed" }
+            if ($Include) {
+                $CompletedGitHubActions = $CompletedGitHubActions | Where-Object -FilterScript { $_.workflowName -in $Include }
+            }
+            elseif ($Exclude) {
+                $CompletedGitHubActions = $CompletedGitHubActions | Where-Object -FilterScript { $_.workflowName -notin $Exclude }
+            }
+            Write-Verbose -Message "`$GitHubActions:`r`n$($GitHubActions | Out-String)"
+            $Jobs = $CompletedGitHubActions | ForEach-Object -Process {
                 Write-Verbose -Message "Removing the '$($_.databaseId) - $($_.workflowName) - $([datetime]::Parse($_.createdAt))' run"
                 if ($AsJob) {
                     $DatabaseId = $_.databaseId
@@ -89,7 +109,16 @@ function Clear-GithubWorkFlowRun {
             if ($AsJob) {
                 $null = $Jobs | Receive-Job -Wait -AutoRemoveJob
             }
-        } while (gh run list --json status -q '.[]' | ConvertFrom-Json | Where-Object -FilterScript { $_.status -ne "in_progress" })
+
+            $CompletedGitHubActions = gh run list --json databaseId,workflowName,createdAt,status -q '.[]' | ConvertFrom-Json | Where-Object -FilterScript { $_.status -eq "completed" }
+            if ($Include) {
+                $CompletedGitHubActions = $CompletedGitHubActions | Where-Object -FilterScript { $_.workflowName -in $Include }
+            }
+            elseif ($Exclude) {
+                $CompletedGitHubActions = $CompletedGitHubActions | Where-Object -FilterScript { $_.workflowName -notin $Exclude }
+            }
+            Write-Verbose -Message "`$GitHubActions:`r`n$($GitHubActions | Out-String)"
+        } while ($CompletedGitHubActions)
     }
     if ($Directory) {
         Pop-Location
@@ -108,7 +137,7 @@ Set-Location -Path $CurrentDir
 #$GitHubDirectories = (Get-ChildItem -Path (Get-PSDrive -PSProvider FileSystem | Where-Object -FilterScript { $_.Used }).Root -Directory -Filter ".github" -Recurse -ErrorAction Ignore).Parent
 
 #If you put this script in any location inside a github repo
-Clear-GithubWorkFlowRun -AsJob -Verbose
+Clear-GithubWorkFlowRun -Exclude "Deploy Azure Infra with Terraform" -AsJob -Verbose
 
 #If you put this script in any location outside a github repo you have to specify the path of the github repo
 #Clear-GithubWorkFlowRun -Directory (Resolve-Path -Path ..\..\..).Path -AsJob -Verbose
