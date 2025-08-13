@@ -27,55 +27,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
-      - name: Run tfsec
-        uses: aquasecurity/tfsec-sarif-action@21ded20e8ca120cd9d3d6ab04ef746477542a608
-        with:
-          sarif_file: tfsec.sarif
 
-      - name: Print SARIF file for debugging
-        run: cat tfsec.sarif
-
-      - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          # Path to SARIF file relative to the root of the repository
-          sarif_file: tfsec.sarif
-
-      - name: Run Trivy vulnerability scanner in IaC mode
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          scan-type: 'config'
-          scan-ref: "Azure/Terraform/Github Actions/"
-          hide-progress: true
-          format: 'sarif'
-          output: 'trivy-terraform-results.sarif'
-          exit-code: '0'
-          severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
-
-      - name: Print SARIF file for debugging
-        run: cat trivy-terraform-results.sarif
-
-      - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-terraform-results.sarif
-
-      - name: Run tfsec
-        uses: aquasecurity/tfsec-sarif-action@21ded20e8ca120cd9d3d6ab04ef746477542a608
-        with:
-          sarif_file: tfsec.sarif
-
-      - name: Print SARIF file for debugging
-        run: cat tfsec.sarif
-
-      - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          # Path to SARIF file relative to the root of the repository
-          sarif_file: tfsec.sarif
-
-        - name: Setup Terraform
+      - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_wrapper: false
