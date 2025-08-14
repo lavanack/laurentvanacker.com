@@ -74,10 +74,8 @@ jobs:
         uses: bridgecrewio/checkov-action@master
         with: 
           framework: terraform
+          output_format: sarif
 
-      - name: Print SARIF file for debugging
-        run: cat results.sarif
-        
         # Upload results to GitHub Advanced Security
       - name: Upload SARIF file
         if: success() || failure()
