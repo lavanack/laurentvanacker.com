@@ -25,8 +25,6 @@ Install-Module -Name Az.Accounts, Az.Compute, Az.PolicyInsights, Az.Resources, A
 Install-Module -Name PSDesiredStateConfiguration, PSDSCResources -Force
 #For Machine/Guest Configuration
 Install-Module -Name GuestConfiguration -Force
-#For IIS
-Install-Module -Name WebAdministrationDsc -Force
 #For Audit Policy
 Install-Module -Name AuditPolicyDsc -Force
 #For Certificates
