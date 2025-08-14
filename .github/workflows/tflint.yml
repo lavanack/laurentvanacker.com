@@ -28,6 +28,7 @@ jobs:
       name: Setup TFLint
       with:
         tflint_version: v0.52.0
+        tflint_wrapper: true
     - name: Show version
       run: tflint --version
 
