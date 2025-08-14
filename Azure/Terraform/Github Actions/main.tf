@@ -1,6 +1,3 @@
-
-
-
 #Test Branch
 #From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/quick-create-terraform
 resource "azurerm_resource_group" "rg" {
