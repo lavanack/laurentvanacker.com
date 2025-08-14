@@ -1,3 +1,4 @@
+
 #Test Branch
 #From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/quick-create-terraform
 resource "azurerm_resource_group" "rg" {
@@ -53,7 +54,7 @@ resource "azurerm_network_security_group" "my_terraform_nsg" {
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
-    destination_port_range     = "80"
+    destination_port_range     = "22"
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
