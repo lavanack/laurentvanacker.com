@@ -3,7 +3,7 @@ on:
   push:
     branches: [ "master" ]
     paths:
-      - 'Azure/Terraform/Github Actions/*'
+      - 'Azure/Terraform/Github Actions/*.tf'
   workflow_dispatch:
 
 permissions:
@@ -22,14 +22,18 @@ jobs:
     name: Terraform Security Scans
     runs-on: ubuntu-latest
     permissions:
+       # Potentially needed for private repositories (see https://github.com/github/codeql-action/issues/2117)
       actions: read
+      # Needed to clone repo
       contents: read
+      # Needed to upload-sarif
       security-events: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Perform a security scan of the terraform code using tfsec
       - name: Run tfsec
         uses: aquasecurity/tfsec-sarif-action@21ded20e8ca120cd9d3d6ab04ef746477542a608
         with:
@@ -44,6 +48,7 @@ jobs:
           # Path to SARIF file relative to the root of the repository
           sarif_file: tfsec.sarif
 
+      # Perform a security scan of the terraform code using Trivy
       - name: Run Trivy vulnerability scanner in IaC mode
         uses: aquasecurity/trivy-action@0.28.0
         with:
@@ -62,6 +67,22 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-terraform-results.sarif
+
+      # Perform a security scan of the terraform code using checkov
+      - name: Run Checkov action
+        id: checkov
+        uses: bridgecrewio/checkov-action@master
+        with: 
+          framework: terraform
+
+      # Upload results to GitHub Advanced Security
+      - name: Upload SARIF file
+        if: success() || failure()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+          category: checkov          
+          
 
   terraform-plan:
     defaults:
