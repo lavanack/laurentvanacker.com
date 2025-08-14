@@ -61,7 +61,6 @@ resource "azurerm_network_security_group" "my_terraform_nsg" {
 }
 
 
-
 # Create network interface
 resource "azurerm_network_interface" "my_terraform_nic" {
   name                = "${random_pet.prefix.id}-nic"
