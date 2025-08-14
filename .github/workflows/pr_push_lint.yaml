@@ -31,6 +31,7 @@ jobs:
         if: ${{ github.event_name == 'pull_request' }}
         uses: op5dev/tf-via-pr@v13
         with:
+          working-directory: Azure/Terraform/Github Actions
           command: init
           arg-lock: false
           format: true
@@ -45,6 +46,7 @@ jobs:
       - name: Run TFLint
         id: tflint
         if: ${{ github.event_name == 'pull_request' }}
+        working-directory: Azure/Terraform/Github Actions
         run: |
           tflint --init
           tflint --format compact
@@ -79,5 +81,6 @@ jobs:
       - name: Provision TF
         uses: op5dev/tf-via-pr@v13
         with:
+          working-directory: Azure/Terraform/Github Actions
           command: ${{ github.event_name == 'push' && 'apply' || 'plan' }}
           arg-lock: ${{ github.event_name == 'push' }}
