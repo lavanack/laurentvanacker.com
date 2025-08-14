@@ -1,7 +1,8 @@
 ﻿#To run from the Azure VM
 #requires -Version 7 -RunAsAdministrator 
 
-<#More info on 
+<#
+More info on 
 - https://docs.microsoft.com/en-us/azure/governance/policy/how-to/guest-configuration-create-setup
 - https://techcommunity.microsoft.com/t5/microsoft-defender-for-cloud/7-steps-to-author-develop-and-deploy-custom-recommendations-for/ba-p/3166026
 - https://cloudbrothers.info/en/azure-persistence-azure-policy-guest-configuration/
