@@ -49,6 +49,7 @@ resource "azurerm_network_security_group" "my_terraform_nsg" {
   }
 
 
+
   security_rule {
     name                       = "web"
     priority                   = 1001
