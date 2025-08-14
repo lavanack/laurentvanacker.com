@@ -12,7 +12,7 @@ provider "azurerm" {
 }
 
 resource "azurerm_resource_group" "count-sample" {
-  count = 3
+  count    = 3
   name     = "rg-tf-sample-use2-${count.index}"
   location = "eastus2"
 }
