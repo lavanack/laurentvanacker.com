@@ -30,9 +30,9 @@ The [1 - AzureVMWithAzureAutomanageMachineConfiguration](1%20-%20AzureVMWithAzur
 >
 > The VM will be deployed on the eastus2 region (You can use the non Microsoft [https://cloudprice.net](https://cloudprice.net) web site to compare cost in different regions for cost savings) . You can change  that if you want (around line 329 in the [[1 - AzureVMWithAzureAutomanageMachineConfiguration.ps1](1%20-%20AzureVMWithAzureAutomanageMachineConfiguration.ps1) script).
 >
-> The VM name is randomly generated with the template vmdscamcYYYXXXX where YYY and a 3-letter acronym for the Azure location and X is a digit to avoid duplicate names (an availability test is done around line 82 in the [[1 - AzureVMWithAzureAutomanageMachineConfiguration.ps1](1%20-%20AzureVMWithAzureAutomanageMachineConfiguration.ps1) script). A global naming convention is also set for all Azure resources.
+> The VM name is randomly generated with the template vmdscamcYYYXXXX where YYY and a 3-letter acronym for the Azure location and X is a digit to avoid duplicate names (an availability test is done around line 351 in the [[1 - AzureVMWithAzureAutomanageMachineConfiguration.ps1](1%20-%20AzureVMWithAzureAutomanageMachineConfiguration.ps1) script). A global naming convention is also set for all Azure resources.
 >
-> A DNS Name is set under the form \<VMName\>.\<Location\>.cloudapp.azure.com (for instance dscazamc31415926.westus3.cloudapp.azure.com) and used for the browser connection (the pblic IP is not directly used).
+> A DNS Name is set under the form \<VMName\>.\<Location\>.cloudapp.azure.com (for instance vmdscamcYYYXXXX.eastus2.cloudapp.azure.com) and used for the browser connection (the public IP is not directly used).
 >
 > A daily scheduled shutdown at 11:00 PM (in your local timezone) is set for the VM (no automatic start is set).
 >
