@@ -234,7 +234,7 @@ function Get-GitFile {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Destination: $($(@($Destination) * $($FileURIs.Count)) -join ', ')"
         Start-BitsTransfer -Source $FileURIs -Destination $(@($Destination) * $($FileURIs.Count))
         #Getting the url-decoded local file path 
-        $DestinationFiles = $FileURIs | ForEach-Object -Process { $FileName = $_ -replace ".*/"; $DecodedFileName = [System.Web.HttpUtility]::UrlDecode($FileName); Rename-Item -Path $(Join-Path -Path $Destination -ChildPath $FileName) -NewName $DecodedFileName -PassThru  }
+        $DestinationFiles = $FileURIs | ForEach-Object -Process { $FileName = $_ -replace ".*/"; $DecodedFileName = [System.Web.HttpUtility]::UrlDecode($FileName); Rename-Item -Path $(Join-Path -Path $Destination -ChildPath $FileName) -NewName $DecodedFileName -PassThru }
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DestinationFiles: $($DestinationFiles -join ', ')"
     }
     else {
@@ -317,7 +317,7 @@ $ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -i
 
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
-	Connect-AzAccount
+    Connect-AzAccount
 }
 #endregion
 
@@ -342,7 +342,7 @@ $SubnetPrefix = $ResourceTypeShortNameHT["Network/virtualnetworks/subnets"].Shor
 $Project = "dsc"
 $Role = "amc"
 #$DigitNumber = 4
-$DigitNumber = $AzureVMNameMaxLength-($VirtualMachinePrefix+$Project+$Role+$LocationShortName).Length
+$DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role + $LocationShortName).Length
 
 Do {
     $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
@@ -502,14 +502,14 @@ $NewJitPolicy = (
     @{
         id    = $VM.Id
         ports = 
-            foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
-                @{
-                    number                     = $CurrentJITPolicyPort;
-                    protocol                   = "*";
-                    allowedSourceAddressPrefix = "*";
-                    maxRequestAccessDuration   = "PT$($JitPolicyTimeInHours)H"
-                }
+        foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
+            @{
+                number                     = $CurrentJITPolicyPort;
+                protocol                   = "*";
+                allowedSourceAddressPrefix = "*";
+                maxRequestAccessDuration   = "PT$($JitPolicyTimeInHours)H"
             }
+        }
     }
 )
 
@@ -529,13 +529,13 @@ $JitPolicy = (
     @{
         id    = $VM.Id
         ports = 
-            foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
-                @{
-                    number                     = $CurrentJITPolicyPort;
-                    endTimeUtc                 = (Get-Date).AddHours($JitPolicyTimeInHours).ToUniversalTime()
-                    allowedSourceAddressPrefix = @($MyPublicIP) 
-                }
+        foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
+            @{
+                number                     = $CurrentJITPolicyPort;
+                endTimeUtc                 = (Get-Date).AddHours($JitPolicyTimeInHours).ToUniversalTime()
+                allowedSourceAddressPrefix = @($MyPublicIP) 
             }
+        }
     }
 )
 $ActivationVM = @($JitPolicy)
@@ -568,10 +568,10 @@ Start-Sleep -Seconds 15
 $URI = "https://api.github.com/repos/lavanack/laurentvanacker.com/contents/Azure/Desired%20State%20Configuration/Azure%20Machine%20Configuration"
 $Destination = Join-Path -Path $env:SystemDrive -ChildPath $([System.Web.HttpUtility]::UrlDecode($(Split-Path -Path $URI -Leaf)))
 #Parameter value can be string type only when used with Invoke-AzVMRunCommand
-$Parameter = @{URI = $URI; Destination = $Destination; Recurse = [boolean]::TrueString}
+$Parameter = @{URI = $URI; Destination = $Destination; Recurse = [boolean]::TrueString }
 $ScriptPath = Join-Path -Path $CurrentDir -ChildPath "..\Get-GitFile.ps1" -Resolve
 
-While (Get-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName)  {
+While (Get-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName) {
     Start-Sleep -Seconds 30 
 } 
 
@@ -582,7 +582,7 @@ $RunPowerShellScript
 
 #region Run PowerShell Script: Setting TimeZone to the local one
 #Testing if an AzRunCommand is already running
-While (Get-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName)  {
+While (Get-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName) {
     Start-Sleep -Seconds 30 
 }
 
@@ -593,20 +593,20 @@ $ScriptBlock = {
     Set-TimeZone -Id $NewTimeZone
 }
 $ScriptString = [scriptblock]::create($ScriptBlock)
-$RunPowerShellScript = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptString $ScriptString -Parameter @{'NewTimeZone' = (Get-TimeZone).Id}
+$RunPowerShellScript = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptString $ScriptString -Parameter @{'NewTimeZone' = (Get-TimeZone).Id }
 $RunPowerShellScript
 #endregion
 
 #region Run PowerShell Script: Do Not Open ServerManager At Logon
 #Testing if an AzRunCommand is already running
-While (Get-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName)  {
+While (Get-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName) {
     Start-Sleep -Seconds 30 
 }
 
 $ScriptBlock = {
     param(
     )
-    New-ItemProperty -Path HKLM:\Software\Microsoft\ServerManager -Name DoNotOpenServerManagerAtLogon -PropertyType DWORD -Value "1" –Force
+    New-ItemProperty -Path HKLM:\Software\Microsoft\ServerManager -Name DoNotOpenServerManagerAtLogon -PropertyType DWORD -Value "1" -Force
     New-ItemProperty -Path HKCU:\Software\Microsoft\ServerManager -Name CheckedUnattendLaunchSetting  -PropertyType DWORD -Value "0" -Force
 }
 $ScriptString = [scriptblock]::create($ScriptBlock)
