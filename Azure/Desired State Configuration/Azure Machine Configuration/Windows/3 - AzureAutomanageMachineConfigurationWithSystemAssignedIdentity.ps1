@@ -12,7 +12,7 @@ More info on
 $ResourceGroupName = "rg-dsc-amc*"
 Get-AzResourceGroup -Name $ResourceGroupName | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyRemediation | Remove-AzPolicyRemediation -AllowStop -AsJob -Verbose | Wait-Job
 Get-AzResourceGroup -Name $ResourceGroupName | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyAssignment  | Where-Object -FilterScript { $_.Scope -match 'rg-dsc-amc' } | Remove-AzPolicyAssignment -Verbose #-Whatif
-Get-AzPolicyDefinition | Where-Object -filterScript {$_.metadata.category -eq "Guest Configuration" -and $_.DisplayName -like '$ResourceGroupName'} | Remove-AzPolicyDefinition -Verbose -Force #-WhatIf
+Get-AzPolicyDefinition | Where-Object -filterScript {$_.metadata.category -eq "Guest Configuration" -and $_.DisplayName -like "*$ResourceGroupName"} | Remove-AzPolicyDefinition -Verbose -Force #-WhatIf
 Get-AzResourceGroup -Name $ResourceGroupName | Remove-AzResourceGroup -AsJob -Force -Verbose 
 #>
 
@@ -54,7 +54,6 @@ Set-Location -Path $PSScriptRoot
 
 $AzVM = Get-AzVMCompute
 #From https://learn.microsoft.com/en-us/azure/governance/machine-configuration/how-to/create-policy-definition#create-an-azure-policy-definition
-$AZVMSystemAssignedIdentity = ($AzVM | Get-AzVM).Identity   
 $Location = $AzVM.Location
 $ResourceGroupName = $AzVM.ResourceGroupName
 $StorageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName
@@ -143,6 +142,7 @@ $CertificateFiles | Set-AzStorageBlobContent -Container $StorageCertificateConta
 
 #region Assigning the 'Storage Blob Data Reader' RBAC Role to the Azure VM System Assigned Identity to the Storage Account 
 #From https://learn.microsoft.com/en-us/azure/governance/machine-configuration/how-to/create-policy-definition#create-an-azure-policy-definition
+$AZVMSystemAssignedIdentity = ($AzVM | Get-AzVM).Identity   
 $RoleDefinition = Get-AzRoleDefinition -Name "Storage Blob Data Reader"
 $Parameters = @{
     ObjectId           = $AZVMSystemAssignedIdentity.PrincipalId
