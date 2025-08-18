@@ -82,6 +82,11 @@ $ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/
 $shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @{Name = 'Location'; Expression = { $AzLocation[$_.name].Location } } | Where-Object -FilterScript { $_.Location } | Group-Object -Property Location -AsHashTable -AsString
 #endregion
 
+#region Building an Hashtable to get the shortname of every Azure resource based on a JSON file on the Github repository of the Azure Naming Tool
+$Result = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/refs/heads/main/src/repository/resourcetypes.json 
+$ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -in @('', 'Windows') } | Select-Object -Property resource, shortName, lengthMax | Group-Object -Property resource -AsHashTable -AsString
+#endregion
+
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 	Connect-AzAccount
@@ -89,7 +94,6 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 #endregion
 
 
-$AzureVMNameMaxLength = 15
 $RDPPort = 3389
 $SSHPort = 22
 $JITPolicyPorts = $RDPPort, $SSHPort
@@ -98,17 +102,20 @@ $JitPolicyName = "Default"
 $Location = "eastus2"
 $VMSize = "Standard_D4s_v5"
 $LocationShortName = $shortNameHT[$Location].shortName
-#Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
-$ResourceGroupPrefix = "rg"
-$StorageAccountPrefix = "sa"
-$VirtualMachinePrefix = "vm"
-$NetworkSecurityGroupPrefix = "nsg"
-$VirtualNetworkPrefix = "vnet"
-$SubnetPrefix = "snet"
+#Naming convention based on https://github.com/mspnp/AzureNamingTool/blob/main/src/repository/resourcetypes.json
+$AzureVMNameMaxLength = $ResourceTypeShortNameHT["Compute/virtualMachines"].lengthMax
+$ResourceGroupPrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
+$StorageAccountPrefix = $ResourceTypeShortNameHT["Storage/storageAccounts"].ShortName
+$VirtualMachinePrefix = $ResourceTypeShortNameHT["Compute/virtualMachines"].ShortName
+$NetworkSecurityGroupPrefix = $ResourceTypeShortNameHT["Network/networkSecurityGroups"].ShortName
+$VirtualNetworkPrefix = $ResourceTypeShortNameHT["Network/virtualNetworks"].ShortName
+$SubnetPrefix = $ResourceTypeShortNameHT["Network/virtualnetworks/subnets"].ShortName
+
+
 $Project = "dsc"
 $Role = "amc"
 #$DigitNumber = 4
-$DigitNumber = $AzureVMNameMaxLength-($VirtualMachinePrefix+$Project+$Role+$LocationShortName).Length
+$DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role + $LocationShortName).Length
 
 Do {
     $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
