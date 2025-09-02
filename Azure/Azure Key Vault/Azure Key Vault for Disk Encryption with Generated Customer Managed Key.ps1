@@ -171,7 +171,7 @@ if ($VMName.Length -gt $AzureVMNameMaxLength) {
 elseif (-not($LocationShortName)) {
     Write-Error "No location short name found for '$Location'" -ErrorAction Stop
 }
-elseif ($null -eq (Get-AZVMSize -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
+elseif ($null -eq (Get-AzComputeResourceSku -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
     Write-Error "The '$VMSize' is not available in the '$Location' location ..." -ErrorAction Stop
 }
 
@@ -244,6 +244,7 @@ $KeyVault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGrou
 $RoleDefinition = Get-AzRoleDefinition "Key Vault Administrator"
 $WhoAmI = (Get-AzADUser -UserPrincipalName (Get-AzContext).Account.Id)
 $RoleAssignment = New-AzRoleAssignment -ObjectId $WhoAmI.Id -RoleDefinitionName $RoleDefinition.Name -Scope $KeyVault.ResourceId -ErrorAction Ignore #-Debug
+Start-Sleep -Seconds 30
 #endregion
 
 #FROM https://learn.microsoft.com/en-us/azure/virtual-machines/windows/disks-enable-customer-managed-keys-powershell#set-up-an-azure-key-vault-and-diskencryptionset-optionally-with-automatic-key-rotation
@@ -262,6 +263,7 @@ $AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $keyVaultName -ObjectId $D
 #region "Key Vault Crypto Service Encryption User" RBAC Assignment
 $RoleDefinition = Get-AzRoleDefinition "Key Vault Crypto Service Encryption User"
 $RoleAssignment = New-AzRoleAssignment -ObjectId $DiskEncryptionSet.Identity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $KeyVault.ResourceId -ErrorAction Ignore #-Debug
+Start-Sleep -Seconds 30
 #endregion
 
 
@@ -358,11 +360,9 @@ Write-Host "[CMK -> PMK] Processing '$($VMOSDisk.Name)' OS Disk ..."
 $null = New-AzDiskUpdateConfig -EncryptionType "EncryptionAtRestWithPlatformKey" -DiskEncryptionSetId $null | Update-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $VMOSDisk.Name
 
 $VMDataDiskNames = (Get-AzVM -Name $VMName).StorageProfile.DataDisks.Name
-if ($null -ne $VMDataDiskNames)
-{
+if ($null -ne $VMDataDiskNames) {
     $VMDataDisks = Get-AzDisk -Name $VMDataDiskNames
-    foreach ($CurrentVMDataDisk in $VMDataDisks)
-    {
+    foreach ($CurrentVMDataDisk in $VMDataDisks) {
         Write-Host "[CMK -> PMK] Processing '$($CurrentVMDataDisk.Name)' Data Disk ..."
         $null = New-AzDiskUpdateConfig -EncryptionType "EncryptionAtRestWithPlatformKey" -DiskEncryptionSetId $null | Update-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $CurrentVMDataDisk.Name
     }
@@ -378,11 +378,9 @@ $null = New-AzDiskUpdateConfig -EncryptionType "EncryptionAtRestWithCustomerKey"
 
 
 $VMDataDiskNames = (Get-AzVM -Name $VMName).StorageProfile.DataDisks.Name
-if ($null -ne $VMDataDiskNames)
-{
+if ($null -ne $VMDataDiskNames) {
     $VMDataDisks = Get-AzDisk -Name $VMDataDiskNames
-    foreach ($CurrentVMDataDisk in $VMDataDisks)
-    {
+    foreach ($CurrentVMDataDisk in $VMDataDisks) {
         Write-Host "[PMK -> CMK] Processing '$($CurrentVMDataDisk.Name)' Data Disk ..."
         $null = New-AzDiskUpdateConfig -EncryptionType "EncryptionAtRestWithCustomerKey" -DiskEncryptionSetId $DiskEncryptionSet.Id | Update-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $CurrentVMDataDisk.Name
     }
