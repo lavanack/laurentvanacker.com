@@ -54,7 +54,7 @@ if (-not(Get-AzContext)) {
 $AzVM = Get-AzVMCompute
 $Location = $AzVM.Location
 $ResourceGroupName = $AzVM.ResourceGroupName
-$StorageAccount = Get-AzStorageAccount -ResourceGroupName $resourceGroupName
+$StorageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName
 $StorageAccountName = $StorageAccount.StorageAccountName
 $StorageContainerName = "guestconfiguration"
 $ConfigurationName = "ExampleConfiguration"
@@ -170,8 +170,8 @@ Start-Sleep -Seconds 30
 if ($roleDefinitionIds.Count -gt 0) {
     $roleDefinitionIds | ForEach-Object {
         $roleDefId = $_.Split("/") | Select-Object -Last 1
-        if (-not(Get-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.IdentityPrincipalId -RoleDefinitionId $roleDefId)) {
-            New-AzRoleAssignment -Scope $resourceGroup.ResourceId -ObjectId $PolicyAssignment.IdentityPrincipalId -RoleDefinitionId $roleDefId
+        if (-not(Get-AzRoleAssignment -Scope $ResourceGroup.ResourceId -ObjectId $PolicyAssignment.IdentityPrincipalId -RoleDefinitionId $roleDefId)) {
+            New-AzRoleAssignment -Scope $ResourceGroup.ResourceId -ObjectId $PolicyAssignment.IdentityPrincipalId -RoleDefinitionId $roleDefId
         }
     }
 }
@@ -192,5 +192,3 @@ Get-AzPolicyState -ResourceGroupName $ResourceGroupName -PolicyAssignmentName $P
 Get-AzPolicyStateSummary -ResourceGroupName $ResourceGroupName | Select-Object -ExpandProperty PolicyAssignments 
 #endregion
 #endregion
-
-$Job | Receive-Job -Wait -AutoRemoveJob

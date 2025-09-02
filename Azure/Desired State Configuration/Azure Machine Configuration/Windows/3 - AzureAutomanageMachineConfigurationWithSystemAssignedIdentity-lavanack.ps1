@@ -69,7 +69,6 @@ $ExpiryTime = $StartTime.AddYears(3)
 
 #region From PowerShell
 #region Deploy prerequisites to enable Guest Configuration policies on virtual machines
-
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName
 $PolicySetDefinition = Get-AzPolicySetDefinition | Where-Object -FilterScript { $_.DisplayName -eq "Deploy prerequisites to enable Guest Configuration policies on virtual machines" }
 $PolicyAssignment = Get-AzPolicyAssignment -Name "$($ResourceGroupName)-deployPrereqForGuestConfigurationPolicies" -Scope $ResourceGroup.ResourceId -ErrorAction Ignore
@@ -198,7 +197,7 @@ foreach ($CurrentDSCConfiguration in $DSCConfigurations) {
     $GuestConfigurationStorageBlob = Set-AzStorageBlobContent -Container $StorageGuestConfigurationContainerName -File $GuestConfigurationPackage.Path -Blob $GuestConfigurationPackageName -Context $Context -Force
     #$GuestConfigurationStorageBlobSASToken = New-AzStorageBlobSASToken -Context $Context -FullUri -Container $StorageGuestConfigurationContainerName -Blob $GuestConfigurationPackageName -Permission rwd -StartTime $StartTime -ExpiryTime $ExpiryTime      
     $GuestConfigurationStorageBlobSASToken = New-AzStorageBlobSASToken -Context $Context -FullUri -Container $StorageGuestConfigurationContainerName -Blob $GuestConfigurationPackageName -Permission r -StartTime $StartTime -ExpiryTime $ExpiryTime      
-    
+
     # Create a Policy Id
     $PolicyId = (New-Guid).Guid  
     # Define the parameters to create and publish the guest configuration policy

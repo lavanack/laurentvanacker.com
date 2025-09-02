@@ -69,7 +69,6 @@ $ExpiryTime = $StartTime.AddYears(3)
 
 #region From PowerShell
 #region Deploy prerequisites to enable Guest Configuration policies on virtual machines
-
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName
 $PolicySetDefinition = Get-AzPolicySetDefinition | Where-Object -FilterScript { $_.DisplayName -eq "Deploy prerequisites to enable Guest Configuration policies on virtual machines" }
 $PolicyAssignment = Get-AzPolicyAssignment -Name "$($ResourceGroupName)-deployPrereqForGuestConfigurationPolicies" -Scope $ResourceGroup.ResourceId -ErrorAction Ignore
@@ -113,7 +112,7 @@ else {
 #endregion
 
 #region Public Network Access and Shared Key Access Enabled on the Storage Account
-$storageAccount | Set-AzStorageAccount -PublicNetworkAccess Enabled -AllowBlobPublicAccess $false -AllowSharedKeyAccess $true
+$storageAccount | Set-AzStorageAccount -PublicNetworkAccess Enabled -AllowSharedKeyAccess $true
 Start-Sleep -Seconds 30
 $StorageAccountKey = (($storageAccount | Get-AzStorageAccountKey) | Where-Object -FilterScript { $_.KeyName -eq "key1" }).Value
 $Context = New-AzStorageContext -ConnectionString "DefaultEndpointsProtocol=https;AccountName=$StorageAccountName;AccountKey=$StorageAccountKey"
@@ -139,26 +138,6 @@ $CertificateFiles = $DnsName | ForEach-Object -Process { $cert = New-SelfSignedC
 $CertificateFiles | Set-AzStorageBlobContent -Container $StorageCertificateContainerName -Context $Context -Force
 #endregion
 #endregion
-
-#region Assigning the 'Storage Blob Data Reader' RBAC Role to the Azure VM System Assigned Identity to the Storage Account 
-#From https://learn.microsoft.com/en-us/azure/governance/machine-configuration/how-to/create-policy-definition#create-an-azure-policy-definition
-$AZVMSystemAssignedIdentity = ($AzVM | Get-AzVM).Identity   
-$RoleDefinition = Get-AzRoleDefinition -Name "Storage Blob Data Reader"
-$Parameters = @{
-    ObjectId           = $AZVMSystemAssignedIdentity.PrincipalId
-    RoleDefinitionName = $RoleDefinition.Name
-    Scope              = $StorageAccount.Id
-}
-
-While (-not(Get-AzRoleAssignment @Parameters)) {
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' scope"
-    $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
-    Start-Sleep -Seconds 30
-}
-#endregion
-
 
 #region Our Guest Policies
 if ($ConfigurationName) {
@@ -195,27 +174,23 @@ foreach ($CurrentDSCConfiguration in $DSCConfigurations) {
     }
 
 
-    $GuestConfigurationStorageBlob = Set-AzStorageBlobContent -Container $StorageGuestConfigurationContainerName -File $GuestConfigurationPackage.Path -Blob $GuestConfigurationPackageName -Context $Context -Force
+    Set-AzStorageBlobContent -Container $StorageGuestConfigurationContainerName -File $GuestConfigurationPackage.Path -Blob $GuestConfigurationPackageName -Context $Context -Force
     #$GuestConfigurationStorageBlobSASToken = New-AzStorageBlobSASToken -Context $Context -FullUri -Container $StorageGuestConfigurationContainerName -Blob $GuestConfigurationPackageName -Permission rwd -StartTime $StartTime -ExpiryTime $ExpiryTime      
     $GuestConfigurationStorageBlobSASToken = New-AzStorageBlobSASToken -Context $Context -FullUri -Container $StorageGuestConfigurationContainerName -Blob $GuestConfigurationPackageName -Permission r -StartTime $StartTime -ExpiryTime $ExpiryTime      
-    
+
     # Create a Policy Id
     $PolicyId = (New-Guid).Guid  
     # Define the parameters to create and publish the guest configuration policy
     $Params = @{
-        "PolicyId"                  = $PolicyId
-        #"ContentUri"                = $GuestConfigurationStorageBlobSASToken
-        "ContentUri"                = $GuestConfigurationStorageBlob.ICloudBlob.Uri.AbsoluteUri
-        "DisplayName"               = "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $CurrentConfigurationName DSC Config."
-        "Description"               = "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $CurrentConfigurationName DSC Config."
-        "Path"                      = './policies'
-        "Platform"                  = 'Windows'
-        "PolicyVersion"             = '1.0.0'
-        "Mode"                      = 'ApplyAndAutoCorrect'
-        #From https://github.com/Azure/GuestConfiguration/blob/main/source/Public/New-GuestConfigurationPolicy.ps1#L55-L59
-        "LocalContentPath"          = $GuestConfigurationPackage.Path
-        "UseSystemAssignedIdentity" = $true
-        "Verbose"                   = $true
+        "PolicyId"      = $PolicyId
+        "ContentUri"    = $GuestConfigurationStorageBlobSASToken
+        "DisplayName"   = "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $CurrentConfigurationName DSC Config."
+        "Description"   = "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $CurrentConfigurationName DSC Config."
+        "Path"          = './policies'
+        "Platform"      = 'Windows'
+        "PolicyVersion" = '1.0.0'
+        "Mode"          = 'ApplyAndAutoCorrect'
+        "Verbose"       = $true
     }
     # Create the guest configuration policy
     #From https://learn.microsoft.com/en-us/azure/governance/machine-configuration/how-to/create-policy-definition#create-an-azure-policy-definition
