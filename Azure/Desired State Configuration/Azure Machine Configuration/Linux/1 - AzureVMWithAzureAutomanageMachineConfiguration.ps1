@@ -396,8 +396,8 @@ Write-Host -Object "Your SSH/RDP credentials (login/password) are $($Credential.
 Start-Process -FilePath "$env:comspec" -ArgumentList '/c', "scp -o StrictHostKeyChecking=no ExampleConfiguration.zip 3*.sh 4*.ps1 $($SSHConnection):~" -Wait
 Start-Process -FilePath "$env:comspec" -ArgumentList '/c', "ssh -o StrictHostKeyChecking=no $SSHConnection chmod +x *.sh" -Wait
 #Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -Name $VMName -CommandId 'RunShellScript' -ScriptPath '3 - Prerequisites.sh'
-#Start-Process -FilePath "$env:comspec" -ArgumentList '/k', "ssh -o StrictHostKeyChecking=no $SSHConnection sudo './3 - Prerequisites.sh'"
-Start-Process -FilePath "$env:comspec" -ArgumentList '/c', "ssh -o StrictHostKeyChecking=no $SSHConnection"
+Start-Process -FilePath "$env:comspec" -ArgumentList '/k', "ssh -o StrictHostKeyChecking=no $SSHConnection sudo './3 - Prerequisites.sh'"
+#Start-Process -FilePath "$env:comspec" -ArgumentList '/c', "ssh -o StrictHostKeyChecking=no $SSHConnection"
 
 #Browsing to the hosted website
 Start-Process -FilePath "http://$FQDN"

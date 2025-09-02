@@ -99,12 +99,21 @@ Get-GuestConfigurationPackageComplianceStatus -Path $GuestConfigurationPackageFi
 # Applying the Machine Configuration Package locally
 #Start-GuestConfigurationPackageRemediation -Path $GuestConfigurationPackageFilePath -Verbose
 
+#region Public Network Access and Shared Key Access Enabled on the Storage Account
+$storageAccount | Set-AzStorageAccount -PublicNetworkAccess Enabled -AllowBlobPublicAccess $false -AllowSharedKeyAccess $true
+Start-Sleep -Seconds 30
+$StorageAccountKey = (($storageAccount | Get-AzStorageAccountKey) | Where-Object -FilterScript { $_.KeyName -eq "key1" }).Value
+$Context = New-AzStorageContext -ConnectionString "DefaultEndpointsProtocol=https;AccountName=$StorageAccountName;AccountKey=$StorageAccountKey"
+#endregion
+
+#region Removing existing blob
+$storageAccount | Get-AzStorageContainer | Get-AzStorageBlob | Remove-AzStorageBlob
+#endregion
+
 # Creates a new container
 if (-not($storageAccount | Get-AzStorageContainer -Name $StorageContainerName -ErrorAction Ignore)) {
     $storageAccount | New-AzStorageContainer -Name $StorageContainerName -Permission Blob
 }
-$StorageAccountKey = (($storageAccount | Get-AzStorageAccountKey) | Where-Object -FilterScript { $_.KeyName -eq "key1" }).Value
-$Context = New-AzStorageContext -ConnectionString "DefaultEndpointsProtocol=https;AccountName=$StorageAccountName;AccountKey=$StorageAccountKey"
 
 Set-AzStorageBlobContent -Container $StorageContainerName -File $GuestConfigurationPackageFilePath -Blob $GuestConfigurationPackageFileName -Context $Context -Force
 #Adding a 3-year expiration time from now for the SAS Token
