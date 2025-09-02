@@ -12,7 +12,7 @@ More info on
 $ResourceGroupName = "rg-dsc-amc*"
 Get-AzResourceGroup -Name $ResourceGroupName | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyRemediation | Remove-AzPolicyRemediation -AllowStop -AsJob -Verbose | Wait-Job
 Get-AzResourceGroup -Name $ResourceGroupName | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyAssignment  | Where-Object -FilterScript { $_.Scope -match 'rg-dsc-amc' } | Remove-AzPolicyAssignment -Verbose #-Whatif
-Get-AzPolicyDefinition | Where-Object -filterScript {$_.metadata.category -eq "Guest Configuration" -and $_.DisplayName -like '$ResourceGroupName'} | Remove-AzPolicyDefinition -Verbose -Force #-WhatIf
+Get-AzPolicyDefinition | Where-Object -filterScript {$_.metadata.category -eq "Guest Configuration" -and $_.DisplayName -like "*$ResourceGroupName"} | Remove-AzPolicyDefinition -Verbose -Force #-WhatIf
 Get-AzResourceGroup -Name $ResourceGroupName | Remove-AzResourceGroup -AsJob -Force -Verbose 
 #>
 
@@ -53,6 +53,7 @@ Clear-Host
 Set-Location -Path $PSScriptRoot
 
 $AzVM = Get-AzVMCompute
+#From https://learn.microsoft.com/en-us/azure/governance/machine-configuration/how-to/create-policy-definition#create-an-azure-policy-definition
 $Location = $AzVM.Location
 $ResourceGroupName = $AzVM.ResourceGroupName
 $StorageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName
@@ -68,7 +69,6 @@ $ExpiryTime = $StartTime.AddYears(3)
 
 #region From PowerShell
 #region Deploy prerequisites to enable Guest Configuration policies on virtual machines
-
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName
 $PolicySetDefinition = Get-AzPolicySetDefinition | Where-Object -FilterScript { $_.DisplayName -eq "Deploy prerequisites to enable Guest Configuration policies on virtual machines" }
 $PolicyAssignment = Get-AzPolicyAssignment -Name "$($ResourceGroupName)-deployPrereqForGuestConfigurationPolicies" -Scope $ResourceGroup.ResourceId -ErrorAction Ignore
@@ -193,6 +193,7 @@ foreach ($CurrentDSCConfiguration in $DSCConfigurations) {
         "Verbose"       = $true
     }
     # Create the guest configuration policy
+    #From https://learn.microsoft.com/en-us/azure/governance/machine-configuration/how-to/create-policy-definition#create-an-azure-policy-definition
     $Policy = New-GuestConfigurationPolicy @Params
 
     $PolicyDefinition = New-AzPolicyDefinition -Name "[Win]$ResourceGroupName-$CurrentConfigurationName" -Policy $Policy.Path
