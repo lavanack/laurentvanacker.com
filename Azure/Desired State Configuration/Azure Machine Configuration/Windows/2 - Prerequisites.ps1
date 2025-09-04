@@ -1,4 +1,4 @@
-﻿Install-Module -Name #To run from the Azure VM
+﻿#To run from the Azure VM
 #requires -Version 5 -RunAsAdministrator 
 #More info on https://docs.microsoft.com/en-us/azure/governance/policy/how-to/guest-configuration-create-setup
 Clear-Host
