@@ -59,7 +59,7 @@ $StorageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName
 $StorageAccountName = $StorageAccount.StorageAccountName
 $StorageGuestConfigurationContainerName = "guestconfiguration"
 $StorageCertificateContainerName = "certificates"
-#Adding a 3-year expiration time from now for the SAS Token
+#Adding a 7-day expiration time from now for the SAS Token
 $StartTime = Get-Date
 $ExpiryTime = $StartTime.AddDays(7)
 
