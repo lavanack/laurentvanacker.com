@@ -105,6 +105,7 @@ winget install --exact --id=Microsoft.Azure.AZCopy.10
 winget install --exact --id=Microsoft.Bicep
 winget install --exact --id=Microsoft.AzureCLI
 winget install --exact --id=Hashicorp.Terraform
+#winget install --exact --id=Microsoft.Azure.FunctionsCoreTools
 #winget install --exact --id=Microsoft.VisualStudioCode
 
 #region Git
