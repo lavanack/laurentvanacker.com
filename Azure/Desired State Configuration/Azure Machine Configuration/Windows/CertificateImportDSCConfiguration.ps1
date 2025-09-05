@@ -112,7 +112,7 @@ Set-Location -Path $CurrentDir
 $AzVMCompute = Get-AzVMCompute
 #Adding a 3-year expiration time from now for the SAS Token
 $StartTime = Get-Date
-$ExpiryTime = $StartTime.AddYears(3)
+$ExpiryTime = $StartTime.AddDays(7)
 
 #Getting all certificate data from the container.
 $CertificateStorageBlobSASToken = Get-AzResourceGroup -Name $AzVMCompute.resourceGroupName | Get-AzStorageAccount | Get-AzStorageContainer -Name certificates -ErrorAction Ignore | Get-AzStorageBlob | New-AzStorageBlobSASToken -FullUri -Permission r -StartTime $StartTime -ExpiryTime $ExpiryTime      
