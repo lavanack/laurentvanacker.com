@@ -62,7 +62,7 @@ $StorageGuestConfigurationContainerName = "guestconfiguration"
 $StorageCertificateContainerName = "certificates"
 #Adding a 7-day expiration time from now for the SAS Token
 $StartTime = Get-Date
-$ExpiryTime = $StartTime.AddYears(3)
+$ExpiryTime = $StartTime.AddDays(7)
 
 #$GuestConfigurationPackageName = "$ConfigurationName.zip"
 #$GuestConfigurationPackageFullName  = "$PSScriptRoot\$ConfigurationName\$GuestConfigurationPackageName"

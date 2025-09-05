@@ -1,0 +1,80 @@
+/*
+@TargetNode='localhost'
+@GeneratedBy=lavanack
+@GenerationDate=09/05/2025 10:29:17
+@GenerationHost=LAVANACK
+*/
+
+instance of nxPackage as $nxPackage1ref
+{
+ModuleName = "nxtools";
+ ResourceID = "[nxPackage]nginx";
+ ModuleVersion = "1.6.0";
+ Ensure = "Present";
+ SourceInfo = "C:\\laurentvanacker.com\\Azure\\Desired State Configuration\\Azure Machine Configuration\\Linux\\ExampleConfiguration.ps1::13::9::nxPackage";
+ Name = "nginx";
+ ConfigurationName = "ExampleConfiguration";
+};
+instance of nxPackage as $nxPackage2ref
+{
+ModuleName = "nxtools";
+ ResourceID = "[nxPackage]hello";
+ ModuleVersion = "1.6.0";
+ Ensure = "Present";
+ SourceInfo = "C:\\laurentvanacker.com\\Azure\\Desired State Configuration\\Azure Machine Configuration\\Linux\\ExampleConfiguration.ps1::17::9::nxPackage";
+ Name = "hello";
+ ConfigurationName = "ExampleConfiguration";
+};
+instance of nxFile as $nxFile1ref
+{
+ModuleName = "nxtools";
+ Contents = "Hello Arc!";
+ DestinationPath = "/tmp/arc-demo";
+ ResourceID = "[nxFile]demofile1";
+ Mode = "0777";
+ ModuleVersion = "1.6.0";
+ Ensure = "Present";
+ SourceInfo = "C:\\laurentvanacker.com\\Azure\\Desired State Configuration\\Azure Machine Configuration\\Linux\\ExampleConfiguration.ps1::21::9::nxFile";
+ Owner = "root";
+ Group = "root";
+ ConfigurationName = "ExampleConfiguration";
+};
+instance of nxGroup as $nxGroup1ref
+{
+ModuleName = "nxtools";
+ GroupName = "arcusers";
+ ResourceID = "[nxGroup]arcusers";
+ ModuleVersion = "1.6.0";
+ Ensure = "Present";
+ SourceInfo = "C:\\laurentvanacker.com\\Azure\\Desired State Configuration\\Azure Machine Configuration\\Linux\\ExampleConfiguration.ps1::29::9::nxGroup";
+ ConfigurationName = "ExampleConfiguration";
+};
+instance of nxScript as $nxScript1ref
+{
+ModuleName = "nxtools";
+ SetScript = "$FileContent ='Hello Arc!'\n$FilePath ='/tmp/arc-nxscript-demo'\n\n                $null = Set-Content -Path $FilePath -Value $FileContent\n            ";
+ TestScript = "$FileContent ='Hello Arc!'\n$FilePath ='/tmp/arc-nxscript-demo'\n\n                if (Test-Path -Path $FilePath) {\n                    $text = $(Get-Content -Path $FilePath -Raw).Trim()\n                    return $text -eq $FileContent\n                }\n                else {\n                    return $false\n                }\n            ";
+ ResourceID = "[nxScript]demofile2";
+ ModuleVersion = "1.6.0";
+ SourceInfo = "C:\\laurentvanacker.com\\Azure\\Desired State Configuration\\Azure Machine Configuration\\Linux\\ExampleConfiguration.ps1::33::9::nxScript";
+ GetScript = "$FileContent ='Hello Arc!'\n$FilePath ='/tmp/arc-nxscript-demo'\n\n                $Reason = [Reason]::new()\n                $Reason.Code = \"Script:Script:FileMissing\"\n                $Reason.Phrase = \"File does not exist\"\n\n                if (Test-Path -Path $FilePath) {\n                    $text = $(Get-Content -Path $FilePath -Raw).Trim()\n                    if ($text -eq $FileContent) {\n                        $Reason.Code = \"Script:Script:Success\"\n                        $Reason.Phrase = \"File exists with correct content\"\n                    }\n                    else {\n                        $Reason.Code = \"Script:Script:ContentMissing\"\n                        $Reason.Phrase = \"File exists but has incorrect content\"\n                    }\n                }\n\n                return @{\n                    Reasons = @($Reason)\n                }\n            ";
+ ConfigurationName = "ExampleConfiguration";
+};
+instance of OMI_ConfigurationDocument
+
+                    {
+ Version="2.0.0";
+
+                        MinimumCompatibleVersion = "1.0.0";
+
+                        CompatibleVersionAdditionalProperties= {"Omi_BaseResource:ConfigurationName"};
+
+                        Author="lavanack";
+
+                        GenerationDate="09/05/2025 10:29:17";
+
+                        GenerationHost="LAVANACK";
+
+                        Name="ExampleConfiguration";
+
+                    };
