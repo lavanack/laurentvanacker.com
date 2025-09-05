@@ -50,6 +50,7 @@ Configuration LogParserSetupDSCConfiguration {
         
         foreach ($CurrentSoftware in $Node.Softwares) {
             $SASURI = $CurrentSoftware.SASURI
+            $ProductID = $CurrentSoftware.ProductID
             $FileName = Split-Path -Path $($SASURI -replace "\?.*") -Leaf
             $DestinationPath = Join-Path -Path $env:Temp -ChildPath $FileName
 
@@ -75,7 +76,7 @@ Configuration LogParserSetupDSCConfiguration {
 		    MsiPackage InstallLogParser {
 			    Ensure          = 'Present'
 			    Path            = $DestinationPath
-			    ProductId       = '4AC23178-EEBC-4BAF-8CC0-AB15C8897AC9'
+			    ProductId       = $ProductID
                 DependsOn       = "[Script]$($FileName) - CopyFromBlobWithSAS"
 		    }
         }
@@ -110,6 +111,9 @@ $AzVMCompute = Get-AzVMCompute
 $StartTime = Get-Date
 $ExpiryTime = $StartTime.AddDays(7)
 
+$ProductID = @{
+    "LogParser.msi" = '4AC23178-EEBC-4BAF-8CC0-AB15C8897AC9'
+}
 #Getting all certificate data from the container.
 $StorageSoftwareContainerName = "softwares"
 $SoftwareStorageBlobSASToken = Get-AzResourceGroup -Name $AzVMCompute.resourceGroupName | Get-AzStorageAccount | Get-AzStorageContainer -Name $StorageSoftwareContainerName -ErrorAction Ignore | Get-AzStorageBlob | New-AzStorageBlobSASToken -FullUri -Permission r -StartTime $StartTime -ExpiryTime $ExpiryTime      
@@ -117,7 +121,8 @@ $SoftwareStorageBlobSASToken = Get-AzResourceGroup -Name $AzVMCompute.resourceGr
 #Region Building an hashtable with required certificate data for building the DSC configuration 
 $CertificateConfigurationData = foreach ($CurrentSoftwareStorageBlobSASToken in $SoftwareStorageBlobSASToken) {
     $SASURI = $CurrentSoftwareStorageBlobSASToken
-    @{SASURI = $SASURI}
+    $FileName = Split-Path -Path $($SASURI -replace "\?.*") -Leaf
+    @{SASURI = $SASURI; ProductID = $ProductID[$FileName] }
 }
 #Adding the hashtable as configuration data
 ($ConfigurationData.AllNodes | Where-Object -FilterScript {$_.NodeName -eq 'localhost'})['Softwares']=$CertificateConfigurationData
