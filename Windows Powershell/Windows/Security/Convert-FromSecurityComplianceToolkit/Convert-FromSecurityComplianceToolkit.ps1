@@ -22,7 +22,7 @@ of the Sample Code.
 #From https://github.com/microsoft/BaselineManagement/blob/main/src/BaselineManagement.psm1#L21-L636
 
 <#
-#Pre-requisites: Installing requied modules if not locally available
+#Pre-requisites: Installing required modules if not locally available
 Install-Module -Name 'GPRegistryPolicyParser', 'BaselineManagement', 'GPRegistryPolicyDsc', 'SecurityPolicyDsc', 'AuditPolicyDsc', 'PSDesiredStateConfiguration', 'GuestConfiguration' -Scope AllUsers -Force
 Install-Module -Name 'PSDesiredStateConfiguration' -Scope AllUsers -Force
 #>
@@ -95,8 +95,9 @@ Function Convert-FromSecurityComplianceToolkit {
                 $ConvertedGpo = ConvertFrom-GPO -Path $CurrentGPODir -OutputConfigurationScript -OutputPath $DSCGPODirectory -ConfigName $GPOName -ShowPesterOutput -ErrorAction Stop
             }
             catch {
-                if ($_ -like "Invalid MOF definition*") {
-                    Write-Warning "In '$($ConvertedGpo.ConfigurationScript)' comment setting that contains property mentioned in this error '$_'.`n`nOtherwise you will not be able to generate guest configuration from it!"
+                if ($Error[1].ErrorDetails.Message -like "Invalid MOF definition*") {
+                    $Destination = Join-Path -Path $DSCGPODirectory -ChildPath "$GPOName.ps1"
+                    Write-Warning "In '$Destination' comment setting that contains property mentioned in this error:`r`n'$($Error[1].ErrorDetails.Message)'.`r`nOtherwise you will not be able to generate guest configuration from it!"
                 }
                 else {
                     Write-Error $_
