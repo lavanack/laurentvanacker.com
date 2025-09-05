@@ -127,13 +127,13 @@ $storageAccount | Get-AzStorageContainer | Get-AzStorageBlob | Remove-AzStorageB
 
 # Creates a new container
 if (-not($storageAccount | Get-AzStorageContainer -Name $StorageContainerName -ErrorAction Ignore)) {
-    New-AzStorageContainer -Name $StorageCertificateContainerName -Context $Context #-Permission Blob
+    New-AzStorageContainer -Name $StorageContainerName -Context $Context #-Permission Blob
 }
 
 Set-AzStorageBlobContent -Container $StorageContainerName -File $GuestConfigurationPackageFilePath -Blob $GuestConfigurationPackageFileName -Context $Context -Force
-#Adding a 3-year expiration time from now for the SAS Token
+#Adding a 7-day expiration time from now for the SAS Token
 $StartTime = Get-Date
-$ExpiryTime = $StartTime.AddYears(3)
+$ExpiryTime = $StartTime.AddDays(7)
 #$ContentURI = New-AzStorageBlobSASToken -Context $Context -FullUri -Container $StorageContainerName -Blob $GuestConfigurationPackageFileName -Permission rwd -StartTime $StartTime -ExpiryTime $ExpiryTime      
 $ContentURI = New-AzStorageBlobSASToken -Context $Context -FullUri -Container $StorageContainerName -Blob $GuestConfigurationPackageFileName -Permission r -StartTime $StartTime -ExpiryTime $ExpiryTime      
 
