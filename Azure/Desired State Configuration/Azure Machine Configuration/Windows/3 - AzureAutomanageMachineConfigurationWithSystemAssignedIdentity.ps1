@@ -115,8 +115,7 @@ else {
 #region Public Network Access and Shared Key Access Enabled on the Storage Account
 $storageAccount | Set-AzStorageAccount -PublicNetworkAccess Enabled -AllowBlobPublicAccess $false -AllowSharedKeyAccess $true
 Start-Sleep -Seconds 30
-$StorageAccountKey = (($storageAccount | Get-AzStorageAccountKey) | Where-Object -FilterScript { $_.KeyName -eq "key1" }).Value
-$Context = New-AzStorageContext -ConnectionString "DefaultEndpointsProtocol=https;AccountName=$StorageAccountName;AccountKey=$StorageAccountKey"
+$Context = New-AzStorageContext -StorageAccountName $StorageAccountName -UseConnectedAccount
 #endregion
 
 #region Removing existing blob
@@ -126,7 +125,7 @@ $storageAccount | Get-AzStorageContainer | Get-AzStorageBlob | Remove-AzStorageB
 #region Self-signed Certificate Management
 # Creates a new certificate container
 if (-not($storageAccount | Get-AzStorageContainer -Name $StorageCertificateContainerName -ErrorAction Ignore)) {
-    $storageAccount | New-AzStorageContainer -Name $StorageCertificateContainerName #-Permission Blob
+    New-AzStorageContainer -Name $StorageCertificateContainerName -Context $Context#-Permission Blob
 }
 
 #region Generating Self-signed Certificates, exporting them as .cer files and delete them from certificate store
@@ -191,20 +190,18 @@ foreach ($CurrentDSCConfiguration in $DSCConfigurations) {
 
     # Creates a new guest configuration container
     if (-not($storageAccount | Get-AzStorageContainer -Name $StorageGuestConfigurationContainerName -ErrorAction Ignore)) {
-        $storageAccount | New-AzStorageContainer -Name $StorageGuestConfigurationContainerName #-Permission Blob
+        New-AzStorageContainer -Name $StorageCertificateContainerName -Context $Context#-Permission Blob
     }
 
 
     $GuestConfigurationStorageBlob = Set-AzStorageBlobContent -Container $StorageGuestConfigurationContainerName -File $GuestConfigurationPackage.Path -Blob $GuestConfigurationPackageName -Context $Context -Force
     #$GuestConfigurationStorageBlobSASToken = New-AzStorageBlobSASToken -Context $Context -FullUri -Container $StorageGuestConfigurationContainerName -Blob $GuestConfigurationPackageName -Permission rwd -StartTime $StartTime -ExpiryTime $ExpiryTime      
-    $GuestConfigurationStorageBlobSASToken = New-AzStorageBlobSASToken -Context $Context -FullUri -Container $StorageGuestConfigurationContainerName -Blob $GuestConfigurationPackageName -Permission r -StartTime $StartTime -ExpiryTime $ExpiryTime      
     
     # Create a Policy Id
     $PolicyId = (New-Guid).Guid  
     # Define the parameters to create and publish the guest configuration policy
     $Params = @{
         "PolicyId"                  = $PolicyId
-        #"ContentUri"                = $GuestConfigurationStorageBlobSASToken
         "ContentUri"                = $GuestConfigurationStorageBlob.ICloudBlob.Uri.AbsoluteUri
         "DisplayName"               = "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $CurrentConfigurationName DSC Config."
         "Description"               = "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $CurrentConfigurationName DSC Config."

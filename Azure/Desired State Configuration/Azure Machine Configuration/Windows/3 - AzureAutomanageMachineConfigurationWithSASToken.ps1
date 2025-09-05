@@ -61,7 +61,7 @@ $StorageGuestConfigurationContainerName = "guestconfiguration"
 $StorageCertificateContainerName = "certificates"
 #Adding a 3-year expiration time from now for the SAS Token
 $StartTime = Get-Date
-$ExpiryTime = $StartTime.AddYears(3)
+$ExpiryTime = $StartTime.AddDays(7)
 
 #$GuestConfigurationPackageName = "$ConfigurationName.zip"
 #$GuestConfigurationPackageFullName  = "$PSScriptRoot\$ConfigurationName\$GuestConfigurationPackageName"
@@ -114,8 +114,7 @@ else {
 #region Public Network Access and Shared Key Access Enabled on the Storage Account
 $storageAccount | Set-AzStorageAccount -PublicNetworkAccess Enabled -AllowSharedKeyAccess $true
 Start-Sleep -Seconds 30
-$StorageAccountKey = (($storageAccount | Get-AzStorageAccountKey) | Where-Object -FilterScript { $_.KeyName -eq "key1" }).Value
-$Context = New-AzStorageContext -ConnectionString "DefaultEndpointsProtocol=https;AccountName=$StorageAccountName;AccountKey=$StorageAccountKey"
+$Context = New-AzStorageContext -StorageAccountName $StorageAccountName -UseConnectedAccount
 #endregion
 
 #region Removing existing blob
@@ -125,7 +124,7 @@ $storageAccount | Get-AzStorageContainer | Get-AzStorageBlob | Remove-AzStorageB
 #region Self-signed Certificate Management
 # Creates a new certificate container
 if (-not($storageAccount | Get-AzStorageContainer -Name $StorageCertificateContainerName -ErrorAction Ignore)) {
-    $storageAccount | New-AzStorageContainer -Name $StorageCertificateContainerName #-Permission Blob
+    New-AzStorageContainer -Name $StorageCertificateContainerName -Context $Context#-Permission Blob
 }
 
 #region Generating Self-signed Certificates, exporting them as .cer files and delete them from certificate store
@@ -170,7 +169,7 @@ foreach ($CurrentDSCConfiguration in $DSCConfigurations) {
 
     # Creates a new guest configuration container
     if (-not($storageAccount | Get-AzStorageContainer -Name $StorageGuestConfigurationContainerName -ErrorAction Ignore)) {
-        $storageAccount | New-AzStorageContainer -Name $StorageGuestConfigurationContainerName #-Permission Blob
+        New-AzStorageContainer -Name $StorageCertificateContainerName -Context $Context#-Permission Blob
     }
 
 
