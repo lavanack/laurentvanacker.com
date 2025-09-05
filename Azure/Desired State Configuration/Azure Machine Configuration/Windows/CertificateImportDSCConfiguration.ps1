@@ -110,16 +110,17 @@ Set-Location -Path $CurrentDir
 #>
 
 $AzVMCompute = Get-AzVMCompute
-#Adding a 3-year expiration time from now for the SAS Token
+#Adding a 7-day expiration time from now for the SAS Token
 $StartTime = Get-Date
 $ExpiryTime = $StartTime.AddDays(7)
 
 #Getting all certificate data from the container.
-$CertificateStorageBlobSASToken = Get-AzResourceGroup -Name $AzVMCompute.resourceGroupName | Get-AzStorageAccount | Get-AzStorageContainer -Name certificates -ErrorAction Ignore | Get-AzStorageBlob | New-AzStorageBlobSASToken -FullUri -Permission r -StartTime $StartTime -ExpiryTime $ExpiryTime      
+$StorageCertificateContainerName = "certificates"
+$CertificateStorageBlobSASToken = Get-AzResourceGroup -Name $AzVMCompute.resourceGroupName | Get-AzStorageAccount | Get-AzStorageContainer -Name $StorageCertificateContainerName -ErrorAction Ignore | Get-AzStorageBlob | New-AzStorageBlobSASToken -FullUri -Permission r -StartTime $StartTime -ExpiryTime $ExpiryTime      
 
 #Region Building an hashtable with required certificate data for building the DSC configuration 
-$CertificateConfigurationData = foreach ($CurrentertificateStorageBlobSASToken in $CertificateStorageBlobSASToken) {
-    $SASURI = $CurrentertificateStorageBlobSASToken
+$CertificateConfigurationData = foreach ($CurrentCertificateStorageBlobSASToken in $CertificateStorageBlobSASToken) {
+    $SASURI = $CurrentCertificateStorageBlobSASToken
     $DestinationPath = Join-Path -Path $env:TEMP -ChildPath $(Split-Path -Path $($SASURI -replace "\?.*") -Leaf)
     if ($DestinationPath -match ".cer$") {
         Invoke-RestMethod -Uri $SASURI -OutFile $DestinationPath
