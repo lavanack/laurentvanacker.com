@@ -118,8 +118,7 @@ Get-GuestConfigurationPackageComplianceStatus -Path $GuestConfigurationPackageFi
 #$storageAccount | Set-AzStorageAccount -AllowBlobPublicAccess $true -PublicNetworkAccess Enabled -AllowSharedKeyAccess $true
 $storageAccount | Set-AzStorageAccount -PublicNetworkAccess Enabled -AllowSharedKeyAccess $true
 Start-Sleep -Seconds 30
-$StorageAccountKey = (($storageAccount | Get-AzStorageAccountKey) | Where-Object -FilterScript { $_.KeyName -eq "key1" }).Value
-$Context = New-AzStorageContext -ConnectionString "DefaultEndpointsProtocol=https;AccountName=$StorageAccountName;AccountKey=$StorageAccountKey"
+$Context = New-AzStorageContext -StorageAccountName $StorageAccountName -UseConnectedAccount
 #endregion
 
 #region Removing existing blob
@@ -128,7 +127,7 @@ $storageAccount | Get-AzStorageContainer | Get-AzStorageBlob | Remove-AzStorageB
 
 # Creates a new container
 if (-not($storageAccount | Get-AzStorageContainer -Name $StorageContainerName -ErrorAction Ignore)) {
-    $storageAccount | New-AzStorageContainer -Name $StorageContainerName #-Permission Blob
+    New-AzStorageContainer -Name $StorageCertificateContainerName -Context $Context #-Permission Blob
 }
 
 Set-AzStorageBlobContent -Container $StorageContainerName -File $GuestConfigurationPackageFilePath -Blob $GuestConfigurationPackageFileName -Context $Context -Force
