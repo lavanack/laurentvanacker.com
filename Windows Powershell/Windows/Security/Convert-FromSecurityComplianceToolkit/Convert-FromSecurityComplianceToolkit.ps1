@@ -39,36 +39,63 @@ Function Convert-FromSecurityComplianceToolkit {
     (
     )
 
-    #region Variable Defintion
-    $BaselineURI = [ordered]@{
-        "Windows Server 2016" = "https://download.microsoft.com/download/8/5/c/85c25433-a1b0-4ffa-9429-7e023e7da8d8/Windows%2010%20Version%201607%20and%20Windows%20Server%202016%20Security%20Baseline.zip"
-        "Windows Server 2019" = "https://download.microsoft.com/download/8/5/c/85c25433-a1b0-4ffa-9429-7e023e7da8d8/Windows%2010%20Version%201809%20and%20Windows%20Server%202019%20Security%20Baseline.zip"
-        "Windows Server 2022" = "https://download.microsoft.com/download/8/5/c/85c25433-a1b0-4ffa-9429-7e023e7da8d8/Windows%20Server%202022%20Security%20Baseline.zip"
+    #region Downloading the Microsoft Security Compliance Toolkit webpage content and extracting download links from it
+    $MicrosoftSecurityComplianceToolkitDownloadURI = "https://www.microsoft.com/en-us/download/details.aspx?id=55319"
+    $Content = Invoke-RestMethod -Uri $MicrosoftSecurityComplianceToolkitDownloadURI
+    if ($Content -match '"downloadFile":(?<JSON>\[[^]]+\])') {
+        $SCTFileData = ($Matches['JSON'] | ConvertFrom-Json) | Select-Object -Property @{Name = "SKU"; Expression = { $_.Name -replace "\..*" } }, * | Group-Object -Property SKU -AsHashtable -AsString
+        Write-Verbose -Message "`$SCTFileData: $($SCTFileData | Out-String)"
+    }
+    else {
+        Write-Error -Message "Cannot find download links on '$MicrosoftSecurityComplianceToolkitDownloadURI' webpage." -ErrorAction Stop
     }
 
-    $DSCRootDirectory = Join-Path -Path $PSScriptRoot -ChildPath "ConvertedBaselineGPOs"
-    $ExtractedBaselineDirectory = Join-Path -Path $PSScriptRoot -ChildPath "ExtractedBaselines"
-    $BaselineDirectory = Join-Path -Path $PSScriptRoot -ChildPath "Baselines"
-    Remove-Item -Path $DSCRootDirectory, $ExtractedBaselineDirectory, $BaselineDirectory -Recurse -Force -ErrorAction Ignore
-    $null = New-Item -Path $DSCRootDirectory, $ExtractedBaselineDirectory, $BaselineDirectory -ItemType Directory -Force
+    #Filtering only Windows Server baselines
+    $SCTFileData = $SCTFileData.Values | Where-Object -FilterScript { $_.SKU -match "Server \d{4}" } | ForEach-Object -Process { $_ }  | Group-Object -Property SKU -AsHashtable -AsString
+    #endregion
+    
+    #region Variable Definition
+    #Creating required directories: The root directory for every iteration will be a timestamped directory in the same directory where this script resides
+    $TimeStampedDirectory = Join-Path -Path $PSScriptRoot -ChildPath $(Get-Date -Format "yyyyMMddHHmmss")
+    $DSCRootDirectory = Join-Path -Path $TimeStampedDirectory -ChildPath "ConvertedBaselines"
+    $ExtractedBaselineDirectory = Join-Path -Path $TimeStampedDirectory -ChildPath "ExtractedBaselines"
+    $BaselineDirectory = Join-Path -Path $TimeStampedDirectory -ChildPath "Baselines"
+    #endregion
 
-    foreach ($OS in $BaselineURI.Keys) {
-        Write-Verbose -Message "Processing '$OS' Operating System ..."
-        $Destination = Join-Path -Path $BaselineDirectory -ChildPath $((Split-Path -Path $BaselineURI[$OS] -Leaf) -replace "%20", "_")
-        Write-Verbose -Message "`$Destination: $Destination"
-        Start-BitsTransfer -Source $BaselineURI[$OS] -Destination $Destination
-        $DestinationPath = Join-Path -Path $ExtractedBaselineDirectory -ChildPath $OS
-        Remove-Item -Path $DestinationPath -Recurse -Force -ErrorAction Ignore
-        Write-Verbose -Message "`$DestinationPath: $DestinationPath"
-        Expand-Archive -Path $Destination -DestinationPath $DestinationPath
-        $GPODir = (Get-ChildItem -Path $DestinationPath -Filter "GPOs" -Recurse -Directory).FullName
+    $null = New-Item -Path $TimeStampedDirectory, $DSCRootDirectory, $ExtractedBaselineDirectory, $BaselineDirectory -ItemType Directory -Force
+
+    $BaselineIndex = 0
+    foreach ($Baseline in $SCTFileData.Keys) {
+        $BaselineIndex++
+        $PercentComplete = ($BaselineIndex / $SCTFileData.Keys.Count * 100)
+        Write-Verbose -Message "`$PercentComplete: $PercentComplete"
+        Write-Progress -Id 1 -Activity "[$BaselineIndex/$($SCTFileData.Keys.Count)] Processing '$Baseline' Baseline ..." -Status $("{0:N0} %" -f $PercentComplete) -PercentComplete $PercentComplete
+        Write-Host -Object "`r`nProcessing '$Baseline' Baseline ..."
+        $ConfigurationScript = Join-Path -Path $BaselineDirectory -ChildPath $((Split-Path -Path $SCTFileData[$Baseline].url -Leaf) -replace "%20", "_")
+        Write-Verbose -Message "`$ConfigurationScript: $ConfigurationScript"
+        $Source = $SCTFileData[$Baseline].url
+        Write-Verbose -Message "`$Source: $Source"
+        Start-BitsTransfer -Source $Source -Destination $ConfigurationScript
+        $ConfigurationScriptPath = Join-Path -Path $ExtractedBaselineDirectory -ChildPath $Baseline
+        Remove-Item -Path $ConfigurationScriptPath -Recurse -Force -ErrorAction Ignore
+        Write-Verbose -Message "`$ConfigurationScriptPath: $ConfigurationScriptPath"
+        Expand-Archive -Path $ConfigurationScript -DestinationPath $ConfigurationScriptPath
+        $GPODir = (Get-ChildItem -Path $ConfigurationScriptPath -Filter "GPOs" -Recurse -Directory).FullName
         Write-Verbose -Message "`$GPODir: $GPODir"
-        $ConfigName = $OS -replace "\s"
+        $ConfigName = $Baseline -replace "\s"
         Write-Verbose -Message "`$ConfigName: $ConfigName"
-        $DSCOSDirectory = Join-Path -Path $DSCRootDirectory -ChildPath $OS
+        $DSCOSDirectory = Join-Path -Path $DSCRootDirectory -ChildPath $Baseline
         Write-Verbose -Message "`$DSCOSDirectory: $DSCOSDirectory"
         
-        foreach ($CurrentGPODir in (Get-ChildItem -Path $GPODir -Directory)) {
+
+        $GPOIndex = 0
+        $GPODirs = (Get-ChildItem -Path $GPODir -Directory)
+        foreach ($CurrentGPODir in $GPODirs) {
+            $GPOIndex++
+            $PercentComplete = ($GPOIndex / $GPODirs.Count * 100)
+            Write-Verbose -Message "`$PercentComplete: $PercentComplete"
+            Write-Progress -Id 2 -Activity "[$GPOIndex/$($GPODirs.Count)] Processing '$GPOName' GPO ..." -Status $("{0:N0} %" -f $PercentComplete) -PercentComplete $PercentComplete
+
             Write-Verbose -Message "`$CurrentGPODir: $CurrentGPODir"
             if ((Get-Content -Path "$($CurrentGPODir)\bkupInfo.xml" -Raw) -match "<GPODisplayName><!\[CDATA\[(.+)\]\]></GPODisplayName>") {
                 $GPOName = $Matches[1] -replace '\W', '_'
@@ -77,44 +104,94 @@ Function Convert-FromSecurityComplianceToolkit {
             else {
                 Write-Warning -Message "Cannot find GPO name in '$($CurrentGPODir)\bkupInfo.xml'."
             }
-            Write-Verbose -Message "`tProcessing '$GPOName' GPO ..."
+            Write-Host -Object "- Processing '$GPOName' GPO ..."
             <#
             $GPOName = ([regex]"<GPODisplayName><!\[CDATA\[(.+)\]\]></GPODisplayName>").Matches((Get-Content -Path "$($CurrentGPODir)\bkupInfo.xml" -Raw)).captures.groups[1].value
             Write-Verbose -Message "`$GPOName: $GPOName"
             #>
             # !BEWARE! creating of some localhost.mof can (probably will) end with an error https://github.com/microsoft/BaselineManagement?tab=readme-ov-file#known-gaps-in-capability
-            # problematic ps1 parts have to be commented otherwise you will not be able to create DSC from it!
-            #Note: 
-            # For Windows Server 2016 and 2019, the Network_access_Restrict_clients_allowed_to_make_remote_calls_to_SAM: has to be commented (with <# ...#> tags) in the generated ps1 file. 
-            # After you have to run the .ps1 file to generate the localhost.mof file. This occurs after running the ConvertFrom-GPO
-            # For Windows Server 2022, We have to comment (with ;) the line that contains the property 'LdapEnforceChannelBinding' in the related GptTmpl.inf file before running the ConvertFrom-GPO cmdlet. This occurs before running the ConvertFrom-GPO
+            # problematic ps1 parts have to be commented otherwise you will not be able to create DSC from it! This script will try to do it for you
+            # you will have to manually check the created configuration script and uncomment the commented parts if you want to use them
+            # you can also try to fix the generated configuration script (if any) and re-run the script
             $DSCGPODirectory = Join-Path -Path $DSCOSDirectory -ChildPath $GPOName
             Write-Verbose -Message "`$DSCGPODirectory: $DSCGPODirectory"
 
             try {
-                $ConvertedGpo = ConvertFrom-GPO -Path $CurrentGPODir -OutputConfigurationScript -OutputPath $DSCGPODirectory -ConfigName $GPOName -ShowPesterOutput -ErrorAction Stop
+                #$ConvertedGpo = ConvertFrom-GPO -Path $CurrentGPODir -OutputConfigurationScript -OutputPath $DSCGPODirectory -ConfigName $GPOName -ShowPesterOutput -ErrorAction Stop
+                $ConvertedGpo = ConvertFrom-GPO -Path $CurrentGPODir -OutputConfigurationScript -OutputPath $DSCGPODirectory -ConfigName $GPOName -ErrorAction Stop
+                Write-Host -Object " - Successfully converted '$GPOName' GPO to DSC."
+                Write-Verbose -Message "`$ConvertedGpo: $($ConvertedGpo | Out-String)"
             }
             catch {
-                if ($Error[1].ErrorDetails.Message -like "Invalid MOF definition*") {
-                    $Destination = Join-Path -Path $DSCGPODirectory -ChildPath "$GPOName.ps1"
-                    Write-Warning "In '$Destination' comment setting that contains property mentioned in this error:`r`n'$($Error[1].ErrorDetails.Message)'.`r`nOtherwise you will not be able to generate guest configuration from it!"
+                if ($Error[1].ErrorDetails.Message -match "Invalid MOF definition") {
+                    $ConfigurationScript = Join-Path -Path $DSCGPODirectory -ChildPath "$GPOName.ps1"
+                    Write-Warning -Message "- In '$ConfigurationScript' comment setting that contains property mentioned in this error:`r`n'$($Error[1].ErrorDetails.Message)'.`r`nOtherwise you will not be able to generate guest configuration from it!"
+                    if ($Error[1].ErrorDetails.Message -match "property\s+'(\w*)'\s") {
+                        $Property = $Matches[1]
+                        Write-Verbose -Message "`$Property: $Property"
+                        # Define the regex pattern to match everything until the next }, including new lines
+                        $Pattern = "([^\r\n]+$Property[^\}]+\})"
+                        
+                        # Use regex to find all matches
+                        $FileContent = Get-Content -Path $ConfigurationScript -Raw
+                        $MyMatches = [regex]::Matches($FileContent, $Pattern)
+                        if ($MyMatches) {
+                            [regex]::Replace($FileContent, $Pattern, "<# Fixed by '$($MyInvocation.MyCommand)'`r`n`$1`r`n#>") | Set-Content -Path $ConfigurationScript
+                            Write-Verbose -Message "Commenting setting that contains property '$Property' in '$ConfigurationScript'."
+                            #Removing the faulty localhost.mof.error file if exists
+                            $null = Get-ChildItem -Path $DSCGPODirectory -Filter localhost.mof.error |  Remove-Item -ErrorAction Ignore -Force
+                            #Recalling the Configuration Script after fixing it (for generating a valid localhost.mof file)
+                            & $ConfigurationScript | Out-Null
+                            if (Test-Path -Path $(Join-Path -Path $DSCGPODirectory -ChildPath localhost.mof) -PathType Leaf) {
+                                Write-Host -Message " - Repair successful!" -ForegroundColor Green
+                            }
+                            else {
+                                Write-Warning -Message " - Repair failed!"
+                            }
+                        }
+                    }
+                    else {
+                        Write-Warning "Cannot find property name in error message: '$($Error[1].ErrorDetails.Message)'."
+                    }
                 }
                 else {
-                    Write-Error $_
+                    Write-Error $_.Exception.Message
+                    if ($_.Exception.Message -match "^.*\s(?<file>\S*)\sfile.*'(?<entry>.*)'.*unknown value.*$") {
+                        $File = $Matches['file']
+                        $Entry = $Matches['entry']
+                        Write-Verbose -Message "`$File: $File"
+                        Write-Verbose -Message "`$Entry: $Entry"
+                        Get-ChildItem -Path $CurrentGPODir -Filter $File -File -Recurse | ForEach-Object {
+                            Write-Verbose -Message "`Fixing error by removing the problematic '$Entry' entry in the '$($_.FullName)' file"
+                            $Pattern = "(^{0}.*$)" -f ($Entry -replace "(\W)", "\\$1")
+                            #(Get-Content -Path $_.FullName) -replace $Pattern, '#$1' | Set-Content -Path $_.FullName
+                            (Get-Content -Path $_.FullName) -replace $Pattern | Set-Content -Path $_.FullName
+                            Write-Verbose -Message "Commenting entry '$Entry' in '$($_.FullName)'."
+                            try {
+                                $ConvertedGpo = ConvertFrom-GPO -Path $CurrentGPODir -OutputConfigurationScript -OutputPath $DSCGPODirectory -ConfigName $GPOName -ShowPesterOutput -ErrorAction Stop
+                                Write-Host -Message " - Repair successful!" -ForegroundColor Green
+                                Write-Verbose -Message "`$ConvertedGpo: $($ConvertedGpo | Out-String)"
+                            }
+                            catch {
+                                Write-Error $_.Exception.Message
+                            }
+                        }   
+                    }
                 }
             }
-            <#
-        # Disabling MOF compilation part (last line) I will compile it by myself later
-        $ConfigurationScript = Join-Path -Path $DSCOSDirectory -ChildPath "$ConfigName.ps1"
-        (Get-Content -Path $ConfigurationScript) -replace "($ConfigName -OutputPath)", '#$1' | Set-Content -Path $ConfigurationScript
-        #>
         }
+        Write-Progress -Id 2 -Completed -Activity 'GPO processing completed.'
+        <#
+            # Disabling MOF compilation part (last line) I will compile it by myself later
+            $ConfigurationScript = Join-Path -Path $DSCGPODirectory -ChildPath "$GPOName.ps1"
+            (Get-Content -Path $ConfigurationScript) -replace "($ConfigName -OutputPath)", '#$1' | Set-Content -Path $ConfigurationScript
+            #>
     }
-    #endregion
+    Write-Progress -Id 1 -Completed -Activity 'Baseline processing completed.'
+    Get-ChildItem -Path $TimeStampedDirectory -Recurse -Filter localhost.mof.error
 }
+
 #endregion
-
-
 
 #region Main Code
 Clear-Host
@@ -125,5 +202,5 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
-Convert-FromSecurityComplianceToolkit -Verbose
+Convert-FromSecurityComplianceToolkit #-Verbose
 #endregion
