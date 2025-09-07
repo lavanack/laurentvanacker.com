@@ -208,7 +208,9 @@ Function Convert-FromSecurityComplianceToolkit {
         }
     }
     Write-Progress -Id 1 -Completed -Activity 'Baseline processing completed.'
-    #Get-ChildItem -Path $OutPut -Recurse -Filter localhost.mof.error
+    if (Get-ChildItem -Path $OutPut -Recurse -Filter localhost.mof.error -File) {
+        Write-Warning -Message "Some localhost.mof.error files have been found (despite auto-repair process). Please check them and fix the corresponding configuration scripts."
+    }
 }
 
 #endregion
