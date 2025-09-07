@@ -114,7 +114,7 @@ else {
 #endregion
 
 #region Public Network Access and Shared Key Access Enabled on the Storage Account
-$storageAccount | Set-AzStorageAccount -PublicNetworkAccess Enabled -AllowSharedKeyAccess $true
+$storageAccount | Set-AzStorageAccount -PublicNetworkAccess Enabled -AllowSharedKeyAccess $false
 Start-Sleep -Seconds 30
 $Context = New-AzStorageContext -StorageAccountName $StorageAccountName -UseConnectedAccount
 #endregion
