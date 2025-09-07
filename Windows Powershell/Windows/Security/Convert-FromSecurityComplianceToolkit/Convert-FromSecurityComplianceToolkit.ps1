@@ -33,10 +33,19 @@ param
 )
 
 #region Function Definition
-<#
-#>
-
 Function Convert-FromSecurityComplianceToolkit {
+    <#
+    .SYNOPSIS
+      Function that converts the Microsoft Security Compliance Toolkit baslines to DSC configuration scripts
+    .DESCRIPTION
+      Function that converts the Microsoft Security Compliance Toolkit baslines to DSC configuration scripts
+    .PARAMETER  OutPut
+      The root output directory where the baselines and DSC configuration scripts will be stored
+    .EXAMPLE
+      PS C:\> Convert-FromSecurityComplianceToolkit 
+    .EXAMPLE
+      PS C:\> Convert-FromSecurityComplianceToolkit -OutPut "C:\Temp\SCT" -Verbose
+   #>
     [CmdletBinding()]
     param
     (
