@@ -80,6 +80,7 @@ Function Convert-FromSecurityComplianceToolkit {
     $null = New-Item -Path $OutPut, $DSCRootDirectory, $ExtractedBaselineDirectory, $BaselineDirectory -ItemType Directory -Force
 
     $BaselineIndex = 0
+    $AutoFixes = @()
     foreach ($Baseline in $SCTFileData.Keys) {
         $BaselineIndex++
         $PercentComplete = ($BaselineIndex / $SCTFileData.Keys.Count * 100)
@@ -163,7 +164,8 @@ Function Convert-FromSecurityComplianceToolkit {
                             if ($MyMatches) {
                                 #Fixing the configuration script by commenting the faulty setting
                                 [regex]::Replace($FileContent, $Pattern, "<# Fixed by '$($MyInvocation.MyCommand)'`r`n`$1`r`n#>") | Set-Content -Path $ConfigurationScript
-                                Write-Verbose -Message "Commenting setting that contains property '$Property' in '$ConfigurationScript'."
+                                $Message = "Commenting setting that contains property '$Property' in '$ConfigurationScript'."
+                                Write-Verbose -Message $Message
                                 #Removing the faulty localhost.mof.error file if exists
                                 $null = Get-ChildItem -Path $DSCGPODirectory -Filter localhost.mof.error |  Remove-Item -ErrorAction Ignore -Force
                                 #Recalling the Configuration Script after fixing it (for generating a valid localhost.mof file)
@@ -171,6 +173,7 @@ Function Convert-FromSecurityComplianceToolkit {
                                 #Testing if the localhost.mof file has been successfully created
                                 if (Test-Path -Path $(Join-Path -Path $DSCGPODirectory -ChildPath localhost.mof) -PathType Leaf) {
                                     Write-Host -Message " - Repair successful!" -ForegroundColor Green
+                                    $AutoFixes += [PSCustomObject]@{FullName = $ConfigurationScript; Fix = "Commented setting that contains property '$Property'" }
                                 }
                                 else {
                                     Write-Warning -Message " - Repair failed!"
@@ -195,11 +198,13 @@ Function Convert-FromSecurityComplianceToolkit {
                                 #(Get-Content -Path $_.FullName) -replace $Pattern, '#$1' | Set-Content -Path $_.FullName
                                 #Removing the problematic entry by replacing it with an empty string
                                 (Get-Content -Path $_.FullName) -replace $Pattern | Set-Content -Path $_.FullName
-                                Write-Verbose -Message "Commenting entry '$Entry' in '$($_.FullName)'."
+                                $Message = "Removing entry '$Entry' in '$($_.FullName)'."
+                                Write-Verbose -Message $Message
                                 try {
                                     #Trying the conversion again after fixing the problematic entry
                                     $ConvertedGpo = ConvertFrom-GPO -Path $CurrentGPODir -OutputConfigurationScript -OutputPath $DSCGPODirectory -ConfigName $GPOName -ShowPesterOutput -ErrorAction Stop
                                     Write-Host -Message " - Repair successful!" -ForegroundColor Green
+                                    $AutoFixes += [PSCustomObject]@{FullName = $_.FullName; Fix = "Removing entry '$Entry'" }
                                     Write-Verbose -Message "`$ConvertedGpo: $($ConvertedGpo | Out-String)"
                                 }
                                 catch {
@@ -219,6 +224,9 @@ Function Convert-FromSecurityComplianceToolkit {
     Write-Progress -Id 1 -Completed -Activity 'Baseline processing completed.'
     if (Get-ChildItem -Path $OutPut -Recurse -Filter localhost.mof.error -File) {
         Write-Warning -Message "Some localhost.mof.error files have been found (despite auto-repair process). Please check them and fix the corresponding configuration scripts."
+    }
+    if ($AutoFixes.Count -gt 0) {
+        Write-Host -Message "AutoFixes:`r`n$($AutoFixes | Out-String)"
     }
 }
 
