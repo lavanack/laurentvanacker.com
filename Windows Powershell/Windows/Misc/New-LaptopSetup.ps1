@@ -105,6 +105,7 @@ winget install --exact --id=Microsoft.Azure.AZCopy.10
 winget install --exact --id=Microsoft.Bicep
 winget install --exact --id=Microsoft.AzureCLI
 winget install --exact --id=Hashicorp.Terraform
+#winget install --exact --id=Microsoft.Azure.FunctionsCoreTools
 #winget install --exact --id=Microsoft.VisualStudioCode
 
 #region Git
@@ -128,11 +129,19 @@ Pop-Location
 #endregion
 #endregion
 
+#region Entertainment
 winget install "WhatsApp" --accept-package-agreements --accept-source-agreements --source msstore
 #winget install "Snapchat" --accept-package-agreements --accept-source-agreements --source msstoremsstore
 winget install "Disney+" --accept-package-agreements --accept-source-agreements --source msstore
 winget install "Netflix" --accept-package-agreements --accept-source-agreements --source msstore
 winget install "Prime Video for Windows" --accept-package-agreements --accept-source-agreements --source msstore
+#endregion
+#endregion
+
+
+#region Terraform Tools
+winget install --exact --id=AquaSecurity.Trivy
+winget install --exact --id=TerraformLinters.tflint
 #endregion
 
 #region Other Ways

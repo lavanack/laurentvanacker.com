@@ -43,7 +43,7 @@ Configuration DisableSMBv1DSCConfiguration {
             TestScript = {
                 # Create and invoke a scriptblock using the $GetScript automatic variable, which contains a string representation of the GetScript.
                 $state = [scriptblock]::Create($GetScript).Invoke()
-                return ($state.Result -eq "DisabledWithPayloadRemoved")
+                return ($state.Result -in "DisabledWithPayloadRemoved", "Disabled")
             }
         }
 

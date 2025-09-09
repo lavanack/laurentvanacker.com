@@ -1,16 +1,14 @@
-name: Deploy Azure Infra with Terraform
+name: Terraform - Deploy Azure Infra On Push
 on:
   push:
     branches: [ "master" ]
     paths:
-      - 'Azure/Terraform/Github Actions/**'
-  pull_request:
+      - 'Azure/Terraform/Github Actions/*.tf'
   workflow_dispatch:
 
 permissions:
   contents: read
   id-token: write
-  pull-requests: write
   security-events: write
 
 env:
@@ -20,6 +18,73 @@ env:
   ARM_USE_AZUREAD: true
 
 jobs:
+  terraform-security-scans:
+    name: Terraform Security Scans
+    runs-on: ubuntu-latest
+    permissions:
+       # Potentially needed for private repositories (see https://github.com/github/codeql-action/issues/2117)
+      actions: read
+      # Needed to clone repo
+      contents: read
+      # Needed to upload-sarif
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Perform a security scan of the terraform code using tfsec
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-sarif-action@21ded20e8ca120cd9d3d6ab04ef746477542a608
+        with:
+          sarif_file: tfsec.sarif
+
+      - name: Print SARIF file for debugging
+        run: cat tfsec.sarif
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          # Path to SARIF file relative to the root of the repository
+          sarif_file: tfsec.sarif
+
+      # Perform a security scan of the terraform code using Trivy
+      - name: Run Trivy vulnerability scanner in IaC mode
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'config'
+          scan-ref: "Azure/Terraform/Github Actions/"
+          hide-progress: true
+          format: 'sarif'
+          output: 'trivy.sarif'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
+
+      - name: Print SARIF file for debugging
+        run: cat trivy.sarif
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy.sarif
+
+      # Perform a security scan of the terraform code using checkov
+      - name: Run Checkov action
+        id: checkov
+        uses: bridgecrewio/checkov-action@master
+        with: 
+          framework: terraform
+          output_format: sarif
+          soft_fail: true
+
+        # Upload results to GitHub Advanced Security
+      - name: Upload SARIF file
+        if: success() || failure()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+          category: checkov          
+          
   terraform-plan:
     defaults:
       run:
@@ -55,12 +120,6 @@ jobs:
         id: validate
         run: terraform validate -no-color
 
-      - name: tfsec
-        uses: aquasecurity/tfsec-pr-commenter-action@v1.2.0
-        with:
-          tfsec_args: --soft-fail
-          github_token: ${{ github.token }}
-    
       - name: Terraform Plan
         id: plan
         run: |

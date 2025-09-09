@@ -21,7 +21,7 @@ variable "resource_group_names" {
 }
 
 variable "region" {
-  type = string
+  type    = string
   default = "eastus2"
 }
 

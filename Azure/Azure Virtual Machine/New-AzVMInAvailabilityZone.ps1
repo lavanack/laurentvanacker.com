@@ -15,18 +15,18 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.Network, Az.Resources, Az.Security, Az.Storage
+#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.KeyVault, Az.Network, Az.Resources, Az.Security, Az.Storage
 
 [CmdletBinding()]
 param
 (
     [Alias("Zone")]
     [ValidateSet(1,2,3)]
-    [int] $AvailabilityZone = 1,
+    [int] $AvailabilityZone = 3,
     [ValidateScript({$_ -in (Get-AzLocation).Location})]
     [string] $Location = "francecentral",
     [Alias("Sku")]
-    [string] $VMSize = "Standard_D4S_v4"
+    [string] $VMSize = "Standard_D4as_v5"
 )
 
 
@@ -88,12 +88,16 @@ $JitPolicyName = "Default"
 #$VMSize = "Standard_D4s_v5"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
+$KeyVaultPrefix = "kv"
 $ResourceGroupPrefix = "rg"
 $StorageAccountPrefix = "sa"
 $VirtualMachinePrefix = "vm"
 $NetworkSecurityGroupPrefix = "nsg"
 $VirtualNetworkPrefix = "vnet"
 $SubnetPrefix = "snet"
+$DiskEncryptionSetPrefix = "des"
+$DiskEncryptionKeyPrefix = "dek"
+
 $Project = "az"
 $Role = "poc"
 #$DigitNumber = 4
@@ -103,12 +107,16 @@ Do {
     $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
     $StorageAccountName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $StorageAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
     $VMName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $VirtualMachinePrefix, $Project, $Role, $LocationShortName, $Instance                       
-} While ((-not(Test-AzDnsAvailability -DomainNameLabel $VMName -Location $Location)) -or ((-not(Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable)))
+    $KeyVaultName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $KeyVaultPrefix, $Project, $Role, $LocationShortName, $Instance                       
+    $KeyVaultName = $KeyVaultName.ToLower()
+} While ((-not(Test-AzDnsAvailability -DomainNameLabel $VMName -Location $Location)) -or (-not(Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable) -or (-not(Test-AzKeyVaultNameAvailability -Name $KeyVaultName).NameAvailable))
 
 $NetworkSecurityGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $NetworkSecurityGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $VirtualNetworkName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $VirtualNetworkPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $SubnetName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $SubnetPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
+$DiskEncryptionSetName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $DiskEncryptionSetPrefix, $Project, $Role, $LocationShortName, $Instance                       
+$DiskEncryptionKeyName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $DiskEncryptionKeyPrefix, $Project, $Role, $LocationShortName, $Instance
 
 $StorageAccountName = $StorageAccountName.ToLower()
 $VMName = $VMName.ToLower()
@@ -116,9 +124,13 @@ $NetworkSecurityGroupName = $NetworkSecurityGroupName.ToLower()
 $VirtualNetworkName = $VirtualNetworkName.ToLower()
 $SubnetName = $SubnetName.ToLower()
 $ResourceGroupName = $ResourceGroupName.ToLower()
+$DiskEncryptionSetName = $DiskEncryptionSetName.ToLower()
+$DiskEncryptionKeyName = $DiskEncryptionKeyName.ToLower()
+
 $VirtualNetworkAddressSpace = "10.10.0.0/16" # Format 10.10.0.0/16
 $SubnetIPRange = "10.10.1.0/24" # Format 10.10.1.0/24                         
 $FQDN = "$VMName.$Location.cloudapp.azure.com".ToLower()
+$DiskEncryptionKeyDestination = "Software"
 
 
 #region Defining credential(s)
@@ -162,15 +174,20 @@ Write-Verbose "`$FQDN: $FQDN"
 #endregion
 
 
+$AzComputeResourceSku = (Get-AzComputeResourceSku -Location $Location | Where-Object -FilterScript { ($null -ne $_.LocationInfo.Zones) -and ($_.ResourceType -eq 'virtualmachines') -and ($_.Name -eq $VMSize)})
 if ($VMName.Length -gt $AzureVMNameMaxLength) {
     Write-Error "'$VMName' exceeds $AzureVMNameMaxLength characters" -ErrorAction Stop
 }
 elseif (-not($LocationShortName)) {
     Write-Error "No location short name found for '$Location'" -ErrorAction Stop
 }
-elseif ($null -eq (Get-AZVMSize -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
+elseif ($null -eq $AzComputeResourceSku) {
     Write-Error "The '$VMSize' is not available in the '$Location' location ..." -ErrorAction Stop
 }
+elseif ($AvailabilityZone -eq $AzComputeResourceSku.Zones) {
+    Write-Error "The '$VMSize' is not available in the '$AvailabilityZone' Availability Zone in the '$Location' location ..." -ErrorAction Stop
+}
+
 
 #Step 1: Create Azure Resource Group
 # Create Resource Groups
@@ -219,7 +236,10 @@ $image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.Publi
 #>
 
 # Step 9: Create a virtual machine configuration file (As a Spot Intance)
-$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Zone $AvailabilityZone -Priority "Spot" -MaxPrice -1
+#$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Zone $AvailabilityZone -Priority "Spot" -MaxPrice -1-SecurityType TrustedLaunch -IdentityType SystemAssigned
+# Step 9: Create a virtual machine configuration file (With Hibernation)
+$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Zone $AvailabilityZone -SecurityType TrustedLaunch -IdentityType SystemAssigned -HibernationEnabled
+
 
 Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 
@@ -234,14 +254,44 @@ Set-AzVMBootDiagnostic -VM $VMConfig -Enable
 # The uncommented lines below replace Step #8 : Set virtual machine source image
 Set-AzVMSourceImage -VM $VMConfig -PublisherName $ImagePublisherName -Offer $ImageOffer -Skus $ImageSku -Version 'latest'
 
+#region Setting up the Key Vault for Disk Encryption
+#Create an Azure Key Vault
+$KeyVault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $Location -EnabledForDiskEncryption -EnablePurgeProtection
+
+#region "Key Vault Administrator" RBAC Assignment
+$RoleDefinition = Get-AzRoleDefinition "Key Vault Administrator"
+$WhoAmI = (Get-AzADUser -UserPrincipalName (Get-AzContext).Account.Id)
+$RoleAssignment = New-AzRoleAssignment -ObjectId $WhoAmI.Id -RoleDefinitionName $RoleDefinition.Name -Scope $KeyVault.ResourceId -ErrorAction Ignore #-Debug
+Start-Sleep -Seconds 30
+#endregion
+
+#FROM https://learn.microsoft.com/en-us/azure/virtual-machines/windows/disks-enable-customer-managed-keys-powershell#set-up-an-azure-key-vault-and-diskencryptionset-optionally-with-automatic-key-rotation
+$key = Add-AzKeyVaultKey -VaultName $keyVaultName -Name $DiskEncryptionKeyName -Destination $DiskEncryptionKeyDestination
+$DiskEncryptionSetConfig = New-AzDiskEncryptionSetConfig -Location $Location -SourceVaultId $keyVault.ResourceId -KeyUrl $key.Key.Kid -IdentityType SystemAssigned -RotationToLatestKeyVersionEnabled $true
+$DiskEncryptionSet = New-AzDiskEncryptionSet -Name $DiskEncryptionSetName -ResourceGroupName $ResourceGroupName -InputObject $DiskEncryptionSetConfig
+$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $keyVaultName -ObjectId $DiskEncryptionSet.Identity.PrincipalId -PermissionsToKeys wrapKey, unwrapKey, get
+
+#As the owner of the key vault, you automatically have access to create secrets. If you need to let another user create secrets, use:
+#$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -UserPrincipalName $WhoAmI.UserPrincipalName -PermissionsToSecrets Get,Delete,List,Set -PassThru
+#endregion 
+
+#From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/disks-enable-host-based-encryption-powershell#create-an-azure-key-vault-and-diskencryptionset
+# Grant the DiskEncryptionSet resource access to the key vault.
+#Set-AzKeyVaultAccessPolicy -VaultName $keyVaultName -ObjectId $DiskEncryptionSet.Identity.PrincipalId -PermissionsToKeys wrapkey,unwrapkey,get -Verbose
+#region "Key Vault Crypto Service Encryption User" RBAC Assignment
+$RoleDefinition = Get-AzRoleDefinition "Key Vault Crypto Service Encryption User"
+$RoleAssignment = New-AzRoleAssignment -ObjectId $DiskEncryptionSet.Identity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $KeyVault.ResourceId -ErrorAction Ignore #-Debug
+Start-Sleep -Seconds 30
+#endregion
+
 # Set OsDisk configuration
-Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -CreateOption fromImage
+Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -DiskEncryptionSetId $DiskEncryptionSet.Id -CreateOption fromImage
 
 #region Adding Data Disk
 <#
 $VMDataDisk01Config = New-AzDiskConfig -SkuName $OSDiskType -Location $Location -CreateOption Empty -DiskSizeGB 512
 $VMDataDisk01 = New-AzDisk -DiskName $DataDiskName -Disk $VMDataDisk01Config -ResourceGroupName $ResourceGroupName
-$VM = Add-AzVMDataDisk -VM $VMConfig -Name $DataDiskName -Caching 'ReadWrite' -CreateOption Attach -ManagedDiskId $VMDataDisk01.Id -Lun 0
+$VM = Add-AzVMDataDisk -VM $VMConfig -Name $DataDiskName -Caching 'ReadWrite' -CreateOption Attach -ManagedDiskId $VMDataDisk01.Id -Lun 0 -DiskEncryptionSetId $DiskEncryptionSet.Id 
 #>
 #endregion
 

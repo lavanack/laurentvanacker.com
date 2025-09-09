@@ -1,4 +1,5 @@
-﻿#Installing PowerShell
+﻿
+#Installing PowerShell
 wget https://aka.ms/install-powershell.sh; sudo bash install-powershell.sh; rm install-powershell.sh
 
 #https://github.com/orgs/PowerShell/discussions/15310

@@ -1,10 +1,11 @@
+#Unit Tests
 # main.tftest.hcl
 
 #mock_provider "azurerm" {}
 
 # Test resource group
 run "verify_resource_group" {
-	command = plan
+  command = plan
 
   assert {
     condition     = azurerm_resource_group.main.name == "${var.prefix}-resources"
@@ -18,7 +19,7 @@ run "verify_resource_group" {
 }
 
 run "verify_virtual_network" {
-	command = plan
+  command = plan
 
   assert {
     condition     = azurerm_virtual_network.main.name == "${var.prefix}-network"
@@ -31,11 +32,9 @@ run "verify_virtual_network" {
   }
 }
 
-
-
 run "verify_windows_virtual_machine" {
-	command = plan
-	#command = apply
+  command = plan
+  #command = apply
 
   assert {
     condition     = azurerm_windows_virtual_machine.main.size == "Standard_F2"

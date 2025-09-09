@@ -234,7 +234,7 @@ function Get-GitFile {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Destination: $($(@($Destination) * $($FileURIs.Count)) -join ', ')"
         Start-BitsTransfer -Source $FileURIs -Destination $(@($Destination) * $($FileURIs.Count))
         #Getting the url-decoded local file path 
-        $DestinationFiles = $FileURIs | ForEach-Object -Process { $FileName = $_ -replace ".*/"; $DecodedFileName = [System.Web.HttpUtility]::UrlDecode($FileName); Rename-Item -Path $(Join-Path -Path $Destination -ChildPath $FileName) -NewName $DecodedFileName -PassThru  }
+        $DestinationFiles = $FileURIs | ForEach-Object -Process { $FileName = $_ -replace ".*/"; $DecodedFileName = [System.Web.HttpUtility]::UrlDecode($FileName); Rename-Item -Path $(Join-Path -Path $Destination -ChildPath $FileName) -NewName $DecodedFileName -PassThru }
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DestinationFiles: $($DestinationFiles -join ', ')"
     }
     else {
@@ -310,14 +310,18 @@ $ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/
 $shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @{Name = 'Location'; Expression = { $AzLocation[$_.name].Location } } | Where-Object -FilterScript { $_.Location } | Group-Object -Property Location -AsHashTable -AsString
 #endregion
 
+#region Building an Hashtable to get the shortname of every Azure resource based on a JSON file on the Github repository of the Azure Naming Tool
+$Result = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/refs/heads/main/src/repository/resourcetypes.json 
+$ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -in @('', 'Windows') } | Select-Object -Property resource, shortName, lengthMax | Group-Object -Property resource -AsHashTable -AsString
+#endregion
+
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
-	Connect-AzAccount
+    Connect-AzAccount
 }
 #endregion
 
 
-$AzureVMNameMaxLength = 15
 $RDPPort = 3389
 $JITPolicyPorts = $RDPPort
 $JitPolicyTimeInHours = 3
@@ -325,17 +329,20 @@ $JitPolicyName = "Default"
 $Location = "eastus2"
 $VMSize = "Standard_D4s_v5"
 $LocationShortName = $shortNameHT[$Location].shortName
-#Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
-$ResourceGroupPrefix = "rg"
-$StorageAccountPrefix = "sa"
-$VirtualMachinePrefix = "vm"
-$NetworkSecurityGroupPrefix = "nsg"
-$VirtualNetworkPrefix = "vnet"
-$SubnetPrefix = "snet"
+#Naming convention based on https://github.com/mspnp/AzureNamingTool/blob/main/src/repository/resourcetypes.json
+$AzureVMNameMaxLength = $ResourceTypeShortNameHT["Compute/virtualMachines"].lengthMax
+$ResourceGroupPrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
+$StorageAccountPrefix = $ResourceTypeShortNameHT["Storage/storageAccounts"].ShortName
+$VirtualMachinePrefix = $ResourceTypeShortNameHT["Compute/virtualMachines"].ShortName
+$NetworkSecurityGroupPrefix = $ResourceTypeShortNameHT["Network/networkSecurityGroups"].ShortName
+$VirtualNetworkPrefix = $ResourceTypeShortNameHT["Network/virtualNetworks"].ShortName
+$SubnetPrefix = $ResourceTypeShortNameHT["Network/virtualnetworks/subnets"].ShortName
+
+
 $Project = "dsc"
 $Role = "amc"
 #$DigitNumber = 4
-$DigitNumber = $AzureVMNameMaxLength-($VirtualMachinePrefix+$Project+$Role+$LocationShortName).Length
+$DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role + $LocationShortName).Length
 
 Do {
     $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
@@ -416,7 +423,22 @@ elseif ($null -eq (Get-AzComputeResourceSku -Location $Location | Where-Object -
 $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 
 #Step 2: Create Azure Storage Account
-$StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true -AllowBlobPublicAccess $true
+$StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true -AllowBlobPublicAccess $false
+#region 'Storage Blob Data Contributor' RBAC Assignment
+$RoleDefinition = Get-AzRoleDefinition -Name "Storage Blob Data Contributor"
+$Parameters = @{
+    SignInName         = (Get-AzContext).Account.Id
+    RoleDefinitionName = $RoleDefinition.Name
+    Scope              = $StorageAccount.Id
+}
+while (-not(Get-AzRoleAssignment @Parameters)) {
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
+    $RoleAssignment = New-AzRoleAssignment @Parameters
+    Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+    Start-Sleep -Seconds 30
+}
+#endregion 
 
 #Step 3: Create Azure Network Security Group
 #RDP only for my public IP address
@@ -457,7 +479,7 @@ $image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.Publi
 #>
 
 # Step 9: Create a virtual machine configuration file (As a Spot Intance)
-$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1
+$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1 #-IdentityType SystemAssigned
 
 $null = Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 
@@ -494,14 +516,14 @@ $NewJitPolicy = (
     @{
         id    = $VM.Id
         ports = 
-            foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
-                @{
-                    number                     = $CurrentJITPolicyPort;
-                    protocol                   = "*";
-                    allowedSourceAddressPrefix = "*";
-                    maxRequestAccessDuration   = "PT$($JitPolicyTimeInHours)H"
-                }
+        foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
+            @{
+                number                     = $CurrentJITPolicyPort;
+                protocol                   = "*";
+                allowedSourceAddressPrefix = "*";
+                maxRequestAccessDuration   = "PT$($JitPolicyTimeInHours)H"
             }
+        }
     }
 )
 
@@ -521,13 +543,13 @@ $JitPolicy = (
     @{
         id    = $VM.Id
         ports = 
-            foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
-                @{
-                    number                     = $CurrentJITPolicyPort;
-                    endTimeUtc                 = (Get-Date).AddHours($JitPolicyTimeInHours).ToUniversalTime()
-                    allowedSourceAddressPrefix = @($MyPublicIP) 
-                }
+        foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
+            @{
+                number                     = $CurrentJITPolicyPort;
+                endTimeUtc                 = (Get-Date).AddHours($JitPolicyTimeInHours).ToUniversalTime()
+                allowedSourceAddressPrefix = @($MyPublicIP) 
             }
+        }
     }
 )
 $ActivationVM = @($JitPolicy)
@@ -560,10 +582,10 @@ Start-Sleep -Seconds 15
 $URI = "https://api.github.com/repos/lavanack/laurentvanacker.com/contents/Azure/Desired%20State%20Configuration/Azure%20Machine%20Configuration"
 $Destination = Join-Path -Path $env:SystemDrive -ChildPath $([System.Web.HttpUtility]::UrlDecode($(Split-Path -Path $URI -Leaf)))
 #Parameter value can be string type only when used with Invoke-AzVMRunCommand
-$Parameter = @{URI = $URI; Destination = $Destination; Recurse = [boolean]::TrueString}
+$Parameter = @{URI = $URI; Destination = $Destination; Recurse = [boolean]::TrueString }
 $ScriptPath = Join-Path -Path $CurrentDir -ChildPath "..\Get-GitFile.ps1" -Resolve
 
-While (Get-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName)  {
+While (Get-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName) {
     Start-Sleep -Seconds 30 
 } 
 
@@ -574,7 +596,7 @@ $RunPowerShellScript
 
 #region Run PowerShell Script: Setting TimeZone to the local one
 #Testing if an AzRunCommand is already running
-While (Get-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName)  {
+While (Get-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName) {
     Start-Sleep -Seconds 30 
 }
 
@@ -585,20 +607,21 @@ $ScriptBlock = {
     Set-TimeZone -Id $NewTimeZone
 }
 $ScriptString = [scriptblock]::create($ScriptBlock)
-$RunPowerShellScript = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptString $ScriptString -Parameter @{'NewTimeZone' = (Get-TimeZone).Id}
+$RunPowerShellScript = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptString $ScriptString -Parameter @{'NewTimeZone' = (Get-TimeZone).Id }
 $RunPowerShellScript
 #endregion
 
 #region Run PowerShell Script: Do Not Open ServerManager At Logon
 #Testing if an AzRunCommand is already running
-While (Get-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName)  {
+While (Get-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName) {
     Start-Sleep -Seconds 30 
 }
 
 $ScriptBlock = {
     param(
     )
-    New-ItemProperty -Path HKCU:\Software\Microsoft\ServerManager -Name DoNotOpenServerManagerAtLogon -PropertyType DWORD -Value "0x1" –Force
+    New-ItemProperty -Path HKLM:\Software\Microsoft\ServerManager -Name DoNotOpenServerManagerAtLogon -PropertyType DWORD -Value "1" -Force
+    New-ItemProperty -Path HKCU:\Software\Microsoft\ServerManager -Name CheckedUnattendLaunchSetting  -PropertyType DWORD -Value "0" -Force
 }
 $ScriptString = [scriptblock]::create($ScriptBlock)
 $RunPowerShellScript = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptString $ScriptString

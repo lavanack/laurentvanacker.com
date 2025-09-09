@@ -1,7 +1,8 @@
 ﻿#To run from the Azure VM
 #requires -Version 7 -RunAsAdministrator 
 
-<#More info on 
+<#
+More info on 
 - https://docs.microsoft.com/en-us/azure/governance/policy/how-to/guest-configuration-create-setup
 - https://techcommunity.microsoft.com/t5/microsoft-defender-for-cloud/7-steps-to-author-develop-and-deploy-custom-recommendations-for/ba-p/3166026
 - https://cloudbrothers.info/en/azure-persistence-azure-policy-guest-configuration/
@@ -11,7 +12,7 @@
 $ResourceGroupName = "rg-dsc-amc*"
 Get-AzResourceGroup -Name $ResourceGroupName | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyRemediation | Remove-AzPolicyRemediation -AllowStop -AsJob -Verbose | Wait-Job
 Get-AzResourceGroup -Name $ResourceGroupName | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyAssignment  | Where-Object -FilterScript { $_.Scope -match 'rg-dsc-amc' } | Remove-AzPolicyAssignment -Verbose #-Whatif
-Get-AzPolicyDefinition | Where-Object -filterScript {$_.metadata.category -eq "Guest Configuration" -and $_.DisplayName -like '$ResourceGroupName'} | Remove-AzPolicyDefinition -Verbose -Force #-WhatIf
+Get-AzPolicyDefinition | Where-Object -filterScript {$_.metadata.category -eq "Guest Configuration" -and $_.DisplayName -like "*$ResourceGroupName"} | Remove-AzPolicyDefinition -Verbose -Force #-WhatIf
 Get-AzResourceGroup -Name $ResourceGroupName | Remove-AzResourceGroup -AsJob -Force -Verbose 
 #>
 
@@ -52,17 +53,16 @@ Clear-Host
 Set-Location -Path $PSScriptRoot
 
 $AzVM = Get-AzVMCompute
+#From https://learn.microsoft.com/en-us/azure/governance/machine-configuration/how-to/create-policy-definition#create-an-azure-policy-definition
 $Location = $AzVM.Location
 $ResourceGroupName = $AzVM.ResourceGroupName
 $StorageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName
 $StorageAccountName = $StorageAccount.StorageAccountName
 $StorageGuestConfigurationContainerName = "guestconfiguration"
 $StorageCertificateContainerName = "certificates"
-$StorageAccountKey = (($storageAccount | Get-AzStorageAccountKey) | Where-Object -FilterScript { $_.KeyName -eq "key1" }).Value
-$Context = New-AzStorageContext -ConnectionString "DefaultEndpointsProtocol=https;AccountName=$StorageAccountName;AccountKey=$StorageAccountKey"
-#Adding a 3-year expiration time from now for the SAS Token
+#Adding a 7-day expiration time from now for the SAS Token
 $StartTime = Get-Date
-$ExpiryTime = $StartTime.AddYears(3)
+$ExpiryTime = $StartTime.AddDays(7)
 
 #$GuestConfigurationPackageName = "$ConfigurationName.zip"
 #$GuestConfigurationPackageFullName  = "$PSScriptRoot\$ConfigurationName\$GuestConfigurationPackageName"
@@ -113,15 +113,19 @@ else {
 #endregion
 
 #region Public Network Access and Shared Key Access Enabled on the Storage Account
-$storageAccount | Set-AzStorageAccount -PublicNetworkAccess Enabled -AllowSharedKeyAccess $true
-#Removing existing blob
+$storageAccount | Set-AzStorageAccount -PublicNetworkAccess Enabled -AllowBlobPublicAccess $false -AllowSharedKeyAccess $false
+Start-Sleep -Seconds 30
+$Context = New-AzStorageContext -StorageAccountName $StorageAccountName -UseConnectedAccount
+#endregion
+
+#region Removing existing blob
 $storageAccount | Get-AzStorageContainer | Get-AzStorageBlob | Remove-AzStorageBlob
 #endregion
 
 #region Self-signed Certificate Management
 # Creates a new certificate container
 if (-not($storageAccount | Get-AzStorageContainer -Name $StorageCertificateContainerName -ErrorAction Ignore)) {
-    $storageAccount | New-AzStorageContainer -Name $StorageCertificateContainerName #-Permission Blob
+    New-AzStorageContainer -Name $StorageCertificateContainerName -Context $Context #-Permission Blob
 }
 
 #region Generating Self-signed Certificates, exporting them as .cer files and delete them from certificate store
@@ -134,6 +138,26 @@ $CertificateFiles = $DnsName | ForEach-Object -Process { $cert = New-SelfSignedC
 $CertificateFiles | Set-AzStorageBlobContent -Container $StorageCertificateContainerName -Context $Context -Force
 #endregion
 #endregion
+
+#region Assigning the 'Storage Blob Data Reader' RBAC Role to the Azure VM System Assigned Identity to the Storage Account 
+#From https://learn.microsoft.com/en-us/azure/governance/machine-configuration/how-to/create-policy-definition#create-an-azure-policy-definition
+$AZVMSystemAssignedIdentity = ($AzVM | Get-AzVM).Identity   
+$RoleDefinition = Get-AzRoleDefinition -Name "Storage Blob Data Reader"
+$Parameters = @{
+    ObjectId           = $AZVMSystemAssignedIdentity.PrincipalId
+    RoleDefinitionName = $RoleDefinition.Name
+    Scope              = $StorageAccount.Id
+}
+
+While (-not(Get-AzRoleAssignment @Parameters)) {
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' scope"
+    $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+    Start-Sleep -Seconds 30
+}
+#endregion
+
 
 #region Our Guest Policies
 if ($ConfigurationName) {
@@ -166,29 +190,32 @@ foreach ($CurrentDSCConfiguration in $DSCConfigurations) {
 
     # Creates a new guest configuration container
     if (-not($storageAccount | Get-AzStorageContainer -Name $StorageGuestConfigurationContainerName -ErrorAction Ignore)) {
-        $storageAccount | New-AzStorageContainer -Name $StorageGuestConfigurationContainerName #-Permission Blob
+        New-AzStorageContainer -Name $StorageGuestConfigurationContainerName -Context $Context #-Permission Blob
     }
 
 
-    Set-AzStorageBlobContent -Container $StorageGuestConfigurationContainerName -File $GuestConfigurationPackage.Path -Blob $GuestConfigurationPackageName -Context $Context -Force
+    $GuestConfigurationStorageBlob = Set-AzStorageBlobContent -Container $StorageGuestConfigurationContainerName -File $GuestConfigurationPackage.Path -Blob $GuestConfigurationPackageName -Context $Context -Force
     #$GuestConfigurationStorageBlobSASToken = New-AzStorageBlobSASToken -Context $Context -FullUri -Container $StorageGuestConfigurationContainerName -Blob $GuestConfigurationPackageName -Permission rwd -StartTime $StartTime -ExpiryTime $ExpiryTime      
-    $GuestConfigurationStorageBlobSASToken = New-AzStorageBlobSASToken -Context $Context -FullUri -Container $StorageGuestConfigurationContainerName -Blob $GuestConfigurationPackageName -Permission r -StartTime $StartTime -ExpiryTime $ExpiryTime      
-
+    
     # Create a Policy Id
     $PolicyId = (New-Guid).Guid  
     # Define the parameters to create and publish the guest configuration policy
     $Params = @{
-        "PolicyId"      = $PolicyId
-        "ContentUri"    = $GuestConfigurationStorageBlobSASToken
-        "DisplayName"   = "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $CurrentConfigurationName DSC Config."
-        "Description"   = "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $CurrentConfigurationName DSC Config."
-        "Path"          = './policies'
-        "Platform"      = 'Windows'
-        "PolicyVersion" = '1.0.0'
-        "Mode"          = 'ApplyAndAutoCorrect'
-        "Verbose"       = $true
+        "PolicyId"                  = $PolicyId
+        "ContentUri"                = $GuestConfigurationStorageBlob.ICloudBlob.Uri.AbsoluteUri
+        "DisplayName"               = "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $CurrentConfigurationName DSC Config."
+        "Description"               = "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $CurrentConfigurationName DSC Config."
+        "Path"                      = './policies'
+        "Platform"                  = 'Windows'
+        "PolicyVersion"             = '1.0.0'
+        "Mode"                      = 'ApplyAndAutoCorrect'
+        #From https://github.com/Azure/GuestConfiguration/blob/main/source/Public/New-GuestConfigurationPolicy.ps1#L55-L59
+        "LocalContentPath"          = $GuestConfigurationPackage.Path
+        "UseSystemAssignedIdentity" = $true
+        "Verbose"                   = $true
     }
     # Create the guest configuration policy
+    #From https://learn.microsoft.com/en-us/azure/governance/machine-configuration/how-to/create-policy-definition#create-an-azure-policy-definition
     $Policy = New-GuestConfigurationPolicy @Params
 
     $PolicyDefinition = New-AzPolicyDefinition -Name "[Win]$ResourceGroupName-$CurrentConfigurationName" -Policy $Policy.Path

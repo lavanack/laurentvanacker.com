@@ -505,9 +505,9 @@ function New-AzureComputeGallery {
 		Name              = $imageDefName01
 		OsState           = 'generalized'
 		OsType            = 'Windows'
-		Publisher         = "{0}-json" -f $SrcObjParams2.Publisher
-		Offer             = "{0}-json" -f $SrcObjParams2.Offer
-		Sku               = "{0}-json" -f $SrcObjParams2.Sku
+		Publisher         = "{0}-json" -f $SrcObjParams1.Publisher
+		Offer             = "{0}-json" -f $SrcObjParams1.Offer
+		Sku               = "{0}-json" -f $SrcObjParams1.Sku
 		HyperVGeneration  = 'V2'
 	}
 	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefName01' (From Customized JSON)..."
@@ -793,7 +793,7 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 
 
 #region To use Azure Image Builder, you have to register for the providers and to ensure that RegistrationState will be set to Registered.
-$RequiredResourceProviders = $RequiredResourceProviders = 'Microsoft.VirtualMachineImages', 'Microsoft.Storage', 'Microsoft.Compute', 'Microsoft.KeyVault', 'Microsoft.ManagedIdentity', 'Microsoft.Network', 'Microsoft.ContainerInstance'
+$RequiredResourceProviders = 'Microsoft.VirtualMachineImages', 'Microsoft.Storage', 'Microsoft.Compute', 'Microsoft.KeyVault', 'Microsoft.ManagedIdentity', 'Microsoft.Network', 'Microsoft.ContainerInstance'
 $Jobs = foreach ($CurrentRequiredResourceProvider in $RequiredResourceProviders) {
 	Register-AzResourceProvider -ProviderNamespace $CurrentRequiredResourceProvider -AsJob
 }

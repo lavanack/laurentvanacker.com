@@ -1,4 +1,4 @@
-﻿Install-Module -Name #To run from the Azure VM
+﻿#To run from the Azure VM
 #requires -Version 5 -RunAsAdministrator 
 #More info on https://docs.microsoft.com/en-us/azure/governance/policy/how-to/guest-configuration-create-setup
 Clear-Host
@@ -25,8 +25,6 @@ Install-Module -Name Az.Accounts, Az.Compute, Az.PolicyInsights, Az.Resources, A
 Install-Module -Name PSDesiredStateConfiguration, PSDSCResources -Force
 #For Machine/Guest Configuration
 Install-Module -Name GuestConfiguration -Force
-#For IIS
-Install-Module -Name WebAdministrationDsc -Force
 #For Audit Policy
 Install-Module -Name AuditPolicyDsc -Force
 #For Certificates
