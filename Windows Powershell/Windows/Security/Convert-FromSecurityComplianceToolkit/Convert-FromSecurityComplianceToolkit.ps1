@@ -39,18 +39,18 @@ Function Convert-FromSecurityComplianceToolkit {
       Function that converts the Microsoft Security Compliance Toolkit baslines to DSC configuration scripts
     .DESCRIPTION
       Function that converts the Microsoft Security Compliance Toolkit baslines to DSC configuration scripts
-    .PARAMETER  OutPut
-      The root output directory where the baselines and DSC configuration scripts will be stored
+    .PARAMETER  Output
+      The root Output directory where the baselines and DSC configuration scripts will be stored
     .EXAMPLE
       PS C:\> Convert-FromSecurityComplianceToolkit 
     .EXAMPLE
-      PS C:\> Convert-FromSecurityComplianceToolkit -OutPut "C:\Temp\SCT" -Verbose
+      PS C:\> Convert-FromSecurityComplianceToolkit -Output "C:\Temp\SCT" -Verbose
    #>
     [CmdletBinding()]
     param
     (
         [Parameter(Mandatory = $false)]
-        [string] $OutPut = $(Join-Path -Path $PSScriptRoot -ChildPath $(Get-Date -Format "yyyyMMddHHmmss"))
+        [string] $Output = $(Join-Path -Path $PSScriptRoot -ChildPath $(Get-Date -Format "yyyyMMddHHmmss"))
     )
 
     #region Downloading the Microsoft Security Compliance Toolkit webpage content and extracting all download links from it
@@ -70,14 +70,14 @@ Function Convert-FromSecurityComplianceToolkit {
     #endregion
     
     #region Variable Definition
-    #Creating subdirectories under the output root directory
-    $DSCRootDirectory = Join-Path -Path $OutPut -ChildPath "DSCConfigurations"
-    $ExtractedBaselineDirectory = Join-Path -Path $OutPut -ChildPath "SCTFiles"
-    $BaselineDirectory = Join-Path -Path $OutPut -ChildPath "SCTFiles"
+    #Creating subdirectories under the Output root directory
+    $DSCRootDirectory = Join-Path -Path $Output -ChildPath "DSCConfigurations"
+    $ExtractedBaselineDirectory = Join-Path -Path $Output -ChildPath "SCTFiles"
+    $BaselineDirectory = Join-Path -Path $Output -ChildPath "SCTFiles"
     #endregion
 
     #Creating required directories
-    $null = New-Item -Path $OutPut, $DSCRootDirectory, $ExtractedBaselineDirectory, $BaselineDirectory -ItemType Directory -Force
+    $null = New-Item -Path $Output, $DSCRootDirectory, $ExtractedBaselineDirectory, $BaselineDirectory -ItemType Directory -Force
 
     $BaselineIndex = 0
     $AutoFixes = @()
@@ -222,12 +222,10 @@ Function Convert-FromSecurityComplianceToolkit {
         }
     }
     Write-Progress -Id 1 -Completed -Activity 'Baseline processing completed.'
-    if (Get-ChildItem -Path $OutPut -Recurse -Filter localhost.mof.error -File) {
+    if (Get-ChildItem -Path $Output -Recurse -Filter localhost.mof.error -File) {
         Write-Warning -Message "Some localhost.mof.error files have been found (despite auto-repair process). Please check them and fix the corresponding configuration scripts."
     }
-    if ($AutoFixes.Count -gt 0) {
-        Write-Host -Message "AutoFixes:`r`n$($AutoFixes | Out-String)"
-    }
+    return $AutoFixes
 }
 
 #endregion
@@ -241,5 +239,7 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
-Convert-FromSecurityComplianceToolkit -Verbose
+#$AutoFixes = Convert-FromSecurityComplianceToolkit -Output "C:\Temp\SCT" -Verbose
+$AutoFixes = Convert-FromSecurityComplianceToolkit -Verbose
+$AutoFixes | Format-List -Property *
 #endregion
