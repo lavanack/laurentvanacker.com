@@ -11,7 +11,7 @@
 When teaching about [Azure Machine Configuration](https://learn.microsoft.com/en-us/azure/governance/machine-configuration/) to a customer of mine (in a security hardening context). I discovered this helpful [article](https://doitpshway.com/convert-ms-security-baselines-to-azure-arc-guest-configuration-packages) (Convert MS security baselines to Azure ARC Guest Configuration packages). I use it as a starting point to develop the [Convert-FromSecurityComplianceToolkit.ps1](Convert-FromSecurityComplianceToolkit.ps1) script.
 
 ## Convert-FromSecurityComplianceToolkit.ps1
-This script download all the tools from the [Microsoft Security Compliance Toolkit 1.0](https://www.microsoft.com/en-us/download/details.aspx?id=55319) page and convert every GPO into a dedicated DSC configuration script. A dedicated timestamped (yyyyMMddHHmmss) output folder will be created in the script folder if the Output parameter is not specified.  
+This script download all the tools from the [Microsoft Security Compliance Toolkit 1.0](https://www.microsoft.com/en-us/download/details.aspx?id=55319) page and convert every GPO into a dedicated DSC configuration script. A dedicated timestamped (yyyyMMddHHmmss) output folder will be created in the script folder if the Output parameter is not specified. The DSC configurations are located in the DSCConfigurations subfolder. 
 
 > [!Note]
 > As explained in the [article](https://doitpshway.com/convert-ms-security-baselines-to-azure-arc-guest-configuration-packages):
