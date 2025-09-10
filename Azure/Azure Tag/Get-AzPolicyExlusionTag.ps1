@@ -35,7 +35,6 @@ function Get-AzPolicyExclusionTag {
             $Initiative.PolicyDefinition | ForEach-Object {
                 $Policy = (Get-AzPolicyDefinition -Id $_.PolicyDefinitionId)
                 Write-Verbose -Message "- Processing Initiative Policy: '$($Initiative.DisplayName)' > '$($Policy.DisplayName)'"
-                #$Policy.DisplayName
                 if ($null -eq $PolicyHT[$_.PolicyDefinitionId]) {
                     $PolicyHT[$_.PolicyDefinitionId] = [PSCustomObject]@{Initiative = $Initiative.DisplayName; Policy = $Policy}
                 }
@@ -119,6 +118,7 @@ Function New-AzInheritanceSubscriptionTagPolicyAssignment {
         [switch] $PassThru
     )
 
+    #For 'Inherit a tag from the subscription if missing' Policy Definition
     $InheritanceSubscriptionTagPolicyDefinitionName = '40df99da-1232-49b1-a39a-6da8d878f469'
     $InheritanceSubscriptionTagPolicyDefinition = Get-AzPolicyDefinition -Name $InheritanceSubscriptionTagPolicyDefinitionName
     $InheritanceSubscriptionAzPolicyAssignment = Get-AzPolicyAssignment -PolicyDefinitionId $InheritanceSubscriptionTagPolicyDefinition.Id
@@ -142,7 +142,7 @@ Function New-AzInheritanceSubscriptionTagPolicyAssignment {
         }
     }
     if ($PassThru) {
-        $InheritanceSubscriptionTagPolicy
+        $InheritanceSubscriptionTagPolicyAssignment
     }
 }
 
@@ -169,6 +169,6 @@ $SubscriptionTag = Update-AzSubscriptionTag -Tag $Tags -PassThru -Force -Verbose
 $SubscriptionTag
 
 #Creating Policy Assignments for the added Exclusion Tags at Subscription level for inheritance at the resource level
-$InheritanceSubscriptionTagPolicyAssignment = New-AzInheritanceSubscriptionTagPolicyAssignment -Tags $Tags -Verbose
+$InheritanceSubscriptionTagPolicyAssignment = New-AzInheritanceSubscriptionTagPolicyAssignment -Tags $Tags -PassThru -Verbose
 $InheritanceSubscriptionTagPolicyAssignment 
 #endregion
