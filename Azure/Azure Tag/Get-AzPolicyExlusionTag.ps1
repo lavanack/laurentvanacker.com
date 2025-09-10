@@ -156,6 +156,12 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 
+#region Login to your Azure subscription.
+While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
+	Connect-AzAccount
+}
+#endregion
+
 #Getting Exclusion Tags From Azure Policies 
 $PolicyExclusionTags = Get-AzPolicyExclusionTag -Verbose
 $PolicyExclusionTags
