@@ -25,8 +25,8 @@ Install-Module -Name Az.Accounts, Az.Compute, Az.PolicyInsights, Az.Resources, A
 Install-Module -Name PSDesiredStateConfiguration, PSDSCResources -Force
 #For Machine/Guest Configuration
 Install-Module -Name GuestConfiguration -Force
-#For Audit Policy
-Install-Module -Name AuditPolicyDsc -Force
+#https://github.com/microsoft/BaselineManagement?tab=readme-ov-file#install-the-module
+Install-Module -Name BaselineManagement  -Force
 #For Certificates
 Install-Module -Name CertificateDSC -Force
 
