@@ -115,21 +115,21 @@ function New-AzureComputeGallery {
 		Remove-AzResourceGroup -Name $ResourceGroupName -Force
 	}
 	Write-Verbose -Message "Creating '$ResourceGroupName' Resource Group Name ..."
-	$ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $location -Force
+	$ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $location -Tag @{"SecurityControl"="Ignore"} -Force
 
 	if (Get-AzResourceGroup -Name $StagingResourceGroupName1 -Location $location -ErrorAction Ignore) {
 		Write-Verbose -Message "Removing '$StagingResourceGroupName1' Resource Group Name ..."
 		Remove-AzResource -Name $StagingResourceGroupName1 -Force
 	}
 	Write-Verbose -Message "Creating '$StagingResourceGroupName1' Resource Group Name ..."
-	$StagingResourceGroup1 = New-AzResourceGroup -Name $StagingResourceGroupName1 -Location $location -Force
+	$StagingResourceGroup1 = New-AzResourceGroup -Name $StagingResourceGroupName1-Tag @{"SecurityControl"="Ignore"} -Location $location -Force
 
 	if (Get-AzResourceGroup -Name $StagingResourceGroupName2 -Location $location -ErrorAction Ignore) {
 		Write-Verbose -Message "Removing '$StagingResourceGroupName2' Resource Group Name ..."
 		Remove-AzResource -Name $StagingResourceGroupName2 -Force
 	}
 	Write-Verbose -Message "Creating '$StagingResourceGroupName2' Resource Group Name ..."
-	$StagingResourceGroup2 = New-AzResourceGroup -Name $StagingResourceGroupName2 -Location $location -Force
+	$StagingResourceGroup2 = New-AzResourceGroup -Name $StagingResourceGroupName2 -Location $location -Tag @{"SecurityControl"="Ignore"} -Force
 	#endregion
     
 	#region Permissions, user identity, and role
