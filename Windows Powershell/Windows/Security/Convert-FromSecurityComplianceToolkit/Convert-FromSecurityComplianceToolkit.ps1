@@ -50,7 +50,7 @@ Function Convert-FromSecurityComplianceToolkit {
     param
     (
         [Parameter(Mandatory = $false)]
-        [string] $Output = $(Join-Path -Path $PSScriptRoot -ChildPath $(Get-Date -Format "yyyyMMddHHmmss"))
+        [string] $Output = $(Join-Path -Path "." -ChildPath $(Get-Date -Format "yyyyMMddHHmmss"))
     )
 
     #region Downloading the Microsoft Security Compliance Toolkit webpage content and extracting all download links from it
@@ -121,7 +121,7 @@ Function Convert-FromSecurityComplianceToolkit {
                 Write-Verbose -Message "`$CurrentGPODir: $CurrentGPODir"
                 #Extracting GPO name from the bkupInfo.xml file
                 if ((Get-Content -Path "$($CurrentGPODir)\bkupInfo.xml" -Raw) -match "<GPODisplayName><!\[CDATA\[(.+)\]\]></GPODisplayName>") {
-                    $GPOName = $Matches[1] -replace '\W', '_'
+                    $GPOName = $Matches[1] -replace '\W+', '_'
                     Write-Verbose -Message "`$GPOName: $GPOName"
                 }
                 else {
