@@ -1,6 +1,6 @@
 # Azure Automage Machine Configuration
 
-The [1 - AzureVMWithAzureAutomanageMachineConfiguration](1%20-%20AzureVMWithAzureAutomanageMachineConfiguration.ps1) script creates a Windows Azure VM. After, you'll have to run the [2 - Prerequisites.ps1](2%20-%20Prerequisites.ps1) and [3 - AzureAutomanageMachineConfiguration.ps1](3%20-%20AzureAutomanageMachineConfiguration.ps1) scripts from the newly created Azure VM to apply all the DSC configurations (*DSCConfiguration.ps1 - number of DSC Configurations subject to evolve) in the same folder that the mentioned Powershell scripts (one of them will create a rogue Administrator account).
+The [1 - AzureVMWithAzureAutomanageMachineConfiguration](1%20-%20AzureVMWithAzureAutomanageMachineConfiguration.ps1) script creates a Windows Azure VM. After, you'll have to run the [2 - Prerequisites.ps1](2%20-%20Prerequisites.ps1) and [3 - AzureAutomanageMachineConfiguration.ps1](3%20-%20AzureAutomanageMachineConfiguration.ps1) scripts from the newly created Azure VM to apply all the DSC configurations (*DSCConfiguration.ps1 - number of DSC Configurations subject to evolve) in the same folder that the mentioned Powershell scripts (one of them will create a rogue Administrator account for instance).
 
 ![Rogue Admin](docs/rogueadmin.jpg)
 
