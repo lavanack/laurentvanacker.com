@@ -1,8 +1,19 @@
 # Azure Automage Machine Configuration
 
-The [1 - AzureVMWithAzureAutomanageMachineConfiguration](1%20-%20AzureVMWithAzureAutomanageMachineConfiguration.ps1) script creates a Windows Azure VM. After, you'll have to run the [2 - Prerequisites.ps1](2%20-%20Prerequisites.ps1) and [3 - AzureAutomanageMachineConfiguration.ps1](3%20-%20AzureAutomanageMachineConfiguration.ps1) scripts from the newly created Azure VM to apply all the DSC configurations (*DSCConfiguration.ps1 - number of DSC Configurations subject to evolve) in the same folder that the mentioned Powershell scripts (one of them will create a rogue Administrator account for instance).
+The [1 - AzureVMWithAzureAutomanageMachineConfiguration](1%20-%20AzureVMWithAzureAutomanageMachineConfiguration.ps1) script creates a Windows Azure VM. After, you'll have to run the [2 - Prerequisites.ps1](2%20-%20Prerequisites.ps1) and [3 - AzureAutomanageMachineConfiguration.ps1](3%20-%20AzureAutomanageMachineConfiguration.ps1) scripts from the newly created Azure VM to apply all the DSC configurations (*DSCConfiguration.ps1 files) in the same folder that the mentioned Powershell scripts
+
+Among the DSC Configurations (number subject to evolve), you can find
+- [Creation of a rogue Administrator account](CreateAdminUserDSCConfiguration.ps1)
 
 ![Rogue Admin](docs/rogueadmin.jpg)
+- [Audit Policy Configuration](AdvancedAuditPolicyDSCConfiguration.ps1)
+
+![Audit Policy Configuration](docs/auditpol.jpg)
+- [Certificate Import](CertificateImportDSCConfiguration.ps1)
+- [Disabling SMBv1](DisableSMBv1DSCConfiguration.ps1)
+- [Enabling SMB Signing](EnableSMBSigningDSCConfiguration.ps1)
+- [LogParser Setup](LogParserSetupDSCConfiguration.ps1)
+- [TLS Hardening ](TLSHardeningDSCConfiguration.ps1)
 
 ## Table of Contents
 
