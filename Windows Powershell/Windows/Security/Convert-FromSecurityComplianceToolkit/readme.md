@@ -70,8 +70,7 @@ The script generates a well-organized directory structure:
 │   │   ├── 📄 Configuration.ps1
 │   │   └── 📄 localhost.mof
 │   └── ...
-├── 📁 OriginalFiles/
-└── 📄 ConversionReport.log
+└── 📁 SCTFiles/
 ```
 
 ### Visual Examples
