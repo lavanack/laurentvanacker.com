@@ -16,8 +16,8 @@ This script download all the tools from the [Microsoft Security Compliance Toolk
 > [!Note]
 > As explained in the [article](https://doitpshway.com/convert-ms-security-baselines-to-azure-arc-guest-configuration-packages):
 > 
-> !BEWARE! creating of some localhost.mof can (probably will) end with an error https://github.com/microsoft/BaselineManagement?tab=readme-ov-file#known-gaps-in-capability
-> problematic ps1 parts have to be commented otherwise you will not be able to create DSC from it!
+> *!BEWARE! creating of some localhost.mof can (probably will) end with an error https://github.com/microsoft/BaselineManagement?tab=readme-ov-file#known-gaps-in-capability
+> problematic ps1 parts have to be commented otherwise you will not be able to create DSC from it!*
 > 
 > **I solved this by using some regular expressions to solve this problem by removing or commenting the faulty parts. At the end of the script a list of these modifications are displayed as shown below**
 >
