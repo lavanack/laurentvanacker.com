@@ -28,7 +28,8 @@ This script downloads all the tools from the [Microsoft Security Compliance Tool
 > ![Auto Fixes](docs/autofixes.jpg)
 >
 > I also attached a [zip](20250913180101.zip) file with a sample run.
-> You can also use these DSC configurations with Desired State Configuration included in Windows PowerShell 4+.
+>
+>  You can also use these DSC configurations with Desired State Configuration included in Windows PowerShell 4+.
 
 ## Next Steps
 If you want to learn more about [Azure Machine Configuration](https://learn.microsoft.com/en-us/azure/governance/machine-configuration/),  transform the generated DSC Configurations scripts into [Azure Machine Configuration](https://learn.microsoft.com/en-us/azure/governance/machine-configuration/) scripts or run some proposed demos you can take a look to my dedicated [folder](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Desired%20State%20Configuration/Azure%20Machine%20Configuration)
