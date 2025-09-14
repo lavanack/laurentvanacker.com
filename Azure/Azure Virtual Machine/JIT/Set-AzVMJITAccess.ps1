@@ -33,6 +33,8 @@ function Set-AzVMJITAccess {
     begin {
         #region Defining variables 
         $RDPPort = 3389
+        $SSHPort = 22
+        $JITPolicyPorts = $RDPPort, $SSHPort
         $JitPolicyTimeInHours = 3
         $JitPolicyName = "Default"
         #endregion
@@ -42,30 +44,35 @@ function Set-AzVMJITAccess {
     }
 
     process {
+        #region JIT Access Management
         #region Enabling JIT Access
         $AzJitNetworkAccessPolicy = foreach ($CurrentVM in $VM) {
             Write-Verbose -Message "VM : $($CurrentVM.Name)"
-
-            $NewJitPolicy = (@{
+            $NewJitPolicy = (
+                @{
                     id    = $CurrentVM.Id
-                    ports = (@{
-                            number                     = $RDPPort;
-                            protocol                   = "*";
-                            allowedSourceAddressPrefix = "*";
-                            maxRequestAccessDuration   = "PT$($JitPolicyTimeInHours)H"
-                        })   
-                })
+                    ports = 
+                        foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
+                            @{
+                                number                     = $CurrentJITPolicyPort;
+                                protocol                   = "*";
+                                allowedSourceAddressPrefix = "*";
+                                maxRequestAccessDuration   = "PT$($JitPolicyTimeInHours)H"
+                            }
+                        }
+                }
+            )
 
             Write-Host "Get Existing JIT Policy. You can Ignore the error if not found."
             $ExistingJITPolicy = (Get-AzJitNetworkAccessPolicy -ResourceGroupName $CurrentVM.ResourceGroupName -Location $CurrentVM.Location -Name $JitPolicyName).VirtualMachines
             $UpdatedJITPolicy = $ExistingJITPolicy.Where{ $_.id -ne "$($CurrentVM.Id)" } # Exclude existing policy for $CurrentVM.Name
             $UpdatedJITPolicy.Add($NewJitPolicy)
-	
+
             # Enable Access to the VM including management Port, and Time Range in Hours
-            Write-Host "Enabling Just in Time VM Access Policy for $($CurrentVM.Name) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
+            Write-Host "Enabling Just in Time VM Access Policy for ($($CurrentVM.Name)) on port number(s) $($NewJitPolicy.ports.number -join ', ') for maximum $JitPolicyTimeInHours hours ..."
             $null = Set-AzJitNetworkAccessPolicy -VirtualMachine $UpdatedJITPolicy -ResourceGroupName $CurrentVM.ResourceGroupName -Location $CurrentVM.Location -Name $JitPolicyName -Kind "Basic"
         }
-
+        #endregion
         #endregion
     }
     end {

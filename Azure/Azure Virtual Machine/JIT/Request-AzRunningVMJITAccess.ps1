@@ -36,6 +36,9 @@ function Request-AzRunningVMJITAccess {
         Write-Verbose -Message "Public IP(s) : $($IP -join ', ')"
         #region Defining variables 
         $RDPPort = 3389
+        $SSHPort = 22
+        $JITPolicyPorts = $RDPPort, $SSHPort
+
         $JitPolicyTimeInHours = 3
         $JitPolicyName = "Default"
         #endregion
@@ -50,18 +53,21 @@ function Request-AzRunningVMJITAccess {
         $AzJitNetworkAccessPolicy = foreach ($CurrentVMJitNetworkAccessPolicyVM in $VM) {
             Write-Verbose -Message "VM : $($CurrentVMJitNetworkAccessPolicyVM.Name)"
             if ($CurrentVMJitNetworkAccessPolicyVM.Id -in $JitNetworkAccessPolicyVM) {
-                $JitPolicy = (@{
+                $JitPolicy = (
+                    @{
                         id    = $CurrentVMJitNetworkAccessPolicyVM.Id
-                        ports = (@{
-                                number                     = $RDPPort;
-                                endTimeUtc                 = (Get-Date).AddHours($JitPolicyTimeInHours).ToUniversalTime()
-                                allowedSourceAddressPrefix = $IP 
-                            })
-                    })
+                        ports = 
+                            foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
+                                @{
+                                    number                     = $CurrentJITPolicyPort;
+                                    endTimeUtc                 = (Get-Date).AddHours($JitPolicyTimeInHours).ToUniversalTime()
+                                    allowedSourceAddressPrefix = @($IP) 
+                                }
+                            }
+                    }
+                )
                 $ActivationVM = @($JitPolicy)
-                Write-Host -Object "Requesting Temporary Acces via Just in Time for $($CurrentVMJitNetworkAccessPolicyVM.Name) on port number $RDPPort for maximum $JitPolicyTimeInHours hours from '$($IP -join ',')' ..."
-                #Get-AzJitNetworkAccessPolicy -ResourceGroupName $($CurrentVMJitNetworkAccessPolicyVM.ResourceGroupName) -Location $CurrentVMJitNetworkAccessPolicyVM.Location -Name $JitPolicyName 
-                #Start-AzJitNetworkAccessPolicy -ResourceGroupName $($CurrentVMJitNetworkAccessPolicyVM.ResourceGroupName) -Location $CurrentVMJitNetworkAccessPolicyVM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM | Select-Object -Property *, @{Name = 'endTimeUtc'; Expression = { $JitPolicy.ports.endTimeUtc } }, @{Name = 'startTime'; Expression = { $_.startTimeUtc.ToLocalTime() } }, @{Name = 'endTime'; Expression = { $JitPolicy.ports.endTimeUtc.ToLocalTime() } }
+                Write-Host "Requesting Temporary Acces via Just in Time for $($CurrentVMJitNetworkAccessPolicyVM.Name) on port number(s) $($JitPolicy.ports.number -join ', ') for maximum $JitPolicyTimeInHours hours ..."
                 Start-AzJitNetworkAccessPolicy -ResourceGroupName $($CurrentVMJitNetworkAccessPolicyVM.ResourceGroupName) -Location $CurrentVMJitNetworkAccessPolicyVM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM | Select-Object -Property *, @{Name = 'startTime'; Expression = { $_.startTimeUtc.ToLocalTime() } }, @{Name = 'endTime'; Expression = { $JitPolicy.ports.endTimeUtc.ToLocalTime() } } -ExcludeProperty StartTimeUtc
             }
             else {
