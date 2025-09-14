@@ -46,12 +46,14 @@ The script serves as an enhanced version that addresses common conversion issues
 **Purpose**: Downloads and converts Microsoft Security Compliance Toolkit baselines to DSC configurations.
 
 **Key Functionality**:
+
 - Downloads from [Microsoft Security Compliance Toolkit 1.0](https://www.microsoft.com/en-us/download/details.aspx?id=55319)
 - Processes each GPO into a dedicated DSC configuration script
 - Creates timestamped output folder (`yyyyMMddHHmmss` format)
 - Applies automatic fixes for known conversion issues
 
 **Usage**:
+
 ```powershell
 .\Convert-FromSecurityComplianceToolkit.ps1 [-Output <String>] [-Verbose]
 ```
@@ -78,9 +80,11 @@ The script generates a well-organized directory structure:
 ### Visual Examples
 
 #### Directory Tree View
+
 ![Tree View](docs/treeview.jpg)
 
 #### DSC Configurations Structure
+
 ![DSC Configurations](docs/dscconfigurations.jpg)
 
 ## ⚠️ Known Issues & Automatic Fixes
@@ -99,6 +103,7 @@ This script includes **intelligent regex-based fixes** that automatically:
 - ✅ Generate detailed modification reports
 
 #### Auto-Fix Report Example
+
 ![Auto Fixes](docs/autofixes.jpg)
 
 > **Note**: All automatic modifications are logged and reported for transparency and troubleshooting.
@@ -108,6 +113,7 @@ This script includes **intelligent regex-based fixes** that automatically:
 A complete sample run is available as a ZIP file: [`20250913180101.zip`](20250913180101.zip)
 
 This sample includes:
+
 - ✅ Successfully converted DSC configurations
 - ✅ Generated MOF files
 - ✅ Conversion logs and reports
@@ -125,7 +131,7 @@ To advance your Azure Machine Configuration implementation:
 
 ### Additional Resources
 
-🔗 **Explore the complete Azure Machine Configuration toolkit**: 
+🔗 **Explore the complete Azure Machine Configuration toolkit**:
 [Azure Desired State Configuration Examples](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Desired%20State%20Configuration/Azure%20Machine%20Configuration)
 
 ### Compatibility Notes

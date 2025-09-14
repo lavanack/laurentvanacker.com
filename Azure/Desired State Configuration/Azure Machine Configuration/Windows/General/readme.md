@@ -77,8 +77,8 @@ Run the deployment script from your local machine:
 
 ### Step 2: Install Prerequisites on VM
 
-1. Copy the 'Azure Machine Configuration' folder to the Azure VM
-2. Navigate to the 'Windows' subfolder
+1. The 'Azure Machine Configuration' folder is already copied on  the Azure VM on the System drive
+2. Navigate to the 'C:\Azure Machine Configuration\Windows\General' subfolder
 3. Run the prerequisites script:
 
 ```powershell
