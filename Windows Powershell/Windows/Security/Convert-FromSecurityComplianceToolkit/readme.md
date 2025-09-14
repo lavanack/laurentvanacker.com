@@ -11,7 +11,11 @@
 When teaching about [Azure Machine Configuration](https://learn.microsoft.com/en-us/azure/governance/machine-configuration/) to a customer of mine (in a security hardening context). I discovered this helpful [article](https://doitpshway.com/convert-ms-security-baselines-to-azure-arc-guest-configuration-packages) (Convert MS security baselines to Azure ARC Guest Configuration packages). I use it as a starting point to develop the [Convert-FromSecurityComplianceToolkit.ps1](Convert-FromSecurityComplianceToolkit.ps1) script.
 
 ## Convert-FromSecurityComplianceToolkit.ps1
-This script download all the tools from the [Microsoft Security Compliance Toolkit 1.0](https://www.microsoft.com/en-us/download/details.aspx?id=55319) page and convert every GPO into a dedicated DSC configuration script. A dedicated timestamped (yyyyMMddHHmmss) output folder will be created in the script folder if the Output parameter is not specified. The DSC configurations are located in the DSCConfigurations subfolder. 
+This script downloads all the tools from the [Microsoft Security Compliance Toolkit 1.0](https://www.microsoft.com/en-us/download/details.aspx?id=55319) page and converts each GPO into a dedicated DSC configuration script. A dedicated timestamped (yyyyMMddHHmmss) output folder will be created in the current folder if the Output parameter is not specified. The DSC configurations are located in the DSCConfigurations subfolder with one subfolder per GPO as shown below:
+
+![Tree View](docs/treeview.jpg)
+
+![DSC Configurations](docs/dscconfigurations.jpg)
 
 > [!Note]
 > As explained in the [article](https://doitpshway.com/convert-ms-security-baselines-to-azure-arc-guest-configuration-packages):
@@ -23,7 +27,8 @@ This script download all the tools from the [Microsoft Security Compliance Toolk
 >
 > ![Auto Fixes](docs/autofixes.jpg)
 >
-> I also attached a [zip](20250909083044.zip) file with a sample run.
+> I also attached a [zip](20250913180101.zip) file with a sample run.
+> You can also use these DSC configurations with Desired State Configuration included in Windows PowerShell 4+.
 
 ## Next Steps
 If you want to learn more about [Azure Machine Configuration](https://learn.microsoft.com/en-us/azure/governance/machine-configuration/),  transform the generated DSC Configurations scripts into [Azure Machine Configuration](https://learn.microsoft.com/en-us/azure/governance/machine-configuration/) scripts or run some proposed demos you can take a look to my dedicated [folder](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Desired%20State%20Configuration/Azure%20Machine%20Configuration)
