@@ -63,12 +63,14 @@ The script generates a well-organized directory structure:
 ```
 📁 Output Folder (Timestamped: yyyyMMddHHmmss)
 ├── 📁 DSCConfigurations/
-│   ├── 📁 GPO_Name_1/
-│   │   ├── 📄 Configuration.ps1
-│   │   └── 📄 localhost.mof
-│   ├── 📁 GPO_Name_2/
-│   │   ├── 📄 Configuration.ps1
-│   │   └── 📄 localhost.mof
+│   ├── 📁 Security Topic #1/
+│   │   ├── 📁 GPO Name #1/
+│   │   │   ├── 📄 GPO Name #1.ps1
+│   │   │   └── 📄 localhost.mof
+│   ├── 📁 Security Topic #2/
+│   │   ├── 📁 GPO Name #2/
+│   │   │   ├── 📄 GPO Name #2.ps1
+│   │   │   └── 📄 localhost.mof
 │   └── ...
 └── 📁 SCTFiles/
 ```
