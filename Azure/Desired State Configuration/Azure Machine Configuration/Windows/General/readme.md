@@ -14,7 +14,7 @@ This project provides a comprehensive solution for deploying and configuring Azu
 
 1. **Deploy Azure VM**: Run [`1 - AzureVMWithAzureAutomanageMachineConfiguration.ps1`](1%20-%20AzureVMWithAzureAutomanageMachineConfiguration.ps1)
 2. **Install Prerequisites**: Execute [`2 - Prerequisites.ps1`](2%20-%20Prerequisites.ps1) on the VM
-3. **Apply Configurations**: Run [`3 - AzureAutomanageMachineConfiguration.ps1`](3%20-%20AzureAutomanageMachineConfiguration.ps1)
+3. **Apply Configurations**: Run [`3 - AzureAutomanageMachineConfigurationWithSASToken.ps1`](3%20-%AzureAutomanageMachineConfigurationWithSASToken.ps1) or [`3 - AzureAutomanageMachineConfigurationWithSystemAssignedIdentity.ps1`](3%20-%AzureAutomanageMachineConfigurationWithSystemAssignedIdentity.ps1). The difference is the way to access to the Storage Account (Storage Account Key vs. System Assigned Identity : More details [here](https://learn.microsoft.com/en-us/azure/governance/machine-configuration/how-to/create-policy-definition#create-an-azure-policy-definition))
 
 ## 🔧 DSC Configurations
 
