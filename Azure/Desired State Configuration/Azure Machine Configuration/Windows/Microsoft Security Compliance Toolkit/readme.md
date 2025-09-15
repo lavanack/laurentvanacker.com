@@ -17,7 +17,7 @@ This project is a combination of the [Convert Microsoft Security Compliance Base
 3. **Apply Configurations**: Run [`3 - AzureAutomanageMachineConfigurationSCTWithSystemAssignedIdentity.ps1`](3%20-%AzureAutomanageMachineConfigurationSCTWithSystemAssignedIdentity.ps1)
 ## 🔧 DSC Configurations
 
-The applied Desired State Configuration come from the [Convert Microsoft Security Compliance Baselines to Azure Machine Configuration Packages](https://github.com/lavanack/laurentvanacker.com/tree/master/Windows%20Powershell/Windows/Security/Convert-FromSecurityComplianceToolkit) article. You will be promped twice in the [`3 - AzureAutomanageMachineConfigurationSCTWithSystemAssignedIdentity.ps1`](3%20-%AzureAutomanageMachineConfigurationSCTWithSystemAssignedIdentity.ps1) script
+The applied Desired State Configuration come from the [Convert Microsoft Security Compliance Baselines to Azure Machine Configuration Packages](https://github.com/lavanack/laurentvanacker.com/tree/master/Windows%20Powershell/Windows/Security/Convert-FromSecurityComplianceToolkit) article. You will be promped twice in the [3 - AzureAutomanageMachineConfigurationSCTWithSystemAssignedIdentity.ps1](3%20-%AzureAutomanageMachineConfigurationSCTWithSystemAssignedIdentity.ps1) script
 - Selecting the [Operating System or the Security Topic](/Windows%20Powershell/Windows/Security/Convert-FromSecurityComplianceToolkit/readme.md#visual-examples) (Unique Selection)
 - The GPO names based on the previous selection (Multiple selections allowed)
 
