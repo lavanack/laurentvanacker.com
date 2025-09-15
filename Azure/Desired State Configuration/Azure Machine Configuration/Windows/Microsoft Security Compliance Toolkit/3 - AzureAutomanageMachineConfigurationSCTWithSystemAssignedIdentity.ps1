@@ -317,8 +317,8 @@ function Get-SCTDSCConfiguration {
 
     $DSCConfigurations = (tar -C $Destination -zxvf $ZipFile  *.ps1 *>&1 | Where-Object -FilterScript { $_ -match "DSCConfigurations.*\.ps1$" }) -replace "^\S*\s*(.*)$", "$Destination\`$1" -replace "/", "\"
     $DSCConfigurationCategories = $DSCConfigurations -replace "(.*)\\(.*)\\(.*)\\(.*)\.*$", '$2' | Select-Object -Unique
-    $DSCConfigurationCategory = $DSCConfigurationCategories | Out-GridView -OutputMode Single
-    $DSCConfigurationScriptFileNames = ($DSCConfigurations -match $DSCConfigurationCategory) -replace "(.*)\\(.*)\\(.*)$", '$3' | Out-GridView -OutputMode Multiple
+    $DSCConfigurationCategory = $DSCConfigurationCategories | Sort-Object | Out-GridView -OutputMode Single
+    $DSCConfigurationScriptFileNames = ($DSCConfigurations -match $DSCConfigurationCategory) -replace "(.*)\\(.*)\\(.*)$", '$3' | Sort-Object | Out-GridView -OutputMode Multiple
 
     $SelectedDSCConfigurationScripts = foreach($CurrentDSCConfigurationScriptFileName in $DSCConfigurationScriptFileNames) {
         $DSCConfigurations -match "$DSCConfigurationCategory.*$CurrentDSCConfigurationScriptFileName"
@@ -342,7 +342,6 @@ $ResourceGroupName = $AzVM.ResourceGroupName
 $StorageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName
 $StorageAccountName = $StorageAccount.StorageAccountName
 $StorageGuestConfigurationContainerName = "guestconfiguration"
-$StorageCertificateContainerName = "certificates"
 #Adding a 7-day expiration time from now for the SAS Token
 $StartTime = Get-Date
 $ExpiryTime = $StartTime.AddDays(7)
@@ -405,23 +404,6 @@ $Context = New-AzStorageContext -StorageAccountName $StorageAccountName -UseConn
 $storageAccount | Get-AzStorageContainer | Get-AzStorageBlob | Remove-AzStorageBlob
 #endregion
 
-#region Self-signed Certificate Management
-# Creates a new certificate container
-if (-not($storageAccount | Get-AzStorageContainer -Name $StorageCertificateContainerName -ErrorAction Ignore)) {
-    New-AzStorageContainer -Name $StorageCertificateContainerName -Context $Context #-Permission Blob
-}
-
-#region Generating Self-signed Certificates, exporting them as .cer files and delete them from certificate store
-$DnsName = 'www.fabrikam.com', 'www.contoso.com'
-$CertificateFiles = $DnsName | ForEach-Object -Process { $cert = New-SelfSignedCertificate -DnsName $_ -CertStoreLocation 'Cert:\LocalMachine\My'; $FilePath = Join-Path -Path $PSScriptRoot -ChildPath "$_.cer" ; $cert | Export-Certificate -FilePath $FilePath; $cert | Remove-Item -Force }
-#endregion
-
-#region Adding Self-signed Certificates to the container
-#$CertificateStorageBlobSASToken = Get-ChildItem -Path $PSScriptRoot -Filter *.cer -File | Set-AzStorageBlobContent -Container $StorageCertificateContainerName -Context $Context -Force | New-AzStorageBlobSASToken -Permission r -StartTime $StartTime -ExpiryTime $ExpiryTime -FullUri
-$CertificateFiles | Set-AzStorageBlobContent -Container $StorageCertificateContainerName -Context $Context -Force
-#endregion
-#endregion
-
 #region Assigning the 'Storage Blob Data Reader' RBAC Role to the Azure VM System Assigned Identity to the Storage Account 
 #From https://learn.microsoft.com/en-us/azure/governance/machine-configuration/how-to/create-policy-definition#create-an-azure-policy-definition
 $AZVMSystemAssignedIdentity = ($AzVM | Get-AzVM).Identity   
@@ -479,11 +461,14 @@ foreach ($CurrentDSCConfiguration in $DSCConfigurations) {
     # Create a Policy Id
     $PolicyId = (New-Guid).Guid  
     # Define the parameters to create and publish the guest configuration policy
+    $DisplayName = "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $CurrentConfigurationName DSC Config."
+    #Display Name is limited to 128 characters 
+    $DisplayName = $DisplayName.Substring(0, [math]::min(128, $DisplayName.Length))
     $Params = @{
         "PolicyId"                  = $PolicyId
         "ContentUri"                = $GuestConfigurationStorageBlob.ICloudBlob.Uri.AbsoluteUri
-        "DisplayName"               = "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $CurrentConfigurationName DSC Config."
-        "Description"               = "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $CurrentConfigurationName DSC Config."
+        "DisplayName"               = $DisplayName
+        "Description"               = $DisplayName
         "Path"                      = './policies'
         "Platform"                  = 'Windows'
         "PolicyVersion"             = '1.0.0'
@@ -504,7 +489,7 @@ foreach ($CurrentDSCConfiguration in $DSCConfigurations) {
     $NonComplianceMessage.message = "Non Compliance Message"
     $IncludeArcConnectedServers = @{'IncludeArcMachines' = 'true' }# <- IncludeArcMachines is important - given you want to target Arc as well as Azure VMs
 
-    $PolicyAssignment = New-AzPolicyAssignment -Name "$($ResourceGroupName)-$($CurrentConfigurationName)" -DisplayName "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $CurrentConfigurationName DSC Config." -Scope $ResourceGroup.ResourceId -PolicyDefinition $PolicyDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $Location -PolicyParameterObject $IncludeArcConnectedServers -NonComplianceMessage $NonComplianceMessage  
+    $PolicyAssignment = New-AzPolicyAssignment -Name "$($ResourceGroupName)-$($CurrentConfigurationName)" -DisplayName $DisplayName  -Scope $ResourceGroup.ResourceId -PolicyDefinition $PolicyDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $Location -PolicyParameterObject $IncludeArcConnectedServers -NonComplianceMessage $NonComplianceMessage  
 
     # Grant permissions to the managed identity through defined roles
     # https://learn.microsoft.com/en-us/azure/governance/policy/how-to/remediate-resources?tabs=azure-powershell#grant-permissions-to-the-managed-identity-through-defined-roles
