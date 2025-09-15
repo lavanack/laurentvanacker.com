@@ -26,7 +26,7 @@ Install-Module -Name PSDesiredStateConfiguration, PSDSCResources -Force
 #For Machine/Guest Configuration
 Install-Module -Name GuestConfiguration -Force
 #https://github.com/microsoft/BaselineManagement?tab=readme-ov-file#install-the-module
-Install-Module -Name BaselineManagement  -Force
+Install-Module -Name BaselineManagement -RequiredVersion 4.1.1 -Force
 #For Certificates
 Install-Module -Name CertificateDSC -Force
 
