@@ -35,31 +35,30 @@ function Request-AzRunningVMJITAccess {
     begin {
         Write-Verbose -Message "Public IP(s) : $($IP -join ', ')"
         #region Defining variables 
-        $RDPPort = 3389
-        $SSHPort = 22
-        $JITPolicyPorts = $RDPPort, $SSHPort
-
         $JitPolicyTimeInHours = 3
         $JitPolicyName = "Default"
         #endregion
 
-        $JitNetworkAccessPolicyVM = ((Get-AzJitNetworkAccessPolicy | Where-Object -FilterScript { $_.Name -eq $JitPolicyName })).VirtualMachines.Id
+        $JitNetworkAccessPolicy = ((Get-AzJitNetworkAccessPolicy | Where-Object -FilterScript { $_.Name -eq $JitPolicyName })).VirtualMachines | Group-Object -Property Id -AsHashTable -AsString
         Write-Verbose -Message "Running VM(s) : $($VM.Name -join ', ')"
-        Write-Verbose -Message "Jit Network Access Policy VM(s) : $($JitNetworkAccessPolicyVM -join ', ')"
+        Write-Verbose -Message "Jit Network Access Policy VM(s) : $($JitNetworkAccessPolicy.Keys -join ', ')"
     }
 
     process {
         #region Requesting Temporary Access : 3 hours
-        $AzJitNetworkAccessPolicy = foreach ($CurrentVMJitNetworkAccessPolicyVM in $VM) {
-            Write-Verbose -Message "VM : $($CurrentVMJitNetworkAccessPolicyVM.Name)"
-            if ($CurrentVMJitNetworkAccessPolicyVM.Id -in $JitNetworkAccessPolicyVM) {
+        $AzJitNetworkAccessPolicy = foreach ($CurrentVM in $VM) {
+            Write-Verbose -Message "VM : $($CurrentVM.Name)"
+            $CurrentJitNetworkAccessPolicy = $JitNetworkAccessPolicy[$CurrentVM.Id]
+            if ($CurrentJitNetworkAccessPolicy) {
                 $JitPolicy = (
                     @{
-                        id    = $CurrentVMJitNetworkAccessPolicyVM.Id
+                        id    = $CurrentVM.Id
                         ports = 
-                            foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
+                            #Going through all configured management ports
+                            foreach ($CurrentJitNetworkAccessPolicyPort in $CurrentJitNetworkAccessPolicy.Ports.Number) {
+                                Write-Verbose -Message "Processing Port : $CurrentJitNetworkAccessPolicyPort"
                                 @{
-                                    number                     = $CurrentJITPolicyPort;
+                                    number                     = $CurrentJitNetworkAccessPolicyPort;
                                     endTimeUtc                 = (Get-Date).AddHours($JitPolicyTimeInHours).ToUniversalTime()
                                     allowedSourceAddressPrefix = @($IP) 
                                 }
@@ -67,11 +66,11 @@ function Request-AzRunningVMJITAccess {
                     }
                 )
                 $ActivationVM = @($JitPolicy)
-                Write-Host "Requesting Temporary Acces via Just in Time for $($CurrentVMJitNetworkAccessPolicyVM.Name) on port number(s) $($JitPolicy.ports.number -join ', ') for maximum $JitPolicyTimeInHours hours ..."
-                Start-AzJitNetworkAccessPolicy -ResourceGroupName $($CurrentVMJitNetworkAccessPolicyVM.ResourceGroupName) -Location $CurrentVMJitNetworkAccessPolicyVM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM | Select-Object -Property *, @{Name = 'startTime'; Expression = { $_.startTimeUtc.ToLocalTime() } }, @{Name = 'endTime'; Expression = { $JitPolicy.ports.endTimeUtc.ToLocalTime() } } -ExcludeProperty StartTimeUtc
+                Write-Host "Requesting Temporary Acces via Just in Time for $($CurrentVM.Name) on port number(s) $($JitPolicy.Ports.Number -join ', ') for maximum $JitPolicyTimeInHours hours ..."
+                Start-AzJitNetworkAccessPolicy -ResourceGroupName $($CurrentVM.ResourceGroupName) -Location $CurrentVM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM | Select-Object -Property *, @{Name = 'startTime'; Expression = { $_.startTimeUtc.ToLocalTime() } }, @{Name = 'endTime'; Expression = { $JitPolicy.ports.endTimeUtc.ToLocalTime() } } -ExcludeProperty StartTimeUtc
             }
             else {
-                Write-Warning -Message "Just in Time for is not enabled for $($CurrentVMJitNetworkAccessPolicyVM.Name)"
+                Write-Warning -Message "Just in Time for is not enabled for $($CurrentVM.Name)"
             }
         }
     }
