@@ -177,7 +177,6 @@ function Get-GitFile {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$URI: $URI"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$FileRegExPattern: $FileRegExPattern"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Destination: $Destination"
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Recurse: $Recurse"
 
     $null = New-Item -Path $Destination -ItemType Directory -Force -ErrorAction Ignore
 
@@ -200,15 +199,12 @@ function Get-GitFile {
     #region Getting all request files
     $Response = Invoke-WebRequest -Uri $GitHubURI -UseBasicParsing
     $Objects = $Response.Content | ConvertFrom-Json
-    [array] $Files = $Objects | Where-Object -FilterScript { $_.type -eq "file" } | Select-Object -ExpandProperty download_url
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Files:`r`n$($Files | Format-List -Property * | Out-String)"
+    $Files = $Objects | Where-Object -FilterScript { $_.type -eq "file" } | Select-Object -ExpandProperty download_url
     if ($Recurse) {
         $Directories = $Objects | Where-Object -FilterScript { $_.type -eq "dir" } | Select-Object -Property url, name
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Directories:`r`n$($Directories | Format-List -Property * | Out-String)"
         foreach ($CurrentDirectory in $Directories) {
             $CurrentDestination = Join-Path -Path $Destination -ChildPath $CurrentDirectory.name
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentDestination: $CurrentDestination"
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `URI: $($CurrentDirectory.url)"
             Get-GitFile -URI $CurrentDirectory.url -FileRegExPattern $FileRegExPattern -Destination $CurrentDestination -Recurse
         }
     }
@@ -219,14 +215,7 @@ function Get-GitFile {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Destination: $($(@($Destination) * $($FileURIs.Count)) -join ', ')"
         Start-BitsTransfer -Source $FileURIs -Destination $(@($Destination) * $($FileURIs.Count))
         #Getting the url-decoded local file path 
-        $DestinationFiles = $FileURIs | ForEach-Object -Process { 
-            $FileName = $_ -replace ".*/"
-            $DecodedFileName = [System.Web.HttpUtility]::UrlDecode($FileName)
-            if ($FileName -ne $DecodedFileName) {
-                Remove-Item -Path $(Join-Path -Path $Destination -ChildPath $DecodedFileName) -ErrorAction Ignore
-                Rename-Item -Path $(Join-Path -Path $Destination -ChildPath $FileName) -NewName $DecodedFileName -PassThru -Force 
-            }
-        }
+        $DestinationFiles = $FileURIs | ForEach-Object -Process { $FileName = $_ -replace ".*/"; $DecodedFileName = [System.Web.HttpUtility]::UrlDecode($FileName); Rename-Item -Path $(Join-Path -Path $Destination -ChildPath $FileName) -NewName $DecodedFileName -PassThru }
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DestinationFiles: $($DestinationFiles -join ', ')"
     }
     else {
