@@ -60,6 +60,7 @@ $StorageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName
 $StorageAccountName = $StorageAccount.StorageAccountName
 $StorageGuestConfigurationContainerName = "guestconfiguration"
 $StorageCertificateContainerName = "certificates"
+$StorageSoftwareContainerName = "softwares"
 #Adding a 7-day expiration time from now for the SAS Token
 $StartTime = Get-Date
 $ExpiryTime = $StartTime.AddDays(7)
@@ -120,6 +121,23 @@ $Context = New-AzStorageContext -StorageAccountName $StorageAccountName -UseConn
 
 #region Removing existing blob
 $storageAccount | Get-AzStorageContainer | Get-AzStorageBlob | Remove-AzStorageBlob
+#endregion
+
+#region Software Setup Management
+# Creates a new certificate container
+if (-not($storageAccount | Get-AzStorageContainer -Name $StorageSoftwareContainerName -ErrorAction Ignore)) {
+    New-AzStorageContainer -Name $StorageSoftwareContainerName -Context $Context #-Permission Blob
+}
+
+#region Downloading LogParser in the script folder
+$LogParserURI = "https://download.microsoft.com/download/f/f/1/ff1819f9-f702-48a5-bbc7-c9656bc74de8/LogParser.msi"
+$Destination = Join-Path -Path $PSScriptRoot -ChildPath $(Split-Path -Path $LogParserURI -Leaf)
+Start-BitsTransfer -Source $LogParserURI -Destination $Destination
+#endregion
+
+#region Adding LogParser Installer to the container
+(Get-Item -Path $Destination) | Set-AzStorageBlobContent -Container $StorageSoftwareContainerName -Context $Context -Force
+#endregion
 #endregion
 
 #region Self-signed Certificate Management
