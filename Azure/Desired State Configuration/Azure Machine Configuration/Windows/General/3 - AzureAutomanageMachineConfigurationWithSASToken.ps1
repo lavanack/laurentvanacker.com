@@ -199,11 +199,14 @@ foreach ($CurrentDSCConfiguration in $DSCConfigurations) {
     # Create a Policy Id
     $PolicyId = (New-Guid).Guid  
     # Define the parameters to create and publish the guest configuration policy
+    $DisplayName = "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $CurrentConfigurationName DSC Config."
+    #Display Name is limited to 128 characters 
+    $DisplayName = $DisplayName.Substring(0, [math]::min(128, $DisplayName.Length))
     $Params = @{
         "PolicyId"      = $PolicyId
         "ContentUri"    = $GuestConfigurationStorageBlobSASToken
-        "DisplayName"   = "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $CurrentConfigurationName DSC Config."
-        "Description"   = "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $CurrentConfigurationName DSC Config."
+        "DisplayName"   = $DisplayName
+        "Description"   = $DisplayName
         "Path"          = './policies'
         "Platform"      = 'Windows'
         "PolicyVersion" = '1.0.0'
@@ -220,7 +223,7 @@ foreach ($CurrentDSCConfiguration in $DSCConfigurations) {
     $NonComplianceMessage.message = "Non Compliance Message"
     $IncludeArcConnectedServers = @{'IncludeArcMachines' = 'true' }# <- IncludeArcMachines is important - given you want to target Arc as well as Azure VMs
 
-    $PolicyAssignment = New-AzPolicyAssignment -Name "$($ResourceGroupName)-$($CurrentConfigurationName)" -DisplayName "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $CurrentConfigurationName DSC Config." -Scope $ResourceGroup.ResourceId -PolicyDefinition $PolicyDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $Location -PolicyParameterObject $IncludeArcConnectedServers -NonComplianceMessage $NonComplianceMessage  
+    $PolicyAssignment = New-AzPolicyAssignment -Name "$($ResourceGroupName)-$($CurrentConfigurationName)" -DisplayName $DisplayName -Scope $ResourceGroup.ResourceId -PolicyDefinition $PolicyDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $Location -PolicyParameterObject $IncludeArcConnectedServers -NonComplianceMessage $NonComplianceMessage  
 
     # Grant permissions to the managed identity through defined roles
     # https://learn.microsoft.com/en-us/azure/governance/policy/how-to/remediate-resources?tabs=azure-powershell#grant-permissions-to-the-managed-identity-through-defined-roles
