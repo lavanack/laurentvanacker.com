@@ -213,7 +213,7 @@ function Get-GitFile {
     #region Getting all request files
     $Response = Invoke-WebRequest -Uri $GitHubURI -UseBasicParsing
     $Objects = $Response.Content | ConvertFrom-Json
-    [array] $Files = $Objects | Where-Object -FilterScript { $_.type -eq "file" } | Select-Object -ExpandProperty download_url
+    [array] $Files = ($Objects | Where-Object -FilterScript { $_.type -eq "file" } | Select-Object -ExpandProperty html_url) -replace "/blob/", "/raw/"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Files:`r`n$($Files | Format-List -Property * | Out-String)"
     if ($Recurse) {
         $Directories = $Objects | Where-Object -FilterScript { $_.type -eq "dir" } | Select-Object -Property url, name
@@ -226,13 +226,13 @@ function Get-GitFile {
         }
     }
     $FileURIs = $Files -match $FileRegExPattern
-    $DestinationFiles = $null
+    $GitFile = $null
     if ($FileURIs) {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$FileURIs: $($FileURIs -join ', ')"
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Destination: $($(@($Destination) * $($FileURIs.Count)) -join ', ')"
         Start-BitsTransfer -Source $FileURIs -Destination $(@($Destination) * $($FileURIs.Count))
         #Getting the url-decoded local file path 
-        $DestinationFiles = $FileURIs | ForEach-Object -Process { 
+        $GitFile = $FileURIs | ForEach-Object -Process { 
             $FileName = $_ -replace ".*/"
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$FileName: $FileName"
             $DecodedFileName = [System.Web.HttpUtility]::UrlDecode($FileName)
@@ -245,58 +245,10 @@ function Get-GitFile {
                 Get-Item -Path $(Join-Path -Path $Destination -ChildPath $FileName)
             }
         }
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DestinationFiles: $($DestinationFiles -join ', ')"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$GitFile: $($GitFile -join ', ')"
     }
     else {
         Write-Warning -Message "No files to copy from '$GitHubURI'..."
-    }
-    #endregion
-
-    #region non-LFS/LFS processing
-    if ($DestinationFiles) {
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] $(Get-ChildItem -Path $DestinationFiles | Out-String)"
-        $GitFile = foreach ($CurrentDestinationFile in $DestinationFiles) {
-            #Checking if the file is a Github LFS file
-            if ($(Get-Content -Path $CurrentDestinationFile -TotalCount 1) -match "version https://git-lfs.github.com") {
-                #From https://gist.github.com/fkraeutli/66fa741d9a8c2a6a238a01d17ed0edc5#retrieving-lfs-files
-                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] $CurrentDestinationFile is a LFS File"
-                $FileContent = Get-Content -Path $CurrentDestinationFile
-                $SizeResult = [regex]::Match($FileContent, "size\s(?<size>\d+)")
-                $OidResult = [regex]::Match($FileContent, "oid\ssha256:(?<oid>\w+)")
-                [int]$Size = ($SizeResult.Groups.Captures | Where-Object -FilterScript { $_.Name -eq 'size' }).Value
-                $Oid = ($OidResult.Groups.Captures | Where-Object -FilterScript { $_.Name -eq 'oid' }).Value
-                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Size: $Size"
-                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Oid: $Oid"
-                $JSONHT = @{
-                    "operation" = "download" 
-                    "transfer"  = @("basic") 
-                    "objects"   = @(@{"oid" = $Oid; "size" = $size })
-                }
-                $JSON = $JSONHT | ConvertTo-Json
-                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$JSON: $JSON"
-                if ($GitHubURI -match "^https://api.github.com/repos/(?<organisation>[^/]+)/(?<repository>[^/]+)") {
-                    $Organisation = $Matches["organisation"]
-                    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Organisation: $Organisation"
-                    $Repository = $Matches["repository"]
-                    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Repository: $Repository"
-                    $NewURI = "https://github.com/$Organisation/$Repository.git/info/lfs/objects/batch"
-                    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$NewURI: $NewURI"
-                    $Result = Invoke-WebRequest -Method POST -Headers @{"Accept" = "application/vnd.git-lfs+json"; "Content-type" = "application/json" } -Body $JSON -Uri $NewURI -UseBasicParsing
-                    $LFSDownloadURI = ($Result.Content | ConvertFrom-Json).objects.actions.download.href
-                    Invoke-WebRequest -Uri $LFSDownloadURI -UseBasicParsing -OutFile $CurrentDestinationFile
-                    Get-Item -Path $CurrentDestinationFile
-                }
-                else {
-                    Write-Warning "Unable to determine the Organisation and the Repository from '$GitHubURI'"
-                }
-            }
-            #Non-LFS file
-            else {
-                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] $CurrentDestinationFile is NOT a LFS File"
-                Get-Item -Path $CurrentDestinationFile
-            }
-        }
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] $(Get-ChildItem -Path $GitFile | Out-String)"
     }
     #endregion
 
