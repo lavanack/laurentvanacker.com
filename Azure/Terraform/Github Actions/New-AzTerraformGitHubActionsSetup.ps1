@@ -192,6 +192,9 @@ function New-AzTerraformGitHubActionsSetup {
     gh secret set BACKEND_AZURE_STORAGE_ACCOUNT_KEY --body $StorageAccountKey
     #endregion
 
+    #Allowing Shared Key Access
+    $StorageAccount | Set-AzStorageAccount -AllowSharedKeyAccess $true
+
     #region Github Environment Management
     #$null = gh api --method PUT -H "Accept: application/vnd.github+json" repos/$GitHubUserName/$GitHubRepoName/environments/dev
     #endregion
