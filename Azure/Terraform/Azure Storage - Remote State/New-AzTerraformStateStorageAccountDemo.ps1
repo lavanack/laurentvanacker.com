@@ -110,7 +110,7 @@ function New-AzTerraformStateStorageAccountDemo {
     $StorageAccountSkuName = "Standard_LRS"
     $ContainerName = 'tfstate'
     # Create storage account
-    $StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true  -AllowBlobPublicAccess $true
+    $StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true  -AllowBlobPublicAccess $true -AllowSharedKeyAccess $true
     # Create blob container
     $StorageContext = $StorageAccount.Context
     $StorageContainer = New-AzStorageContainer -Name $ContainerName -Context $StorageContext
@@ -140,6 +140,8 @@ function New-AzTerraformStateStorageAccountDemo {
     #region Terraform
     #Setting the Subscription Id in an Environment variable.
     $env:ARM_SUBSCRIPTION_ID = (Get-AzContext).Subscription.Id
+    #Allowing Shared Key Access
+    $StorageAccount | Set-AzStorageAccount -AllowSharedKeyAccess $true
     terraform -chdir="$($WorkingDir.FullName)" init -backend-config="access_key=$StorageAccountKey"
     terraform -chdir="$($WorkingDir.FullName)" fmt
     terraform -chdir="$($WorkingDir.FullName)" validate
