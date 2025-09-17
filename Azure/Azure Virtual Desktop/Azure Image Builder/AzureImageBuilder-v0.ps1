@@ -122,7 +122,7 @@ function New-AzureComputeGallery {
 		Remove-AzResource -Name $StagingResourceGroupName1 -Force
 	}
 	Write-Verbose -Message "Creating '$StagingResourceGroupName1' Resource Group Name ..."
-	$StagingResourceGroup1 = New-AzResourceGroup -Name $StagingResourceGroupName1-Tag @{"SecurityControl"="Ignore"} -Location $location -Force
+	$StagingResourceGroup1 = New-AzResourceGroup -Name $StagingResourceGroupName1 -Tag @{"SecurityControl"="Ignore"} -Location $location -Force
 
 	if (Get-AzResourceGroup -Name $StagingResourceGroupName2 -Location $location -ErrorAction Ignore) {
 		Write-Verbose -Message "Removing '$StagingResourceGroupName2' Resource Group Name ..."
