@@ -27,6 +27,7 @@
             "tags": {
                 "imagebuilderTemplate": "AzureImageBuilderSIG",
                 "userIdentity": "enabled"
+                "SecurityControl": "Ignore"
             },
             "identity": {
                 "type": "UserAssigned",

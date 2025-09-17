@@ -289,7 +289,7 @@ function New-AzureComputeGallery {
 
 	#region Submit the template
 	Write-Verbose -Message "Starting Resource Group Deployment from '$templateFilePath' ..."
-    $ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2022-07-01"; "imageTemplateName" = $imageTemplateName01; "svclocation" = $location } -DeploymentDebugLogLevel All
+    $ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2022-07-01"; "imageTemplateName" = $imageTemplateName01; "svclocation" = $location } -Tag @{"SecurityControl"="Ignore"}
 	
     #region Build the image
 	Write-Verbose -Message "Starting Image Builder Template from '$imageTemplateName01' (As Job) ..."
@@ -395,6 +395,7 @@ function New-AzureComputeGallery {
 		VMProfileOsdiskSizeGb  = 127
 		BuildTimeoutInMinute   = 240
         StagingResourceGroup   = $StagingResourceGroupName2
+        Tag                    = @{"SecurityControl"="Ignore"}
 	}
 	Write-Verbose -Message "Creating Azure Image Builder Template from '$imageTemplateName02' Image Template Name ..."
 	$ImageBuilderTemplate = New-AzImageBuilderTemplate @ImgTemplateParams
