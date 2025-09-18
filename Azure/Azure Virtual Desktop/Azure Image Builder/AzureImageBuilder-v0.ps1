@@ -169,7 +169,6 @@ function New-AzureComputeGallery {
 	#endregion
 
 	# Grant the role definition to the VM Image Builder service principal
-	Write-Verbose -Message "Assigning '$($RoleDefinition.Name)' Role to '$($AssignedIdentity.Name)' ..."
 	$Scope = $ResourceGroup.ResourceId
 	<#
     if (-not(Get-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $Scope)) {
@@ -211,7 +210,7 @@ function New-AzureComputeGallery {
             Scope              = $CurrentStagingResourceGroup.ResourceId
         }
         while (-not(Get-AzRoleAssignment @Parameters)) {
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.PrincipalId)' Identity on the '$($Parameters.Scope)' scope"
 		    try {
                 $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
             } 
@@ -275,9 +274,9 @@ function New-AzureComputeGallery {
 		Name              = $imageDefName01
 		OsState           = 'generalized'
 		OsType            = 'Windows'
-		Publisher         = "{0}-json" -f $SrcObjParams1.Publisher
-		Offer             = "{0}-json" -f $SrcObjParams1.Offer
-		Sku               = "{0}-json" -f $SrcObjParams1.Sku
+		Publisher         = "{0}" -f $SrcObjParams1.Publisher
+		Offer             = "{0}" -f $SrcObjParams1.Offer
+		Sku               = "{0}" -f $SrcObjParams1.Sku
 		HyperVGeneration  = 'V2'
 	}
 	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefName01' (From Customized JSON)..."
@@ -316,9 +315,9 @@ function New-AzureComputeGallery {
 		Name              = $imageDefName02
 		OsState           = 'generalized'
 		OsType            = 'Windows'
-		Publisher         = "{0}-posh" -f $SrcObjParams2.Publisher
-		Offer             = "{0}-posh" -f $SrcObjParams2.Offer
-		Sku               = "{0}-posh" -f $SrcObjParams2.Sku
+		Publisher         = "{0}" -f $SrcObjParams2.Publisher
+		Offer             = "{0}" -f $SrcObjParams2.Offer
+		Sku               = "{0}" -f $SrcObjParams2.Sku
 		HyperVGeneration  = 'V2'
 	}
 	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefName02' (From Powershell)..."

@@ -175,6 +175,7 @@ function New-AzTerraformGitHubActionsSetup {
     $GitHubRepoName = $Tokens[-1]
     #>
     $GitHubUserName, $GitHubRepoName = $(gh repo view --json nameWithOwner -q .nameWithOwner) -split "/"
+    Write-Verbose -Message "Configuring Credential"
     $FederatedIdentityCredential = New-AzFederatedIdentityCredential -ResourceGroupName $ResourceGroupName -IdentityName $UserAssignedIdentity.Name -Name "terraform-github-push-branch-master" -Issuer "https://token.actions.githubusercontent.com" -Subject "repo:$($GitHubUserName)/$($GitHubRepoName):ref:refs/heads/master" -Audience @('api://AzureADTokenExchange')
     #endregion
 
