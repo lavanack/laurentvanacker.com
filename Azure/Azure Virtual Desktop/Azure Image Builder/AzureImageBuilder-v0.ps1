@@ -66,11 +66,7 @@ function New-AzureComputeGallery {
 	$ResourceGroupName = $ResourceGroupName.ToLower()
 	Write-Verbose -Message "`$ResourceGroupName: $ResourceGroupName"
 
-    
-    $StagingResourceGroupName1 = "IT_{0}_json" -f $ResourceGroupName
-    $StagingResourceGroupName2 = "IT_{0}_posh" -f $ResourceGroupName
-
-	#region Source Image 
+    	#region Source Image 
 	$SrcObjParams1 = @{
 		Publisher = 'MicrosoftWindowsDesktop'
 		Offer     = 'Windows-11'    
@@ -92,12 +88,15 @@ function New-AzureComputeGallery {
 	$imageTemplateName01 = "{0}-template-{1}" -f $imageDefName01, $timeInt
 	Write-Verbose -Message "`$imageDefName01: $imageDefName01"
 	Write-Verbose -Message "`$imageTemplateName01: $imageTemplateName01"
+    $StagingResourceGroupName01 = "IT_{0}_{1}_{2}" -f $ResourceGroupName, $imageTemplateName01.Substring(0,13), (New-Guid).Guid
+
 
 	#Image Market Place Image + customizations: VSCode
 	$imageDefName02 = "{0}-posh-vscode" -f $SrcObjParams2.Sku
 	$imageTemplateName02 = "{0}-template-{1}" -f $imageDefName02, $timeInt
 	Write-Verbose -Message "`$imageDefName02: $imageDefName02"
 	Write-Verbose -Message "`$imageTemplateName02: $imageTemplateName02"
+    $StagingResourceGroupName02 = "IT_{0}_{1}_{2}" -f $ResourceGroupName, $imageTemplateName02.Substring(0,13),(New-Guid).Guid
 	#endregion
 
 	# Distribution properties object name (runOutput). Gives you the properties of the managed image on completion
@@ -117,19 +116,19 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "Creating '$ResourceGroupName' Resource Group Name ..."
 	$ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $location -Tag @{"SecurityControl"="Ignore"} -Force
 
-	if (Get-AzResourceGroup -Name $StagingResourceGroupName1 -Location $location -ErrorAction Ignore) {
-		Write-Verbose -Message "Removing '$StagingResourceGroupName1' Resource Group Name ..."
-		Remove-AzResource -Name $StagingResourceGroupName1 -Force
+	if (Get-AzResourceGroup -Name $StagingResourceGroupName01 -Location $location -ErrorAction Ignore) {
+		Write-Verbose -Message "Removing '$StagingResourceGroupName01' Resource Group Name ..."
+		Remove-AzResource -Name $StagingResourceGroupName01 -Force
 	}
-	Write-Verbose -Message "Creating '$StagingResourceGroupName1' Resource Group Name ..."
-	$StagingResourceGroup1 = New-AzResourceGroup -Name $StagingResourceGroupName1 -Tag @{"SecurityControl"="Ignore"} -Location $location -Force
+	Write-Verbose -Message "Creating '$StagingResourceGroupName01' Resource Group Name ..."
+	$StagingResourceGroup01 = New-AzResourceGroup -Name $StagingResourceGroupName01 -Tag @{"SecurityControl"="Ignore"} -Location $location -Force
 
-	if (Get-AzResourceGroup -Name $StagingResourceGroupName2 -Location $location -ErrorAction Ignore) {
-		Write-Verbose -Message "Removing '$StagingResourceGroupName2' Resource Group Name ..."
-		Remove-AzResource -Name $StagingResourceGroupName2 -Force
+	if (Get-AzResourceGroup -Name $StagingResourceGroupName02 -Location $location -ErrorAction Ignore) {
+		Write-Verbose -Message "Removing '$StagingResourceGroupName02' Resource Group Name ..."
+		Remove-AzResource -Name $StagingResourceGroupName02 -Force
 	}
-	Write-Verbose -Message "Creating '$StagingResourceGroupName2' Resource Group Name ..."
-	$StagingResourceGroup2 = New-AzResourceGroup -Name $StagingResourceGroupName2 -Location $location -Tag @{"SecurityControl"="Ignore"} -Force
+	Write-Verbose -Message "Creating '$StagingResourceGroupName02' Resource Group Name ..."
+	$StagingResourceGroup02 = New-AzResourceGroup -Name $StagingResourceGroupName02 -Location $location -Tag @{"SecurityControl"="Ignore"} -Force
 	#endregion
     
 	#region Permissions, user identity, and role
@@ -189,7 +188,12 @@ function New-AzureComputeGallery {
 
 	While (-not(Get-AzRoleAssignment @Parameters)) {
 		Write-Verbose -Message "Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
-		$RoleAssignment = New-AzRoleAssignment @Parameters
+		try {
+            $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
+        } 
+        catch {
+            $RoleAssignment = $null
+        }
 		Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
 		if ($null -eq $RoleAssignment) {
 			Write-Verbose -Message "Sleeping 30 seconds"
@@ -199,7 +203,7 @@ function New-AzureComputeGallery {
 	#endregion
 
     #region RBAC Contributor Role on both Staging Resource Groups
-    foreach ($CurrentStagingResourceGroup in $StagingResourceGroup1, $StagingResourceGroup2)  {
+    foreach ($CurrentStagingResourceGroup in $StagingResourceGroup01, $StagingResourceGroup02)  {
         $RoleDefinition = Get-AzRoleDefinition -Name "Contributor"
         $Parameters = @{
 		    ObjectId           = $AssignedIdentity.PrincipalId
@@ -208,7 +212,12 @@ function New-AzureComputeGallery {
         }
         while (-not(Get-AzRoleAssignment @Parameters)) {
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
-            $RoleAssignment = New-AzRoleAssignment @Parameters
+		    try {
+                $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
+            } 
+            catch {
+                $RoleAssignment = $null
+            }
             Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
             Start-Sleep -Seconds 30
@@ -251,7 +260,7 @@ function New-AzureComputeGallery {
     ((Get-Content -Path $templateFilePath -Raw) -replace '<TargetRegions>', $(ConvertTo-Json -InputObject $TargetRegionSettings)) | Set-Content -Path $templateFilePath
     ((Get-Content -Path $templateFilePath -Raw) -replace '<imgBuilderId>', $AssignedIdentity.Id) | Set-Content -Path $templateFilePath
     ((Get-Content -Path $templateFilePath -Raw) -replace '<version>', $version) | Set-Content -Path $templateFilePath
-    ((Get-Content -Path $templateFilePath -Raw) -replace '<stagingResourceGroupName>', $StagingResourceGroupName1) | Set-Content -Path $templateFilePath
+    ((Get-Content -Path $templateFilePath -Raw) -replace '<stagingResourceGroupName>', $StagingResourceGroupName01) | Set-Content -Path $templateFilePath
 
     ((Get-Content -Path $templateFilePath -Raw) -replace '<publisher>', $SrcObjParams1.Publisher) | Set-Content -Path $templateFilePath
     ((Get-Content -Path $templateFilePath -Raw) -replace '<offer>', $SrcObjParams1.Offer) | Set-Content -Path $templateFilePath
@@ -394,7 +403,7 @@ function New-AzureComputeGallery {
 		VMProfileVmsize        = "Standard_D4s_v5"
 		VMProfileOsdiskSizeGb  = 127
 		BuildTimeoutInMinute   = 240
-        StagingResourceGroup   = $StagingResourceGroupName2
+        StagingResourceGroup   = $StagingResourceGroup02.ResourceId
         Tag                    = @{"SecurityControl"="Ignore"}
 	}
 	Write-Verbose -Message "Creating Azure Image Builder Template from '$imageTemplateName02' Image Template Name ..."
