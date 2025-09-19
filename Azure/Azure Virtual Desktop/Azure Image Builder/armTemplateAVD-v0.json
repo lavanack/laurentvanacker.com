@@ -26,8 +26,7 @@
             "dependsOn": [],
             "tags": {
                 "imagebuilderTemplate": "AzureImageBuilderSIG",
-                "userIdentity": "enabled",
-                "SecurityControl": "Ignore"
+                "userIdentity": "enabled"
             },
             "identity": {
                 "type": "UserAssigned",
