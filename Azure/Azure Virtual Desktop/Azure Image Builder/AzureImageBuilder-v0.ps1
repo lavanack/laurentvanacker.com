@@ -241,7 +241,7 @@ function New-AzureComputeGallery {
 	#region Download and configure the template
 	#$templateUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/14_Building_Images_WVD/armTemplateWVD.json"
 	#$templateFilePath = "armTemplateWVD.json"
-	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVD-v0.json"
+	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVD-v00.json"
 	$templateFilePath = Join-Path -Path $env:TEMP -ChildPath $(Split-Path $templateUrl -Leaf)
 	#Generate a unique file name 
 	$templateFilePath = $templateFilePath -replace ".json$", "_$timeInt.json"
@@ -297,7 +297,7 @@ function New-AzureComputeGallery {
 
 	#region Submit the template
 	Write-Verbose -Message "Starting Resource Group Deployment from '$templateFilePath' ..."
-    $ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2022-07-01"; "imageTemplateName" = $imageTemplateName01; "svclocation" = $location } -Tag @{"SecurityControl"="Ignore"}
+    $ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2022-07-01"; "imageTemplateName" = $imageTemplateName01; "svclocation" = $location }  #-Tag @{"SecurityControl"="Ignore"}
 	
     #region Build the image
 	Write-Verbose -Message "Starting Image Builder Template from '$imageTemplateName01' (As Job) ..."
@@ -403,7 +403,7 @@ function New-AzureComputeGallery {
 		VMProfileOsdiskSizeGb  = 127
 		BuildTimeoutInMinute   = 240
         StagingResourceGroup   = $StagingResourceGroup02.ResourceId
-        Tag                    = @{"SecurityControl"="Ignore"}
+        #Tag                    = @{"SecurityControl"="Ignore"}
 	}
 	Write-Verbose -Message "Creating Azure Image Builder Template from '$imageTemplateName02' Image Template Name ..."
 	$ImageBuilderTemplate = New-AzImageBuilderTemplate @ImgTemplateParams
@@ -458,6 +458,8 @@ function New-AzureComputeGallery {
 	#$Jobs += $getStatus02 | Remove-AzImageBuilderTemplate -AsJob
 	$getStatus02 | Remove-AzImageBuilderTemplate -NoWait
 	#endregion
+
+    $StagingResourceGroupName01, $StagingResourceGroupName01 | Remove-AzResourceGroup -Force -AsJob
 
 	#Adding a delete lock (for preventing accidental deletion)
 	#New-AzResourceLock -LockLevel CanNotDelete -LockNotes "$ResourceGroupName - CanNotDelete" -LockName "$ResourceGroupName - CanNotDelete" -ResourceGroupName $ResourceGroupName -Force
