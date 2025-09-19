@@ -66,7 +66,7 @@ function New-AzureComputeGallery {
 	$ResourceGroupName = $ResourceGroupName.ToLower()
 	Write-Verbose -Message "`$ResourceGroupName: $ResourceGroupName"
 
-    	#region Source Image 
+    #region Source Image 
 	$SrcObjParams1 = @{
 		Publisher = 'MicrosoftWindowsDesktop'
 		Offer     = 'Windows-11'    
@@ -241,7 +241,7 @@ function New-AzureComputeGallery {
 	#region Download and configure the template
 	#$templateUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/14_Building_Images_WVD/armTemplateWVD.json"
 	#$templateFilePath = "armTemplateWVD.json"
-	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVD-v00.json"
+	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVD-v0.json"
 	$templateFilePath = Join-Path -Path $env:TEMP -ChildPath $(Split-Path $templateUrl -Leaf)
 	#Generate a unique file name 
 	$templateFilePath = $templateFilePath -replace ".json$", "_$timeInt.json"
@@ -417,7 +417,8 @@ function New-AzureComputeGallery {
 	
 	#region Waiting for jobs to complete
 	Write-Verbose -Message "Waiting for jobs to complete ..."
-	$Jobs | Wait-Job | Out-Null
+	#$Jobs | Wait-Job | Out-Null
+    $null = $Jobs | Receive-Job -Wait -AutoRemoveJob
 	#endregion
 
 	#region imageTemplateName01 status 
@@ -459,9 +460,6 @@ function New-AzureComputeGallery {
 	$getStatus02 | Remove-AzImageBuilderTemplate -NoWait
 	#endregion
 
-    Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupName01 -Force -AsJob
-    Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupName02 -Force -AsJob
-
 	#Adding a delete lock (for preventing accidental deletion)
 	#New-AzResourceLock -LockLevel CanNotDelete -LockNotes "$ResourceGroupName - CanNotDelete" -LockName "$ResourceGroupName - CanNotDelete" -ResourceGroupName $ResourceGroupName -Force
 	#region Clean up your resources
@@ -477,6 +475,12 @@ function New-AzureComputeGallery {
 	$Jobs | Wait-Job | Out-Null
 	Write-Verbose -Message "Removing jobs ..."
 	$Jobs | Remove-Job -Force
+
+	#region Removing Staging ResourceGroups
+    Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupName01 -Force -AsJob
+    Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupName02 -Force -AsJob
+	#endregion
+
 	return $Gallery
 	#endregion
 }
