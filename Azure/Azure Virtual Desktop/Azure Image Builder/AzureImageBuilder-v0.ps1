@@ -459,7 +459,8 @@ function New-AzureComputeGallery {
 	$getStatus02 | Remove-AzImageBuilderTemplate -NoWait
 	#endregion
 
-    $StagingResourceGroupName01, $StagingResourceGroupName01 | Remove-AzResourceGroup -Force -AsJob
+    Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupName01 -Force -AsJob
+    Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupName02 -Force -AsJob
 
 	#Adding a delete lock (for preventing accidental deletion)
 	#New-AzResourceLock -LockLevel CanNotDelete -LockNotes "$ResourceGroupName - CanNotDelete" -LockName "$ResourceGroupName - CanNotDelete" -ResourceGroupName $ResourceGroupName -Force
