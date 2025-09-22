@@ -49,10 +49,10 @@ function Repair-AzImageBuilderTemplate {
 
                         <#
                         # Remove the user-assigned identity
-                        $CurrentImageBuilderTemplate.Identity.UserAssignedIdentities.Remove($CurrentUserAssignedIdentityId)
+                        $null = $CurrentImageBuilderTemplate.IdentityUserAssignedIdentity.Remove($CurrentUserAssignedIdentityId)
 
                         # Update the template
-                        $CurrentImageBuilderTemplate | Set-AzImageBuilderTemplate-Identity $template.Identity
+                        $CurrentImageBuilderTemplate | Update-AzImageBuilderTemplate
                         #>
 
                     }
@@ -113,15 +113,15 @@ function Repair-AzImageBuilderTemplate {
                         Write-Verbose -Message "Creating the new the '$UserAssignedManagedIdentityName' User Assigned Identity ..."
                         $UserAssignedIdentity = New-AzUserAssignedIdentity -Name $UserAssignedManagedIdentityName -ResourceGroupName $CurrentResourceGroupName -Location $Location
 
-                        #region RBAC Contributor Role for the User Assigned Identity on Resource Group
-                        $RoleDefinition = Get-AzRoleDefinition -Name "Contributor"
+                        #region RBAC Owner Role for the User Assigned Identity on the Subscription
+                        $RoleDefinition = Get-AzRoleDefinition -Name "Owner"
                         $Parameters = @{
                             ObjectId           = $UserAssignedIdentity.PrincipalId
                             RoleDefinitionName = $RoleDefinition.Name
                             Scope              = $ResourceGroup.ResourceId
                         }
                         while (-not(Get-AzRoleAssignment @Parameters)) {
-                            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.PrincipalId)' Identity on the '$($Parameters.Scope)' scope"
+                            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' scope"
                             try {
                                 $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
                             } 
@@ -143,8 +143,7 @@ function Repair-AzImageBuilderTemplate {
 
                         <#
                         # Assign the user-assigned identity
-                        $CurrentImageBuilderTemplate.Identity.Type = "UserAssigned"
-                        $CurrentImageBuilderTemplate.Identity.UserAssignedIdentities[$UserAssignedIdentity.Id] = @{}
+                        $CurrentImageBuilderTemplate.IdentityUserAssignedIdentity[$UserAssignedIdentity.Id] = @{}
 
                         # Update the template
                         $CurrentImageBuilderTemplate | Set-AzImageBuilderTemplate-Identity $template.Identity
