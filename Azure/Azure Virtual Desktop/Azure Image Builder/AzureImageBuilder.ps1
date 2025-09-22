@@ -210,7 +210,7 @@ function New-AzureComputeGallery {
 			Scope              = $CurrentStagingResourceGroup.ResourceId
 		}
 		while (-not(Get-AzRoleAssignment @Parameters)) {
-			Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.PrincipalId)' Identity on the '$($Parameters.Scope)' scope"
+			Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' scope"
 			try {
 				$RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
 			} 
@@ -274,25 +274,14 @@ function New-AzureComputeGallery {
 		Name              = $imageDefinitionNameARM
 		OsState           = 'generalized'
 		OsType            = 'Windows'
-		Publisher         = "{0}" -f $SrcObjParamsARM.Publisher
-		Offer             = "{0}" -f $SrcObjParamsARM.Offer
-		Sku               = "{0}" -f $SrcObjParamsARM.Sku
+		Publisher         = "{0}-arm" -f $SrcObjParamsARM.Publisher
+		Offer             = "{0}-arm" -f $SrcObjParamsARM.Offer
+		Sku               = "{0}-arm" -f $SrcObjParamsARM.Sku
 		HyperVGeneration  = 'V2'
 	}
-	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefinitionNameARM' (From Customized JSON)..."
+	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefinitionNameARM' (From ARM)..."
 	$Result = (Get-Content -Path $templateFilePath -Raw) -replace "`r|`n" -replace "\s+", ' ' -match '"source".*(?<Source>{.*}),\s+"customize"'
-	if ($Result) {
-		$Source = $Matches["Source"] | ConvertFrom-Json
-		$GalleryImageDefinitionARM = New-AzGalleryImageDefinition @GalleryParams
-	}
-	else {
-		$GalleryParams = @{
-			$GalleryParams['Publisher'] = 'Contoso'
-			$GalleryParams['Offer']     = 'Windows'
-			$GalleryParams['Sku']       = 'Windows Client'
-		}
-		$GalleryImageDefinitionARM = New-AzGalleryImageDefinition @GalleryParams
-	}
+    $GalleryImageDefinitionARM = New-AzGalleryImageDefinition @GalleryParams
 	#endregion
 
 	#region Submit the template
@@ -315,9 +304,9 @@ function New-AzureComputeGallery {
 		Name              = $imageDefinitionNamePowerShell
 		OsState           = 'generalized'
 		OsType            = 'Windows'
-		Publisher         = "{0}" -f $SrcObjParamsPowerShell.Publisher
-		Offer             = "{0}" -f $SrcObjParamsPowerShell.Offer
-		Sku               = "{0}" -f $SrcObjParamsPowerShell.Sku
+		Publisher         = "{0}-posh" -f $SrcObjParamsPowerShell.Publisher
+		Offer             = "{0}-posh" -f $SrcObjParamsPowerShell.Offer
+		Sku               = "{0}-posh" -f $SrcObjParamsPowerShell.Sku
 		HyperVGeneration  = 'V2'
 	}
 	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefinitionNamePowerShell' (From Powershell)..."
@@ -421,7 +410,7 @@ function New-AzureComputeGallery {
 	$null = $Jobs | Receive-Job -Wait -AutoRemoveJob
 	#endregion
 
-	#region imageTemplateNameARM$imageTemplateNameARM status 
+	#region imageTemplateNameARM status 
 	#To determine whenever or not the template upload process was successful, run the following command.
 	$getStatusARM = Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateNameARM
 	# Optional - if you have any errors running the preceding command, run:
@@ -474,6 +463,7 @@ function New-AzureComputeGallery {
 	#region Removing Staging ResourceGroups
 	Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNameARM -Force -AsJob
 	Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNamePowerShell -Force -AsJob
+
 	#endregion
 
 	return $Gallery
