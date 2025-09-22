@@ -201,9 +201,9 @@ function New-AzureComputeGallery {
 	}
 	#endregion
 
-	#region RBAC Contributor Role on both Staging Resource Groups
+	#region RBAC Owner Role on both Staging Resource Groups
 	foreach ($CurrentStagingResourceGroup in $StagingResourceGroupARM, $StagingResourceGroupPowerShell) {
-		$RoleDefinition = Get-AzRoleDefinition -Name "Contributor"
+		$RoleDefinition = Get-AzRoleDefinition -Name "Owner"
 		$Parameters = @{
 			ObjectId           = $AssignedIdentity.PrincipalId
 			RoleDefinitionName = $RoleDefinition.Name
@@ -241,7 +241,7 @@ function New-AzureComputeGallery {
 	#region Download and configure the template
 	#$templateUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/14_Building_Images_WVD/armTemplateWVD.json"
 	#$templateFilePath = "armTemplateWVD.json"
-	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVD-v0.json"
+	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVD.json"
 	$templateFilePath = Join-Path -Path $env:TEMP -ChildPath $(Split-Path $templateUrl -Leaf)
 	#Generate a unique file name 
 	$templateFilePath = $templateFilePath -replace ".json$", "_$timeInt.json"
