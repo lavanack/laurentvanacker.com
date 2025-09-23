@@ -36,10 +36,10 @@ function New-AzureComputeGallery {
 	$shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @{Name = 'Location'; Expression = { $AzLocation[$_.name].Location } } | Where-Object -FilterScript { $_.Location } | Group-Object -Property Location -AsHashTable -AsString
 	#endregion
 
-    #region Building an Hashtable to get the shortname of every Azure resource based on a JSON file on the Github repository of the Azure Naming Tool
-    $Result = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/refs/heads/main/src/repository/resourcetypes.json 
-    $ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -in @('', 'Windows') } | Select-Object -Property resource, shortName, lengthMax | Group-Object -Property resource -AsHashTable -AsString
-    #endregion
+	#region Building an Hashtable to get the shortname of every Azure resource based on a JSON file on the Github repository of the Azure Naming Tool
+	$Result = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/refs/heads/main/src/repository/resourcetypes.json 
+	$ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -in @('', 'Windows') } | Select-Object -Property resource, shortName, lengthMax | Group-Object -Property resource -AsHashTable -AsString
+	#endregion
 
 	#region Set up the environment and variables
 	# get existing context
@@ -50,8 +50,8 @@ function New-AzureComputeGallery {
 	#Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
 	#$AzureComputeGalleryPrefix = "acg"
 	#$ResourceGroupPrefix = "rg"
-    $ResourceGroupPrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
-    $AzureComputeGalleryPrefix = $ResourceTypeShortNameHT["Compute/galleries"].ShortName
+	$ResourceGroupPrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
+	$AzureComputeGalleryPrefix = $ResourceTypeShortNameHT["Compute/galleries"].ShortName
 
 	# Location (see possible locations in the main docs)
 	Write-Verbose -Message "`$Location: $Location"
@@ -287,7 +287,7 @@ function New-AzureComputeGallery {
 		HyperVGeneration  = 'V2'
 	}
 	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefinitionNameARM' (From ARM)..."
-    $GalleryImageDefinitionARM = New-AzGalleryImageDefinition @GalleryParams
+	$GalleryImageDefinitionARM = New-AzGalleryImageDefinition @GalleryParams
 	#endregion
 
 	#region Submit the template
@@ -473,7 +473,6 @@ function New-AzureComputeGallery {
 	#endregion
 
 	return $Gallery
-	#endregion
 }
 #endregion
 
