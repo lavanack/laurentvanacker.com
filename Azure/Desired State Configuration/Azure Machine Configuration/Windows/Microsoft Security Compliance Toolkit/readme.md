@@ -1,4 +1,4 @@
-# Azure Machine Configuration
+# Microsoft Security Compliance Toolkit baselines with Azure Machine Configuration
 
 [![Azure](https://img.shields.io/badge/Azure-Machine%20Configuration-0078d4?logo=microsoft-azure&logoColor=white)](https://learn.microsoft.com/en-us/azure/governance/machine-configuration/)
 [![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B%20%7C%207.X-blue?logo=powershell&logoColor=white)](https://github.com/PowerShell/PowerShell)
@@ -8,18 +8,25 @@
 
 ## 📋 Overview
 
-This project is a combination of the [Convert Microsoft Security Compliance Baselines to Azure Machine Configuration Packages](https://github.com/lavanack/laurentvanacker.com/tree/master/Windows%20Powershell/Windows/Security/Convert-FromSecurityComplianceToolkit) article with Azure Machine Configuration (formerly Guest Configuration). This article is similar to the solution described in the [Azure Machine Configuration](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Desired%20State%20Configuration/Azure%20Machine%20Configuration/Windows/General) article.
+This project is a combination of the [Convert Microsoft Security Compliance Baselines to Azure Machine Configuration Packages](https://github.com/lavanack/laurentvanacker.com/tree/master/Windows%20Powershell/Windows/Security/Convert-FromSecurityComplianceToolkit) article with Azure Machine Configuration (formerly Guest Configuration). This article is similar to the solution described in the [Azure Machine Configuration](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Desired%20State%20Configuration/Azure%20Machine%20Configuration/Windows/General) article but applied to a [**Microsoft Security Compliance Toolkit** baselines](https://www.microsoft.com/en-us/download/details.aspx?id=55319) context.
 
 ### 🚀 Quick Start
 
 1. **Deploy Azure VM**: Run [`1 - AzureVMWithAzureAutomanageMachineConfiguration.ps1`](1%20-%20AzureVMWithAzureAutomanageMachineConfiguration.ps1)
 2. **Install Prerequisites**: Execute [`2 - Prerequisites.ps1`](2%20-%20Prerequisites.ps1) on the VM
 3. **Apply Configurations**: Run [`3 - AzureAutomanageMachineConfigurationSCTWithSystemAssignedIdentity.ps1`](3%20-%AzureAutomanageMachineConfigurationSCTWithSystemAssignedIdentity.ps1)
+
 ## 🔧 DSC Configurations
 
-The applied Desired State Configuration come from the [Convert Microsoft Security Compliance Baselines to Azure Machine Configuration Packages](https://github.com/lavanack/laurentvanacker.com/tree/master/Windows%20Powershell/Windows/Security/Convert-FromSecurityComplianceToolkit) article. You will be promped twice in the [3 - AzureAutomanageMachineConfigurationSCTWithSystemAssignedIdentity.ps1](3%20-%AzureAutomanageMachineConfigurationSCTWithSystemAssignedIdentity.ps1) script
-- Selecting the [Operating System or the Security Topic](/Windows%20Powershell/Windows/Security/Convert-FromSecurityComplianceToolkit/readme.md#visual-examples) (Unique Selection). I recommend to select "Windows Server 2022 Security Baseline" because the deployed Azure VM is a Windows Server 2022.
-- The GPO names based on the previous selection (Multiple selections allowed)
+The applied Desired State Configurations come from the [Convert Microsoft Security Compliance Baselines to Azure Machine Configuration Packages](https://github.com/lavanack/laurentvanacker.com/tree/master/Windows%20Powershell/Windows/Security/Convert-FromSecurityComplianceToolkit) article. You will be promped twice in the [3 - AzureAutomanageMachineConfigurationSCTWithSystemAssignedIdentity.ps1](3%20-%AzureAutomanageMachineConfigurationSCTWithSystemAssignedIdentity.ps1) script
+
+- Selecting the [Operating System or the Security Topic](/Windows%20Powershell/Windows/Security/Convert-FromSecurityComplianceToolkit/readme.md#visual-examples) (Unique Selection). I recommend to select **Windows Server 2022 Security Baseline** because the deployed Azure VM is a Windows Server 2022.
+
+![Windows Server 2022 Security Baseline](docs/baselines.jpg)
+
+- The proposed GPO names will be based on the previous selection (Multiple selections allowed)
+
+![GPOs](docs/gpos.jpg)
 
 ## 📋 Table of Contents
 
@@ -27,6 +34,7 @@ The applied Desired State Configuration come from the [Convert Microsoft Securit
 - [DSC Configurations](#-dsc-configurations)
 - [Prerequisites](#-prerequisites)
 - [Installation & Setup](#-installation--setup)
+- [Results](#-results)
 - [Configuration Options](#-configuration-options)
 - [Security Features](#-security-features)
 - [Troubleshooting](#-troubleshooting)
@@ -69,6 +77,7 @@ Run the deployment script from your local machine:
 ```
 
 **Installs**:
+
 - PowerShell modules
 - PowerShell 7+
 - Visual Studio Code
@@ -76,13 +85,19 @@ Run the deployment script from your local machine:
 
 ### Step 3: Apply DSC Configurations
 
-Choose one of the following approaches:
+This script will prompt you twice as previously explained in the [DSC Configurations](#-dsc-configurations) paragraph.
 
 ```powershell
 .\3 - AzureAutomanageMachineConfigurationSCTWithSystemAssignedIdentity.ps1
 ```
 
 > **Note**: System Assigned Identity is the recommended approach for production environments. More details: [Azure Policy Definition Guide](https://learn.microsoft.com/en-us/azure/governance/machine-configuration/how-to/create-policy-definition#create-an-azure-policy-definition)
+
+## 📊 Results
+
+When the process will end, all the related Azure Policies/Initiatives will be successfully applied as shown below.
+
+![Azure Policy Remediations](docs/remediations.jpg)
 
 ## ⚙️ Configuration Options
 
@@ -158,6 +173,7 @@ Set-AzContext -SubscriptionName "Your Subscription Name"
 
 **Issue**: Cannot RDP to VM  
 **Solution**: 
+
 - Verify NSG rules allow your current IP
 - Use JIT access policy if available
 - Check VM is running (not deallocated)
@@ -179,5 +195,6 @@ Set-AzContext -SubscriptionName "Your Subscription Name"
 ---
 
 **📖 Additional Resources**:
+
 - [Azure Machine Configuration Documentation](https://learn.microsoft.com/en-us/azure/governance/machine-configuration/)
 - [Guest Configuration Policy Initiative](https://github.com/Azure/azure-policy/blob/master/built-in-policies/policySetDefinitions/Guest%20Configuration/GuestConfiguration_Prerequisites.json)
