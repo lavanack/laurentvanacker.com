@@ -33,15 +33,43 @@ function Repair-AzImageBuilderTemplate {
                 $ImageBuilderTemplate = Get-AzImageBuilderTemplate -ResourceGroupName $CurrentResourceGroupName
                 $Location = $ResourceGroup.Location
 
+                #region Creating a new User Assigned Identity
+                $UserAssignedManagedIdentityName = "aib_{0}" -f $CurrentResourceGroupName
+                Write-Verbose -Message "Creating the new the '$UserAssignedManagedIdentityName' User Assigned Identity ..."
+                $UserAssignedIdentity = New-AzUserAssignedIdentity -Name $UserAssignedManagedIdentityName -ResourceGroupName $CurrentResourceGroupName -Location $Location
+
+                #region RBAC Owner Role for the User Assigned Identity on the Subscription
+                $RoleDefinition = Get-AzRoleDefinition -Name "Owner"
+                $Parameters = @{
+                    ObjectId           = $UserAssignedIdentity.PrincipalId
+                    RoleDefinitionName = $RoleDefinition.Name
+                    Scope              = $ResourceGroup.ResourceId
+                }
+                while (-not(Get-AzRoleAssignment @Parameters)) {
+                    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' scope"
+                    try {
+                        $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
+                    } 
+                    catch {
+                        $RoleAssignment = $null
+                    }
+                    Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+                    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+                    Start-Sleep -Seconds 30
+                }
+                #endregion
+                #endregion
+
+
                 #Going through each template in the ResourceGroup
                 foreach ($CurrentImageBuilderTemplate in $ImageBuilderTemplate) {
                     $CurrentGalleryImageId = $CurrentImageBuilderTemplate.Distribute.GalleryImageId
                     Write-Verbose -Message "Processing the '$CurrentGalleryImageId' Azure Compute Gallery Image ..."
             
+                    #region Removing the managed identity from the target VM Image Builder template:
                     foreach ($CurrentUserAssignedIdentityId in $CurrentImageBuilderTemplate.IdentityUserAssignedIdentity.Keys) {
                         Write-Verbose -Message "Processing The '$CurrentUserAssignedIdentityId' User Assigned Identity ..."
                         #From https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-troubleshoot#solution-1
-                        #Remove the managed identity from the target VM Image Builder template:
                         $CmdLine = "az image builder identity remove -g $CurrentResourceGroupName -n $($CurrentImageBuilderTemplate.Name) --user-assigned $CurrentUserAssignedIdentityId --yes"
                         #$CmdLine | Set-Clipboard
                         Write-Verbose -Message "Removing the '$CurrentUserAssignedIdentityId' User Assigned Identity from the '$($CurrentImageBuilderTemplate.Name)' Template ..."
@@ -56,6 +84,7 @@ function Repair-AzImageBuilderTemplate {
                         #>
 
                     }
+                    #endregion
 
                     if ($CurrentGalleryImageId -match "^.*/galleries/(?<gallery>.*)/images/(?<image>.*)/versions/(?<version>.*)$") {
                         $CurrentImageName = $Matches['image']
@@ -82,9 +111,9 @@ function Repair-AzImageBuilderTemplate {
                                 Name              = $CurrentImageName
                                 OsState           = 'generalized'
                                 OsType            = 'Windows'
-                                Publisher         = "{0}" -f $SrcObjParams.Publisher
-                                Offer             = "{0}" -f $SrcObjParams.Offer
-                                Sku               = "{0}" -f $SrcObjParams.Sku
+                                Publisher         = "{0}-repair" -f $SrcObjParams.Publisher
+                                Offer             = "{0}-repair" -f $SrcObjParams.Offer
+                                Sku               = "{0}-repair" -f $SrcObjParams.Sku
                                 HyperVGeneration  = 'V2'
                             }
                             #Creating the Azure Image Definition
@@ -108,38 +137,14 @@ function Repair-AzImageBuilderTemplate {
                         #Creating (if needed) or Getting the new image version
                         $GalleryImageVersion = New-AzGalleryImageVersion @Parameters -ErrorAction Ignore
 
-                        #Creating a new User Assigned Identity
-                        $UserAssignedManagedIdentityName = "aib_{0}" -f $CurrentResourceGroupName
-                        Write-Verbose -Message "Creating the new the '$UserAssignedManagedIdentityName' User Assigned Identity ..."
-                        $UserAssignedIdentity = New-AzUserAssignedIdentity -Name $UserAssignedManagedIdentityName -ResourceGroupName $CurrentResourceGroupName -Location $Location
-
-                        #region RBAC Owner Role for the User Assigned Identity on the Subscription
-                        $RoleDefinition = Get-AzRoleDefinition -Name "Owner"
-                        $Parameters = @{
-                            ObjectId           = $UserAssignedIdentity.PrincipalId
-                            RoleDefinitionName = $RoleDefinition.Name
-                            Scope              = $ResourceGroup.ResourceId
-                        }
-                        while (-not(Get-AzRoleAssignment @Parameters)) {
-                            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' scope"
-                            try {
-                                $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
-                            } 
-                            catch {
-                                $RoleAssignment = $null
-                            }
-                            Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-                            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
-                            Start-Sleep -Seconds 30
-                        }
-                        #endregion
-
+                        #region Assigning a new identity to the target VM Image Builder template
                         #From https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-troubleshoot#solution-1
-                        #Assign a new identity to the target VM Image Builder template:
+                        
                         $CmdLine = "az image builder identity assign -g $CurrentResourceGroupName -n $($CurrentImageBuilderTemplate.Name) --user-assigned $($UserAssignedIdentity.Id)"
                         #$CmdLine | Set-Clipboard
                         Write-Verbose -Message "Assigning the '$($UserAssignedIdentity.Name)' User Assigned Identity from the '$($CurrentImageBuilderTemplate.Name)' Template ..."
                         Start-Process -FilePath "$env:comspec" -ArgumentList "/c", $CmdLine  -Wait #-WindowStyle Hidden
+                        #endregion
 
                         <#
                         # Assign the user-assigned identity
@@ -179,7 +184,7 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 
 <#
 $TimeStamp = 1758283049
-$ResourceGroupName = "rg-avd-aib-use2-$TimeStamp"
+$ResourceGroupNames = "rg-avd-aib-use2-$TimeStamp"
 #>
 
 $ImageBuilderTemplate = Get-AzImageBuilderTemplate | Where-Object -FilterScript {$_.provisioningState -notmatch "ing$"}
@@ -188,8 +193,9 @@ $ResourceGroupNames | Repair-AzImageBuilderTemplate -Verbose
 
 #Cleanup
 <#
-$ImageBuilderTemplate | Remove-AzImageBuilderTemplate -AsJob
-$ResourceGroupNames | Remove-AzResourceGroup -AsJob -Force
+$ImageBuilderTemplate | Remove-AzImageBuilderTemplate -NoWait
+$ResourceGroupNames | ForEach-Object -Process { Remove-AzResourceGroup -Name $_ -AsJob -Force }
 #>
+
 #endregion 
 
