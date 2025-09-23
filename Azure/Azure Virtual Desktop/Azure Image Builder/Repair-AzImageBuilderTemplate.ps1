@@ -29,7 +29,7 @@ function Repair-AzImageBuilderTemplate {
         foreach ($CurrentResourceGroupName in $ResourceGroupName)  {
             Write-Verbose -Message "Processing the '$CurrentResourceGroupName' ResourceGroup ..."
             $ResourceGroup = Get-AzResourceGroup -Name $CurrentResourceGroupName -ErrorAction Ignore
-            if ($ResourceGroup) {
+            if (($ResourceGroup) -and ($ResourceGroup.ProvisioningState -notmatch "ing$")) {
                 $ImageBuilderTemplate = Get-AzImageBuilderTemplate -ResourceGroupName $CurrentResourceGroupName
                 $Location = $ResourceGroup.Location
 
@@ -157,7 +157,12 @@ function Repair-AzImageBuilderTemplate {
                 }
             }
             else {
-                Write-Warning -Message "The '$CurrentResourceGroupName' ResourceGroup doesn't exist"
+                if ($ResourceGroup) {
+                    Write-Warning -Message "The '$CurrentResourceGroupName' ResourceGroup doesn't exist"
+                } 
+                else {
+					Write-Warning -Message "The '$CurrentResourceGroupName' is '$($ResourceGroup.ProvisioningState)'"
+                }
             }
 
         }
@@ -187,7 +192,7 @@ $TimeStamp = 1758283049
 $ResourceGroupNames = "rg-avd-aib-use2-$TimeStamp"
 #>
 
-$ImageBuilderTemplate = Get-AzImageBuilderTemplate | Where-Object -FilterScript {$_.provisioningState -notmatch "ing$"}
+$ImageBuilderTemplate = Get-AzImageBuilderTemplate | Where-Object -FilterScript {$_.LastRunStatusRunState -notmatch "ing$"}
 $ResourceGroupNames = $ImageBuilderTemplate.ResourceGroupName | Select-Object -Unique
 $ResourceGroupNames | Repair-AzImageBuilderTemplate -Verbose
 
