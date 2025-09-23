@@ -142,7 +142,7 @@ function Repair-AzImageBuilderTemplate {
                         
                         $CmdLine = "az image builder identity assign -g $CurrentResourceGroupName -n $($CurrentImageBuilderTemplate.Name) --user-assigned $($UserAssignedIdentity.Id)"
                         #$CmdLine | Set-Clipboard
-                        Write-Verbose -Message "Assigning the '$($UserAssignedIdentity.Name)' User Assigned Identity from the '$($CurrentImageBuilderTemplate.Name)' Template ..."
+                        Write-Verbose -Message "Assigning the '$($UserAssignedIdentity.Name)' User Assigned Identity to the '$($CurrentImageBuilderTemplate.Name)' Template ..."
                         Start-Process -FilePath "$env:comspec" -ArgumentList "/c", $CmdLine  -Wait #-WindowStyle Hidden
                         #endregion
 
@@ -157,7 +157,7 @@ function Repair-AzImageBuilderTemplate {
                 }
             }
             else {
-                if ($ResourceGroup) {
+                if (-not($ResourceGroup)) {
                     Write-Warning -Message "The '$CurrentResourceGroupName' ResourceGroup doesn't exist"
                 } 
                 else {
@@ -198,8 +198,8 @@ $ResourceGroupNames | Repair-AzImageBuilderTemplate -Verbose
 
 #Cleanup
 <#
-$ImageBuilderTemplate | Remove-AzImageBuilderTemplate -NoWait
-$ResourceGroupNames | ForEach-Object -Process { Remove-AzResourceGroup -Name $_ -AsJob -Force }
+$ImageBuilderTemplate | Remove-AzImageBuilderTemplate -Verbose
+$ResourceGroupNames | ForEach-Object -Process { Remove-AzResourceGroup -Name $_ -AsJob -Force -Verbose }
 #>
 
 #endregion 
