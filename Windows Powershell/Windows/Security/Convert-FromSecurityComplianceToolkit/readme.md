@@ -132,7 +132,8 @@ To advance your Azure Machine Configuration implementation:
 ### Additional Resources
 
 🔗 **Explore the complete Azure Machine Configuration toolkit**:
-[Azure Desired State Configuration Examples](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Desired%20State%20Configuration/Azure%20Machine%20Configuration)
+- [Azure Machine Configuration Examples](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Desired%20State%20Configuration/Azure%20Machine%20Configuration)
+- [Microsoft Security Compliance Toolkit baselines with Azure Machine Configuration](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Desired%20State%20Configuration/Azure%20Machine%20Configuration/Windows/Microsoft%20Security%20Compliance%20Toolkit)
 
 ### Compatibility Notes
 
