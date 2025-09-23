@@ -18,7 +18,7 @@ This project is a combination of the [Convert Microsoft Security Compliance Base
 ## 🔧 DSC Configurations
 
 The applied Desired State Configuration come from the [Convert Microsoft Security Compliance Baselines to Azure Machine Configuration Packages](https://github.com/lavanack/laurentvanacker.com/tree/master/Windows%20Powershell/Windows/Security/Convert-FromSecurityComplianceToolkit) article. You will be promped twice in the [3 - AzureAutomanageMachineConfigurationSCTWithSystemAssignedIdentity.ps1](3%20-%AzureAutomanageMachineConfigurationSCTWithSystemAssignedIdentity.ps1) script
-- Selecting the [Operating System or the Security Topic](/Windows%20Powershell/Windows/Security/Convert-FromSecurityComplianceToolkit/readme.md#visual-examples) (Unique Selection)
+- Selecting the [Operating System or the Security Topic](/Windows%20Powershell/Windows/Security/Convert-FromSecurityComplianceToolkit/readme.md#visual-examples) (Unique Selection). I recommend to select "Windows Server 2022 Security Baseline" because the deployed Azure VM is a Windows Server 2022.
 - The GPO names based on the previous selection (Multiple selections allowed)
 
 ## 📋 Table of Contents

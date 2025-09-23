@@ -21,96 +21,32 @@ of the Sample Code.
 function Repair-AzImageBuilderTemplate {
     [CmdletBinding()]
     Param(
-        [Parameter(Mandatory = $true)]
-        [string]$ResourceGroupName
+		[Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [string[]]$ResourceGroupName
     )
+    begin {}
+    process {
+        foreach ($CurrentResourceGroupName in $ResourceGroupName)  {
+            Write-Verbose -Message "Processing the '$CurrentResourceGroupName' ResourceGroup ..."
+            $ResourceGroup = Get-AzResourceGroup -Name $CurrentResourceGroupName -ErrorAction Ignore
+            if (($ResourceGroup) -and ($ResourceGroup.ProvisioningState -notmatch "ing$")) {
+                $ImageBuilderTemplate = Get-AzImageBuilderTemplate -ResourceGroupName $CurrentResourceGroupName
+                $Location = $ResourceGroup.Location
 
-    $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore
-    if ($ResourceGroup) {
-        $ImageBuilderTemplate = Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName
-        $Location = $ResourceGroup.Location
-
-        #Going through each template in the ResourceGroup
-        foreach ($CurrentImageBuilderTemplate in $ImageBuilderTemplate) {
-            $CurrentGalleryImageId = $CurrentImageBuilderTemplate.Distribute.GalleryImageId
-            Write-Verbose -Message "Processing the Azure Compute Gallery Image '$CurrentGalleryImageId' ..."
-            
-            foreach ($CurrentUserAssignedIdentityId in $CurrentImageBuilderTemplate.IdentityUserAssignedIdentity.Keys) {
-                Write-Verbose -Message "Processing The '$CurrentUserAssignedIdentityId' User Assigned Identity ..."
-                #From https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-troubleshoot#solution-1
-                #Remove the managed identity from the target VM Image Builder template:
-                $CmdLine = "az image builder identity remove -g $ResourceGroupName -n $($CurrentImageBuilderTemplate.Name) --user-assigned $CurrentUserAssignedIdentityId --yes"
-                $CmdLine | Set-Clipboard
-                Write-Verbose -Message "Removing the '$CurrentUserAssignedIdentityId' User Assigned Identity from the '$($CurrentImageBuilderTemplate.Name)' Template ..."
-                Start-Process -FilePath "$env:comspec" -ArgumentList "/c", $CmdLine -Wait
-            }
-
-            if ($CurrentGalleryImageId -match "^.*/galleries/(?<gallery>.*)/images/(?<image>.*)/versions/(?<version>.*)$") {
-                $CurrentImageName = $Matches['image']
-                $CurrentImageVersion = $Matches['version']
-                $CurrentAzureComputeGalleryName = $Matches['gallery']
-
-                #Creating (if needed) or Getting the Azure Compute Gallery
-                $CurrentAzureComputeGallery = New-AzGallery -GalleryName $CurrentAzureComputeGalleryName -ResourceGroupName $ResourceGroupName -Location $location
-
-	            $SrcObjParams = @{
-		            Publisher = 'MicrosoftWindowsDesktop'
-		            Offer     = 'Windows-11'    
-		            Sku       = 'win11-24h2-avd'  
-		            Version   = 'latest'
-	            }
-
-                #Getting the Azure Image Definition
-                $GalleryImageDefinition = Get-AzGalleryImageDefinition -ResourceGroupName $ResourceGroupName -GalleryName $CurrentAzureComputeGalleryName -Name $CurrentImageName -ErrorAction Ignore
-                if (-not($GalleryImageDefinition)) {
-                    $GalleryParams = @{
-                        GalleryName       = $CurrentAzureComputeGalleryName
-                        ResourceGroupName = $ResourceGroupName
-                        Location          = $location
-                        Name              = $CurrentImageName
-                        OsState           = 'generalized'
-                        OsType            = 'Windows'
-                        Publisher         = "{0}" -f $SrcObjParams.Publisher
-                        Offer             = "{0}" -f $SrcObjParams.Offer
-                        Sku               = "{0}" -f $SrcObjParams.Sku
-                        HyperVGeneration  = 'V2'
-                    }
-                    #Creating the Azure Image Definition
-                    Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$CurrentImageName' (From Powershell) ..."
-                    $GalleryImageDefinition = New-AzGalleryImageDefinition @GalleryParams
-                }
-                else {
-                    Write-Verbose -Message "The Azure Compute Gallery Image Definition '$CurrentImageName' already exists ..."
-                }
-                $GalleryImageDefinition
-
-                $TargetRegion = @(@{Name = $Location; ReplicaCount = 1 })
-                $Parameters = @{
-                    ResourceGroupName          = $ResourceGroupName
-                    GalleryName                = $CurrentAzureComputeGalleryName
-                    GalleryImageDefinitionName = $CurrentImageName
-                    Name                       = $CurrentImageVersion
-                    Location                   = $Location
-                    TargetRegion               = $TargetRegion
-                    sourceImageId              = $CurrentGalleryImageId
-                }
-                #Creating (if needed) or Getting the new image version
-                New-AzGalleryImageVersion @Parameters -ErrorAction Ignore
-
-                #Creating a new User Assigned Identity
-                $UserAssignedManagedIdentityName = "aib_{0}" -f $ResourceGroupName
+                #region Creating a new User Assigned Identity
+                $UserAssignedManagedIdentityName = "aib_{0}" -f $CurrentResourceGroupName
                 Write-Verbose -Message "Creating the new the '$UserAssignedManagedIdentityName' User Assigned Identity ..."
-                $UserAssignedIdentity = New-AzUserAssignedIdentity -Name $UserAssignedManagedIdentityName -ResourceGroupName $ResourceGroupName -Location $Location
+                $UserAssignedIdentity = New-AzUserAssignedIdentity -Name $UserAssignedManagedIdentityName -ResourceGroupName $CurrentResourceGroupName -Location $Location
 
-                #region RBAC Contributor Role for the User Assigned Identity on Resource Group
-                $RoleDefinition = Get-AzRoleDefinition -Name "Contributor"
+                #region RBAC Owner Role for the User Assigned Identity on the Subscription
+                $RoleDefinition = Get-AzRoleDefinition -Name "Owner"
                 $Parameters = @{
                     ObjectId           = $UserAssignedIdentity.PrincipalId
                     RoleDefinitionName = $RoleDefinition.Name
                     Scope              = $ResourceGroup.ResourceId
                 }
                 while (-not(Get-AzRoleAssignment @Parameters)) {
-                    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.PrincipalId)' Identity on the '$($Parameters.Scope)' scope"
+                    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' scope"
                     try {
                         $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
                     } 
@@ -122,19 +58,116 @@ function Repair-AzImageBuilderTemplate {
                     Start-Sleep -Seconds 30
                 }
                 #endregion
+                #endregion
 
-                #From https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-troubleshoot#solution-1
-                #Assign a new identity to the target VM Image Builder template:
-                $CmdLine = "az image builder identity assign -g $ResourceGroupName -n $($CurrentImageBuilderTemplate.Name) --user-assigned $($UserAssignedIdentity.Id)"
-                $CmdLine | Set-Clipboard
-                Write-Verbose -Message "Assigning the '$($UserAssignedIdentity.Name)' User Assigned Identity from the '$($CurrentImageBuilderTemplate.Name)' Template ..."
-                Start-Process -FilePath "$env:comspec" -ArgumentList "/c", $CmdLine -Wait
+
+                #Going through each template in the ResourceGroup
+                foreach ($CurrentImageBuilderTemplate in $ImageBuilderTemplate) {
+                    $CurrentGalleryImageId = $CurrentImageBuilderTemplate.Distribute.GalleryImageId
+                    Write-Verbose -Message "Processing the '$CurrentGalleryImageId' Azure Compute Gallery Image ..."
+            
+                    #region Removing the managed identity from the target VM Image Builder template:
+                    foreach ($CurrentUserAssignedIdentityId in $CurrentImageBuilderTemplate.IdentityUserAssignedIdentity.Keys) {
+                        Write-Verbose -Message "Processing The '$CurrentUserAssignedIdentityId' User Assigned Identity ..."
+                        #From https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-troubleshoot#solution-1
+                        $CmdLine = "az image builder identity remove -g $CurrentResourceGroupName -n $($CurrentImageBuilderTemplate.Name) --user-assigned $CurrentUserAssignedIdentityId --yes"
+                        #$CmdLine | Set-Clipboard
+                        Write-Verbose -Message "Removing the '$CurrentUserAssignedIdentityId' User Assigned Identity from the '$($CurrentImageBuilderTemplate.Name)' Template ..."
+                        Start-Process -FilePath "$env:comspec" -ArgumentList "/c", $CmdLine  -Wait #-WindowStyle Hidden
+
+                        <#
+                        # Remove the user-assigned identity
+                        $null = $CurrentImageBuilderTemplate.IdentityUserAssignedIdentity.Remove($CurrentUserAssignedIdentityId)
+
+                        # Update the template
+                        $CurrentImageBuilderTemplate | Update-AzImageBuilderTemplate
+                        #>
+
+                    }
+                    #endregion
+
+                    if ($CurrentGalleryImageId -match "^.*/galleries/(?<gallery>.*)/images/(?<image>.*)/versions/(?<version>.*)$") {
+                        $CurrentImageName = $Matches['image']
+                        $CurrentImageVersion = $Matches['version']
+                        $CurrentAzureComputeGalleryName = $Matches['gallery']
+
+                        #Creating (if needed) or Getting the Azure Compute Gallery
+                        $CurrentAzureComputeGallery = New-AzGallery -GalleryName $CurrentAzureComputeGalleryName -ResourceGroupName $CurrentResourceGroupName -Location $location
+
+	                    $SrcObjParams = @{
+		                    Publisher = 'MicrosoftWindowsDesktop'
+		                    Offer     = 'Windows-11'    
+		                    Sku       = 'win11-24h2-avd'  
+		                    Version   = 'latest'
+	                    }
+
+                        #Getting the Azure Image Definition
+                        $GalleryImageDefinition = Get-AzGalleryImageDefinition -ResourceGroupName $CurrentResourceGroupName -GalleryName $CurrentAzureComputeGalleryName -Name $CurrentImageName -ErrorAction Ignore
+                        if (-not($GalleryImageDefinition)) {
+                            $GalleryParams = @{
+                                GalleryName       = $CurrentAzureComputeGalleryName
+                                ResourceGroupName = $CurrentResourceGroupName
+                                Location          = $location
+                                Name              = $CurrentImageName
+                                OsState           = 'generalized'
+                                OsType            = 'Windows'
+                                Publisher         = "{0}-repair" -f $SrcObjParams.Publisher
+                                Offer             = "{0}-repair" -f $SrcObjParams.Offer
+                                Sku               = "{0}-repair" -f $SrcObjParams.Sku
+                                HyperVGeneration  = 'V2'
+                            }
+                            #Creating the Azure Image Definition
+                            Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$CurrentImageName' (From Powershell) ..."
+                            $GalleryImageDefinition = New-AzGalleryImageDefinition @GalleryParams
+                        }
+                        else {
+                            Write-Verbose -Message "The Azure Compute Gallery Image Definition '$CurrentImageName' already exists ..."
+                        }
+
+                        $TargetRegion = @(@{Name = $Location; ReplicaCount = 1 })
+                        $Parameters = @{
+                            ResourceGroupName          = $CurrentResourceGroupName
+                            GalleryName                = $CurrentAzureComputeGalleryName
+                            GalleryImageDefinitionName = $CurrentImageName
+                            Name                       = $CurrentImageVersion
+                            Location                   = $Location
+                            TargetRegion               = $TargetRegion
+                            sourceImageId              = $CurrentGalleryImageId
+                        }
+                        #Creating (if needed) or Getting the new image version
+                        $GalleryImageVersion = New-AzGalleryImageVersion @Parameters -ErrorAction Ignore
+
+                        #region Assigning a new identity to the target VM Image Builder template
+                        #From https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-troubleshoot#solution-1
+                        
+                        $CmdLine = "az image builder identity assign -g $CurrentResourceGroupName -n $($CurrentImageBuilderTemplate.Name) --user-assigned $($UserAssignedIdentity.Id)"
+                        #$CmdLine | Set-Clipboard
+                        Write-Verbose -Message "Assigning the '$($UserAssignedIdentity.Name)' User Assigned Identity to the '$($CurrentImageBuilderTemplate.Name)' Template ..."
+                        Start-Process -FilePath "$env:comspec" -ArgumentList "/c", $CmdLine  -Wait #-WindowStyle Hidden
+                        #endregion
+
+                        <#
+                        # Assign the user-assigned identity
+                        $CurrentImageBuilderTemplate.IdentityUserAssignedIdentity[$UserAssignedIdentity.Id] = @{}
+
+                        # Update the template
+                        $CurrentImageBuilderTemplate | Set-AzImageBuilderTemplate-Identity $template.Identity
+                        #>
+                    }
+                }
             }
+            else {
+                if (-not($ResourceGroup)) {
+                    Write-Warning -Message "The '$CurrentResourceGroupName' ResourceGroup doesn't exist"
+                } 
+                else {
+					Write-Warning -Message "The '$CurrentResourceGroupName' is '$($ResourceGroup.ProvisioningState)'"
+                }
+            }
+
         }
     }
-    else {
-        Write-Warning -Message "The '$ResourceGroupName' ResourceGroup doesn't exist"
-    }
+    end {}
 }
 #endregion 
 
@@ -154,9 +187,20 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 }
 #endregion
 
+<#
 $TimeStamp = 1758283049
-$ResourceGroupName = "rg-avd-aib-use2-$TimeStamp"
+$ResourceGroupNames = "rg-avd-aib-use2-$TimeStamp"
+#>
 
-Repair-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Verbose
+$ImageBuilderTemplate = Get-AzImageBuilderTemplate | Where-Object -FilterScript {$_.LastRunStatusRunState -notmatch "ing$"}
+$ResourceGroupNames = $ImageBuilderTemplate.ResourceGroupName | Select-Object -Unique
+$ResourceGroupNames | Repair-AzImageBuilderTemplate -Verbose
+
+#Cleanup
+<#
+$ImageBuilderTemplate | Remove-AzImageBuilderTemplate -Verbose
+$ResourceGroupNames | ForEach-Object -Process { Remove-AzResourceGroup -Name $_ -AsJob -Force -Verbose }
+#>
+
 #endregion 
 
