@@ -95,7 +95,7 @@ This script will prompt you twice as previously explained in the [DSC Configurat
 
 ## 📊 Results
 
-When the process will end, all the related Azure Policies/Initiatives will be successfully applied as shown below.
+When the process will end, all the related [Azure Policies/Initiatives](https://portal.azure.com/#view/Microsoft_Azure_Policy/PolicyMenuBlade/~/Remediation) will be successfully applied as shown below.
 
 ![Azure Policy Remediations](docs/remediations.jpg)
 
