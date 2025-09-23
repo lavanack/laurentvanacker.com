@@ -197,7 +197,8 @@ $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Locatio
 
 #Step 2: Create Azure Storage Account
 $StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true -AllowBlobPublicAccess $false
-#region 'Storage Blob Data Contributor' RBAC Assignment
+
+#region Assigning the 'Storage Blob Data Contributor' RBAC Role to logged in user 
 $RoleDefinition = Get-AzRoleDefinition -Name "Storage Blob Data Contributor"
 $Parameters = @{
     SignInName         = (Get-AzContext).Account.Id
