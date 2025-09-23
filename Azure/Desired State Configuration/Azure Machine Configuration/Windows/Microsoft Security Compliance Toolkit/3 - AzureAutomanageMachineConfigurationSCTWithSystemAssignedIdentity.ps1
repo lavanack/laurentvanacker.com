@@ -269,8 +269,13 @@ function Get-SCTDSCConfiguration {
 
     $DSCConfigurations = (tar -C $Destination -zxvf $ZipFile  *.ps1 *>&1 | Where-Object -FilterScript { $_ -match "DSCConfigurations.*\.ps1$" }) -replace "^\S*\s*(.*)$", "$Destination\`$1" -replace "/", "\"
     $DSCConfigurationCategories = $DSCConfigurations -replace "(.*)\\(.*)\\(.*)\\(.*)\.*$", '$2' | Select-Object -Unique
-    $DSCConfigurationCategory = $DSCConfigurationCategories | Sort-Object | Out-GridView -OutputMode Single
-    $DSCConfigurationScriptFileNames = ($DSCConfigurations -match $DSCConfigurationCategory) -replace "(.*)\\(.*)\\(.*)$", '$3' | Sort-Object | Out-GridView -OutputMode Multiple
+    Do {
+        $DSCConfigurationCategory = $DSCConfigurationCategories | Sort-Object | Out-GridView -Title "Microsoft Security Compliance Toolkit baselines" -OutputMode Single
+    } While (-not($DSCConfigurationCategory))
+
+    Do {
+        $DSCConfigurationScriptFileNames = ($DSCConfigurations -match $DSCConfigurationCategory) -replace "(.*)\\(.*)\\(.*)$", '$3' | Sort-Object | Out-GridView -Title "GPOs" -OutputMode Multiple
+    } While (-not($DSCConfigurationScriptFileNames))
 
     $SelectedDSCConfigurationScripts = foreach($CurrentDSCConfigurationScriptFileName in $DSCConfigurationScriptFileNames) {
         $DSCConfigurations -match "$DSCConfigurationCategory.*$CurrentDSCConfigurationScriptFileName"
