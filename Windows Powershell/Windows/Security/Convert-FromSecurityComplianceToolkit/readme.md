@@ -22,7 +22,7 @@
 
 ## 🎯 Overview
 
-This PowerShell script automates the conversion of **Microsoft Security Compliance Toolkit** baselines into **Desired State Configuration (DSC)** scripts. It downloads, processes, and transforms Group Policy Objects (GPOs) into Desired State Configuration (DSC) scripts that can be used with Azure Machine Configuration for security compliance automation.
+This PowerShell script automates the conversion of [**Microsoft Security Compliance Toolkit** baselines](https://www.microsoft.com/en-us/download/details.aspx?id=55319) into **Desired State Configuration (DSC)** scripts. It downloads, processes, and transforms Group Policy Objects (GPOs) into Desired State Configuration (DSC) scripts that can be used with Azure Machine Configuration for security compliance automation.
 
 ## 📚 Background
 
