@@ -108,7 +108,7 @@ This script will prompt you twice as previously explained in the [DSC Configurat
 
 ## 🔧 DSC Configurations
 
-The applied Desired State Configurations come from the [Convert Microsoft Security Compliance Baselines to Desired State Configuration scripts](https://github.com/lavanack/laurentvanacker.com/tree/master/Windows%20Powershell/Windows/Security/Convert-FromSecurityComplianceToolkit) article. You will be prompted twice in the [`3 - AzureAutomanageMachineConfigurationSCTWithSystemAssignedIdentity.ps1`](3%20-%AzureAutomanageMachineConfigurationSCTWithSystemAssignedIdentity.ps1) script:
+The applied Desired State Configurations come from the [Convert Microsoft Security Compliance Baselines to Desired State Configuration Machine Configuration Packages](https://github.com/lavanack/laurentvanacker.com/tree/master/Windows%20Powershell/Windows/Security/Convert-FromSecurityComplianceToolkit) article. You will be prompted twice in the [`3 - AzureAutomanageMachineConfigurationSCTWithSystemAssignedIdentity.ps1`](3%20-%AzureAutomanageMachineConfigurationSCTWithSystemAssignedIdentity.ps1) script:
 
 1. **Security Baseline Selection** (Single Selection)  
    Choose from the [Operating System or Security Topic](/Windows%20Powershell/Windows/Security/Convert-FromSecurityComplianceToolkit/readme.md#visual-examples). We recommend selecting **Windows Server 2022 Security Baseline** as the deployed Azure VM runs Windows Server 2022.
