@@ -1,4 +1,4 @@
-# Convert Microsoft Security Compliance Baselines to Desired State Configuration scripts
+# Convert Microsoft Security Compliance Baselines to Azure Machine Configuration Packages
 
 [![PowerShell](https://img.shields.io/badge/PowerShell-7.X-blue?logo=powershell)](https://github.com/PowerShell/PowerShell)
 [![Azure](https://img.shields.io/badge/Azure-Machine%20Configuration-0078d4?logo=microsoft-azure)](https://learn.microsoft.com/en-us/azure/governance/machine-configuration/)
