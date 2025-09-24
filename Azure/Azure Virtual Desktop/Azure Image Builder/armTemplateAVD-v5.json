@@ -44,7 +44,7 @@
                         "subnetId": "/subscriptions/<subscriptionID>/resourceGroups/<vnetRgName>/providers/Microsoft.Network/virtualNetworks/<vnetName>/subnets/<subnetName>"
                     }
                 },
-
+                "stagingResourceGroup": "/subscriptions/<subscriptionID>/resourceGroups/<stagingResourceGroupName>",
                 "source": {
                     "type": "PlatformImage",
                     "publisher": "<publisher>",
