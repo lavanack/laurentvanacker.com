@@ -129,7 +129,7 @@ To advance your Azure Machine Configuration implementation:
 2. **Deploy Configurations**: Use Azure Policy and Machine Configuration for compliance enforcement
 3. **Monitor Compliance**: Set up dashboards and reporting for security posture
    
-***All these steps are available in the [Microsoft Security Compliance Toolkit baselines with Azure Machine Configuration](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Desired%20State%20Configuration/Azure%20Machine%20Configuration/Windows/Microsoft%20Security%20Compliance%20Toolkit) article***
+***All these steps are available in the [Microsoft Security Compliance Toolkit baselines with Azure Machine Configuration](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Desired%20State%20Configuration/Azure%20Machine%20Configuration/Windows/Microsoft%20Security%20Compliance%20Toolkit) article*** (Considered as the next step to transform the generated DSC scripts into Azure machine configuration packages)
 
 ### Additional Resources
 
