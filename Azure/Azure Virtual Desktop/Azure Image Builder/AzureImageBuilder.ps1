@@ -467,8 +467,8 @@ function New-AzureComputeGallery {
 	#endregion
   
 	#region Removing Staging ResourceGroups
-	Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNameARM -Force -AsJob
-	Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNamePowerShell -Force -AsJob
+	$null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNameARM -Force -AsJob
+	$null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNamePowerShell -Force -AsJob
 
 	#endregion
 
