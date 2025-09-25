@@ -249,7 +249,7 @@ function New-AzureComputeGallery {
 	$StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $StorageResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true  -AllowBlobPublicAccess $true
 
     #region Public Network Access and Shared Key Access Enabled on the Storage Account
-    $storageAccount | Set-AzStorageAccount -PublicNetworkAccess Enabled -AllowBlobPublicAccess $false -AllowSharedKeyAccess $false
+    $storageAccount | Set-AzStorageAccount -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $false
     Start-Sleep -Seconds 30
     $StorageContext = New-AzStorageContext -StorageAccountName $StorageAccountName -UseConnectedAccount
     #endregion
