@@ -85,9 +85,33 @@ function New-AzureSoftwareContainer {
 
 	$StorageAccountSkuName = "Standard_LRS"
 	$ContainerName = "software"
-	$StorageAccount = New-AzStorageAccount -AccountName $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true #-AllowBlobPublicAccess $true
-	$StorageContext = $StorageAccount.Context
+	$StorageAccount = New-AzStorageAccount -AccountName $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true -AllowBlobPublicAccess $true -AllowSharedKeyAccess $false
+
+    $StorageContext = New-AzStorageContext -StorageAccountName $StorageAccountName -UseConnectedAccount
 	$StorageContainer = New-AzStorageContainer -Name $ContainerName -Context $StorageContext
+
+    #region RBAC Assignments on the Storage Account
+    #region Assigning the 'Storage Blob Data Contributor' RBAC Role to logged in user 
+    $RoleDefinition = Get-AzRoleDefinition -Name "Storage Blob Data Contributor"
+    $Parameters = @{
+        SignInName         = (Get-AzContext).Account.Id
+        RoleDefinitionName = $RoleDefinition.Name
+        Scope              = $StorageAccount.Id
+    }
+    while (-not(Get-AzRoleAssignment @Parameters)) {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
+        $RoleAssignment = New-AzRoleAssignment @Parameters
+        Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+        Start-Sleep -Seconds 30
+    }
+    #endregion 
+    #endregion
+
+    #region Public Network Access and Shared Key Access Enabled on the Storage Account
+    $null = $storageAccount | Set-AzStorageAccount -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $false
+    Start-Sleep -Seconds 30
+    #endregion
 
 	$SoftwareDir = New-Item -Path $CurrentDir -Name "Software" -ItemType Directory -Force
 	#region Notepad++
@@ -100,14 +124,14 @@ function New-AzureSoftwareContainer {
 	$BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
 	$DestinationFullName = Join-Path $DestinationDir -ChildPath $DestinationFileName
 	Start-BitsTransfer -Source $DownloadURI -Destination $DestinationFullName -DisplayName $DownloadURI
-	$null = Set-AzStorageBlobContent -Context $StorageContext -File $DestinationFullName -Container $ContainerName -Blob $BlobName -BlobType Block -Force
+	$null = Set-AzStorageBlobContent -Context $StorageContext -File $DestinationFullName -Container $ContainerName -Blob $BlobName -Force
 	#endregion
 	
 	#region Notepad++ Setup PowerShell Script
 	$InstallPowershellScript = New-Item -Path $DestinationDir -Name "Install-NotepadPlusPlus.ps1" -Value "Start-Process -FilePath `"`$env:comspec`" -ArgumentList '/c', `"`"`"`$PSScriptRoot\$DestinationFileName`"`" /S`" -Wait" -Force
 	$DestinationFileName = Split-Path -Path $InstallPowershellScript -Leaf
 	$BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
-	$null = Set-AzStorageBlobContent -Context $StorageContext -File $InstallPowershellScript -Container $ContainerName -Blob $BlobName -BlobType Block -Force
+	$null = Set-AzStorageBlobContent -Context $StorageContext -File $InstallPowershellScript -Container $ContainerName -Blob $BlobName -Force
 	#endregion
 	#endregion
 	<#
@@ -201,7 +225,7 @@ function New-AzureSoftwareContainer {
 	#From https://learn.microsoft.com/en-us/azure/storage/common/storage-network-security?tabs=azure-powershell#change-the-default-network-access-rule
 	#From https://github.com/adstuart/azure-privatelink-dns-microhack
 	#Write-Verbose -Message "Disabling the Public Access for the Storage Account '$StorageAccountName' (in the '$ResourceGroupName' Resource Group) ..."
-	#$null = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Disabled
+	$null = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Disabled
 	#(Get-AzStorageAccount -Name $ResourceGroupName -ResourceGroupName $StorageAccountName ).AllowBlobPublicAccess
 	#endregion
 
@@ -307,7 +331,7 @@ function New-AzureComputeGallery {
 	$Jobs = @()
 
 	#region Get data related to the software container
-	$StorageContainerStorageAccount = Get-AzStorageAccount | Where-Object -FilterScript { $_.StorageAccountName -eq $StorageContainer.Context.StorageAccount.Credentials.AccountName }
+	$StorageContainerStorageAccount = Get-AzStorageAccount | Where-Object -FilterScript { $_.StorageAccountName -eq $StorageContainer.Context.StorageAccountName }
 	$StorageContainerVirtualNetwork = Get-AzVirtualNetwork -ResourceGroupName $StorageContainerStorageAccount.ResourceGroupName
 	$StorageContainerSubnet = Get-AzVirtualNetworkSubnetConfig -VirtualNetwork $StorageContainerVirtualNetwork
 	#endregion
@@ -486,7 +510,7 @@ function New-AzureComputeGallery {
 
 	# Grant the role definition to the VM Image Builder service principal
 	Write-Verbose -Message "Assigning '$($RoleDefinition.Name)' Role to '$($AssignedIdentity.Name)' ..."
-	$StorageContainerStorageAccount = Get-AzStorageAccount | Where-Object -FilterScript { $_.StorageAccountName -eq $StorageContainer.Context.StorageAccount.Credentials.AccountName }
+	$StorageContainerStorageAccount = Get-AzStorageAccount | Where-Object -FilterScript { $_.StorageAccountName -eq $StorageContainer.Context.StorageAccountName }
 	$Scope = "$($StorageContainerStorageAccount.Id)/blobServices/default/containers/$($StorageContainer.Name)"
 	<#
     if (-not(Get-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $Scope)) {
@@ -640,13 +664,18 @@ function New-AzureComputeGallery {
 	$StartTime = Get-Date
 	$ExpiryTime = $StartTime.AddDays(1)
 
-	#We sort by extension descending to be sure an MSI/EXE file be processed before its related powershell setup file
-	$StorageBlob = Get-AzStorageBlob -Container $SoftwareContainer.Name -Context $SoftwareContainer.Context
+    #region Public Network Access Enabled on the Storage Account
+    $storageAccount = Get-AzStorageAccount | Where-Object -FilterScript {$_.StorageAccountName -eq $StorageContainer.Context.StorageAccountName}
+    $null = $storageAccount | Set-AzStorageAccount -PublicNetworkAccess Enabled
+    Start-Sleep -Seconds 30
+    #endregion
+
+	$StorageBlob = Get-AzStorageBlob -Container $StorageContainer.Name -Context $StorageContainer.Context
 	$NonPowerShellScriptStorageBlob = $StorageBlob | Where-Object -FilterScript { $_.Name -notmatch "\.ps1$" } | Sort-Object -Property Name
 	$PowerShellScriptStorageBlob = $StorageBlob | Where-Object -FilterScript { $_.Name -match "\.ps1$" } | Sort-Object -Property Name
 	$StorageBlob = @($NonPowerShellScriptStorageBlob) + @($PowerShellScriptStorageBlob)
 	$StorageBlobCustomizers = foreach ($CurrentStorageBlob in $StorageBlob) {
-        $CurrentStorageBlobSASToken = New-AzStorageBlobSASToken -Container $SoftwareContainer.Name -Blob $CurrentStorageBlob.Name -Permission rl -Context $SoftwareContainer.Context -FullUri -StartTime $StartTime -ExpiryTime $ExpiryTime
+        $CurrentStorageBlobSASToken = New-AzStorageBlobSASToken -Container $StorageContainer.Name -Blob $CurrentStorageBlob.Name -Permission rl -Context $StorageContainer.Context -FullUri -StartTime $StartTime -ExpiryTime $ExpiryTime
 		$Destination = Join-Path "C:\AVDImage" -ChildPath $CurrentStorageBlob.Name
 		$CurrentStorageBlobFileCustomizerParams = @{  
 			FileCustomizer = $true  
@@ -669,6 +698,10 @@ function New-AzureComputeGallery {
 			New-AzImageBuilderTemplateCustomizerObject @CurrentStorageBlobPowerShellCustomizerParams 
 		}
 	}
+
+    #region Public Network Access Disabled on the Storage Account
+    $null = $storageAccount | Set-AzStorageAccount -PublicNetworkAccess Disabled
+    #endregion
 
 	$ImgCopyInstallLanguagePacksFileCustomizerParams = @{  
 		FileCustomizer = $true  
