@@ -24,7 +24,10 @@ function Repair-AzImageBuilderTemplate {
 		[Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [string[]]$ResourceGroupName
     )
-    begin {}
+    begin {
+        $SubscriptionId = (Get-AzContext).Subscription.Id
+        $SubscriptionScope = "/subscriptions/{0}" -f $SubscriptionId
+    }
     process {
         foreach ($CurrentResourceGroupName in $ResourceGroupName)  {
             Write-Verbose -Message "Processing the '$CurrentResourceGroupName' ResourceGroup ..."
@@ -43,7 +46,8 @@ function Repair-AzImageBuilderTemplate {
                 $Parameters = @{
                     ObjectId           = $UserAssignedIdentity.PrincipalId
                     RoleDefinitionName = $RoleDefinition.Name
-                    Scope              = $ResourceGroup.ResourceId
+                    #Scope              = $ResourceGroup.ResourceId
+                    Scope              = $SubscriptionScope
                 }
                 while (-not(Get-AzRoleAssignment @Parameters)) {
                     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' scope"
