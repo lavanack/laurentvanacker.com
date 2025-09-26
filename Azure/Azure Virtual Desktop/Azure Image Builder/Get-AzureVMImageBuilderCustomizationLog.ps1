@@ -30,9 +30,12 @@ function Get-AzureVMImageBuilderCustomizationLog {
         [switch]$TimeStamp
     )
     #Getting all Image Builder Template ResourceGroups
-    $AzImageBuilderTemplateResourceGroup = (Get-AzImageBuilderTemplate).StagingResourceGroup | ForEach-Object -Process { Get-AzResourceGroup -Id $_ }
+    $AzImageBuilderTemplateResourceGroup = Get-AzImageBuilderTemplate | ForEach-Object -Process { 
+        Write-Verbose -Message "Getting Staging ResourceGroup for '$($_.Name)' Image Template ..."
+        Get-AzResourceGroup -Id $_.StagingResourceGroup 
+    }
     foreach ($CurrentAzImageBuilderTemplateResourceGroup in $AzImageBuilderTemplateResourceGroup) {
-        Write-Verbose -Message "Processing '$($CurrentAzImageBuilderTemplateResourceGroup.ResourceGroupName)' Resource Group (Image Template: $($CurrentAzImageBuilderTemplateResourceGroup.Tags.imageTemplateName) / Resource Group: $($CurrentAzImageBuilderTemplateResourceGroup.Tags.imageTemplateResourceGroupName))..."
+        Write-Verbose -Message "Processing '$($CurrentAzImageBuilderTemplateResourceGroup.ResourceGroupName)' Resource Group (Image Template: $($CurrentAzImageBuilderTemplateResourceGroup.Tags.imageTemplateName) / Resource Group: $($CurrentAzImageBuilderTemplateResourceGroup.Tags.imageTemplateResourceGroupName)) ..."
         #Creating a dedicated directory per Image Builder Template ResourceGroup
         $CurrentDestination = New-Item -Path $Destination -Name $CurrentAzImageBuilderTemplateResourceGroup.ResourceGroupName -ItemType Directory -Force
         #Getting the customization.log (only this file exists in the packerlogs directory)
