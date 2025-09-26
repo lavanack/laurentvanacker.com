@@ -109,8 +109,11 @@ function New-AzureSoftwareContainer {
     #endregion
 
     #region Public Network Access and Shared Key Access Enabled on the Storage Account
-    $null = $storageAccount | Set-AzStorageAccount -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $false
-    Start-Sleep -Seconds 30
+    Do {
+        $null = $storageAccount | Set-AzStorageAccount -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $false
+        Write-Verbose -Message "Sleeping 30 seconds"
+        Start-Sleep -Seconds 30
+    } Until (($storageAccount | Get-AzStorageAccount).PublicNetworkAccess)
     #endregion
 
 	$SoftwareDir = New-Item -Path $CurrentDir -Name "Software" -ItemType Directory -Force
@@ -225,7 +228,7 @@ function New-AzureSoftwareContainer {
 	#From https://learn.microsoft.com/en-us/azure/storage/common/storage-network-security?tabs=azure-powershell#change-the-default-network-access-rule
 	#From https://github.com/adstuart/azure-privatelink-dns-microhack
 	#Write-Verbose -Message "Disabling the Public Access for the Storage Account '$StorageAccountName' (in the '$ResourceGroupName' Resource Group) ..."
-	$null = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Disabled
+	#$null = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Disabled
 	#(Get-AzStorageAccount -Name $ResourceGroupName -ResourceGroupName $StorageAccountName ).AllowBlobPublicAccess
 	#endregion
 
@@ -699,10 +702,6 @@ function New-AzureComputeGallery {
 		}
 	}
 
-    #region Public Network Access Disabled on the Storage Account
-    $null = $storageAccount | Set-AzStorageAccount -PublicNetworkAccess Disabled
-    #endregion
-
 	$ImgCopyInstallLanguagePacksFileCustomizerParams = @{  
 		FileCustomizer = $true  
 		Name           = 'CopyInstallLanguagePacks'  
@@ -782,9 +781,14 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "Creating Azure Image Builder Template from '$imageTemplateNamePowerShell' Image Template Name ..."
 	$ImageBuilderTemplate = New-AzImageBuilderTemplate @ImgTemplateParams
 
+    #region Public Network Access Disabled on the Storage Account
 	#Write-Verbose -Message "Disabling the Public Access for the Storage Account '$StorageAccountName' (in the '$ResourceGroupName' Resource Group) ..."
-	$null = Set-AzStorageAccount -ResourceGroupName $StorageContainerStorageAccount.ResourceGroupName -Name $StorageContainerStorageAccount.StorageAccountName -PublicNetworkAccess Disabled
+    $null = $storageAccount | Set-AzStorageAccount -PublicNetworkAccess Disabled
+	#$null = Set-AzStorageAccount -ResourceGroupName $StorageContainerStorageAccount.ResourceGroupName -Name $StorageContainerStorageAccount.StorageAccountName -PublicNetworkAccess Disabled
 	#(Get-AzStorageAccount -Name $StorageAccount.ResourceGroupName -ResourceGroupName $StorageAccountName ).AllowBlobPublicAccess
+    #endregion
+
+
 
 	#region Build the image
 	#Start the image building process using Start-AzImageBuilderTemplate cmdlet:
