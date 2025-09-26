@@ -21,35 +21,29 @@ of the Sample Code.
 
 #region Function definitions
 function Get-AzureVMImageBuilderCustomizationLog {
-	[CmdletBinding()]
-	Param(
-		[Parameter(Mandatory = $false)]
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory = $false)]
         #Destination Folder for the downloaded files
-		[string]$Destination = '.',
-		[Parameter(Mandatory = $false)]
-        #Destination Folder for the downloaded files
-        [ValidatePattern("^IT_.*$")]
-		[string]$ResourceGroupName = "IT_*",
-		[switch]$TimeStamp
-	)
+        [string]$Destination = '.',
+        [Parameter(Mandatory = $false)]
+        [switch]$TimeStamp
+    )
     #Getting all Image Builder Template ResourceGroup
-    $AzImageBuilderTemplateResourceGroup =  Get-AzResourceGroup -Name $ResourceGroupName 
+    $AzImageBuilderTemplateResourceGroup = (Get-AzImageBuilderTemplate).StagingResourceGroup | ForEach-Object -Process { Get-AzResourceGroup -Id $_ }
     foreach ($CurrentAzImageBuilderTemplateResourceGroup in $AzImageBuilderTemplateResourceGroup) {
         Write-Verbose -Message "Processing '$($CurrentAzImageBuilderTemplateResourceGroup.ResourceGroupName)' Resource Group (Image Template: $($CurrentAzImageBuilderTemplateResourceGroup.Tags.imageTemplateName) / Resource Group: $($CurrentAzImageBuilderTemplateResourceGroup.Tags.imageTemplateResourceGroupName))..."
         #Creating a dedicated directory per Image Builder Template ResourceGroup
         $CurrentDestination = New-Item -Path $Destination -Name $CurrentAzImageBuilderTemplateResourceGroup.ResourceGroupName -ItemType Directory -Force
         #Getting the customization.log (only this file exists in the packerlogs directory)
-        try
-        {
+        try {
             $AzStorageBlobContent = $CurrentAzImageBuilderTemplateResourceGroup | Get-AzStorageAccount | Get-AzStorageContainer -Name packerlogs | Get-AzStorageBlob | Get-AzStorageBlobContent -Destination $CurrentDestination -Force -Verbose 
-            if ($null -ne $AzStorageBlobContent)
-            {
+            if ($null -ne $AzStorageBlobContent) {
                 Write-Verbose -Message "Getting $($AzStorageBlobContent | Out-String)"
                 #Getting the local path of the downloaded customization.log 
                 $DestinationFile = Join-Path -Path $CurrentDestination -ChildPath $AzStorageBlobContent.Name
                 #If the TimeStamp switch has been specified we add a timetamp to the log file name (so we can compare the log file between to runs and follow the template build process evolution)
-                if ($TimeStamp)
-                {
+                if ($TimeStamp) {
                     $Extension = (Get-Item -Path $DestinationFile).Extension
                     #$TimeStampDestinationFile = $DestinationFile -replace "\$($Extension)$", "_$("{0:yyyyMMddHHmmss}" -f (Get-Date))$Extension"
                     $TimeStampDestinationFile = $DestinationFile -replace "\$($Extension)$", $("_{0:yyyyMMddHHmmss}{1}" -f $(Get-Date), $Extension)
@@ -58,12 +52,12 @@ function Get-AzureVMImageBuilderCustomizationLog {
                     $TimeStampDestinationFile
                 }
                 #Else the file will be overwritten at each run
-                else
-                {
+                else {
                     Write-Verbose -Message "Destination File: '$DestinationFile' ..."
                     $DestinationFile
                 }
-            } else {
+            }
+            else {
                 Write-Verbose -Message "Removing '$CurrentDestination' (No customization.log file found/processed) ..."
                 $CurrentDestination | Remove-Item -Force
             }
@@ -84,22 +78,19 @@ Set-Location -Path $CurrentDir
 
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
-	Connect-AzAccount
+    Connect-AzAccount
 }
 #endregion
 
-
 $CustomizationLog = Get-AzureVMImageBuilderCustomizationLog -Destination $CurrentDir -TimeStamp -Verbose
-if ($null -ne $CustomizationLog)
-{
+if ($null -ne $CustomizationLog) {
     $CustomizationLog
     #Open them via the default action
     $CustomizationLog | ForEach-Object -Process { & $_ }
     #Looking for customization phase(s)
     Select-String -Pattern "Starting provisioner|Starting AVD AIB Customization|AVD AIB CUSTOMIZER PHASE" -Path $CustomizationLog -Context 1
 }
-else
-{
+else {
     Write-Warning "No customization.log file found/processed ..."
 }
 #endregion
