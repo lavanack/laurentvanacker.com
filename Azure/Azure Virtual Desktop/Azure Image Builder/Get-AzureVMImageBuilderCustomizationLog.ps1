@@ -29,7 +29,7 @@ function Get-AzureVMImageBuilderCustomizationLog {
         [Parameter(Mandatory = $false)]
         [switch]$TimeStamp
     )
-    #Getting all Image Builder Template ResourceGroup
+    #Getting all Image Builder Template ResourceGroups
     $AzImageBuilderTemplateResourceGroup = (Get-AzImageBuilderTemplate).StagingResourceGroup | ForEach-Object -Process { Get-AzResourceGroup -Id $_ }
     foreach ($CurrentAzImageBuilderTemplateResourceGroup in $AzImageBuilderTemplateResourceGroup) {
         Write-Verbose -Message "Processing '$($CurrentAzImageBuilderTemplateResourceGroup.ResourceGroupName)' Resource Group (Image Template: $($CurrentAzImageBuilderTemplateResourceGroup.Tags.imageTemplateName) / Resource Group: $($CurrentAzImageBuilderTemplateResourceGroup.Tags.imageTemplateResourceGroupName))..."
