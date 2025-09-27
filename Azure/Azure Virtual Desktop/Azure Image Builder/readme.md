@@ -19,6 +19,13 @@
   - [AzureImageBuilder with CMK.ps1](#azureimagebuilder-with-cmkps1)
   - [New-AzureComputeGalleryVM.ps1](#new-azurecomputegalleryvmps1)
   - [Get-AzureVMImageBuilderCustomizationLog.ps1](#get-azurevmimagebuildercustomizationlogps1)
+    - [Features](#features)
+    - [Usage](#usage)
+    - [Parameters](#parameters)
+    - [What It Does](#what-it-does)
+    - [Prerequisites](#prerequisites-1)
+    - [Output Structure](#output-structure)
+    - [Troubleshooting](#troubleshooting)
   - [Get-AzureVMImageBuilderData.ps1](#get-azurevmimagebuilderdataps1)
 
 ## AzureImageBuilder.ps1
@@ -98,6 +105,8 @@ The [AzureImageBuilder-v10.ps1](AzureImageBuilder-v10.ps1) script is an update o
 ## AzureImageBuilder-v11.ps1
 
 The [AzureImageBuilder-v11.ps1](AzureImageBuilder-v11.ps1) script is an update of the [AzureImageBuilder.ps1](AzureImageBuilder.ps1) script but using a Windows Server 2016 image and with a [Windows restart customizer](<https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-json?tabs=json%2Cazure-powershell#windows-restart-customizer>) (like the [AzureImageBuilder-v6.ps1](AzureImageBuilder-v6.ps1) script) because we need to enable TLS 1.2 for this OS and we have to restart the VM after to apply this settings at the OS level. Without this restart the TLS 1.2 settings are not applied and the VM is not able to connect to GitHub and PowerShell Gallery fir the other customizations.
+> [!WARNING]
+> It was for testing purpose because Windows Server 2016 wasn't built to run an AVD environment and will not.
 
 ## AzureImageBuilder-v12.ps1
 
@@ -117,8 +126,85 @@ The script [New-AzureComputeGalleryVM.ps1](New-AzureComputeGalleryVM.ps1) allows
 
 ## Get-AzureVMImageBuilderCustomizationLog.ps1
 
-The script [Get-AzureVMImageBuilderCustomizationLog.ps1](Get-AzureVMImageBuilderCustomizationLog.ps1) downloads in the script directory (can be customized via a parameter to the called function) the customization.log files used by [Azure VM Image Builder](https://learn.microsoft.com/en-us/azure/virtual-machines/image-builder-overview?tabs=azure-powershell). The downloaded files are timestamped (based on the current time). So every run will create a new local file (can be enabled/disabled via the -Timestamp switch). It can be useful for tracking the process evolution.
-More details [here](https://learn.microsoft.com/en-us/azure/virtual-desktop/troubleshoot-custom-image-templates) and [here](https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-troubleshoot).
+The script [Get-AzureVMImageBuilderCustomizationLog.ps1](Get-AzureVMImageBuilderCustomizationLog.ps1) automates the retrieval and analysis of Azure VM Image Builder customization logs for troubleshooting purposes.
+
+### Features
+
+- **🔄 Automated Discovery**: Finds all Image Builder templates in the current subscription
+- **📁 Organized Output**: Creates separate folders for each template's logs  
+- **⏰ Timestamping Support**: Optional timestamp addition to prevent overwriting files
+- **🔍 Intelligent Analysis**: Automatically opens logs and searches for key customization phases
+- **🖥️ Verbose Logging**: Detailed progress information for troubleshooting
+
+### Usage
+
+```powershell
+# Basic usage - downloads to current directory
+.\Get-AzureVMImageBuilderCustomizationLog.ps1
+
+# With custom destination and timestamping
+.\Get-AzureVMImageBuilderCustomizationLog.ps1 -Destination "C:\AIB-Logs" -TimeStamp
+
+# Maximum verbose output for troubleshooting
+.\Get-AzureVMImageBuilderCustomizationLog.ps1 -Destination ".\Logs" -TimeStamp -Verbose
+
+# Use as function after dot-sourcing
+. .\Get-AzureVMImageBuilderCustomizationLog.ps1
+$LogFiles = Get-AzureVMImageBuilderCustomizationLog -Destination "C:\Temp" -TimeStamp
+```
+
+### Parameters
+
+| Parameter     | Type   | Description                                             | Default           |
+| ------------- | ------ | ------------------------------------------------------- | ----------------- |
+| `Destination` | String | Destination folder for downloaded logs                  | Current directory |
+| `TimeStamp`   | Switch | Add timestamp to log filenames (format: yyyyMMddHHmmss) | Disabled          |
+
+### What It Does
+
+1. **Discovery Phase**: Automatically finds all Image Builder templates in your subscription
+2. **Log Retrieval**: Downloads `customization.log` files from staging resource group storage accounts  
+3. **Organization**: Creates separate folders for each template (named after staging resource groups)
+4. **Analysis**: Opens downloaded logs and searches for key patterns like:
+   - `Starting provisioner` - Customization phase starts
+   - `Starting AVD AIB Customization` - AVD-specific customizations
+   - `AVD AIB CUSTOMIZER PHASE` - Major customization milestones
+5. **Cleanup**: Removes empty directories when no logs are found
+
+### Prerequisites
+
+- PowerShell 5.0+ with Azure PowerShell modules: `Az.Accounts`, `Az.Resources`, `Az.Storage`, `Az.ImageBuilder`
+- Azure authentication with Reader access to Image Builder templates and staging resource groups
+- Storage Blob Data Reader permissions on staging storage accounts
+
+### Output Structure
+
+```
+📁 Destination Directory
+├── 📁 IT_rg-staging-xxxxxxxxx/          # Staging resource group name
+│   └── 📄 customization.log             # Downloaded log file
+├── 📁 IT_rg-staging-yyyyyyyyy/
+│   └── 📄 customization_20241224120000.log  # Timestamped version
+└── 📁 IT_rg-staging-zzzzzzzzz/
+    └── 📄 customization.log
+```
+
+### Troubleshooting
+
+**No logs found**: Check if Image Builder templates exist and have been executed
+```powershell
+Get-AzImageBuilderTemplate
+```
+
+**Authentication errors**: Verify Azure context and permissions
+```powershell
+Get-AzContext
+Set-AzContext -SubscriptionName "Your-Subscription-Name"
+```
+
+The downloaded files are timestamped (when `-TimeStamp` switch is used) based on the current time, so every run creates a new local file. This is useful for tracking the build process evolution and comparing logs between different runs.
+
+More details: [Troubleshoot Custom Image Templates](https://learn.microsoft.com/en-us/azure/virtual-desktop/troubleshoot-custom-image-templates) | [Image Builder Troubleshooting](https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-troubleshoot)
 
 ## Get-AzureVMImageBuilderData.ps1
 
