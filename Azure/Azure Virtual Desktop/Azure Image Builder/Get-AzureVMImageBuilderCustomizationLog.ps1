@@ -151,7 +151,7 @@ function Get-AzureVMImageBuilderCustomizationLog {
     $AzImageBuilderTemplateResourceGroup = Get-AzImageBuilderTemplate | ForEach-Object -Process { 
         Write-Verbose -Message "Getting Staging ResourceGroup for '$($_.Name)' Image Template ..."
         # Each Image Builder template has an associated staging resource group where logs are stored
-        Get-AzResourceGroup -Id $_.StagingResourceGroup 
+        Get-AzResourceGroup -Id $_.StagingResourceGroup -ErrorAction Ignore
     }
     
     # Step 2: Process each staging resource group to download customization logs
