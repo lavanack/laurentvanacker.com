@@ -46,7 +46,7 @@
                         "<imgBuilderId>"
                     ]
                 },
-
+                "stagingResourceGroup": "/subscriptions/<subscriptionID>/resourceGroups/<stagingResourceGroupName>",
                 "source": {
                     "type": "PlatformImage",
                     "publisher": "<publisher>",

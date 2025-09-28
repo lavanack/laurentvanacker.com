@@ -41,7 +41,7 @@
                     "vmSize": "Standard_D4s_v5",
                     "osDiskSizeGB": 127
                 },
-
+                "stagingResourceGroup": "/subscriptions/<subscriptionID>/resourceGroups/<stagingResourceGroupName>",
                 "source": {
                     "type": "PlatformImage",
                     "publisher": "<publisher>",
