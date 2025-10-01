@@ -82,7 +82,7 @@ The main difference is [Storage Explorer](https://azure.microsoft.com/en-us/prod
 
 ## AzureImageBuilder-v6.ps1
 
-The [AzureImageBuilder-v6.ps1](AzureImageBuilder-v6.ps1) script is almost the same than the [AzureImageBuilder-v2.ps1](AzureImageBuilder-v2.ps1) script but adds a [Windows restart customizer](<https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-json?tabs=json%2Cazure-powershell#windows-restart-customizer>) to restart the VM after the installation of Visual Studio Code as an example how to use this customizer.
+The [AzureImageBuilder-v6.ps1](AzureImageBuilder-v6.ps1) script is almost the same than the [AzureImageBuilder.ps1](AzureImageBuilder.ps1) script but adds a [Windows restart customizer](<https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-json?tabs=json%2Cazure-powershell#windows-restart-customizer>) to restart the VM after the installation of Visual Studio Code as an example how to use this customizer.
 
 ## AzureImageBuilder-v7.ps1
 
