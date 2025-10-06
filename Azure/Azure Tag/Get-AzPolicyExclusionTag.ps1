@@ -22,6 +22,48 @@ Param (
 )
 
 #region Function Definitions
+function Get-AzPolicyLastModifiedAt {
+    [CmdletBinding(PositionalBinding = $false)]
+    Param (
+    )
+
+    #Hastable for storing already processed policies (A policiy can be assigned to multiple scopes so we avoid duplicated processings). The Key is the PolicyDefinitionId
+    $PolicyHT = @{}
+    #Processing all assigned initiatives or policies only
+    $PolicyLastModifiedAt = (Get-AzPolicyAssignment) | ForEach-Object -Process {
+        #Initiatives
+        if ($_.PolicyDefinitionId -match "policySetDefinitions") {
+            $Initiative = (Get-AzPolicySetDefinition -Id $_.PolicyDefinitionId)
+            Write-Verbose -Message "Processing Initiative '$($Initiative.DisplayName)'"
+            [PSCustomObject]@{Initiative = $Initiative.DisplayName; Policy = $null; lastModifiedAt = $Initiative.SystemDataLastModifiedAt }
+
+            $Initiative.PolicyDefinition | ForEach-Object {
+                #Nested Policies
+                $Policy = (Get-AzPolicyDefinition -Id $_.PolicyDefinitionId)
+                Write-Verbose -Message "- Processing Initiative Policy: '$($Initiative.DisplayName)' > '$($Policy.DisplayName)'"
+                if ($null -eq $PolicyHT[$_.PolicyDefinitionId]) {
+                    [PSCustomObject]@{Initiative = $Initiative.DisplayName; Policy = $Policy.DisplayName; lastModifiedAt = $Policy.SystemDataLastModifiedAt }
+                }
+                else {
+                    Write-Verbose -Message "- Initiative Policy: '$($Initiative.DisplayName)' > '$($Policy.DisplayName)' already processed"
+                }
+
+            }
+        }
+        #Standalone Policies (Not inside an Initiative)
+        else {
+            Write-Verbose -Message "Processing Standalone Policy: '$($Policy.DisplayName)'"
+            if ($null -eq $PolicyHT[$_.PolicyDefinitionId]) {
+                [PSCustomObject]@{Initiative = $null; Policy = $Policy.DisplayName; lastModifiedAt = $Policy.SystemDataLastModifiedAt }
+            }
+            else {
+                Write-Verbose -Message "- Standalone Policy: '$($Policy.DisplayName)' already processed"
+            }
+        }
+    }
+    $PolicyLastModifiedAt | Select-Object -Property * -Unique | Sort-Object -Property lastModifiedAt -Descending
+}
+
 function Get-AzPolicyExclusionTag {
     [CmdletBinding(PositionalBinding = $false)]
     Param (
@@ -40,7 +82,7 @@ function Get-AzPolicyExclusionTag {
                 $Policy = (Get-AzPolicyDefinition -Id $_.PolicyDefinitionId)
                 Write-Verbose -Message "- Processing Initiative Policy: '$($Initiative.DisplayName)' > '$($Policy.DisplayName)'"
                 if ($null -eq $PolicyHT[$_.PolicyDefinitionId]) {
-                    $PolicyHT[$_.PolicyDefinitionId] = [PSCustomObject]@{Initiative = $Initiative.DisplayName; Policy = $Policy}
+                    $PolicyHT[$_.PolicyDefinitionId] = [PSCustomObject]@{Initiative = $Initiative.DisplayName; Policy = $Policy }
                 }
                 else {
                     Write-Verbose -Message "- Initiative Policy: '$($Initiative.DisplayName)' > '$($Policy.DisplayName)' already processed"
@@ -52,7 +94,7 @@ function Get-AzPolicyExclusionTag {
         else {
             Write-Verbose -Message "Processing Standalone Policy: '$($Policy.DisplayName)'"
             if ($null -eq $PolicyHT[$_.PolicyDefinitionId]) {
-                $PolicyHT[$_.PolicyDefinitionId] = [PSCustomObject]@{Initiative = $null; Policy = $Policy}
+                $PolicyHT[$_.PolicyDefinitionId] = [PSCustomObject]@{Initiative = $null; Policy = $Policy }
             }
             else {
                 Write-Verbose -Message "- Standalone Policy: '$($Policy.DisplayName)' already processed"
@@ -64,7 +106,7 @@ function Get-AzPolicyExclusionTag {
     $PolicyExclusionTags = foreach ($CurrentPolicy in $Policies) {
         if ($CurrentPolicy.Policy.Parameter.AllowedTagName) {
             #Creating a custom object with the Policy DisplayName and the Tag data (Name and associated Value)
-            [PSCustomObject]@{Policy = $CurrentPolicy.Policy.DisplayName; TagName = $CurrentPolicy.Policy.Parameter.AllowedTagName.defaultValue; TagValue = $CurrentPolicy.Policy.Parameter.AllowedTagValue.defaultValue}
+            [PSCustomObject]@{Policy = $CurrentPolicy.Policy.DisplayName; TagName = $CurrentPolicy.Policy.Parameter.AllowedTagName.defaultValue; TagValue = $CurrentPolicy.Policy.Parameter.AllowedTagValue.defaultValue }
         }
     }
     $PolicyExclusionTags
@@ -74,9 +116,9 @@ Function Update-AzSubscriptionTag {
     [CmdletBinding(PositionalBinding = $false)]
     Param (
         [Object] $Subscription = (Get-AzContext).Subscription,
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         #[ValidateScript({('TagName' -in $(($SubscriptionTags | Get-Member -MemberType NoteProperty).Name)) -and ('TagValue' -in $(($SubscriptionTags | Get-Member -MemberType NoteProperty).Name))})]
-        [ValidateScript({($null -eq (Compare-Object -ReferenceObject ($_ | Get-Member -MemberType NoteProperty).Name -DifferenceObject @('TagName', 'TagValue')))})]
+        [ValidateScript({ ($null -eq (Compare-Object -ReferenceObject ($_ | Get-Member -MemberType NoteProperty).Name -DifferenceObject @('TagName', 'TagValue'))) })]
         [Object[]] $Tags,
         [switch] $Force,
         [switch] $PassThru
@@ -95,10 +137,9 @@ Function Update-AzSubscriptionTag {
                 if ($CurrentTag.TagValue -eq $SubscriptionTagValue) {
                     Write-Verbose -Message "-Force was specified but the values are the same: We DON'T update the tag"
                 }
-                else 
-                {
+                else {
                     Write-Verbose -Message "-Force was specified but the values are not the same: We update the tag from '$SubscriptionTagValue' to '$($CurrentTag.TagValue)'"
-                    $null = Update-AzTag -ResourceId "/subscriptions/$($Subscription.Id)" -Tag @{$CurrentTag.TagName=$CurrentTag.TagValue} -Operation Merge
+                    $null = Update-AzTag -ResourceId "/subscriptions/$($Subscription.Id)" -Tag @{$CurrentTag.TagName = $CurrentTag.TagValue } -Operation Merge
                 }
             }
             else {
@@ -108,7 +149,7 @@ Function Update-AzSubscriptionTag {
         #If Tag is NOT already present at the subscription level: Updating Tag list
         else {
             Write-Verbose -Message "Setting '$($CurrentTag.TagName)=$($CurrentTag.Value)' Tag at the Subscription level ('$($Subscription.Name)')"
-            $null = Update-AzTag -ResourceId "/subscriptions/$($Subscription.Id)" -Tag @{$CurrentTag.TagName=$CurrentTag.TagValue} -Operation Merge
+            $null = Update-AzTag -ResourceId "/subscriptions/$($Subscription.Id)" -Tag @{$CurrentTag.TagName = $CurrentTag.TagValue } -Operation Merge
         }
     }
     #Returning the Tags at the subscription level if -PassThru is specified
@@ -121,12 +162,12 @@ Function New-AzInheritanceSubscriptionTagPolicyAssignment {
     [CmdletBinding(PositionalBinding = $false)]
     Param (
         [Object] $Subscription = (Get-AzContext).Subscription,
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         #[ValidateScript({('TagName' -in $(($SubscriptionTags | Get-Member -MemberType NoteProperty).Name)) -and ('TagValue' -in $(($SubscriptionTags | Get-Member -MemberType NoteProperty).Name))})]
-        [ValidateScript({($null -eq (Compare-Object -ReferenceObject ($_ | Get-Member -MemberType NoteProperty).Name -DifferenceObject @('TagName', 'TagValue')))})]
+        [ValidateScript({ ($null -eq (Compare-Object -ReferenceObject ($_ | Get-Member -MemberType NoteProperty).Name -DifferenceObject @('TagName', 'TagValue'))) })]
         [Object[]] $Tags,
         [ValidateScript({ $_ -in (Get-AzLocation).Location })]
-		[string]$Location = "EastUs2",
+        [string]$Location = "EastUs2",
         [switch] $PassThru
     )
 
@@ -141,7 +182,7 @@ Function New-AzInheritanceSubscriptionTagPolicyAssignment {
         Write-Verbose -Message "Processing '$($CurrentTag.TagName)' Tag ..."
         #If the Tag is already assigned to a 'Inherit a tag from the subscription if missing' Policy Definition
         if ($CurrentTag.TagName -in $InheritanceSubscriptionAzPolicyAssignment.Parameter.TagName.Value) {
-            $ExistingInheritanceSubscriptionAzPolicyAssignment = ($InheritanceSubscriptionAzPolicyAssignment | Where-Object -FilterScript {$_.Parameter.TagName.Value -eq "$($CurrentTag.TagName)"})
+            $ExistingInheritanceSubscriptionAzPolicyAssignment = ($InheritanceSubscriptionAzPolicyAssignment | Where-Object -FilterScript { $_.Parameter.TagName.Value -eq "$($CurrentTag.TagName)" })
             Write-Verbose -Message "The '$($ExistingInheritanceSubscriptionAzPolicyAssignment.DisplayName)' policy already exists for the '$($CurrentTag.TagName)' Tag"
         }
         else {
@@ -149,10 +190,10 @@ Function New-AzInheritanceSubscriptionTagPolicyAssignment {
             $InheritanceSubscriptionAzPolicyAssignmentDisplayName = "{0}: {1}" -f $InheritanceSubscriptionTagPolicyDefinition.DisplayName, $($CurrentTag.TagName)
             Write-Verbose -Message "Creating the '$($InheritanceSubscriptionAzPolicyAssignmentDisplayName)' policy for the '$($CurrentTag.TagName)' Tag"
             #Generating a 24-characters GUID as Policy Name
-            $Name = ((New-Guid).Guid -replace "-").substring(0,24)
+            $Name = ((New-Guid).Guid -replace "-").substring(0, 24)
             Write-Verbose -Message "`$Name: $Name"
             #Creating a Policy Assignment for 'Inherit a tag from the subscription if missing' Policy Definition for the current Tag 
-            $PolicyParameterObject = @{'tagName'=$($CurrentTag.TagName)}
+            $PolicyParameterObject = @{'tagName' = $($CurrentTag.TagName) }
             New-AzPolicyAssignment -Name $Name -DisplayName $InheritanceSubscriptionAzPolicyAssignmentDisplayName -PolicyDefinition $InheritanceSubscriptionTagPolicyDefinition -Scope "/subscriptions/$($Subscription.Id)" -PolicyParameterObject $PolicyParameterObject  -IdentityType 'SystemAssigned' -Location $Location
         }
     }
@@ -174,9 +215,15 @@ Set-Location -Path $CurrentDir
 
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
-	Connect-AzAccount
+    Connect-AzAccount
 }
 #endregion
+
+#Getting Azure Policy Last Modification Times 
+$PolicyLastModifiedAt = Get-AzPolicyLastModifiedAt -Verbose
+$ThreeMonthsAgo = (Get-Date).AddMonths(-3)
+$PolicyModifiedintheLastMonth = $PolicyLastModifiedAt | Where-Object -FilterScript { $_.lastModifiedAt -ge $ThreeMonthsAgo }
+$PolicyModifiedintheLastMonth | Sort-Object -Property lastModifiedAt -Descending | Out-GridView
 
 #Getting Exclusion Tags From Azure Policies 
 $PolicyExclusionTags = Get-AzPolicyExclusionTag -Verbose
