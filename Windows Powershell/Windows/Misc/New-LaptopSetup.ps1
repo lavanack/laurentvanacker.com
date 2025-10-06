@@ -66,7 +66,7 @@ $SchemeId = $Result.Matches.Captures[0].Groups["guid"].Value.Trim()
 
 #region Software Setup
 #region WinGet
-winget upgrade --all --silent --accept-package-agreements --accept-source-agreements
+winget upgrade --all --silent --accept-package-agreements --accept-source-agreements --force
 
 winget install --exact --id=Intel.IntelDriverAndSupportAssistant
 winget install "Lenovo Vantage" --accept-package-agreements --accept-source-agreements --source msstore
