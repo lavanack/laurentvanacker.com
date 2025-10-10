@@ -81,7 +81,11 @@ function New-AzureSoftwareContainer {
 	Write-Verbose -Message "`$ResourceGroupName: $ResourceGroupName"
 
 	Write-Verbose -Message "Creating '$ResourceGroupName' Resource Group Name ..."
-	$ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $location  -Tag @{"SecurityControl" = "Ignore" } -Force
+    $Tags =  @{
+        "SecurityControl" = "Ignore"
+        "Script" = $(Split-Path -Path $MyInvocation.ScriptName -Leaf)
+    }
+	$ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $location -Tag $Tags -Force
 
 	$StorageAccountSkuName = "Standard_LRS"
 	$ContainerName = "software"
@@ -331,6 +335,10 @@ function New-AzureComputeGallery {
 
 	#$Version = "1.0.0"
 	$Version = Get-Date -UFormat "%Y.%m.%d"
+    $Tags =  @{
+        "SecurityControl" = "Ignore"
+        "Script" = $(Split-Path -Path $MyInvocation.ScriptName -Leaf)
+    }
 	$Jobs = @()
 
 	#region Get data related to the software container
@@ -346,21 +354,21 @@ function New-AzureComputeGallery {
 		Remove-AzResourceGroup -Name $ResourceGroupName -Force
 	}
 	Write-Verbose -Message "Creating '$ResourceGroupName' Resource Group Name ..."
-	$ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $location -Tag @{"SecurityControl" = "Ignore" } -Force
+	$ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $location -Tag $Tags -Force
 
 	if (Get-AzResourceGroup -Name $StagingResourceGroupNameARM -Location $location -ErrorAction Ignore) {
 		Write-Verbose -Message "Removing '$StagingResourceGroupNameARM' Resource Group Name ..."
 		Remove-AzResource -Name $StagingResourceGroupNameARM -Force
 	}
 	Write-Verbose -Message "Creating '$StagingResourceGroupNameARM' Resource Group Name ..."
-	$StagingResourceGroupARM = New-AzResourceGroup -Name $StagingResourceGroupNameARM -Tag @{"SecurityControl" = "Ignore" } -Location $location -Force
+	$StagingResourceGroupARM = New-AzResourceGroup -Name $StagingResourceGroupNameARM -Tag $Tags -Location $location -Force
 
 	if (Get-AzResourceGroup -Name $StagingResourceGroupNamePowerShell -Location $location -ErrorAction Ignore) {
 		Write-Verbose -Message "Removing '$StagingResourceGroupNamePowerShell' Resource Group Name ..."
 		Remove-AzResource -Name $StagingResourceGroupNamePowerShell -Force
 	}
 	Write-Verbose -Message "Creating '$StagingResourceGroupNamePowerShell' Resource Group Name ..."
-	$StagingResourceGroupPowerShell = New-AzResourceGroup -Name $StagingResourceGroupNamePowerShell -Location $location -Tag @{"SecurityControl" = "Ignore" } -Force
+	$StagingResourceGroupPowerShell = New-AzResourceGroup -Name $StagingResourceGroupNamePowerShell -Location $location -Tag $Tags -Force
 	#endregion
     
 	#region Permissions, user identity, and role
@@ -605,7 +613,7 @@ function New-AzureComputeGallery {
 
 	#region Submit the template
 	Write-Verbose -Message "Starting Resource Group Deployment from '$templateFilePath' ..."
-	$ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2022-07-01"; "imageTemplateName" = $imageTemplateNameARM; "svclocation" = $location }  #-Tag @{"SecurityControl"="Ignore"}
+	$ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2022-07-01"; "imageTemplateName" = $imageTemplateNameARM; "svclocation" = $location }  #-Tag $Tags
 	
 	#region Build the image
 	Write-Verbose -Message "Starting Image Builder Template from '$imageTemplateNameARM' (As Job) ..."

@@ -112,6 +112,10 @@ function New-AzureComputeGallery {
 
 	#$Version = "1.0.0"
 	$Version = Get-Date -UFormat "%Y.%m.%d"
+    $Tags =  @{
+        "SecurityControl" = "Ignore"
+        "Script" = $(Split-Path -Path $MyInvocation.ScriptName -Leaf)
+    }
 	$Jobs = @()
 	#endregion
 
@@ -121,21 +125,21 @@ function New-AzureComputeGallery {
 		Remove-AzResourceGroup -Name $ResourceGroupName -Force
 	}
 	Write-Verbose -Message "Creating '$ResourceGroupName' Resource Group Name ..."
-	$ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $location -Tag @{"SecurityControl" = "Ignore" } -Force
+	$ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $location -Tag $Tags -Force
 
 	if (Get-AzResourceGroup -Name $StagingResourceGroupNameARM -Location $location -ErrorAction Ignore) {
 		Write-Verbose -Message "Removing '$StagingResourceGroupNameARM' Resource Group Name ..."
 		Remove-AzResource -Name $StagingResourceGroupNameARM -Force
 	}
 	Write-Verbose -Message "Creating '$StagingResourceGroupNameARM' Resource Group Name ..."
-	$StagingResourceGroupARM = New-AzResourceGroup -Name $StagingResourceGroupNameARM -Tag @{"SecurityControl" = "Ignore" } -Location $location -Force
+	$StagingResourceGroupARM = New-AzResourceGroup -Name $StagingResourceGroupNameARM -Tag $Tags -Location $location -Force
 
 	if (Get-AzResourceGroup -Name $StagingResourceGroupNamePowerShell -Location $location -ErrorAction Ignore) {
 		Write-Verbose -Message "Removing '$StagingResourceGroupNamePowerShell' Resource Group Name ..."
 		Remove-AzResource -Name $StagingResourceGroupNamePowerShell -Force
 	}
 	Write-Verbose -Message "Creating '$StagingResourceGroupNamePowerShell' Resource Group Name ..."
-	$StagingResourceGroupPowerShell = New-AzResourceGroup -Name $StagingResourceGroupNamePowerShell -Location $location -Tag @{"SecurityControl" = "Ignore" } -Force
+	$StagingResourceGroupPowerShell = New-AzResourceGroup -Name $StagingResourceGroupNamePowerShell -Location $location -Tag $Tags -Force
 	#endregion
     
 	#region Permissions, user identity, and role
@@ -210,14 +214,14 @@ function New-AzureComputeGallery {
 
 	#region RBAC Owner Role on both Staging Resource Groups
 	foreach ($CurrentStagingResourceGroup in $StagingResourceGroupARM, $StagingResourceGroupPowerShell) {
-		$RoleDefinition = Get-AzRoleDefinition -Name "Owner"
+		$RoleDefinition = Get-AzRoleDefinition -Name "Contributor"
 		$Parameters = @{
 			ObjectId           = $AssignedIdentity.PrincipalId
 			RoleDefinitionName = $RoleDefinition.Name
 			Scope              = $CurrentStagingResourceGroup.ResourceId
 		}
 		while (-not(Get-AzRoleAssignment @Parameters)) {
-			Write-Verbose -Message "Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' scope"
+			Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' scope"
 			try {
 				$RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
 			} 
@@ -225,7 +229,7 @@ function New-AzureComputeGallery {
 				$RoleAssignment = $null
 			}
 			Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-			Write-Verbose -Message "Sleeping 30 seconds"
+			Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
 			Start-Sleep -Seconds 30
 		}
 	}
@@ -379,7 +383,7 @@ function New-AzureComputeGallery {
 
 	#region Submit the template
 	Write-Verbose -Message "Starting Resource Group Deployment from '$templateFilePath' ..."
-	$ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2022-07-01"; "imageTemplateName" = $imageTemplateNameARM; "svclocation" = $location }  #-Tag @{"SecurityControl"="Ignore"}
+	$ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2022-07-01"; "imageTemplateName" = $imageTemplateNameARM; "svclocation" = $location }  #-Tag $Tags
 	
 	#region Build the image
 	Write-Verbose -Message "Starting Image Builder Template from '$imageTemplateNameARM' (As Job) ..."
