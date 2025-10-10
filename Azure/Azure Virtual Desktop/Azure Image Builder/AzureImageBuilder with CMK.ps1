@@ -88,6 +88,11 @@ function New-AzureComputeGallery {
 	$shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @{Name = 'Location'; Expression = { $AzLocation[$_.name].Location } } | Where-Object -FilterScript { $_.Location } | Group-Object -Property Location -AsHashTable -AsString
 	#endregion
 
+	#region Building an Hashtable to get the shortname of every Azure resource based on a JSON file on the Github repository of the Azure Naming Tool
+	$Result = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/refs/heads/main/src/repository/resourcetypes.json 
+	$ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -in @('', 'Windows') } | Select-Object -Property resource, shortName, lengthMax | Group-Object -Property resource -AsHashTable -AsString
+	#endregion
+
 	#region Set up the environment and variables
 	# get existing context
 	$AzContext = Get-AzContext
@@ -95,8 +100,10 @@ function New-AzureComputeGallery {
 	$subscriptionID = $AzContext.Subscription.Id
 
 	#Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
-	$AzureComputeGalleryPrefix = "acg"
-	$ResourceGroupPrefix = "rg"
+	#$AzureComputeGalleryPrefix = "acg"
+	#$ResourceGroupPrefix = "rg"
+	$ResourceGroupPrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
+	$AzureComputeGalleryPrefix = $ResourceTypeShortNameHT["Compute/galleries"].ShortName
 
 	# Location (see possible locations in the main docs)
 	Write-Verbose -Message "`$Location: $Location"
@@ -119,14 +126,7 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "`$ResourceGroupName: $ResourceGroupName"
 
 	#region Source Image 
-	$SrcObjParams1 = @{
-		Publisher           = 'MicrosoftWindowsDesktop'
-		Offer               = 'Office-365'        
-		Sku                 = 'win11-22h2-avd-m365'    
-		Version             = 'latest'
-	}
-
-	$SrcObjParams2 = @{
+	$SrcObjParamsPowerShell = @{
 		Publisher = 'MicrosoftWindowsDesktop'
 		Offer     = 'Office-365'    
 		Sku       = 'win11-24h2-avd-m365'  
@@ -136,14 +136,15 @@ function New-AzureComputeGallery {
 
 	#region Image template and definition names
 	#Image Market Place Image + customizations: VSCode
-	$imageDefName = "{0}-posh-vscode" -f $SrcObjParams2.Sku
-	$imageTemplateName = "{0}-template-{1}" -f $imageDefName, $timeInt
-	Write-Verbose -Message "`$imageDefName: $imageDefName"
-	Write-Verbose -Message "`$imageTemplateName: $imageTemplateName"
+	$imageDefinitionNamePowerShell = "{0}-posh-vscode" -f $SrcObjParamsPowerShell.Sku
+	$imageTemplateNamePowerShell = "{0}-template-{1}" -f $imageDefinitionNamePowerShell, $timeInt
+	Write-Verbose -Message "`$imageDefinitionNamePowerShell: $imageDefinitionNamePowerShell"
+	Write-Verbose -Message "`$imageTemplateNamePowerShell: $imageTemplateNamePowerShell"
+	$StagingResourceGroupNamePowerShell = "IT_{0}_{1}_{2}" -f $ResourceGroupName, $imageTemplateNamePowerShell.Substring(0, 13), (New-Guid).Guid
 	#endregion
 
 	# Distribution properties object name (runOutput). Gives you the properties of the managed image on completion
-	$runOutputName = "cgOutput"
+	$runOutputNamePowerShell = "cgOutputPowerShell"
 
 	#$Version = "1.0.0"
 	#PMK version (ending with 0)
@@ -157,7 +158,14 @@ function New-AzureComputeGallery {
 		Remove-AzResourceGroup -Name $ResourceGroupName -Force
 	}
 	Write-Verbose -Message "Creating '$ResourceGroupName' Resource Group Name ..."
-	$ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $location -Force
+	$ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $location -Tag @{"SecurityControl" = "Ignore" } -Force
+
+	if (Get-AzResourceGroup -Name $StagingResourceGroupNamePowerShell -Location $location -ErrorAction Ignore) {
+		Write-Verbose -Message "Removing '$StagingResourceGroupNamePowerShell' Resource Group Name ..."
+		Remove-AzResource -Name $StagingResourceGroupNamePowerShell -Force
+	}
+	Write-Verbose -Message "Creating '$StagingResourceGroupNamePowerShell' Resource Group Name ..."
+	$StagingResourceGroupPowerShell = New-AzResourceGroup -Name $StagingResourceGroupNamePowerShell -Location $location -Tag @{"SecurityControl" = "Ignore" } -Force
 	#endregion
     
 	#region Permissions, user identity, and role
@@ -171,7 +179,8 @@ function New-AzureComputeGallery {
 	#region Create the identity
 	Write-Verbose -Message "Creating User Assigned Identity '$identityName' ..."
 	$AssignedIdentity = New-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name $identityName -Location $Location
-
+	#endregion
+	
 	#Hastable for all Disk Encryption Sets (The location is the key) 
 	$CMKDiskEncryptionSetHT = @{}
 	foreach ($CurrentTargetRegion in $TargetRegions) {
@@ -195,9 +204,9 @@ function New-AzureComputeGallery {
 	# Download the config
 	Invoke-WebRequest -Uri $aibRoleImageCreationUrl -OutFile $aibRoleImageCreationPath -UseBasicParsing
 
-    ((Get-Content -Path $aibRoleImageCreationPath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $aibRoleImageCreationPath
-    ((Get-Content -Path $aibRoleImageCreationPath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $aibRoleImageCreationPath
-    ((Get-Content -Path $aibRoleImageCreationPath -Raw) -replace 'Azure Image Builder Service Image Creation Role', $imageRoleDefName) | Set-Content -Path $aibRoleImageCreationPath
+	((Get-Content -Path $aibRoleImageCreationPath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $aibRoleImageCreationPath
+	((Get-Content -Path $aibRoleImageCreationPath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $aibRoleImageCreationPath
+	((Get-Content -Path $aibRoleImageCreationPath -Raw) -replace 'Azure Image Builder Service Image Creation Role', $imageRoleDefName) | Set-Content -Path $aibRoleImageCreationPath
 
 	#region Create a role definition
 	Write-Verbose -Message "Creating '$imageRoleDefName' Role Definition ..."
@@ -205,7 +214,6 @@ function New-AzureComputeGallery {
 	#endregion
 
 	# Grant the role definition to the VM Image Builder service principal
-	Write-Verbose -Message "Assigning '$($RoleDefinition.Name)' Role to '$($AssignedIdentity.Name)' ..."
 	$Scope = $ResourceGroup.ResourceId
 	<#
     if (-not(Get-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $Scope)) {
@@ -224,10 +232,38 @@ function New-AzureComputeGallery {
 
 	While (-not(Get-AzRoleAssignment @Parameters)) {
 		Write-Verbose -Message "Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
-		$RoleAssignment = New-AzRoleAssignment @Parameters
+		try {
+			$RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
+		} 
+		catch {
+			$RoleAssignment = $null
+		}
 		Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
 		if ($null -eq $RoleAssignment) {
 			Write-Verbose -Message "Sleeping 30 seconds"
+			Start-Sleep -Seconds 30
+		}
+	}
+	#endregion
+
+	#region RBAC Owner Role on both Staging Resource Groups
+	foreach ($CurrentStagingResourceGroup in $StagingResourceGroupPowerShell) {
+		$RoleDefinition = Get-AzRoleDefinition -Name "Owner"
+		$Parameters = @{
+			ObjectId           = $AssignedIdentity.PrincipalId
+			RoleDefinitionName = $RoleDefinition.Name
+			Scope              = $CurrentStagingResourceGroup.ResourceId
+		}
+		while (-not(Get-AzRoleAssignment @Parameters)) {
+			Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' scope"
+			try {
+				$RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
+			} 
+			catch {
+				$RoleAssignment = $null
+			}
+			Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+			Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
 			Start-Sleep -Seconds 30
 		}
 	}
@@ -250,25 +286,25 @@ function New-AzureComputeGallery {
 		GalleryName       = $GalleryName
 		ResourceGroupName = $ResourceGroupName
 		Location          = $location
-		Name              = $imageDefName
+		Name              = $imageDefinitionNamePowerShell
 		OsState           = 'generalized'
 		OsType            = 'Windows'
-		Publisher         = "{0}-posh" -f $SrcObjParams2.Publisher
-		Offer             = "{0}-posh" -f $SrcObjParams2.Offer
-		Sku               = "{0}-posh" -f $SrcObjParams2.Sku
+		Publisher         = "{0}-posh" -f $SrcObjParamsPowerShell.Publisher
+		Offer             = "{0}-posh" -f $SrcObjParamsPowerShell.Offer
+		Sku               = "{0}-posh" -f $SrcObjParamsPowerShell.Sku
 		HyperVGeneration  = 'V2'
 	}
-	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefName' (From Powershell)..."
-	$GalleryImageDefinition = New-AzGalleryImageDefinition @GalleryParams
+	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefinitionNamePowerShell' (From Powershell)..."
+	$GalleryImageDefinitionPowerShell = New-AzGalleryImageDefinition @GalleryParams
 
 	Write-Verbose -Message "Creating Azure Image Builder Template Source Object  ..."
-	$srcPlatform = New-AzImageBuilderTemplateSourceObject @SrcObjParams2 -PlatformImageSource
+	$srcPlatform = New-AzImageBuilderTemplateSourceObject @SrcObjParamsPowerShell -PlatformImageSource
 
 	<# 
     #Optional : Get Virtual Machine publisher, Image Offer, Sku and Image
-    $ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq $SrcObjParams2.Publisher}
-    $ImageOffer = Get-AzVMImageOffer -Location $Location -publisher $ImagePublisherName.PublisherName | Where-Object -FilterScript { $_.Offer  -eq $SrcObjParams2.Offer}
-    $ImageSku = Get-AzVMImageSku -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer | Where-Object -FilterScript { $_.Skus  -eq $SrcObjParams2.Sku}
+    $ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq $SrcObjParamsPowerShell.Publisher}
+    $ImageOffer = Get-AzVMImageOffer -Location $Location -publisher $ImagePublisherName.PublisherName | Where-Object -FilterScript { $_.Offer  -eq $SrcObjParamsPowerShell.Offer}
+    $ImageSku = Get-AzVMImageSku -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer | Where-Object -FilterScript { $_.Skus  -eq $SrcObjParamsPowerShell.Sku}
     $AllImages = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer -sku $ImageSku.Skus | Sort-Object -Property Version -Descending
     $LatestImage = $AllImages | Select-Object -First 1
     #>
@@ -276,8 +312,8 @@ function New-AzureComputeGallery {
 
 	$disObjParams = @{
 		SharedImageDistributor = $true
-		GalleryImageId         = "$($GalleryImageDefinition.Id)/versions/$PMKGalleryImageVersionName"
-		ArtifactTag            = @{Publisher = $SrcObjParams2.Publisher; Offer = $SrcObjParams2.Publisher; Sku = $SrcObjParams2.Publisher }
+		GalleryImageId         = "$($GalleryImageDefinitionPowerShell.Id)/versions/$PMKGalleryImageVersionName"
+		ArtifactTag            = @{Publisher = $SrcObjParamsPowerShell.Publisher; Offer = $SrcObjParamsPowerShell.Publisher; Sku = $SrcObjParamsPowerShell.Publisher }
 
 		# 1. Uncomment following line for a single region deployment.
 		#ReplicationRegion = $location
@@ -285,7 +321,7 @@ function New-AzureComputeGallery {
 		# 2. Uncomment following line if the custom image should be replicated to another region(s).
 		TargetRegion           = $TargetRegionSettings
 
-		RunOutputName          = $runOutputName
+		RunOutputName          = $runOutputNamePowerShell
 		ExcludeFromLatest      = $false
 	}
 	Write-Verbose -Message "Creating Azure Image Builder Template Distributor Object  ..."
@@ -300,52 +336,55 @@ function New-AzureComputeGallery {
 	}
 
 	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgVSCodePowerShellCustomizerParams.Name)' ..."
-	$Customizer = New-AzImageBuilderTemplateCustomizerObject @ImgCustomParams 
+	$Customize = New-AzImageBuilderTemplateCustomizerObject @ImgCustomParams 
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
 	$ImgTemplateParams = @{
-		ImageTemplateName      = $imageTemplateName
+		ImageTemplateName      = $imageTemplateNamePowerShell
 		ResourceGroupName      = $ResourceGroupName
 		Source                 = $srcPlatform
 		Distribute             = $disSharedImg
-		Customize              = $Customizer
+		Customize              = $Customize
 		Location               = $location
 		UserAssignedIdentityId = $AssignedIdentity.Id
 		VMProfileVmsize        = "Standard_D4s_v5"
 		VMProfileOsdiskSizeGb  = 127
 		BuildTimeoutInMinute   = 240
+		StagingResourceGroup   = $StagingResourceGroupPowerShell.ResourceId
+		#Tag                    = @{"SecurityControl"="Ignore"}
 	}
-	Write-Verbose -Message "Creating Azure Image Builder Template from '$imageTemplateName' Image Template Name ..."
+	Write-Verbose -Message "Creating Azure Image Builder Template from '$imageTemplateNamePowerShell' Image Template Name ..."
 	$ImageBuilderTemplate = New-AzImageBuilderTemplate @ImgTemplateParams
 
 	#region Build the image
 	#Start the image building process using Start-AzImageBuilderTemplate cmdlet:
-	Write-Verbose -Message "Starting Image Builder Template from '$imageTemplateName' (As Job) ..."
-	$Jobs += Start-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName -AsJob
+	Write-Verbose -Message "Starting Image Builder Template from '$imageTemplateNamePowerShell' (As Job) ..."
+	$Jobs += Start-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateNamePowerShell -AsJob
 	#endregion
 	#endregion
 	
 	#region Waiting for jobs to complete
 	Write-Verbose -Message "Waiting for jobs to complete ..."
-	$Jobs | Wait-Job | Out-Null
+	#$Jobs | Wait-Job | Out-Null
+	$null = $Jobs | Receive-Job -Wait -AutoRemoveJob
 	#endregion
 
-	#region imageTemplateName status
+	#region imageTemplateNamePowerShell status
 	#To determine whenever or not the template upload process was successful, run the following command.
-	$getStatus = Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateName
+	$getStatusPowerShell = Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateNamePowerShell
 	# Optional - if you have any errors running the preceding command, run:
-	Write-Verbose -Message "'$imageTemplateName' ProvisioningErrorCode: $($getStatus.ProvisioningErrorCode) "
-	Write-Verbose -Message "'$imageTemplateName' ProvisioningErrorMessage: $($getStatus.ProvisioningErrorMessage) "
+	Write-Verbose -Message "'$imageTemplateNamePowerShell' ProvisioningErrorCode: $($getStatusPowerShell.ProvisioningErrorCode) "
+	Write-Verbose -Message "'$imageTemplateNamePowerShell' ProvisioningErrorMessage: $($getStatusPowerShell.ProvisioningErrorMessage) "
 	# Shows the status of the build
-	Write-Verbose -Message "'$imageTemplateName' LastRunStatusRunState: $($getStatus.LastRunStatusRunState) "
-	Write-Verbose -Message "'$imageTemplateName' LastRunStatusMessage: $($getStatus.LastRunStatusMessage) "
-	Write-Verbose -Message "'$imageTemplateName' LastRunStatusRunSubState: $($getStatus.LastRunStatusRunSubState) "
-	if ($getStatus.LastRunStatusRunState -eq "Failed") {
-		Write-Error -Message "The Image Builder Template for '$imageTemplateName' has failed:\r\n$($getStatus.LastRunStatusMessage)"
+	Write-Verbose -Message "'$imageTemplateNamePowerShell' LastRunStatusRunState: $($getStatusPowerShell.LastRunStatusRunState) "
+	Write-Verbose -Message "'$imageTemplateNamePowerShell' LastRunStatusMessage: $($getStatusPowerShell.LastRunStatusMessage) "
+	Write-Verbose -Message "'$imageTemplateNamePowerShell' LastRunStatusRunSubState: $($getStatusPowerShell.LastRunStatusRunSubState) "
+	if ($getStatusPowerShell.LastRunStatusRunState -eq "Failed") {
+		Write-Error -Message "The Image Builder Template for '$imageTemplateNamePowerShell' has failed:\r\n$($getStatusPowerShell.LastRunStatusMessage)"
 	}
-	Write-Verbose -Message "Removing Azure Image Builder Template for '$imageTemplateName' ..."
-	#$Jobs += $getStatus | Remove-AzImageBuilderTemplate -AsJob
-	$getStatus | Remove-AzImageBuilderTemplate -NoWait
+	Write-Verbose -Message "Removing Azure Image Builder Template for '$imageTemplateNamePowerShell' ..."
+	#$Jobs += $getStatusPowerShell | Remove-AzImageBuilderTemplate -AsJob
+	$getStatusPowerShell | Remove-AzImageBuilderTemplate #-NoWait
 	#endregion
 
 	#region Adding a Customer-managed key (CMK) version
@@ -353,7 +392,7 @@ function New-AzureComputeGallery {
 	#From https://learn.microsoft.com/en-us/powershell/module/az.compute/new-azgalleryimageversion?view=azps-10.3.0#example-10-add-a-new-image-version-with-encryption-in-multiple-regions
     #Tomorrow
 	$CMKGalleryImageVersionName = "{0:yyyy.MM.dd}" -f $((Get-date).AddDays(1))
-	$sourceImageId = (Get-AzGalleryImageVersion -ResourceGroupName $ResourceGroupName -GalleryName $GalleryName -GalleryImageDefinitionName $GalleryImageDefinition.Name).Id | Sort-Object -Descending | Select-Object -First 1
+	$sourceImageId = (Get-AzGalleryImageVersion -ResourceGroupName $ResourceGroupName -GalleryName $GalleryName -GalleryImageDefinitionName $GalleryImageDefinitionPowerShell.Name).Id | Sort-Object -Descending | Select-Object -First 1
 	$replicaCount = 1
     
 	$GalleryImageVersionTargetRegions = foreach ($CurrentTargetRegion in $TargetRegions) {
@@ -366,7 +405,7 @@ function New-AzureComputeGallery {
 	}
     
 	# Create images
-	$GalleryImageVersion = New-AzGalleryImageVersion -ResourceGroupName $ResourceGroupName -GalleryName $GalleryName -GalleryImageDefinitionName $GalleryImageDefinition.Name -Name $CMKGalleryImageVersionName -Location $Location -SourceImageId $sourceImageId -TargetRegion $GalleryImageVersionTargetRegions
+	$GalleryImageVersion = New-AzGalleryImageVersion -ResourceGroupName $ResourceGroupName -GalleryName $GalleryName -GalleryImageDefinitionName $GalleryImageDefinitionPowerShell.Name -Name $CMKGalleryImageVersionName -Location $Location -SourceImageId $sourceImageId -TargetRegion $GalleryImageVersionTargetRegions
 	#endregion
 	
 	#Adding a delete lock (for preventing accidental deletion)
@@ -380,12 +419,12 @@ function New-AzureComputeGallery {
     #>
 	#endregion
   
-	#region Waiting for jobs to complete
-	$Jobs | Wait-Job | Out-Null
-	Write-Verbose -Message "Removing jobs ..."
-	$Jobs | Remove-Job -Force
-	return $Gallery
+	#region Removing Staging ResourceGroups
+	$null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNamePowerShell -Force -AsJob
+
 	#endregion
+
+	return $Gallery
 }
 #endregion
 
@@ -407,7 +446,7 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 
 
 #region To use Azure Image Builder, you have to register for the providers and to ensure that RegistrationState will be set to Registered.
-$RequiredResourceProviders = $RequiredResourceProviders = 'Microsoft.VirtualMachineImages', 'Microsoft.Storage', 'Microsoft.Compute', 'Microsoft.KeyVault', 'Microsoft.ManagedIdentity', 'Microsoft.Network', 'Microsoft.ContainerInstance'
+$RequiredResourceProviders = 'Microsoft.VirtualMachineImages', 'Microsoft.Storage', 'Microsoft.Compute', 'Microsoft.KeyVault', 'Microsoft.ManagedIdentity', 'Microsoft.Network', 'Microsoft.ContainerInstance'
 $Jobs = foreach ($CurrentRequiredResourceProvider in $RequiredResourceProviders) {
 	Register-AzResourceProvider -ProviderNamespace $CurrentRequiredResourceProvider -AsJob
 }
