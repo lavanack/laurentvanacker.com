@@ -234,7 +234,7 @@ if ($VMName.Length -gt $AzureVMNameMaxLength) {
 elseif (-not($LocationShortName)) {
     Write-Error "No location short name found for '$Location'" -ErrorAction Stop
 }
-elseif ($null -eq (Get-AzVMSize -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
+elseif ($null -eq (Get-AzComputeResourceSku -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
     Write-Error "The '$VMSize' is not available in the '$Location' location ..." -ErrorAction Stop
 }
 
@@ -375,7 +375,7 @@ $ClearTextPassword = "P@ssw0rd"
 $TempFolder = New-Item -Path $(Join-Path -Path $env:TEMP -ChildPath $("{0:yyyyMMddHHmmss}" -f (Get-Date))) -ItemType Directory -Force
 $URI = "https://laurentvanacker.com/downloads/Azure/Azure%20Virtual%20Desktop/MSIX"
 
-Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptString $ScriptBlock -Parameter @{'URI' = $URI; 'FileRegExPattern' = "\.pfx?$"; 'Destination'=$TempFolder}
+Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptString $ScriptBlock -Parameter @{'URI' = $URI; 'FileRegExPattern' = "\.pfx?$"; 'Destination' = $TempFolder }
 #endregion
 
 #region Run PowerShell Script: Importing PFX file(s)
@@ -396,7 +396,8 @@ $ScriptBlock = {
     }
 }
 
-Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptString $ScriptBlock -Parameter @{'Filter' = "*.pfx"; 'Destination'=$TempFolder; 'ClearTextPassword'=$ClearTextPassword}
+$ResultRunCommandResult = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptString $ScriptBlock -Parameter @{'Filter' = "*.pfx"; 'Destination' = $TempFolder; 'ClearTextPassword' = $ClearTextPassword }
+$ResultRunCommandResult
 #endregion
 
 #Step 13: Start RDP Session
