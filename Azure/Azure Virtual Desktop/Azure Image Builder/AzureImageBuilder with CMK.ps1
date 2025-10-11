@@ -149,6 +149,10 @@ function New-AzureComputeGallery {
 	#$Version = "1.0.0"
 	#PMK version (ending with 0)
 	$PMKGalleryImageVersionName = Get-Date -UFormat "%Y.%m.%d"
+    $Tags =  @{
+        "SecurityControl" = "Ignore"
+        "Script" = $(Split-Path -Path $MyInvocation.ScriptName -Leaf)
+    }
 	$Jobs = @()
 	#endregion
 
@@ -158,14 +162,14 @@ function New-AzureComputeGallery {
 		Remove-AzResourceGroup -Name $ResourceGroupName -Force
 	}
 	Write-Verbose -Message "Creating '$ResourceGroupName' Resource Group Name ..."
-	$ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $location -Tag @{"SecurityControl" = "Ignore" } -Force
+	$ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $location -Tag $Tags -Force
 
 	if (Get-AzResourceGroup -Name $StagingResourceGroupNamePowerShell -Location $location -ErrorAction Ignore) {
 		Write-Verbose -Message "Removing '$StagingResourceGroupNamePowerShell' Resource Group Name ..."
 		Remove-AzResource -Name $StagingResourceGroupNamePowerShell -Force
 	}
 	Write-Verbose -Message "Creating '$StagingResourceGroupNamePowerShell' Resource Group Name ..."
-	$StagingResourceGroupPowerShell = New-AzResourceGroup -Name $StagingResourceGroupNamePowerShell -Location $location -Tag @{"SecurityControl" = "Ignore" } -Force
+	$StagingResourceGroupPowerShell = New-AzResourceGroup -Name $StagingResourceGroupNamePowerShell -Location $location -Tag $Tags -Force
 	#endregion
     
 	#region Permissions, user identity, and role
@@ -178,7 +182,7 @@ function New-AzureComputeGallery {
 
 	#region Create the identity
 	Write-Verbose -Message "Creating User Assigned Identity '$identityName' ..."
-	$AssignedIdentity = New-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name $identityName -Location $Location
+	$AssignedIdentity = New-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name $identityName -Location $location
 	#endregion
 	
 	#Hastable for all Disk Encryption Sets (The location is the key) 
