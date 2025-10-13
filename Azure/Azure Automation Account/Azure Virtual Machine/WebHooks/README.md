@@ -102,10 +102,10 @@ Following the Azure Cloud Adoption Framework:
 ```
 Format: {prefix}-{project}-{role}-{location}-{instance}
 Examples:
-- Resource Group: rg-automation-startvm-eus-001
-- Automation Account: aa-automation-startvm-eus-001
+- Resource Group: rg-automation-startvm-use-001
+- Automation Account: aa-automation-startvm-use-001
 - Runbook: runbk-StopStartAzureVirtualMachine
-- Webhook: wbhk-automation-startvm-eus-001
+- Webhook: wbhk-automation-startvm-use-001
 ```
 
 ## 🔧 Webhook Usage
