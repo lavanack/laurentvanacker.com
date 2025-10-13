@@ -507,13 +507,13 @@ catch {
     
     # Fallback short name mapping for common regions
     $shortNameHT = @{
-        'eastus'      = @{shortName = 'eus' }
-        'eastus2'     = @{shortName = 'eus2' }
-        'westus'      = @{shortName = 'wus' }
-        'westus2'     = @{shortName = 'wus2' }
-        'centralus'   = @{shortName = 'cus' }
-        'northeurope' = @{shortName = 'neu' }
-        'westeurope'  = @{shortName = 'weu' }
+        'eastus'      = @{shortName = 'use' }
+        'eastus2'     = @{shortName = 'use2' }
+        'westus'      = @{shortName = 'usw' }
+        'westus2'     = @{shortName = 'usw2' }
+        'centralus'   = @{shortName = 'usc' }
+        'northeurope' = @{shortName = 'eun' }
+        'westeurope'  = @{shortName = 'euw' }
     }
 }
 #endregion
@@ -727,7 +727,7 @@ Write-Host "Deploying PowerShell runbook..." -ForegroundColor Yellow
 
 #region Runbook Configuration
 $RunBookName = "{0}-StopStartAzureVirtualMachine" -f $RunBookPrefix
-$RunbookScriptURI = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20Virtual%20Machine/WebHooks/StartAzureVirtualMachineRunBook.ps1"
+$RunbookScriptURI = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20Virtual%20Machine/WebHooks/Start/StartAzureVirtualMachineRunBook.ps1"
 $RunbookDescription = "Enterprise PowerShell Azure Automation Runbook for VM lifecycle management via webhooks"
 
 Write-Host "Runbook Configuration:" -ForegroundColor Cyan

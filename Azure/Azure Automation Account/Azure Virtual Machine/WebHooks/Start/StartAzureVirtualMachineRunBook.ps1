@@ -170,7 +170,7 @@ try {
                     Write-Verbose "Found VM: $($azureVM.Name) (Status will be checked after start operation)"
                     
                     # Start VM as background job
-                    $job = Start-AzVM -ResourceGroupName $vm.ResourceGroupName -Name $vm.Name -AsJob -ErrorAction Stop
+                    $job = $azureVM | Start-AzVM -AsJob -ErrorAction Stop
                     $jobs += $job
                     Write-Verbose "Started background job for VM: $($vm.Name) (Job ID: $($job.Id))"
                     
