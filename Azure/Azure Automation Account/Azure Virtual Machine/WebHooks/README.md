@@ -1,7 +1,8 @@
 # Azure Automation Account VM Management Setup
 
 This repository contains enterprise-ready PowerShell scripts for setting up a complete Azure Automation infrastructure to start virtual machine via webhooks.
-It acts as a Proof of Concept (POC) for a customer of mine.
+> [!NOTE]
+> It acts as a Proof of Concept (POC) for a customer of mine.
 
 ## 🚀 Features
 
