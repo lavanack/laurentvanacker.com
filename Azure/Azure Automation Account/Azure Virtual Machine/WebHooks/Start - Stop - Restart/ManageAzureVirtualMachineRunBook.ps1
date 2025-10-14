@@ -205,7 +205,7 @@ try {
                 catch {
                     $errorMsg = "Failed to '$($vm.Action)' VM '$($vm.Name)' in resource group '$($vm.ResourceGroupName)': $($_.Exception.Message)"
                     Write-Error $errorMsg
-                    $failedOperations += @{
+                    $failedOperations += [PSCustomObject]@{
                         VM        = $vm
                         Error     = $_.Exception.Message
                         Timestamp = Get-Date
@@ -229,7 +229,7 @@ try {
                 try {
                     Write-Verbose "Waiting for job completion: $($job.Name) (ID: $($job.Id))"
                     $result = Receive-Job -Job $job -Wait -ErrorAction Stop
-                    $jobResults += @{
+                    $jobResults += [PSCustomObject]@{
                         JobName  = $job.Name
                         Status   = "Success"
                         Result   = $result
@@ -239,7 +239,7 @@ try {
                     
                 }
                 catch {
-                    $jobResults += @{
+                    $jobResults += [PSCustomObject]@{
                         JobName  = $job.Name
                         Status   = "Failed" 
                         Error    = $_.Exception.Message
