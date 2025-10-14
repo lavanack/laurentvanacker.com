@@ -96,7 +96,7 @@ graph TB
     D --> G[RBAC Assignment]
     G --> H[Virtual Machine Contributor]
     F --> I[HTTP/HTTPS Endpoint]
-    I --> J[VM Lifecycle Operations]
+    I --> J[VM Start Operation]
 ```
 
 ### Resource Naming Convention
