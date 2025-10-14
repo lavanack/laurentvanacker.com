@@ -265,24 +265,24 @@ try {
         $endTime = Get-Date
         $totalDuration = $endTime - $startTime
         
-        $successfulStarts = $jobResults | Where-Object { $_.Status -eq "Success" }
-        $failedStarts = $jobResults | Where-Object { $_.Status -eq "Failed" }
+        $successfulJobs = $jobResults | Where-Object { $_.Status -eq "Success" }
+        $failedJobs = $jobResults | Where-Object { $_.Status -eq "Failed" }
         
         Write-Output "`n=== VM Start Operation Summary ==="
         Write-Output "Total VMs requested: $($VMsToManage.Count)"
-        Write-Output "Successful starts: $($successfulStarts.Count)"
-        Write-Output "Failed operations: $($failedStarts.Count + $failedOperations.Count)"
+        Write-Output "Successful operations: $($successfulJobs.Count)"
+        Write-Output "Failed operations: $($failedJobs.Count + $failedOperations.Count)"
         Write-Output "Total duration: $($totalDuration.ToString('hh\:mm\:ss'))"
         Write-Output "Completion time: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC')"
         
-        if ($successfulStarts.Count -gt 0) {
-            $successfulVMNames = $successfulStarts | ForEach-Object { $_.JobName.Split('_')[-1] }
+        if ($successfulJobs.Count -gt 0) {
+            $successfulVMNames = $successfulJobs | ForEach-Object { $_.JobName.Split('_')[-1] }
             Write-Output "Successfully started VMs: $($successfulVMNames -join ', ')"
         }
         
-        if ($failedStarts.Count -gt 0 -or $failedOperations.Count -gt 0) {
+        if ($failedJobs.Count -gt 0 -or $failedOperations.Count -gt 0) {
             Write-Warning "Some VM start operations failed:"
-            foreach ($failure in $failedStarts) {
+            foreach ($failure in $failedJobs) {
                 Write-Warning "  - Job $($failure.JobName): $($failure.Error)"
             }
             foreach ($failure in $failedOperations) {

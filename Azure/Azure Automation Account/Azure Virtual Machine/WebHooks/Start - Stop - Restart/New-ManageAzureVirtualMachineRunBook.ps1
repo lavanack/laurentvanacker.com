@@ -406,11 +406,6 @@ function New-AzAPIAutomationPowerShellRunbook {
                     "value"     = $ContentHash.Hash
                 }
             }
-            parameters         = [ordered] @{
-                TagName  = "AutoStart-Enabled"
-                TagValue = "Enabled"
-                Shutdown = $false
-            }
         }
         name       = $RunbookName
         location   = $Location
