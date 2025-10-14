@@ -45,9 +45,9 @@
     ]
 
 .NOTES
-    Author: Laurent Vanacker
+    Author: Laurent Van Acker
     Version: 2.0
-    Created: 2025-10-13
+    Created: 2025-10-24
     
     Requirements:
     - Azure Automation Account with system-assigned managed identity enabled

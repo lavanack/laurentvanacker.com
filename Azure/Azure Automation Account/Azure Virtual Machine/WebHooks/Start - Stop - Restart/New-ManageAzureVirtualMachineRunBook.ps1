@@ -35,25 +35,25 @@
     When specified, removes existing resources with the same name without prompting.
 
 .EXAMPLE
-    .\New-StartAzureVirtualMachineRunBook.ps1
+    .\New-ManageAzureVirtualMachineRunBook.ps1
     
     Creates the complete automation infrastructure using default settings in East US region.
 
 .EXAMPLE
-    .\New-StartAzureVirtualMachineRunBook.ps1 -Location "West Europe" -Project "prod" -Role "vmops"
+    .\New-ManageAzureVirtualMachineRunBook.ps1 -Location "West Europe" -Project "prod" -Role "vmops"
     
     Creates infrastructure in West Europe with custom project and role identifiers.
 
 .EXAMPLE
-    .\New-StartAzureVirtualMachineRunBook.ps1 -SkipTesting -Force
+    .\New-ManageAzureVirtualMachineRunBook.ps1 -SkipTesting -Force
     
     Creates infrastructure, removes existing resources without prompting, and skips testing.
 
 .NOTES
-    Author: Laurent Vanacker
+    Author: Laurent Van Acker
     Version: 2.0.0
     Created: 2024
-    Updated: 2025-10-13
+    Updated: 2025-10-14
     
     Requirements:
     - PowerShell 5.1 or later
@@ -82,11 +82,7 @@
 param
 (
     [Parameter()]
-    [ValidateSet('EastUS', 'EastUS2', 'WestUS', 'WestUS2', 'WestUS3', 'CentralUS', 'NorthCentralUS', 'SouthCentralUS', 'WestCentralUS', 
-        'CanadaCentral', 'CanadaEast', 'BrazilSouth', 'NorthEurope', 'WestEurope', 'UKSouth', 'UKWest', 
-        'FranceCentral', 'GermanyWestCentral', 'NorwayEast', 'SwitzerlandNorth', 'AustraliaEast', 
-        'AustraliaSoutheast', 'EastAsia', 'SoutheastAsia', 'JapanEast', 'JapanWest', 'KoreaCentral', 
-        'CentralIndia', 'SouthIndia', 'WestIndia', 'UAENorth', 'SouthAfricaNorth')]
+    [ValidateScript({$_ -in (Get-AzLocation).Location})]
     [string]$Location = 'EastUS',
     
     [Parameter()]
@@ -527,6 +523,28 @@ catch {
 }
 #endregion
 
+#region Building an Hashtable to get the shortname of every Azure resource based on a JSON file on the Github repository of the Azure Naming Tool
+try {
+    Write-Verbose "Downloading Azure Naming Tool resource types ..."
+    $Result = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/refs/heads/main/src/repository/resourcetypes.json 
+    $ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -in @('', 'Windows') } | Select-Object -Property resource, shortName, lengthMax | Group-Object -Property resource -AsHashTable -AsString
+
+    Write-Verbose "Successfully mapped $($shortNameHT.Count) Azure types to short names"
+}
+catch {
+    Write-Warning "Failed to retrieve Azure type mappings: $($_.Exception.Message)"
+    Write-Warning "Using fallback type short name mapping"
+    
+    # Fallback short name mapping for common regions
+    $ResourceTypeShortNameHT = @{
+        'Automation/automationAccounts/webhooks' = @{shortName = 'wbhk' }
+        'Automation/automationAccounts/runbooks' = @{shortName = 'runbk' }
+        'Resources/resourcegroups'               = @{shortName = 'rg' }
+        'Automation/automationAccounts'          = @{shortName = 'aa' }
+    }
+}
+#endregion
+
 #region Azure Authentication and Subscription Selection
 Write-Host "Validating Azure authentication..." -ForegroundColor Yellow
 
@@ -596,10 +614,10 @@ else {
 
 # Naming convention based on Cloud Adoption Framework
 # Reference: https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
-$WebhookPrefix = "wbhk"
-$RunBookPrefix = "runbk"
-$ResourceGroupPrefix = "rg"
-$AutomationAccountPrefix = "aa"
+$WebhookPrefix = $ResourceTypeShortNameHT["Automation/automationAccounts/webhooks"].ShortName
+$RunBookPrefix = $ResourceTypeShortNameHT["Automation/automationAccounts/runbooks"].ShortName
+$ResourceGroupPrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
+$AutomationAccountPrefix = $ResourceTypeShortNameHT["Automation/automationAccounts"].ShortName
 $DigitNumber = 3
 
 # Generate unique instance number
@@ -735,8 +753,8 @@ while (-not $rbacSuccess -and $rbacRetryCount -lt $maxRbacRetries) {
 Write-Host "Deploying PowerShell runbook..." -ForegroundColor Yellow
 
 #region Runbook Configuration
-$RunBookName = "{0}-StopStartAzureVirtualMachine" -f $RunBookPrefix
-$RunbookScriptURI = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20Virtual%20Machine/WebHooks/Start%20-%20Stop%20-%20Restart/StartAzureVirtualMachineRunBook.ps1"
+$RunBookName = "{0}-ManageAzureVirtualMachine" -f $RunBookPrefix
+$RunbookScriptURI = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20Virtual%20Machine/WebHooks/Start%20-%20Stop%20-%20Restart/ManageAzureVirtualMachineRunBook.ps1"
 $RunbookDescription = "Enterprise PowerShell Azure Automation Runbook for VM lifecycle management via webhooks"
 
 Write-Host "Runbook Configuration:" -ForegroundColor Cyan

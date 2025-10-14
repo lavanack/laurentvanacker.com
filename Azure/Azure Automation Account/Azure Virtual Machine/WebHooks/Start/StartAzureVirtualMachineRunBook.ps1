@@ -37,7 +37,7 @@
     ]
 
 .NOTES
-    Author: Laurent Vanacker
+    Author: Laurent Van Acker
     Version: 2.0
     Created: 2025-10-13
     
