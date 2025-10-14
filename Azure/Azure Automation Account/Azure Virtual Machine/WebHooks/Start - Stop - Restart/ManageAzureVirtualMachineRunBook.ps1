@@ -183,19 +183,19 @@ try {
                             # Start VM as background job                    
                             $job = $azureVM | Start-AzVM -AsJob -ErrorAction Stop
                             $jobs += $job
-                            Write-Verbose "Stopped background job for VM: $($vm.Name) (Job ID: $($job.Id))"
+                            Write-Verbose "Started background job for VM: $($vm.Name) (Action: $($vm.Action)) (Job ID: $($job.Id))"
                         }
                         'stop' {
                             # Stop VM as background job                    
                             $job = $azureVM | Stop-AzVM -AsJob -Force -ErrorAction Stop
                             $jobs += $job
-                            Write-Verbose "Started background job for VM: $($vm.Name) (Job ID: $($job.Id))"
+                            Write-Verbose "Started background job for VM: $($vm.Name) (Action: $($vm.Action)) (Job ID: $($job.Id))"
                         }
                         'restart' {
                             # Restart VM as background job                    
                             $job = $azureVM | Restart-AzVM -AsJob -ErrorAction Stop
                             $jobs += $job
-                            Write-Verbose "Restarted background job for VM: $($vm.Name) (Job ID: $($job.Id))"
+                            Write-Verbose "Started background job for VM: $($vm.Name) (Action: $($vm.Action)) (Job ID: $($job.Id))"
                         }
                         default {
                             Write-Warning -Message "Unknown $($vm.Action) action for VM: $($vm.Name) in resource group: $($vm.ResourceGroupName)"
