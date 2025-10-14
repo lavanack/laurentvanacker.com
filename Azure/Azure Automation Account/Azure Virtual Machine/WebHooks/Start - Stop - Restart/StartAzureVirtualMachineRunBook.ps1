@@ -14,6 +14,7 @@
         {
             "ResourceGroupName": "rg-name",
             "Name": "vm-name"
+            "Action": "start|stop|restart"
         }
     ]
 
@@ -29,10 +30,17 @@
         {
             "ResourceGroupName": "rg-production",
             "Name": "vm-webserver-01"
+            "Action": "stop"
         },
         {
             "ResourceGroupName": "rg-production", 
             "Name": "vm-database-01"
+            "Action": "restart"
+        }
+        {
+            "ResourceGroupName": "rg-production", 
+            "Name": "vm-middle-01"
+            "Action": "start"
         }
     ]
 
@@ -55,6 +63,7 @@
     https://docs.microsoft.com/en-us/azure/automation/automation-webhooks
     https://docs.microsoft.com/en-us/azure/automation/automation-security-overview
 #>
+
 
 #requires -Version 5.1 -Modules Az.Accounts, Az.Compute
 
@@ -160,9 +169,9 @@ try {
         $failedOperations = @()
         
         try {
-            # Start each VM asynchronously using background jobs
+            # Manage each VM asynchronously using background jobs
             foreach ($vm in $VMsToManage) {
-                Write-Output "Queuing operation for VM: $($vm.Name) in resource group: $($vm.ResourceGroupName)"
+                Write-Output "Queuing $($vm.Action) operation for VM: $($vm.Name) in resource group: $($vm.ResourceGroupName)"
                 
                 try {
                     # Verify VM exists before attempting to start
@@ -171,14 +180,14 @@ try {
                     
                     switch ($vm.Action) {
                         'start' {
-                            # Stop VM as background job                    
-                            $job = $azureVM | Stop-AzVM -AsJob -ErrorAction Stop
+                            # Start VM as background job                    
+                            $job = $azureVM | Start-AzVM -AsJob -ErrorAction Stop
                             $jobs += $job
                             Write-Verbose "Stopped background job for VM: $($vm.Name) (Job ID: $($job.Id))"
                         }
                         'stop' {
-                            # Start VM as background job                    
-                            $job = $azureVM | Start-AzVM -AsJob -ErrorAction Stop
+                            # Stop VM as background job                    
+                            $job = $azureVM | Stop-AzVM -AsJob -Force -ErrorAction Stop
                             $jobs += $job
                             Write-Verbose "Started background job for VM: $($vm.Name) (Job ID: $($job.Id))"
                         }
