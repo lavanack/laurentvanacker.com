@@ -1,9 +1,9 @@
 ﻿<#
 .SYNOPSIS
-    Creates and configures a complete Azure Automation infrastructure for VM lifecycle management via webhooks.
+    Creates and configures a complete Azure Automation infrastructure for starting VMs via webhooks.
 
 .DESCRIPTION
-    This script establishes a comprehensive Azure Automation solution for managing virtual machine lifecycle operations.
+    This script establishes a comprehensive Azure Automation solution for managing virtual machine start operations.
     It creates the necessary Azure resources including Resource Groups, Automation Accounts, Runbooks, and Webhooks,
     then configures RBAC permissions and deploys enterprise-ready PowerShell runbooks for VM management.
     
@@ -364,7 +364,9 @@ function New-AzAPIAutomationPowerShellRunbook {
         
         [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
         [ValidateNotNullOrEmpty()]
-        [string]$Description
+        [string]$Description,
+
+        [switch] $LogVerbose
     )
     #region Azure Context
     # Log in first with Connect-AzAccount if not using Cloud Shell
@@ -428,6 +430,12 @@ function New-AzAPIAutomationPowerShellRunbook {
             
             $Response = Invoke-RestMethod -Method PUT -Headers $authHeader -Body $jsonBody -ContentType "application/json" -Uri $URI -ErrorAction Stop
             Write-Verbose "Successfully created runbook: $RunbookName"
+
+            if ($LogVerbose) {
+                Set-AzAutomationRunbook -AutomationAccountName $AutomationAccountName -Name $RunbookName -LogVerbose $true -ResourceGroupName $ResourceGroupName
+            }
+
+
         }
         catch [System.Net.WebException] {   
             # Handle web-specific exceptions with detailed error information
@@ -738,6 +746,7 @@ Write-Host "  Description: $RunbookDescription" -ForegroundColor White
 # Deploy runbook using REST API for better control
 try {
     Write-Host "Creating and publishing runbook..." -ForegroundColor Cyan
+    #$RunbookResult = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI $RunbookScriptURI -Description $RunbookDescription -LogVerbose -Verbose:$VerbosePreference
     $RunbookResult = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI $RunbookScriptURI -Description $RunbookDescription -Verbose:$VerbosePreference
     
     if ($RunbookResult) {
