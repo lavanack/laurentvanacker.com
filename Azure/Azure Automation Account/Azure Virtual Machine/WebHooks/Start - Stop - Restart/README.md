@@ -1,4 +1,4 @@
-# Azure Automation Account: VM Start Setup
+# Azure Automation Account: VM Start / Stop / Restart Setup
 
 This repository contains enterprise-ready PowerShell scripts for setting up a complete Azure Automation infrastructure to start virtual machine via webhooks.
 > [!NOTE]
@@ -51,7 +51,7 @@ Connect-AzAccount
 
 ### Basic Deployment
 ```powershell
-# Deploy with default settings (East US, automation project, startvm role)
+# Deploy with default settings (East US, automation project, managevm role)
 .\New-ManageAzureVirtualMachineRunBook.ps1
 ```
 
@@ -73,7 +73,7 @@ Connect-AzAccount
 | ------------- | ------ | ------------ | ------------------------------------------- |
 | `Location`    | String | `EastUS`     | Azure region for resource deployment        |
 | `Project`     | String | `automation` | Project identifier for naming convention    |
-| `Role`        | String | `startvm`    | Role identifier for naming convention       |
+| `Role`        | String | `managevm`   | Role identifier for naming convention       |
 | `SkipTesting` | Switch | `False`      | Skip automated testing after deployment     |
 | `Force`       | Switch | `False`      | Remove existing resources without prompting |
 
@@ -104,10 +104,10 @@ Following the Azure Cloud Adoption Framework:
 ```
 Format: {prefix}-{project}-{role}-{location}-{instance}
 Examples:
-- Resource Group: rg-automation-startvm-use-001
-- Automation Account: aa-automation-startvm-use-001
+- Resource Group: rg-automation-managevm-use-001
+- Automation Account: aa-automation-managevm-use-001
 - Runbook: runbk-StopStartAzureVirtualMachine
-- Webhook: wbhk-automation-startvm-use-001
+- Webhook: wbhk-automation-managevm-use-001
 ```
 
 ## 🔧 Webhook Usage
@@ -117,11 +117,18 @@ Examples:
 [
   {
     "Name": "vm-web-01",
-    "ResourceGroupName": "rg-production-web"
+    "ResourceGroupName": "rg-production-web",
+    "Action": "start"
   },
   {
     "Name": "vm-app-01",
-    "ResourceGroupName": "rg-production-app"
+    "ResourceGroupName": "rg-production-app",
+    "Action": "stop"
+  },
+  {
+    "Name": "vm-db-01",
+    "ResourceGroupName": "rg-production-db",
+    "Action": "restart"
   }
 ]
 ```
