@@ -26,7 +26,7 @@
 
 .PARAMETER Role
     The role identifier for resource naming convention.
-    Default: startvm
+    Default: managevm
 
 .PARAMETER SkipTesting
     When specified, skips the automated testing phase after deployment.
@@ -97,7 +97,7 @@ param
     [Parameter()]
     [ValidateLength(3, 20)]
     [ValidatePattern('^[a-z0-9]+$')]
-    [string]$Role = 'startvm',
+    [string]$Role = 'managevm',
     
     [Parameter()]
     [switch]$SkipTesting,
@@ -364,7 +364,9 @@ function New-AzAPIAutomationPowerShellRunbook {
         
         [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
         [ValidateNotNullOrEmpty()]
-        [string]$Description
+        [string]$Description,
+
+        [switch] $LogVerbose
     )
     #region Azure Context
     # Log in first with Connect-AzAccount if not using Cloud Shell
@@ -428,6 +430,12 @@ function New-AzAPIAutomationPowerShellRunbook {
             
             $Response = Invoke-RestMethod -Method PUT -Headers $authHeader -Body $jsonBody -ContentType "application/json" -Uri $URI -ErrorAction Stop
             Write-Verbose "Successfully created runbook: $RunbookName"
+
+            if ($LogVerbose) {
+                Set-AzAutomationRunbook -AutomationAccountName $AutomationAccountName -Name $RunbookName -LogVerbose $true -ResourceGroupName $ResourceGroupName
+            }
+
+
         }
         catch [System.Net.WebException] {   
             # Handle web-specific exceptions with detailed error information
@@ -461,6 +469,7 @@ function New-AzAPIAutomationPowerShellRunbook {
     
     return $Response
 }
+
 #endregion
 
 #region Script Initialization
@@ -739,6 +748,7 @@ Write-Host "  Description: $RunbookDescription" -ForegroundColor White
 try {
     Write-Host "Creating and publishing runbook..." -ForegroundColor Cyan
     $RunbookResult = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI $RunbookScriptURI -Description $RunbookDescription -Verbose:$VerbosePreference
+    #$RunbookResult = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI $RunbookScriptURI -Description $RunbookDescription -LogVerbose -Verbose:$VerbosePreference
     
     if ($RunbookResult) {
         Write-Host "Successfully created runbook: $RunBookName" -ForegroundColor Green
@@ -798,13 +808,24 @@ if (-not $SkipTesting) {
         
         $selectedVMs = @()
 
+
         # Select up one running VMs for testing
-        $selectedVMs += $NonRunningVMs | Get-Random -Count ([Math]::Min(1, $NonRunningVMs.Count)) | Select-Object -Property Name, ResourceGroupName, @{Name="Action"; Expression = {"start"}}
+        if ($NonRunningVMs) {
+            $selectedVMs += $NonRunningVMs | Get-Random -Count ([Math]::Min(1, $NonRunningVMs.Count)) | Select-Object -Property Name, ResourceGroupName, @{Name="Action"; Expression = {"start"}}
+        }
+        else {
+            Write-Warning "No stopped VMs found for testing."
+        }
+
             
 
         # Select up 2 VMs for testing
-        $selectedVMs += $RunningVMs | Get-Random -Count ([Math]::Min(2, $RunningVMs.Count)) | Select-Object -Property Name, ResourceGroupName, @{Name="Action"; Expression = {"stop", "restart" | Get-Random}}
-
+        if ($RunningVMs) {
+            $selectedVMs += $RunningVMs | Get-Random -Count ([Math]::Min(2, $RunningVMs.Count)) | Select-Object -Property Name, ResourceGroupName, @{Name="Action"; Expression = {"stop", "restart" | Get-Random}}
+        }
+        else {
+            Write-Warning "No running VMs found for testing."
+        }
 
         Write-Host "Selected VMs for testing:" -ForegroundColor Cyan
         $selectedVMs | ForEach-Object { 
@@ -829,7 +850,7 @@ if (-not $SkipTesting) {
                 
             # Monitor job execution
             Write-Host "Monitoring job execution..." -ForegroundColor Cyan
-            $timeout = 300 # 5 minutes timeout
+            $timeout = 600 # 10 minutes timeout
             $elapsed = 0
             $jobCompleted = $false
                 
