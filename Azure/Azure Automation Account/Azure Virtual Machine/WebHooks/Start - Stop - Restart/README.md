@@ -137,8 +137,9 @@ Examples:
 ```powershell
 # Example webhook invocation
 $vmList = @(
-    @{ Name = "vm-web-01"; ResourceGroupName = "rg-production" }
-    @{ Name = "vm-app-01"; ResourceGroupName = "rg-production" }
+    @{ Name = "vm-web-01"; ResourceGroupName = "rg-production-web"; "Action": "start" }
+    @{ Name = "vm-app-01"; ResourceGroupName = "rg-production-app"; "Action": "stop" }
+    @{ Name = "vm-db-01"; ResourceGroupName = "rg-production-db"; "Action": "restart" }
 )
 
 $body = $vmList | ConvertTo-Json
