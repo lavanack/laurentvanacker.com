@@ -215,6 +215,12 @@ $ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/
 $shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @{Name = 'Location'; Expression = { $AzLocation[$_.name].Location } } | Where-Object -FilterScript { $_.Location } | Group-Object -Property Location -AsHashTable -AsString
 #endregion
 
+#region Building an Hashtable to get the shortname of every Azure resource based on a JSON file on the Github repository of the Azure Naming Tool
+$ANTResourceType = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/refs/heads/main/src/repository/resourcetypes.json 
+$ResourceTypeShortNameHT = $ANTResourceType | Where-Object -FilterScript { $_.property -in @('', 'Windows') } | Select-Object -Property resource, shortName, lengthMax | Group-Object -Property resource -AsHashTable -AsString
+#endregion
+
+
 # Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount
@@ -226,13 +232,13 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 $Location = "EastUS"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
-$RunBookPrefix = "runbk"
-$ResourceGroupPrefix = "rg"
-$AutomationAccountPrefix = "aa"
+$RunBookPrefix = $ResourceTypeShortNameHT["Automation/automationAccounts/runbooks"].ShortName
+$ResourceGroupPrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
+$AutomationAccountPrefix = $ResourceTypeShortNameHT["Automation/automationAccounts"].ShortName
 $Project = "automation"
 $Role = "avd"
 $DigitNumber = 3
-$Instance = 1
+$Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
 
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $AutomationAccountName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $AutomationAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
@@ -271,18 +277,18 @@ New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefi
 
 #region New-StartAzureVirtualMachineRunBook
 #region Schedule Setup
-#region Azure Virtual Machine - Daily Start
+#region Azure Virtual Machine - Daily Removal Process
 $TimeZone = ([System.TimeZoneInfo]::Local).Id
 $StartTime = Get-Date "08:00:00"
 if ($(Get-Date) -gt $StartTime) {
     $StartTime = $StartTime.AddDays(1)
 }
-$Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Machine - Daily Start" -StartTime $StartTime -WeekInterval 1 -DaysOfWeek "Monday", "Tuesday", "Wednesday", "Thursday", "Friday" -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
+$Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Machine - Daily Removal Process" -StartTime $StartTime -WeekInterval 1 -DaysOfWeek "Monday", "Tuesday", "Wednesday", "Thursday", "Friday" -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
 #endregion 
 #endregion
 
 #region RunBook Setup
-$RunBookName = "{0}-StartAVDPersonalSessionHost" -f $RunBookPrefix
+$RunBookName = "{0}-RemoveAVDPersonalSessionHost" -f $RunBookPrefix
 #$Runbook = New-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName -Type PowerShell
 # Publish the runbook
 #Publish-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName

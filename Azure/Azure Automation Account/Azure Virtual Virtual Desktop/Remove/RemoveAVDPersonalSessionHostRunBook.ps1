@@ -36,7 +36,7 @@ else {
     foreach ($CurrentLogAnalyticsWorkspaceId in $LogAnalyticsWorkspaceIds) {
         Write-Output -InputObject "`$CurrentLogAnalyticsWorkspaceId: $CurrentLogAnalyticsWorkspaceId"
         #Not connected in the last 90 days
-        $Query = "let daysAgo = {0}m; WVDConnections | sort by TimeGenerated asc | limit 1 | where TimeGenerated <= ago(daysAgo) | distinct SessionHostName" -f $DayAgo
+        $Query = "let daysAgo = {0}d; WVDConnections | sort by TimeGenerated asc | limit 1 | where TimeGenerated <= ago(daysAgo) | distinct SessionHostName" -f $DayAgo
 
         Write-Output -InputObject "`$Query: $Query"
         # Run the query
