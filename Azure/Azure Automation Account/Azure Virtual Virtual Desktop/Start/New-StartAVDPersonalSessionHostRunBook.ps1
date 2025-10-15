@@ -232,7 +232,8 @@ $AutomationAccountPrefix = "aa"
 $Project = "automation"
 $Role = "avd"
 $DigitNumber = 3
-$Instance = 1
+$Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
+
 
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $AutomationAccountName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $AutomationAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
@@ -294,7 +295,7 @@ $VariableValue = "00000000-0000-0000-0000-000000000000"
 $Variable = New-AzAutomationVariable -AutomationAccountName $AutomationAccount.AutomationAccountName-Name $VariableName -Value $VariableValue -Encrypted $false -ResourceGroupName $ResourceGroupName -Description "LogAnalyticsWorkspace Ids (comma-separated values) for AVD Host Pools"
 #endregion 
 
-$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20Virtual%20Virtual%20Desktop/StartAVDPersonalSessionHostRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Starting AVD Personal Session Hosts" -Verbose 
+$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20Virtual%20Virtual%20Desktop/Start/StartAVDPersonalSessionHostRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Starting AVD Personal Session Hosts" -Verbose 
 #endregion 
 
 # Link the schedule to the runbook
