@@ -35,7 +35,7 @@ else {
     $LogAnalyticsWorkspaceIds = $LogAnalyticsWorkspaceId -split ','
     foreach ($CurrentLogAnalyticsWorkspaceId in $LogAnalyticsWorkspaceIds) {
         Write-Output -InputObject "`$CurrentLogAnalyticsWorkspaceId: $CurrentLogAnalyticsWorkspaceId"
-        #Not connected in the last 90 days
+        #region Session Hosts not connected in the last 90 days
         $Query = "let daysAgo = {0}d; WVDConnections | sort by TimeGenerated asc | limit 1 | where TimeGenerated <= ago(daysAgo) | distinct SessionHostName" -f $DayAgo
 
         Write-Output -InputObject "`$Query: $Query"
@@ -43,7 +43,9 @@ else {
         $Result = Invoke-AzOperationalInsightsQuery -WorkspaceId $CurrentLogAnalyticsWorkspaceId -Query $Query
         $NotConnectedVMs = $Result.Results.SessionHostName -replace "\..*$" | ForEach-Object -Process { if ($SessionHostNameHT[$_].ResourceId) { Get-AzResource -ResourceId $SessionHostNameHT[$_].ResourceId | Get-AzVM } } 
         Write-Output -InputObject "`$NotConnectedVMs: $($NotConnectedVMs.Name -join ', ')"                
+        #endregion 
 
+        #region Session Hosts not started in the last 90 days
         $NotStartedVMs = foreach ($SessionHostName in $SessionHostNameHT.Keys) {
             $ResourceId = $SessionHostNameHT[$SessionHostName].ResourceId
             #Checkinf if the VM has been started in the last 90 days
@@ -56,6 +58,8 @@ else {
                 $NotStartedVM
             }
         }
+        #endregion 
+
         [array] $VMs = $NotStartedVMs+$NotStartedVMs
         if (-not([string]::IsNullOrEmpty($VMNames))) {
             Foreach ($CurrentVM in $VMs) {
