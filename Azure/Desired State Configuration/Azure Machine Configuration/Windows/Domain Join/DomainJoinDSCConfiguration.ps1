@@ -49,13 +49,13 @@ Configuration DomainJoinDSCConfiguration {
                     GetScript  = $GetScript
                     SetScript  = $SetScript
                     TestScript = $TestScript
-                    DomainName     = $DomainName
+                    DomainName = $DomainName
                 }
             }
      
             SetScript            = {
-                #Add-Computer -DomainName $DomainName -Credential $Credential -Restart
-                Add-Computer -DomainName $DomainName -Restart
+                Add-Computer -DomainName $using:DomainName -Credential $using:Credential -Restart
+                Restart-Computer -Force
 
             }
             TestScript           = {
@@ -63,7 +63,6 @@ Configuration DomainJoinDSCConfiguration {
                 $state = [scriptblock]::Create($GetScript).Invoke()
                 return ($state.DomainName -eq $using:DomainName)
             }
-            PsDscRunAsCredential = $Credential
         }
         
         <#
