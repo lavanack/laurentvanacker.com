@@ -142,7 +142,7 @@ Function Convert-FromSecurityComplianceToolkit {
 
                 try {
                     #Conversion of the GPO to DSC configuration script
-                    $ConvertedGpo = ConvertFrom-GPO -Path $CurrentGPODir -OutputConfigurationScript -OutputPath $DSCGPODirectory -ConfigName $GPOName -ShowPesterOutput -ErrorAction Stop
+                    $ConvertedGpo = ConvertFrom-GPO -Path $CurrentGPODir -OutputConfigurationScript -OutputPath $DSCGPODirectory -ConfigName $GPOName -ErrorAction Stop
                     Write-Host -Object " - Successfully converted '$GPOName' GPO to DSC."
                     Write-Verbose -Message "`$ConvertedGpo: $($ConvertedGpo | Out-String)"
                 }
@@ -185,7 +185,7 @@ Function Convert-FromSecurityComplianceToolkit {
                         }
                     }
                     else {
-                        Write-Error $_.Exception.Message
+                        Write-Warning $_.Exception.Message
                         #Trying to extract the problematic file and entry from the error message
                         if ($_.Exception.Message -match "^.*\s(?<file>\S*)\sfile.*'(?<entry>.*)'.*unknown value.*$") {
                             $File = $Matches['file']
@@ -202,15 +202,18 @@ Function Convert-FromSecurityComplianceToolkit {
                                 Write-Verbose -Message $Message
                                 try {
                                     #Trying the conversion again after fixing the problematic entry
-                                    $ConvertedGpo = ConvertFrom-GPO -Path $CurrentGPODir -OutputConfigurationScript -OutputPath $DSCGPODirectory -ConfigName $GPOName -ShowPesterOutput -ErrorAction Stop
+                                    $ConvertedGpo = ConvertFrom-GPO -Path $CurrentGPODir -OutputConfigurationScript -OutputPath $DSCGPODirectory -ConfigName $GPOName -ErrorAction Stop
                                     Write-Host -Message " - Repair successful!" -ForegroundColor Green
                                     $AutoFixes += [PSCustomObject]@{FullName = $_.FullName; Fix = "Removing entry '$Entry'" }
                                     Write-Verbose -Message "`$ConvertedGpo: $($ConvertedGpo | Out-String)"
                                 }
                                 catch {
-                                    Write-Error $_.Exception.Message
+                                    Write-Error -Message "Second conversion failed $($_.Exception.Message)"
                                 }
                             }   
+                        }
+                        else {
+                            Write-Error -Message "Cannot find problematic file and entry in error message: '$($_.Exception.Message)'."
                         }
                     }
                 }
