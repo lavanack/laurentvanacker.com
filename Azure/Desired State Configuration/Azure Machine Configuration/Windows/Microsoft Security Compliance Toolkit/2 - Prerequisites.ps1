@@ -20,15 +20,13 @@ $ProgressPreference = "SilentlyContinue"
 Get-PackageProvider -Name Nuget -ForceBootstrap -Force
 #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 #For Azure
-Install-Module -Name Az.Accounts, Az.Compute, Az.PolicyInsights, Az.Resources, Az.Storage -Force
+Install-Module -Name Az.Accounts, Az.Compute, Az.PolicyInsights, Az.Resources, Az.Storage -Scope AllUsers -Force
 #For DSC
-Install-Module -Name PSDesiredStateConfiguration, PSDSCResources -Force
+Install-Module -Name PSDesiredStateConfiguration, PSDSCResources -Scope AllUsers -Force
 #For Machine/Guest Configuration
-Install-Module -Name GuestConfiguration -Force
-#https://github.com/microsoft/BaselineManagement?tab=readme-ov-file#install-the-module
-Install-Module -Name BaselineManagement -RequiredVersion 4.1.1 -Force
-#For Certificates
-Install-Module -Name CertificateDSC -Force
+Install-Module -Name GuestConfiguration -Scope AllUsers -Force
+#For AD Domain Join
+Install-Module -Name ComputerManagementDsc -Scope AllUsers -Force
 
 $ProgressPreference = $PreviousProgressPreferenceValue
 
