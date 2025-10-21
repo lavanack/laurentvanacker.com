@@ -80,7 +80,7 @@ Function Convert-FromSecurityComplianceToolkit {
     $null = New-Item -Path $Output, $DSCRootDirectory, $ExtractedBaselineDirectory, $BaselineDirectory -ItemType Directory -Force
 
     $BaselineIndex = 0
-    $AutoFixes = @()
+    $RepairStatuses = @()
     foreach ($Baseline in $SCTFileData.Keys) {
         $BaselineIndex++
         $PercentComplete = ($BaselineIndex / $SCTFileData.Keys.Count * 100)
@@ -146,7 +146,7 @@ Function Convert-FromSecurityComplianceToolkit {
                     $Attempts++
                     try {
                         #Conversion of the GPO to DSC configuration script
-                        $ConvertedGpo = ConvertFrom-GPO -Path $CurrentGPODir -OutputConfigurationScript -OutputPath $DSCGPODirectory -ConfigName $GPOName -ErrorAction Stop
+                        $ConvertedGpo = ConvertFrom-GPO -Path $CurrentGPODir -OutputConfigurationScript -OutputPath $DSCGPODirectory -ConfigName $GPOName -ErrorAction Stop 2>$null
                         Write-Host -Object " - Successfully converted '$GPOName' GPO to DSC."
                         Write-Verbose -Message "`$ConvertedGpo: $($ConvertedGpo | Out-String)"
                         $Success = $true
@@ -171,7 +171,7 @@ Function Convert-FromSecurityComplianceToolkit {
                                     #Fixing the configuration script by commenting the faulty setting
                                     [regex]::Replace($FileContent, $Pattern, "<# Fixed by '$($MyInvocation.MyCommand)'`r`n`$1`r`n#>") | Set-Content -Path $ConfigurationScript
                                     $Message = "Commenting setting that contains property '$Property' in '$ConfigurationScript'."
-                                    Write-Verbose -Message $Message
+                                    Write-Warning -Message $Message
                                     #Removing the faulty localhost.mof.error file if exists
                                     $null = Get-ChildItem -Path $DSCGPODirectory -Filter localhost.mof.error |  Remove-Item -ErrorAction Ignore -Force
                                     #Recalling the Configuration Script after fixing it (for generating a valid localhost.mof file)
@@ -179,11 +179,12 @@ Function Convert-FromSecurityComplianceToolkit {
                                     #Testing if the localhost.mof file has been successfully created
                                     if (Test-Path -Path $(Join-Path -Path $DSCGPODirectory -ChildPath localhost.mof) -PathType Leaf) {
                                         Write-Host -Message " - Repair successful!" -ForegroundColor Green
-                                        $AutoFixes += [PSCustomObject]@{FullName = $ConfigurationScript; Fix = "Commented setting that contains property '$Property'" }
+                                        $RepairStatuses += [PSCustomObject]@{FullName = $ConfigurationScript; Tye = "Success"; Message = "Commented setting that contains property '$Property'" }
                                         $Success = $true
                                     }
                                     else {
                                         Write-Warning -Message " - Repair failed!"
+                                        $RepairStatuses += [PSCustomObject]@{FullName = $ConfigurationScript; Tye = "Failure"; Message = $Error[1].ErrorDetails.Message }
                                     }
                                 }
                             }
@@ -193,7 +194,6 @@ Function Convert-FromSecurityComplianceToolkit {
                         }
                         else {
                             $Message = $_.Exception.Message
-                            Write-Warning -Message "Exception Message: $Message"
                             #Trying to extract the problematic file and entry from the error message
                             if ($Message -match "^.*\s(?<file>\S*)\sfile.*'(?<entry>.*)'.*unknown value.*$") {
                                 $File = $Matches['file']
@@ -210,11 +210,15 @@ Function Convert-FromSecurityComplianceToolkit {
                                     Write-Verbose -Message $Message
                                 }   
                             }
+                            else {
+                                Write-Warning -Message "Cannot find problematic file and entry in error message: '$Message'."
+                            }
                         }
                     }
                 } While ((-not($Success)) -and ($Attempts -lt $AttemptLimit))
                 if ((-not($Success)) -or ($Attempts -gt $AttemptLimit)) {
                     Write-Error -Message "'$GPOName' GPO could not be converted properly after $AttemptLimit attempts"
+                    $RepairStatuses += [PSCustomObject]@{FullName = $ConfigurationScript; Tye = "Failure"; Message = "'$GPOName' GPO could not be converted properly after $AttemptLimit attempts" }
                 }
             }
             Write-Progress -Id 2 -Completed -Activity 'GPO processing completed.'
@@ -227,7 +231,7 @@ Function Convert-FromSecurityComplianceToolkit {
     if (Get-ChildItem -Path $Output -Recurse -Filter localhost.mof.error -File) {
         Write-Warning -Message "Some localhost.mof.error files have been found (despite auto-repair process). Please check them and fix the corresponding configuration scripts."
     }
-    return $AutoFixes
+    return $RepairStatuses
 }
 
 #endregion
@@ -241,7 +245,7 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
-#$AutoFixes = Convert-FromSecurityComplianceToolkit -Output "C:\Temp\SCT" -Verbose
-$AutoFixes = Convert-FromSecurityComplianceToolkit -Verbose
-$AutoFixes | Format-List -Property *
+#$RepairStatuses = Convert-FromSecurityComplianceToolkit -Output "C:\Temp\SCT" -Verbose
+$RepairStatuses = Convert-FromSecurityComplianceToolkit #-Verbose
+$RepairStatuses | Format-List -Property *
 #endregion
