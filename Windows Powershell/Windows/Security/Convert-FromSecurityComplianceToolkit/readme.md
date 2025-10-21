@@ -102,9 +102,9 @@ This script includes **intelligent regex-based fixes** that automatically:
 - ✅ Adjust syntax for compatibility
 - ✅ Generate detailed modification reports
 
-#### Auto-Fix Report Example
+#### Repair Report Example
 
-![Auto Fixes](docs/autofixes.jpg)
+![Repairs](docs/repairs.jpg)
 
 > **Note**: All automatic modifications are logged and reported for transparency and troubleshooting.
 
