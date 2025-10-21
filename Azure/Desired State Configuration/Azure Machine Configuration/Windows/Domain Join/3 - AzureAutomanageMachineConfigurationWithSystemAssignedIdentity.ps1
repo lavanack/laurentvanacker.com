@@ -123,40 +123,6 @@ $Context = New-AzStorageContext -StorageAccountName $StorageAccountName -UseConn
 $storageAccount | Get-AzStorageContainer | Get-AzStorageBlob | Remove-AzStorageBlob
 #endregion
 
-#region Software Setup Management
-# Creates a new certificate container
-if (-not($storageAccount | Get-AzStorageContainer -Name $StorageSoftwareContainerName -ErrorAction Ignore)) {
-    New-AzStorageContainer -Name $StorageSoftwareContainerName -Context $Context #-Permission Blob
-}
-
-#region Downloading LogParser in the script folder
-$LogParserURI = "https://download.microsoft.com/download/f/f/1/ff1819f9-f702-48a5-bbc7-c9656bc74de8/LogParser.msi"
-$Destination = Join-Path -Path $PSScriptRoot -ChildPath $(Split-Path -Path $LogParserURI -Leaf)
-Start-BitsTransfer -Source $LogParserURI -Destination $Destination
-#endregion
-
-#region Adding LogParser Installer to the container
-(Get-Item -Path $Destination) | Set-AzStorageBlobContent -Container $StorageSoftwareContainerName -Context $Context -Force
-#endregion
-#endregion
-
-#region Self-signed Certificate Management
-# Creates a new certificate container
-if (-not($storageAccount | Get-AzStorageContainer -Name $StorageCertificateContainerName -ErrorAction Ignore)) {
-    New-AzStorageContainer -Name $StorageCertificateContainerName -Context $Context #-Permission Blob
-}
-
-#region Generating Self-signed Certificates, exporting them as .cer files and delete them from certificate store
-$DnsName = 'www.fabrikam.com', 'www.contoso.com'
-$CertificateFiles = $DnsName | ForEach-Object -Process { $cert = New-SelfSignedCertificate -DnsName $_ -CertStoreLocation 'Cert:\LocalMachine\My'; $FilePath = Join-Path -Path $PSScriptRoot -ChildPath "$_.cer" ; $cert | Export-Certificate -FilePath $FilePath; $cert | Remove-Item -Force }
-#endregion
-
-#region Adding Self-signed Certificates to the container
-#$CertificateStorageBlobSASToken = Get-ChildItem -Path $PSScriptRoot -Filter *.cer -File | Set-AzStorageBlobContent -Container $StorageCertificateContainerName -Context $Context -Force | New-AzStorageBlobSASToken -Permission r -StartTime $StartTime -ExpiryTime $ExpiryTime -FullUri
-$CertificateFiles | Set-AzStorageBlobContent -Container $StorageCertificateContainerName -Context $Context -Force
-#endregion
-#endregion
-
 #region Assigning the 'Storage Blob Data Reader' RBAC Role to the Azure VM System Assigned Identity to the Storage Account 
 #From https://learn.microsoft.com/en-us/azure/governance/machine-configuration/how-to/create-policy-definition#create-an-azure-policy-definition
 $AZVMSystemAssignedIdentity = ($AzVM | Get-AzVM).Identity   
@@ -175,7 +141,6 @@ While (-not(Get-AzRoleAssignment @Parameters)) {
     Start-Sleep -Seconds 30
 }
 #endregion
-
 
 #region Our Guest Policies
 if ($ConfigurationName) {
