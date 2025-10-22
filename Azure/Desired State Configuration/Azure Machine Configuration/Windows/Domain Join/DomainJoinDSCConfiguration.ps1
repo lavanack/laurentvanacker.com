@@ -16,16 +16,14 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 
-#From https://github.com/dsccommunity/ComputerManagementDsc/wiki/Computer#example-2
+#From https://github.com/dsccommunity/ComputerManagementDsc/wiki/Computer#example-1
 
 Configuration DomainJoinDSCConfiguration {
 	Param ( 
-        <#
         [Parameter(Mandatory = $true)]
         [ValidateNotNullorEmpty()]
         [String]
         $Name,
-        #>
 
         [Parameter(Mandatory = $true)]
         [ValidateNotNullorEmpty()]
@@ -41,6 +39,8 @@ Configuration DomainJoinDSCConfiguration {
 
     node $AllNodes.NodeName
 	{
+        
+        <#
         Script DomainJoinStorage {
             # TestScript runs first and if it returns false, then SetScript runs
             GetScript  = {
@@ -54,7 +54,7 @@ Configuration DomainJoinDSCConfiguration {
             }
      
             SetScript            = {
-                Add-Computer -DomainName $using:DomainName -Credential $using:Credential -Restart
+                #Add-Computer -DomainName $using:DomainName -Credential $using:Credential -Restart
                 Restart-Computer -Force
 
             }
@@ -64,8 +64,7 @@ Configuration DomainJoinDSCConfiguration {
                 return ($state.DomainName -eq $using:DomainName)
             }
         }
-        
-        <#
+        #>
         #Not optimal solution because the server name has to be explicitly specified (so this DSC configuration is tied to a specific machine)
         Computer JoinDomain
         {
@@ -73,7 +72,12 @@ Configuration DomainJoinDSCConfiguration {
             DomainName = $DomainName
             Credential = $Credential # Credential to join to domain
         }
-        #>
+
+
+        PendingReboot RebootAfterDomainJoin
+        {
+            Name = 'DomainJoin'
+        }
     }
 }
 #endregion
@@ -84,6 +88,7 @@ $ConfigurationData = @{
         @{
             NodeName                    = 'localhost'
             PSDscAllowPlainTextPassword = $true
+            PSDscAllowDomainUser = $true
         }
     )
 }
@@ -99,11 +104,20 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 #>
 
-$Credential = Get-Credential -Message "AD Domain Join Credential"
-#$DomainName = "csa.fr"
+<#
 $DNSServer = (Get-DnsClientServerAddress -InterfaceAlias Ethernet).ServerAddresses | Select-Object -First 1
+#Alterntive but PS Remoting has to be enabled
 $DomainName = (Get-WmiObject -Namespace root\cimv2 -Class Win32_ComputerSystem -ComputerName $DNSServer -Credential $Credential).Domain
-DomainJoinDSCConfiguration -ConfigurationData $ConfigurationData -DomainName $DomainName -Credential $Credential
+#>
+$DomainName = "contoso.com"
+$Name = $Env:COMPUTERNAME
+$AdJoinUserName = 'adjoin@{0}' -f $DomainName
+$AdJoinUserClearTextPassword = 'My5trongP@ssw0rd'
+$AdJoinUserPassword = ConvertTo-SecureString -String $AdJoinUserClearTextPassword -AsPlainText -Force
+$Credential = New-Object System.Management.Automation.PSCredential -ArgumentList ($AdJoinUserName, $AdJoinUserPassword)
+#$Credential = Get-Credential -Message "AD Domain Join Credential"
+
+DomainJoinDSCConfiguration -ConfigurationData $ConfigurationData -DomainName $DomainName -Name $Name -Credential $Credential
 <#
 Start-DscConfiguration -Path .\DomainJoinDSCConfiguration -Force -Wait -Verbose
 Test-DscConfiguration -Detailed
