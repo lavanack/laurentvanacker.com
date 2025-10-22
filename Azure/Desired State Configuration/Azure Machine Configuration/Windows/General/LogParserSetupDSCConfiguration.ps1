@@ -109,7 +109,7 @@ Set-Location -Path $CurrentDir
 $AzVMCompute = Get-AzVMCompute
 #Adding a 7-day expiration time from now for the SAS Token
 $StartTime = Get-Date
-$ExpiryTime = $StartTime.AddDays(7)
+$ExpiryTime = $StartTime.AddDays(7).AddHours(-1)
 
 $ProductID = @{
     "LogParser.msi" = '4AC23178-EEBC-4BAF-8CC0-AB15C8897AC9'
