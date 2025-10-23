@@ -99,6 +99,16 @@ $SecondaryRegion = $SecondaryRegionVNet.Location
 #endregion
 #endregion
 
+#region Creating a new Pooled Host Pool for every image definition from an Azure Compute Gallery
+#Looging for Azure Compute Gallery Image Definition with image version in the primary and secondary regions
+$GalleryImageDefinition = Get-PsAvdAzGalleryImageDefinition -Region $PrimaryRegion, $SecondaryRegion
+if (-not($GalleryImageDefinition)) {
+    #Creating an Azure Compute Gallery if needed
+    $AzureComputeGallery = New-AzureComputeGallery -Location $PrimaryRegion -TargetRegions $PrimaryRegion, $SecondaryRegion
+    $GalleryImageDefinition = Get-AzGalleryImageDefinition -GalleryName $AzureComputeGallery.Name -ResourceGroupName $AzureComputeGallery.ResourceGroupName
+}
+#endregion
+
 #region Azure Key Vault for storing ADJoin Credentials
 $HostPoolSessionCredentialKeyVault = $null
 $VaultName = $null
@@ -130,12 +140,10 @@ else {
 #endregion
 #endregion
 
-
 #region Listing Azure VMs with Ephemeral OS Disk
 $PrimaryRegionAzureEphemeralOsDiskSku = [HostPool]::GetAzureEphemeralOsDiskSku($PrimaryRegion)
 $SecondaryRegionAzureEphemeralOsDiskSku = [HostPool]::GetAzureEphemeralOsDiskSku($SecondaryRegion)
 #endregion
-
 
 #region Creating Host Pools
 #Reset Index (starting at 1) for automatic numbering (every instantiation will increment the Index)
@@ -182,7 +190,7 @@ $HostPools = & "..\2 Azure Regions\2_Pooled_AD_FSLogixCloudCache_1_Personal_AD.p
 $HostPools = $HostPools | Where-Object -FilterScript { $null -ne $_ }
 #endregion
 
-#region Checking  Storage Account and Key Vault Name Availability
+#region Checking Storage Account and Key Vault Name Availability
 if (-not(Test-PsAvdStorageAccountNameAvailability -HostPool $HostPools)) {
     Stop-Transcript
     Write-Error -Message "Storage Account Name(s) NOT available" -ErrorAction Stop 

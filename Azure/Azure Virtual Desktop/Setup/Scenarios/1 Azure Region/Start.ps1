@@ -90,6 +90,17 @@ $PrimaryRegion = $PrimaryRegionVNet.Location
 #endregion
 #endregion
 
+#region Creating a new Pooled Host Pool for every image definition from an Azure Compute Gallery
+#Looging for Azure Compute Gallery Image Definition with image version in the primary region
+$GalleryImageDefinition = Get-PsAvdAzGalleryImageDefinition -Region $PrimaryRegion
+#$GalleryImageDefinition = $null
+if (-not($GalleryImageDefinition)) {
+    #Creating an Azure Compute Gallery if needed
+    $AzureComputeGallery = New-AzureComputeGallery -Location $PrimaryRegion -TargetRegions $PrimaryRegion
+    $GalleryImageDefinition = Get-AzGalleryImageDefinition -GalleryName $AzureComputeGallery.Name -ResourceGroupName $AzureComputeGallery.ResourceGroupName
+}
+#endregion
+
 #region Azure Key Vault for storing ADJoin Credentials
 $HostPoolSessionCredentialKeyVault = $null
 $VaultName = $null
@@ -121,11 +132,9 @@ else {
 #endregion
 #endregion
 
-
 #region Listing Azure VMs with Ephemeral OS Disk
 $PrimaryRegionAzureEphemeralOsDiskSku = [HostPool]::GetAzureEphemeralOsDiskSku($PrimaryRegion)
 #endregion
-
 
 #region Creating Host Pools
 #Reset Index (starting at 1) for automatic numbering (every instantiation will increment the Index)
@@ -142,13 +151,13 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 #$HostPools = & "..\1 Azure Region\1_Pooled_1_Personal_SSO.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_1_Personal_Intune.ps1"
 #$HostPools = & "..\1 Azure Region\1_Personal_AD_Win10.ps1"
-$HostPools = & "..\1 Azure Region\1_Personal_AD.ps1"
+#$HostPools = & "..\1 Azure Region\1_Personal_AD.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach_PrivateEndpoint.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_FSLogix_AzureAppAttach.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_2_Personal_AD_Misc.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_AD_AzureAppAttach.ps1"
-#$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_Intune_AD_FSLogix_Watermarking_SpotInstance.ps1"
+$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_Intune_AD_FSLogix_Watermarking_SpotInstance.ps1"
 #$HostPools = & "..\1 Azure Region\3_Pooled_EntraID_AD_Misc.ps1"
 #$HostPools = & "..\1 Azure Region\6_Pooled_2_Personal_EntraID_AD_Misc.ps1"
 #$HostPools = & "..\1 Azure Region\X_Pooled_ACG_NoFSLogix_NoAppAttach.ps1".ps1"
