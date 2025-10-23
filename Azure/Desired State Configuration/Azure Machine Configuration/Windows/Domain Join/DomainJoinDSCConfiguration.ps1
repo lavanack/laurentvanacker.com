@@ -19,7 +19,7 @@ of the Sample Code.
 #From https://github.com/dsccommunity/ComputerManagementDsc/wiki/Computer#example-1
 
 Configuration DomainJoinDSCConfiguration {
-	Param ( 
+    Param ( 
         [Parameter(Mandatory = $false)]
         [ValidateNotNullorEmpty()]
         [String]
@@ -34,11 +34,11 @@ Configuration DomainJoinDSCConfiguration {
         [ValidateNotNullorEmpty()]
         [System.Management.Automation.PSCredential]
         $Credential
-	)
+    )
     Import-DscResource -ModuleName 'PSDscResources', 'ComputerManagementDsc'
 
     node $AllNodes.NodeName
-	{
+    {
         
         <#
         Script DomainJoinStorage {
@@ -66,16 +66,14 @@ Configuration DomainJoinDSCConfiguration {
         }
         #>
         #Not optimal solution because the server name has to be explicitly specified (so this DSC configuration is tied to a specific machine)
-        Computer JoinDomain
-        {
+        Computer JoinDomain {
             Name       = $Name
             DomainName = $DomainName
             Credential = $Credential # Credential to join to domain
         }
 
 
-        PendingReboot RebootAfterDomainJoin
-        {
+        PendingReboot RebootAfterDomainJoin {
             Name = 'DomainJoin'
         }
     }
@@ -88,7 +86,7 @@ $ConfigurationData = @{
         @{
             NodeName                    = 'localhost'
             PSDscAllowPlainTextPassword = $true
-            PSDscAllowDomainUser = $true
+            PSDscAllowDomainUser        = $true
         }
     )
 }
