@@ -110,7 +110,8 @@ $DNSServer = (Get-DnsClientServerAddress -InterfaceAlias Ethernet).ServerAddress
 $DomainName = (Get-WmiObject -Namespace root\cimv2 -Class Win32_ComputerSystem -ComputerName $DNSServer -Credential $Credential).Domain
 #>
 $DomainName = "contoso.com"
-$Name = $Env:COMPUTERNAME
+#$Name = $Env:COMPUTERNAME
+$Name = "localhost"
 $AdJoinUserName = 'adjoin@{0}' -f $DomainName
 $AdJoinUserClearTextPassword = 'My5trongP@ssw0rd'
 $AdJoinUserPassword = ConvertTo-SecureString -String $AdJoinUserClearTextPassword -AsPlainText -Force
