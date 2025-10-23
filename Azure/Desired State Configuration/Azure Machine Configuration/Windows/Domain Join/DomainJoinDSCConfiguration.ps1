@@ -20,10 +20,10 @@ of the Sample Code.
 
 Configuration DomainJoinDSCConfiguration {
 	Param ( 
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $false)]
         [ValidateNotNullorEmpty()]
         [String]
-        $Name,
+        $Name = "localhost",
 
         [Parameter(Mandatory = $true)]
         [ValidateNotNullorEmpty()]
@@ -110,15 +110,13 @@ $DNSServer = (Get-DnsClientServerAddress -InterfaceAlias Ethernet).ServerAddress
 $DomainName = (Get-WmiObject -Namespace root\cimv2 -Class Win32_ComputerSystem -ComputerName $DNSServer -Credential $Credential).Domain
 #>
 $DomainName = "contoso.com"
-#$Name = $Env:COMPUTERNAME
-$Name = "localhost"
 $AdJoinUserName = 'adjoin@{0}' -f $DomainName
 $AdJoinUserClearTextPassword = 'My5trongP@ssw0rd'
 $AdJoinUserPassword = ConvertTo-SecureString -String $AdJoinUserClearTextPassword -AsPlainText -Force
 $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList ($AdJoinUserName, $AdJoinUserPassword)
 #$Credential = Get-Credential -Message "AD Domain Join Credential"
 
-DomainJoinDSCConfiguration -ConfigurationData $ConfigurationData -DomainName $DomainName -Name $Name -Credential $Credential
+DomainJoinDSCConfiguration -ConfigurationData $ConfigurationData -DomainName $DomainName -Credential $Credential
 <#
 Start-DscConfiguration -Path .\DomainJoinDSCConfiguration -Force -Wait -Verbose
 Test-DscConfiguration -Detailed
