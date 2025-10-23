@@ -119,9 +119,19 @@ function New-AzureComputeGallery {
 
 	#$Version = "1.0.0"
 	$Version = Get-Date -UFormat "%Y.%m.%d"
-    $Tags =  @{
-        "SecurityControl" = "Ignore"
-        "Script" = $(Split-Path -Path $MyInvocation.ScriptName -Leaf)
+    if ($MyInvocation.MyCommand.ModuleName) {
+        $Module = (Get-Module -Name $MyInvocation.MyCommand.ModuleName).Name
+        $Tags =  @{
+            "SecurityControl" = "Ignore"
+            "Module" = $Module
+        }
+    } 
+    else {
+        $Script = $(Split-Path -Path $MyInvocation.ScriptName -Leaf)
+        $Tags =  @{
+            "SecurityControl" = "Ignore"
+            "Script" = $Script
+        }
     }
 	$Jobs = @()
 	#endregion

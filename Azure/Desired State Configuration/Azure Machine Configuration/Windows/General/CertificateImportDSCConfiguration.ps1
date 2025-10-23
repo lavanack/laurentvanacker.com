@@ -112,7 +112,7 @@ Set-Location -Path $CurrentDir
 $AzVMCompute = Get-AzVMCompute
 #Adding a 7-day expiration time from now for the SAS Token
 $StartTime = Get-Date
-$ExpiryTime = $StartTime.AddDays(7)
+$ExpiryTime = $StartTime.AddDays(7).AddHours(-1)
 
 #Getting all certificate data from the container.
 $StorageCertificateContainerName = "certificates"

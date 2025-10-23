@@ -28,6 +28,9 @@
     - [Troubleshooting](#troubleshooting)
   - [Get-AzureVMImageBuilderData.ps1](#get-azurevmimagebuilderdataps1)
 
+> [!NOTE]
+> Almost of the listed scripts deployed two images definitions : One is done via an ARM template and the other one via Powershell. The purpose was just to show the 2 possibilities. Choose the one relevant to you.
+
 ## AzureImageBuilder.ps1
 
 The [AzureImageBuilder.ps1](AzureImageBuilder.ps1) script creates an [Azure Compute Gallery](https://learn.microsoft.com/en-us/azure/virtual-machines/azure-compute-gallery) with 2 image definitions as shown below:
