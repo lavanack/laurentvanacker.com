@@ -77,14 +77,14 @@ function New-AzureComputeGallery {
 	$SrcObjParamsARM = @{
 		Publisher = 'MicrosoftWindowsDesktop'
 		Offer     = 'Windows-11'    
-		Sku       = 'win11-24h2-ent'  
+		Sku       = 'win11-25h2-ent'  
 		Version   = 'latest'
 	}
 
 	$SrcObjParamsPowerShell = @{
 		Publisher = 'MicrosoftWindowsDesktop'
 		Offer     = 'Windows-11'    
-		Sku       = 'win11-24h2-ent'  
+		Sku       = 'win11-25h2-ent'  
 		Version   = 'latest'
 	}
 	#endregion
