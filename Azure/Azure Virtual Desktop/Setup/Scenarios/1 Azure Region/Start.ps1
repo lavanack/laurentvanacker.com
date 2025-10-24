@@ -93,7 +93,6 @@ $PrimaryRegion = $PrimaryRegionVNet.Location
 #region Creating a new Pooled Host Pool for every image definition from an Azure Compute Gallery
 #Looging for Azure Compute Gallery Image Definition with image version in the primary region
 $GalleryImageDefinition = Get-PsAvdAzGalleryImageDefinition -Region $PrimaryRegion
-#$GalleryImageDefinition = $null
 if (-not($GalleryImageDefinition)) {
     #Creating an Azure Compute Gallery if needed
     $AzureComputeGallery = New-AzureComputeGallery -Location $PrimaryRegion -TargetRegions $PrimaryRegion
@@ -157,7 +156,8 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 #$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_FSLogix_AzureAppAttach.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_2_Personal_AD_Misc.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_AD_AzureAppAttach.ps1"
-$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_Intune_AD_FSLogix_Watermarking_SpotInstance.ps1"
+#$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_Intune_AD_FSLogix_Watermarking_SpotInstance.ps1"
+$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_Intune_FSLogix_Watermarking_ScalingPlan.ps1"
 #$HostPools = & "..\1 Azure Region\3_Pooled_EntraID_AD_Misc.ps1"
 #$HostPools = & "..\1 Azure Region\6_Pooled_2_Personal_EntraID_AD_Misc.ps1"
 #$HostPools = & "..\1 Azure Region\X_Pooled_ACG_NoFSLogix_NoAppAttach.ps1".ps1"
