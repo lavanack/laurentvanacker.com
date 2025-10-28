@@ -16,8 +16,7 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 #requires -Version 5 -RunAsAdministrator
-Function Get-RDCManCredential
-{
+Function Get-RDCManCredential {
     [CmdletBinding()]
     param
     (
@@ -51,9 +50,14 @@ Function Get-RDCManCredential
                     $SecurePassword = [System.Convert]::FromBase64String($SecurePasswordStr)
                     if (-not([string]::IsNullOrEmpty($SecurePassword)))
                     {
-                        $PasswordBytes = [Security.Cryptography.ProtectedData]::Unprotect($SecurePassword, $null, [Security.Cryptography.DataProtectionScope]::LocalMachine)
-                        $ClearTextPassword = [System.Text.Encoding]::Unicode.GetString($PasswordBytes)
-                        [PSCustomObject]@{FullName=$CurrentFullName; ServerName=$serverName; DomainName=$domainName; UserName=$userName; Password=$ClearTextPassword}
+                        try {
+                            $PasswordBytes = [Security.Cryptography.ProtectedData]::Unprotect($SecurePassword, $null, [Security.Cryptography.DataProtectionScope]::LocalMachine)
+                            $ClearTextPassword = [System.Text.Encoding]::Unicode.GetString($PasswordBytes)
+                            [PSCustomObject]@{FullName=$CurrentFullName; ServerName=$serverName; DomainName=$domainName; UserName=$userName; Password=$ClearTextPassword}
+                        }
+                        catch {
+                            Write-Warning -Message "The $serverName credential can not be decoded ..."
+                        }
                     }
                 }
             }
@@ -64,10 +68,66 @@ Function Get-RDCManCredential
     }
 }
 
+Function Clean-RDCManCredential {
+    [CmdletBinding()]
+    param
+    (
+		[Parameter(Mandatory = $True, HelpMessage = 'Please specify the path of a valid .rdg document', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+		[ValidateScript( {
+				(Test-Path -Path $_ -PathType Leaf) -and ($_ -match '\.rdg$')
+			})]
+		[string[]]$FullName
+    )
+
+
+   begin
+    {
+        $null = Add-Type -AssemblyName System.Security
+    }
+    process
+    {
+        Foreach ($CurrentFullName in $FullName)
+	    {
+            Write-Verbose "Processing $FullName ..."
+            #Remove-Item -Path $FullName -Force 
+            If (Test-Path -Path $CurrentFullName -PathType Leaf) {
+                $RDGFileContent = [xml](Get-Content -Path $CurrentFullName)
+                $logonCredentials = $RDGFileContent.SelectNodes("//logonCredentials")
+                foreach($currentLogonCredential in $logonCredentials)
+                {
+                    $serverName = $currentLogonCredential.ParentNode.properties.name
+                    $userName = $currentLogonCredential.userName
+                    $domainName = $currentLogonCredential.Domain
+                    $SecurePasswordStr = $currentLogonCredential.password
+                    $SecurePassword = [System.Convert]::FromBase64String($SecurePasswordStr)
+                    if (-not([string]::IsNullOrEmpty($SecurePassword)))
+                    {
+                        try {
+                            $PasswordBytes = [Security.Cryptography.ProtectedData]::Unprotect($SecurePassword, $null, [Security.Cryptography.DataProtectionScope]::LocalMachine)
+                        } catch {
+                            $currentLogonCredential.password = [string]::Empty
+                            Write-Verbose -Message "The $serverName credential can not be decoded ..."
+                            [PSCustomObject]@{FullName=$CurrentFullName; ServerName=$serverName; DomainName=$domainName; UserName=$userName; Password=[string]::Empty}
+                        }
+                    }
+                }
+            }
+        }
+    }
+    end
+    {
+        #Set-Content -Value $RDGFileContent.OuterXml -Path $CurrentFullName
+        $RDGFileContent.Save($CurrentFullName)
+    }
+}
 Clear-Host
 <#
 $FullName = $(Join-Path -Path $([Environment]::GetFolderPath("MyDocuments")) -ChildPath "RDCMan.rdg")
 Get-RDCManCredential -FullName $FullName
 #>
 $RDCManCredential = Get-ChildItem -Path $([Environment]::GetFolderPath("MyDocuments")) -Filter *.rdg -File | Get-RDCManCredential -Verbose 
+$RDCManCredential | Format-Table -AutoSize
+
+
+$RDCManCredential = Get-ChildItem -Path $([Environment]::GetFolderPath("MyDocuments")) -Filter *.rdg -File | Clean-RDCManCredential -Verbose 
 $RDCManCredential | Format-Table -AutoSize
