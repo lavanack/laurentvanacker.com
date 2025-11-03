@@ -19,6 +19,7 @@ of the Sample Code.
 
 #region Function definitions
 #FROM https://github.com/Azure/azvmimagebuilder/tree/main/solutions/14_Building_Images_WVD
+#FROM https://learn.microsoft.com/en-us/azure/virtual-machines/Linux/image-builder
 function New-AzureComputeGallery {
 	[CmdletBinding()]
 	Param(
@@ -75,31 +76,30 @@ function New-AzureComputeGallery {
 
 	#region Source Image 
 	$SrcObjParamsARM = @{
-		Publisher = 'MicrosoftWindowsDesktop'
-		Offer     = 'Windows-11'    
-		Sku       = 'win11-24h2-avd'  
+		Publisher = 'Canonical'
+		Offer     = '0001-com-ubuntu-server-jammy'    
+		Sku       = '22_04-lts-gen2'  
 		Version   = 'latest'
 	}
 
 	$SrcObjParamsPowerShell = @{
-		Publisher = 'MicrosoftWindowsDesktop'
-		Offer     = 'Office-365'    
-		Sku       = 'win11-24h2-avd-m365'  
+		Publisher = 'Canonical'
+		Offer     = '0001-com-ubuntu-server-jammy'    
+		Sku       = '22_04-lts-gen2'  
 		Version   = 'latest'
 	}
 	#endregion
 
 	#region Image template and definition names
-	#Image Market Place Image + customizations: VSCode
-	$imageDefinitionNameARM = "{0}-arm-vscode" -f $SrcObjParamsARM.Sku
+	#Image Market Place Image + customizations: RunScriptFromSource
+	$imageDefinitionNameARM = "{0}-arm-custom" -f $SrcObjParamsARM.Sku
 	$imageTemplateNameARM = "{0}-template-{1}" -f $imageDefinitionNameARM, $timeInt
 	Write-Verbose -Message "`$imageDefinitionNameARM: $imageDefinitionNameARM"
 	Write-Verbose -Message "`$imageTemplateNameARM: $imageTemplateNameARM"
 	$StagingResourceGroupNameARM = "IT_{0}_{1}_{2}" -f $ResourceGroupName, $imageTemplateNameARM.Substring(0, 13), (New-Guid).Guid
 
-
-	#Image Market Place Image + customizations: VSCode
-	$imageDefinitionNamePowerShell = "{0}-posh-vscode" -f $SrcObjParamsPowerShell.Sku
+	#Image Market Place Image + customizations: RunScriptFromSource
+	$imageDefinitionNamePowerShell = "{0}-posh-custom" -f $SrcObjParamsPowerShell.Sku
 	$imageTemplateNamePowerShell = "{0}-template-{1}" -f $imageDefinitionNamePowerShell, $timeInt
 	Write-Verbose -Message "`$imageDefinitionNamePowerShell: $imageDefinitionNamePowerShell"
 	Write-Verbose -Message "`$imageTemplateNamePowerShell: $imageTemplateNamePowerShell"
@@ -169,8 +169,8 @@ function New-AzureComputeGallery {
 	#region aibRoleImageCreation.json creation and RBAC Assignment
 	#$aibRoleImageCreationUrl="https://raw.githubusercontent.com/PeterR-msft/M365AVDWS/master/Azure%20Image%20Builder/aibRoleImageCreation.json"
 	#$aibRoleImageCreationUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/12_Creating_AIB_Security_Roles/aibRoleImageCreation.json"
-	#$aibRoleImageCreationUrl="https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/aibRoleImageCreation.json"
-	$aibRoleImageCreationUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/aibRoleImageCreation-v10.json"
+	#$aibRoleImageCreationUrl="https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/aibRoleImageCreation.json"
+	$aibRoleImageCreationUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/aibRoleImageCreation.json"
 	#$aibRoleImageCreationPath = "aibRoleImageCreation.json"
 	$aibRoleImageCreationPath = Join-Path -Path $env:TEMP -ChildPath $(Split-Path $aibRoleImageCreationUrl -Leaf)
 	#Generate a unique file name 
@@ -262,7 +262,7 @@ function New-AzureComputeGallery {
 	#region Download and configure the template
 	#$templateUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/14_Building_Images_WVD/armTemplateWVD.json"
 	#$templateFilePath = "armTemplateWVD.json"
-	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVD-v10.json"
+	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/armTemplateAVD-v13.json"
 	$templateFilePath = Join-Path -Path $env:TEMP -ChildPath $(Split-Path $templateUrl -Leaf)
 	#Generate a unique file name 
 	$templateFilePath = $templateFilePath -replace ".json$", "_$timeInt.json"
@@ -362,55 +362,35 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "Creating Azure Image Builder Template Distributor Object  ..."
 	$disSharedImg = New-AzImageBuilderTemplateDistributorObject @disObjParams
 
-	$ImgTimeZoneRedirectionPowerShellCustomizerParams = @{  
-		PowerShellCustomizer = $true  
-		Name                 = 'Timezone Redirection'  
-		RunElevated          = $true  
-		runAsSystem          = $true  
-		ScriptUri            = 'https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-07-31/TimezoneRedirection.ps1'
+	$ImgInstallPowerShellShellCustomizerParams = @{  
+		ShellCustomizer = $true  
+		Name            = 'InstallPowershell'  
+		ScriptUri       = 'https://raw.githubusercontent.com/PowerShell/PowerShell/master/tools/install-powershell.sh'
 	}
 
-	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgTimeZoneRedirectionPowerShellCustomizerParams.Name)' ..."
-	$TimeZoneRedirectionCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgTimeZoneRedirectionPowerShellCustomizerParams 
+	Write-Verbose -Message "Creating Azure Image Builder Template Shell Customizer Object for '$($ImgInstallPowerShellShellCustomizerParams.Name)' ..."
+	$InstallPowerShellCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgInstallPowerShellShellCustomizerParams 
 
-	$ImgVSCodePowerShellCustomizerParams = @{  
-		PowerShellCustomizer = $true  
-		Name                 = 'Install Visual Studio Code'  
-		RunElevated          = $true  
-		runAsSystem          = $true  
-		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/Install-VSCode.ps1'
+	$ImgRunScriptFromSourceShellCustomizerParams = @{  
+		ShellCustomizer = $true  
+		Name            = 'Run Script From Source'  
+		ScriptUri       = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/customizeScript.sh'
 	}
 
-	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgVSCodePowerShellCustomizerParams.Name)' ..."
-	$VSCodeCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgVSCodePowerShellCustomizerParams 
+	Write-Verbose -Message "Creating Azure Image Builder Template Shell Customizer Object for '$($ImgRunScriptFromSourceShellCustomizerParams.Name)' ..."
+	$RunScriptFromSourceCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgRunScriptFromSourceShellCustomizerParams 
 
-	$ImgAddDataDiskPowerShellCustomizerParams = @{  
-		PowerShellCustomizer = $true  
-		Name                 = 'Add a 512 GB Data Disk'  
-		RunElevated          = $true  
-		runAsSystem          = $true  
-		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/Add-AzVM512GBDataDisk.ps1'
+	$ImgInstallUpgradesShellCustomizerParams = @{  
+		ShellCustomizer = $true  
+		Name            = 'Install Upgrades'  
+		inline          = @("sudo apt install unattended-upgrades")
 	}
 
-	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgAddDataDiskPowerShellCustomizerParams.Name)' ..."
-	$AddDataDiskCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgAddDataDiskPowerShellCustomizerParams 
-
-	Write-Verbose -Message "Creating Azure Image Builder Template WindowsUpdate Customizer Object ..."
-	$WindowsUpdateCustomizer = New-AzImageBuilderTemplateCustomizerObject -WindowsUpdateCustomizer -Name 'WindowsUpdate' -Filter @('exclude:$_.Title -like ''*Preview*''', 'include:$true') -SearchCriterion "IsInstalled=0" -UpdateLimit 40
-
-	$ImgDisableAutoUpdatesPowerShellCustomizerParams = @{  
-		PowerShellCustomizer = $true  
-		Name                 = 'Disable AutoUpdates'  
-		RunElevated          = $true  
-		runAsSystem          = $true  
-		ScriptUri            = 'https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-07-31/TimezoneRedirection.ps1'
-	}
-
-	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgDisableAutoUpdatesPowerShellCustomizerParams.Name)' ..."
-	$DisableAutoUpdatesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgDisableAutoUpdatesPowerShellCustomizerParams 
+	Write-Verbose -Message "Creating Azure Image Builder Template Shell Customizer Object for '$($ImgInstallUpgradesShellCustomizerParams.Name)' ..."
+	$InstallUpgradesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgInstallUpgradesShellCustomizerParams 
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
-	$Customize = $TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $AddDataDiskCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
+	$Customize = $InstallPowerShellCustomizer, $RunScriptFromSourceCustomizer, $InstallUpgradesCustomizer
 	$ImgTemplateParams = @{
 		ImageTemplateName      = $imageTemplateNamePowerShell
 		ResourceGroupName      = $ResourceGroupName

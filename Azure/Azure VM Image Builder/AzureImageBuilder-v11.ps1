@@ -19,7 +19,6 @@ of the Sample Code.
 
 #region Function definitions
 #FROM https://github.com/Azure/azvmimagebuilder/tree/main/solutions/14_Building_Images_WVD
-#FROM https://learn.microsoft.com/en-us/azure/virtual-machines/Linux/image-builder
 function New-AzureComputeGallery {
 	[CmdletBinding()]
 	Param(
@@ -76,30 +75,31 @@ function New-AzureComputeGallery {
 
 	#region Source Image 
 	$SrcObjParamsARM = @{
-		Publisher = 'Canonical'
-		Offer     = '0001-com-ubuntu-server-jammy'    
-		Sku       = '22_04-lts-gen2'  
+		Publisher = 'MicrosoftWindowsServer'
+		Offer     = 'WindowsServer'    
+		Sku       = '2016-datacenter-gensecond'  
 		Version   = 'latest'
 	}
 
 	$SrcObjParamsPowerShell = @{
-		Publisher = 'Canonical'
-		Offer     = '0001-com-ubuntu-server-jammy'    
-		Sku       = '22_04-lts-gen2'  
+		Publisher = 'MicrosoftWindowsServer'
+		Offer     = 'WindowsServer'    
+		Sku       = '2016-datacenter-gensecond'  
 		Version   = 'latest'
 	}
 	#endregion
 
 	#region Image template and definition names
-	#Image Market Place Image + customizations: RunScriptFromSource
-	$imageDefinitionNameARM = "{0}-arm-custom" -f $SrcObjParamsARM.Sku
+	#Image Market Place Image + customizations: VSCode
+	$imageDefinitionNameARM = "{0}-arm-vscode" -f $SrcObjParamsARM.Sku
 	$imageTemplateNameARM = "{0}-template-{1}" -f $imageDefinitionNameARM, $timeInt
 	Write-Verbose -Message "`$imageDefinitionNameARM: $imageDefinitionNameARM"
 	Write-Verbose -Message "`$imageTemplateNameARM: $imageTemplateNameARM"
 	$StagingResourceGroupNameARM = "IT_{0}_{1}_{2}" -f $ResourceGroupName, $imageTemplateNameARM.Substring(0, 13), (New-Guid).Guid
 
-	#Image Market Place Image + customizations: RunScriptFromSource
-	$imageDefinitionNamePowerShell = "{0}-posh-custom" -f $SrcObjParamsPowerShell.Sku
+
+	#Image Market Place Image + customizations: VSCode
+	$imageDefinitionNamePowerShell = "{0}-posh-vscode" -f $SrcObjParamsPowerShell.Sku
 	$imageTemplateNamePowerShell = "{0}-template-{1}" -f $imageDefinitionNamePowerShell, $timeInt
 	Write-Verbose -Message "`$imageDefinitionNamePowerShell: $imageDefinitionNamePowerShell"
 	Write-Verbose -Message "`$imageTemplateNamePowerShell: $imageTemplateNamePowerShell"
@@ -169,8 +169,8 @@ function New-AzureComputeGallery {
 	#region aibRoleImageCreation.json creation and RBAC Assignment
 	#$aibRoleImageCreationUrl="https://raw.githubusercontent.com/PeterR-msft/M365AVDWS/master/Azure%20Image%20Builder/aibRoleImageCreation.json"
 	#$aibRoleImageCreationUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/12_Creating_AIB_Security_Roles/aibRoleImageCreation.json"
-	#$aibRoleImageCreationUrl="https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/aibRoleImageCreation.json"
-	$aibRoleImageCreationUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/aibRoleImageCreation.json"
+	#$aibRoleImageCreationUrl="https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/aibRoleImageCreation.json"
+	$aibRoleImageCreationUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/aibRoleImageCreation.json"
 	#$aibRoleImageCreationPath = "aibRoleImageCreation.json"
 	$aibRoleImageCreationPath = Join-Path -Path $env:TEMP -ChildPath $(Split-Path $aibRoleImageCreationUrl -Leaf)
 	#Generate a unique file name 
@@ -262,7 +262,7 @@ function New-AzureComputeGallery {
 	#region Download and configure the template
 	#$templateUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/14_Building_Images_WVD/armTemplateWVD.json"
 	#$templateFilePath = "armTemplateWVD.json"
-	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/armTemplateAVD-v13.json"
+	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/armTemplateAVD-v11.json"
 	$templateFilePath = Join-Path -Path $env:TEMP -ChildPath $(Split-Path $templateUrl -Leaf)
 	#Generate a unique file name 
 	$templateFilePath = $templateFilePath -replace ".json$", "_$timeInt.json"
@@ -362,35 +362,75 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "Creating Azure Image Builder Template Distributor Object  ..."
 	$disSharedImg = New-AzImageBuilderTemplateDistributorObject @disObjParams
 
-	$ImgInstallPowerShellShellCustomizerParams = @{  
-		ShellCustomizer = $true  
-		Name            = 'InstallPowershell'  
-		ScriptUri       = 'https://raw.githubusercontent.com/PowerShell/PowerShell/master/tools/install-powershell.sh'
+	$ImgCopySetTLSFileCustomizerParams = @{  
+		FileCustomizer = $true  
+		Name           = 'CopySetTLS'  
+		sourceUri      = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Set-TLS12.ps1'
+		destination    = "C:\AVDImage\Set-TLS12.ps1"
 	}
 
-	Write-Verbose -Message "Creating Azure Image Builder Template Shell Customizer Object for '$($ImgInstallPowerShellShellCustomizerParams.Name)' ..."
-	$InstallPowerShellCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgInstallPowerShellShellCustomizerParams 
+	Write-Verbose -Message "Creating Azure Image Builder Template Customizer Object for copying 'Set-TLS12.ps1' from the RDS-Templates Github repository ..."
+	$CopySetTLSCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgCopySetTLSFileCustomizerParams 
 
-	$ImgRunScriptFromSourceShellCustomizerParams = @{  
-		ShellCustomizer = $true  
-		Name            = 'Run Script From Source'  
-		ScriptUri       = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/customizeScript.sh'
+	$ImgSetTLSFileCustomizerParams = @{  
+		PowerShellCustomizer = $true  
+		Name                 = 'SetTLS'  
+		RunElevated          = $true  
+		runAsSystem          = $true
+		inline               = "C:\AVDImage\Set-TLS12.ps1 -DisableLegacyTls"
+	}
+	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for running 'Set-TLS12.ps1' ..."
+	$SetTLSCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgSetTLSFileCustomizerParams 
+
+	$ImgWindowsRestartCustomizerParams = @{  
+		RestartCustomizer   = $true  
+		Name                = 'WindowsRestart'
+		RestartCheckCommand = 'powershell -Command "& {Write-Output "restarted."}"'
+		RestartCommand      = 'powershell -Command "& {Restart-Computer -Force}"'
+		RestartTimeout      = '10m'
 	}
 
-	Write-Verbose -Message "Creating Azure Image Builder Template Shell Customizer Object for '$($ImgRunScriptFromSourceShellCustomizerParams.Name)' ..."
-	$RunScriptFromSourceCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgRunScriptFromSourceShellCustomizerParams 
+	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgWindowsRestartCustomizerParams.Name)' ..."
+	$WindowsRestartCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgWindowsRestartCustomizerParams 
 
-	$ImgInstallUpgradesShellCustomizerParams = @{  
-		ShellCustomizer = $true  
-		Name            = 'Install Upgrades'  
-		inline          = @("sudo apt install unattended-upgrades")
+	$ImgTimeZoneRedirectionPowerShellCustomizerParams = @{  
+		PowerShellCustomizer = $true  
+		Name                 = 'Timezone Redirection'  
+		RunElevated          = $true  
+		runAsSystem          = $true  
+		ScriptUri            = 'https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-07-31/TimezoneRedirection.ps1'
 	}
 
-	Write-Verbose -Message "Creating Azure Image Builder Template Shell Customizer Object for '$($ImgInstallUpgradesShellCustomizerParams.Name)' ..."
-	$InstallUpgradesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgInstallUpgradesShellCustomizerParams 
+	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgTimeZoneRedirectionPowerShellCustomizerParams.Name)' ..."
+	$TimeZoneRedirectionCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgTimeZoneRedirectionPowerShellCustomizerParams 
+
+	$ImgVSCodePowerShellCustomizerParams = @{  
+		PowerShellCustomizer = $true  
+		Name                 = 'Install Visual Studio Code'  
+		RunElevated          = $true  
+		runAsSystem          = $true  
+		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1'
+	}
+
+	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgVSCodePowerShellCustomizerParams.Name)' ..."
+	$VSCodeCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgVSCodePowerShellCustomizerParams 
+
+	Write-Verbose -Message "Creating Azure Image Builder Template WindowsUpdate Customizer Object ..."
+	$WindowsUpdateCustomizer = New-AzImageBuilderTemplateCustomizerObject -WindowsUpdateCustomizer -Name 'WindowsUpdate' -Filter @('exclude:$_.Title -like ''*Preview*''', 'include:$true') -SearchCriterion "IsInstalled=0" -UpdateLimit 40
+
+	$ImgDisableAutoUpdatesPowerShellCustomizerParams = @{  
+		PowerShellCustomizer = $true  
+		Name                 = 'Disable AutoUpdates'  
+		RunElevated          = $true  
+		runAsSystem          = $true  
+		ScriptUri            = 'https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-07-31/TimezoneRedirection.ps1'
+	}
+
+	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgDisableAutoUpdatesPowerShellCustomizerParams.Name)' ..."
+	$DisableAutoUpdatesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgDisableAutoUpdatesPowerShellCustomizerParams 
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
-	$Customize = $InstallPowerShellCustomizer, $RunScriptFromSourceCustomizer, $InstallUpgradesCustomizer
+	$Customize = $CopySetTLSCustomizer, $SetTLSCustomizer, $WindowsRestartCustomizer, $TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
 	$ImgTemplateParams = @{
 		ImageTemplateName      = $imageTemplateNamePowerShell
 		ResourceGroupName      = $ResourceGroupName
