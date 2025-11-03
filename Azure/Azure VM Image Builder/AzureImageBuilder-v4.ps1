@@ -54,9 +54,9 @@ function New-AzureSoftwareContainer {
 	#$SubnetPrefix = "snet"
 	$ResourceGroupPrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
     $StorageAccountPrefix = $ResourceTypeShortNameHT["Storage/storageAccounts"].ShortName
-	$NetworkSecurityGroupPrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
-	$VirtualNetworkPrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
-	$SubnetPrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
+	$NetworkSecurityGroupPrefix = $ResourceTypeShortNameHT["Network/networkSecurityGroups"].ShortName
+    $VirtualNetworkPrefix = $ResourceTypeShortNameHT["Network/virtualNetworks"].ShortName
+    $SubnetPrefix = $ResourceTypeShortNameHT["Network/virtualnetworks/subnets"].ShortName
 
 	# Location (see possible locations in the main docs)
 	#$Location = "EastUS"
