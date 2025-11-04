@@ -377,20 +377,6 @@ $null = New-AzResource -Location $Location -ResourceId $ScheduledShutdownResourc
 
 #region Azure Disk Encryption
 #From https://learn.microsoft.com/en-us/powershell/module/az.compute/set-azvmdiskencryptionextension?view=azps-13.0.0
-<#
-$params = [PSCustomObject]@{
-    ResourceGroupName = $ResourceGroupName
-    VMName = $VMName
-    VaultName = $KeyVault.VaultName
-    KeyVault  = $KeyVault
-    DiskEncryptionKeyVaultId = $KeyVault.ResourceId
-    DiskEncryptionKeyVaultUrl = $KeyVault.VaultUri
-    KeyVaultResourceId = $KeyVault.ResourceId
-    VolumeType = "All"
-}
-$params | Set-AzVMDiskEncryptionExtension -Force
-#>
-
 $params = @{
     ResourceGroupName = $ResourceGroupName
     VMName = $VMName

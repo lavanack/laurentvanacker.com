@@ -35,8 +35,8 @@ function Revoke-ActiveSASDiskAccess {
     }
 
     $ActiveSASDisk = $Disks | Where-Object -FilterScript { $_.DiskState -eq "ActiveSAS" }
-
-
+    $ActiveSASDisk | Revoke-AzDiskAccess
+    <#
     $azContext = Get-AzContext
     $SubcriptionID = $azContext.Subscription.Id
     $azProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile
@@ -70,7 +70,7 @@ function Revoke-ActiveSASDiskAccess {
         }
         return $Response
     }
-
+    #>
 }
 #endregion
 
