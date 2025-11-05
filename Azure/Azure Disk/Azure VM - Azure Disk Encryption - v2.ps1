@@ -100,7 +100,6 @@ $ResourceGroupPrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].Shor
 $StorageAccountPrefix = $ResourceTypeShortNameHT["Storage/storageAccounts"].ShortName
 $NetworkSecurityGroupPrefix = $ResourceTypeShortNameHT["Network/networkSecurityGroups"].ShortName
 $KeyVaultPrefix = $ResourceTypeShortNameHT["KeyVault/vaults"].ShortName
-$RecoverySiteVaultPrefix = $ResourceTypeShortNameHT["RecoveryServices/vaults"].ShortName
 $PublicIPAddressPrefix = $ResourceTypeShortNameHT["Network/publicIPAddresses"].ShortName
 $NICPrefix = $ResourceTypeShortNameHT["Network/networkInterfaces"].ShortName
 
@@ -125,8 +124,8 @@ $NetworkSecurityGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $NetworkSecur
 $VirtualNetworkName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $VirtualNetworkPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $SubnetName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $SubnetPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
-$PublicIPName = "{0}-{1}" -f $PublicIPAddressPrefix ,$VMName
-$NICName = "{0}-{1}" -f $NICPrefix ,$VMName
+$PublicIPName = "{0}-{1}" -f $PublicIPAddressPrefix , $VMName
+$NICName = "{0}-{1}" -f $NICPrefix , $VMName
 
 $VMName = $VMName.ToLower()
 $NetworkSecurityGroupName = $NetworkSecurityGroupName.ToLower()
@@ -167,7 +166,6 @@ $OSDiskName = '{0}_OSDisk' -f $VMName
 $DataDisk01Name = '{0}_DataDisk01' -f $VMName
 $DataDisk02Name = '{0}_DataDisk02' -f $VMName
 $OSDiskSize = "127"
-$StorageAccountSkuName = "Standard_LRS"
 $OSDiskType = "StandardSSD_LRS"
 
 Write-Verbose "`$VMName: $VMName"
@@ -307,14 +305,14 @@ $NewJitPolicy = (
     @{
         id    = $VM.Id
         ports = 
-            foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
-                @{
-                    number                     = $CurrentJITPolicyPort;
-                    protocol                   = "*";
-                    allowedSourceAddressPrefix = "*";
-                    maxRequestAccessDuration   = "PT$($JitPolicyTimeInHours)H"
-                }
+        foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
+            @{
+                number                     = $CurrentJITPolicyPort;
+                protocol                   = "*";
+                allowedSourceAddressPrefix = "*";
+                maxRequestAccessDuration   = "PT$($JitPolicyTimeInHours)H"
             }
+        }
     }
 )
 
@@ -334,13 +332,13 @@ $JitPolicy = (
     @{
         id    = $VM.Id
         ports = 
-            foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
-                @{
-                    number                     = $CurrentJITPolicyPort;
-                    endTimeUtc                 = (Get-Date).AddHours($JitPolicyTimeInHours).ToUniversalTime()
-                    allowedSourceAddressPrefix = @($MyPublicIP) 
-                }
+        foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
+            @{
+                number                     = $CurrentJITPolicyPort;
+                endTimeUtc                 = (Get-Date).AddHours($JitPolicyTimeInHours).ToUniversalTime()
+                allowedSourceAddressPrefix = @($MyPublicIP) 
             }
+        }
     }
 )
 $ActivationVM = @($JitPolicy)
@@ -365,12 +363,12 @@ $null = New-AzResource -Location $Location -ResourceId $ScheduledShutdownResourc
 #region Azure Disk Encryption
 #From https://learn.microsoft.com/en-us/powershell/module/az.compute/set-azvmdiskencryptionextension?view=azps-13.0.0
 $params = @{
-    ResourceGroupName = $ResourceGroupName
-    VMName = $VMName
-    DiskEncryptionKeyVaultId = $KeyVault.ResourceId
+    ResourceGroupName         = $ResourceGroupName
+    VMName                    = $VMName
+    DiskEncryptionKeyVaultId  = $KeyVault.ResourceId
     DiskEncryptionKeyVaultUrl = $KeyVault.VaultUri
-    VolumeType = "All"
-    Force = $true
+    VolumeType                = "All"
+    Force                     = $true
 }
 Set-AzVMDiskEncryptionExtension @params
 
