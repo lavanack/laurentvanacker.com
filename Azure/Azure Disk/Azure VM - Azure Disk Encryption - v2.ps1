@@ -101,6 +101,9 @@ $StorageAccountPrefix = $ResourceTypeShortNameHT["Storage/storageAccounts"].Shor
 $NetworkSecurityGroupPrefix = $ResourceTypeShortNameHT["Network/networkSecurityGroups"].ShortName
 $KeyVaultPrefix = $ResourceTypeShortNameHT["KeyVault/vaults"].ShortName
 $RecoverySiteVaultPrefix = $ResourceTypeShortNameHT["RecoveryServices/vaults"].ShortName
+$PublicIPAddressPrefix = $ResourceTypeShortNameHT["Network/publicIPAddresses"].ShortName
+$NICPrefix = $ResourceTypeShortNameHT["Network/networkInterfaces"].ShortName
+
 
 $Project = "vm"
 $Role = "ade"
@@ -122,11 +125,16 @@ $NetworkSecurityGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $NetworkSecur
 $VirtualNetworkName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $VirtualNetworkPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $SubnetName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $SubnetPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
+$PublicIPName = "{0}-{1}" -f $PublicIPAddressPrefix ,$VMName
+$NICName = "{0}-{1}" -f $NICPrefix ,$VMName
 
 $VMName = $VMName.ToLower()
 $NetworkSecurityGroupName = $NetworkSecurityGroupName.ToLower()
 $VirtualNetworkName = $VirtualNetworkName.ToLower()
 $SubnetName = $SubnetName.ToLower()
+$PublicIPName = $PublicIPName.ToLower()
+$NICName = $NICName.ToLower()
+
 $ResourceGroupName = $ResourceGroupName.ToLower()
 $VirtualNetworkAddressSpace = "10.0.0.0/16" # Format 10.0.0.0/16
 $SubnetIPRange = "10.0.0.0/24" # Format 10.0.1.0/24                         
@@ -155,8 +163,6 @@ $MyPublicIp = (Invoke-WebRequest -Uri "https://ipv4.seeip.org").Content
 $ImagePublisherName = "MicrosoftWindowsServer"
 $ImageOffer = "WindowsServer"
 $ImageSku = "2022-datacenter-g2"
-$PublicIPName = "pip-$VMName" 
-$NICName = "nic-$VMName"
 $OSDiskName = '{0}_OSDisk' -f $VMName
 $DataDisk01Name = '{0}_DataDisk01' -f $VMName
 $DataDisk02Name = '{0}_DataDisk02' -f $VMName
@@ -282,7 +288,7 @@ $VM = Add-AzVMDataDisk -VM $VMConfig -Name $DataDisk02Name -CreateOption Attach 
 #endregion
 
 #Create Azure Virtual Machine
-$null = New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig -OSDiskDeleteOption $true -DataDiskDeleteOption $true #-DisableBginfoExtension
+$null = New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig -OSDiskDeleteOption Delete -DataDiskDeleteOption Delete #-DisableBginfoExtension
 
 $VM = Get-AzVM -ResourceGroup $ResourceGroupName -Name $VMName
 
@@ -377,8 +383,11 @@ $null = Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 
 # Adding Credentials to the Credential Manager (and escaping the password)
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDN /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
+Write-Host -Object "Your RDP credentials (login/password) are $($Credential.UserName)/$($Credential.GetNetworkCredential().Password)" -ForegroundColor Green
+<#
 $Credential = $null
 Write-Warning -Message "Credentials cleared from memory but available in the Windows Credential Manager for automatic logon via a RDP client ..."
+#>
 Write-Host -Object "The '$FQDN' Azure VM is created and started ..."
 
 #Start-Sleep -Seconds 15

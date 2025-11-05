@@ -301,7 +301,7 @@ $VM = Add-AzVMDataDisk -VM $VMConfig -Name $DataDisk02Name -CreateOption Attach 
 #endregion
 
 #Create Azure Virtual Machine
-$null = New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig -OSDiskDeleteOption $true -DataDiskDeleteOption $true #-DisableBginfoExtension
+$null = New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig -OSDiskDeleteOption Delete  -DataDiskDeleteOption Delete -NetworkInterfaceDeleteOption Delete #-DisableBginfoExtension
 
 $VM = Get-AzVM -ResourceGroup $ResourceGroupName -Name $VMName
 
