@@ -789,8 +789,8 @@ Write-Host "  Description: $RunbookDescription" -ForegroundColor White
 # Deploy runbook using REST API for better control
 try {
     Write-Host "Creating and publishing runbook..." -ForegroundColor Cyan
-    $RunbookResult = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI $RunbookScriptURI -Description $RunbookDescription
-    #$RunbookResult = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI $RunbookScriptURI -Description $RunbookDescription -LogVerbose
+    #$RunbookResult = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI $RunbookScriptURI -Description $RunbookDescription
+    $RunbookResult = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI $RunbookScriptURI -Description $RunbookDescription -LogVerbose
     
     if ($RunbookResult) {
         Write-Host "Successfully created runbook: $RunBookName" -ForegroundColor Green
@@ -844,39 +844,24 @@ if (-not $SkipTesting) {
     Write-Host "Running automated tests..." -ForegroundColor Yellow
     
     try {
-        # Find non-running VMs for testing
-        Write-Host "Discovering test VMs..." -ForegroundColor Cyan
-        $NonRunningVMs = Get-AzVM -Status | Where-Object -FilterScript { $_.PowerState -ne "VM running" }
-        $RunningVMs = Get-AzVM -Status | Where-Object -FilterScript { $_.PowerState -eq "VM running" }
+        Write-Host "Discovering test Users..." -ForegroundColor Cyan
+        #Getting users with a personal AVD session host
+        $UsersWithPersonalSessionHost = (Get-AzWvdHostPool | ForEach-Object -Process {(Get-AzWvdSessionHost -HostPoolName $_.Name -ResourceGroupName $_.ResourceGroupName | Where-Object -FilterScript {$_.AssignedUser})}).AssignedUser | Select-Object -Unique
+        #Randomly getting one 
+        $UserWithPersonalSessionHost = $UsersWithPersonalSessionHost | Get-Random -Count 1
+        $UserWithoutPersonalSessionHost = (Get-AzADUser | Where-Object -FilterScript {$_ -ne $UserWithPersonalSessionHost } | Get-Random -Count 1).UserPrincipalName
         
-        $selectedVMs = @()
-
-
-        # Select up one running VMs for testing
-        if ($NonRunningVMs) {
-            $selectedVMs += $NonRunningVMs | Get-Random -Count ([Math]::Min(1, $NonRunningVMs.Count)) | Select-Object -Property Name, ResourceGroupName, @{Name="Action"; Expression = {"start"}}
+        # Select up one running Users for testing
+        if ($UserWithPersonalSessionHost) {
+            $selectedUsers = @($UserWithPersonalSessionHost, $UserWithoutPersonalSessionHost)
         }
         else {
-            Write-Warning "No stopped VMs found for testing."
-        }
-
-            
-
-        # Select up 2 VMs for testing
-        if ($RunningVMs) {
-            $selectedVMs += $RunningVMs | Get-Random -Count ([Math]::Min(2, $RunningVMs.Count)) | Select-Object -Property Name, ResourceGroupName, @{Name="Action"; Expression = {"stop", "restart" | Get-Random}}
-        }
-        else {
-            Write-Warning "No running VMs found for testing."
-        }
-
-        Write-Host "Selected VMs for testing:" -ForegroundColor Cyan
-        $selectedVMs | ForEach-Object { 
-            Write-Host "  - $($_.Name) (RG: $($_.ResourceGroupName)) (Action: $($_.Action))" -ForegroundColor White 
+            Write-Warning "No Users found with Personal SessionHost."
+            $selectedUsers = @($UserWithoutPersonalSessionHost)
         }
             
         # Create test payload
-        $testBody = $selectedVMs | ConvertTo-Json
+        $testBody = $selectedUsers | ConvertTo-Json
         Write-Verbose "Test payload: $testBody"
             
         # Execute webhook test

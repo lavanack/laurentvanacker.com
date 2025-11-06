@@ -34,7 +34,7 @@ $WarningPreference = 'Continue'
 $VerbosePreference = 'Continue'
 
 try {
-    Write-Output "=== Azure VM Start Runbook Initiated ==="
+    Write-Output "=== Azure Virtual Desktop Session Host VM Restart Runbook Initiated ==="
     Write-Output "Timestamp: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC')"
     Write-Output "Runbook: $($MyInvocation.MyCommand.Name)"
     
