@@ -27,7 +27,6 @@ Param(
 
 #region Initialization and Input Validation
 $LogAnalyticsWorkspaceId = Get-AutomationVariable -Name LogAnalyticsWorkspaceId
-Write-Output -InputObject "`$LogAnalyticsWorkspaceId: $LogAnalyticsWorkspaceId"
 
 # Initialize error handling
 $ErrorActionPreference = 'Stop'
@@ -42,9 +41,14 @@ try {
     # Log webhook data for debugging
     Write-Verbose "Object Type: $($WebhookData.GetType().FullName)"
     Write-Verbose "Webhook Data received: $($WebhookData | ConvertTo-Json -Depth 3 -Compress)"
+    Write-Verbose "`$LogAnalyticsWorkspaceId: $LogAnalyticsWorkspaceId"
     
     if (-not $WebhookData) {
         throw "No webhook data received. This runbook must be triggered via webhook."
+    }
+
+    if (-not $LogAnalyticsWorkspaceId) {
+        throw "No 'LogAnalyticsWorkspaceId' automation variable found"
     }
 
     Write-Output "Webhook Name: $($WebhookData.WebhookName)"
