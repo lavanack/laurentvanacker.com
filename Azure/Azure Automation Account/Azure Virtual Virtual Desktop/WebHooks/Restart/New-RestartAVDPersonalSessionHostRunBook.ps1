@@ -777,6 +777,7 @@ $RunbookDescription = "Enterprise PowerShell Azure Automation Runbook for AVD Se
 $VariableName = "LogAnalyticsWorkspaceId"
 #Replace by your own LAW Id(s)
 $VariableValue = "00000000-0000-0000-0000-000000000000"
+$VariableValue = "c6b58d3e-4ae6-40a5-9695-8838ff7280c8"
 $Variable = New-AzAutomationVariable -AutomationAccountName $AutomationAccount.AutomationAccountName-Name $VariableName -Value $VariableValue -Encrypted $false -ResourceGroupName $ResourceGroupName -Description "LogAnalyticsWorkspace Id for AVD Host Pools"
 #endregion 
 #endregion 
@@ -789,8 +790,8 @@ Write-Host "  Description: $RunbookDescription" -ForegroundColor White
 # Deploy runbook using REST API for better control
 try {
     Write-Host "Creating and publishing runbook..." -ForegroundColor Cyan
-    #$RunbookResult = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI $RunbookScriptURI -Description $RunbookDescription
-    $RunbookResult = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI $RunbookScriptURI -Description $RunbookDescription -LogVerbose
+    $RunbookResult = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI $RunbookScriptURI -Description $RunbookDescription
+    #$RunbookResult = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI $RunbookScriptURI -Description $RunbookDescription -LogVerbose
     
     if ($RunbookResult) {
         Write-Host "Successfully created runbook: $RunBookName" -ForegroundColor Green
