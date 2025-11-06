@@ -64,7 +64,7 @@ try {
     #endregion
 
     
-    if ($WebhookData.RequestBody) {
+    if (-not($WebhookData.RequestBody)) {
         throw "Request body is empty or missing. Cannot process VM request."
     }
     else {
