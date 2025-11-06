@@ -769,7 +769,7 @@ Write-Host "Deploying PowerShell runbook..." -ForegroundColor Yellow
 
 #region Runbook Configuration
 $RunBookName = "{0}-RestartAVDPersonalSessionHostRunBook" -f $RunBookPrefix
-$RunbookScriptURI = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20Virtual%20Virtual%20Desktop/WebHooks/Restart/New-RestartAVDPersonalSessionHostRunBook.ps1"
+$RunbookScriptURI = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20Virtual%20Virtual%20Desktop/WebHooks/Restart/RestartAVDPersonalSessionHostRunBook.ps1"
 $RunbookDescription = "Enterprise PowerShell Azure Automation Runbook for AVD Session Host restart via webhooks"
 
 
