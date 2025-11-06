@@ -777,7 +777,7 @@ Write-Host "  Description: $RunbookDescription" -ForegroundColor White
 # Deploy runbook using REST API for better control
 try {
     Write-Host "Creating and publishing runbook..." -ForegroundColor Cyan
-    $RunbookResult = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI $RunbookScriptURI -Description $RunbookDescription -Verbose:$VerbosePreference
+    $RunbookResult = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI $RunbookScriptURI -Description $RunbookDescription
     #$RunbookResult = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI $RunbookScriptURI -Description $RunbookDescription -LogVerbose -Verbose:$VerbosePreference
     
     if ($RunbookResult) {

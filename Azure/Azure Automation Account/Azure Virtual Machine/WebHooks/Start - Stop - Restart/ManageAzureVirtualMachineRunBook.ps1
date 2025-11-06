@@ -17,7 +17,7 @@ of the Sample Code.
 #>
 <#
 .SYNOPSIS
-    Azure Automation runbook to start Azure Virtual Machines via webhook
+    Azure Automation runbook to start/stop/restart Azure Virtual Machines via webhook
 
 .DESCRIPTION
     This runbook starts one or more Azure Virtual Machines based on data received from a webhook.
@@ -39,7 +39,7 @@ of the Sample Code.
     Webhook data with JSON payload containing VM resource group and name information
 
 .OUTPUTS
-    Status messages and job information for VM start operations
+    Status messages and job information for VM start/stop/restart operations
 
 .EXAMPLE
     # Webhook payload example:
@@ -178,7 +178,7 @@ try {
         
         #endregion
         
-        #region VM Start Operations
+        #region VM Operations
         
         Write-Output "Initiating VM operations..."
         $startTime = Get-Date
@@ -193,7 +193,7 @@ try {
                 try {
                     # Verify VM exists before attempting to start
                     $azureVM = Get-AzVM -ResourceGroupName $vm.ResourceGroupName -Name $vm.Name -ErrorAction Stop
-                    Write-Verbose "Found VM: $($azureVM.Name) (Status will be checked after start operation)"
+                    Write-Verbose "Found VM: $($azureVM.Name) (Status will be checked after operation)"
                     
                     switch ($vm.Action) {
                         'start' {
@@ -285,7 +285,7 @@ try {
         $successfulJobs = $jobResults | Where-Object { $_.Status -eq "Success" }
         $failedJobs = $jobResults | Where-Object { $_.Status -eq "Failed" }
         
-        Write-Output "`n=== VM Start Operation Summary ==="
+        Write-Output "`n=== VM Operation Summary ==="
         Write-Output "Total VMs requested: $($VMsToManage.Count)"
         Write-Output "Successful operations: $($successfulJobs.Count)"
         Write-Output "Failed operations: $($failedJobs.Count + $failedOperations.Count)"
@@ -298,7 +298,7 @@ try {
         }
         
         if ($failedJobs.Count -gt 0 -or $failedOperations.Count -gt 0) {
-            Write-Warning "Some VM start operations failed:"
+            Write-Warning "Some VM operations failed:"
             foreach ($failure in $failedJobs) {
                 Write-Warning "  - Job $($failure.JobName): $($failure.Error)"
             }
@@ -311,7 +311,7 @@ try {
         
     }
     else {
-        throw "Request body is empty or missing. Cannot process VM start request."
+        throw "Request body is empty or missing. Cannot process VM request."
     }
 
 }
