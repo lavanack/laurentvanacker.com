@@ -27,6 +27,7 @@ Param(
 
 #region Initialization and Input Validation
 $LogAnalyticsWorkspaceId = Get-AutomationVariable -Name LogAnalyticsWorkspaceId
+Write-Output -InputObject "`$LogAnalyticsWorkspaceId: $LogAnalyticsWorkspaceId"
 
 # Initialize error handling
 $ErrorActionPreference = 'Stop'
@@ -121,7 +122,6 @@ try {
 
         #region LAW 
         $VMs = foreach ($User in $Users) {
-            Write-Output -InputObject "`$LogAnalyticsWorkspaceId: $LogAnalyticsWorkspaceId"
             #Last Connected AVD Session Host
             $Query = @"
 WVDConnections
