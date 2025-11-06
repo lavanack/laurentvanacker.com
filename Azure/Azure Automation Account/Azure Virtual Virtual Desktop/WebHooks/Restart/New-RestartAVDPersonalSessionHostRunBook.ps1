@@ -769,15 +769,15 @@ Write-Host "Deploying PowerShell runbook..." -ForegroundColor Yellow
 
 #region Runbook Configuration
 $RunBookName = "{0}-RestartAVDPersonalSessionHostRunBook" -f $RunBookPrefix
-$RunbookScriptURI = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20Virtual%20Virtual%20Desktop/WebHooks/Restart/RestartAVDPersonalSessionHostRunBook.ps1"
-$RunbookDescription = "Enterprise PowerShell Azure Automation Runbook for VM lifecycle management via webhooks"
+$RunbookScriptURI = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20Virtual%20Virtual%20Desktop/WebHooks/Restart/New-RestartAVDPersonalSessionHostRunBook.ps1"
+$RunbookDescription = "Enterprise PowerShell Azure Automation Runbook for AVD Session Host restart via webhooks"
 
 
 # Create a new variable(s)
 $VariableName = "LogAnalyticsWorkspaceId"
 #Replace by your own LAW Id(s)
 $VariableValue = "00000000-0000-0000-0000-000000000000"
-$Variable = New-AzAutomationVariable -AutomationAccountName $AutomationAccount.AutomationAccountName-Name $VariableName -Value $VariableValue -Encrypted $false -ResourceGroupName $ResourceGroupName -Description "LogAnalyticsWorkspace Ids (comma-separated values) for AVD Host Pools"
+$Variable = New-AzAutomationVariable -AutomationAccountName $AutomationAccount.AutomationAccountName-Name $VariableName -Value $VariableValue -Encrypted $false -ResourceGroupName $ResourceGroupName -Description "LogAnalyticsWorkspace Id for AVD Host Pools"
 #endregion 
 #endregion 
 
