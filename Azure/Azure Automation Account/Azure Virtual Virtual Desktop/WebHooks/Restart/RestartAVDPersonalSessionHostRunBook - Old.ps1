@@ -15,58 +15,8 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-<#
-.SYNOPSIS
-    Azure Automation runbook to restart Azure Virtual Desktop Session Host VMs via webhook
 
-.DESCRIPTION
-    This runbook starts one or more Azure Virtual Machines based on data received from a webhook.
-    The runbook uses the system-assigned managed identity of the Azure Automation Account to
-    authenticate with Azure and perform VM operations.
-
-.PARAMETER WebhookData
-    The webhook data object containing the request body with VM information.
-    Expected JSON format in RequestBody:
-    [
-        john.doe@contoso.com,
-        jane.doe@contoso.com
-    ]
-
-.INPUTS
-    Webhook data with JSON payload containing VM resource group and name information
-
-.OUTPUTS
-    Status messages and job information for VM start/stop/restart operations
-
-.EXAMPLE
-    # Webhook payload example:
-    [
-        john.doe@contoso.com,
-        jane.doe@contoso.com
-    ]
-
-.NOTES
-    Author: Laurent Van Acker
-    Version: 2.0
-    Created: 2025-11-07
-    
-    Requirements:
-    - Azure Automation Account with system-assigned managed identity enabled
-    - Managed identity must have "Virtual Machine Contributor" role on target VMs/Resource Groups
-    - Az.Accounts and Az.Compute PowerShell modules must be available in the Automation Account
-    
-    Security Considerations:
-    - Uses managed identity authentication (no stored credentials)
-    - Webhook should be secured and access controlled
-    - Consider implementing IP restrictions on webhook endpoint
-
-.LINK
-    https://docs.microsoft.com/en-us/azure/automation/automation-webhooks
-    https://docs.microsoft.com/en-us/azure/automation/automation-security-overview
-#>
-
-
-#requires -Version 5.1 -Modules Az.Accounts, Az.Compute
+#requires -Version 5.1 -Modules Az.Accounts, Az.Compute, Az.OperationalInsights, Az.Resources
 
 [CmdletBinding()]
 Param(
@@ -76,68 +26,55 @@ Param(
 )
 
 $LogAnalyticsWorkspaceId = Get-AutomationVariable -Name LogAnalyticsWorkspaceId
-if ([string]::IsNullOrEmpty($LogAnalyticsWorkspaceId)) {
-    Write-Output -InputObject "The provided LogAnalyticsWorkspaceId is null or empty"
-} 
-else {
-    # Initialize error handling
-    $ErrorActionPreference = 'Stop'
-    $WarningPreference = 'Continue'
-    $VerbosePreference = 'Continue'
 
-    try {
-        Write-Output "=== Azure VM Start Runbook Initiated ==="
-        Write-Output "Timestamp: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC')"
-        Write-Output "Runbook: $($MyInvocation.MyCommand.Name)"
-    
-        Write-Output "LogAnalyticsWorkspaceId: $LogAnalyticsWorkspaceId"
+# Initialize error handling
+$ErrorActionPreference = 'Stop'
+$WarningPreference = 'Continue'
+$VerbosePreference = 'Continue'
 
-        # Log webhook data for debugging
-        Write-Verbose "Object Type: $($WebhookData.GetType().FullName)"
-        Write-Verbose "Webhook Data received: $($WebhookData | ConvertTo-Json -Depth 3 -Compress)"
+try {
+    Write-Output "=== Azure Virtual Desktop Session Host VM Restart Runbook Initiated ==="
+    Write-Output "Timestamp: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC')"
+    Write-Output "Runbook: $($MyInvocation.MyCommand.Name)"
     
-        #region Initialization and Input Validation
-        if (-not $WebhookData) {
-            throw "No webhook data received. This runbook must be triggered via webhook."
-        }
+    # Log webhook data for debugging
+    Write-Verbose "Object Type: $($WebhookData.GetType().FullName)"
+    Write-Verbose "Webhook Data received: $($WebhookData | ConvertTo-Json -Depth 3 -Compress)"
+    Write-Verbose "`$LogAnalyticsWorkspaceId: $LogAnalyticsWorkspaceId"
+    
+    #region Initialization and Input Validation
+    if (-not $WebhookData) {
+        throw "No webhook data received. This runbook must be triggered via webhook."
+    }
 
-        Write-Output "Webhook Name: $($WebhookData.WebhookName)"
-        Write-Verbose "Request Headers: $($WebhookData.RequestHeader | ConvertTo-Json -Compress)"
+    if (-not $LogAnalyticsWorkspaceId) {
+        throw "No 'LogAnalyticsWorkspaceId' automation variable found"
+    }
+
+    Write-Output "Webhook Name: $($WebhookData.WebhookName)"
+    Write-Verbose "Request Headers: $($WebhookData.RequestHeader | ConvertTo-Json -Compress)"
     
-        # Handle test pane execution (when RequestBody is not present)
-        if (-not($WebhookData.RequestBody)) {
-            Write-Warning "No RequestBody found. Assuming test pane execution - treating WebhookData as direct JSON input."
-            if ($WebhookData) {
-                $Users = ConvertFrom-Json -InputObject $WebhookData
-                Write-Verbose "Test pane data: $($Users | ConvertTo-Json -Compress)"
-            }
-            else {
-                throw "No Webhook Data"
-            }
+    # Handle test pane execution (when RequestBody is not present)
+    if (-not($WebhookData.RequestBody)) {
+        Write-Warning "No RequestBody found. Assuming test pane execution - treating WebhookData as direct JSON input."
+        if ($WebhookData) {
+            $Users = ConvertFrom-Json -InputObject $WebhookData
+            Write-Verbose "Test pane data: $($Users | ConvertTo-Json -Compress)"
         }
         else {
-            $Users = ConvertFrom-Json -InputObject $WebhookData.RequestBody
+            throw "No Webhook Data"
         }
-        #endregion
+    }
+    else {
+        $Users = ConvertFrom-Json -InputObject $WebhookData.RequestBody
+    }
+    
+    #endregion
 
-        #region Request Body Validation and Processing
-        Write-Output "Processing webhook request body..."
-        
-        try {
-            # Validate VM data from request body
-            
-            if (-not $Users -or $Users.Count -eq 0) {
-                throw "Request body contains no user data or is empty."
-            }
-            
-            Write-Output "Found $($Users.Count) users(s) to manage"
-        }
-        catch {
-            Write-Error "Failed to parse or validate request body: $($_.Exception.Message)"
-            throw
-        }
-        #endregion
-        
+    if (-not($WebhookData.RequestBody)) {
+        throw "Request body is empty or missing. Cannot process VM request."
+    }
+    else {
         #region Azure Authentication and Context Setup
         
         Write-Output "Authenticating to Azure using managed identity..."
@@ -163,31 +100,68 @@ else {
         }
         
         #endregion
+        
+        #region User Check
+        Write-Output "Processing webhook request body..."
+        
+        try {
+            # Parse and validate VM data from request body
+            $Users = ConvertFrom-Json -InputObject $WebhookData.RequestBody -ErrorAction Stop
+            
+            if (-not $Users -or $Users.Count -eq 0) {
+                throw "Request body contains no User data or is empty."
+            }
+            
+            Write-Output "Found $($Users.Count) User(s) to manage"
+            
+            # Validate required properties for each VM
+            foreach ($User in $Users) {
+                
+                $AzADUser = Get-AzADUser -UserPrincipalName $User -ErrorAction SilentlyContinue
+                if (-not $AzADUser) {
+                    throw "Invalid User data: '$User' not found in EntraID. Received: $($User | ConvertTo-Json -Compress)"
+                }
+                Write-Verbose "Validated User: $User"
+            }
+            
+        }
+        catch {
+            Write-Error "Failed to parse or validate request body: $($_.Exception.Message)"
+            throw
+        }
+        #endregion
 
         #region LAW 
-        $VMs = @() 
-        foreach ($User in $Users) {
-            Write-Output -InputObject "`$User: $User"
+        $VMs = foreach ($User in $Users) {
             #Last Connected AVD Session Host
-            $Query = "WVDConnections | extend Localtime = datetime_utc_to_local(TimeGenerated, 'Europe/Paris') | where UserName contains '$User' and State contains 'Started' | sort by TimeGenerated desc | take 1 | project SessionHostName"
+            $Query = @"
+WVDConnections
+| extend Localtime = datetime_utc_to_local(TimeGenerated, "Europe/Paris")
+| where UserName contains "$User" and State contains "Started"
+| sort by TimeGenerated desc
+| take 1
+| project SessionHostName
+"@
+
             Write-Output -InputObject "`$Query: $Query"
             # Run the query
             $Result = Invoke-AzOperationalInsightsQuery -WorkspaceId $LogAnalyticsWorkspaceId -Query $Query
             #Keeping only the Netbios name (vm.contoso.com ==> vm)
             $VMName = $Result.Results.SessionHostName -replace "\..*"
-            Write-Output -InputObject "`$VMName: $VMName"                
-            if ([string]::IsNullOrEmpty($VMName)) {
-                Write-Warning "No VM found for '$User' User."
+            Write-Output -InputObject "`$VMName: $VMName)"                
+            $VM = Get-AzVM -Name $VMName -Status
+            if ($VM) {
+                Write-Verbose "Found VM: $($VM.Name) in resource group: $($VM.ResourceGroupName)"
+                $VM
             }
             else {
-                $VM = Get-AzVM -Name $VMName -Status
-                Write-Output "Found VM: $($VM.Name) in resource group: $($VM.ResourceGroupName)"
-                $VMs += $VM
+                Write-Warning "No VM found for '$User' User."
             }
         }
         #endregion
-        
+
         #region VM Operations
+        
         Write-Output "Initiating VM restarts..."
         $startTime = Get-Date
         $jobs = @()
@@ -196,19 +170,18 @@ else {
 
         try {
             # Manage each VM asynchronously using background jobs
-            $jobs =  @()
-            foreach ($VM in $VMs) {
+            $jobs = foreach ($VM in $VMs) {
                 Write-Output "Queuing restart/start operation for VM: $($VM.Name) in resource group: $($VM.ResourceGroupName)"
                 
                 try {
                     Write-Verbose "VM Power State: $($VM.PowerState))"
                     if ($VM.PowerState -match "running") {
-                            $jobs += $VM | Restart-AzVM -AsJob -ErrorAction Stop
-                            Write-Output "Started background job for VM: $($VM.Name) (Action: Restart) (Job ID: $($job.Id))"
+                            $VM | Restart-AzVM -AsJob -ErrorAction Stop
+                            Write-Verbose "Started background job for VM: $($VM.Name) (Action: Restart) (Job ID: $($job.Id))"
                     }
                     else {
-                            $jobs += $VM | Start-AzVM -AsJob -ErrorAction Stop
-                            Write-Output "Started background job for VM: $($VM.Name) (Action: Start) (Job ID: $($job.Id))"
+                            $VM | Start-AzVM -AsJob -ErrorAction Stop
+                            Write-Verbose "Started background job for VM: $($VM.Name) (Action: Start) (Job ID: $($job.Id))"
                     }
                 }
                 catch {
@@ -277,9 +250,8 @@ else {
         $successfulJobs = $jobResults | Where-Object { $_.Status -eq "Success" }
         $failedJobs = $jobResults | Where-Object { $_.Status -eq "Failed" }
         
-        Write-Output "`n=== VM Operation Summary ==="
-        Write-Output "Total Users requested: $($Users.Count)"
-        Write-Output "Total VMs requested: $($VMs.Count)"
+        Write-Output "`n=== VM Start Operation Summary ==="
+        Write-Output "Total VMs requested: $($Users.Count)"
         Write-Output "Successful operations: $($successfulJobs.Count)"
         Write-Output "Failed operations: $($failedJobs.Count + $failedOperations.Count)"
         Write-Output "Total duration: $($totalDuration.ToString('hh\:mm\:ss'))"
@@ -291,7 +263,7 @@ else {
         }
         
         if ($failedJobs.Count -gt 0 -or $failedOperations.Count -gt 0) {
-            Write-Warning "Some VM operations failed:"
+            Write-Warning "Some VM start operations failed:"
             foreach ($failure in $failedJobs) {
                 Write-Warning "  - Job $($failure.JobName): $($failure.Error)"
             }
@@ -303,13 +275,13 @@ else {
         #endregion
         
     }
-    catch {
-        Write-Error "Runbook execution failed: $($_.Exception.Message)"
-        Write-Error "Stack trace: $($_.ScriptStackTrace)"
-        throw
-    }
-    finally {
-        Write-Output "=== Runbook Execution Completed ==="
-        Write-Output "End time: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC')"
-    }
+}
+catch {
+    Write-Error "Runbook execution failed: $($_.Exception.Message)"
+    Write-Error "Stack trace: $($_.ScriptStackTrace)"
+    throw
+}
+finally {
+    Write-Output "=== Runbook Execution Completed ==="
+    Write-Output "End time: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC')"
 }

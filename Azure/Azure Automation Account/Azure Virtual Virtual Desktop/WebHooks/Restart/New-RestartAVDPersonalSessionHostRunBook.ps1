@@ -17,12 +17,12 @@ of the Sample Code.
 #>
 <#
 .SYNOPSIS
-    Creates and configures a complete Azure Automation infrastructure for AVD Session Host VM restart via webhooks.
+    Creates and configures a complete Azure Automation infrastructure for VM lifecycle management via webhooks.
 
 .DESCRIPTION
-    This script establishes a comprehensive Azure Automation solution for managing AVD Session Host VM  lifecycle operations.
+    This script establishes a comprehensive Azure Automation solution for managing virtual machine lifecycle operations.
     It creates the necessary Azure resources including Resource Groups, Automation Accounts, Runbooks, and Webhooks,
-    then configures RBAC permissions and deploys enterprise-ready PowerShell runbooks for VM restart.
+    then configures RBAC permissions and deploys enterprise-ready PowerShell runbooks for VM management.
     
     Key Features:
     - Creates Azure Resource Group with standardized naming conventions
@@ -68,9 +68,9 @@ of the Sample Code.
 
 .NOTES
     Author: Laurent Van Acker
-    Version: 2.0.0
-    Created: 2024
-    Updated: 2025-10-14
+    Version: 1.0.0
+    Created: 2025
+    Updated: 2025-11-07
     
     Requirements:
     - PowerShell 5.1 or later
@@ -726,7 +726,7 @@ Write-Host "Waiting for managed identity propagation..." -ForegroundColor Cyan
 Start-Sleep -Seconds 60
 
 $RBACRoles = 'Log Analytics Reader', 'Virtual Machine Contributor'
-# Assign Virtual Machine Contributor role to the Automation Account's managed identity
+# Assign the 'Log Analytics Reader' and 'Virtual Machine Contributor' roles to the Automation Account's managed identity
 $maxRbacRetries = 5
 foreach ($RBACRole in $RBACRoles) {
     $rbacRetryCount = 0
@@ -773,15 +773,6 @@ $RunbookScriptURI = "https://raw.githubusercontent.com/lavanack/laurentvanacker.
 $RunbookDescription = "Enterprise PowerShell Azure Automation Runbook for AVD Session Host restart via webhooks"
 
 
-# Create a new variable(s)
-$VariableName = "LogAnalyticsWorkspaceId"
-#Replace by your own LAW Id(s)
-$VariableValue = "00000000-0000-0000-0000-000000000000"
-$VariableValue = "c6b58d3e-4ae6-40a5-9695-8838ff7280c8"
-$Variable = New-AzAutomationVariable -AutomationAccountName $AutomationAccount.AutomationAccountName-Name $VariableName -Value $VariableValue -Encrypted $false -ResourceGroupName $ResourceGroupName -Description "LogAnalyticsWorkspace Id for AVD Host Pools"
-#endregion 
-#endregion 
-
 Write-Host "Runbook Configuration:" -ForegroundColor Cyan
 Write-Host "  Name: $RunBookName" -ForegroundColor White
 Write-Host "  Source: $RunbookScriptURI" -ForegroundColor White
@@ -791,7 +782,7 @@ Write-Host "  Description: $RunbookDescription" -ForegroundColor White
 try {
     Write-Host "Creating and publishing runbook..." -ForegroundColor Cyan
     $RunbookResult = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI $RunbookScriptURI -Description $RunbookDescription
-    #$RunbookResult = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI $RunbookScriptURI -Description $RunbookDescription -LogVerbose
+    #$RunbookResult = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI $RunbookScriptURI -Description $RunbookDescription -LogVerbose -Verbose:$VerbosePreference
     
     if ($RunbookResult) {
         Write-Host "Successfully created runbook: $RunBookName" -ForegroundColor Green
@@ -805,6 +796,12 @@ catch {
     Write-Error "Failed to create runbook: $($_.Exception.Message)"
     throw
 }
+
+# Create a new variable(s)
+$VariableName = "LogAnalyticsWorkspaceId"
+#Replace by your own LAW Id(s)
+$VariableValue = "00000000-0000-0000-0000-000000000000"
+$Variable = New-AzAutomationVariable -AutomationAccountName $AutomationAccount.AutomationAccountName-Name $VariableName -Value $VariableValue -Encrypted $false -ResourceGroupName $ResourceGroupName -Description "LogAnalyticsWorkspace Id for AVD Host Pools"
 #endregion 
 
 #region Webhook Configuration
@@ -813,10 +810,9 @@ Write-Host "Configuring webhook..." -ForegroundColor Yellow
 # Set webhook expiration to 10 years from now
 $webhookExpiration = (Get-Date).AddYears(10)
 
-
 try {
     Write-Host "Creating webhook: $WebhookName" -ForegroundColor Cyan
-    $Webhook = New-AzAutomationWebhook -ResourceGroup $ResourceGroupName -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $WebhookName -RunbookName $RunBookName -IsEnabled $True -ExpiryTime $webhookExpiration -Force -ErrorAction Stop
+    $Webhook = New-AzAutomationWebhook -ResourceGroup $ResourceGroupName -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $WebhookName -RunbookName $RunBookName -IsEnabled $True -ExpiryTime $webhookExpiration -Force
     
     $WebhookURI = $Webhook.WebhookURI
     
@@ -842,88 +838,7 @@ catch {
 
 #region Automated Testing Framework
 if (-not $SkipTesting) {
-    Write-Host "Running automated tests..." -ForegroundColor Yellow
-    
-    try {
-        Write-Host "Discovering test Users..." -ForegroundColor Cyan
-        #Getting users with a personal AVD session host
-        $UsersWithPersonalSessionHost = (Get-AzWvdHostPool | ForEach-Object -Process {(Get-AzWvdSessionHost -HostPoolName $_.Name -ResourceGroupName $_.ResourceGroupName | Where-Object -FilterScript {$_.AssignedUser})}).AssignedUser | Select-Object -Unique
-        #Randomly getting one 
-        $UserWithPersonalSessionHost = $UsersWithPersonalSessionHost | Get-Random -Count 1
-        $UserWithoutPersonalSessionHost = (Get-AzADUser | Where-Object -FilterScript {$_ -ne $UserWithPersonalSessionHost } | Get-Random -Count 1).UserPrincipalName
-        
-        # Select up one running Users for testing
-        if ($UserWithPersonalSessionHost) {
-            $selectedUsers = @($UserWithPersonalSessionHost, $UserWithoutPersonalSessionHost)
-        }
-        else {
-            Write-Warning "No Users found with Personal SessionHost."
-            $selectedUsers = @($UserWithoutPersonalSessionHost)
-        }
-            
-        # Create test payload
-        $testBody = $selectedUsers | ConvertTo-Json
-        Write-Verbose "Test payload: $testBody"
-            
-        # Execute webhook test
-        Write-Host "Testing webhook execution..." -ForegroundColor Cyan
-        $testResponse = Invoke-WebRequest -Method Post -Uri $WebhookURI -Body $testBody -UseBasicParsing -ErrorAction Stop
-            
-        if ($testResponse.StatusCode -eq 202) {
-            Write-Host "Webhook test successful! Status Code: $($testResponse.StatusCode)" -ForegroundColor Green
-                
-            # Extract job ID from response
-            $responseContent = ConvertFrom-Json $testResponse.Content
-            $jobID = $responseContent.jobids[0]
-            Write-Host "Job ID: $jobID" -ForegroundColor White
-                
-            # Monitor job execution
-            Write-Host "Monitoring job execution..." -ForegroundColor Cyan
-            $timeout = 600 # 10 minutes timeout
-            $elapsed = 0
-            $jobCompleted = $false
-                
-            while ($elapsed -lt $timeout -and -not $jobCompleted) {
-                Start-Sleep -Seconds 30
-                $elapsed += 30
-                    
-                try {
-                    $job = Get-AzAutomationJob -AutomationAccountName $AutomationAccountName -Id $jobID -ResourceGroupName $ResourceGroupName
-                    Write-Host "Job Status: $($job.Status) (Elapsed: $elapsed seconds)" -ForegroundColor Yellow
-                        
-                    if ($job.Status -in @("Completed", "Failed", "Stopped", "Suspended")) {
-                        $jobCompleted = $true
-                    }
-                }
-                catch {
-                    Write-Warning "Failed to retrieve job status: $($_.Exception.Message)"
-                    break
-                }
-            }
-                
-            if ($jobCompleted) {
-                # Get job output
-                try {
-                    $jobOutput = Get-AzAutomationJobOutput -AutomationAccountName $AutomationAccountName -Id $jobID -ResourceGroupName $ResourceGroupName -Stream Output
-                    Write-Host "Job Output Summary:" -ForegroundColor Green
-                    $jobOutput | ForEach-Object { Write-Host "  $($_.Summary)" -ForegroundColor White }
-                }
-                catch {
-                    Write-Warning "Failed to retrieve job output: $($_.Exception.Message)"
-                }
-            }
-            else {
-                Write-Warning "Job execution timeout reached ($timeout seconds)"
-            }
-        }
-        else {
-            Write-Warning "Webhook test failed with status code: $($testResponse.StatusCode)"
-        }
-    }
-    catch {
-        Write-Error "Testing failed: $($_.Exception.Message)"
-        Write-Warning "This does not affect the infrastructure deployment, only the validation test."
-    }
+    & "$CurrentDir\Test-RestartAVDPersonalSessionHostRunBook.ps1" -AutomationAccountName $AutomationAccountName -ResourceGroupName $ResourceGroupName -WebhookURI $WebhookURI
 }
 else {
     Write-Host "Testing skipped by user request" -ForegroundColor Yellow
@@ -940,9 +855,7 @@ Write-Host "  ✓ Resource Group: $ResourceGroupName" -ForegroundColor Green
 Write-Host "  ✓ Automation Account: $AutomationAccountName" -ForegroundColor Green
 Write-Host "  ✓ Runbook: $RunBookName" -ForegroundColor Green
 Write-Host "  ✓ Webhook: $WebhookName" -ForegroundColor Green
-foreach ($RBACRole in $RBACRoles) {
-    Write-Host "  ✓ RBAC Assignment: $RBACRole" -ForegroundColor Green
-}
+Write-Host "  ✓ RBAC Assignment: Virtual Machine Contributor" -ForegroundColor Green
 Write-Host ""
 Write-Host "Next Steps:" -ForegroundColor Yellow
 Write-Host "  1. Securely store the webhook URI for future use" -ForegroundColor White
