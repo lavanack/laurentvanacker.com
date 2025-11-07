@@ -91,8 +91,6 @@ Param(
     [object] $WebhookData
 )
 
-#region Initialization and Input Validation
-
 # Initialize error handling
 $ErrorActionPreference = 'Stop'
 $WarningPreference = 'Continue'
@@ -107,6 +105,7 @@ try {
     Write-Verbose "Object Type: $($WebhookData.GetType().FullName)"
     Write-Verbose "Webhook Data received: $($WebhookData | ConvertTo-Json -Depth 3 -Compress)"
     
+    #region Initialization and Input Validation
     if (-not $WebhookData) {
         throw "No webhook data received. This runbook must be triggered via webhook."
     }
@@ -155,6 +154,7 @@ try {
         Write-Error "Failed to parse or validate request body: $($_.Exception.Message)"
         throw
     }
+    #endregion
         
     #region Azure Authentication and Context Setup
         

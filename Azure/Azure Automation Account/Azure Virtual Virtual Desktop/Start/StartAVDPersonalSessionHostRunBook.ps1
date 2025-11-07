@@ -15,7 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 3.0 -Modules Az.Accounts, Az.Resources
+#requires -Version 3.0 -Modules Az.Accounts, Az.Resources, Az.OperationalInsights
 #Modified version from https://luke.geek.nz/azure/turn-on-a-azure-virtual-machine-using-azure-automation/
 
 Param(
