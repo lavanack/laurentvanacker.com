@@ -312,7 +312,6 @@ function Repair-AzVMWithRunSpace {
     [scriptblock] $scriptblock = [Scriptblock]::Create(((Get-Content -Path Function:\Repair-AzVM) -replace "Write-Verbose\s+(-Message)?\s*", "Write-Output -InputObject "))
 
     #region RunSpace Management
-    $InstanceNumber = $VM.Count
     $RunspacePool = [runspacefactory]::CreateRunspacePool(1, $RunspacePoolSize)
     $RunspacePool.Open()
     [System.Collections.ArrayList]$RunspaceList = @()
