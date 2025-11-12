@@ -113,12 +113,11 @@ $DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role
 Do {
     $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
     #Create Cache storage account for replication logs in the primary region
-    $CacheStorageAccountName = "{0}{1}{2}cache{3}{4:D$DigitNumber}" -f $StorageAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
     #Create Cache storage account for replication logs in the recovery region
     $VMName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $VirtualMachinePrefix, $Project, $Role, $LocationShortName, $Instance                       
     $KeyVaultName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $KeyVaultPrefix, $Project, $Role, $LocationShortName, $Instance                       
     $KeyVaultName = $KeyVaultName.ToLower()
-} While ((-not(Test-AzDnsAvailability -DomainNameLabel $VMName -Location $Location)) -or (-not(Get-AzStorageAccountNameAvailability -Name $CacheStorageAccountName).NameAvailable) -or (-not(Test-AzKeyVaultNameAvailability -Name $KeyVaultName).NameAvailable))
+} While ((-not(Test-AzDnsAvailability -DomainNameLabel $VMName -Location $Location)) -or (-not(Test-AzKeyVaultNameAvailability -Name $KeyVaultName).NameAvailable))
 
 
 $DiskEncryptionSetName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $DiskEncryptionSetPrefix, $Project, $Role, $LocationShortName, $Instance                       
@@ -405,10 +404,3 @@ Write-Host -Object "The '$FQDN' Azure VM is created and started ..."
 #Start RDP Session
 #mstsc /v $FQDN
 #endregion
-
-<#
-#region Create Cache storage account for replication logs in the primary region
-Write-Host -Object "Creating cache storage account for replication logs in the primary region ('$Location') ..."
-$CacheStorageAccount = New-AzStorageAccount -Name $CacheStorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName Standard_LRS -Kind Storage
-#endregion
-#>
