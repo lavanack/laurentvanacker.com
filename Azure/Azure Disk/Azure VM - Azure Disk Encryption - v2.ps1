@@ -15,7 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.KeyVault, Az.Network, Az.PolicyInsights, Az.RecoveryServices, Az.Resources, Az.Security, Az.Storage
+#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.KeyVault, Az.Network, Az.PolicyInsights, Az.RecoveryServices, Az.Resources, Az.Security, Az.Storage, PSScheduledJob, PSWorkflow
 
 #From https://learn.microsoft.com/en-us/azure/site-recovery/azure-to-azure-how-to-enable-policy
 
@@ -43,7 +43,7 @@ function New-RandomPassword {
     $RandomPassword = [System.Web.Security.Membership]::GeneratePassword($length, $nonAlphaChars)
     #Write-Host "The password is : $RandomPassword"
     if ($ClipBoard) {
-        Write-Verbose "The password has beeen copied into the clipboard (Use Win+V) ..."
+        #Write-Verbose "The password has beeen copied into the clipboard (Use Win+V) ..."
         $RandomPassword | Set-Clipboard
     }
     if ($AsSecureString) {
@@ -112,12 +112,11 @@ $DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role
 Do {
     $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
     #Create Cache storage account for replication logs in the primary region
-    $CacheStorageAccountName = "{0}{1}{2}cache{3}{4:D$DigitNumber}" -f $StorageAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
     #Create Cache storage account for replication logs in the recovery region
     $VMName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $VirtualMachinePrefix, $Project, $Role, $LocationShortName, $Instance                       
     $KeyVaultName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $KeyVaultPrefix, $Project, $Role, $LocationShortName, $Instance                       
     $KeyVaultName = $KeyVaultName.ToLower()
-} While ((-not(Test-AzDnsAvailability -DomainNameLabel $VMName -Location $Location)) -or (-not(Get-AzStorageAccountNameAvailability -Name $CacheStorageAccountName).NameAvailable) -or (-not(Test-AzKeyVaultNameAvailability -Name $KeyVaultName).NameAvailable))
+} While ((-not(Test-AzDnsAvailability -DomainNameLabel $VMName -Location $Location)) -or (-not(Test-AzKeyVaultNameAvailability -Name $KeyVaultName).NameAvailable))
 
 
 $NetworkSecurityGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $NetworkSecurityGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
@@ -166,7 +165,8 @@ $OSDiskName = '{0}_OSDisk' -f $VMName
 $DataDisk01Name = '{0}_DataDisk01' -f $VMName
 $DataDisk02Name = '{0}_DataDisk02' -f $VMName
 $OSDiskSize = "127"
-$OSDiskType = "StandardSSD_LRS"
+#$OSDiskType = "StandardSSD_LRS"
+$OSDiskType = "Premium_LRS"
 
 Write-Verbose "`$VMName: $VMName"
 Write-Verbose "`$NetworkSecurityGroupName: $NetworkSecurityGroupName"         
@@ -272,7 +272,6 @@ $AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $keyVaultName -ResourceGro
 Start-Sleep -Seconds 30
 #endregion 
 
-
 # Set OsDisk configuration
 $null = Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -CreateOption fromImage
 
@@ -281,21 +280,29 @@ $VMDataDisk01Config = New-AzDiskConfig -SkuName $OSDiskType -Location $Location 
 $VMDataDisk02Config = New-AzDiskConfig -SkuName $OSDiskType -Location $Location -CreateOption Empty -DiskSizeGB 512
 $VMDataDisk01 = New-AzDisk -DiskName $DataDisk01Name -Disk $VMDataDisk01Config -ResourceGroupName $ResourceGroupName
 $VMDataDisk02 = New-AzDisk -DiskName $DataDisk02Name -Disk $VMDataDisk02Config -ResourceGroupName $ResourceGroupName
-$VM = Add-AzVMDataDisk -VM $VMConfig -Name $DataDisk01Name -CreateOption Attach -ManagedDiskId $VMDataDisk01.Id -Lun 0
-$VM = Add-AzVMDataDisk -VM $VMConfig -Name $DataDisk02Name -CreateOption Attach -ManagedDiskId $VMDataDisk02.Id -Lun 1
+$null = Add-AzVMDataDisk -VM $VMConfig -Name $DataDisk01Name -CreateOption Attach -ManagedDiskId $VMDataDisk01.Id -Lun 0
+$null = Add-AzVMDataDisk -VM $VMConfig -Name $DataDisk02Name -CreateOption Attach -ManagedDiskId $VMDataDisk02.Id -Lun 1
 #endregion
 
 #Create Azure Virtual Machine
 $null = New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig -OSDiskDeleteOption Delete -DataDiskDeleteOption Delete #-DisableBginfoExtension
-
 $VM = Get-AzVM -ResourceGroup $ResourceGroupName -Name $VMName
-
 
 #region Formatting Data Disk(s)
 $ScriptString = @'
-    Get-Disk | Where-Object PartitionStyle -eq 'RAW' | Initialize-Disk -PassThru | New-Partition -AssignDriveLetter -UseMaximumSize | Format-Volume
+#Creating new partition on uninitialized disk(s)
+Get-Disk | Where-Object PartitionStyle -eq 'RAW' | Initialize-Disk -PassThru | New-Partition -AssignDriveLetter -UseMaximumSize | Format-Volume
+
+#Creating a timestamped file using 10% of the free space on every PSDrive
+Get-PSDrive -PSProvider FileSystem | ForEach-Object -Process {
+    $FileName= "10Percent_{0:yyyyMMddHHmmss}.txt" -f (Get-Date)
+    $FilePath = Join-Path $_.Root -ChildPath $FileName
+    $Size = $_.Free/10
+    $FS = [System.IO.File]::Create($FilePath)
+    $FS.SetLength($size)
+}
 '@
-$RunPowerShellScript = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptString $ScriptString -Verbose
+$RunPowerShellScript = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptString $ScriptString
 #$RunPowerShellScript
 #endregion
 
@@ -379,9 +386,12 @@ Get-AzVMDiskEncryptionStatus -ResourceGroupName $ResourceGroupName -VMName $VMNa
 Write-Host -Object "Starting the '$VMName' VM ..."
 $null = Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 
-# Adding Credentials to the Credential Manager (and escaping the password)
+# Adding Credentials to the Credential Manager (and escaping the password) for the VM
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDN /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
 Write-Host -Object "Your RDP credentials (login/password) are $($Credential.UserName)/$($Credential.GetNetworkCredential().Password)" -ForegroundColor Green
+# Adding Credentials to the Credential Manager (and escaping the password) for the potential future target VM
+$FQDNTarget = $FQDN -replace "^([^.]*)(.*)$", '$1target$2'
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDNTarget /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
 <#
 $Credential = $null
 Write-Warning -Message "Credentials cleared from memory but available in the Windows Credential Manager for automatic logon via a RDP client ..."
@@ -394,9 +404,20 @@ Write-Host -Object "The '$FQDN' Azure VM is created and started ..."
 #mstsc /v $FQDN
 #endregion
 
-<#
-#region Create Cache storage account for replication logs in the primary region
-Write-Host -Object "Creating cache storage account for replication logs in the primary region ('$Location') ..."
-$CacheStorageAccount = New-AzStorageAccount -Name $CacheStorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName Standard_LRS -Kind Storage
+#region Disk Encryption In Progress
+Write-Host -Object "Encrypting Disk ..."
+$StartTime = Get-Date
+Do {
+    $RunPowerShellScript = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptString "Get-BitLockerVolume | ConvertTo-Json"
+    Write-Verbose -Message "`$Statuses (As Json):`r`n$($RunPowerShellScript.value[0].Message)"
+    $Result = $RunPowerShellScript.value[0].Message | ConvertFrom-Json
+    Write-Verbose -Message "`$Statuses:`r`n$($Result | Out-String)"
+    $Drives = ($Result | Where-Object -FilterScript { $_.MountPoint -match "^\w:$"})
+    Write-Verbose -Message "`$Drives:`r`n$($Drives | Out-String)"
+    Start-Sleep -Seconds 30
+    #Volumestatus value : 0 = 'FullyDecrypted', 1 = 'FullyEncrypted', 2 = 'EncryptionInProgress', 3 = 'DecryptionInProgress', 4 = 'EncryptionPaused', 5 = 'DecryptionPaused'
+} While (($Drives.VolumeStatus | Select-Object -Unique) -ne "1")
+$EndTime = Get-Date
+$TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
+Write-Host -Object "Encrypting Disk - Processing Time: $TimeSpan"
 #endregion
-#>
