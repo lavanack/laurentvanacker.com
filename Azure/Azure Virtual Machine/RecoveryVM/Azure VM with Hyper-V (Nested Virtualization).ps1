@@ -132,7 +132,7 @@ if ($ResourceGroup) {
     #Step 0: Remove previously existing Azure Resource Group with the same name
     $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
 }
-$MyPublicIp = (Invoke-WebRequest -uri "https://ipv4.seeip.org").Content
+$MyPublicIp = Invoke-RestMethod -Uri "https://ipv4.seeip.org"
 $ConfigurationDataFileName = "ConfigurationData.psd1"
 $ConfigurationDataFilePath = Join-Path -Path $CurrentDir -ChildPath $ConfigurationDataFileName
 

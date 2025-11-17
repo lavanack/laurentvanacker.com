@@ -139,7 +139,7 @@ if ($ResourceGroup) {
     #Step 0: Remove previously existing Azure Resource Group with the same name
     $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
 }
-$MyPublicIp = (Invoke-WebRequest -Uri "https://ipv4.seeip.org").Content
+$MyPublicIp = Invoke-RestMethod -Uri "https://ipv4.seeip.org"
 
 #region Define Variables needed for Virtual Machine
 $ImagePublisherName = "MicrosoftWindowsServer"

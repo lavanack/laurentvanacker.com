@@ -161,7 +161,7 @@ if ($RecoveryLocationResourceGroup) {
 $Jobs | Wait-Job | Out-Null
 $Jobs | Remove-Job -Force
 
-$MyPublicIp = (Invoke-WebRequest -Uri "https://ipv4.seeip.org").Content
+$MyPublicIp = Invoke-RestMethod -Uri "https://ipv4.seeip.org"
 
 #region Define Variables needed for Virtual Machine
 $ImagePublisherName = "MicrosoftWindowsServer"

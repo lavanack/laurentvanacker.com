@@ -37,7 +37,7 @@ $JitPolicyName = "Default"
 $StorageAccountSkuName = "Standard_GRS"
 $ShareName = "fileshare001"
 $DigitNumber = 4
-$MyPublicIp = (Invoke-WebRequest -uri "https://ipv4.seeip.org").Content
+$MyPublicIp = Invoke-RestMethod -Uri "https://ipv4.seeip.org"
 
 $Error.Clear()
 #endregion

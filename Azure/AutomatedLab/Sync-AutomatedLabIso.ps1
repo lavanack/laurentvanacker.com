@@ -43,7 +43,7 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 #endregion
 
 #region Set Storage Account Configuration
-$MyPublicIp = (Invoke-WebRequest -uri "https://ipv4.seeip.org").Content
+$MyPublicIp = Invoke-RestMethod -Uri "https://ipv4.seeip.org"
 $null = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Enabled -AllowSharedKeyAccess $true -NetworkRuleSet (@{ipRules = (@{IPAddressOrRange = $MyPublicIp; Action = "allow" }); defaultAction = "deny" })
 Start-Sleep -Seconds 10
 #endregion

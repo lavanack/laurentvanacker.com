@@ -89,7 +89,7 @@ $ResourceGroupPrefix = "rg"
 $Project = "vmss"
 $Role = "test"
 $DigitNumber = $AzureVMNameMaxLength-($VirtualMachinePrefix+$Project+$Role+$LocationShortName).Length
-$MyPublicIp = (Invoke-WebRequest -uri "https://ipv4.seeip.org").Content
+$MyPublicIp = Invoke-RestMethod -Uri "https://ipv4.seeip.org"
 
 $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
 $vmssName = "myVmssSlb-{0:D$DigitNumber}" -f $Instance

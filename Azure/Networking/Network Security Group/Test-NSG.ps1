@@ -77,7 +77,7 @@ $SubnetName = $SubnetName.ToLower()
 $ResourceGroupName = $ResourceGroupName.ToLower()
 $VirtualNetworkAddressSpace = "10.10.0.0/16" # Format 10.10.0.0/16
 $SubnetIPRange = "10.10.0.0/19" # Format 10.10.1.0/24                         
-$MyPublicIp = (Invoke-WebRequest -Uri "https://ipv4.seeip.org").Content
+$MyPublicIp = Invoke-RestMethod -Uri "https://ipv4.seeip.org"
 
 
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 

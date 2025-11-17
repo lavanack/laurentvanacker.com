@@ -37,7 +37,7 @@ function Move-AzResource {
     )
 
     begin {
-        $MyPublicIp = (Invoke-WebRequest -Uri "https://ipv4.seeip.org").Content
+        $MyPublicIp = Invoke-RestMethod -Uri "https://ipv4.seeip.org"
         $SourceSubscription = (Get-AzContext).Subscription
         $TargetSubscription =  Get-AzSubscription -SubscriptionId $TargetSubscriptionId
         $Jobs = @()
