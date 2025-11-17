@@ -71,7 +71,7 @@ function Start-ScriptWithRunSpace {
     param
     (
         [Parameter(Mandatory = $false)]
-        [int] $RunspacePoolSize = 10,
+        [int] $RunspacePoolSize = $([math]::Max(1, (Get-CimInstance -ClassName Win32_Processor).NumberOfLogicalProcessors / 2)),
         [Parameter(Mandatory = $true)]
         [int] $Count,
 		[Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
@@ -81,7 +81,7 @@ function Start-ScriptWithRunSpace {
         #Checking if is an array of hashtables (only)
         #The index if for each instance and the hashtable contains key/value pairs for parameter name/parameter value
         [ValidateNotNull()]
-        [ValidateScript({($_ -is [array]) -and ((($_ | Get-Member).TypeName | Select-Object -Unique).count -eq 1) -and ((($_ | Get-Member).TypeName | Select-Object -Unique) -contains "System.Collections.Hashtable")})]
+        [ValidateScript({(($_ -is [hashtable]) -or ($_ -is [System.Collections.Specialized.OrderedDictionary]))})]
         [object[]] $Parameters
     )
 
@@ -100,22 +100,25 @@ function Start-ScriptWithRunSpace {
     Write-Host -Object "Start Time: $StartTime"
 
     Foreach ($Instance in 0..($Count-1)) {
-        Write-Host -Object "`$Instance: $Instance"
+        #Write-Host -Object "`$Instance: $Instance"
         $PowerShell = [powershell]::Create()
         $PowerShell.RunspacePool = $RunspacePool
 
         $null = $PowerShell.AddScript($ScriptBlock)
         if (($Parameters) -and ($Parameters[$Instance])) {
             $InstanceArguments = $Parameters[$Instance]
-            foreach ($ParameterName in $InstanceArguments) {
+            foreach ($ParameterName in $InstanceArguments.Keys) {
                 $ParameterValue = $InstanceArguments[$ParameterName]
+                Write-Verbose -Message "`$ParameterName: $ParameterName"
+                Write-Verbose -Message "`$ParameterValue: $ParameterValue"
                 #$null = $PowerShell.AddParameter("Param1", "Value1")
                 $null = $PowerShell.AddParameter($ParameterName, $ParameterValue)
+                Write-Verbose -Message "`$PowerShell: $($PowerShell | Out-String)"
             }
         }
         Write-Host -Object "[#$Instance] Invoking RunSpace  ..."
         $null = $RunspaceList.Add([PSCustomObject]@{
-                VMName      = $Instance.Name
+                Instance    = $Instance
                 PowerShell  = $PowerShell
                 AsyncResult = $PowerShell.BeginInvoke()
                 Result      = $null
@@ -145,8 +148,70 @@ function Start-ScriptWithRunSpace {
     Write-Host -Object "Runspace Results:`r`n$($RunspaceList.Result | Out-String)"
 
     $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
-    Write-Host -Object "Processing Time: $($TimeSpan.ToString())"
+    Write-Host -Object "Processing Time: $($TimeSpan.ToString())" -ForegroundColor Green
     #endregion
+}
+
+function Get-AzVMBitLockerVolume {
+    [CmdletBinding(PositionalBinding = $false)]    
+    param
+    (
+		[Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $false)]
+        [Alias('SourceVM')]
+        [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] $VM,
+        [switch] $Raw
+    )
+    begin {
+        $OverallStartTime = Get-Date
+        $BitLockerVolume = @()
+        $Jobs = @() 
+    }
+    process {
+        foreach ($CurrentVM in $VM) {
+            Write-Verbose -Message "`Processing: $($CurrentVM.Name) ..."
+            try {
+                #Checking if the VM is running
+                #Bug: if (($VM | Get-AzVM -Status).PowerState -match "running") {
+                if ((Get-AzVM -Name $VM.Name -Status).PowerState -match "running") {
+                    if (Get-AzVMRunCommand -ResourceGroupName $CurrentVM.ResourceGroupName -VMName $CurrentVM.Name) {
+                        Write-Warning -Message "A command is aready running on '$($CurrentVM.ResourceGroupName)' VM (RG: '$($CurrentVM.ResourceGroupName))'"
+                    }
+                    else {
+                        $Job = Invoke-AzVMRunCommand -ResourceGroupName $CurrentVM.ResourceGroupName -VMName $CurrentVM.Name -CommandId 'RunPowerShellScript' -ScriptString "Get-BitLockerVolume | ConvertTo-Json" -AsJob -ErrorAction Stop 
+                        Write-Verbose -Message "[$($CurrentVM.Name)] Job #$($Job.Id)"
+                        $Jobs += $Job
+                    }
+                }
+                else {
+                    Write-Warning -Message "$($CurrentVM.Name) is turned off. skipping it ..."
+                }
+            }
+            catch {
+                #Write-Error -Message "$($_ | Out-String)"
+            }
+        }
+    }
+    end {
+        if ($Jobs) {
+            Write-Host -Object "Waiting the jobs complete ..."
+            $Results = $Jobs | Receive-Job -Wait -AutoRemoveJob
+            if ($Results) {
+                $BitLockerVolume = $Results | ForEach-Object {$_.Value[0].Message} | ConvertFrom-Json| ForEach-Object -Process {$_ }
+                Write-Verbose -Message "`$BitLockerVolume: $($BitLockerVolume | Out-String)"
+                $OverallEndTime = Get-Date
+                $TimeSpan = New-TimeSpan -Start $OverallStartTime -End $OverallEndTime
+                Write-Verbose -Message "Overall - Processing Time: $TimeSpan"
+                if ($Raw) {
+                    return $BitLockerVolume 
+                }
+                else {
+                    #Volumestatus value : 0 = 'FullyDecrypted', 1 = 'FullyEncrypted', 2 = 'EncryptionInProgress', 3 = 'DecryptionInProgress', 4 = 'EncryptionPaused', 5 = 'DecryptionPaused'
+                    $VolumeStatus = @('FullyDecrypted', 'FullyEncrypted', 'EncryptionInProgress', 'DecryptionInProgress', 'EncryptionPaused', 'DecryptionPaused')
+                    $BitLockerVolume | Where-Object -FilterScript {$_.MountPoint -match "^\w:$"} |  Select-Object -Property ComputerName, MountPoint, EncryptionPercentage, @{Name="VolumeStatus"; Expression = {$VolumeStatus[$_.VolumeStatus]}}
+                }
+            }
+        }
+    }
 }
 #endregion 
 
@@ -157,6 +222,27 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 $FullName = Join-Path -Path $CurrentDir -ChildPath "Azure VM - Azure Disk Encryption - v2.ps1"
+$Count = 12
+#$Parameters=@([ordered]@{"Wait"=$True})*$Count
+#Start-ScriptWithRunSpace -Count $Count -FullName $FullName -Parameters $Parameters -Verbose
+Start-ScriptWithRunSpace -Count $Count -FullName $FullName -Verbose
 
-Start-ScriptWithRunSpace -Count 3 -FullName $FullName -Verbose
+#region Checking Encryption Status
+$Pattern = "*vmade*"
+<#
+$VM = Get-AzVM -Name $Pattern 
+$VM | Start-AzVM -AsJob | Receive-Job -Wait -AutoRemoveJob
+#>
+$VM = Get-AzVM -Name $Pattern -Status
+$VM = $VM | Where-Object -FilterScript {($_.PowerState -match  "running")}
+Do {
+    Write-Verbose -Message "Sleeping 30 seconds"
+    Start-Sleep -Second 30
+    Write-Verbose -Message "Processing VM(s): $($VM.Name -join ', ')"
+    $BitLockerVolume = $VM | Get-AzVMBitLockerVolume -Verbose
+    Write-Verbose -Message "`$BitLockerVolume: $($BitLockerVolume | Out-String)"
+    #Keeping only the VMs where the disks are not Fully Encrypted
+    $VM = $VM | Where-Object -FilterScript { $_.Name -in $($($BitLockerVolume | Where-Object -FilterScript { $_.VolumeStatus -ne "FullyEncrypted"}).ComputerName | Select-Object -Unique)}
+} While ($VM)
+#endregion
 #endregion

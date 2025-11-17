@@ -94,7 +94,7 @@ Set-Location -Path $CurrentDir
 DisableSMBv1DSCConfiguration -ConfigurationData $ConfigurationData
 
 <#
-Start-DscConfiguration -Path .\DisableSMBv1RegistryDSCConfiguration -Force -Wait -Verbose
+Start-DscConfiguration -Path .\DisableSMBv1DSCConfiguration -Force -Wait -Verbose
 Test-DscConfiguration -Detailed
 #>
 #endregion

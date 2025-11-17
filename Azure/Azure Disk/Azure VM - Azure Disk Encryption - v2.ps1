@@ -22,6 +22,7 @@ of the Sample Code.
 [CmdletBinding()]
 param
 (
+    [switch]$Wait
 )
 
 
@@ -141,7 +142,7 @@ $FQDN = "$VMName.$Location.cloudapp.azure.com".ToLower()
 
 #region Defining credential(s)
 $Username = $env:USERNAME
-$SecurePassword = New-RandomPassword -ClipBoard -AsSecureString -Verbose
+$SecurePassword = New-RandomPassword -nonAlphaChars 0 -ClipBoard -AsSecureString -Verbose
 $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList ($Username, $SecurePassword)
 #endregion
 
@@ -387,11 +388,11 @@ Write-Host -Object "Starting the '$VMName' VM ..."
 $null = Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 
 # Adding Credentials to the Credential Manager (and escaping the password) for the VM
-Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDN /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDN /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait #-NoNewWindow
 Write-Host -Object "Your RDP credentials (login/password) are $($Credential.UserName)/$($Credential.GetNetworkCredential().Password)" -ForegroundColor Green
 # Adding Credentials to the Credential Manager (and escaping the password) for the potential future target VM
 $FQDNTarget = $FQDN -replace "^([^.]*)(.*)$", '$1target$2'
-Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDNTarget /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDNTarget /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait #-NoNewWindow
 <#
 $Credential = $null
 Write-Warning -Message "Credentials cleared from memory but available in the Windows Credential Manager for automatic logon via a RDP client ..."
@@ -405,19 +406,24 @@ Write-Host -Object "The '$FQDN' Azure VM is created and started ..."
 #endregion
 
 #region Disk Encryption In Progress
-Write-Host -Object "Encrypting Disk ..."
-$StartTime = Get-Date
-Do {
-    $RunPowerShellScript = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptString "Get-BitLockerVolume | ConvertTo-Json"
-    Write-Verbose -Message "`$Statuses (As Json):`r`n$($RunPowerShellScript.value[0].Message)"
-    $Result = $RunPowerShellScript.value[0].Message | ConvertFrom-Json
-    Write-Verbose -Message "`$Statuses:`r`n$($Result | Out-String)"
-    $Drives = ($Result | Where-Object -FilterScript { $_.MountPoint -match "^\w:$"})
-    Write-Verbose -Message "`$Drives:`r`n$($Drives | Out-String)"
-    Start-Sleep -Seconds 30
-    #Volumestatus value : 0 = 'FullyDecrypted', 1 = 'FullyEncrypted', 2 = 'EncryptionInProgress', 3 = 'DecryptionInProgress', 4 = 'EncryptionPaused', 5 = 'DecryptionPaused'
-} While (($Drives.VolumeStatus | Select-Object -Unique) -ne "1")
-$EndTime = Get-Date
-$TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
-Write-Host -Object "Encrypting Disk - Processing Time: $TimeSpan"
+if ($Wait) {
+    Write-Host -Object "Encrypting Disk ..."
+    $StartTime = Get-Date
+    Do {
+        $RunPowerShellScript = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptString "Get-BitLockerVolume | ConvertTo-Json"
+        Write-Verbose -Message "`$Statuses (As Json):`r`n$($RunPowerShellScript.value[0].Message)"
+        $Result = $RunPowerShellScript.value[0].Message | ConvertFrom-Json
+        Write-Verbose -Message "`$Statuses:`r`n$($Result | Out-String)"
+        $Drives = ($Result | Where-Object -FilterScript { $_.MountPoint -match "^\w:$"})
+        Write-Verbose -Message "`$Drives:`r`n$($Drives | Out-String)"
+        Start-Sleep -Seconds 30
+        #Volumestatus value : 0 = 'FullyDecrypted', 1 = 'FullyEncrypted', 2 = 'EncryptionInProgress', 3 = 'DecryptionInProgress', 4 = 'EncryptionPaused', 5 = 'DecryptionPaused'
+    } While (($Drives.VolumeStatus | Select-Object -Unique) -ne "1")
+    $EndTime = Get-Date
+    $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
+    Write-Host -Object "Encrypting Disk - Processing Time: $TimeSpan"
+}
+else {
+    Write-Host -Object "-Wait NOT specified: Skipping The Encryption Disk Wait (Encryption will occur in the background)..."
+}
 #endregion

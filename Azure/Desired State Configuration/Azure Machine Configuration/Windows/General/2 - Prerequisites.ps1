@@ -17,7 +17,7 @@ Stop-Process -Name Explorer -Force
 #Installing the NuGet Provider
 $PreviousProgressPreferenceValue = $ProgressPreference
 $ProgressPreference = "SilentlyContinue"
-Get-PackageProvider -Name Nuget -ForceBootstrap -Scope AllUsers -Force
+Get-PackageProvider -Name Nuget -ForceBootstrap -Force
 #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Scope AllUsers -Force
 #For Azure
 Install-Module -Name Az.Accounts, Az.Compute, Az.PolicyInsights, Az.Resources, Az.Storage -Scope AllUsers -Force
