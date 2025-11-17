@@ -54,6 +54,33 @@ function New-RandomPassword {
         $RandomPassword
     }
 }
+
+function New-OnlineRandomPassword {
+    [CmdletBinding(PositionalBinding = $false)]
+    param
+    (
+        [int] $minLength = 12, ## characters
+        [int] $maxLength = 15, ## characters
+        [switch] $AsSecureString,
+        [switch] $ClipBoard
+    )
+
+    Add-Type -AssemblyName 'System.Web'
+    $length = Get-Random -Minimum $minLength -Maximum $maxLength
+    $URI = "https://www.dinopass.com/password/custom?length={0}&useSymbols=true&useCapitals=true" -f $length
+    $RandomPassword = Invoke-RestMethod -Uri $URI
+    #Write-Host "The password is : $RandomPassword"
+    if ($ClipBoard) {
+        #Write-Verbose "The password has beeen copied into the clipboard (Use Win+V) ..."
+        $RandomPassword | Set-Clipboard
+    }
+    if ($AsSecureString) {
+        ConvertTo-SecureString -String $RandomPassword -AsPlainText -Force
+    }
+    else {
+        $RandomPassword
+    }
+}
 #endregion
 
 Clear-Host
