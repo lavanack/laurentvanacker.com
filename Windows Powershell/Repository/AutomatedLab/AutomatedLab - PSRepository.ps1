@@ -469,6 +469,54 @@ Invoke-LabCommand -ActivityName 'Setting up Github Repository' -ComputerName PSR
 
 #endregion
 
+#region Azure Container Registry Powershell Repository : Not yet tested !!!
+#From https://learn.microsoft.com/en-us/powershell/gallery/powershellget/how-to/use-acr-repository
+
+#region Login to your Azure subscription.
+While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
+    Connect-AzAccount
+}
+#endregion
+
+#region Install the PSResourceGet module
+$installPSResourceSplat = @{
+    Repository = 'PSGallery'
+    Name = 'Microsoft.PowerShell.PSResourceGet'
+}
+Install-PSResource @installPSResourceSplat
+#endregion
+
+#region Setting up PowerShell Repository
+#Create an Azure Container Registry
+# Create a resource group (if necessary)
+$ResourceGroupName = "rg-acr-psresource-use2-001"
+$Location = "eastus2"
+$ACRName = 'psresourcedemo'
+$PSResourceRepositoryName = 'ACRDemoRepo'
+$ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
+# Create a container registry
+$newAzContainerRegistrySplat = @{
+    ResourceGroupName = $ResourceGroup.ResourceGroupName
+    Name = $ACRName
+    EnableAdminUser = $true
+    Sku = 'Basic'
+}
+$Registry = New-AzContainerRegistry @newAzContainerRegistrySplat
+
+#Register the repository
+$RegistryUrl = "https://$($Registry.LoginServer)"
+Register-PSResourceRepository -Name $PSResourceRepositoryName -Uri $RegistryUrl
+#endregion
+
+#region Publishing Module(s)
+$Path = (Get-Module -Name TestModule -ListAvailable).ModuleBase
+$publishPSResourceSplat = @{
+    Path = $Path
+    Repository = $PSResourceRepositoryName
+}
+Publish-PSResource @publishPSResourceSplat
+#endregion
+#endregion
 
 Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName PSREPO01 -ScriptBlock {
     Stop-Service WUAUSERV -PassThru | Set-Service -StartupType Disabled

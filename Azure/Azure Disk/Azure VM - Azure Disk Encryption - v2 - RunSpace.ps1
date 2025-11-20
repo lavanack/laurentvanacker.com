@@ -85,8 +85,8 @@ function Start-ScriptWithRunSpace {
         [object[]] $Parameters
     )
 
-    Write-Verbose -Message "`$FullName: $FullName"
-    Write-Verbose -Message "`$RunspacePoolSize: $RunspacePoolSize"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$FullName: $FullName"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RunspacePoolSize: $RunspacePoolSize"
 
     #[ScriptBlock] $ScriptBlock = Get-Content -Path Function:\Repair-AzVM
     [ScriptBlock] $ScriptBlock = [ScriptBlock]::Create(((Get-Content -Path $FullName -Raw) -replace "Write-Host\s+(-Object)?\s*", "Write-Output -InputObject " <#-replace "Write-Verbose\s+(-Message)?\s*", "Write-Output -InputObject "#> ))
@@ -109,11 +109,11 @@ function Start-ScriptWithRunSpace {
             $InstanceArguments = $Parameters[$Instance]
             foreach ($ParameterName in $InstanceArguments.Keys) {
                 $ParameterValue = $InstanceArguments[$ParameterName]
-                Write-Verbose -Message "`$ParameterName: $ParameterName"
-                Write-Verbose -Message "`$ParameterValue: $ParameterValue"
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ParameterName: $ParameterName"
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ParameterValue: $ParameterValue"
                 #$null = $PowerShell.AddParameter("Param1", "Value1")
                 $null = $PowerShell.AddParameter($ParameterName, $ParameterValue)
-                Write-Verbose -Message "`$PowerShell: $($PowerShell | Out-String)"
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$PowerShell: $($PowerShell | Out-String)"
             }
         }
         Write-Host -Object "[#$Instance] Invoking RunSpace  ..."
@@ -126,13 +126,13 @@ function Start-ScriptWithRunSpace {
     }
 
     # View available runspaces
-    Write-Verbose -Message "Available Runspaces: $($RunspacePool.GetAvailableRunspaces())"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Available Runspaces: $($RunspacePool.GetAvailableRunspaces())"
 
     # View the list object runspace status
-    Write-Verbose -Message "Runspace Status:`r`n$($RunspaceList.AsyncResult | Out-String)"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Runspace Status:`r`n$($RunspaceList.AsyncResult | Out-String)"
 
     # View the list using the function declared at the top of this file !!!
-    Write-Verbose -Message "Runspace State:`r`n$($RunspaceList | Get-RunspaceState | Out-String)"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Runspace State:`r`n$($RunspaceList | Get-RunspaceState | Out-String)"
 
     Write-Host -Object "Waiting the overall processing completes ..."
 
@@ -168,7 +168,7 @@ function Get-AzVMBitLockerVolume {
     }
     process {
         foreach ($CurrentVM in $VM) {
-            Write-Verbose -Message "`Processing: $($CurrentVM.Name) ..."
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `Processing: $($CurrentVM.Name) ..."
             try {
                 #Checking if the VM is running
                 #Bug: if (($VM | Get-AzVM -Status).PowerState -match "running") {
@@ -178,7 +178,7 @@ function Get-AzVMBitLockerVolume {
                     }
                     else {
                         $Job = Invoke-AzVMRunCommand -ResourceGroupName $CurrentVM.ResourceGroupName -VMName $CurrentVM.Name -CommandId 'RunPowerShellScript' -ScriptString "Get-BitLockerVolume | ConvertTo-Json" -AsJob -ErrorAction Stop 
-                        Write-Verbose -Message "[$($CurrentVM.Name)] Job #$($Job.Id)"
+                        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$($CurrentVM.Name)] Job #$($Job.Id)"
                         $Jobs += $Job
                     }
                 }
@@ -197,10 +197,10 @@ function Get-AzVMBitLockerVolume {
             $Results = $Jobs | Receive-Job -Wait -AutoRemoveJob
             if ($Results) {
                 $BitLockerVolume = $Results | ForEach-Object {$_.Value[0].Message} | ConvertFrom-Json| ForEach-Object -Process {$_ }
-                Write-Verbose -Message "`$BitLockerVolume: $($BitLockerVolume | Out-String)"
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$BitLockerVolume: $($BitLockerVolume | Out-String)"
                 $OverallEndTime = Get-Date
                 $TimeSpan = New-TimeSpan -Start $OverallStartTime -End $OverallEndTime
-                Write-Verbose -Message "Overall - Processing Time: $TimeSpan"
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Overall - Processing Time: $TimeSpan"
                 if ($Raw) {
                     return $BitLockerVolume 
                 }
@@ -222,7 +222,7 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 $FullName = Join-Path -Path $CurrentDir -ChildPath "Azure VM - Azure Disk Encryption - v2.ps1"
-$Count = 20
+$Count = 17
 #$Parameters=@([ordered]@{"Wait"=$True})*$Count
 #Start-ScriptWithRunSpace -Count $Count -FullName $FullName -Parameters $Parameters -Verbose
 Start-ScriptWithRunSpace -Count $Count -FullName $FullName -Verbose
@@ -236,11 +236,11 @@ $VM | Start-AzVM -AsJob | Receive-Job -Wait -AutoRemoveJob
 $VM = Get-AzVM -Name $Pattern -Status
 $VM = $VM | Where-Object -FilterScript {($_.PowerState -match  "running")}
 Do {
-    Write-Verbose -Message "Sleeping 30 seconds"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
     Start-Sleep -Second 30
-    Write-Verbose -Message "Processing VM(s): $($VM.Name -join ', ')"
-    $BitLockerVolume = $VM | Get-AzVMBitLockerVolume -Verbose
-    Write-Verbose -Message "`$BitLockerVolume: $($BitLockerVolume | Out-String)"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Processing VM(s): $($VM.Name -join ', ')"
+    $BitLockerVolume = $VM | Get-AzVMBitLockerVolume #-Verbose
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$BitLockerVolume: $($BitLockerVolume | Out-String)"
     #Keeping only the VMs where the disks are not Fully Encrypted
     $VM = $VM | Where-Object -FilterScript { $_.Name -in $($($BitLockerVolume | Where-Object -FilterScript { $_.VolumeStatus -ne "FullyEncrypted"}).ComputerName | Select-Object -Unique)}
 } While ($VM)

@@ -29,46 +29,35 @@ param
 #region function definitions 
 #Based from https://adamtheautomator.com/powershell-random-password/
 function New-RandomPassword {
-    [CmdletBinding(PositionalBinding = $false)]
+    [CmdletBinding(PositionalBinding = $false, DefaultParameterSetName = 'GeneratePassword')]
     param
     (
+        [ValidateRange(12,122)]
         [int] $minLength = 12, ## characters
+        [ValidateRange(13,123)]
+        [ValidateScript({$_ -gt $minLength})]
         [int] $maxLength = 15, ## characters
+        [switch] $AsSecureString,
+        [switch] $ClipBoard,
+        [Parameter(ParameterSetName = 'GeneratePassword')]
         [int] $nonAlphaChars = 3,
-        [switch] $AsSecureString,
-        [switch] $ClipBoard
+        [Parameter(ParameterSetName = 'DinoPass')]
+        [switch] $Online
     )
-
-    Add-Type -AssemblyName 'System.Web'
+    #From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/faq#what-are-the-password-requirements-when-creating-a-vm-
+    $ProhibitedPasswords = @('abc@123', 'iloveyou!', 'P@$$w0rd', 'P@ssw0rd', 'P@ssword123', 'Pa$$word', 'pass@word1', 'Password!', 'Password1', 'Password22')
     $length = Get-Random -Minimum $minLength -Maximum $maxLength
-    $RandomPassword = [System.Web.Security.Membership]::GeneratePassword($length, $nonAlphaChars)
-    #Write-Host "The password is : $RandomPassword"
-    if ($ClipBoard) {
-        #Write-Verbose "The password has beeen copied into the clipboard (Use Win+V) ..."
-        $RandomPassword | Set-Clipboard
-    }
-    if ($AsSecureString) {
-        ConvertTo-SecureString -String $RandomPassword -AsPlainText -Force
-    }
-    else {
-        $RandomPassword
-    }
-}
+    Do {
+        if ($Online) {
+            $URI = "https://www.dinopass.com/password/custom?length={0}&useSymbols=true&useNumbers=true&useCapitals=true" -f $length
+            $RandomPassword = Invoke-RestMethod -Uri $URI
+        }
+        else {
+            Add-Type -AssemblyName 'System.Web'
+            $RandomPassword = [System.Web.Security.Membership]::GeneratePassword($length, $nonAlphaChars)
+        }
+    } Until (($RandomPassword  -notin $ProhibitedPasswords) -and (($RandomPassword -match '[A-Z]') -and ($RandomPassword -match '[a-z]') -and ($RandomPassword -match '\d') -and ($RandomPassword -match '\W')))
 
-function New-OnlineRandomPassword {
-    [CmdletBinding(PositionalBinding = $false)]
-    param
-    (
-        [int] $minLength = 12, ## characters
-        [int] $maxLength = 15, ## characters
-        [switch] $AsSecureString,
-        [switch] $ClipBoard
-    )
-
-    Add-Type -AssemblyName 'System.Web'
-    $length = Get-Random -Minimum $minLength -Maximum $maxLength
-    $URI = "https://www.dinopass.com/password/custom?length={0}&useSymbols=true&useCapitals=true" -f $length
-    $RandomPassword = Invoke-RestMethod -Uri $URI
     #Write-Host "The password is : $RandomPassword"
     if ($ClipBoard) {
         #Write-Verbose "The password has beeen copied into the clipboard (Use Win+V) ..."
@@ -111,13 +100,19 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount
 }
 
+#region JIT/RDP/SSH Settings
 $RDPPort = 3389
 $JITPolicyPorts = $RDPPort
 $JitPolicyTimeInHours = 3
 $JitPolicyName = "Default"
+#endregion
+
+#$Location = "swedencentral"
 $Location = "EastUS2"
-$VMSize = "Standard_D4s_v5"
 $LocationShortName = $shortNameHT[$Location].shortName
+if ([string]::isNullOrEmpty($LocationShortName)) {
+	$LocationShortName = "xxx"
+}
 
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
 $AzureVMNameMaxLength = $ResourceTypeShortNameHT["Compute/virtualMachines"].lengthMax
@@ -194,7 +189,13 @@ $DataDisk01Name = '{0}_DataDisk01' -f $VMName
 $DataDisk02Name = '{0}_DataDisk02' -f $VMName
 $OSDiskSize = "127"
 #$OSDiskType = "StandardSSD_LRS"
-$OSDiskType = "Premium_LRS"
+$OSDiskType = "Standard_LRS"
+#$VMSize = "Standard_D4s_v5"
+$VMSize = "Standard_B2ms"
+
+if ($null -eq (Get-AzComputeResourceSku -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
+    Write-Error "The '$VMSize' is not available in the '$Location' location ..." -ErrorAction Stop
+}
 
 Write-Verbose "`$VMName: $VMName"
 Write-Verbose "`$NetworkSecurityGroupName: $NetworkSecurityGroupName"         
@@ -264,7 +265,26 @@ $image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.Publi
 #>
 
 # Create a virtual machine configuration file (As a Spot Intance)
-$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1 -IdentityType SystemAssigned -SecurityType TrustedLaunch
+#region Checking if the VM Size can be set as a Spot Instance
+$Query = @"
+SpotResources 
+| where type =~ 'microsoft.compute/skuspotpricehistory/ostype/location' 
+| where sku.name in~ ('$VMSize') 
+| where properties.osType =~ 'windows' 
+| where location in~ ('$Location') 
+| project skuName = tostring(sku.name), location
+"@
+$Result = Search-AzGraph -Query $Query -UseTenantScope
+#endregion
+
+#Spot Instance 
+if ($Result.skuName -eq $VMSize ){
+    $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1 -IdentityType SystemAssigned -SecurityType TrustedLaunch
+}
+else {
+    Write-Warning -Message "'$VMSize' can not be set as Spot Instance in the '$Location' Azure location"
+    $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -IdentityType SystemAssigned -SecurityType TrustedLaunch
+}
 
 $null = Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 

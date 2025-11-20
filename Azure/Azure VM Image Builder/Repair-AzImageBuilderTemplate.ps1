@@ -173,6 +173,153 @@ function Repair-AzImageBuilderTemplate {
     }
     end {}
 }
+
+function Get-RunspaceState {
+    [CmdletBinding()]
+    param
+    (
+        [Parameter(ValueFromPipelineByPropertyName = $true, Mandatory = $true)]
+        [Alias('PowerShell')]
+        [PowerShell]$PS,
+
+        [Parameter(ValueFromPipelineByPropertyName = $true, Mandatory = $true)]
+        [Alias('Handle')]
+        # Should be of type [System.Management.Automation.PowerShellAsyncResult]. value returned from BeginInvoke
+        [PSObject]$AsyncResult
+    )
+
+    Begin {
+        # Set the Binding Flags for Reflection to get Non-Public Fields from PowerShell Instance
+        $BindingFlags = [System.Reflection.BindingFlags]'static', 'nonpublic', 'instance'
+    }
+    process {
+        # Get Value Runspace Worker Field
+        $Worker = $PS.GetType().GetField('worker', $BindingFlags).GetValue($PS)
+
+        # Get the 'CurrentlyRunningPipline' Property for the runspaces worker
+        $CurrentlyRunningPipeline = $worker.GetType().GetProperty('CurrentlyRunningPipeline', $BindingFlags).GetValue($Worker)
+
+        # Check Com
+        if ($AsyncResult.IsCompleted -and $null -eq $CurrentlyRunningPipeline) {
+            $State = 'Completed'
+        }
+        elseif (-not $AsyncResult.IsCompleted -and $null -ne $CurrentlyRunningPipeline ) {       
+
+            $State = 'Running'
+        }
+        elseif (-not $AsyncResult.IsCompleted -and $null -eq $CurrentlyRunningPipeline) {
+            # The logic here is that pipeline will be cleared when Completed.
+            # So if it is Not Completed and there nothing in the Pipeline it has not started yet
+            $State = 'NotStarted'
+        }
+        
+        [PSCustomObject]@{
+            PipelineRunning = [bool]$CurrentlyRunningPipeline
+            State           = $State
+            IsCompleted     = $AsyncResult.IsCompleted
+            Synchronous     = $AsyncResult.CompletedSynchronously
+        }
+    }
+}
+
+function Repair-AzImageBuilderTemplateWithRunSpace {
+    [CmdletBinding()]
+    param
+    (
+        [Parameter(Mandatory = $false)]
+        [int] $RunspacePoolSize = $([math]::Max(1, (Get-CimInstance -ClassName Win32_Processor).NumberOfLogicalProcessors / 2)),
+		[Parameter(Mandatory = $True)]
+        [string[]]$ResourceGroupName
+    )
+
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RunspacePoolSize: $RunspacePoolSize"
+
+    #[scriptblock] $scriptblock = Get-Content -Path Function:\Repair-AzImageBuilderTemplate
+    [scriptblock] $scriptblock = [Scriptblock]::Create(((Get-Content -Path Function:\Repair-AzImageBuilderTemplate) -replace "Write-Verbose\s+(-Message)?\s*", "Write-Output -InputObject "))
+
+    #region RunSpace Management
+    $RunspacePool = [runspacefactory]::CreateRunspacePool(1, $RunspacePoolSize)
+    $RunspacePool.Open()
+    [System.Collections.ArrayList]$RunspaceList = @()
+
+    $OverallStartTime = Get-Date
+
+    Foreach ($CurrentResourceGroupName in $ResourceGroupName) {
+        Write-Host -Object "Processing '$CurrentResourceGroupName' VM"
+        $PowerShell = [powershell]::Create()
+        $PowerShell.RunspacePool = $RunspacePool
+
+        $null = $PowerShell.AddScript($ScriptBlock)
+        $null = $PowerShell.AddParameter("ResourceGroupName", $CurrentResourceGroupName)
+
+        Write-Host -Object "Invoking RunSpace for '$CurrentResourceGroupName' ..."
+        $null = $RunspaceList.Add([PSCustomObject]@{
+                VMName      = $CurrentResourceGroupName.Name
+                PowerShell  = $PowerShell
+                AsyncResult = $PowerShell.BeginInvoke()
+                Result      = $null
+            })
+    }
+
+    # View available runspaces
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Available Runspaces: $($RunspacePool.GetAvailableRunspaces())"
+
+    # View the list object runspace status
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Runspace Status:`r`n$($RunspaceList.AsyncResult | Out-String)"
+
+    # View the list using the function declared at the top of this file !!!
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Runspace State:`r`n$($RunspaceList | Get-RunspaceState | Out-String)"
+
+    Write-Host -Object "Waiting the overall processing completes ..."
+
+    Foreach ($Instance in $RunspaceList) {
+        $Instance.Result = $Instance.PowerShell.Endinvoke($Instance.AsyncResult)
+        $Instance.PowerShell.Dispose()
+    }
+    $RunspacePool.Dispose() 
+
+    $OverallEndTime = Get-Date
+
+    Write-Host -Object "Runspace Results:`r`n$($RunspaceList.Result | Out-String)"
+
+    $TimeSpan = New-TimeSpan -Start $OverallStartTime -End $OverallEndTime
+    Write-Host -Object "Overall - Processing Time: $($TimeSpan.ToString())" -ForegroundColor Green
+    #endregion
+}
+
+function Repair-AzImageBuilderTemplateWithThreadJob {
+    [CmdletBinding(PositionalBinding = $false)]    
+    param
+    (
+		[Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $false)]
+		[Parameter(Mandatory = $True)]
+        [string[]]$ResourceGroupName
+    )
+
+    begin {
+        $OverallStartTime = Get-Date
+        $ConvertedVMs = @()
+        $Jobs = @()
+        $ExportedFunctions = [scriptblock]::Create(@"
+            Function Repair-AzImageBuilderTemplate { ${Function:Repair-AzImageBuilderTemplate} }
+"@)
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ExportedFunctions:`r`n$($ExportedFunctions | Out-String)"
+    }
+    process {
+        foreach ($CurrentResourceGroupName in $ResourceGroupName) {
+            $Job = Start-ThreadJob -ScriptBlock {Repair-AzImageBuilderTemplate -ResourceGroupName $using:CurrentResourceGroupName} -InitializationScript $ExportedFunctions #-StreamingHost $Host
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `Running Job #$($Job.Id) for '$CurrentResourceGroupName' ResourceGroup"
+			$Jobs += $Job
+        }
+    }
+    end {
+		$ConvertedVMs = $Jobs | Receive-Job -Wait -AutoRemoveJob
+        $OverallEndTime = Get-Date
+        $TimeSpan = New-TimeSpan -Start $OverallStartTime -End $OverallEndTime
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Overall - Processing Time: $TimeSpan"
+        return $ConvertedVMs 
+    }
+}
 #endregion 
 
 #region Main code
@@ -207,4 +354,3 @@ $ResourceGroupNames | ForEach-Object -Process { Remove-AzResourceGroup -Name $_ 
 #>
 
 #endregion 
-
