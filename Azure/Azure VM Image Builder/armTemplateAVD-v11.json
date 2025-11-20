@@ -86,7 +86,7 @@
                         "name": "Install Visual Studio Code",
                         "runElevated": true,
                         "runAsSystem": true,
-                        "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/Install-VSCode.ps1"
+                        "scriptUri": https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1"
                     },
                     {
                         "type": "WindowsUpdate",

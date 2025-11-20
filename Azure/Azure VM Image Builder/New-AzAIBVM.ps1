@@ -231,8 +231,8 @@ $AssignedIdentity = New-AzUserAssignedIdentity -ResourceGroupName $ResourceGroup
 
 #$aibRoleImageCreationUrl="https://raw.githubusercontent.com/PeterR-msft/M365AVDWS/master/Azure%20Image%20Builder/aibRoleImageCreation.json"
 #$aibRoleImageCreationUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/12_Creating_AIB_Security_Roles/aibRoleImageCreation.json"
-#$aibRoleImageCreationUrl="https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/aibRoleImageCreation.json"
-$aibRoleImageCreationUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/Azure%20Image%20Builder/aibRoleImageCreation-v10.json"
+#$aibRoleImageCreationUrl="https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20VM%20Image%20Builder/aibRoleImageCreation.json"
+$aibRoleImageCreationUrl = "https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20VM%20Image%20Builder/aibRoleImageCreation-v10.json"
 #$aibRoleImageCreationPath = "aibRoleImageCreation.json"
 $aibRoleImageCreationPath = Join-Path -Path $env:TEMP -ChildPath $(Split-Path $aibRoleImageCreationUrl -Leaf)
 #Generate a unique file name 
