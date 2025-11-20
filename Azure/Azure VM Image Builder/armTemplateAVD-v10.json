@@ -67,14 +67,14 @@
                         "name": "Install Visual Studio Code",
                         "runElevated": true,
                         "runAsSystem": true,
-                        "scriptUri": https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1"
+                        "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1"
                     },
                     {
                         "type": "PowerShell",
                         "name": "Add a 512 GB Data Disk",
                         "runElevated": true,
                         "runAsSystem": true,
-                        "scriptUri": https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20VM%20Image%20Builder/Add-AzVM512GBDataDisk.ps1"
+                        "scriptUri": "https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20VM%20Image%20Builder/Add-AzVM512GBDataDisk.ps1"
                     },
                     {
                         "type": "WindowsUpdate",
