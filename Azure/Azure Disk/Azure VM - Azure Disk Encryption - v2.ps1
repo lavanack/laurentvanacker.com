@@ -58,9 +58,9 @@ function New-RandomPassword {
         }
     } Until (($RandomPassword  -notin $ProhibitedPasswords) -and (($RandomPassword -match '[A-Z]') -and ($RandomPassword -match '[a-z]') -and ($RandomPassword -match '\d') -and ($RandomPassword -match '\W')))
 
-    #Write-Host "The password is : $RandomPassword"
+    #Write-Host -Object "The password is : $RandomPassword"
     if ($ClipBoard) {
-        #Write-Verbose "The password has beeen copied into the clipboard (Use Win+V) ..."
+        #Write-Verbose -Message "The password has beeen copied into the clipboard (Use Win+V) ..."
         $RandomPassword | Set-Clipboard
     }
     if ($AsSecureString) {
@@ -194,31 +194,31 @@ $OSDiskType = "Standard_LRS"
 $VMSize = "Standard_B2ms"
 
 if ($null -eq (Get-AzComputeResourceSku -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
-    Write-Error "The '$VMSize' is not available in the '$Location' location ..." -ErrorAction Stop
+    Write-Error -Message "The '$VMSize' is not available in the '$Location' location ..." -ErrorAction Stop
 }
 
-Write-Verbose "`$VMName: $VMName"
-Write-Verbose "`$NetworkSecurityGroupName: $NetworkSecurityGroupName"         
-Write-Verbose "`$VirtualNetworkName: $VirtualNetworkName"         
-Write-Verbose "`$SubnetName: $SubnetName"       
-Write-Verbose "`$ResourceGroupName: $ResourceGroupName"
-Write-Verbose "`$PublicIPName: $PublicIPName"
-Write-Verbose "`$NICName: $NICName"
-Write-Verbose "`$OSDiskName: $OSDiskName"
-Write-Verbose "`$FQDN: $FQDN"
+Write-Verbose -Message "`$VMName: $VMName"
+Write-Verbose -Message "`$NetworkSecurityGroupName: $NetworkSecurityGroupName"         
+Write-Verbose -Message "`$VirtualNetworkName: $VirtualNetworkName"         
+Write-Verbose -Message "`$SubnetName: $SubnetName"       
+Write-Verbose -Message "`$ResourceGroupName: $ResourceGroupName"
+Write-Verbose -Message "`$PublicIPName: $PublicIPName"
+Write-Verbose -Message "`$NICName: $NICName"
+Write-Verbose -Message "`$OSDiskName: $OSDiskName"
+Write-Verbose -Message "`$FQDN: $FQDN"
 #endregion
 #endregion
 
 #region Azure VM Setup
 Write-Host -Object "The '$VMName' Azure VM is creating ..."
 if ($VMName.Length -gt $AzureVMNameMaxLength) {
-    Write-Error "'$VMName' exceeds $AzureVMNameMaxLength characters" -ErrorAction Stop
+    Write-Error -Message "'$VMName' exceeds $AzureVMNameMaxLength characters" -ErrorAction Stop
 }
 elseif (-not($LocationShortName)) {
-    Write-Error "No location short name found for '$Location'" -ErrorAction Stop
+    Write-Error -Message "No location short name found for '$Location'" -ErrorAction Stop
 }
 elseif ($null -eq (Get-AzComputeResourceSku -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
-    Write-Error "The '$VMSize' is not available in the '$Location' location ..." -ErrorAction Stop
+    Write-Error -Message "The '$VMSize' is not available in the '$Location' location ..." -ErrorAction Stop
 }
 
 #Create Azure Resource Group
@@ -371,13 +371,13 @@ $NewJitPolicy = (
     }
 )
 
-Write-Host "Get Existing JIT Policy. You can Ignore the error if not found."
+Write-Host -Object "Get Existing JIT Policy. You can Ignore the error if not found."
 $ExistingJITPolicy = (Get-AzJitNetworkAccessPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -ErrorAction Ignore).VirtualMachines
 $UpdatedJITPolicy = $ExistingJITPolicy.Where{ $_.id -ne "$($VM.Id)" } # Exclude existing policy for $VMName
 $UpdatedJITPolicy.Add($NewJitPolicy)
 	
 # Enable Access to the VM including management Port, and Time Range in Hours
-Write-Host "Enabling Just in Time VM Access Policy for ($VMName) on port number(s) $($JitPolicy.ports.number -join ', ') for maximum $JitPolicyTimeInHours hours..."
+Write-Host -Object "Enabling Just in Time VM Access Policy for ($VMName) on port number(s) $($JitPolicy.ports.number -join ', ') for maximum $JitPolicyTimeInHours hours..."
 $JitNetworkAccessPolicy = Set-AzJitNetworkAccessPolicy -VirtualMachine $UpdatedJITPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -Kind "Basic"
 Start-Sleep -Seconds 5
 #endregion
@@ -397,7 +397,7 @@ $JitPolicy = (
     }
 )
 $ActivationVM = @($JitPolicy)
-Write-Host "Requesting Temporary Acces via Just in Time for $($VM.Name) on port number(s) $($JitPolicy.ports.number -join ', ') for maximum $JitPolicyTimeInHours hours ..."
+Write-Host -Object "Requesting Temporary Acces via Just in Time for $($VM.Name) on port number(s) $($JitPolicy.ports.number -join ', ') for maximum $JitPolicyTimeInHours hours ..."
 $null = Start-AzJitNetworkAccessPolicy -ResourceGroupName $($VM.ResourceGroupName) -Location $VM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM
 #endregion
 #endregion
