@@ -436,7 +436,7 @@ $null = Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 
 # Adding Credentials to the Credential Manager (and escaping the password) for the VM
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDN /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait #-NoNewWindow
-Write-Host -Object "Your RDP credentials (login/password) are $($Credential.UserName)/$($Credential.GetNetworkCredential().Password)" -ForegroundColor Green
+Write-Host -Object "Your RDP credentials (login/password) are $($Credential.UserName)/$($Credential.GetNetworkCredential().Password)" #-ForegroundColor Green
 # Adding Credentials to the Credential Manager (and escaping the password) for the potential future target VM
 $FQDNTarget = $FQDN -replace "^([^.]*)(.*)$", '$1target$2'
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDNTarget /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait #-NoNewWindow

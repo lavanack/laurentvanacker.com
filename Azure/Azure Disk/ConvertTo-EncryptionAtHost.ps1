@@ -221,7 +221,15 @@ function ConvertTo-EncryptionAtHost {
 
             #region OS Disk
             # Define VM configuration
-            $VMConfig = New-AzVMConfig -VMName $TargetVMName -VMSize $CurrentVM.HardwareProfile.VmSize -EncryptionAtHost -Priority "Spot" -MaxPrice -1 -IdentityType SystemAssigned -SecurityType TrustedLaunch
+            #If the dource VM is a Spot Intance, the target VM will be
+            if ($CurrentVM.Priority -eq "Spot") {
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$TargetVMName] will be a Spot Intance ..."
+                $VMConfig = New-AzVMConfig -VMName $TargetVMName -VMSize $CurrentVM.HardwareProfile.VmSize -EncryptionAtHost -Priority "Spot" -MaxPrice -1 -IdentityType SystemAssigned -SecurityType TrustedLaunch
+            }
+            else {
+                $VMConfig = New-AzVMConfig -VMName $TargetVMName -VMSize $CurrentVM.HardwareProfile.VmSize -EncryptionAtHost -IdentityType SystemAssigned -SecurityType TrustedLaunch
+            }
+
             $null = Set-AzVMBootDiagnostic -VM $VMConfig -Enable 
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$TargetVMName] Adding the '$TargetNICName' NIC to the VM..."
             $null = Add-AzVMNetworkInterface -VM $VMConfig -Id $TargetNIC.Id

@@ -222,7 +222,7 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 $FullName = Join-Path -Path $CurrentDir -ChildPath "Azure VM - Azure Disk Encryption - v2.ps1"
-$Count = 17
+$Count = 20
 #$Parameters=@([ordered]@{"Wait"=$True})*$Count
 #Start-ScriptWithRunSpace -Count $Count -FullName $FullName -Parameters $Parameters -Verbose
 Start-ScriptWithRunSpace -Count $Count -FullName $FullName -Verbose
