@@ -29,7 +29,7 @@ function ConvertTo-EncryptionAtHost {
     (
 		[Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $false)]
         [Alias('SourceVM')]
-        [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] $VM
+        [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine[]] $VM
     )
 
     begin {
@@ -570,12 +570,12 @@ if ($VMs) {
     #endregion
 
     #region Parallel processing via RunSpace
-    #$ConvertedVMs = ConvertTo-EncryptionAtHostWithRunSpace -VM $VM -Verbose
+    $ConvertedVMs = ConvertTo-EncryptionAtHostWithRunSpace -VM $VM -Verbose
     #endregion
 
     #region Parallel processing via ThreadJob RunSpace
     #$ConvertedVMs = $VM | ConvertTo-EncryptionAtHostWithThreadJob -Verbose
-    $ConvertedVMs = ConvertTo-EncryptionAtHostWithThreadJob -VM $VM -Verbose
+    #$ConvertedVMs = ConvertTo-EncryptionAtHostWithThreadJob -VM $VM -Verbose
     #endregion
     $ConvertedVMs
     #endregion
