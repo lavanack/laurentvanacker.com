@@ -213,19 +213,25 @@ function ConvertTo-EncryptionAtHost {
 
 
             #region Create Azure Public Address if source vm has one
+            $NICParameters = @{
+                Name = $TargetNICName 
+                ResourceGroupName = $ResourceGroupName 
+                Location = $NIC.Location 
+                SubnetId = $Subnet.Id
+                Force = $True
+            }
             if ($NIC.IpConfigurations.PublicIpAddress.Id) {
                 $PublicIP = Get-AzResource -ResourceId $NIC.IpConfigurations.PublicIpAddress.Id | Get-AzPublicIpAddress
                 $TargetPublicIPName = $PublicIP.Name -replace $CurrentVM.Name, $TargetVMName
                 Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$TargetVMName] Creating the '$TargetPublicIPName' Public IP ..."
                 $TargetPublicIP = New-AzPublicIpAddress -Name $TargetPublicIPName -ResourceGroupName $ResourceGroupName -Location $PublicIP.Location -AllocationMethod Static -DomainNameLabel $($TargetVMName.ToLower() -replace "_") -Force
-
-                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$TargetVMName] Creating the '$TargetNICName' NIC ..."
-                $TargetNIC = New-AzNetworkInterface -Name $TargetNICName -ResourceGroupName $ResourceGroupName -Location $NIC.Location -SubnetId $Subnet.Id -PublicIpAddressId $TargetPublicIP.Id -Force #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
+                $NICParameters["PublicIpAddressId"] = $TargetPublicIP.Id 
             }
-            else {
-                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$TargetVMName] Creating the '$TargetNICName' NIC ..."
-                $TargetNIC = New-AzNetworkInterface -Name $TargetNICName -ResourceGroupName $ResourceGroupName -Location $NIC.Location -SubnetId $Subnet.Id -Force #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
+            if ($NIC.NetworkSecurityGroup) {
+                $NICParameters["NetworkSecurityGroupId"] = $NIC.NetworkSecurityGroup.Id
             }
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$TargetVMName] Creating the '$TargetNICName' NIC ..."
+            $TargetNIC = New-AzNetworkInterface @NICParameters
             #endregion
 
             #region OS Disk

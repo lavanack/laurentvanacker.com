@@ -23,6 +23,7 @@ of the Sample Code.
 param
 (
     [switch]$PublicIP,
+    [switch]$NSGonNIC,
     [switch]$Wait
 )
 
@@ -314,18 +315,23 @@ $VirtualNetwork = Set-AzVirtualNetwork -VirtualNetwork $VirtualNetwork
 $Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork
 #endregion
 
+$NICParameters = @{
+    Name = $NICName 
+    ResourceGroupName = $ResourceGroupName 
+    Location = $Location 
+    SubnetId = $Subnet.Id 
+}
+if ($NSGOnNIC) {
+    $NICParameters["NetworkSecurityGroupId"] = $NetworkSecurityGroup.Id 
+}
 #Create Azure Public Address
 if ($PublicIP) {
     $PublicIPAddress = New-AzPublicIpAddress -Name $PublicIPAddressName -ResourceGroupName $ResourceGroupName -Location $Location -AllocationMethod Static -DomainNameLabel $VMName.ToLower()
-    #Setting up the DNS Name
-    #$PublicIPAddress.DnsSettings.Fqdn = $FQDN
+    $NICParameters["PublicIpAddressId"] = $PublicIPAddress.Id 
+}
 
-    #Create Network Interface Card 
-    $NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -PublicIpAddressId $PublicIPAddress.Id #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
-}
-else {
-    $NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
-}
+#Create Network Interface Card 
+$NIC = New-AzNetworkInterface @NICParameters 
 <# Optional : Get Virtual Machine publisher, Image Offer, Sku and Image
 $ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq "MicrosoftWindowsDesktop"}
 $ImageOffer = Get-AzVMImageOffer -Location $Location -publisher $ImagePublisherName.PublisherName | Where-Object -FilterScript { $_.Offer  -eq "Windows-11"}

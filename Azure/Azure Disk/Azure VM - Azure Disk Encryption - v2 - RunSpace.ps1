@@ -225,8 +225,9 @@ $FullName = Join-Path -Path $CurrentDir -ChildPath "Azure VM - Azure Disk Encryp
 $Count = 10
 #$Parameters=@([ordered]@{"Wait"=$True})*$Count
 #$Parameters=@([ordered]@{"PublicIP"=$True})*$Count
-#Start-ScriptWithRunSpace -Count $Count -FullName $FullName -Parameters $Parameters -Verbose
-Start-ScriptWithRunSpace -Count $Count -FullName $FullName -Verbose
+$Parameters=@([ordered]@{"NSGOnNIC"=$True})*$Count
+Start-ScriptWithRunSpace -Count $Count -FullName $FullName -Parameters $Parameters -Verbose
+#Start-ScriptWithRunSpace -Count $Count -FullName $FullName -Verbose
 
 #region Checking Encryption Status
 $Pattern = "*vmade*"
