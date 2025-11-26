@@ -71,6 +71,68 @@ function New-RandomPassword {
         $RandomPassword
     }
 }
+
+function Get-AzVMBitLockerVolume {
+    [CmdletBinding(PositionalBinding = $false)]    
+    param
+    (
+		[Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $false)]
+        [Alias('SourceVM')]
+        [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine[]] $VM,
+        [switch] $Raw
+    )
+    begin {
+        $OverallStartTime = Get-Date
+        $BitLockerVolume = @()
+        $Jobs = @() 
+    }
+    process {
+        foreach ($CurrentVM in $VM) {
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `Processing: $($CurrentVM.Name) ..."
+            try {
+                #Checking if the VM is running
+                #Bug: if (($VM | Get-AzVM -Status).PowerState -match "running") {
+                if ((Get-AzVM -Name $VM.Name -Status).PowerState -match "running") {
+                    if (Get-AzVMRunCommand -ResourceGroupName $CurrentVM.ResourceGroupName -VMName $CurrentVM.Name) {
+                        Write-Warning -Message "A command is aready running on '$($CurrentVM.ResourceGroupName)' VM (RG: '$($CurrentVM.ResourceGroupName))'"
+                    }
+                    else {
+                        $Job = Invoke-AzVMRunCommand -ResourceGroupName $CurrentVM.ResourceGroupName -VMName $CurrentVM.Name -CommandId 'RunPowerShellScript' -ScriptString "Get-BitLockerVolume | ConvertTo-Json" -AsJob -ErrorAction Stop 
+                        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$($CurrentVM.Name)] Job #$($Job.Id)"
+                        $Jobs += $Job
+                    }
+                }
+                else {
+                    Write-Warning -Message "$($CurrentVM.Name) is turned off. skipping it ..."
+                }
+            }
+            catch {
+                #Write-Error -Message "$($_ | Out-String)"
+            }
+        }
+    }
+    end {
+        if ($Jobs) {
+            Write-Host -Object "Waiting the jobs complete ..."
+            $Results = $Jobs | Receive-Job -Wait -AutoRemoveJob
+            if ($Results) {
+                $BitLockerVolume = $Results | ForEach-Object {$_.Value[0].Message} | ConvertFrom-Json| ForEach-Object -Process {$_ }
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$BitLockerVolume: $($BitLockerVolume | Out-String)"
+                $OverallEndTime = Get-Date
+                $TimeSpan = New-TimeSpan -Start $OverallStartTime -End $OverallEndTime
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Overall - Processing Time: $TimeSpan"
+                if ($Raw) {
+                    return $BitLockerVolume 
+                }
+                else {
+                    #Volumestatus value : 0 = 'FullyDecrypted', 1 = 'FullyEncrypted', 2 = 'EncryptionInProgress', 3 = 'DecryptionInProgress', 4 = 'EncryptionPaused', 5 = 'DecryptionPaused'
+                    $VolumeStatus = @('FullyDecrypted', 'FullyEncrypted', 'EncryptionInProgress', 'DecryptionInProgress', 'EncryptionPaused', 'DecryptionPaused')
+                    $BitLockerVolume | Where-Object -FilterScript {$_.MountPoint -match "^\w:$"} |  Select-Object -Property ComputerName, MountPoint, EncryptionPercentage, @{Name="VolumeStatus"; Expression = {$VolumeStatus[$_.VolumeStatus]}}
+                }
+            }
+        }
+    }
+}
 #endregion
 
 Clear-Host
@@ -463,16 +525,34 @@ Write-Host -Object "The '$FQDN' Azure VM is created and started ..."
 if ($Wait) {
     Write-Host -Object "Encrypting Disk ..."
     $StartTime = Get-Date
+
     Do {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 60 seconds"
+        Start-Sleep -Second 60
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Processing VM(s): $($VM.Name -join ', ')"
+        $BitLockerVolume = $VM | Get-AzVMBitLockerVolume #-Verbose
+        #Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$BitLockerVolume:`r`n$($BitLockerVolume | Out-String)"
+        Write-Host -Object "`$BitLockerVolume:`r`n$($BitLockerVolume | Out-String)"
+        $AverageEncryptionPercentage = "{0:n2}" -f ($BitLockerVolume | Measure-Object -Property EncryptionPercentage -Average).Average
+        Write-Host -Object "Average Encryption Percentage: $AverageEncryptionPercentage %"
+        #Keeping only the VMs where the disks are not Fully Encrypted
+        $VM = $VM | Where-Object -FilterScript { $_.Name -in $($($BitLockerVolume | Where-Object -FilterScript { $_.VolumeStatus -ne "FullyEncrypted"}).ComputerName | Select-Object -Unique)}
+    } While ($VM)
+    <#
+    Do {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 60 seconds"
+        Start-Sleep -Second 60
         $RunPowerShellScript = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptString "Get-BitLockerVolume | ConvertTo-Json"
         Write-Verbose -Message "`$Statuses (As Json):`r`n$($RunPowerShellScript.value[0].Message)"
         $Result = $RunPowerShellScript.value[0].Message | ConvertFrom-Json
         Write-Verbose -Message "`$Statuses:`r`n$($Result | Out-String)"
         $Drives = ($Result | Where-Object -FilterScript { $_.MountPoint -match "^\w:$"})
         Write-Verbose -Message "`$Drives:`r`n$($Drives | Out-String)"
-        Start-Sleep -Seconds 30
+        $AverageEncryptionPercentage = "{0:n2}" -f ($Drives | Measure-Object -Property EncryptionPercentage -Average).Average
+        Write-Host -Object "Average Encryption Percentage: $AverageEncryptionPercentage %"
         #Volumestatus value : 0 = 'FullyDecrypted', 1 = 'FullyEncrypted', 2 = 'EncryptionInProgress', 3 = 'DecryptionInProgress', 4 = 'EncryptionPaused', 5 = 'DecryptionPaused'
     } While (($Drives.VolumeStatus | Select-Object -Unique) -ne "1")
+    #>
     $EndTime = Get-Date
     $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
     Write-Host -Object "Encrypting Disk - Processing Time: $TimeSpan"

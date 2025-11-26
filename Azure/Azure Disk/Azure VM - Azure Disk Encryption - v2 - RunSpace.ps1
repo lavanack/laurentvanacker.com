@@ -158,7 +158,7 @@ function Get-AzVMBitLockerVolume {
     (
 		[Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $false)]
         [Alias('SourceVM')]
-        [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] $VM,
+        [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine[]] $VM,
         [switch] $Raw
     )
     begin {
