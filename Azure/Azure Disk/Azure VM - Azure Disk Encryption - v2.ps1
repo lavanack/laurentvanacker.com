@@ -15,7 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.KeyVault, Az.Network, Az.PolicyInsights, Az.RecoveryServices, Az.Resources, Az.Security, Az.Storage, PSScheduledJob, PSWorkflow
+#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.KeyVault, Az.Network, Az.ResourceGraph, Az.Resources, Az.Security, PSScheduledJob, PSWorkflow
 
 #From https://learn.microsoft.com/en-us/azure/site-recovery/azure-to-azure-how-to-enable-policy
 
@@ -544,21 +544,6 @@ if ($Wait) {
         #Keeping only the VMs where the disks are not Fully Encrypted
         $VM = $VM | Where-Object -FilterScript { $_.Name -in $($($BitLockerVolume | Where-Object -FilterScript { $_.VolumeStatus -ne "FullyEncrypted"}).ComputerName | Select-Object -Unique)}
     } While ($VM)
-    <#
-    Do {
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 60 seconds"
-        Start-Sleep -Second 60
-        $RunPowerShellScript = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptString "Get-BitLockerVolume | ConvertTo-Json"
-        Write-Verbose -Message "`$Statuses (As Json):`r`n$($RunPowerShellScript.value[0].Message)"
-        $Result = $RunPowerShellScript.value[0].Message | ConvertFrom-Json
-        Write-Verbose -Message "`$Statuses:`r`n$($Result | Out-String)"
-        $Drives = ($Result | Where-Object -FilterScript { $_.MountPoint -match "^\w:$"})
-        Write-Verbose -Message "`$Drives:`r`n$($Drives | Out-String)"
-        $AverageEncryptionPercentage = "{0:n2}" -f ($Drives | Measure-Object -Property EncryptionPercentage -Average).Average
-        Write-Host -Object "Average Encryption Percentage: $AverageEncryptionPercentage %"
-        #Volumestatus value : 0 = 'FullyDecrypted', 1 = 'FullyEncrypted', 2 = 'EncryptionInProgress', 3 = 'DecryptionInProgress', 4 = 'EncryptionPaused', 5 = 'DecryptionPaused'
-    } While (($Drives.VolumeStatus | Select-Object -Unique) -ne "1")
-    #>
     $EndTime = Get-Date
     $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
     Write-Host -Object "Encrypting Disk - Processing Time: $TimeSpan"

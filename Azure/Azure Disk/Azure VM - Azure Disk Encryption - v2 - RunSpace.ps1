@@ -15,7 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules PSScheduledJob, PSWorkflow
+#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.KeyVault, Az.Network, Az.ResourceGraph, Az.Resources, Az.Security, PSScheduledJob, PSWorkflow
 
 #region function definitions 
 function Get-RunspaceState {
