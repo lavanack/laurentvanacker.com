@@ -222,8 +222,9 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 $FullName = Join-Path -Path $CurrentDir -ChildPath "Azure VM - Azure Disk Encryption - v2.ps1"
-$Count = 20
+$Count = 10
 #$Parameters=@([ordered]@{"Wait"=$True})*$Count
+#$Parameters=@([ordered]@{"PublicIP"=$True})*$Count
 #Start-ScriptWithRunSpace -Count $Count -FullName $FullName -Parameters $Parameters -Verbose
 Start-ScriptWithRunSpace -Count $Count -FullName $FullName -Verbose
 
@@ -236,11 +237,14 @@ $VM | Start-AzVM -AsJob | Receive-Job -Wait -AutoRemoveJob
 $VM = Get-AzVM -Name $Pattern -Status
 $VM = $VM | Where-Object -FilterScript {($_.PowerState -match  "running")}
 Do {
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
-    Start-Sleep -Second 30
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 60 seconds"
+    Start-Sleep -Second 60
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Processing VM(s): $($VM.Name -join ', ')"
     $BitLockerVolume = $VM | Get-AzVMBitLockerVolume #-Verbose
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$BitLockerVolume: $($BitLockerVolume | Out-String)"
+    #Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$BitLockerVolume:`r`n$($BitLockerVolume | Out-String)"
+    Write-Host -Object "`$BitLockerVolume:`r`n$($BitLockerVolume | Out-String)"
+    $AverageEncryptionPercentage = "{0:n2}" -f ($BitLockerVolume | Measure-Object -Property EncryptionPercentage -Average).Average
+    Write-Host -Object "Average Encryption Percentage: $AverageEncryptionPercentage %"
     #Keeping only the VMs where the disks are not Fully Encrypted
     $VM = $VM | Where-Object -FilterScript { $_.Name -in $($($BitLockerVolume | Where-Object -FilterScript { $_.VolumeStatus -ne "FullyEncrypted"}).ComputerName | Select-Object -Unique)}
 } While ($VM)

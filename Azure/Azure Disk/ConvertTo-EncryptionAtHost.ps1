@@ -96,16 +96,18 @@ function ConvertTo-EncryptionAtHost {
             #>
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$VMName] Decrypting Disk ..."
             $StartTime = Get-Date
+            #Volumestatus value : 0 = 'FullyDecrypted', 1 = 'FullyEncrypted', 2 = 'EncryptionInProgress', 3 = 'DecryptionInProgress', 4 = 'EncryptionPaused', 5 = 'DecryptionPaused'
+            $VolumeStatus = @('FullyDecrypted', 'FullyEncrypted', 'EncryptionInProgress', 'DecryptionInProgress', 'EncryptionPaused', 'DecryptionPaused')
             Do {
                 $RunPowerShellScript = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptString "Get-BitLockerVolume | ConvertTo-Json"
                 Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$("{0:yyyy-MM-dd HH:mm:ss}" -f (Get-Date))][$VMName] `$Statuses (As Json):`r`n$($RunPowerShellScript.value[0].Message)"
-                $Result = $RunPowerShellScript.value[0].Message | ConvertFrom-Json
-                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$("{0:yyyy-MM-dd HH:mm:ss}" -f (Get-Date))][$VMName] `$Statuses:`r`n$($Result | Out-String)"
-                $Drives = ($Result | Where-Object -FilterScript { $_.MountPoint -match "^\w:$"})
-                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Drives:`r`n$($Drives | Out-String)"
-                Start-Sleep -Seconds 30
-                #Volumestatus value : 0 = 'FullyDecrypted', 1 = 'FullyEncrypted', 2 = 'EncryptionInProgress', 3 = 'DecryptionInProgress', 4 = 'EncryptionPaused', 5 = 'DecryptionPaused'
-            } While (($Drives.VolumeStatus | Select-Object -Unique) -ne "0")
+                $Drives = ($RunPowerShellScript.value[0].Message | ConvertFrom-Json) | Where-Object -FilterScript {$_.MountPoint -match "^\w:$"} |  Select-Object -Property ComputerName, MountPoint, EncryptionPercentage, @{Name="VolumeStatus"; Expression = {$VolumeStatus[$_.VolumeStatus]}}
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$("{0:yyyy-MM-dd HH:mm:ss}" -f (Get-Date))][$VMName] `$Drives:`r`n$($Drives | Out-String)"
+				$AverageEncryptionPercentage = "{0:n2}" -f ($Drives | Measure-Object -Property EncryptionPercentage -Average).Average
+				Write-Verbose -Message "Average Encryption Percentage: $AverageEncryptionPercentage %"
+				Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 60 seconds"
+                Start-Sleep -Seconds 60
+            } While (($Drives.VolumeStatus | Select-Object -Unique) -ne "FullyDecrypted")
             $EndTime = Get-Date
             $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$VMName] Decrypting Disk - Processing Time: $TimeSpan"
@@ -207,16 +209,23 @@ function ConvertTo-EncryptionAtHost {
             $NIC = Get-AzResource -ResourceId $CurrentVM.NetworkProfile.NetworkInterfaces.Id | Get-AzNetworkInterface
             $Subnet = $NIC.IpConfigurations.subnet
             $TargetNICName = "{0}_Target" -f $NIC.Name
+            #endregion
 
 
-            #Create Azure Public Address
-            $PublicIP = Get-AzResource -ResourceId $NIC.IpConfigurations.PublicIpAddress.Id | Get-AzPublicIpAddress 
-            $TargetPublicIPName = $PublicIP.Name -replace $CurrentVM.Name, $TargetVMName
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$TargetVMName] Creating the '$TargetPublicIPName' Public IP ..."
-            $TargetPublicIP = New-AzPublicIpAddress -Name $TargetPublicIPName -ResourceGroupName $ResourceGroupName -Location $PublicIP.Location -AllocationMethod Static -DomainNameLabel $($TargetVMName.ToLower() -replace "_") -Force
+            #region Create Azure Public Address if source vm has one
+            if ($NIC.IpConfigurations.PublicIpAddress.Id) {
+                $PublicIP = Get-AzResource -ResourceId $NIC.IpConfigurations.PublicIpAddress.Id | Get-AzPublicIpAddress
+                $TargetPublicIPName = $PublicIP.Name -replace $CurrentVM.Name, $TargetVMName
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$TargetVMName] Creating the '$TargetPublicIPName' Public IP ..."
+                $TargetPublicIP = New-AzPublicIpAddress -Name $TargetPublicIPName -ResourceGroupName $ResourceGroupName -Location $PublicIP.Location -AllocationMethod Static -DomainNameLabel $($TargetVMName.ToLower() -replace "_") -Force
 
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$TargetVMName] Creating the '$TargetNICName' NIC ..."
-            $TargetNIC = New-AzNetworkInterface -Name $TargetNICName -ResourceGroupName $ResourceGroupName -Location $NIC.Location -SubnetId $Subnet.Id -PublicIpAddressId $TargetPublicIP.Id -Force #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$TargetVMName] Creating the '$TargetNICName' NIC ..."
+                $TargetNIC = New-AzNetworkInterface -Name $TargetNICName -ResourceGroupName $ResourceGroupName -Location $NIC.Location -SubnetId $Subnet.Id -PublicIpAddressId $TargetPublicIP.Id -Force #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
+            }
+            else {
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$TargetVMName] Creating the '$TargetNICName' NIC ..."
+                $TargetNIC = New-AzNetworkInterface -Name $TargetNICName -ResourceGroupName $ResourceGroupName -Location $NIC.Location -SubnetId $Subnet.Id -Force #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
+            }
             #endregion
 
             #region OS Disk
@@ -562,7 +571,7 @@ $VMs = foreach ($CurrentResourceGroup in $ResourceGroups) {
 }
 if ($VMs) {
     #Randomly getting some VMs
-    $VM = $VMs #| Get-Random -Count 2
+    $VM = $VMs #| Get-Random -Count 5
     #region Conversion
     #region Sequential processing
     #ConvertTo-EncryptionAtHost -VM $VM -Verbose
@@ -573,7 +582,7 @@ if ($VMs) {
     $ConvertedVMs = ConvertTo-EncryptionAtHostWithRunSpace -VM $VM -Verbose
     #endregion
 
-    #region Parallel processing via ThreadJob RunSpace
+    #region Parallel processing via ThreadJob
     #$ConvertedVMs = $VM | ConvertTo-EncryptionAtHostWithThreadJob -Verbose
     #$ConvertedVMs = ConvertTo-EncryptionAtHostWithThreadJob -VM $VM -Verbose
     #endregion

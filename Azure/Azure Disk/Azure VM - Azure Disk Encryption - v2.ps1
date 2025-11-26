@@ -22,6 +22,7 @@ of the Sample Code.
 [CmdletBinding()]
 param
 (
+    [switch]$PublicIP,
     [switch]$Wait
 )
 
@@ -146,14 +147,14 @@ $NetworkSecurityGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $NetworkSecur
 $VirtualNetworkName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $VirtualNetworkPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $SubnetName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $SubnetPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
-$PublicIPName = "{0}-{1}" -f $PublicIPAddressPrefix , $VMName
+$PublicIPAddressName = "{0}-{1}" -f $PublicIPAddressPrefix , $VMName
 $NICName = "{0}-{1}" -f $NICPrefix , $VMName
 
 $VMName = $VMName.ToLower()
 $NetworkSecurityGroupName = $NetworkSecurityGroupName.ToLower()
 $VirtualNetworkName = $VirtualNetworkName.ToLower()
 $SubnetName = $SubnetName.ToLower()
-$PublicIPName = $PublicIPName.ToLower()
+$PublicIPAddressName = $PublicIPAddressName.ToLower()
 $NICName = $NICName.ToLower()
 
 $ResourceGroupName = $ResourceGroupName.ToLower()
@@ -202,7 +203,9 @@ Write-Verbose -Message "`$NetworkSecurityGroupName: $NetworkSecurityGroupName"
 Write-Verbose -Message "`$VirtualNetworkName: $VirtualNetworkName"         
 Write-Verbose -Message "`$SubnetName: $SubnetName"       
 Write-Verbose -Message "`$ResourceGroupName: $ResourceGroupName"
-Write-Verbose -Message "`$PublicIPName: $PublicIPName"
+if ($PublicIP) {
+    Write-Verbose -Message "`$PublicIPAddressName: $PublicIPAddressName"
+}
 Write-Verbose -Message "`$NICName: $NICName"
 Write-Verbose -Message "`$OSDiskName: $OSDiskName"
 Write-Verbose -Message "`$FQDN: $FQDN"
@@ -250,13 +253,17 @@ $Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $Vi
 #endregion
 
 #Create Azure Public Address
-$PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $ResourceGroupName -Location $Location -AllocationMethod Static -DomainNameLabel $VMName.ToLower()
-#Setting up the DNS Name
-#$PublicIP.DnsSettings.Fqdn = $FQDN
+if ($PublicIP) {
+    $PublicIPAddress = New-AzPublicIpAddress -Name $PublicIPAddressName -ResourceGroupName $ResourceGroupName -Location $Location -AllocationMethod Static -DomainNameLabel $VMName.ToLower()
+    #Setting up the DNS Name
+    #$PublicIPAddress.DnsSettings.Fqdn = $FQDN
 
-#Create Network Interface Card 
-$NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -PublicIpAddressId $PublicIP.Id #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
-
+    #Create Network Interface Card 
+    $NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -PublicIpAddressId $PublicIPAddress.Id #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
+}
+else {
+    $NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
+}
 <# Optional : Get Virtual Machine publisher, Image Offer, Sku and Image
 $ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq "MicrosoftWindowsDesktop"}
 $ImageOffer = Get-AzVMImageOffer -Location $Location -publisher $ImagePublisherName.PublisherName | Where-Object -FilterScript { $_.Offer  -eq "Windows-11"}
