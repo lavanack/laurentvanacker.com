@@ -15,11 +15,17 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.Network, Az.Resources, Az.Security, Microsoft.PowerShell.ThreadJob
+#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.Resources, Az.Security, Microsoft.PowerShell.ThreadJob
+
+<#
+Must read:
+- https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/request-limits-and-throttling
+#>
 
 [CmdletBinding(PositionalBinding = $false)]    
 param
 (
+    [string] $AzCopyDir = "C:\Tools"
 )
 
 #region Function Definition(s)
@@ -129,8 +135,36 @@ function ConvertTo-EncryptionAtHost {
                 }
             }
 
-            $VMDiskData = @{}
 
+            #region Installing AzCopy
+            #Looking for all installed azcopy.exe 
+            $AzCopy = Get-ChildItem -Path (Get-PSDrive | Where-Object -FilterScript { $_.Provider.Name -eq "FileSystem"}).Root -Filter azcopy.exe -File -Recurse -ErrorAction Ignore
+            $MaxVersionNumber = [System.Version]::new(0, 0, 0)
+            foreach ($CurrentAzCopy in $AzCopy.FullName) {
+                $VersionNumber = & $CurrentAzCopy -v
+                #Looking for the highest installed version of azcopy.exe 
+                if ($VersionNumber -gt $MaxVersionNumber) {
+                    $MaxVersionNumber = $VersionNumber
+                    $HighestAzCopy = $CurrentAzCopy
+                }
+            }
+
+            #If not version found then downloading the latest one
+            if(-not($HighestAzCopy)) {
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] AzCopy not found"
+                $AzCopyURI = 'https://aka.ms/downloadazcopy-v10-windows'
+                #$AzCopyURI = $(((Invoke-RestMethod  -Uri "https://api.github.com/repos/Azure/azure-storage-azcopy/releases/latest").assets | Where-Object -FilterScript { $_.name -match "windows_amd64" }).browser_download_url)
+                $OutputFile = Join-Path -Path $CurrentDir -ChildPath 'azcopy_windows_amd64_latest.zip'
+                Invoke-WebRequest -Uri $AzCopyURI -OutFile $OutputFile
+                $null = New-Item -Path $AzCopyDir -ItemType Directory -Force
+                Expand-Archive -Path $OutputFile -DestinationPath $AzCopyDir -Force
+                Remove-Item -Path $OutputFile -Force
+                $HighestAzCopy=(Get-ChildItem -Path $(Join-Path -Path $AzCopyDir -ChildPath "azcopy_windows*") -Filter azcopy.exe -Recurse  | Sort-Object -Property Name -Descending | Select-Object -First 1).Fullname
+
+            }
+            #endregion
+
+            $VMDiskData = @{}
             foreach ($DiskType in $VMSourceDisks.Keys) {
                 $SourceDisks = $VMSourceDisks[$DiskType]
                 foreach ($SourceDisk in $SourceDisks) {
@@ -185,8 +219,8 @@ function ConvertTo-EncryptionAtHost {
                     # Copy the target disk data using AzCopy
                     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$VMName] Copying the target disk data using AzCopy"
                     $StartTime = Get-Date
-                    $AzCopy = azcopy copy $SourceSAS.AccessSAS $TargetSAS.AccessSAS --blob-type PageBlob
-					Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$VMName] AzCopy Result:`r`n$($AzCopy | Out-String)"
+                    $AzCopyResult = & $HighestAzCopy copy $SourceSAS.AccessSAS $TargetSAS.AccessSAS --blob-type PageBlob
+					Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$VMName] AzCopy Result:`r`n$($AzCopyResult | Out-String)"
                     $EndTime = Get-Date
                     $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
                     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$VMName] Copying the target disk data using AzCopy - Processing Time: $TimeSpan"
@@ -260,11 +294,13 @@ function ConvertTo-EncryptionAtHost {
             # Create the VM with network settings (you'll need to specify your own)
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$TargetVMName] Creating the VM..."
             $TargetVM = New-AzVM -ResourceGroupName $ResourceGroupName -Location $TargetDisk.Location -VM $VMConfig -OSDiskDeleteOption Delete  -DataDiskDeleteOption Delete #-DisableBginfoExtension
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$TargetVMName] New `$TargetVM: $($TargetVM | Out-String)"
             #endregion
 
             #region Data Disk(s)
             # Get the VM
             $TargetVM = Get-AzVM -ResourceGroupName $ResourceGroupName -Name $TargetVMName
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$TargetVMName] Get `$TargetVM: $($TargetVM | Out-String)"
             $Lun=0
             foreach ($CurrentVMDiskData in $VMDiskData["DataDisk"]) {
                 $TargetDisk = $CurrentVMDiskData.TargetDisk
@@ -332,6 +368,8 @@ Get-PSDrive -PSProvider FileSystem
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$TargetVMName] Verifying the new disks: $TimeSpan"
 
             $TargetVM = Get-AzVM -ResourceGroupName $ResourceGroupName -Name $TargetVMName
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$TargetVMName] Get `$TargetVM: $($TargetVM | Out-String)"
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$TargetVMName] `$TargetVM: $($TargetVM | Out-String)"
             $ConvertedVMs += $TargetVM
 
             $VMEndTime = Get-Date
@@ -367,7 +405,7 @@ function ConvertTo-EncryptionAtHostWithThreadJob {
     }
     process {
         foreach ($CurrentVM in $VM) {
-            $Job = Start-ThreadJob -ScriptBlock {ConvertTo-EncryptionAtHost -VM $using:CurrentVM} -InitializationScript $ExportedFunctions #-StreamingHost $Host
+            $Job = Start-ThreadJob -ScriptBlock {ConvertTo-EncryptionAtHost -VM $using:CurrentVM} -InitializationScript $ExportedFunctions -StreamingHost $Host
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `Running Job #$($Job.Id) for '$($CurrentVM.Name)' VM"
 			$Jobs += $Job
         }
@@ -492,6 +530,8 @@ function ConvertTo-EncryptionAtHostWithRunSpace {
     $TimeSpan = New-TimeSpan -Start $OverallStartTime -End $OverallEndTime
     Write-Host -Object "Overall - Processing Time: $($TimeSpan.ToString())" -ForegroundColor Green
     #endregion
+    $ConvertedVMs = $RunspaceList | ForEach-Object -Process {$_.Result[-1]}
+    return $ConvertedVMs 
 }
 
 function Get-AzVMBitLockerVolume {
@@ -577,7 +617,7 @@ $VMs = foreach ($CurrentResourceGroup in $ResourceGroups) {
 }
 if ($VMs) {
     #Randomly getting some VMs
-    $VM = $VMs #| Get-Random -Count 5
+    $VM = $VMs #| Get-Random -Count 3
     #region Conversion
     #region Sequential processing
     #ConvertTo-EncryptionAtHost -VM $VM -Verbose

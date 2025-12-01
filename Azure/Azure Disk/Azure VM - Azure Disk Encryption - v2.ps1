@@ -248,12 +248,22 @@ $MyPublicIp = Invoke-RestMethod -Uri "https://ipv4.seeip.org"
 $ImagePublisherName = "MicrosoftWindowsServer"
 $ImageOffer = "WindowsServer"
 $ImageSku = "2022-datacenter-g2"
+#region OS Disk
 $OSDiskName = '{0}_OSDisk' -f $VMName
+$OSDiskSize = "127"
+$OSDiskType = "StandardSSD_LRS"
+#$OSDiskType = "Standard_LRS"
+#endregion
+
+#region Data Disks
 $DataDisk01Name = '{0}_DataDisk01' -f $VMName
 $DataDisk02Name = '{0}_DataDisk02' -f $VMName
-$OSDiskSize = "127"
-#$OSDiskType = "StandardSSD_LRS"
-$OSDiskType = "Standard_LRS"
+#$DataDiskSize = "512"
+$DataDiskSize = "64"
+#$DataDiskType = "Standard_LRS"
+$DataDiskType = "StandardSSD_LRS"
+#endregion
+
 #$VMSize = "Standard_D4s_v5"
 $VMSize = "Standard_B2ms"
 
@@ -357,7 +367,7 @@ if ($Result.skuName -eq $VMSize ){
     $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1 -IdentityType SystemAssigned -SecurityType TrustedLaunch
 }
 else {
-    Write-Warning -Message "'$VMSize' can not be set as Spot Instance in the '$Location' Azure location"
+    Write-Warning -Message "'$VMSize' can NOT be set as Spot Instance in the '$Location' Azure location"
     $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -IdentityType SystemAssigned -SecurityType TrustedLaunch
 }
 
@@ -399,8 +409,8 @@ Start-Sleep -Seconds 30
 $null = Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -CreateOption fromImage
 
 #region Adding Data Disks
-$VMDataDisk01Config = New-AzDiskConfig -SkuName $OSDiskType -Location $Location -CreateOption Empty -DiskSizeGB 512
-$VMDataDisk02Config = New-AzDiskConfig -SkuName $OSDiskType -Location $Location -CreateOption Empty -DiskSizeGB 512
+$VMDataDisk01Config = New-AzDiskConfig -SkuName $DataDiskType -Location $Location -CreateOption Empty -DiskSizeGB $DataDiskSize
+$VMDataDisk02Config = New-AzDiskConfig -SkuName $DataDiskType -Location $Location -CreateOption Empty -DiskSizeGB $DataDiskSize
 $VMDataDisk01 = New-AzDisk -DiskName $DataDisk01Name -Disk $VMDataDisk01Config -ResourceGroupName $ResourceGroupName
 $VMDataDisk02 = New-AzDisk -DiskName $DataDisk02Name -Disk $VMDataDisk02Config -ResourceGroupName $ResourceGroupName
 $null = Add-AzVMDataDisk -VM $VMConfig -Name $DataDisk01Name -CreateOption Attach -ManagedDiskId $VMDataDisk01.Id -Lun 0
