@@ -29,7 +29,8 @@ function Request-AzRunningVMJITAccess {
         [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachineList[]] $VM = $(Get-AzVM -Status | Where-Object -FilterScript { $_.PowerState -match "running" }),
         [Alias('PublicIP')]
         [string[]] $IP = $((Invoke-RestMethod -Uri http://ip-api.com/json/?fields=query).query),
-        [switch] $PassThru
+        [switch] $PassThru,
+        [switch] $AsJob
     )
 
     begin {
@@ -42,11 +43,12 @@ function Request-AzRunningVMJITAccess {
         $JitNetworkAccessPolicy = ((Get-AzJitNetworkAccessPolicy | Where-Object -FilterScript { $_.Name -eq $JitPolicyName })).VirtualMachines | Group-Object -Property Id -AsHashTable -AsString
         Write-Verbose -Message "Running VM(s) : $($VM.Name -join ', ')"
         Write-Verbose -Message "Jit Network Access Policy VM(s) : $($JitNetworkAccessPolicy.Keys -join ', ')"
+        $AzJitNetworkAccessPolicy = @()
     }
 
     process {
         #region Requesting Temporary Access : 3 hours
-        $AzJitNetworkAccessPolicy = foreach ($CurrentVM in $VM) {
+        foreach ($CurrentVM in $VM) {
             Write-Verbose -Message "VM : $($CurrentVM.Name)"
             $CurrentJitNetworkAccessPolicy = $JitNetworkAccessPolicy[$CurrentVM.Id]
             if ($CurrentJitNetworkAccessPolicy) {
@@ -67,7 +69,12 @@ function Request-AzRunningVMJITAccess {
                 )
                 $ActivationVM = @($JitPolicy)
                 Write-Host "Requesting Temporary Acces via Just in Time for $($CurrentVM.Name) on port number(s) $($JitPolicy.Ports.Number -join ', ') for maximum $JitPolicyTimeInHours hours ..."
-                Start-AzJitNetworkAccessPolicy -ResourceGroupName $($CurrentVM.ResourceGroupName) -Location $CurrentVM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM | Select-Object -Property *, @{Name = 'startTime'; Expression = { $_.startTimeUtc.ToLocalTime() } }, @{Name = 'endTime'; Expression = { $JitPolicy.ports.endTimeUtc.ToLocalTime() } } -ExcludeProperty StartTimeUtc
+                if ($ASJob) {
+                    $AzJitNetworkAccessPolicy += $(Start-Job -Name $($CurrentVM.Name) -ScriptBlock { Start-AzJitNetworkAccessPolicy -ResourceGroupName $($using:CurrentVM.ResourceGroupName) -Location $using:CurrentVM.Location -Name $using:JitPolicyName -VirtualMachine $using:ActivationVM | Select-Object -Property *, @{Name = 'startTime'; Expression = { $_.startTimeUtc.ToLocalTime() } }, @{Name = 'endTime'; Expression = { $($using:JitPolicy).ports.endTimeUtc.ToLocalTime() } } -ExcludeProperty StartTimeUtc })
+                }
+                else {
+                    $AzJitNetworkAccessPolicy += Start-AzJitNetworkAccessPolicy -ResourceGroupName $($CurrentVM.ResourceGroupName) -Location $CurrentVM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM | Select-Object -Property *, @{Name = 'startTime'; Expression = { $_.startTimeUtc.ToLocalTime() } }, @{Name = 'endTime'; Expression = { $JitPolicy.ports.endTimeUtc.ToLocalTime() } } -ExcludeProperty StartTimeUtc
+                }
             }
             else {
                 Write-Warning -Message "Just in Time for is not enabled for $($CurrentVM.Name)"
@@ -77,7 +84,12 @@ function Request-AzRunningVMJITAccess {
     #endregion
     end {
         if ($PassThru) {
-            $AzJitNetworkAccessPolicy
+            if ($AsJob) {
+                $AzJitNetworkAccessPolicy | Receive-Job -Wait -AutoRemoveJob
+            }
+            else {
+                $AzJitNetworkAccessPolicy
+            }
         }
     }
 
@@ -87,5 +99,5 @@ function Request-AzRunningVMJITAccess {
 #region Main code
 #Get-AzVM | Request-AzRunningVMJITAccess -Verbose | Format-List * -Force
 #Request-AzRunningVMJITAccess -Verbose -PassThru | Format-List * -Force
-Request-AzRunningVMJITAccess -PassThru -Verbose | Format-List -Property * -Force 
+Request-AzRunningVMJITAccess -PassThru -AsJob -Verbose | Format-List -Property * -Force 
 #endregion
