@@ -15,35 +15,54 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.KeyVault, Az.Network, Az.PolicyInsights, Az.RecoveryServices, Az.Resources, Az.Security, Az.Storage
+#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.KeyVault, Az.Network, Az.ResourceGraph, Az.Resources, Az.Security, PSScheduledJob, PSWorkflow
 
 #From https://learn.microsoft.com/en-us/azure/site-recovery/azure-to-azure-how-to-enable-policy
 
 [CmdletBinding()]
 param
 (
+    [switch]$PublicIP,
+    [switch]$NSGonNIC,
+    [switch]$Wait
 )
 
 
 #region function definitions 
 #Based from https://adamtheautomator.com/powershell-random-password/
 function New-RandomPassword {
-    [CmdletBinding(PositionalBinding = $false)]
+    [CmdletBinding(PositionalBinding = $false, DefaultParameterSetName = 'GeneratePassword')]
     param
     (
+        [ValidateRange(12,122)]
         [int] $minLength = 12, ## characters
+        [ValidateRange(13,123)]
+        [ValidateScript({$_ -gt $minLength})]
         [int] $maxLength = 15, ## characters
-        [int] $nonAlphaChars = 3,
         [switch] $AsSecureString,
-        [switch] $ClipBoard
+        [switch] $ClipBoard,
+        [Parameter(ParameterSetName = 'GeneratePassword')]
+        [int] $nonAlphaChars = 3,
+        [Parameter(ParameterSetName = 'DinoPass')]
+        [switch] $Online
     )
-
-    Add-Type -AssemblyName 'System.Web'
+    #From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/faq#what-are-the-password-requirements-when-creating-a-vm-
+    $ProhibitedPasswords = @('abc@123', 'iloveyou!', 'P@$$w0rd', 'P@ssw0rd', 'P@ssword123', 'Pa$$word', 'pass@word1', 'Password!', 'Password1', 'Password22')
     $length = Get-Random -Minimum $minLength -Maximum $maxLength
-    $RandomPassword = [System.Web.Security.Membership]::GeneratePassword($length, $nonAlphaChars)
-    #Write-Host "The password is : $RandomPassword"
+    Do {
+        if ($Online) {
+            $URI = "https://www.dinopass.com/password/custom?length={0}&useSymbols=true&useNumbers=true&useCapitals=true" -f $length
+            $RandomPassword = Invoke-RestMethod -Uri $URI
+        }
+        else {
+            Add-Type -AssemblyName 'System.Web'
+            $RandomPassword = [System.Web.Security.Membership]::GeneratePassword($length, $nonAlphaChars)
+        }
+    } Until (($RandomPassword  -notin $ProhibitedPasswords) -and (($RandomPassword -match '[A-Z]') -and ($RandomPassword -match '[a-z]') -and ($RandomPassword -match '\d') -and ($RandomPassword -match '\W')))
+
+    #Write-Host -Object "The password is : $RandomPassword"
     if ($ClipBoard) {
-        Write-Verbose "The password has beeen copied into the clipboard (Use Win+V) ..."
+        #Write-Verbose -Message "The password has beeen copied into the clipboard (Use Win+V) ..."
         $RandomPassword | Set-Clipboard
     }
     if ($AsSecureString) {
@@ -51,6 +70,68 @@ function New-RandomPassword {
     }
     else {
         $RandomPassword
+    }
+}
+
+function Get-AzVMBitLockerVolume {
+    [CmdletBinding(PositionalBinding = $false)]    
+    param
+    (
+		[Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $false)]
+        [Alias('SourceVM')]
+        [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine[]] $VM,
+        [switch] $Raw
+    )
+    begin {
+        $OverallStartTime = Get-Date
+        $BitLockerVolume = @()
+        $Jobs = @() 
+    }
+    process {
+        foreach ($CurrentVM in $VM) {
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `Processing: $($CurrentVM.Name) ..."
+            try {
+                #Checking if the VM is running
+                #Bug: if (($VM | Get-AzVM -Status).PowerState -match "running") {
+                if ((Get-AzVM -Name $VM.Name -Status).PowerState -match "running") {
+                    if (Get-AzVMRunCommand -ResourceGroupName $CurrentVM.ResourceGroupName -VMName $CurrentVM.Name) {
+                        Write-Warning -Message "A command is aready running on '$($CurrentVM.ResourceGroupName)' VM (RG: '$($CurrentVM.ResourceGroupName))'"
+                    }
+                    else {
+                        $Job = Invoke-AzVMRunCommand -ResourceGroupName $CurrentVM.ResourceGroupName -VMName $CurrentVM.Name -CommandId 'RunPowerShellScript' -ScriptString "Get-BitLockerVolume | ConvertTo-Json" -AsJob -ErrorAction Stop 
+                        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$($CurrentVM.Name)] Job #$($Job.Id)"
+                        $Jobs += $Job
+                    }
+                }
+                else {
+                    Write-Warning -Message "$($CurrentVM.Name) is turned off. skipping it ..."
+                }
+            }
+            catch {
+                #Write-Error -Message "$($_ | Out-String)"
+            }
+        }
+    }
+    end {
+        if ($Jobs) {
+            Write-Host -Object "Waiting the jobs complete ..."
+            $Results = $Jobs | Receive-Job -Wait -AutoRemoveJob
+            if ($Results) {
+                $BitLockerVolume = $Results | ForEach-Object {$_.Value[0].Message} | ConvertFrom-Json| ForEach-Object -Process {$_ }
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$BitLockerVolume: $($BitLockerVolume | Out-String)"
+                $OverallEndTime = Get-Date
+                $TimeSpan = New-TimeSpan -Start $OverallStartTime -End $OverallEndTime
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Overall - Processing Time: $TimeSpan"
+                if ($Raw) {
+                    return $BitLockerVolume 
+                }
+                else {
+                    #Volumestatus value : 0 = 'FullyDecrypted', 1 = 'FullyEncrypted', 2 = 'EncryptionInProgress', 3 = 'DecryptionInProgress', 4 = 'EncryptionPaused', 5 = 'DecryptionPaused'
+                    $VolumeStatus = @('FullyDecrypted', 'FullyEncrypted', 'EncryptionInProgress', 'DecryptionInProgress', 'EncryptionPaused', 'DecryptionPaused')
+                    $BitLockerVolume | Where-Object -FilterScript {$_.MountPoint -match "^\w:$"} |  Select-Object -Property ComputerName, MountPoint, EncryptionPercentage, @{Name="VolumeStatus"; Expression = {$VolumeStatus[$_.VolumeStatus]}}
+                }
+            }
+        }
     }
 }
 #endregion
@@ -83,13 +164,19 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount
 }
 
+#region JIT/RDP/SSH Settings
 $RDPPort = 3389
 $JITPolicyPorts = $RDPPort
 $JitPolicyTimeInHours = 3
 $JitPolicyName = "Default"
+#endregion
+
+#$Location = "swedencentral"
 $Location = "EastUS2"
-$VMSize = "Standard_D4s_v5"
 $LocationShortName = $shortNameHT[$Location].shortName
+if ([string]::isNullOrEmpty($LocationShortName)) {
+	$LocationShortName = "xxx"
+}
 
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
 $AzureVMNameMaxLength = $ResourceTypeShortNameHT["Compute/virtualMachines"].lengthMax
@@ -100,9 +187,8 @@ $ResourceGroupPrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].Shor
 $StorageAccountPrefix = $ResourceTypeShortNameHT["Storage/storageAccounts"].ShortName
 $NetworkSecurityGroupPrefix = $ResourceTypeShortNameHT["Network/networkSecurityGroups"].ShortName
 $KeyVaultPrefix = $ResourceTypeShortNameHT["KeyVault/vaults"].ShortName
-$RecoverySiteVaultPrefix = $ResourceTypeShortNameHT["RecoveryServices/vaults"].ShortName
-$DiskEncryptionSetPrefix = $ResourceTypeShortNameHT["Compute/diskEncryptionSets"].ShortName
-$DiskEncryptionKeyPrefix = "dek"
+$PublicIPAddressPrefix = $ResourceTypeShortNameHT["Network/publicIPAddresses"].ShortName
+$NICPrefix = $ResourceTypeShortNameHT["Network/networkInterfaces"].ShortName
 
 
 $Project = "vm"
@@ -120,29 +206,29 @@ Do {
 } While ((-not(Test-AzDnsAvailability -DomainNameLabel $VMName -Location $Location)) -or (-not(Test-AzKeyVaultNameAvailability -Name $KeyVaultName).NameAvailable))
 
 
-$DiskEncryptionSetName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $DiskEncryptionSetPrefix, $Project, $Role, $LocationShortName, $Instance                       
-$DiskEncryptionKeyName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $DiskEncryptionKeyPrefix, $Project, $Role, $LocationShortName, $Instance
-
-                         
 $NetworkSecurityGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $NetworkSecurityGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $VirtualNetworkName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $VirtualNetworkPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $SubnetName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $SubnetPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
+$PublicIPAddressName = "{0}-{1}" -f $PublicIPAddressPrefix , $VMName
+$NICName = "{0}-{1}" -f $NICPrefix , $VMName
 
 $VMName = $VMName.ToLower()
 $NetworkSecurityGroupName = $NetworkSecurityGroupName.ToLower()
 $VirtualNetworkName = $VirtualNetworkName.ToLower()
 $SubnetName = $SubnetName.ToLower()
+$PublicIPAddressName = $PublicIPAddressName.ToLower()
+$NICName = $NICName.ToLower()
+
 $ResourceGroupName = $ResourceGroupName.ToLower()
 $VirtualNetworkAddressSpace = "10.0.0.0/16" # Format 10.0.0.0/16
 $SubnetIPRange = "10.0.0.0/24" # Format 10.0.1.0/24                         
 
 $FQDN = "$VMName.$Location.cloudapp.azure.com".ToLower()
-$DiskEncryptionKeyDestination = "Software"
 
 #region Defining credential(s)
 $Username = $env:USERNAME
-$SecurePassword = New-RandomPassword -ClipBoard -AsSecureString -Verbose
+$SecurePassword = New-RandomPassword -nonAlphaChars 0 -ClipBoard -AsSecureString -Verbose
 $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList ($Username, $SecurePassword)
 #endregion
 
@@ -162,37 +248,53 @@ $MyPublicIp = Invoke-RestMethod -Uri "https://ipv4.seeip.org"
 $ImagePublisherName = "MicrosoftWindowsServer"
 $ImageOffer = "WindowsServer"
 $ImageSku = "2022-datacenter-g2"
-$PublicIPName = "pip-$VMName" 
-$NICName = "nic-$VMName"
+#region OS Disk
 $OSDiskName = '{0}_OSDisk' -f $VMName
+$OSDiskSize = "127"
+$OSDiskType = "StandardSSD_LRS"
+#$OSDiskType = "Standard_LRS"
+#endregion
+
+#region Data Disks
 $DataDisk01Name = '{0}_DataDisk01' -f $VMName
 $DataDisk02Name = '{0}_DataDisk02' -f $VMName
-$OSDiskSize = "127"
-$StorageAccountSkuName = "Standard_LRS"
-$OSDiskType = "StandardSSD_LRS"
+#$DataDiskSize = "512"
+$DataDiskSize = "64"
+#$DataDiskType = "Standard_LRS"
+$DataDiskType = "StandardSSD_LRS"
+#endregion
 
-Write-Verbose "`$VMName: $VMName"
-Write-Verbose "`$NetworkSecurityGroupName: $NetworkSecurityGroupName"         
-Write-Verbose "`$VirtualNetworkName: $VirtualNetworkName"         
-Write-Verbose "`$SubnetName: $SubnetName"       
-Write-Verbose "`$ResourceGroupName: $ResourceGroupName"
-Write-Verbose "`$PublicIPName: $PublicIPName"
-Write-Verbose "`$NICName: $NICName"
-Write-Verbose "`$OSDiskName: $OSDiskName"
-Write-Verbose "`$FQDN: $FQDN"
+#$VMSize = "Standard_D4s_v5"
+$VMSize = "Standard_B2ms"
+
+if ($null -eq (Get-AzComputeResourceSku -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
+    Write-Error -Message "The '$VMSize' is not available in the '$Location' location ..." -ErrorAction Stop
+}
+
+Write-Verbose -Message "`$VMName: $VMName"
+Write-Verbose -Message "`$NetworkSecurityGroupName: $NetworkSecurityGroupName"         
+Write-Verbose -Message "`$VirtualNetworkName: $VirtualNetworkName"         
+Write-Verbose -Message "`$SubnetName: $SubnetName"       
+Write-Verbose -Message "`$ResourceGroupName: $ResourceGroupName"
+if ($PublicIP) {
+    Write-Verbose -Message "`$PublicIPAddressName: $PublicIPAddressName"
+}
+Write-Verbose -Message "`$NICName: $NICName"
+Write-Verbose -Message "`$OSDiskName: $OSDiskName"
+Write-Verbose -Message "`$FQDN: $FQDN"
 #endregion
 #endregion
 
 #region Azure VM Setup
 Write-Host -Object "The '$VMName' Azure VM is creating ..."
 if ($VMName.Length -gt $AzureVMNameMaxLength) {
-    Write-Error "'$VMName' exceeds $AzureVMNameMaxLength characters" -ErrorAction Stop
+    Write-Error -Message "'$VMName' exceeds $AzureVMNameMaxLength characters" -ErrorAction Stop
 }
 elseif (-not($LocationShortName)) {
-    Write-Error "No location short name found for '$Location'" -ErrorAction Stop
+    Write-Error -Message "No location short name found for '$Location'" -ErrorAction Stop
 }
 elseif ($null -eq (Get-AzComputeResourceSku -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
-    Write-Error "The '$VMSize' is not available in the '$Location' location ..." -ErrorAction Stop
+    Write-Error -Message "The '$VMSize' is not available in the '$Location' location ..." -ErrorAction Stop
 }
 
 #Create Azure Resource Group
@@ -223,14 +325,23 @@ $VirtualNetwork = Set-AzVirtualNetwork -VirtualNetwork $VirtualNetwork
 $Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork
 #endregion
 
+$NICParameters = @{
+    Name = $NICName 
+    ResourceGroupName = $ResourceGroupName 
+    Location = $Location 
+    SubnetId = $Subnet.Id 
+}
+if ($NSGOnNIC) {
+    $NICParameters["NetworkSecurityGroupId"] = $NetworkSecurityGroup.Id 
+}
 #Create Azure Public Address
-$PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $ResourceGroupName -Location $Location -AllocationMethod Static -DomainNameLabel $VMName.ToLower()
-#Setting up the DNS Name
-#$PublicIP.DnsSettings.Fqdn = $FQDN
+if ($PublicIP) {
+    $PublicIPAddress = New-AzPublicIpAddress -Name $PublicIPAddressName -ResourceGroupName $ResourceGroupName -Location $Location -AllocationMethod Static -DomainNameLabel $VMName.ToLower()
+    $NICParameters["PublicIpAddressId"] = $PublicIPAddress.Id 
+}
 
 #Create Network Interface Card 
-$NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -PublicIpAddressId $PublicIP.Id #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
-
+$NIC = New-AzNetworkInterface @NICParameters 
 <# Optional : Get Virtual Machine publisher, Image Offer, Sku and Image
 $ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq "MicrosoftWindowsDesktop"}
 $ImageOffer = Get-AzVMImageOffer -Location $Location -publisher $ImagePublisherName.PublisherName | Where-Object -FilterScript { $_.Offer  -eq "Windows-11"}
@@ -239,7 +350,26 @@ $image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.Publi
 #>
 
 # Create a virtual machine configuration file (As a Spot Intance)
-$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1 -IdentityType SystemAssigned -SecurityType TrustedLaunch
+#region Checking if the VM Size can be set as a Spot Instance
+$Query = @"
+SpotResources 
+| where type =~ 'microsoft.compute/skuspotpricehistory/ostype/location' 
+| where sku.name in~ ('$VMSize') 
+| where properties.osType =~ 'windows' 
+| where location in~ ('$Location') 
+| project skuName = tostring(sku.name), location
+"@
+$Result = Search-AzGraph -Query $Query -UseTenantScope
+#endregion
+
+#Spot Instance 
+if ($Result.skuName -eq $VMSize ){
+    $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1 -IdentityType SystemAssigned -SecurityType TrustedLaunch
+}
+else {
+    Write-Warning -Message "'$VMSize' can NOT be set as Spot Instance in the '$Location' Azure location"
+    $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -IdentityType SystemAssigned -SecurityType TrustedLaunch
+}
 
 $null = Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 
@@ -266,50 +396,46 @@ $RoleAssignment = New-AzRoleAssignment -ObjectId $WhoAmI.Id -RoleDefinitionName 
 Start-Sleep -Seconds 30
 
 #FROM https://learn.microsoft.com/en-us/azure/virtual-machines/windows/disks-enable-customer-managed-keys-powershell#set-up-an-azure-key-vault-and-diskencryptionset-optionally-with-automatic-key-rotation
-$key = Add-AzKeyVaultKey -VaultName $KeyVaultName -Name $DiskEncryptionKeyName -Destination $DiskEncryptionKeyDestination
-$DiskEncryptionSetConfig = New-AzDiskEncryptionSetConfig -Location $Location -SourceVaultId $KeyVault.ResourceId -KeyUrl $key.Key.Kid -IdentityType SystemAssigned -RotationToLatestKeyVersionEnabled $true
-$DiskEncryptionSet = New-AzDiskEncryptionSet -Name $DiskEncryptionSetName -ResourceGroupName $ResourceGroupName -InputObject $DiskEncryptionSetConfig
-$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -ObjectId $DiskEncryptionSet.Identity.PrincipalId -PermissionsToKeys wrapKey, unwrapKey, get
-#$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $keyVaultName -ResourceGroupName $resourceGroupName -EnabledForDiskEncryption
+$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $keyVaultName -ResourceGroupName $resourceGroupName -EnabledForDiskEncryption
 
 #As the owner of the key vault, you automatically have access to create secrets. If you need to let another user create secrets, use:
 #$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -UserPrincipalName $WhoAmI.UserPrincipalName -PermissionsToSecrets Get,Delete,List,Set -PassThru
-
-#From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/disks-enable-host-based-encryption-powershell#create-an-azure-key-vault-and-diskencryptionset
-# Grant the DiskEncryptionSet resource access to the key vault.
-#Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -ObjectId $DiskEncryptionSet.Identity.PrincipalId -PermissionsToKeys wrapkey,unwrapkey,get -Verbose
-#region "Key Vault Crypto Service Encryption User" RBAC Assignment
-$RoleDefinition = Get-AzRoleDefinition "Key Vault Crypto Service Encryption User"
-$RoleAssignment = New-AzRoleAssignment -ObjectId $DiskEncryptionSet.Identity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $KeyVault.ResourceId -ErrorAction Ignore #-Debug
 #endregion
 
 Start-Sleep -Seconds 30
 #endregion 
 
-
 # Set OsDisk configuration
 $null = Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -CreateOption fromImage
 
 #region Adding Data Disks
-$VMDataDisk01Config = New-AzDiskConfig -SkuName $OSDiskType -Location $Location -CreateOption Empty -DiskSizeGB 512
-$VMDataDisk02Config = New-AzDiskConfig -SkuName $OSDiskType -Location $Location -CreateOption Empty -DiskSizeGB 512
+$VMDataDisk01Config = New-AzDiskConfig -SkuName $DataDiskType -Location $Location -CreateOption Empty -DiskSizeGB $DataDiskSize
+$VMDataDisk02Config = New-AzDiskConfig -SkuName $DataDiskType -Location $Location -CreateOption Empty -DiskSizeGB $DataDiskSize
 $VMDataDisk01 = New-AzDisk -DiskName $DataDisk01Name -Disk $VMDataDisk01Config -ResourceGroupName $ResourceGroupName
 $VMDataDisk02 = New-AzDisk -DiskName $DataDisk02Name -Disk $VMDataDisk02Config -ResourceGroupName $ResourceGroupName
-$VM = Add-AzVMDataDisk -VM $VMConfig -Name $DataDisk01Name -CreateOption Attach -ManagedDiskId $VMDataDisk01.Id -Lun 0
-$VM = Add-AzVMDataDisk -VM $VMConfig -Name $DataDisk02Name -CreateOption Attach -ManagedDiskId $VMDataDisk02.Id -Lun 1
+$null = Add-AzVMDataDisk -VM $VMConfig -Name $DataDisk01Name -CreateOption Attach -ManagedDiskId $VMDataDisk01.Id -Lun 0
+$null = Add-AzVMDataDisk -VM $VMConfig -Name $DataDisk02Name -CreateOption Attach -ManagedDiskId $VMDataDisk02.Id -Lun 1
 #endregion
 
 #Create Azure Virtual Machine
-$null = New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig -OSDiskDeleteOption Delete  -DataDiskDeleteOption Delete -NetworkInterfaceDeleteOption Delete #-DisableBginfoExtension
-
+$null = New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig -OSDiskDeleteOption Delete -DataDiskDeleteOption Delete #-DisableBginfoExtension
 $VM = Get-AzVM -ResourceGroup $ResourceGroupName -Name $VMName
-
 
 #region Formatting Data Disk(s)
 $ScriptString = @'
-    Get-Disk | Where-Object PartitionStyle -eq 'RAW' | Initialize-Disk -PassThru | New-Partition -AssignDriveLetter -UseMaximumSize | Format-Volume
+#Creating new partition on uninitialized disk(s)
+Get-Disk | Where-Object PartitionStyle -eq 'RAW' | Initialize-Disk -PassThru | New-Partition -AssignDriveLetter -UseMaximumSize | Format-Volume
+
+#Creating a timestamped file using 10% of the free space on every PSDrive
+Get-PSDrive -PSProvider FileSystem | ForEach-Object -Process {
+    $FileName= "10Percent_{0:yyyyMMddHHmmss}.txt" -f (Get-Date)
+    $FilePath = Join-Path $_.Root -ChildPath $FileName
+    $Size = $_.Free/10
+    $FS = [System.IO.File]::Create($FilePath)
+    $FS.SetLength($size)
+}
 '@
-$RunPowerShellScript = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptString $ScriptString -Verbose
+$RunPowerShellScript = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptString $ScriptString
 #$RunPowerShellScript
 #endregion
 
@@ -319,24 +445,24 @@ $NewJitPolicy = (
     @{
         id    = $VM.Id
         ports = 
-            foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
-                @{
-                    number                     = $CurrentJITPolicyPort;
-                    protocol                   = "*";
-                    allowedSourceAddressPrefix = "*";
-                    maxRequestAccessDuration   = "PT$($JitPolicyTimeInHours)H"
-                }
+        foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
+            @{
+                number                     = $CurrentJITPolicyPort;
+                protocol                   = "*";
+                allowedSourceAddressPrefix = "*";
+                maxRequestAccessDuration   = "PT$($JitPolicyTimeInHours)H"
             }
+        }
     }
 )
 
-Write-Host "Get Existing JIT Policy. You can Ignore the error if not found."
+Write-Host -Object "Get Existing JIT Policy. You can Ignore the error if not found."
 $ExistingJITPolicy = (Get-AzJitNetworkAccessPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -ErrorAction Ignore).VirtualMachines
 $UpdatedJITPolicy = $ExistingJITPolicy.Where{ $_.id -ne "$($VM.Id)" } # Exclude existing policy for $VMName
 $UpdatedJITPolicy.Add($NewJitPolicy)
 	
 # Enable Access to the VM including management Port, and Time Range in Hours
-Write-Host "Enabling Just in Time VM Access Policy for ($VMName) on port number(s) $($JitPolicy.ports.number -join ', ') for maximum $JitPolicyTimeInHours hours..."
+Write-Host -Object "Enabling Just in Time VM Access Policy for ($VMName) on port number(s) $($JitPolicy.ports.number -join ', ') for maximum $JitPolicyTimeInHours hours..."
 $JitNetworkAccessPolicy = Set-AzJitNetworkAccessPolicy -VirtualMachine $UpdatedJITPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -Kind "Basic"
 Start-Sleep -Seconds 5
 #endregion
@@ -346,17 +472,17 @@ $JitPolicy = (
     @{
         id    = $VM.Id
         ports = 
-            foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
-                @{
-                    number                     = $CurrentJITPolicyPort;
-                    endTimeUtc                 = (Get-Date).AddHours($JitPolicyTimeInHours).ToUniversalTime()
-                    allowedSourceAddressPrefix = @($MyPublicIP) 
-                }
+        foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
+            @{
+                number                     = $CurrentJITPolicyPort;
+                endTimeUtc                 = (Get-Date).AddHours($JitPolicyTimeInHours).ToUniversalTime()
+                allowedSourceAddressPrefix = @($MyPublicIP) 
             }
+        }
     }
 )
 $ActivationVM = @($JitPolicy)
-Write-Host "Requesting Temporary Acces via Just in Time for $($VM.Name) on port number(s) $($JitPolicy.ports.number -join ', ') for maximum $JitPolicyTimeInHours hours ..."
+Write-Host -Object "Requesting Temporary Acces via Just in Time for $($VM.Name) on port number(s) $($JitPolicy.ports.number -join ', ') for maximum $JitPolicyTimeInHours hours ..."
 $null = Start-AzJitNetworkAccessPolicy -ResourceGroupName $($VM.ResourceGroupName) -Location $VM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM
 #endregion
 #endregion
@@ -377,12 +503,12 @@ $null = New-AzResource -Location $Location -ResourceId $ScheduledShutdownResourc
 #region Azure Disk Encryption
 #From https://learn.microsoft.com/en-us/powershell/module/az.compute/set-azvmdiskencryptionextension?view=azps-13.0.0
 $params = @{
-    ResourceGroupName = $ResourceGroupName
-    VMName = $VMName
-    DiskEncryptionKeyVaultId = $KeyVault.ResourceId
+    ResourceGroupName         = $ResourceGroupName
+    VMName                    = $VMName
+    DiskEncryptionKeyVaultId  = $KeyVault.ResourceId
     DiskEncryptionKeyVaultUrl = $KeyVault.VaultUri
-    VolumeType = "All"
-    Force = $true
+    VolumeType                = "All"
+    Force                     = $true
 }
 Set-AzVMDiskEncryptionExtension @params
 
@@ -393,14 +519,46 @@ Get-AzVMDiskEncryptionStatus -ResourceGroupName $ResourceGroupName -VMName $VMNa
 Write-Host -Object "Starting the '$VMName' VM ..."
 $null = Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 
-# Adding Credentials to the Credential Manager (and escaping the password)
-Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDN /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
+# Adding Credentials to the Credential Manager (and escaping the password) for the VM
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDN /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait #-NoNewWindow
+Write-Host -Object "Your RDP credentials (login/password) are $($Credential.UserName)/$($Credential.GetNetworkCredential().Password)" #-ForegroundColor Green
+# Adding Credentials to the Credential Manager (and escaping the password) for the potential future target VM
+$FQDNTarget = $FQDN -replace "^([^.]*)(.*)$", '$1target$2'
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDNTarget /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait #-NoNewWindow
+<#
 $Credential = $null
 Write-Warning -Message "Credentials cleared from memory but available in the Windows Credential Manager for automatic logon via a RDP client ..."
+#>
 Write-Host -Object "The '$FQDN' Azure VM is created and started ..."
 
 #Start-Sleep -Seconds 15
 
 #Start RDP Session
 #mstsc /v $FQDN
+#endregion
+
+#region Disk Encryption In Progress
+if ($Wait) {
+    Write-Host -Object "Encrypting Disk ..."
+    $StartTime = Get-Date
+
+    Do {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 60 seconds"
+        Start-Sleep -Second 60
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Processing VM(s): $($VM.Name -join ', ')"
+        $BitLockerVolume = $VM | Get-AzVMBitLockerVolume #-Verbose
+        #Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$BitLockerVolume:`r`n$($BitLockerVolume | Out-String)"
+        Write-Host -Object "`$BitLockerVolume:`r`n$($BitLockerVolume | Out-String)"
+        $AverageEncryptionPercentage = "{0:n2}" -f ($BitLockerVolume | Measure-Object -Property EncryptionPercentage -Average).Average
+        Write-Host -Object "Average Encryption Percentage: $AverageEncryptionPercentage %"
+        #Keeping only the VMs where the disks are not Fully Encrypted
+        $VM = $VM | Where-Object -FilterScript { $_.Name -in $($($BitLockerVolume | Where-Object -FilterScript { $_.VolumeStatus -ne "FullyEncrypted"}).ComputerName | Select-Object -Unique)}
+    } While ($VM)
+    $EndTime = Get-Date
+    $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
+    Write-Host -Object "Encrypting Disk - Processing Time: $TimeSpan"
+}
+else {
+    Write-Host -Object "-Wait NOT specified: Skipping The Encryption Disk Wait (Encryption will occur in the background)..."
+}
 #endregion
