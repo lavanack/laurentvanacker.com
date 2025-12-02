@@ -529,7 +529,7 @@ function ConvertTo-EncryptionAtHostWithRunSpace {
     Write-Host -Object "Runspace Results:`r`n$($RunspaceList.Result | Out-String)"
 
     $TimeSpan = New-TimeSpan -Start $OverallStartTime -End $OverallEndTime
-    Write-Host -Object "Overall - Processing Time: $($TimeSpan.ToString())" -ForegroundColor Green
+    Write-Host -Object "[$($MyInvocation.MyCommand)] Overall - Processing Time: $($TimeSpan.ToString())" -ForegroundColor Green
     #endregion
     $ConvertedVMs = $RunspaceList | ForEach-Object -Process { $_.Result[-1] }
     return $ConvertedVMs 
