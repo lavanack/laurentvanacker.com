@@ -45,6 +45,13 @@ The main function that converts a single VM from ADE to Encryption at Host.
 5. Copies disk data using AzCopy
 6. Creates a new VM with encryption at host enabled
 
+>[!NOTE]
+> If a Public IP is attached to the source VM, a new one will be attached to the target one
+>
+> If a Network Security Group (NSG) is attached to the source NIC ,the same NSG willbe attached to the tget NIC.
+>
+> The "Bonus Track" region is just for checking the encryption status and to set up Just-In-Time Administration (JIT)
+
 ### ConvertTo-EncryptionAtHostWithThreadJob
 
 Parallel processing version using ThreadJobs for better performance with multiple VMs.
