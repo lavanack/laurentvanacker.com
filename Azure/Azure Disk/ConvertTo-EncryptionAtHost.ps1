@@ -33,7 +33,7 @@ function ConvertTo-EncryptionAtHost {
     [CmdletBinding(PositionalBinding = $false)]    
     param
     (
-		[Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $false)]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $false)]
         [Alias('SourceVM')]
         [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine[]] $VM
     )
@@ -107,11 +107,11 @@ function ConvertTo-EncryptionAtHost {
             Do {
                 $RunPowerShellScript = Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptString "Get-BitLockerVolume | ConvertTo-Json"
                 Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$("{0:yyyy-MM-dd HH:mm:ss}" -f (Get-Date))][$VMName] `$Statuses (As Json):`r`n$($RunPowerShellScript.value[0].Message)"
-                $Drives = ($RunPowerShellScript.value[0].Message | ConvertFrom-Json) | Where-Object -FilterScript {$_.MountPoint -match "^\w:$"} |  Select-Object -Property ComputerName, MountPoint, EncryptionPercentage, @{Name="VolumeStatus"; Expression = {$VolumeStatus[$_.VolumeStatus]}}
+                $Drives = ($RunPowerShellScript.value[0].Message | ConvertFrom-Json) | Where-Object -FilterScript { $_.MountPoint -match "^\w:$" } |  Select-Object -Property ComputerName, MountPoint, EncryptionPercentage, @{Name = "VolumeStatus"; Expression = { $VolumeStatus[$_.VolumeStatus] } }
                 Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$("{0:yyyy-MM-dd HH:mm:ss}" -f (Get-Date))][$VMName] `$Drives:`r`n$($Drives | Out-String)"
-				$AverageEncryptionPercentage = "{0:n2}" -f ($Drives | Measure-Object -Property EncryptionPercentage -Average).Average
-				Write-Verbose -Message "Average Encryption Percentage: $AverageEncryptionPercentage %"
-				Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 60 seconds"
+                $AverageEncryptionPercentage = "{0:n2}" -f ($Drives | Measure-Object -Property EncryptionPercentage -Average).Average
+                Write-Verbose -Message "Average Encryption Percentage: $AverageEncryptionPercentage %"
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 60 seconds"
                 Start-Sleep -Seconds 60
             } While (($Drives.VolumeStatus | Select-Object -Unique) -ne "FullyDecrypted")
             $EndTime = Get-Date
@@ -129,7 +129,7 @@ function ConvertTo-EncryptionAtHost {
             #From https://learn.microsoft.com/en-us/azure/virtual-machines/disk-encryption-migrate?tabs=azurepowershell%2Cazurepowershell2%2CCLI3%2CCLI4%2CCLI5%2CCLI-cleanup#create-new-managed-disks
             # Get source disk information
             $VMSourceDisks = @{
-                "OSDisk" = $(Get-AzResource -ResourceId $CurrentVM.StorageProfile.OsDisk.ManagedDisk.Id | Get-AzDisk)
+                "OSDisk"   = $(Get-AzResource -ResourceId $CurrentVM.StorageProfile.OsDisk.ManagedDisk.Id | Get-AzDisk)
                 "DataDisk" = foreach ($SourceDisk in $CurrentVM.StorageProfile.DataDisks) {
                     Get-AzResource -ResourceId $SourceDisk.ManagedDisk.Id | Get-AzDisk
                 }
@@ -138,7 +138,7 @@ function ConvertTo-EncryptionAtHost {
 
             #region Installing AzCopy
             #Looking for all installed azcopy.exe 
-            $AzCopy = Get-ChildItem -Path (Get-PSDrive | Where-Object -FilterScript { $_.Provider.Name -eq "FileSystem"}).Root -Filter azcopy.exe -File -Recurse -ErrorAction Ignore
+            $AzCopy = Get-ChildItem -Path (Get-PSDrive | Where-Object -FilterScript { $_.Provider.Name -eq "FileSystem" }).Root -Filter azcopy.exe -File -Recurse -ErrorAction Ignore
             $MaxVersionNumber = [System.Version]::new(0, 0, 0)
             foreach ($CurrentAzCopy in $AzCopy.FullName) {
                 $VersionNumber = & $CurrentAzCopy -v
@@ -150,7 +150,7 @@ function ConvertTo-EncryptionAtHost {
             }
 
             #If not version found then downloading the latest one
-            if(-not($HighestAzCopy)) {
+            if (-not($HighestAzCopy)) {
                 Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] AzCopy not found"
                 $AzCopyURI = 'https://aka.ms/downloadazcopy-v10-windows'
                 #$AzCopyURI = $(((Invoke-RestMethod  -Uri "https://api.github.com/repos/Azure/azure-storage-azcopy/releases/latest").assets | Where-Object -FilterScript { $_.name -match "windows_amd64" }).browser_download_url)
@@ -159,7 +159,7 @@ function ConvertTo-EncryptionAtHost {
                 $null = New-Item -Path $AzCopyDir -ItemType Directory -Force
                 Expand-Archive -Path $OutputFile -DestinationPath $AzCopyDir -Force
                 Remove-Item -Path $OutputFile -Force
-                $HighestAzCopy=(Get-ChildItem -Path $(Join-Path -Path $AzCopyDir -ChildPath "azcopy_windows*") -Filter azcopy.exe -Recurse  | Sort-Object -Property Name -Descending | Select-Object -First 1).Fullname
+                $HighestAzCopy = (Get-ChildItem -Path $(Join-Path -Path $AzCopyDir -ChildPath "azcopy_windows*") -Filter azcopy.exe -Recurse  | Sort-Object -Property Name -Descending | Select-Object -First 1).Fullname
 
             }
             #endregion
@@ -183,22 +183,22 @@ function ConvertTo-EncryptionAtHost {
                     if ($DiskType -eq "OSDisk") {
                         # Create a new empty target disk
                         # For Windows OS disks
-                        $TargetDiskConfig = New-AzDiskConfig -SkuName $SourceDisk.sku.Name -Location $SourceDisk.Location -CreateOption Upload -UploadSizeInBytes $($SourceDisk.DiskSizeBytes+512) -OsType Windows -HyperVGeneration "V2"
+                        $TargetDiskConfig = New-AzDiskConfig -SkuName $SourceDisk.sku.Name -Location $SourceDisk.Location -CreateOption Upload -UploadSizeInBytes $($SourceDisk.DiskSizeBytes + 512) -OsType Windows -HyperVGeneration "V2"
                         $TargetDiskConfig = Set-AzDiskSecurityProfile -Disk $TargetDiskConfig -SecurityType "TrustedLaunch"
                         $TargetDisk = New-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $DiskName -Disk $TargetDiskConfig
-                        $DiskData = [PSCustomObject]@{SourceDisk=$SourceDisk; TargetDisk=$TargetDisk}
+                        $DiskData = [PSCustomObject]@{SourceDisk = $SourceDisk; TargetDisk = $TargetDisk }
                         $VMDiskData[$DiskType] = $DiskData
                     }
                     else {
                         # For data disks (no OS type needed)
-                        $TargetDiskConfig = New-AzDiskConfig -SkuName $SourceDisk.sku.Name -Location $SourceDisk.Location -CreateOption Upload -UploadSizeInBytes $($SourceDisk.DiskSizeBytes+512)
+                        $TargetDiskConfig = New-AzDiskConfig -SkuName $SourceDisk.sku.Name -Location $SourceDisk.Location -CreateOption Upload -UploadSizeInBytes $($SourceDisk.DiskSizeBytes + 512)
                         $TargetDisk = New-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $DiskName -Disk $TargetDiskConfig
-                        $DiskData = [PSCustomObject]@{SourceDisk=$SourceDisk; TargetDisk=$TargetDisk}
+                        $DiskData = [PSCustomObject]@{SourceDisk = $SourceDisk; TargetDisk = $TargetDisk }
                         if ($null -eq $VMDiskData[$DiskType]) {
                             $VMDiskData[$DiskType] = @($DiskData)
                         }
                         else {
-                            $VMDiskData[$DiskType]+=$DiskData
+                            $VMDiskData[$DiskType] += $DiskData
                         }
                     }
                     $EndTime = Get-Date
@@ -220,7 +220,7 @@ function ConvertTo-EncryptionAtHost {
                     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$VMName] Copying the target disk data using AzCopy"
                     $StartTime = Get-Date
                     $AzCopyResult = & $HighestAzCopy copy $SourceSAS.AccessSAS $TargetSAS.AccessSAS --blob-type PageBlob
-					Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$VMName] AzCopy Result:`r`n$($AzCopyResult | Out-String)"
+                    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$VMName] AzCopy Result:`r`n$($AzCopyResult | Out-String)"
                     $EndTime = Get-Date
                     $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
                     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$VMName] Copying the target disk data using AzCopy - Processing Time: $TimeSpan"
@@ -229,10 +229,11 @@ function ConvertTo-EncryptionAtHost {
                     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$VMName] Revoking SAS access when complete"
                     $StartTime = Get-Date
                     $null = Revoke-AzDiskAccess -ResourceGroupName $ResourceGroupName -DiskName $SourceDisk.Name
-                    $null = Revoke-AzDiskAccess -ResourceGroupName $ResourceGroupName -DiskName $TargetDisk.Name                }
-                    $EndTime = Get-Date
-                    $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
-                    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$VMName] Revoking SAS access - Processing Time: $TimeSpan"
+                    $null = Revoke-AzDiskAccess -ResourceGroupName $ResourceGroupName -DiskName $TargetDisk.Name                
+                }
+                $EndTime = Get-Date
+                $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$VMName] Revoking SAS access - Processing Time: $TimeSpan"
             }
             #endregion
 
@@ -248,11 +249,11 @@ function ConvertTo-EncryptionAtHost {
 
             #region Create Azure Public Address if source vm has one
             $NICParameters = @{
-                Name = $TargetNICName 
+                Name              = $TargetNICName 
                 ResourceGroupName = $ResourceGroupName 
-                Location = $NIC.Location 
-                SubnetId = $Subnet.Id
-                Force = $True
+                Location          = $NIC.Location 
+                SubnetId          = $Subnet.Id
+                Force             = $True
             }
             if ($NIC.IpConfigurations.PublicIpAddress.Id) {
                 $PublicIP = Get-AzResource -ResourceId $NIC.IpConfigurations.PublicIpAddress.Id | Get-AzPublicIpAddress
@@ -301,7 +302,7 @@ function ConvertTo-EncryptionAtHost {
             # Get the VM
             $TargetVM = Get-AzVM -ResourceGroupName $ResourceGroupName -Name $TargetVMName
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$TargetVMName] Get `$TargetVM: $($TargetVM | Out-String)"
-            $Lun=0
+            $Lun = 0
             foreach ($CurrentVMDiskData in $VMDiskData["DataDisk"]) {
                 $TargetDisk = $CurrentVMDiskData.TargetDisk
                 #$SourceDisk = $CurrentVMDiskData.SourceDisk
@@ -324,7 +325,7 @@ function ConvertTo-EncryptionAtHost {
             #region Verify and configure the new disks
             $StartTime = Get-Date
             #From https://learn.microsoft.com/en-us/azure/virtual-machines/disk-encryption-migrate?tabs=azurepowershell%2Cazurepowershell2%2Cazurepowershell3%2CCLI4%2CCLI5%2CCLI-cleanup#verify-and-configure-the-new-disks
-        $ScriptString = @"
+            $ScriptString = @"
 # List all disks and their partitions
 Get-Disk | Get-Partition | Format-Table -AutoSize
 
@@ -389,7 +390,7 @@ function ConvertTo-EncryptionAtHostWithThreadJob {
     [CmdletBinding(PositionalBinding = $false)]    
     param
     (
-		[Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $false)]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $false)]
         [Alias('SourceVM')]
         [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine[]] $VM
     )
@@ -405,13 +406,13 @@ function ConvertTo-EncryptionAtHostWithThreadJob {
     }
     process {
         foreach ($CurrentVM in $VM) {
-            $Job = Start-ThreadJob -ScriptBlock {ConvertTo-EncryptionAtHost -VM $using:CurrentVM} -InitializationScript $ExportedFunctions -StreamingHost $Host
+            $Job = Start-ThreadJob -ScriptBlock { ConvertTo-EncryptionAtHost -VM $using:CurrentVM } -InitializationScript $ExportedFunctions -StreamingHost $Host
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `Running Job #$($Job.Id) for '$($CurrentVM.Name)' VM"
-			$Jobs += $Job
+            $Jobs += $Job
         }
     }
     end {
-		$ConvertedVMs = $Jobs | Receive-Job -Wait -AutoRemoveJob
+        $ConvertedVMs = $Jobs | Receive-Job -Wait -AutoRemoveJob
         $OverallEndTime = Get-Date
         $TimeSpan = New-TimeSpan -Start $OverallStartTime -End $OverallEndTime
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Overall - Processing Time: $TimeSpan"
@@ -530,7 +531,7 @@ function ConvertTo-EncryptionAtHostWithRunSpace {
     $TimeSpan = New-TimeSpan -Start $OverallStartTime -End $OverallEndTime
     Write-Host -Object "Overall - Processing Time: $($TimeSpan.ToString())" -ForegroundColor Green
     #endregion
-    $ConvertedVMs = $RunspaceList | ForEach-Object -Process {$_.Result[-1]}
+    $ConvertedVMs = $RunspaceList | ForEach-Object -Process { $_.Result[-1] }
     return $ConvertedVMs 
 }
 
@@ -538,7 +539,7 @@ function Get-AzVMBitLockerVolume {
     [CmdletBinding(PositionalBinding = $false)]    
     param
     (
-		[Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $false)]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $false)]
         [Alias('SourceVM')]
         [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] $VM,
         [switch] $Raw
@@ -578,7 +579,7 @@ function Get-AzVMBitLockerVolume {
             Write-Host -Object "Waiting the jobs complete ..."
             $Results = $Jobs | Receive-Job -Wait -AutoRemoveJob
             if ($Results) {
-                $BitLockerVolume = $Results | ForEach-Object {$_.Value[0].Message} | ConvertFrom-Json| ForEach-Object -Process {$_ }
+                $BitLockerVolume = $Results | ForEach-Object { $_.Value[0].Message } | ConvertFrom-Json | ForEach-Object -Process { $_ }
                 Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$BitLockerVolume: $($BitLockerVolume | Out-String)"
                 $OverallEndTime = Get-Date
                 $TimeSpan = New-TimeSpan -Start $OverallStartTime -End $OverallEndTime
@@ -589,7 +590,7 @@ function Get-AzVMBitLockerVolume {
                 else {
                     #Volumestatus value : 0 = 'FullyDecrypted', 1 = 'FullyEncrypted', 2 = 'EncryptionInProgress', 3 = 'DecryptionInProgress', 4 = 'EncryptionPaused', 5 = 'DecryptionPaused'
                     $VolumeStatus = @('FullyDecrypted', 'FullyEncrypted', 'EncryptionInProgress', 'DecryptionInProgress', 'EncryptionPaused', 'DecryptionPaused')
-                    $BitLockerVolume | Where-Object -FilterScript {$_.MountPoint -match "^\w:$"} |  Select-Object -Property ComputerName, MountPoint, EncryptionPercentage, @{Name="VolumeStatus"; Expression = {$VolumeStatus[$_.VolumeStatus]}}
+                    $BitLockerVolume | Where-Object -FilterScript { $_.MountPoint -match "^\w:$" } |  Select-Object -Property ComputerName, MountPoint, EncryptionPercentage, @{Name = "VolumeStatus"; Expression = { $VolumeStatus[$_.VolumeStatus] } }
                 }
             }
         }
@@ -607,7 +608,7 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
 #Finding a VM with ADE Enabled
-$ResourceGroups = Get-AzResourceGroup -Name rg-vm-ade* | Where-Object -FilterScript {$_.ProvisioningState -eq "Succeeded"}
+$ResourceGroups = Get-AzResourceGroup -Name rg-vm-ade* | Where-Object -FilterScript { $_.ProvisioningState -eq "Succeeded" }
 $VMs = foreach ($CurrentResourceGroup in $ResourceGroups) {
     foreach ($CurrentVM in Get-AzVM -ResourceGroupName $CurrentResourceGroup.ResourceGroupName) {
         if (((Get-AzVMDiskEncryptionStatus -ResourceGroupName $CurrentVM.ResourceGroupName -VMName $CurrentVM.Name).OsVolumeEncrypted -eq "Encrypted") -and ((Get-AzVMDiskEncryptionStatus -ResourceGroupName $CurrentVM.ResourceGroupName -VMName $CurrentVM.Name).DataVolumesEncrypted -eq "Encrypted")) {
@@ -635,6 +636,7 @@ if ($VMs) {
     $ConvertedVMs
     #endregion
 
+    #region Bonus Track
     #region Checking Encryption Status - Useless because normally all disk are not encrypted after ConvertTo-EncryptionAtHost* function call
     $VM = $ConvertedVMs
     Do {
@@ -644,11 +646,10 @@ if ($VMs) {
         $BitLockerVolume = $VM | Get-AzVMBitLockerVolume -Verbose
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$BitLockerVolume: $($BitLockerVolume | Out-String)"
         #Keeping only the VMs where the disks are not Fully Decrypted
-        $VM = $VM | Where-Object -FilterScript { $_.Name -in $($($BitLockerVolume | Where-Object -FilterScript { $_.VolumeStatus -ne "FullyDecrypted"}).ComputerName | Select-Object -Unique)}
+        $VM = $VM | Where-Object -FilterScript { $_.Name -in $($($BitLockerVolume | Where-Object -FilterScript { $_.VolumeStatus -ne "FullyDecrypted" }).ComputerName | Select-Object -Unique) }
     } While ($VM)
     #endregion
 
-    #region Bonus Track
     #region JIT Access Management
     $MyPublicIp = Invoke-RestMethod -Uri "https://ipv4.seeip.org"
     $RDPPort = 3389
@@ -664,14 +665,14 @@ if ($VMs) {
             @{
                 id    = $VM.Id
                 ports = 
-                    foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
-                        @{
-                            number                     = $CurrentJITPolicyPort;
-                            protocol                   = "*";
-                            allowedSourceAddressPrefix = "*";
-                            maxRequestAccessDuration   = "PT$($JitPolicyTimeInHours)H"
-                        }
+                foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
+                    @{
+                        number                     = $CurrentJITPolicyPort;
+                        protocol                   = "*";
+                        allowedSourceAddressPrefix = "*";
+                        maxRequestAccessDuration   = "PT$($JitPolicyTimeInHours)H"
                     }
+                }
             }
         )
 
@@ -691,13 +692,13 @@ if ($VMs) {
             @{
                 id    = $VM.Id
                 ports = 
-                    foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
-                        @{
-                            number                     = $CurrentJITPolicyPort;
-                            endTimeUtc                 = (Get-Date).AddHours($JitPolicyTimeInHours).ToUniversalTime()
-                            allowedSourceAddressPrefix = @($MyPublicIP) 
-                        }
+                foreach ($CurrentJITPolicyPort in $JITPolicyPorts) {
+                    @{
+                        number                     = $CurrentJITPolicyPort;
+                        endTimeUtc                 = (Get-Date).AddHours($JitPolicyTimeInHours).ToUniversalTime()
+                        allowedSourceAddressPrefix = @($MyPublicIP) 
                     }
+                }
             }
         )
         $ActivationVM = @($JitPolicy)
