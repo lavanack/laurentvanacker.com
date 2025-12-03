@@ -23,6 +23,7 @@ param
     [switch] $WindowsUpdate
 )
 
+<#
 trap {
     Write-Host "Stopping Transcript ..."
     Stop-Transcript
@@ -32,90 +33,104 @@ trap {
     Send-ALNotification -Activity 'Lab started' -Message ('Lab deployment failed !') -Provider (Get-LabConfigurationItem -Name Notifications.SubscribedProviders)
     break
 }
+#>
 
 #region Function Definition(s)
 Function Get-LatestSQLServerUpdate {
     [CmdletBinding(PositionalBinding = $false)]
     Param(
-        [ValidateSet('SQLServer2019', 'SQLServer2022')]
+        [ValidateSet('SQLServer2019', 'SQLServer2022', 'SQLServer2025')]
         [Alias('SQLServerVersion')]
-        [string[]] $Version = @('SQLServer2019', 'SQLServer2022'),
+        [string[]] $Version = @('SQLServer2019', 'SQLServer2022', 'SQLServer2025'),
         [string] $DownloadFolder
     )
     $DataURI = @{
         "SQLServer2019" = "https://raw.githubusercontent.com/MicrosoftDocs/SupportArticles-docs/refs/heads/main/support/sql/releases/sqlserver-2019/build-versions.md"
         "SQLServer2022" = "https://raw.githubusercontent.com/MicrosoftDocs/SupportArticles-docs/refs/heads/main/support/sql/releases/sqlserver-2022/build-versions.md"
+        "SQLServer2025" = "https://raw.githubusercontent.com/MicrosoftDocs/SupportArticles-docs/refs/heads/main/support/sql/releases/sqlserver-2025/build-versions.md"
     }
     $LatestSQLServerUpdate = foreach ($CurrentVersion in $Version) {
+        Write-Verbose -Message "Processing $CurrentDataURI ..."
         $CurrentDataURI = $DataURI[$CurrentVersion]
-        $LatestCUData = $LatestCUData = (Invoke-RestMethod -Uri $CurrentDataURI) -split "`r|`n" | Select-String -Pattern "(?<CU>CU\d+)\s+\(Latest\)(.*)\[(?<KB>KB\d+)\]\((?<Link>.*)\).*\|(?<Date>.*)\|"
-        $LatestCU = ($LatestCUData.Matches.Groups.Captures | Where-Object -FilterScript { $_.Name -eq 'CU' }).Value
-        $LatestCUKB = ($LatestCUData.Matches.Groups.Captures | Where-Object -FilterScript { $_.Name -eq 'KB' }).Value
-        $LatestCUKBURI = ($LatestCUData.Matches.Groups.Captures | Where-Object -FilterScript { $_.Name -eq 'Link' }).Value
-        $LatestCUDate = [datetime]::Parse(($LatestCUData.Matches.Groups.Captures | Where-Object -FilterScript { $_.Name -eq 'Date' }).Value)
-        $LatestGDRData = (Invoke-RestMethod -Uri $CurrentDataURI) -split "`r|`n" | Select-String -Pattern "\|\s+GDR\s+\|(.*)\[(?<KB>KB\d+)\]\((?<Link>.*)\).*\|(?<Date>.*)\|" | Select-Object -First 1
-        $LatestGDRKB = ($LatestGDRData.Matches.Groups.Captures | Where-Object -FilterScript { $_.Name -eq 'KB' }).Value
-        $LatestGDRKBURI = ($LatestGDRData.Matches.Groups.Captures | Where-Object -FilterScript { $_.Name -eq 'Link' }).Value
-        $LatestGDRDate = [datetime]::Parse(($LatestGDRData.Matches.Groups.Captures | Where-Object -FilterScript { $_.Name -eq 'Date' }).Value)
-
-        $LatestCUKBURI = ($(Split-Path -Path $CurrentDataURI -Parent) + "/" + $LatestCUKBURI) -replace "\\", "/"
-        $LatestCUKBURIData = (Invoke-RestMethod -Uri $LatestCUKBURI) -split "`r|`n" | Select-String -Pattern "\((?<LatestCUURI>https://www.microsoft.com/download/details.aspx.*)\)"
-        $LatestCUURI = ($LatestCUKBURIData.Matches.Groups.Captures | Where-Object -FilterScript { $_.Name -eq 'LatestCUURI' }).Value
-        $LatestGDRURI = ((Invoke-WebRequest  -Uri $LatestGDRKBURI -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "Download the package now" }).href
-
-        #Sometimes Invoke-WebRequest returns a WebException
-        Do {
-            try {
-                $LatestCUURI = ($(Invoke-WebRequest -Uri $LatestCUURI -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe" } | Select-Object -Unique).href
-                $Success = $true
-            }
-            catch {
-                $Success = $false
-            }
-        } While (-not($Success))
-
-        #Sometimes Invoke-WebRequest returns a WebException
-        Do {
-            try {
-                $LatestGDRURI = ($(Invoke-WebRequest -Uri $LatestGDRURI -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe" } | Select-Object -Unique).href
-            }
-            catch {
-                $Success = $false
-            }
-        } While (-not($Success))
-
-
-        if ($DownloadFolder) {
-            [PSCustomObject]@{
-                Version = $CurrentVersion
-                GDR     = [PSCustomObject]@{
-                    KB        = $LatestGDRKB
-                    Date      = $LatestGDRDate
-                    URI       = $LatestGDRURI
-                    LocalFile = Join-Path -Path $DownloadFolder -ChildPath $(Split-Path -Path $LatestGDRURI -Leaf)
-                }
-                CU      = [PSCustomObject]@{
-                    Number    = $LatestCU
-                    KB        = $LatestCUKB
-                    Date      = $LatestCUDate
-                    URI       = $LatestCUURI; 
-                    LocalFile = Join-Path -Path $DownloadFolder -ChildPath $(Split-Path -Path $LatestCUURI -Leaf)
-                }
-            }
+        $LatestCUData = $null
+        try{
+            $LatestCUData = (Invoke-RestMethod -Uri $CurrentDataURI) -split "`r|`n" | Select-String -Pattern "(?<CU>CU\d+)\s+\(Latest\)(.*)\[(?<KB>KB\d+)\]\((?<Link>.*)\).*\|(?<Date>.*)\|"
         }
-        else {
-            [PSCustomObject]@{
-                Version = $CurrentVersion
-                GDR     = [PSCustomObject]@{
-                    KB   = $LatestGDRKB
-                    Date = $LatestGDRDate
-                    URI  = $LatestGDRURI; 
+        catch {
+            Write-Warning -Message "$($CurrentDataURI): $($_.exception.Message)"
+        }
+        if ($LatestCUData) {
+            $LatestCU = ($LatestCUData.Matches.Groups.Captures | Where-Object -FilterScript { $_.Name -eq 'CU' }).Value
+            $LatestCUKB = ($LatestCUData.Matches.Groups.Captures | Where-Object -FilterScript { $_.Name -eq 'KB' }).Value
+            $LatestCUKBURI = ($LatestCUData.Matches.Groups.Captures | Where-Object -FilterScript { $_.Name -eq 'Link' }).Value
+            $LatestCUDate = [datetime]::Parse(($LatestCUData.Matches.Groups.Captures | Where-Object -FilterScript { $_.Name -eq 'Date' }).Value)
+            $LatestGDRData = (Invoke-RestMethod -Uri $CurrentDataURI) -split "`r|`n" | Select-String -Pattern "\|\s+GDR\s+\|(.*)\[(?<KB>KB\d+)\]\((?<Link>.*)\).*\|(?<Date>.*)\|" | Select-Object -First 1
+            $LatestGDRKB = ($LatestGDRData.Matches.Groups.Captures | Where-Object -FilterScript { $_.Name -eq 'KB' }).Value
+            $LatestGDRKBURI = ($LatestGDRData.Matches.Groups.Captures | Where-Object -FilterScript { $_.Name -eq 'Link' }).Value
+            $LatestGDRDate = [datetime]::Parse(($LatestGDRData.Matches.Groups.Captures | Where-Object -FilterScript { $_.Name -eq 'Date' }).Value)
+
+            $LatestCUKBURI = ($(Split-Path -Path $CurrentDataURI -Parent) + "/" + $LatestCUKBURI) -replace "\\", "/"
+            $LatestCUKBURIData = (Invoke-RestMethod -Uri $LatestCUKBURI) -split "`r|`n" | Select-String -Pattern "\((?<LatestCUURI>https://www.microsoft.com/download/details.aspx.*)\)"
+            $LatestCUURI = ($LatestCUKBURIData.Matches.Groups.Captures | Where-Object -FilterScript { $_.Name -eq 'LatestCUURI' }).Value
+            $LatestGDRURI = ((Invoke-WebRequest  -Uri $LatestGDRKBURI -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "Download the package now" }).href
+
+            #Sometimes Invoke-WebRequest returns a WebException
+            if ($LatestCUURI) {
+                Do {
+                    try {
+                        $LatestCUURI = ($(Invoke-WebRequest -Uri $LatestCUURI -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe" } | Select-Object -Unique).href
+                        $Success = $true
+                    }
+                    catch {
+                        $Success = $false
+                    }
+                } While (-not($Success))
+            }
+
+            #Sometimes Invoke-WebRequest returns a WebException
+            if ($LatestGDRURI) {
+                Do {
+                    try {
+                        $LatestGDRURI = ($(Invoke-WebRequest -Uri $LatestGDRURI -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe" } | Select-Object -Unique).href
+                    }
+                    catch {
+                        $Success = $false
+                    }
+                } While (-not($Success))
+            }
+
+            if ($DownloadFolder) {
+                [PSCustomObject]@{
+                    Version = $CurrentVersion
+                    GDR     = [PSCustomObject]@{
+                        KB        = $LatestGDRKB
+                        Date      = $LatestGDRDate
+                        URI       = $LatestGDRURI
+                        LocalFile = Join-Path -Path $DownloadFolder -ChildPath $(Split-Path -Path $LatestGDRURI -Leaf)
+                    }
+                    CU      = [PSCustomObject]@{
+                        Number    = $LatestCU
+                        KB        = $LatestCUKB
+                        Date      = $LatestCUDate
+                        URI       = $LatestCUURI; 
+                        LocalFile = Join-Path -Path $DownloadFolder -ChildPath $(Split-Path -Path $LatestCUURI -Leaf)
+                    }
                 }
-                CU      = [PSCustomObject]@{
-                    Number = $LatestCU
-                    KB     = $LatestCUKB
-                    Date   = $LatestCUDate
-                    URI    = $LatestCUURI; 
+            }
+            else {
+                [PSCustomObject]@{
+                    Version = $CurrentVersion
+                    GDR     = [PSCustomObject]@{
+                        KB   = $LatestGDRKB
+                        Date = $LatestGDRDate
+                        URI  = $LatestGDRURI; 
+                    }
+                    CU      = [PSCustomObject]@{
+                        Number = $LatestCU
+                        KB     = $LatestCUKB
+                        Date   = $LatestCUDate
+                        URI    = $LatestCUURI; 
+                    }
                 }
             }
         }
@@ -131,7 +146,6 @@ Function Get-LatestSQLServerUpdate {
 
         Start-BitsTransfer -Source $Source -Destination $Destination
     }
-
 }
 #endregion
 
@@ -176,6 +190,7 @@ $SQLServerManagementStudioSetupFileName = Split-Path -Path $SQLServerManagementS
 
 #region SQL Server 2022
 $SQLServer2022EnterpriseISO = "$labSources\ISOs\enu_sql_server_2022_enterprise_edition_x64_dvd_aa36de9e.iso"
+$SQLServer2025EnterpriseISO = "$labSources\ISOs\enu_sql_server_2025_enterprise_developer_edition_x64_dvd_116bbb14.iso"
 #SQL Server 2022 Latest GDR: KB5021522 when writing/updating this script (May 2025)
 #$SQLServer2022LatestGDRURI = ($(Invoke-WebRequest -Uri https://www.microsoft.com/en-us/download/details.aspx?id=106322 -UseBasicParsing).Links | Where-Object -FilterScript { $_.outerHTML -match "KB.*\.exe" } | Select-Object -Unique).href
 #SQL Server 2022 Latest Cumulative Update: KB5032679 when writing/updating this script (May 2025)
@@ -183,9 +198,15 @@ $SQLServer2022EnterpriseISO = "$labSources\ISOs\enu_sql_server_2022_enterprise_e
 #endregion
 
 #region Alternative by using the Get-LatestSQLServerUpdate function
-$LatestSQLServerUpdateHT = Get-LatestSQLServerUpdate -Version SQLServer2022 | Group-Object -Property Version -AsHashTable -AsString
-$SQLServer2022LatestGDRURI = $LatestSQLServerUpdateHT["SQLServer2022"].GDR.URI
-$SQLServer2022LatestCUURI = $LatestSQLServerUpdateHT["SQLServer2022"].CU.URI
+$LatestSQLServerUpdateHT = Get-LatestSQLServerUpdate -Version SQLServer2022, SQLServer2025 | Group-Object -Property Version -AsHashTable -AsString
+if ($LatestSQLServerUpdateHT["SQLServer2022"]) {
+	$SQLServer2022LatestGDRURI = $LatestSQLServerUpdateHT["SQLServer2022"].GDR.URI
+	$SQLServer2022LatestCUURI = $LatestSQLServerUpdateHT["SQLServer2022"].CU.URI
+}
+if ($LatestSQLServerUpdateHT["SQLServer2025"]) {
+	$SQLServer2025LatestGDRURI = $LatestSQLServerUpdateHT["SQLServer2025"].GDR.URI
+	$SQLServer2025LatestCUURI = $LatestSQLServerUpdateHT["SQLServer2025"].CU.URI
+}
 #endregion
 
 #endregion
@@ -379,7 +400,7 @@ Invoke-LabCommand -ActivityName 'DNS, AD & GPO Settings on DC' -ComputerName DC0
     # https://devblogs.microsoft.com/powershell-community/how-to-change-the-start-page-for-the-edge-browser/
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Edge' -ValueName "RestoreOnStartup" -Type ([Microsoft.Win32.RegistryValueKind]::Dword) -Value 4
 
-    #Bonus : To open the .net core website on all machines
+    #Bonus : To open the PULL website on all machines
     $StartPage = "https://pull.$($using:FQDNDomainName)/PSDSCPullServer.svc/`$metadata"
     Set-GPRegistryValue -Name $GPO.DisplayName -Key 'HKCU\Software\Policies\Microsoft\Edge\RestoreOnStartupURLs' -ValueName 0 -Type ([Microsoft.Win32.RegistryValueKind]::String) -Value "$StartPage"
 
@@ -419,6 +440,11 @@ Invoke-LabCommand -ActivityName 'DNS, AD & GPO Settings on DC' -ComputerName DC0
     dsacls (Get-ADServiceAccount -Identity $using:gMSASqlServiceName).DistinguishedName /G "SELF:RPWP;servicePrincipalName" 
 }
 
+Invoke-LabCommand -ActivityName 'Add Permissions to SQL Database for DSC Reporting' -ComputerName $SQLServerTargetNodes -ScriptBlock {
+    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+    Install-Module -Name SqlServer -Scope AllUsers -Force
+} -Verbose
+
 Copy-LabFileItem -Path $CurrentDir\CreateDscSqlDatabase.ps1 -DestinationFolderPath C:\Temp -ComputerName SQL
 Invoke-LabCommand -ActivityName 'Add Permissions to SQL Database for DSC Reporting' -ComputerName SQL -ScriptBlock {
     C:\Temp\CreateDscSqlDatabase.ps1 -DomainAndComputerName $using:NetBiosDomainName\$using:PSWSAppPoolUsr
@@ -449,6 +475,7 @@ Restart-LabVM -ComputerName $SQLServerTargetNodes -Wait
 $WindowsServer2022ISO = ($SQLServerTargetNodes | Select-Object -First 1).OperatingSystem.IsoPath
 
 $SQLServer2022EnterpriseMountedVolume = Mount-LabIsoImage -IsoPath $SQLServer2022EnterpriseISO -ComputerName FS01 -PassThru
+$SQLServer2025EnterpriseMountedVolume = Mount-LabIsoImage -IsoPath $SQLServer2025EnterpriseISO -ComputerName FS01 -PassThru
 $WindowsServer2022ISOMountedVolume = Mount-LabIsoImage -IsoPath $WindowsServer2022ISO -ComputerName FS01 -PassThru
 
 #region Installing Edge on all machines
@@ -579,12 +606,16 @@ Invoke-LabCommand -ActivityName 'Configuring Storage & Copying SQL Server 2022 I
     $WindowsServer2022SourcesFolder = New-Item -Path $SourcesFolder -Name "WindowsServer2022\sources" -ItemType Directory -Force
     $WindowsServer2022ISOContent = Join-Path -Path $using:WindowsServer2022ISOMountedVolume.DriveLetter -ChildPath 'sources\sxs'
     $SQLServer2022Folder = New-Item -Path $SourcesFolder -Name "SQLServer2022" -ItemType Directory -Force
+    $SQLServer2025Folder = New-Item -Path $SourcesFolder -Name "SQLServer2025" -ItemType Directory -Force
     $SQLServer2022UpdatesFolder = New-Item -Path $SQLServer2022Folder -Name "Updates" -ItemType Directory -Force
+    $SQLServer2025UpdatesFolder = New-Item -Path $SQLServer2025Folder -Name "Updates" -ItemType Directory -Force
     #$SQLServer2022ISOContent = Join-Path -Path $using:SQLServer2022StandardMountedVolume.DriveLetter -ChildPath '*'
     $SQLServer2022ISOContent = Join-Path -Path $using:SQLServer2022EnterpriseMountedVolume.DriveLetter -ChildPath '*'
+    $SQLServer2025ISOContent = Join-Path -Path $using:SQLServer2025EnterpriseMountedVolume.DriveLetter -ChildPath '*'
 
     #Copying SQL Server ISO content
     Copy-Item -Path $SQLServer2022ISOContent -Destination $SQLServer2022Folder -Recurse -Force
+    Copy-Item -Path $SQLServer2025ISOContent -Destination $SQLServer2025Folder -Recurse -Force
 
 
     #Copying Sources\Sxs folder from the OS ISO
@@ -596,17 +627,37 @@ Invoke-LabCommand -ActivityName 'Configuring Storage & Copying SQL Server 2022 I
     #Start-BitsTransfer -Source $using:SQLServerManagementStudioURI -Destination $SQLServerManagementStudioInstaller -Verbose
 
     #SQL Server 2022 Latest GDR
-    $SQLServer2022LatestGDRInstaller = Join-Path -Path $SQLServer2022UpdatesFolder -ChildPath $(Split-Path -Path $using:SQLServer2022LatestGDRURI -Leaf)
-    #Invoke-WebRequest -Uri $using:SQLServer2022LatestGDRURI -OutFile $SQLServer2022LatestGDRInstaller -Verbose
-    #Start-BitsTransfer -Source $using:SQLServer2022LatestGDRURI -Destination $SQLServer2022LatestGDRInstaller -Verbose
+    if ([string]::IsNullOrEmpty($using:SQLServer2022LatestGDRURI)) {
+	    $SQLServer2022LatestGDRInstaller = Join-Path -Path $SQLServer2022UpdatesFolder -ChildPath $(Split-Path -Path $using:SQLServer2022LatestGDRURI -Leaf)
+	    #Invoke-WebRequest -Uri $using:SQLServer2022LatestGDRURI -OutFile $SQLServer2022LatestGDRInstaller -Verbose
+	    Start-BitsTransfer -Source $using:SQLServer2022LatestGDRURI -Destination $SQLServer2022LatestGDRInstaller -Verbose
+	}
 
-    #SQL Server 2022 Latest Cumulative Update
-    $SQLServer2022LatestCUInstaller = Join-Path -Path $SQLServer2022UpdatesFolder -ChildPath $(Split-Path -Path $using:SQLServer2022LatestCUURI -Leaf)
-    #Invoke-WebRequest -Uri $using:SQLServer2022LatestCUURI -OutFile $SQLServer2022LatestCUInstaller -Verbose
-    #Start-BitsTransfer -Source $using:SQLServer2022LatestCUURI -Destination $SQLServer2022LatestCUInstaller -Verbose
+    #SQL Server 2022 Latest CU
+    if ([string]::IsNullOrEmpty($using:SQLServer2022LatestCUURI)) {
+	    #SQL Server 2022 Latest Cumulative Update
+	    $SQLServer2022LatestCUInstaller = Join-Path -Path $SQLServer2022UpdatesFolder -ChildPath $(Split-Path -Path $using:SQLServer2022LatestCUURI -Leaf)
+	    #Invoke-WebRequest -Uri $using:SQLServer2022LatestCUURI -OutFile $SQLServer2022LatestCUInstaller -Verbose
+	    Start-BitsTransfer -Source $using:SQLServer2022LatestCUURI -Destination $SQLServer2022LatestCUInstaller -Verbose
+	}
 
+<#
+    #SQL Server 2025 Latest GDR
+    if ([string]::IsNullOrEmpty($using:SQLServer2025LatestGDRURI)) {
+	    $SQLServer2025LatestGDRInstaller = Join-Path -Path $SQLServer2025UpdatesFolder -ChildPath $(Split-Path -Path $using:SQLServer2025LatestGDRURI -Leaf)
+	    #Invoke-WebRequest -Uri $using:SQLServer2025LatestGDRURI -OutFile $SQLServer2025LatestGDRInstaller -Verbose
+	    Start-BitsTransfer -Source $using:SQLServer2025LatestGDRURI -Destination $SQLServer2025LatestGDRInstaller -Verbose
+	}
 
-    Start-BitsTransfer -Source $using:SQLServerManagementStudioURI, $using:SQLServer2022LatestGDRURI, $using:SQLServer2022LatestCUURI  -Destination $SQLServerManagementStudioInstaller, $SQLServer2022LatestGDRInstaller, $SQLServer2022LatestCUInstaller -Verbose  
+    #SQL Server 2025 Latest CU
+    if ([string]::IsNullOrEmpty($using:SQLServer2025LatestCUURI)) {
+	    #SQL Server 2025 Latest Cumulative Update
+	    $SQLServer2025LatestCUInstaller = Join-Path -Path $SQLServer2025UpdatesFolder -ChildPath $(Split-Path -Path $using:SQLServer2025LatestCUURI -Leaf)
+	    #Invoke-WebRequest -Uri $using:SQLServer2025LatestCUURI -OutFile $SQLServer2025LatestCUInstaller -Verbose
+	    Start-BitsTransfer -Source $using:SQLServer2025LatestCUURI -Destination $SQLServer2025LatestCUInstaller -Verbose
+	}
+#>
+    Start-BitsTransfer -Source $using:SQLServerManagementStudioURI -Destination $SQLServerManagementStudioInstaller -Verbose  
 
     #Installing required PowerShell modules from PowerShell Gallery
     #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
@@ -783,11 +834,7 @@ Invoke-LabCommand -ActivityName 'Setting up the HTTPS Pull Server' -ComputerName
 } -Variable (Get-Variable -Name PULLWebSiteSSLCert) -Verbose
 
 #Copying the DSC Script to the dedicated folder
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\AG") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\FCI") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\DefaultInstance") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
-#Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
-
+Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer20*") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
 
 <#
 Invoke-LabCommand -ActivityName 'Clearing "Microsoft-Windows-Dsc/Operational" eventlog' -ComputerName $SQLServerTargetNodes -ScriptBlock {
@@ -834,20 +881,18 @@ Show-LabDeploymentSummary
 <#
 Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All
 Invoke-LabCommand -ActivityName "Removing '$WorkSpace' folder" -ComputerName $SQLServerTargetNodes -ScriptBlock { Remove-Item -Path $using:WorkSpace -Recurse -Force} -Verbose
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\AG") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\DefaultInstance") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
-Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer2022\FCI") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
+Copy-LabFileItem -Path $(Join-Path -Path $CurrentDir -ChildPath "SQLServer20*") -ComputerName $SQLServerTargetNodes -DestinationFolderPath $WorkSpace -Recurse
 #>
 
 <#
 Invoke-LabCommand -ActivityName 'Setting up AG Cluster' -ComputerName SQLNode01 -ScriptBlock {
-    & "$($using:Workspace)\AG\CreateClusterWithTwoNodes.ps1"
+    & "$($using:Workspace)\SQLServer2025\AG\CreateClusterWithTwoNodes.ps1"
 } -AsJob
 #>
 
 <#
 Invoke-LabCommand -ActivityName 'Setting up FCI Cluster' -ComputerName SQLNode01 -ScriptBlock {
-    & "$($using:Workspace)\FCI\CreateClusterWithThreeNodes.ps1"
+    & "$($using:Workspace)\SQLServer2025\FCI\CreateClusterWithThreeNodes.ps1"
 } -AsJob
 #>
 $VerbosePreference = $PreviousVerbosePreference
