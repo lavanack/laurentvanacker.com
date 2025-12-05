@@ -279,6 +279,7 @@ $AzVMNumberPerAvailabilityZone = Get-AzVMNumberPerAvailabilityZone -Verbose
 $AzVMNumberPerAvailabilityZone | Format-List -Property Name, Count -Force
 #endregion
 
+<#
 #region Generating 10 Azure VM to illustrate the round-robin mechanism we put in place for Availability Zone
 $VMNumber = 10
 1..$VMNumber | ForEach-Object -Process {
@@ -291,3 +292,4 @@ $VMNumber = 10
 }
 Write-Progress -Activity "Completed" -Completed
 #endregion 
+#>
