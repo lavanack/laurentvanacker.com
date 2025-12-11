@@ -167,10 +167,12 @@ function New-AzAPIAutomationPowerShellRunbook {
                     "value"     = $ContentHash.Hash
                 }
             }
+            <#
             parameters         = [ordered] @{
                 TagName  = "Hardening"
                 TagValue = "Yes"
             }
+            #>
         }
         name       = $RunbookName
         location   = $Location
@@ -234,7 +236,7 @@ $AutomationAccountPrefix = "aa"
 $Project = "automation"
 $Role = "posh"
 $DigitNumber = 3
-$Instance = 2
+$Instance = 1
 #$Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
 
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
@@ -268,25 +270,43 @@ New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefi
 #endregion
 
 #region New-InstallPowerShellOnAzureVirtualMachineRunBook
-#region Schedule Setup
-#region Azure Virtual Machine - Daily Start
-$TimeZone = ([System.TimeZoneInfo]::Local).Id
-$StartTime = Get-Date "06:00:00"
-if ($(Get-Date) -gt $StartTime) {
-    $StartTime = $StartTime.AddDays(1)
-}
-$Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Machine - Powershell Install - Daily" -StartTime $StartTime -HourInterval 6 -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
-#endregion 
-#endregion
-
 #region RunBook Setup
 $RunBookName = "{0}-InstallPowerShellOnAzureVirtualMachineRunBook" -f $RunBookPrefix
 #$Runbook = New-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName -Type PowerShell
 # Publish the runbook
 #Publish-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName
+$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20Virtual%20Machine/PowerShell%20Install/InstallPowerShellOnAzureVirtualMachineRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Installing PowerShell 7+" #-Verbose 
+#endregion
 
-$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20Virtual%20Machine/PowerShell%20Install/InstallPowerShellOnAzureVirtualMachineRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Installing PowerShell 7+" -Verbose 
+#region Schedule Setup
+#region Azure Virtual Machine - Daily Start
+$TimeZone = ([System.TimeZoneInfo]::Local).Id
+$Versions = "2019", "2022", "2025"
+$OffSetInMinutes = 5
+$Index = 0
+foreach ($CurrentVersion in $Versions)
+{
+    Write-Verbose "`$CurrentVersion: $CurrentVersion"
+    Write-Verbose "`$Index: $Index"
+    #$StartTime = Get-Date "06:00:00"
+    #Starting first run in 15 minutes
+    $StartTime = (Get-Date).AddMinutes(15)
+    
+    #Each schedule (1 per OS) is delayed by 5 minutes
+    $StartTime = $StartTime.AddMinutes($OffSetInMinutes*$Index)
+    if ($(Get-Date) -gt $StartTime) {
+        $StartTime = $StartTime.AddDays(1)
+    }
+    Write-Verbose "`$StartTime: $StartTime"
+    $Index++
 
-# Link the schedule to the runbook
-Register-AzAutomationScheduledRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ScheduleName $Schedule.Name -ResourceGroupName $ResourceGroupName -Parameters @{ "TagName" = "Hardening"; "TagValue" = "Yes"}
+    $HourInterval = 6
+    $Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Machine - Powershell Install - $CurrentVersion - $("{0:HH-mm-ss} - Every $HourInterval hours - Daily" -f $StartTime)" -StartTime $StartTime -HourInterval $HourInterval -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
+
+    # Link the schedule to the runbook
+    Register-AzAutomationScheduledRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ScheduleName $Schedule.Name -ResourceGroupName $ResourceGroupName -Parameters @{ "TagName" = "Hardening"; "TagValue" = $CurrentVersion}
+
+}
+#endregion 
+#endregion
 #endregion
