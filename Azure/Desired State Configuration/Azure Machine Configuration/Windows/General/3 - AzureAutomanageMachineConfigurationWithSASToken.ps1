@@ -211,6 +211,7 @@ foreach ($CurrentDSCConfiguration in $DSCConfigurations) {
         "Platform"      = 'Windows'
         "PolicyVersion" = '1.0.0'
         "Mode"          = 'ApplyAndAutoCorrect'
+        #"Tag"           = @{"Hardening"="2022"}
         "Verbose"       = $true
     }
     # Create the guest configuration policy
