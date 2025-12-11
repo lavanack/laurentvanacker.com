@@ -233,6 +233,7 @@ foreach ($CurrentDSCConfiguration in $DSCConfigurations) {
         #From https://github.com/Azure/GuestConfiguration/blob/main/source/Public/New-GuestConfigurationPolicy.ps1#L55-L59
         "LocalContentPath"          = $GuestConfigurationPackage.Path
         "UseSystemAssignedIdentity" = $true
+        #"Tag"                       = @{"Hardening"="2022"}
         "Verbose"                   = $true
     }
     # Create the guest configuration policy
