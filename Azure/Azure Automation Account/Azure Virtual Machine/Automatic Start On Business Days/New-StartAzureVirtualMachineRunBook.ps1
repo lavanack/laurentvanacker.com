@@ -294,7 +294,8 @@ $StartTime = Get-Date "06:55:00"
 if ($(Get-Date) -gt $StartTime) {
     $StartTime = $StartTime.AddDays(1)
 }
-$Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Machine - Daily Start" -StartTime $StartTime -WeekInterval 1 -DaysOfWeek "Monday", "Tuesday", "Wednesday", "Thursday", "Friday" -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
+[System.DayOfWeek[]]$WeekDays = @([System.DayOfWeek]::Monday..[System.DayOfWeek]::Friday)
+$Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Machine - Daily Start" -StartTime $StartTime -WeekInterval 1 -DaysOfWeek $WeekDays -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
 #endregion 
 #endregion
 
@@ -325,7 +326,8 @@ $StartTime = Get-Date "07:00:00"
 if ($(Get-Date) -gt $StartTime) {
     $StartTime = $StartTime.AddDays(1)
 }
-$Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Machine - Daily Request JIT Access" -StartTime $StartTime -WeekInterval 1 -DaysOfWeek "Monday", "Tuesday", "Wednesday", "Thursday", "Friday" -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
+[System.DayOfWeek[]]$WeekDays = @([System.DayOfWeek]::Monday..[System.DayOfWeek]::Friday)
+$Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Machine - Daily Request JIT Access" -StartTime $StartTime -WeekInterval 1 -DaysOfWeek $WeekDays -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
 #endregion 
 #endregion
 
