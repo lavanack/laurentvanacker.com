@@ -20,7 +20,7 @@ $AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -Defa
 Write-Output -InputObject $AzureContext
 #endregion
 
-$vms = Get-AzResource -TagName $TagName -TagValue $TagValue -ResourceType 'Microsoft.Compute/virtualMachines' | Get-AzVM
+$vms = Get-AzResource -TagName $TagName -TagValue $TagValue -ResourceType 'Microsoft.Compute/virtualMachines' | Get-AzVM -Status | Where-Object -FilterScript { $_.Statuses.DisplayStatus -match "running" }
 
 $Jobs = foreach ($vm in $vms) {
     Write-Output "Processing VM '$($vm.Name)' ..."
