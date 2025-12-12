@@ -269,9 +269,11 @@ $PolicySetDefinition = New-AzPolicySetDefinition @Params
 #endregion
 
 #region Assigning the Intiative
-$PolicyAssignment = Get-AzPolicyAssignment -Name "$($ResourceGroupName)-MakeSureAllWindowsServersComplyWithDSCConfigurations" -Scope $ResourceGroup.ResourceId -ErrorAction Ignore
+$Name = "$($ResourceGroupName)-MakeSureAllWindowsServersComplyWithDSCConfigurations"
+$Name = $Name.Substring(0, [math]::min(64, $Name.Length))
+$PolicyAssignment = Get-AzPolicyAssignment -Name $Name -Scope $ResourceGroup.ResourceId -ErrorAction Ignore
 if (-not($PolicyAssignment)) {
-    $PolicyAssignment = New-AzPolicyAssignment -Name "$($ResourceGroupName)-MakeSureAllWindowsServersComplyWithDSCConfigurations" -DisplayName "[$ResourceGroupName] Deploy prerequisites to enable Guest Configuration policies on virtual machines" -Scope $ResourceGroup.ResourceId -PolicySetDefinition $PolicySetDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $Location
+    $PolicyAssignment = New-AzPolicyAssignment -Name $Name -DisplayName $DisplayName -Scope $ResourceGroup.ResourceId -PolicySetDefinition $PolicySetDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $Location
     $PolicyState = $null
 } 
 else {
