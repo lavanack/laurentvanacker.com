@@ -12,6 +12,7 @@ More info on
 $ResourceGroupName = "rg-dsc-amc*"
 Get-AzResourceGroup -Name $ResourceGroupName | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyRemediation | Remove-AzPolicyRemediation -AllowStop -AsJob -Verbose | Wait-Job
 Get-AzResourceGroup -Name $ResourceGroupName | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyAssignment  | Where-Object -FilterScript { $_.Scope -match 'rg-dsc-amc' } | Remove-AzPolicyAssignment -Verbose #-Whatif
+Get-AzPolicySetDefinition | Where-Object -filterScript {$_.metadata.category -eq "Guest Configuration" -and $_.DisplayName -like "*$ResourceGroupName"} | Remove-AzPolicySetDefinition -Verbose -Force #-WhatIf
 Get-AzPolicyDefinition | Where-Object -filterScript {$_.metadata.category -eq "Guest Configuration" -and $_.DisplayName -like "*$ResourceGroupName"} | Remove-AzPolicyDefinition -Verbose -Force #-WhatIf
 Get-AzResourceGroup -Name $ResourceGroupName | Remove-AzResourceGroup -AsJob -Force -Verbose 
 #>
@@ -140,11 +141,15 @@ $ContentURI = New-AzStorageBlobSASToken -Context $Context -FullUri -Container $S
 # Create a Policy Id
 $PolicyId = (New-Guid).Guid  
 # Define the parameters to create and publish the guest configuration policy
+$DisplayName = "[$ResourceGroupName][Linux] Make sure all Linux servers comply with $CurrentConfigurationName DSC Config."
+#Display Name is limited to 128 characters 
+$DisplayName = $DisplayName.Substring(0, [math]::min(128, $DisplayName.Length))
+# Define the parameters to create and publish the guest configuration policy
 $Params = @{
     "PolicyId"      = $PolicyId
     "ContentUri"    = $ContentURI
-    "DisplayName"   = "[Linux] $ResourceGroupName - Make sure all Linux servers comply with $ConfigurationName DSC Config."
-    "Description"   = "[Linux] $ResourceGroupName - Make sure all Linux servers comply with $ConfigurationName DSC Config."
+    "DisplayName"   = $DisplayName
+    "Description"   = $DisplayName
     "Path"          = './policies'
     "Platform"      = 'Linux'
     "PolicyVersion" = '1.0.0'
@@ -154,13 +159,14 @@ $Params = @{
 # Create the guest configuration policy
 $Policy = New-GuestConfigurationPolicy @Params
 
-$PolicyDefinition = New-AzPolicyDefinition -Name "[Lin]$ResourceGroupName-$ConfigurationName" -Policy $Policy.Path
+= (New-Guid).Guid  
+$PolicyDefinition = New-AzPolicyDefinition -Name $Name -Policy $Policy.Path
 
 $NonComplianceMessage = [Microsoft.Azure.Commands.ResourceManager.Cmdlets.Entities.Policy.NonComplianceMessage]::new()
 $NonComplianceMessage.message = "Non Compliance Message"
 $IncludeArcConnectedServers = @{'IncludeArcMachines' = 'true' }# <- IncludeArcMachines is important - given you want to target Arc as well as Azure VMs
 
-$PolicyAssignment = New-AzPolicyAssignment -Name "$($ResourceGroupName)-$($ConfigurationName)" -DisplayName "[Linux] $ResourceGroupName - Make sure all Linux servers comply with $ConfigurationName DSC Config." -Scope $ResourceGroup.ResourceId -PolicyDefinition $PolicyDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $Location -PolicyParameterObject $IncludeArcConnectedServers -NonComplianceMessage $NonComplianceMessage  
+$PolicyAssignment = New-AzPolicyAssignment -Name "$($ResourceGroupName)-$($ConfigurationName)" -DisplayName "[$ResourceGroupName][Linux] Make sure all Linux servers comply with $ConfigurationName DSC Config." -Scope $ResourceGroup.ResourceId -PolicyDefinition $PolicyDefinition -EnforcementMode Default -IdentityType SystemAssigned -Location $Location -PolicyParameterObject $IncludeArcConnectedServers -NonComplianceMessage $NonComplianceMessage  
 
 # Grant defined roles with PowerShell
 # https://docs.microsoft.com/en-us/azure/governance/policy/how-to/remediate-resources#grant-defined-roles-with-PowerShell

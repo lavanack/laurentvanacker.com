@@ -12,6 +12,7 @@ More info on
 $ResourceGroupName = "rg-dsc-amc*"
 Get-AzResourceGroup -Name $ResourceGroupName | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyRemediation | Remove-AzPolicyRemediation -AllowStop -AsJob -Verbose | Wait-Job
 Get-AzResourceGroup -Name $ResourceGroupName | Select-Object -Property @{Name="Scope"; Expression={$_.ResourceID}} | Get-AzPolicyAssignment  | Where-Object -FilterScript { $_.Scope -match 'rg-dsc-amc' } | Remove-AzPolicyAssignment -Verbose #-Whatif
+Get-AzPolicySetDefinition | Where-Object -filterScript {$_.metadata.category -eq "Guest Configuration" -and $_.DisplayName -like "*$ResourceGroupName"} | Remove-AzPolicySetDefinition -Verbose -Force #-WhatIf
 Get-AzPolicyDefinition | Where-Object -filterScript {$_.metadata.category -eq "Guest Configuration" -and $_.DisplayName -like "*$ResourceGroupName"} | Remove-AzPolicyDefinition -Verbose -Force #-WhatIf
 Get-AzResourceGroup -Name $ResourceGroupName | Remove-AzResourceGroup -AsJob -Force -Verbose 
 #>
@@ -183,7 +184,7 @@ foreach ($CurrentDSCConfiguration in $DSCConfigurations) {
     # Create a Policy Id
     $PolicyId = (New-Guid).Guid  
     # Define the parameters to create and publish the guest configuration policy
-    $DisplayName = "[Windows] $ResourceGroupName - Make sure all Windows servers comply with $CurrentConfigurationName DSC Config."
+    $DisplayName = "[$ResourceGroupName][Windows] Make sure all Windows servers comply with $CurrentConfigurationName DSC Config."
     #Display Name is limited to 128 characters 
     $DisplayName = $DisplayName.Substring(0, [math]::min(128, $DisplayName.Length))
     $Params = @{
@@ -204,7 +205,8 @@ foreach ($CurrentDSCConfiguration in $DSCConfigurations) {
     #From https://learn.microsoft.com/en-us/azure/governance/machine-configuration/how-to/create-policy-definition#create-an-azure-policy-definition
     $Policy = New-GuestConfigurationPolicy @Params
 
-    $PolicyDefinition = New-AzPolicyDefinition -Name "[Win]$ResourceGroupName-$CurrentConfigurationName" -Policy $Policy.Path
+    $Name = (New-Guid).Guid  
+    $PolicyDefinition = New-AzPolicyDefinition -Name $Name -Policy $Policy.Path
 
     $NonComplianceMessage = [Microsoft.Azure.Commands.ResourceManager.Cmdlets.Entities.Policy.NonComplianceMessage]::new()
     $NonComplianceMessage.message = "Non Compliance Message"
