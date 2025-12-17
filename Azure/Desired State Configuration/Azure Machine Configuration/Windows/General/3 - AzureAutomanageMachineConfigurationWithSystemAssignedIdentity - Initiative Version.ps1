@@ -244,7 +244,10 @@ foreach ($CurrentDSCConfiguration in $DSCConfigurations) {
     $Name = (New-Guid).Guid  
     $PolicyDefinition = New-AzPolicyDefinition -Name $Name -Policy $Policy.Path
 
-    $policySetMembers += @{ policyDefinitionId = $PolicyDefinition.Id } 
+    $policySetMembers += @{ 
+        policyDefinitionId          = $PolicyDefinition.Id 
+        policyDefinitionReferenceId = $DisplayName
+    } 
 }
 #endregion
 

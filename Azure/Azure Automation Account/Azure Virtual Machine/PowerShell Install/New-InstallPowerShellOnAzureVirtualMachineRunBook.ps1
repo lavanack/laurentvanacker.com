@@ -167,12 +167,6 @@ function New-AzAPIAutomationPowerShellRunbook {
                     "value"     = $ContentHash.Hash
                 }
             }
-            <#
-            parameters         = [ordered] @{
-                TagName  = "Hardening"
-                TagValue = "Yes"
-            }
-            #>
         }
         name       = $RunbookName
         location   = $Location

@@ -167,11 +167,6 @@ function New-AzAPIAutomationPowerShellRunbook {
                     "value"     = $ContentHash.Hash
                 }
             }
-            parameters         = [ordered] @{
-                TagName  = "AutoStart-Enabled"
-                TagValue = "Enabled"
-                Shutdown = $false
-            }
         }
         name       = $RunbookName
         location   = $Location
@@ -235,7 +230,7 @@ $AutomationAccountPrefix = "aa"
 $Project = "automation"
 $Role = "startvm"
 $DigitNumber = 3
-$Instance = 2
+$Instance = 1
 #$Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
 
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
