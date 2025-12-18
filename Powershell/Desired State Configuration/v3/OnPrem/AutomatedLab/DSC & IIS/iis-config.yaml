@@ -1,0 +1,17 @@
+﻿
+$schema: https://aka.ms/dsc/schemas/v3.0.0/bundled/config/document.json
+resources:
+  - type: Microsoft.Windows/WindowsPowerShell
+    name: IIS Setup
+    properties:
+      resources:
+        - name: IIS Setup
+          type: PSDesiredStateConfiguration/WindowsFeature
+          properties:
+            Ensure: Present
+            Name: Web-Server
+        - name: IIS Console
+          type: PSDesiredStateConfiguration/WindowsFeature
+          properties:
+            Ensure: Present
+            Name: Web-Mgmt-Console
