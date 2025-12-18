@@ -97,6 +97,16 @@ function Request-AzRunningVMJITAccess {
 #endregion
 
 #region Main code
+Clear-Host
+$CurrentScript = $MyInvocation.MyCommand.Path
+#Getting the current directory (where this script file resides)
+$CurrentDir = Split-Path -Path $CurrentScript -Parent
+
+# Login to your Azure subscription.
+While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
+    Connect-AzAccount
+}
+
 #Get-AzVM | Request-AzRunningVMJITAccess -Verbose | Format-List * -Force
 #Request-AzRunningVMJITAccess -Verbose -PassThru | Format-List * -Force
 Request-AzRunningVMJITAccess -PassThru -AsJob -Verbose | Format-List -Property * -Force 
