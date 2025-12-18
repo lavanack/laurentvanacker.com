@@ -216,7 +216,7 @@ $shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @
 # Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount
-    Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
+    #Get-AzSubscription | Out-GridView -OutputMode Single -Title "Select your Azure Subscription" | Select-AzSubscription
     #$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -ErrorAction Ignore
     #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
 }
