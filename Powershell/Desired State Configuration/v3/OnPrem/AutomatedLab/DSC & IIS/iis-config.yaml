@@ -15,3 +15,4 @@ resources:
           properties:
             Ensure: Present
             Name: Web-Mgmt-Console
+          dependsOn: ["[resourceId('PSDesiredStateConfiguration/WindowsFeature', 'IIS Setup')]"]

@@ -123,7 +123,7 @@ function Get-WebSiteFile {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
     return $WebSiteFile
 }
-#endregiony
+#endregion
 
 Clear-Host
 $Error.Clear()

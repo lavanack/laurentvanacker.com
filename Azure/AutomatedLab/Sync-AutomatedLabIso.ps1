@@ -49,7 +49,7 @@ Start-Sleep -Seconds 10
 #endregion
 
 #region Installing AzCopy
-$AzCopy=where.exe azcopy
+$AzCopy=where.exe azcopy 2>$null
 if(-not($AzCopy)) {
     $AzCopyURI = 'https://aka.ms/downloadazcopy-v10-windows'
     $OutputFile = Join-Path -Path $CurrentDir -ChildPath 'azcopy_windows_amd64_latest.zip'

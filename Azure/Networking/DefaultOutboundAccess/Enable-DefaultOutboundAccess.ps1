@@ -19,22 +19,30 @@ of the Sample Code.
 
 #region function definitions
 function Enable-DefaultOutboundAccess {
-    [CmdletBinding(PositionalBinding = $false)]
+    [CmdletBinding(PositionalBinding = $false, SupportsShouldProcess = $true)]
     param
     (
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [Microsoft.Azure.Commands.Network.Models.PSVirtualNetwork[]] $VirtualNetwork
     )
-    foreach ($vNet in Get-AzVirtualNetwork) {
-        foreach ($subnet in $vNet.Subnets) {
-            if (-not($subnet.DefaultOutboundAccess)) {
-                Write-Verbose -Message "Enabling DefaultOutboundAccess for '$($subnet.Name)'"
-                $subnet.DefaultOutboundAccess = $true
-            }
-            else {
-                Write-Verbose -Message "DefaultOutboundAccess already enabled for '$($subnet.Name)'"
+    begin {}
+    process{
+        foreach ($CurrentVirtualNetwork in $VirtualNetwork) {
+            foreach ($subnet in $CurrentVirtualNetwork.Subnets) {
+                if (-not($subnet.DefaultOutboundAccess)) {
+                    Write-Verbose -Message "Enabling DefaultOutboundAccess for '$($subnet.Name)'"
+                    if ($PSCmdlet.ShouldProcess($subnet.Name, "Enabling Default Outbound Access")) {
+                        $subnet.DefaultOutboundAccess = $true
+                        $null = Set-AzVirtualNetwork -VirtualNetwork $CurrentVirtualNetwork
+                    }
+                }
+                else {
+                    Write-Verbose -Message "DefaultOutboundAccess already enabled for '$($subnet.Name)'"
+                }
             }
         }
-        $null = Set-AzVirtualNetwork -VirtualNetwork $vNet
     }
+    end {}
 }
 #endregion 
 
@@ -47,5 +55,5 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 
-Enable-DefaultOutboundAccess -Verbose
+Get-AzVirtualNetwork | Enable-DefaultOutboundAccess -Verbose -WhatIf
 #endregion
