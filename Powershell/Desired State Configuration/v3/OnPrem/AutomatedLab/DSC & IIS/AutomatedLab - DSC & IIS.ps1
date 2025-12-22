@@ -207,14 +207,14 @@ Invoke-LabCommand -ActivityName 'Installing DSCv3 required components' -Computer
 } 
 
 $YAMLFiles = Copy-LabFileItem -Path $CurrentDir\*.yaml -DestinationFolderPath C:\DSC -ComputerName $TargetNodes -PassThru
-
+<#
 Invoke-LabCommand -ActivityName 'Invoking DSCv3' -ComputerName $TargetNodes -ScriptBlock {
     foreach ($CurrentYAMLFile in $($($using:YAMLFiles).FullName | Select-Object -Unique) ) {
         dsc --trace-level info config set --file $CurrentYAMLFile
-        #dsc --trace-level trace config get --file $CurrentYAMLFile
+        #dsc --trace-level info config get --file $CurrentYAMLFile
     }
 }
-
+#>
 $Job | Wait-Job | Out-Null
 
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
