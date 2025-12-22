@@ -27,10 +27,10 @@ function New-RandomPassword {
     [CmdletBinding(PositionalBinding = $false, DefaultParameterSetName = 'GeneratePassword')]
     param
     (
-        [ValidateRange(12,122)]
+        [ValidateRange(12, 122)]
         [int] $minLength = 12, ## characters
-        [ValidateRange(13,123)]
-        [ValidateScript({$_ -gt $minLength})]
+        [ValidateRange(13, 123)]
+        [ValidateScript({ $_ -gt $minLength })]
         [int] $maxLength = 15, ## characters
         [switch] $AsSecureString,
         [switch] $ClipBoard,
@@ -51,7 +51,7 @@ function New-RandomPassword {
             Add-Type -AssemblyName 'System.Web'
             $RandomPassword = [System.Web.Security.Membership]::GeneratePassword($length, $nonAlphaChars)
         }
-    } Until (($RandomPassword  -notin $ProhibitedPasswords) -and (($RandomPassword -match '[A-Z]') -and ($RandomPassword -match '[a-z]') -and ($RandomPassword -match '\d') -and ($RandomPassword -match '\W')))
+    } Until (($RandomPassword -notin $ProhibitedPasswords) -and (($RandomPassword -match '[A-Z]') -and ($RandomPassword -match '[a-z]') -and ($RandomPassword -match '\d') -and ($RandomPassword -match '\W')))
 
     #Write-Host -Object "The password is : $RandomPassword"
     if ($ClipBoard) {
@@ -206,11 +206,11 @@ $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Locatio
 #region Create the NAT gateway
 #region Create public IP address for NAT gateway 
 $ip = @{
-    Name = $NatGatewayPublicIPName
+    Name              = $NatGatewayPublicIPName
     ResourceGroupName = $ResourceGroupName
-    Location = $Location
-    Sku = 'Standard'
-    AllocationMethod = 'Static'
+    Location          = $Location
+    Sku               = 'Standard'
+    AllocationMethod  = 'Static'
     #Zone = 1,2,3
 }
 $publicIP = New-AzPublicIpAddress @ip
@@ -218,28 +218,28 @@ $publicIP = New-AzPublicIpAddress @ip
 
 #region Create NAT gateway resource 
 $nat = @{
-    ResourceGroupName = $ResourceGroupName
-    Name = $NatGatewayName
+    ResourceGroupName    = $ResourceGroupName
+    Name                 = $NatGatewayName
     IdleTimeoutInMinutes = '10'
-    Sku = 'Standard'
-    Location = $Location
-    PublicIpAddress = $publicIP
+    Sku                  = 'Standard'
+    Location             = $Location
+    PublicIpAddress      = $publicIP
 }
 $natGateway = New-AzNatGateway @nat
 #endregion 
 
 #region Create subnet config and associate NAT gateway to subnet
 $subnet = @{
-    Name = $SubnetName
+    Name          = $SubnetName
     AddressPrefix = $NatGatewaysubnetAddressPrefix
-    NatGateway = $natGateway
+    NatGateway    = $natGateway
 }
 $subnetConfig = New-AzVirtualNetworkSubnetConfig @subnet 
 #endregion 
 
 #region Create Azure Bastion subnet 
 $bastsubnet = @{
-    Name = 'AzureBastionSubnet' 
+    Name          = 'AzureBastionSubnet' 
     AddressPrefix = $BastionSubnetAddressPrefix
 }
 $bastsubnetConfig = New-AzVirtualNetworkSubnetConfig @bastsubnet
@@ -247,11 +247,11 @@ $bastsubnetConfig = New-AzVirtualNetworkSubnetConfig @bastsubnet
 
 #region Create the virtual network
 $net = @{
-    Name = $VirtualNetworkName
+    Name              = $VirtualNetworkName
     ResourceGroupName = $ResourceGroupName
-    Location = $Location
-    AddressPrefix = $VirtualNetworkSubnetAddressPrefix
-    Subnet = $subnetConfig, $bastsubnetConfig
+    Location          = $Location
+    AddressPrefix     = $VirtualNetworkSubnetAddressPrefix
+    Subnet            = $subnetConfig, $bastsubnetConfig
 }
 $vnet = New-AzVirtualNetwork @net
 $bastsubnetConfig = New-AzVirtualNetworkSubnetConfig @bastsubnet
@@ -259,11 +259,11 @@ $bastsubnetConfig = New-AzVirtualNetworkSubnetConfig @bastsubnet
 
 #region Create public IP address for bastion host ##
 $ip = @{
-    Name = $BastionPublicIPName
+    Name              = $BastionPublicIPName
     ResourceGroupName = $ResourceGroupName
-    Location = $Location
-    Sku = 'Standard'
-    AllocationMethod = 'Static'
+    Location          = $Location
+    Sku               = 'Standard'
+    AllocationMethod  = 'Static'
     #Zone = 1,2,3
 }
 $publicip = New-AzPublicIpAddress @ip
@@ -271,13 +271,13 @@ $publicip = New-AzPublicIpAddress @ip
 
 #region Create bastion host
 $bastion = @{
-    Name = $BastionName
-    ResourceGroupName = $ResourceGroupName
+    Name                  = $BastionName
+    ResourceGroupName     = $ResourceGroupName
     PublicIpAddressRgName = $ResourceGroupName
-    PublicIpAddressName = $BastionPublicIPName
-    VirtualNetworkRgName = $ResourceGroupName
-    VirtualNetworkName = $VirtualNetworkName
-    Sku = 'Basic'
+    PublicIpAddressName   = $BastionPublicIPName
+    VirtualNetworkRgName  = $ResourceGroupName
+    VirtualNetworkName    = $VirtualNetworkName
+    Sku                   = 'Basic'
 }
 New-AzBastion @bastion
 #endregion
@@ -289,10 +289,10 @@ $StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupN
 
 #region Create Network Interface Card 
 $NIC = @{
-    Name = $NICName
+    Name              = $NICName
     ResourceGroupName = $ResourceGroupName
-    Location = $Location
-    Subnet = $vnet.Subnets[0]
+    Location          = $Location
+    Subnet            = $vnet.Subnets[0]
 }
 $NICVM = New-AzNetworkInterface @NIC
 #endregion
@@ -306,31 +306,31 @@ $VMSize = @{
     MaxPrice     = -1
 }
 $VMOS = @{
-    ComputerName = $VMName
-    Credential = $Credential
+    ComputerName     = $VMName
+    Credential       = $Credential
     ProvisionVMAgent = $true
     EnableAutoUpdate = $true
-    PatchMode = "AutomaticByPlatform"
+    PatchMode        = "AutomaticByPlatform"
 }
 $VMImage = @{
     PublisherName = $ImagePublisherName
-    Offer = $ImageOffer
-    Skus = $ImageSku
-    Version = 'latest'     
+    Offer         = $ImageOffer
+    Skus          = $ImageSku
+    Version       = 'latest'     
 }
 $VMConfig = New-AzVMConfig @VMSize `
-    | Set-AzVMOperatingSystem @VMOS -Windows `
-    | Set-AzVMOSDisk -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -CreateOption fromImage `
-    | Set-AzVMBootDiagnostic -ResourceGroupName $ResourceGroupName -Enable `
-    | Set-AzVMSourceImage @VMImage `
-    | Add-AzVMNetworkInterface -Id $NICVM.Id
+| Set-AzVMOperatingSystem @VMOS -Windows `
+| Set-AzVMOSDisk -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -CreateOption fromImage `
+| Set-AzVMBootDiagnostic -ResourceGroupName $ResourceGroupName -Enable `
+| Set-AzVMSourceImage @VMImage `
+| Add-AzVMNetworkInterface -Id $NICVM.Id
 #endregion
 
 #region Create the virtual machine
 $vm = @{
     ResourceGroupName = $ResourceGroupName
-    Location = $Location
-    VM = $VMConfig
+    Location          = $Location
+    VM                = $VMConfig
 }
 $VM = New-AzVM @vm
 $VM = Get-AzVM -ResourceGroup $ResourceGroupName -Name $VMName
