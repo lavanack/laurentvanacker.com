@@ -25,11 +25,12 @@ function Get-AzVMJITAccess {
     [CmdletBinding(PositionalBinding = $false)]
     param
     (
+        [switch] $Latest
     )
 
     $Requests = (Get-AzJitNetworkAccessPolicy).Requests | Where-Object -FilterScript {$_.VirtualMachines.Ports.EndTimeUtc -gt [datetime]::UtcNow }
 
-    foreach ($CurrentRequest in $Requests) {
+    $AzVMJITAccess = foreach ($CurrentRequest in $Requests) {
        $EndTimeUtc = $CurrentRequest.VirtualMachines.Ports.EndTimeUtc
        if ($EndTimeUtc -ge $UtcNow) {
            $Requestor = $CurrentRequest.Requestor
@@ -48,6 +49,13 @@ function Get-AzVMJITAccess {
            }
        }
     }
+
+    if ($Latest) {
+        $AzVMJITAccess | Sort-Object -Property EndTimeUtc | Group-Object -Property {"$($_.Requestor)|$($_.VirtualMAchines.Id)"} | ForEach-Object { $_.Group | Select-Object -Last 1 } | Sort-Object -Property EndTimeUtc
+    }
+    else {
+        $AzVMJITAccess | Sort-Object -Property EndTimeUtc
+    }
 }
 #endregion
 
@@ -63,6 +71,6 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 }
 
 
-$AzVMJITAccess = Get-AzVMJITAccess -Verbose | Format-List -Property * -Force 
-$AzVMJITAccess | Sort-Object -Property EndTimeUtc
+$AzVMJITAccess = Get-AzVMJITAccess -Latest -Verbose 
+$AzVMJITAccess
 #endregion
