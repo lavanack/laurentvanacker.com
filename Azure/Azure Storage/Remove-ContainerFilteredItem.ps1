@@ -309,7 +309,7 @@ $StorageContainer | Remove-AzStorageContainerFilteredItem -StartTime $RemoveStar
 #$StorageContainer | Remove-AzStorageContainerFilteredItem -StartTime $RemoveStartTime -EndTime $RemoveEndTime -Prefix $Prefix -Verbose
 
 #Uncomment the line below when you are REALLY sure. You WON'T be prompted before the deletion !!!
-$StorageContainer | Remove-AzStorageContainerFilteredItem -StartTime $RemoveStartTime -EndTime $RemoveEndTime -Prefix $Prefix -Confirm:$false
+#$StorageContainer | Remove-AzStorageContainerFilteredItem -StartTime $RemoveStartTime -EndTime $RemoveEndTime -Prefix $Prefix -Confirm:$false
 
 #region Exporting Data After Cleanup
 $StorageBlob = $StorageContainer | Get-AzStorageBlob
