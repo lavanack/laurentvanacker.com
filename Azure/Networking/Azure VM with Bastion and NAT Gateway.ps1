@@ -15,7 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-##requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.Network, Az.Resources, Az.Security, Az.Storage
+#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.Network, Az.Resources, Az.Storage
 
 [CmdletBinding()]
 Param (
@@ -108,6 +108,7 @@ $VirtualMachinePrefix = $ResourceTypeShortNameHT["Compute/virtualMachines"].Shor
 $NetworkSecurityGroupPrefix = $ResourceTypeShortNameHT["Network/networkSecurityGroups"].ShortName
 $VirtualNetworkPrefix = $ResourceTypeShortNameHT["Network/virtualNetworks"].ShortName
 $SubnetPrefix = $ResourceTypeShortNameHT["Network/virtualnetworks/subnets"].ShortName
+$PublicIPAddressPrefix = $ResourceTypeShortNameHT["Network/publicIPAddresses"].ShortName
 $BastionPrefix = $ResourceTypeShortNameHT["Network/bastionHosts"].ShortName
 
 $NatGatewayPrefix = "natgw"
@@ -131,6 +132,8 @@ $SubnetName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $SubnetPrefix, $Project, $R
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $NatGatewayName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $NatGatewayPrefix, $Project, $Role, $LocationShortName, $Instance    
 $BastionName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $BastionPrefix, $Project, $Role, $LocationShortName, $Instance    
+$BastionPublicIpName = "{0}-{1}" -f $PublicIPAddressPrefix, $BastionName
+$NatGatewayPublicIpName = "{0}-{1}" -f $PublicIPAddressPrefix, $NatGatewayName
                      
 $StorageAccountName = $StorageAccountName.ToLower()
 $VMName = $VMName.ToLower()
@@ -140,9 +143,11 @@ $SubnetName = $SubnetName.ToLower()
 $ResourceGroupName = $ResourceGroupName.ToLower()
 $NatGatewayName = $NatGatewayName.ToLower()
 $BastionName = $BastionName.ToLower()
+$BastionPublicIpName = $BastionPublicIpName.ToLower()
+$NatGatewayPublicIpName = $NatGatewayPublicIpName.ToLower()
 $VirtualNetworkSubnetAddressPrefix = "10.0.0.0/16" # Format 10.0.0.0/16
 $BastionSubnetAddressPrefix = '10.0.1.0/26'
-$NatGatewaysubnetAddressPrefix = "10.0.0.0/24" # Format 10.0.1.0/24                         
+$NatGatewaySubnetAddressPrefix = "10.0.0.0/24" # Format 10.0.1.0/24                         
 $FQDN = "$VMName.$Location.cloudapp.azure.com".ToLower()
 
 
@@ -167,8 +172,6 @@ $MyPublicIp = Invoke-RestMethod -Uri "https://ipv4.seeip.org"
 $ImagePublisherName = "MicrosoftWindowsServer"
 $ImageOffer = "WindowsServer"
 $ImageSku = "2022-datacenter-g2"
-$BastionPublicIPName = "pip-{0}" -f $BastionName
-$NatGatewayPublicIPName = "pip-{0}" -f $NatGatewayName
 $NICName = "nic-$VMName"
 $OSDiskName = '{0}_OSDisk' -f $VMName
 #$DataDiskName = "$VMName-DataDisk01"
@@ -182,8 +185,8 @@ Write-Verbose "`$VirtualNetworkName: $VirtualNetworkName"
 Write-Verbose "`$SubnetName: $SubnetName"       
 Write-Verbose "`$NatGatewayName: $NatGatewayName"       
 Write-Verbose "`$ResourceGroupName: $ResourceGroupName"
-Write-Verbose "`$BastionPublicIPName: $BastionPublicIPName"
-Write-Verbose "`$NatGatewayPublicIPName: $NatGatewayPublicIPName"
+Write-Verbose "`$BastionPublicIpName: $BastionPublicIpName"
+Write-Verbose "`$NatGatewayPublicIpName: $NatGatewayPublicIpName"
 Write-Verbose "`$NICName: $NICName"
 Write-Verbose "`$OSDiskName: $OSDiskName"
 #endregion
@@ -204,69 +207,70 @@ $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Locatio
 #endregion 
 
 #region Create the NAT gateway
+#From https://learn.microsoft.com/en-us/azure/nat-gateway/quickstart-create-nat-gateway?tabs=powershell
 #region Create public IP address for NAT gateway 
-$ip = @{
-    Name              = $NatGatewayPublicIPName
+$IP = @{
+    Name              = $NatGatewayPublicIpName
     ResourceGroupName = $ResourceGroupName
     Location          = $Location
     Sku               = 'Standard'
     AllocationMethod  = 'Static'
     #Zone = 1,2,3
 }
-$publicIP = New-AzPublicIpAddress @ip
+$PublicIp = New-AzPublicIpAddress @IP
 #endregion 
 
 #region Create NAT gateway resource 
-$nat = @{
+$Nat = @{
     ResourceGroupName    = $ResourceGroupName
     Name                 = $NatGatewayName
     IdleTimeoutInMinutes = '10'
     Sku                  = 'Standard'
     Location             = $Location
-    PublicIpAddress      = $publicIP
+    PublicIpAddress      = $PublicIp
 }
-$natGateway = New-AzNatGateway @nat
+$NatGateway = New-AzNatGateway @Nat
 #endregion 
 
 #region Create subnet config and associate NAT gateway to subnet
-$subnet = @{
+$Subnet = @{
     Name          = $SubnetName
-    AddressPrefix = $NatGatewaysubnetAddressPrefix
-    NatGateway    = $natGateway
+    AddressPrefix = $NatGatewaySubnetAddressPrefix
+    NatGateway    = $NatGateway
 }
-$subnetConfig = New-AzVirtualNetworkSubnetConfig @subnet 
+$SubnetConfig = New-AzVirtualNetworkSubnetConfig @subnet 
 #endregion 
 
 #region Create Azure Bastion subnet 
-$bastsubnet = @{
+$BastionSubnet = @{
     Name          = 'AzureBastionSubnet' 
     AddressPrefix = $BastionSubnetAddressPrefix
 }
-$bastsubnetConfig = New-AzVirtualNetworkSubnetConfig @bastsubnet
+$BastionSubnetConfig = New-AzVirtualNetworkSubnetConfig @BastionSubnet
 #endregion 
 
 #region Create the virtual network
-$net = @{
+$Net = @{
     Name              = $VirtualNetworkName
     ResourceGroupName = $ResourceGroupName
     Location          = $Location
     AddressPrefix     = $VirtualNetworkSubnetAddressPrefix
-    Subnet            = $subnetConfig, $bastsubnetConfig
+    Subnet            = $SubnetConfig, $BastionSubnetConfig
 }
-$vnet = New-AzVirtualNetwork @net
-$bastsubnetConfig = New-AzVirtualNetworkSubnetConfig @bastsubnet
+$VirtualNetwork = New-AzVirtualNetwork @Net
+$BastionSubnetConfig = New-AzVirtualNetworkSubnetConfig @BastionSubnet
 #endregion
 
 #region Create public IP address for bastion host ##
-$ip = @{
-    Name              = $BastionPublicIPName
+$IP = @{
+    Name              = $BastionPublicIpName
     ResourceGroupName = $ResourceGroupName
     Location          = $Location
     Sku               = 'Standard'
     AllocationMethod  = 'Static'
     #Zone = 1,2,3
 }
-$publicip = New-AzPublicIpAddress @ip
+$PublicIp = New-AzPublicIpAddress @ip
 #endregion
 
 #region Create bastion host
@@ -274,7 +278,7 @@ $bastion = @{
     Name                  = $BastionName
     ResourceGroupName     = $ResourceGroupName
     PublicIpAddressRgName = $ResourceGroupName
-    PublicIpAddressName   = $BastionPublicIPName
+    PublicIpAddressName   = $BastionPublicIpName
     VirtualNetworkRgName  = $ResourceGroupName
     VirtualNetworkName    = $VirtualNetworkName
     Sku                   = 'Basic'
@@ -292,7 +296,7 @@ $NIC = @{
     Name              = $NICName
     ResourceGroupName = $ResourceGroupName
     Location          = $Location
-    Subnet            = $vnet.Subnets[0]
+    Subnet            = $VirtualNetwork.Subnets[0]
 }
 $NICVM = New-AzNetworkInterface @NIC
 #endregion

@@ -18,14 +18,14 @@ of the Sample Code.
 
 #region Function definitions
 function Get-AzurePairedRegion {
-    [CmdletBinding()]
+    [CmdletBinding(PositionalBinding = $false)]
     Param(
     )
     return (Get-AzLocation -OutVariable locations) | Select-Object -Property Location, PhysicalLocation, @{Name = 'PairedRegion'; Expression = { $_.PairedRegion.Name } }, @{Name = 'PairedRegionPhysicalLocation'; Expression = { ($locations | Where-Object -FilterScript { $_.location -eq $_.PairedRegion.Name }).PhysicalLocation } } | Where-Object -FilterScript { $_.PairedRegion } | Group-Object -Property Location -AsHashTable -AsString
 }
 
 function Get-AzureLocationShortName {
-    [CmdletBinding()]
+    [CmdletBinding(PositionalBinding = $false)]
     Param(
     )
     $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
@@ -34,7 +34,7 @@ function Get-AzureLocationShortName {
 }
 
 function Add-PsAvdVirtualNetworkPeering {
-    [CmdletBinding()]
+    [CmdletBinding(PositionalBinding = $false)]
     Param(
         [Parameter(Mandatory = $true)]
         [Microsoft.Azure.Commands.Network.Models.PSVirtualNetwork] $VirtualNetwork,
