@@ -25,16 +25,23 @@ param
 
 #region function definitions
 function New-AzTestStorageContainer {
-    [CmdletBinding()]
+    [CmdletBinding(PositionalBinding = $false)]
     param
     (
         [datetime] $StartTime = [DateTime]::ParseExact("{0}0101" -f ([Datetime]::Today).Year, 'yyyyMMdd',[CultureInfo]::InvariantCulture),
         [ValidateScript({$_ -ge $StartTime})]
         [datetime] $EndTime = $StartTime.AddYears(1).AddDays(-1),
         [ValidateScript({$_ -in $((Get-AzLocation).Location)})]
-        [string] $Location = "eastus2"
+        [string] $Location = "eastus2",
+        [ValidateRange(0, 10)]
+        [Alias('FolderDepth')]
+        [uint16] $Depth = 0
     )
 
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$StartTime: $StartTime"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$EndTime: $EndTime"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Location: $Location"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Depth: $Depth"
     #region Defining variables 
     #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
     $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
@@ -121,13 +128,14 @@ function New-AzTestStorageContainer {
 
     $CurrentTime=$StartTime
     $FolderIndex = 0
-    $Days = ($EndTime-$StartTime).Days+1
+    $DayNumber = ($EndTime-$StartTime).Days+1
     $ProcessingStartTime = Get-Date
     $RootLocalFolderPath = Join-Path -Path $env:TEMP -ChildPath $("{0}_{1:yyyyMMddHHmmss}" -f $MyInvocation.MyCommand, $(Get-Date))
+    $RootLocalFolderPath = Join-Path -Path $RootLocalFolderPath -ChildPath "Uploads"
     While ($CurrentTime -le $EndTime) {
         $FolderIndex++
         $LocalFolderName = "{0:yyyyMMdd}" -f $CurrentTime
-        Write-Progress -Id 1 -Activity "[$FolderIndex/$Days] Processing '$LocalFolderName'" -Status "Percent : $('{0:N0}' -f $($FolderIndex/$Days * 100)) %" -PercentComplete ($FolderIndex / $Days * 100)
+        Write-Progress -Id 1 -Activity "[$FolderIndex/$DayNumber] Processing '$LocalFolderName'" -Status "Percent : $('{0:N0}' -f $($FolderIndex/$DayNumber * 100)) %" -PercentComplete ($FolderIndex / $DayNumber * 100)
         $LocalFolderPath = Join-Path -Path $RootLocalFolderPath -ChildPath $LocalFolderName
         $null = New-Item -Path $LocalFolderPath -ItemType Directory -Force
         $FileNbToGenerate = Get-Random -Minimum 10 -Maximum 25
@@ -137,10 +145,11 @@ function New-AzTestStorageContainer {
         foreach ($FileIndex in 1..$FileNbToGenerate) {
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$FileIndex: $FileIndex/$FileNbToGenerate"
             #Randomy generating a filename with the prefix or something else
-            $FileName = ([System.IO.Path]::GetRandomFileName() -replace "\.", $("_{0:D2}." -f $FileIndex)), $("{0}_{1:D2}.txt" -f $Prefix, $FileIndex) | Get-Random
+            $FileName = ([System.IO.Path]::GetRandomFileName() -replace "\.", $("_{0:D2}." -f $FileIndex)), $("{0}_keys_table_{1}_{2}_0.parquet" -f $Prefix, $(Get-Random -Minimum 1 -Maximum 10), $(Get-Random -Minimum 1 -Maximum 10)) | Get-Random
             #Generating a random folder structure
             #$SubFolders = (1..(Get-Random -Minimum 1 -Maximum 3) | ForEach-Object -Process { (-join ((48..57) + (65..90) + (97..122) | Get-Random -Count $(Get-Random -Minimum 3 -Maximum 20) | % {[char]$_})) }) -join $([System.IO.Path]::DirectorySeparatorChar)
-            $SubFolders = & {$Depth = Get-Random -Minimum 0 -Maximum 5;  $FolderNames = for($i=0; $i -lt $Depth; $i++){ (-join ((48..57) + (65..90) + (97..122) | Get-Random -Count $(Get-Random -Minimum 3 -Maximum 20) | % {[char]$_})) }; $FolderNames -join $([System.IO.Path]::DirectorySeparatorChar)}
+            
+            $SubFolders = & {$FolderNames = for($i=0; $i -lt $Depth; $i++){ (-join ((48..57) + (65..90) + (97..122) | Get-Random -Count $(Get-Random -Minimum 3 -Maximum 20) | % {[char]$_})) }; $FolderNames -join $([System.IO.Path]::DirectorySeparatorChar)}
             $RandomFolderStructure =  Join-Path -Path $LocalFolderPath -ChildPath $SubFolders
 
             $null = New-Item -Path $RandomFolderStructure -ItemType Directory -Force
@@ -164,7 +173,7 @@ function New-AzTestStorageContainer {
     }
     Write-Progress -Id 1 -Activity "Completed !" -Completed
 
-    #region Upload Testing
+    #region Upload Testing: To be sure the RBAC role are well assigned
     $Attempts = 0
     $AttemptLimit = 5
     $BlobFilePath = [System.IO.Path]::GetRandomFileName()
@@ -193,7 +202,7 @@ function New-AzTestStorageContainer {
     }
     #endregion
 
-    #Uploading data
+    #Uploading data to the Container
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Uploading Content"
     $null = Get-ChildItem -Path $RootLocalFolderPath -File -Recurse | Set-AzStorageBlobContent -Context $StorageContext -Container $ContainerName -ServerTimeoutPerRequest 10 -ClientTimeoutPerRequest 10 -Force
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Content Uploaded"
@@ -209,7 +218,7 @@ function New-AzTestStorageContainer {
 }
 
 function Remove-AzStorageContainerFilteredItem {
-    [CmdletBinding(PositionalBinding = $false, SupportsShouldProcess = $true)]
+    [CmdletBinding(PositionalBinding = $false, SupportsShouldProcess = $true, ConfirmImpact='High')]
     param
     (
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
@@ -239,8 +248,9 @@ function Remove-AzStorageContainerFilteredItem {
     $RegPattern = "^.*/$Prefix"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RegPattern: $RegPattern"
 
+    #Getting the Blobs
     $StorageBlob = $StorageContainer | Get-AzStorageBlob
-    #Getting the blob where the folder name (under the yyyyMMdd format is between $StartTime and $EndTime (included)
+    #Getting the blobs where the folder name (under the yyyyMMdd format is between $StartTime and $EndTime (included)
     $FilteredStorageBlob = $StorageBlob | Where-Object -FilterScript { $Date = [DateTime]::ParseExact(($_.Name -split "/")[0], 'yyyyMMdd',[CultureInfo]::InvariantCulture); (($Date -ge $StartTime) -and ($Date -le $EndTime)) }
 
     #Getting the blob where the name is matching the regular expression pattern
@@ -249,6 +259,7 @@ function Remove-AzStorageContainerFilteredItem {
             $CurrentFilteredStorageBlob
         }
     }
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Removing blobs:`r`n"
     if ($PSCmdlet.ShouldProcess("`r`n{0}" -f $($FilteredStorageBlobToDelete.Name -join "`r`n"), "Removing Storage Blob")) {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Removing blobs ..."
         $FilteredStorageBlobToDelete | Remove-AzStorageBlob -ServerTimeoutPerRequest 10 -ClientTimeoutPerRequest 10 -Force
@@ -264,6 +275,8 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
+$BeforeCleanupCSVFile = $CurrentScript -replace "\.ps1", $("_BeforeCleanup_{0:yyyyMMddHHmmss}.csv" -f $(Get-Date))
+$AfterCleanupCSVFile = $CurrentScript -replace "\.ps1", $("_AfterCleanup_{0:yyyyMMddHHmmss}.csv" -f $(Get-Date))
 
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
@@ -273,16 +286,38 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 
 $Location = "eastus2"
 
-#region Generating a Test Container with a folder per day in the current year (and with dummy files and contents)
+#region Generating a Test Container with a folder per day for the 2025 year (and with dummy files and contents)
 #$NewStartTime = [DateTime]::ParseExact("{0}0101" -f ([Datetime]::Today).Year, 'yyyyMMdd',[CultureInfo]::InvariantCulture)
 $NewStartTime = [DateTime]::ParseExact("20250101", 'yyyyMMdd',[CultureInfo]::InvariantCulture)
 $NewEndTime = $NewStartTime.AddYears(1).AddDays(-1)
-$StorageContainer = New-AzTestStorageContainer -Location $Location -StartTime $NewStartTime -EndTime $NewEndTime -Verbose
+$StorageContainer = New-AzTestStorageContainer -Location $Location -StartTime $NewStartTime -EndTime $NewEndTime -Depth 0 -Verbose
 #endregion 
 
 #region Cleaning up
+#region Exporting Data Before Cleanup
+$StorageBlob = $StorageContainer | Get-AzStorageBlob
+$StorageBlob | Select-Object -Property Name | Sort-Object -Property Name | Export-Csv -Path $BeforeCleanupCSVFile -NoTypeInformation
+#endregion 
+
 $RemoveStartTime = [DateTime]::ParseExact("20250623", 'yyyyMMdd',[CultureInfo]::InvariantCulture)
 $RemoveEndTime = [DateTime]::ParseExact("20251116", 'yyyyMMdd',[CultureInfo]::InvariantCulture)
 $Prefix = "commercial_policy"
-$StorageContainer | Remove-AzStorageContainerFilteredItem -StartTime $RemoveStartTime -EndTime $RemoveEndTime -Prefix $Prefix -Verbose #-WhatIf
+#-WhatIf invoked ==> Simulation Mode (No Deletion)
+$StorageContainer | Remove-AzStorageContainerFilteredItem -StartTime $RemoveStartTime -EndTime $RemoveEndTime -Prefix $Prefix -Verbose -WhatIf
+
+#Uncomment the line below when you are sure. You will be prompted before the deletion
+#$StorageContainer | Remove-AzStorageContainerFilteredItem -StartTime $RemoveStartTime -EndTime $RemoveEndTime -Prefix $Prefix -Verbose
+
+#Uncomment the line below when you are REALLY sure. You WON'T be prompted before the deletion !!!
+$StorageContainer | Remove-AzStorageContainerFilteredItem -StartTime $RemoveStartTime -EndTime $RemoveEndTime -Prefix $Prefix -Confirm:$false
+
+#region Exporting Data After Cleanup
+$StorageBlob = $StorageContainer | Get-AzStorageBlob
+$StorageBlob | Select-Object -Property Name | Sort-Object -Property Name | Export-Csv -Path $AfterCleanupCSVFile -NoTypeInformation
+#endregion 
+
+#region Comparison Before vs After Cleanup
+$DeletedBlobs = Compare-Object -ReferenceObject $(Get-Content -Path $BeforeCleanupCSVFile) -DifferenceObject $(Get-Content -Path $AfterCleanupCSVFile)
+$DeletedBlobs
+#endregion 
 #endregion 
