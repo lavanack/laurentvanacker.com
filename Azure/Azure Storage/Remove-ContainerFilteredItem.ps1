@@ -131,12 +131,14 @@ function New-AzTestStorageContainer {
     $DayNumber = ($EndTime-$StartTime).Days+1
     $ProcessingStartTime = Get-Date
     $RootLocalFolderPath = Join-Path -Path $env:TEMP -ChildPath $("{0}_{1:yyyyMMddHHmmss}" -f $MyInvocation.MyCommand, $(Get-Date))
-    $RootLocalFolderPath = Join-Path -Path $RootLocalFolderPath -ChildPath "Uploads"
+    #Creating a dummy.txt file a the $RootLocalFolderPath because without it the recurse copy won't include the Uploads folder
+    $null = New-Item -Path $(Join-Path -Path $RootLocalFolderPath -ChildPath "dummy.txt") -ItemType File -Force
+    $UploadsLocalFolderPath = Join-Path -Path $RootLocalFolderPath -ChildPath "Uploads"
     While ($CurrentTime -le $EndTime) {
         $FolderIndex++
         $LocalFolderName = "{0:yyyyMMdd}" -f $CurrentTime
         Write-Progress -Id 1 -Activity "[$FolderIndex/$DayNumber] Processing '$LocalFolderName'" -Status "Percent : $('{0:N0}' -f $($FolderIndex/$DayNumber * 100)) %" -PercentComplete ($FolderIndex / $DayNumber * 100)
-        $LocalFolderPath = Join-Path -Path $RootLocalFolderPath -ChildPath $LocalFolderName
+        $LocalFolderPath = Join-Path -Path $UploadsLocalFolderPath -ChildPath $LocalFolderName
         $null = New-Item -Path $LocalFolderPath -ItemType Directory -Force
         $FileNbToGenerate = Get-Random -Minimum 10 -Maximum 25
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$LocalFolderName: $LocalFolderName"
@@ -243,15 +245,23 @@ function Remove-AzStorageContainerFilteredItem {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$EndTime: $EndTime"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Prefix: $Prefix"
 
-    #Taking the format yyyyMd, yyyyMMd, yyyyMdd and yyyyMMdd into consideration in case ...
-
     $RegPattern = "^.*/$Prefix"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RegPattern: $RegPattern"
 
     #Getting the Blobs
     $StorageBlob = $StorageContainer | Get-AzStorageBlob
     #Getting the blobs where the folder name (under the yyyyMMdd format is between $StartTime and $EndTime (included)
-    $FilteredStorageBlob = $StorageBlob | Where-Object -FilterScript { $Date = [DateTime]::ParseExact(($_.Name -split "/")[0], 'yyyyMMdd',[CultureInfo]::InvariantCulture); (($Date -ge $StartTime) -and ($Date -le $EndTime)) }
+    $FilteredStorageBlob = $StorageBlob | Where-Object -FilterScript { 
+        if ($_.Name -match "/(?<Date>\d{8})/") {
+            $Date = [DateTime]::ParseExact($Matches['Date'], 'yyyyMMdd',[CultureInfo]::InvariantCulture)
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Date: $Date"
+            (($Date -ge $StartTime) -and ($Date -le $EndTime)) 
+        }
+        else {
+            Write-Warning -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] No date found (under the format: yyyyMMdd) in $($_.Name)"
+            $false
+        }
+    }
 
     #Getting the blob where the name is matching the regular expression pattern
     $FilteredStorageBlobToDelete = foreach ($CurrentFilteredStorageBlob in $FilteredStorageBlob) {
@@ -274,9 +284,10 @@ $Error.Clear()
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
-Set-Location -Path $CurrentDir 
-$BeforeCleanupCSVFile = $CurrentScript -replace "\.ps1", $("_BeforeCleanup_{0:yyyyMMddHHmmss}.csv" -f $(Get-Date))
-$AfterCleanupCSVFile = $CurrentScript -replace "\.ps1", $("_AfterCleanup_{0:yyyyMMddHHmmss}.csv" -f $(Get-Date))
+Set-Location -Path $CurrentDir
+$Timestamp = Get-Date
+$BeforeCleanupCSVFile = $CurrentScript -replace "\.ps1", $("_BeforeCleanup_{0:yyyyMMddHHmmss}.csv" -f $Timestamp)
+$AfterCleanupCSVFile = $CurrentScript -replace "\.ps1", $("_AfterCleanup_{0:yyyyMMddHHmmss}.csv" -f $Timestamp)
 
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
@@ -309,7 +320,7 @@ $StorageContainer | Remove-AzStorageContainerFilteredItem -StartTime $RemoveStar
 #$StorageContainer | Remove-AzStorageContainerFilteredItem -StartTime $RemoveStartTime -EndTime $RemoveEndTime -Prefix $Prefix -Verbose
 
 #Uncomment the line below when you are REALLY sure. You WON'T be prompted before the deletion !!!
-#$StorageContainer | Remove-AzStorageContainerFilteredItem -StartTime $RemoveStartTime -EndTime $RemoveEndTime -Prefix $Prefix -Confirm:$false
+#$StorageContainer | Remove-AzStorageContainerFilteredItem -StartTime $RemoveStartTime -EndTime $RemoveEndTime -Prefix $Prefix -Confirm:$false -Verbose
 
 #region Exporting Data After Cleanup
 $StorageBlob = $StorageContainer | Get-AzStorageBlob
