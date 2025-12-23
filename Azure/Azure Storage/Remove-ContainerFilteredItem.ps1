@@ -254,11 +254,11 @@ function Remove-AzStorageContainerFilteredItem {
     $FilteredStorageBlob = $StorageBlob | Where-Object -FilterScript { 
         if ($_.Name -match "/(?<Date>\d{8})/") {
             $Date = [DateTime]::ParseExact($Matches['Date'], 'yyyyMMdd',[CultureInfo]::InvariantCulture)
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Date: $Date"
+            #Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Date: $Date"
             (($Date -ge $StartTime) -and ($Date -le $EndTime)) 
         }
         else {
-            Write-Warning -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] No date found (under the format: yyyyMMdd) in $($_.Name)"
+            Write-Warning -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] No date found (under the format: yyyyMMdd) in '$($_.Name)'"
             $false
         }
     }
