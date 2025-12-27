@@ -472,11 +472,12 @@ foreach ($CurrentSQLServerTargetNodeName in $SQLServerTargetNodes.Name) {
 Restart-LabVM -ComputerName $SQLServerTargetNodes -Wait
 
 #Mouting the SQL Server ISO for Copying SQL Server setup binaries on the file server
-$WindowsServer2022ISO = ($SQLServerTargetNodes | Select-Object -First 1).OperatingSystem.IsoPath
+$WindowsServerISO = ($SQLServerTargetNodes | Select-Object -First 1).OperatingSystem.IsoPath
+$WindowsServerVersion = [regex]::Match(($SQLServerTargetNodes | Select-Object -First 1).OperatingSystem, "^(?<Version>Windows.*\d+).*").Groups['Version'].Value -replace "\s"
 
 $SQLServer2022EnterpriseMountedVolume = Mount-LabIsoImage -IsoPath $SQLServer2022EnterpriseISO -ComputerName FS01 -PassThru
 $SQLServer2025EnterpriseMountedVolume = Mount-LabIsoImage -IsoPath $SQLServer2025EnterpriseISO -ComputerName FS01 -PassThru
-$WindowsServer2022ISOMountedVolume = Mount-LabIsoImage -IsoPath $WindowsServer2022ISO -ComputerName FS01 -PassThru
+$WindowsServerISOMountedVolume = Mount-LabIsoImage -IsoPath $WindowsServerISO -ComputerName FS01 -PassThru
 
 #region Installing Edge on all machines
 $MSEdgeEnt = Get-LabInternetFile -Uri $MSEdgeEntUri -Path $labSources\SoftwarePackages -PassThru -Force
@@ -603,8 +604,8 @@ Invoke-LabCommand -ActivityName 'Configuring Storage & Copying SQL Server 2022 I
     $SQLServerTools = New-Item -Path $SourcesFolder -Name "SQLServerTools" -ItemType Directory -Force
     $SQLScripts = New-Item -Path $SourcesFolder -Name "SQLScripts" -ItemType Directory -Force    
     $QLogic = New-Item -Path $SourcesFolder -Name "QLogic" -ItemType Directory -Force    
-    $WindowsServer2022SourcesFolder = New-Item -Path $SourcesFolder -Name "WindowsServer2022\sources" -ItemType Directory -Force
-    $WindowsServer2022ISOContent = Join-Path -Path $using:WindowsServer2022ISOMountedVolume.DriveLetter -ChildPath 'sources\sxs'
+    $WindowsServerSourcesFolder = New-Item -Path $SourcesFolder -Name "$using:WindowsServerVersion\sources" -ItemType Directory -Force
+    $WindowsServerISOContent = Join-Path -Path $using:WindowsServerISOMountedVolume.DriveLetter -ChildPath 'sources\sxs'
     $SQLServer2022Folder = New-Item -Path $SourcesFolder -Name "SQLServer2022" -ItemType Directory -Force
     $SQLServer2025Folder = New-Item -Path $SourcesFolder -Name "SQLServer2025" -ItemType Directory -Force
     $SQLServer2022UpdatesFolder = New-Item -Path $SQLServer2022Folder -Name "Updates" -ItemType Directory -Force
@@ -619,7 +620,7 @@ Invoke-LabCommand -ActivityName 'Configuring Storage & Copying SQL Server 2022 I
 
 
     #Copying Sources\Sxs folder from the OS ISO
-    Copy-Item -Path $WindowsServer2022ISOContent -Destination $WindowsServer2022SourcesFolder -Recurse -Force
+    Copy-Item -Path $WindowsServerISOContent -Destination $WindowsServerSourcesFolder -Recurse -Force
 
     #SQL Server Management Studio
     $SQLServerManagementStudioInstaller = Join-Path -Path $SQLServerTools -ChildPath $using:SQLServerManagementStudioSetupFileName
@@ -867,6 +868,7 @@ if ($WindowsUpdate) {
 
 Invoke-LabCommand -ActivityName 'Disabling Windows Update service' -ComputerName $AllLabVMs -ScriptBlock {
     Stop-Service WUAUSERV -PassThru | Set-Service -StartupType Disabled
+    Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
 } 
 
 #Removing the Internet Connection on all VMS
@@ -876,6 +878,7 @@ $null = $Job | Receive-Job -Wait #-AutoRemoveJob
 #Taking a snapshot/checkpoint
 Checkpoint-LabVM -SnapshotName 'FullInstall' -All
 #Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All -Verbose
+#Remove-LabVMSnapshot -AllMachines -AllSnapShots
 
 Show-LabDeploymentSummary
 <#
