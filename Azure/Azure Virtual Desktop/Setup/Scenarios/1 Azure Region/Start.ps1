@@ -82,6 +82,8 @@ $ThisDomainControllerSubnet = Get-AzVMSubnet
 #region Primary Region
 $PrimaryRegionResourceGroupName = "rg-avd-ad-use2-002"
 $PrimaryRegionVNetName = "vnet-avd-avd-use2-002"
+#$PrimaryRegionSubnetName = "snet-avd-pe-use2-002"
+#$PrimaryRegionSubnetName = "snet-avd-natgw-use2-002"
 $PrimaryRegionSubnetName = "snet-avd-avd-use2-002"
 $PrimaryRegionVNet = Get-AzVirtualNetwork -Name $PrimaryRegionVNetName -ResourceGroupName $PrimaryRegionResourceGroupName
 $PrimaryRegionSubnet = $PrimaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $PrimaryRegionSubnetName
@@ -90,8 +92,7 @@ $PrimaryRegion = $PrimaryRegionVNet.Location
 #endregion
 #endregion
 
-#region Creating a new Pooled Host Pool for every image definition from an Azure Compute Gallery
-#Looging for Azure Compute Gallery Image Definition with image version in the primary region
+#region Looking for Azure Compute Gallery Image Definition(s) with image version(s) in the primary region
 $GalleryImageDefinition = Get-PsAvdAzGalleryImageDefinition -Region $PrimaryRegion
 if (-not($GalleryImageDefinition)) {
     #Creating an Azure Compute Gallery if needed
@@ -151,8 +152,9 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 #$HostPools = & "..\1 Azure Region\1_Pooled_1_Personal_Intune.ps1"
 #$HostPools = & "..\1 Azure Region\1_Personal_AD_Win10.ps1"
 #$HostPools = & "..\1 Azure Region\1_Personal_AD.ps1"
-$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach_PrivateEndpoint.ps1"
+#$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach_PrivateEndpoint.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach.ps1"
+$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach_SessionHostConfiguration.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_FSLogix_AzureAppAttach.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_2_Personal_AD_Misc.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_AD_AzureAppAttach.ps1"
