@@ -1,0 +1,2 @@
+﻿#Deploy 1 Pooled HostPool with FSLogix, AppAttach and SessionHostConfiguration with a MaxSessionLimit set to 1 
+[PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id)#.EnableSessionHostConfiguration().SetVMNumberOfInstances(1).SetMaxSessionLimit(1)

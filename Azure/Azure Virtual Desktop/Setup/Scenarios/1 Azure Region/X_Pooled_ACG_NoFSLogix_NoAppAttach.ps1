@@ -10,6 +10,7 @@ if (-not($GalleryImageDefinition)) {
 foreach ($CurrentGalleryImageDefinition in $GalleryImageDefinition) {
     #$LatestCurrentGalleryImageVersion = Get-AzGalleryImageVersion -GalleryName $AzureComputeGallery.Name -ResourceGroupName $AzureComputeGallery.ResourceGroupName -GalleryImageDefinitionName $CurrentGalleryImageDefinition.Name | Sort-Object -Property Id | Select-Object -Last 1
     #Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with an Image coming from an Azure Compute Gallery and without FSLogix and Azure App Attach
+    #From https://docs.azure.cn/en-us/virtual-machines/windows/tutorial-custom-images#create-a-vm
     [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetVMSourceImageId($CurrentGalleryImageDefinition.Id).DisableFSLogix().DisableAppAttach()
     Write-Verbose -Message "VM Source Image Id for the ACG Host Pool: $LatestCurrentGalleryImageVersion (AppAttach: $($PooledHostPool.AppAttach) / FSlogix: $($PooledHostPool.FSlogix))"
 }
