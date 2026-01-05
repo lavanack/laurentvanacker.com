@@ -16,7 +16,7 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 
-##requires -Module Az.Accounts, Az.Security
+#requires -Module Az.Accounts, Az.Compute, Az.Security
 
 Clear-Host
 
@@ -25,7 +25,8 @@ function Get-AzVMJITAccess {
     [CmdletBinding(PositionalBinding = $false)]
     param
     (
-        [switch] $Latest
+        [switch] $Latest,
+        [switch] $AllRequestors
     )
 
     $Requests = (Get-AzJitNetworkAccessPolicy).Requests | Where-Object -FilterScript {$_.VirtualMachines.Ports.EndTimeUtc -gt [datetime]::UtcNow }
@@ -51,11 +52,16 @@ function Get-AzVMJITAccess {
     }
 
     if ($Latest) {
-        $AzVMJITAccess | Sort-Object -Property EndTimeUtc | Group-Object -Property {"$($_.Requestor)|$($_.VirtualMAchines.Id)"} | ForEach-Object { $_.Group | Select-Object -Last 1 } | Sort-Object -Property EndTimeUtc
+        $AzVMJITAccess = $AzVMJITAccess | Sort-Object -Property EndTimeUtc | Group-Object -Property {"$($_.Requestor)|$($_.VirtualMAchines.Id)"} | ForEach-Object { $_.Group | Select-Object -Last 1 } | Sort-Object -Property EndTimeUtc
     }
     else {
-        $AzVMJITAccess | Sort-Object -Property EndTimeUtc
+        $AzVMJITAccess = $AzVMJITAccess | Sort-Object -Property EndTimeUtc
     }
+
+    if (-not($All)) {
+        $AzVMJITAccess = $AzVMJITAccess | Where-Object -FilterScript { $_.Requestor -eq $((Get-AzContext).Account.Id) }| Sort-Object -Property EndTimeUtc
+    }
+    $AzVMJITAccess
 }
 #endregion
 
