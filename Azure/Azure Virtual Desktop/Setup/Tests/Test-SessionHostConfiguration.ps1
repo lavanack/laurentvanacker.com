@@ -135,8 +135,8 @@ $SecurePassword = New-RandomPassword -AsSecureString
 $secret = Set-AzKeyVaultSecret -VaultName $KeyVaultName -Name "LocalAdminUserName" -SecretValue $SecureUserName
 $secret = Set-AzKeyVaultSecret -VaultName $KeyVaultName -Name "LocalAdminPassword" -SecretValue $SecurePassword
 
-
-$UserName = "adjoin"
+$DomainName = "csa.fr"
+$UserName = "adjoin@{0}" -f $DomainName
 $SecureUserName = $(ConvertTo-SecureString -String $UserName -AsPlainText -Force) 
 Write-Host "UserName: $UserName"
 $AdJoinUserClearTextPassword = 'I@m@JediLikeMyF@therB4Me'
@@ -160,8 +160,8 @@ $CurrentHostPool = [PSCustomObject] @{
     ImagePublisherName = "microsoftwindowsdesktop"
     ImageOffer = "windows-11"
     ImageSku = "win11-25h2-ent"
-    DistinguishedName = "OU=PooledDesktops,OU=$Location,OU=AVD,DC=csa,DC=fr"
-    DomainName = "csa.fr"
+    DistinguishedName = "OU=PooledDesktops,OU=$Location,OU=AVD,DC={0}" -f $($DomainName -replace "\.", ",DC=")
+    DomainName = $DomainName
     KeyVault = $KeyVault
     VMNumberOfInstances = 3
     ResourceGroupName = $ResourceGroupName
@@ -266,7 +266,7 @@ $parameters = @{
         MarketplaceInfoExactVersion = $LatestImage.Version
         DomainInfoJoinType = 'ActiveDirectory'
         ActiveDirectoryInfoOuPath = $CurrentHostPoolOU.DistinguishedName
-        ActiveDirectoryInfoDomainName = $DomainName
+        ActiveDirectoryInfoDomainName = $CurrentHostPoolOU.DomainName
         DomainCredentialsUsernameKeyVaultSecretUri = ($CurrentHostPool.KeyVault | Get-AzKeyVaultSecret -Name "AdJoinUserName").Id
         DomainCredentialsPasswordKeyVaultSecretUri = ($CurrentHostPool.KeyVault | Get-AzKeyVaultSecret -Name "AdJoinPassword").Id
         CustomConfigurationScriptUrl = $CurrentHostPool.CustomConfigurationScriptUrl

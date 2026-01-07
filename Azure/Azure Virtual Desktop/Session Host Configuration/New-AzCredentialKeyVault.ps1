@@ -19,7 +19,7 @@ of the Sample Code.
 #requires -Module Az.Accounts
 
 #region Function Definitions
-function New-PsAvdHostPoolSessionHostCredentialKeyVault {
+function New-AzCredentialKeyVault {
     [CmdletBinding(PositionalBinding = $false)]
     param
     (
@@ -82,16 +82,9 @@ function New-PsAvdHostPoolSessionHostCredentialKeyVault {
     #endregion 
 
     #region Defining local admin credential(s)
-    if ($LocalAdminCredential) {
-        $SecureUserName = $(ConvertTo-SecureString -String $LocalAdminCredential.UserName -AsPlainText -Force) 
-        $SecurePassword = $LocalAdminCredential.Password
-    }
-    else {
-        $UserName = "localadmin"
-        $SecureUserName = $(ConvertTo-SecureString -String $UserName -AsPlainText -Force) 
-        Write-Host "UserName: $UserName"
-        $SecurePassword = New-RandomPassword -AsSecureString
-    }
+    $SecureUserName = $(ConvertTo-SecureString -String $LocalAdminCredential.UserName -AsPlainText -Force) 
+    $SecurePassword = $LocalAdminCredential.Password
+
     $SecretUserName = "LocalAdminUserName"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating a secret in $KeyVaultName called '$SecretUserName'"
     $secret = Set-AzKeyVaultSecret -VaultName $KeyVaultName -Name $SecretUserName -SecretValue $SecureUserName
@@ -102,16 +95,8 @@ function New-PsAvdHostPoolSessionHostCredentialKeyVault {
     #endregion
 
     #region Defining AD join credential(s)
-    if ($ADJoinCredential) {
-        $SecureUserName = $(ConvertTo-SecureString -String $ADJoinCredential.UserName -AsPlainText -Force) 
-        $SecurePassword = $ADJoinCredential.Password
-    }
-    else {
-        $UserName = "adjoin"
-        $SecureUserName = $(ConvertTo-SecureString -String $UserName -AsPlainText -Force) 
-        Write-Host "UserName: $UserName"
-        $SecurePassword = New-RandomPassword -AsSecureString
-    }
+    $SecureUserName = $(ConvertTo-SecureString -String $ADJoinCredential.UserName -AsPlainText -Force) 
+    $SecurePassword = $ADJoinCredential.Password
 
     $SecretUserName = "ADJoinUserName"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating a secret in $KeyVaultName called '$SecretUserName'"
@@ -147,5 +132,5 @@ Do {
 } While ($ADJoinCredential.UserName -notmatch "^(.*)@(.*)(\.)(.*)$")
 $LocalAdminCredential = Get-Credential -Message "Local Admin Credential"
 
-$HostPoolSessionHostCredentialKeyVault = New-PsAvdHostPoolSessionHostCredentialKeyVault -LocalAdminCredential $LocalAdminCredential -ADJoinCredential $ADJoinCredential -Verbose 
+$HostPoolSessionHostCredentialKeyVault = New-AzCredentialKeyVault -LocalAdminCredential $LocalAdminCredential -ADJoinCredential $ADJoinCredential -Verbose 
 #endregion
