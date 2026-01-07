@@ -262,7 +262,7 @@ $Properties.Add('targetResourceId', $VM.Id)
 New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Properties $Properties -Force
 #endregion
 
-#Set-AzVMCustomScriptExtension -VMName $VMName -ResourceGroupName $ResourceGroupName -Location $Location -FileUri $ScriptUri -Run $scriptFileName -Name "CustomSriptExtension"
+#Set-AzVMCustomScriptExtension -VMName $VMName -ResourceGroupName $ResourceGroupName -Location $Location -FileUri $ScriptUri -Run $scriptFileName -Name "CustomScriptExtension"
 Invoke-AzVMRunCommand -ResourceGroupName $ResourceGroupName -VMName $VMName -CommandId 'RunPowerShellScript' -ScriptString "Add-WindowsCapability -Online -Name 'Msix.PackagingTool.Driver~~~~0.0.1.0'"
 
 #Step 11: Start Azure Virtual Machine

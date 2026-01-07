@@ -165,7 +165,7 @@ $CurrentHostPool = [PSCustomObject] @{
     KeyVault = $KeyVault
     VMNumberOfInstances = 3
     ResourceGroupName = $ResourceGroupName
-    CustomConfigurationScriptUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/3148cab7ec65e4eb39e3eaed14b263ecd18bff1b/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1"
+    CustomConfigurationScriptUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1"
 }
 
 $Parameters = @{
