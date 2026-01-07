@@ -81,6 +81,7 @@ function Test-FunctionAppNameAvailability {
 }
 #endregion
 
+#region Main Code
 Clear-Host
 $Error.Clear()
 
@@ -97,6 +98,12 @@ $ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/
 $shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @{Name = 'Location'; Expression = { $AzLocation[$_.name].Location } } | Where-Object -FilterScript { $_.Location } | Group-Object -Property Location -AsHashTable -AsString
 #endregion
 
+
+#region Building an Hashtable to get the prefix of every Azure resource type based on a JSON file on the Github repository of the Azure Naming Tool
+$Result = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/refs/heads/main/src/repository/resourcetypes.json 
+$ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -notin @('Linux') } | Select-Object -Property resource, shortName, property, lengthMax | Group-Object -Property resource -AsHashTable -AsString
+#endregion
+
 # Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount
@@ -105,16 +112,16 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
 }
 
-$AzureVMNameMaxLength = 15
+$AzureVMNameMaxLength = $ResourceTypeShortNameHT["Compute/virtualMachines"].lengthMax
 $StorageAccountSkuName = "Standard_LRS"
-$Location = "EastUS"
+$Location = "eastus2"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
-$ResourceGroupPrefix = "rg"
-$StorageAccountPrefix = "sa"
-$AzureFunctionPrefix = "func"
-$Project = "func"
-$Role = "poc"
+$ResourceGroupNamePrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
+$StorageAccountPrefix = $ResourceTypeShortNameHT["Storage/storageAccounts"].Where({ $_.Property -eq [string]::Empty }).ShortName
+$AzureFunctionPrefix = $ResourceTypeShortNameHT["Web/sites"].Where({ $_.Property -eq "Function App" }).ShortName
+$Project = "test"
+$Role = "hello"
 $DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role + $LocationShortName).Length
 
 Do {
@@ -123,7 +130,7 @@ Do {
     $AzureFunctionName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $AzureFunctionPrefix, $Project, $Role, $LocationShortName, $Instance                       
 } While ((-not(Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable) -or (-not(Test-FunctionAppNameAvailability -FunctionAppName $AzureFunctionName)))
 
-$ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
+$ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupNamePrefix, $Project, $Role, $LocationShortName, $Instance                       
 #endregion
 
 #region Resource Group Setup
@@ -137,8 +144,9 @@ if ($ResourceGroup) {
 $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 #endregion
 
-#Create Azure Storage Account
-$StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true
+#region Create Azure Storage Account
+$StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true -AllowBlobPublicAccess $true
+#endregion
 
 #region Prerequisites
 #region Azure Functions Core Tools
@@ -162,7 +170,7 @@ if ($PowerShellVersion -lt [version]::Parse($RuntimeVersion)) {
 #endregion 
 
 #region Latest DotNet SDK
-$LatestDotNetCoreSDKURIPath = (Invoke-WebRequest https://dotnet.microsoft.com/en-us/download).links.href | Where-Object -FilterScript { $_ -match "sdk.*windows.*-x64" } | Sort-Object -Descending | Select-Object -First 1
+$LatestDotNetCoreSDKURIPath = (Invoke-WebRequest https://dotnet.microsoft.com/en-us/download -UseBasicParsing).links.href | Where-Object -FilterScript { $_ -match "sdk.*windows.*-x64" } | Sort-Object -Descending | Select-Object -First 1
 $Version = [regex]::Match($LatestDotNetCoreSDKURIPath, "sdk-(?<Version>\d+\.\d+)").Groups["Version"].Value
 if ($null -eq $(Get-WmiObject -Class Win32Reg_AddRemovePrograms -Filter "DisplayName LIKE '%sdk%$Version%'")) {
     #region Downloading
@@ -185,7 +193,7 @@ else {
 
 #endregion
 
-#Create Azure Function
+#region Create Azure Function
 #$RuntimeVersion = "{0}.{1}" -f $PowerShellVersion.Major, $PowerShellVersion.Minor
 $FunctionApp = New-AzFunctionApp -Name $AzureFunctionName -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Runtime "PowerShell" -RuntimeVersion $RuntimeVersion -OSType "Linux" -Location $Location -IdentityType SystemAssigned
 
@@ -270,13 +278,40 @@ Invoke-RestMethod -Uri "https://$AzureFunctionName.azurewebsites.net/api/$Functi
 
 <#
 #region Adding CORS for testing from the Azure Portal (Not directly possible via PowerShell)
+#region Powershell Way
 az functionapp cors add -g $FunctionApp.ResourceGroupName -n $FunctionApp.Name --allowed-origins https://portal.azure.com
 #endregion
+
+#region Powershell Way
+$API = "2022-03-01"
+$Parameters = @{
+    ResourceGroupName = $FunctionApp.ResourceGroupName
+    ResourceType      = "Microsoft.Web/sites/config"
+    ResourceName      = "{0}/web" -f $FunctionApp.Name
+    ApiVersion        = $API
+}
+$AZResource = Get-AzResource @Parameters
+
+$AZResource.Properties.cors = @{
+    allowedOrigins     = @("https://portal.azure.com")
+    supportCredentials = $false
+}
+
+$Parameters = @{
+    ResourceId = $AZResource.ResourceId
+    Properties = $AZResource.Properties
+    ApiVersion = $API
+    Force      = $true
+}
+Set-AzResource @Parameters
+#endregion
+#endregion
 #>
+#endregion
 
 #region Cleanup
 Set-Location -Path $CurrentDir
-Stop-Process -InputObject $FuncProcess -Force
+#Stop-Process -InputObject $FuncProcess -Force
 
 Remove-Item -Path $FunctionName -Recurse -Force
 
@@ -285,4 +320,6 @@ Stop-AzFunctionApp -Name $AzureFunctionName -ResourceGroupName $ResourceGroupNam
 Remove-AzResourceGroup -Name $ResourceGroupName -Force -AsJob
 Get-AzResourceGroup -Name rg-func-poc* | Remove-AzResourceGroup -Force -AsJob
 #>
+#endregion
+
 #endregion
