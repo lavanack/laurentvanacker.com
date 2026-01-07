@@ -365,3 +365,4 @@ Remove-AzResourceGroup -Name $ResourceGroupName -Force -AsJob
 Get-AzResourceGroup -Name rg-func-poc* | Remove-AzResourceGroup -Force -AsJob
 #>
 #endregion
+#endregion

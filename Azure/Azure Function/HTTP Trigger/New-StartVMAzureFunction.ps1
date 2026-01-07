@@ -82,6 +82,7 @@ function Test-FunctionAppNameAvailability {
 }
 #endregion
 
+#region Main Code
 Clear-Host
 $Error.Clear()
 
@@ -98,9 +99,10 @@ $ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/
 $shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @{Name = 'Location'; Expression = { $AzLocation[$_.name].Location } } | Where-Object -FilterScript { $_.Location } | Group-Object -Property Location -AsHashTable -AsString
 #endregion
 
+
 #region Building an Hashtable to get the prefix of every Azure resource type based on a JSON file on the Github repository of the Azure Naming Tool
 $Result = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/refs/heads/main/src/repository/resourcetypes.json 
-$ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -in @('', 'Windows') } | Select-Object -Property resource, shortName, lengthMax | Group-Object -Property resource -AsHashTable -AsString
+$ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -notin @('Linux') } | Select-Object -Property resource, shortName, property, lengthMax | Group-Object -Property resource -AsHashTable -AsString
 #endregion
 
 # Login to your Azure subscription.
@@ -111,16 +113,16 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
 }
 
-$AzureVMNameMaxLength = 15
+$AzureVMNameMaxLength = $ResourceTypeShortNameHT["Compute/virtualMachines"].lengthMax
 $StorageAccountSkuName = "Standard_LRS"
-$Location = "EastUS"
+$Location = "eastus2"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
-$ResourceGroupPrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
-$StorageAccountPrefix = $ResourceTypeShortNameHT["Storage/storageAccounts"].ShortName
-$AzureFunctionPrefix = $ResourceTypeShortNameHT["Web/sites"].ShortName
-$Project = "avd"
-$Role = "stop"
+$ResourceGroupNamePrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
+$StorageAccountPrefix = $ResourceTypeShortNameHT["Storage/storageAccounts"].Where({$_.Property -eq  [string]::Empty}).ShortName
+$AzureFunctionPrefix = $ResourceTypeShortNameHT["Web/sites"].Where({$_.Property -eq "Function App"}).ShortName
+$Project = "vm"
+$Role = "start"
 $DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role + $LocationShortName).Length
 
 Do {
@@ -129,7 +131,7 @@ Do {
     $AzureFunctionName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $AzureFunctionPrefix, $Project, $Role, $LocationShortName, $Instance                       
 } While ((-not(Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable) -or (-not(Test-FunctionAppNameAvailability -FunctionAppName $AzureFunctionName)))
 
-$ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
+$ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupNamePrefix, $Project, $Role, $LocationShortName, $Instance                       
 #endregion
 
 #region Resource Group Setup
@@ -143,8 +145,9 @@ if ($ResourceGroup) {
 $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 #endregion
 
-#Create Azure Storage Account
-$StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true
+#region Create Azure Storage Account
+$StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true -AllowBlobPublicAccess $true
+#endregion
 
 #region Prerequisites
 #region Azure Functions Core Tools
@@ -168,7 +171,7 @@ if ($PowerShellVersion -lt [version]::Parse($RuntimeVersion)) {
 #endregion 
 
 #region Latest DotNet SDK
-$LatestDotNetCoreSDKURIPath = (Invoke-WebRequest https://dotnet.microsoft.com/en-us/download).links.href | Where-Object -FilterScript { $_ -match "sdk.*windows.*-x64" } | Sort-Object -Descending | Select-Object -First 1
+$LatestDotNetCoreSDKURIPath = (Invoke-WebRequest https://dotnet.microsoft.com/en-us/download -UseBasicParsing).links.href | Where-Object -FilterScript { $_ -match "sdk.*windows.*-x64" } | Sort-Object -Descending | Select-Object -First 1
 $Version = [regex]::Match($LatestDotNetCoreSDKURIPath, "sdk-(?<Version>\d+\.\d+)").Groups["Version"].Value
 if ($null -eq $(Get-WmiObject -Class Win32Reg_AddRemovePrograms -Filter "DisplayName LIKE '%sdk%$Version%'")) {
     #region Downloading
@@ -191,9 +194,11 @@ else {
 
 #endregion
 
-#Create Azure Function
+#region Create Azure Function
 #$RuntimeVersion = "{0}.{1}" -f $PowerShellVersion.Major, $PowerShellVersion.Minor
+$StorageAccount | Set-AzStorageAccount -AllowSharedKeyAccess $true
 $FunctionApp = New-AzFunctionApp -Name $AzureFunctionName -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Runtime "PowerShell" -RuntimeVersion $RuntimeVersion -OSType "Linux" -Location $Location -IdentityType SystemAssigned
+#endregion
 
 #region Creating the Function Locally
 $AzureFunctionsCoreToolsDirectory = "$env:ProgramFiles\Microsoft\Azure Functions Core Tools\"
@@ -229,14 +234,13 @@ if ($rgname -and $action) {
         $body = Get-AzVM -ResourceGroupName $rgname -Status | Select-Object -Property Name,PowerState
     }
     if ($action -ceq "start"){
-        $body = $action
         $Job = Get-AzVM -ResourceGroupName $rgname | Start-AzVM -AsJob
         $body = $Job | Receive-Job -Wait -AutoRemoveJob
     }
 }
 else {
     $status = [HttpStatusCode]::BadRequest
-    $body = "Please pass a name on the query string or in the request body."
+    $body = "Please pass a resource group name and an action on the query string or in the request body."
 }
  
 # Associate values to output bindings by calling 'Push-OutputBinding'.
@@ -283,6 +287,7 @@ Get-Content -Path host.json | ConvertFrom-Json | Add-Member -Name "functionTimeo
 #endregion
 
 
+
 <#
 $FuncProcess = Start-Process -FilePath """$Func""" -ArgumentList "start", "--verbose" -PassThru
 
@@ -310,27 +315,59 @@ Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" azure func
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" azure functionapp logstream $($FunctionApp.Name) --browser" -Wait
 #endregion
 
-#region RBAC Assignment
-#region 'Virtual Machine Contributor' RBAC Assignment
-Write-Verbose -Message "Assigning the 'Virtual Machine Contributor' RBAC role to Azure Function Managed System Identity ..."
-New-AzRoleAssignment -ObjectId $FunctionApp.IdentityPrincipalId -RoleDefinitionName 'Virtual Machine Contributor' -Scope "/subscriptions/$SubscriptionId"
-#endregion
-
-#Waiting some seconds the process be available
-While (-not((Test-NetConnection -ComputerName "$AzureFunctionName.azurewebsites.net" -Port 80).TcpTestSucceeded)) {
-    Start-Sleep -Second 10
+#region RBAC Assignment(s)
+#region 'Desktop Virtualization Power On Off Contributor' RBAC Assignment
+$RoleDefinition = Get-AzRoleDefinition -Name "Virtual Machine Contributor"
+$Parameters = @{
+    ObjectId           = $FunctionApp.IdentityPrincipalId
+    RoleDefinitionName = $RoleDefinition.Name
+    Scope              = $ResourceGroupId 
 }
-
-#You have to wait some minutes before invoking this Azure function because some Az modules are downloading in the background ...
-#region Testing the Azure Function
-Invoke-RestMethod -Uri "https://$AzureFunctionName.azurewebsites.net/api/$FunctionName" -Body $Body
+while (-not(Get-AzRoleAssignment @Parameters)) {
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' scope"
+    $RoleAssignment = New-AzRoleAssignment @Parameters
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+    Start-Sleep -Seconds 30
+}
+#endregion
 #endregion
 
+#region Testing the Azure Function
+#You have to wait some minutes before invoking this Azure function because some Az modules are downloading in the background ...
+Invoke-RestMethod -Uri "https://$AzureFunctionName.azurewebsites.net/api/$FunctionName" -Body $Body
 <#
 #region Adding CORS for testing from the Azure Portal (Not directly possible via PowerShell)
+#region Powershell Way
 az functionapp cors add -g $FunctionApp.ResourceGroupName -n $FunctionApp.Name --allowed-origins https://portal.azure.com
 #endregion
+
+#region Powershell Way
+$API = "2022-03-01"
+$Parameters = @{
+    ResourceGroupName = $FunctionApp.ResourceGroupName
+    ResourceType      = "Microsoft.Web/sites/config"
+    ResourceName      = "{0}/web" -f $FunctionApp.Name
+    ApiVersion        = $API
+}
+$AZResource = Get-AzResource @Parameters
+
+$AZResource.Properties.cors = @{
+    allowedOrigins     = @("https://portal.azure.com")
+    supportCredentials = $false
+}
+
+$Parameters = @{
+    ResourceId = $AZResource.ResourceId
+    Properties = $AZResource.Properties
+    ApiVersion = $API
+    Force      = $true
+}
+Set-AzResource @Parameters
+#endregion
+#endregion
 #>
+#endregion
 
 #region Cleanup
 Set-Location -Path $CurrentDir
@@ -343,4 +380,6 @@ Stop-AzFunctionApp -Name $AzureFunctionName -ResourceGroupName $ResourceGroupNam
 Remove-AzResourceGroup -Name $ResourceGroupName -Force -AsJob
 Get-AzResourceGroup -Name rg-func-poc* | Remove-AzResourceGroup -Force -AsJob
 #>
+#endregion
+
 #endregion
