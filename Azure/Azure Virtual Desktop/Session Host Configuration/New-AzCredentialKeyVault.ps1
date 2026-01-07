@@ -27,7 +27,7 @@ function New-PsAvdHostPoolSessionHostCredentialKeyVault {
         [System.Management.Automation.PSCredential] $LocalAdminCredential,
         [Parameter(Mandatory = $true)]
         [System.Management.Automation.PSCredential] $ADJoinCredential,
-        [ValidateScript({$_ -in (Get-AzLocation).Location})]
+        [ValidateScript({ $_ -in (Get-AzLocation).Location })]
         [string] $Location = "eastus2"
     )
 
