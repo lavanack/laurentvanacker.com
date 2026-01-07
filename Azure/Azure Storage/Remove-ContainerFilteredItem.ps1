@@ -28,10 +28,10 @@ function New-AzTestStorageContainer {
     [CmdletBinding(PositionalBinding = $false)]
     param
     (
-        [datetime] $StartTime = [DateTime]::ParseExact("{0}0101" -f ([Datetime]::Today).Year, 'yyyyMMdd',[CultureInfo]::InvariantCulture),
-        [ValidateScript({$_ -ge $StartTime})]
+        [datetime] $StartTime = [DateTime]::ParseExact("{0}0101" -f ([Datetime]::Today).Year, 'yyyyMMdd', [CultureInfo]::InvariantCulture),
+        [ValidateScript({ $_ -ge $StartTime })]
         [datetime] $EndTime = $StartTime.AddYears(1).AddDays(-1),
-        [ValidateScript({$_ -in $((Get-AzLocation).Location)})]
+        [ValidateScript({ $_ -in $((Get-AzLocation).Location) })]
         [string] $Location = "eastus2",
         [ValidateRange(0, 10)]
         [Alias('FolderDepth')]
@@ -126,9 +126,9 @@ function New-AzTestStorageContainer {
     }
     #endregion 
 
-    $CurrentTime=$StartTime
+    $CurrentTime = $StartTime
     $FolderIndex = 0
-    $DayNumber = ($EndTime-$StartTime).Days+1
+    $DayNumber = ($EndTime - $StartTime).Days + 1
     $ProcessingStartTime = Get-Date
     $RootLocalFolderPath = Join-Path -Path $env:TEMP -ChildPath $("{0}_{1:yyyyMMddHHmmss}" -f $MyInvocation.MyCommand, $(Get-Date))
     #Creating a dummy.txt file a the $RootLocalFolderPath because without it the recurse copy won't include the Uploads folder
@@ -151,8 +151,8 @@ function New-AzTestStorageContainer {
             #Generating a random folder structure
             #$SubFolders = (1..(Get-Random -Minimum 1 -Maximum 3) | ForEach-Object -Process { (-join ((48..57) + (65..90) + (97..122) | Get-Random -Count $(Get-Random -Minimum 3 -Maximum 20) | % {[char]$_})) }) -join $([System.IO.Path]::DirectorySeparatorChar)
             
-            $SubFolders = & {$FolderNames = for($i=0; $i -lt $Depth; $i++){ (-join ((48..57) + (65..90) + (97..122) | Get-Random -Count $(Get-Random -Minimum 3 -Maximum 20) | % {[char]$_})) }; $FolderNames -join $([System.IO.Path]::DirectorySeparatorChar)}
-            $RandomFolderStructure =  Join-Path -Path $LocalFolderPath -ChildPath $SubFolders
+            $SubFolders = & { $FolderNames = for ($i = 0; $i -lt $Depth; $i++) { ( -join ((48..57) + (65..90) + (97..122) | Get-Random -Count $(Get-Random -Minimum 3 -Maximum 20) | ForEach-Object -Process { [char]$_ })) }; $FolderNames -join $([System.IO.Path]::DirectorySeparatorChar) }
+            $RandomFolderStructure = Join-Path -Path $LocalFolderPath -ChildPath $SubFolders
 
             $null = New-Item -Path $RandomFolderStructure -ItemType Directory -Force
             $LocalFilePath = Join-Path -Path $RandomFolderStructure -ChildPath $FileName
@@ -220,7 +220,7 @@ function New-AzTestStorageContainer {
 }
 
 function Remove-AzStorageContainerFilteredItem {
-    [CmdletBinding(PositionalBinding = $false, SupportsShouldProcess = $true, ConfirmImpact='High')]
+    [CmdletBinding(PositionalBinding = $false, SupportsShouldProcess = $true, ConfirmImpact = 'High')]
     param
     (
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
@@ -228,7 +228,7 @@ function Remove-AzStorageContainerFilteredItem {
         [Parameter(Mandatory = $true)]
         [datetime] $StartTime,
         [Parameter(Mandatory = $true)]
-        [ValidateScript({$_ -ge $StartTime})]
+        [ValidateScript({ $_ -ge $StartTime })]
         [datetime] $EndTime,
         [Parameter(Mandatory = $true)]
         [string] $Prefix
@@ -253,7 +253,7 @@ function Remove-AzStorageContainerFilteredItem {
     #Getting the blobs where the folder name (under the yyyyMMdd format is between $StartTime and $EndTime (included)
     $FilteredStorageBlob = $StorageBlob | Where-Object -FilterScript { 
         if ($_.Name -match "/(?<Date>\d{8})/") {
-            $Date = [DateTime]::ParseExact($Matches['Date'], 'yyyyMMdd',[CultureInfo]::InvariantCulture)
+            $Date = [DateTime]::ParseExact($Matches['Date'], 'yyyyMMdd', [CultureInfo]::InvariantCulture)
             #Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Date: $Date"
             (($Date -ge $StartTime) -and ($Date -le $EndTime)) 
         }
@@ -299,7 +299,7 @@ $Location = "eastus2"
 
 #region Generating a Test Container with a folder per day for the 2025 year (and with dummy files and contents)
 #$NewStartTime = [DateTime]::ParseExact("{0}0101" -f ([Datetime]::Today).Year, 'yyyyMMdd',[CultureInfo]::InvariantCulture)
-$NewStartTime = [DateTime]::ParseExact("20250101", 'yyyyMMdd',[CultureInfo]::InvariantCulture)
+$NewStartTime = [DateTime]::ParseExact("20250101", 'yyyyMMdd', [CultureInfo]::InvariantCulture)
 $NewEndTime = $NewStartTime.AddYears(1).AddDays(-1)
 $StorageContainer = New-AzTestStorageContainer -Location $Location -StartTime $NewStartTime -EndTime $NewEndTime -Depth 0 -Verbose
 #endregion 
@@ -310,8 +310,8 @@ $StorageBlob = $StorageContainer | Get-AzStorageBlob
 $StorageBlob | Select-Object -Property Name | Sort-Object -Property Name | Export-Csv -Path $BeforeCleanupCSVFile -NoTypeInformation
 #endregion 
 
-$RemoveStartTime = [DateTime]::ParseExact("20250623", 'yyyyMMdd',[CultureInfo]::InvariantCulture)
-$RemoveEndTime = [DateTime]::ParseExact("20251116", 'yyyyMMdd',[CultureInfo]::InvariantCulture)
+$RemoveStartTime = [DateTime]::ParseExact("20250623", 'yyyyMMdd', [CultureInfo]::InvariantCulture)
+$RemoveEndTime = [DateTime]::ParseExact("20251116", 'yyyyMMdd', [CultureInfo]::InvariantCulture)
 $Prefix = "commercial_policy"
 #-WhatIf invoked ==> Simulation Mode (No Deletion)
 $StorageContainer | Remove-AzStorageContainerFilteredItem -StartTime $RemoveStartTime -EndTime $RemoveEndTime -Prefix $Prefix -Verbose -WhatIf

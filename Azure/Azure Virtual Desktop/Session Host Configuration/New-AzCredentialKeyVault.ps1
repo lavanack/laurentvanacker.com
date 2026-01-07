@@ -131,7 +131,6 @@ function New-PsAvdHostPoolSessionHostCredentialKeyVault {
 }
 #endregion
 
-
 #region Main code
 Clear-Host
 $CurrentScript = $MyInvocation.MyCommand.Path
