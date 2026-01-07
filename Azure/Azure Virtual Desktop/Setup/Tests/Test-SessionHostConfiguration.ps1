@@ -67,18 +67,21 @@ catch {
 }
 #endregion
 
-#region Remove any existing ResourceGroup
-$null = Get-AzResourceGroup -ResourceGroupName *avd-test* | Remove-AzResourceGroup -AsJob -Force
-#endregion
 
 #region Variable Definitions
 $RegistrationInfoExpirationTime = (Get-Date).ToUniversalTime().AddDays(1)
 $CustomRdpProperty = "redirectcomports:i:0;redirectlocation:i:0;redirectprinters:i:0;drivestoredirect:s:;usbdevicestoredirect:s:"
-$ResourceGroupName = "rg-avd-test-use2-{0:D3}" -f $(Get-Random -Minimum 0 -Maximum 1000)
+$Index = $(Get-Random -Minimum 0 -Maximum 1000)
+$ResourceGroupNamePattern = "rg-hp-np-ad-shc-mp-use2" 
+$ResourceGroupName = "{0}-{1:D3}" -f $ResourceGroupNamePattern, $Index
 $Tag = @{Test=$true}
 $Location = "eastus2"
 $SubNetId = "/subscriptions/30c8d9eb-366e-4d2c-a723-95bc688f7c97/resourceGroups/rg-avd-ad-use2-002/providers/Microsoft.Network/virtualNetworks/vnet-avd-avd-use2-002/subnets/snet-avd-avd-use2-002"
 $vNetId = $SubNetId -replace "/subnets/.*"
+#endregion
+
+#region Remove any existing ResourceGroup
+$null = Get-AzResourceGroup -ResourceGroupName $("{0}*" -f $ResourceGroupNamePattern) | Remove-AzResourceGroup -AsJob -Force
 #endregion
 
 #region ResourceGroup
@@ -97,7 +100,7 @@ $ResourceGroup = New-AzResourceGroup @Parameters
 #$KeyVault = New-AzKeyVault -VaultName $KeyVaultName -ResourceGroup $ResourceGroupName -Location $location -EnabledForDeployment -EnabledForTemplateDeployment -SoftDeleteRetentionInDays 7 -DisableRbacAuthorization #-EnablePurgeProtection
 #As the owner of the key vault, you automatically have access to create secrets. If you need to let another user create secrets, use:
 #$AccessPolicy = Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -UserPrincipalName $UserPrincipalName -PermissionsToSecrets Get,Delete,List,Set -PassThru
-$KeyVaultName = $ResourceGroupName -replace "^rg", "kv"
+$KeyVaultName = $ResourceGroupName -replace "^rg", "kv" -replace "\W"
 $Parameters = @{
     VaultName          = $KeyVaultName
     Location           = $Location
@@ -145,13 +148,13 @@ $secret = Set-AzKeyVaultSecret -VaultName $KeyVaultName -Name "AdJoinPassword" -
 
 #region HostPool
 $CurrentHostPool = [PSCustomObject] @{
-    Name = $ResourceGroupName -replace "^rg", "hp"
+    Name = $ResourceGroupName -replace "^rg-"
     GetSessionHostConfigurationName = $ResourceGroupName -replace "^rg", "shc"
     LoadBalancerType = "BreadthFirst"
     PreferredAppGroupType = "Desktop"
     MaxSessionLimit = 5
     Location = $Location
-    NamePrefix = "stestuse2"
+    NamePrefix = "namuse2{0:D3}" -f $Index
     VMSize = "Standard_D2s_v5"
     SubnetId = $SubNetId
     ImagePublisherName = "microsoftwindowsdesktop"
@@ -160,7 +163,9 @@ $CurrentHostPool = [PSCustomObject] @{
     DistinguishedName = "OU=PooledDesktops,OU=$Location,OU=AVD,DC=csa,DC=fr"
     DomainName = "csa.fr"
     KeyVault = $KeyVault
+    VMNumberOfInstances = 3
     ResourceGroupName = $ResourceGroupName
+    CustomConfigurationScriptUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/3148cab7ec65e4eb39e3eaed14b263ecd18bff1b/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1"
 }
 
 $Parameters = @{
@@ -264,6 +269,7 @@ $parameters = @{
         ActiveDirectoryInfoDomainName = $DomainName
         DomainCredentialsUsernameKeyVaultSecretUri = ($CurrentHostPool.KeyVault | Get-AzKeyVaultSecret -Name "AdJoinUserName").Id
         DomainCredentialsPasswordKeyVaultSecretUri = ($CurrentHostPool.KeyVault | Get-AzKeyVaultSecret -Name "AdJoinPassword").Id
+        CustomConfigurationScriptUrl = $CurrentHostPool.CustomConfigurationScriptUrl
         #Debug = $true
 }
 $SessionHostConfiguration = New-AzWvdSessionHostConfiguration @parameters
@@ -276,6 +282,7 @@ $parameters = @{
     ScheduledDateTimeZone = $(Get-TimeZone)
     UpdateLogOffDelayMinute = 5
     UpdateMaxVmsRemoved = 1
+	ProvisioningInstanceCount = $CurrentHostPool.VMNumberOfInstances
     UpdateDeleteOriginalVM = $False
     UpdateLogOffMessage = 'Update LogOff Message: You will be logged off in 5 minutes'
 }
