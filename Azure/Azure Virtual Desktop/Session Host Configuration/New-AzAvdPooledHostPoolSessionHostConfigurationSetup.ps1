@@ -274,7 +274,6 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
     #endregion
     #endregion
 
-
     #region Desktop Application Group Setup
     $Parameters = @{
         Name                 = "{0}-DAG" -f $CurrentHostPool.Name
@@ -289,6 +288,14 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
 
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the Desktop Application Group for the '$($CurrentHostPool.Name)' Host Pool (in the '$($CurrentHostPool.ResourceGroupName)' Resource Group)"
     $CurrentAzDesktopApplicationGroup = New-AzWvdApplicationGroup @Parameters
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The Desktop Application Group for the '$($CurrentHostPool.Name)' Host Pool (in the '$($CurrentHostPool.ResourceGroupName)' Resource Group) is created"
+
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Updating the friendly name of the Desktop for the Desktop Application Group of the '$($CurrentHostPool.Name)' Host Pool (in the '$($CurrentHostPool.ResourceGroupName)' Resource Group) to '$($CurrentHostPool.Name)'"
+    $Parameters = @{
+        ApplicationGroupName = $CurrentAzDesktopApplicationGroup.Name
+        ResourceGroupName    = $CurrentHostPool.ResourceGroupName
+    }
+    $null = Get-AzWvdDesktop @parameters | Update-AzWvdDesktop -FriendlyName $CurrentHostPool.Name
     #endregion
 
     #region Workspace Setup
