@@ -94,7 +94,7 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
     }
     while (-not(Get-AzRoleAssignment @Parameters)) {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
-        $RoleAssignment = New-AzRoleAssignment @Parameters
+        $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
         Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
         Start-Sleep -Seconds 30
@@ -197,7 +197,7 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
         }
         while (-not(Get-AzRoleAssignment @Parameters)) {
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
-            $RoleAssignment = New-AzRoleAssignment @Parameters
+            $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
             Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
             Start-Sleep -Seconds 30
@@ -214,7 +214,7 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
     }
     while (-not(Get-AzRoleAssignment @Parameters)) {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
-        $RoleAssignment = New-AzRoleAssignment @Parameters
+        $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
         Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
         Start-Sleep -Seconds 30
