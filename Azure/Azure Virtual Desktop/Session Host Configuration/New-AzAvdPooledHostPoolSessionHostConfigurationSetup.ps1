@@ -16,7 +16,7 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 
-#requires -Module Az.Accounts
+#requires -Modules Az.Accounts, Az.Compute, Az.DesktopVirtualization, Az.KeyVault, Az.Network, Az.Resources
 
 #region Function Definitions
 function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
