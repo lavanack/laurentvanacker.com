@@ -22,5 +22,9 @@ $CustomConfigurationScriptUrls = @(
 )
 
 foreach ($CustomConfigurationScriptUrl in $CustomConfigurationScriptUrls) {
-    Invoke-Expression -Command "& { $(Invoke-RestMethod -Uri $CustomConfigurationScriptUrl) }"
+    $LocalScriptName = Split-Path -Path $CustomConfigurationScriptUrl -Leaf
+    $LocalScriptPath = Join-Path -Path $env:TEMP -ChildPath $LocalScriptName
+    Invoke-RestMethod -Uri $CustomConfigurationScriptUrl -OutFile $LocalScriptPath -UseBasicParsing
+    & $LocalScriptPath  
+    $null = Remove-Item -Path $LocalScriptPath -Force
 }
