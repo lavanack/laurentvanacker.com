@@ -149,6 +149,7 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
         KeyVault                        = $KeyVault
         VMNumberOfInstances             = 3
         ResourceGroupName               = $ResourceGroupName
+        WorkSpaceName                   = $ResourceGroupName -replace "^rg", "ws"
         #Installing VS Code on All AVD Session Hosts
         CustomConfigurationScriptUrl    = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1"
     }
@@ -273,6 +274,41 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
     #endregion
     #endregion
 
+
+    #region Desktop Application Group Setup
+    $Parameters = @{
+        Name                 = "{0}-DAG" -f $CurrentHostPool.Name
+        #FriendlyName         = $CurrentHostPool.Name
+        ResourceGroupName    = $CurrentHostPool.ResourceGroupName
+        Location             = $CurrentHostPool.Location
+        HostPoolArmPath      = $CurrentAzWvdHostPool.Id
+        ApplicationGroupType = 'Desktop'
+        ShowInFeed           = $true
+        #Verbose              = $true
+    }
+
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the Desktop Application Group for the '$($CurrentHostPool.Name)' Host Pool (in the '$($CurrentHostPool.ResourceGroupName)' Resource Group)"
+    $CurrentAzDesktopApplicationGroup = New-AzWvdApplicationGroup @Parameters
+    #endregion
+
+    #region Workspace Setup
+    $ApplicationGroupReference = $CurrentAzDesktopApplicationGroup.Id
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ApplicationGroupReference: $($ApplicationGroupReference -join ', ')"
+
+    $Parameters = @{
+        Name                      = $CurrentHostPool.WorkSpaceName
+        FriendlyName              = $FriendlyName
+        ResourceGroupName         = $CurrentHostPool.ResourceGroupName
+        ApplicationGroupReference = $ApplicationGroupReference
+        Location                  = $CurrentHostPool.Location
+        #Verbose                   = $true
+    }
+
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the WorkSpace for the '$($CurrentHostPool.Name)' Host Pool (in the '$($CurrentHostPool.ResourceGroupName)' Resource Group)"
+    $CurrentAzWvdWorkspace = New-AzWvdWorkspace @Parameters
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The WorkSpace for the '$($CurrentHostPool.Name)' Host Pool (in the '$($CurrentHostPool.ResourceGroupName)' Resource Group) is created"
+    #endregion
+
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
 
     return $CurrentAzWvdHostPool
@@ -292,13 +328,14 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 #endregion
 
 $SubscriptionId = (Get-AzContext).Subscription.Id
-Do {
-    $ADJoinCredential = Get-Credential -Message "AD Join Credential (UPN Form : samaccountname@domain.com)"
-} While ($ADJoinCredential.UserName -notmatch "^(.+)@(.+)(\.)(.+)$")
-$LocalAdminCredential = Get-Credential -Message "Local Admin Credential"
-
 $Location = "eastus2"
 $DomainName = "csa.fr"
+$ADJoinUserName = "{0}@{1}" -f $env:USERNAME, $DomainName
+Do {
+    $ADJoinCredential = Get-Credential -Message "AD Join Credential (UPN Form : samaccountname@domain.com)" -UserName $ADJoinUserName
+} While ($ADJoinCredential.UserName -notmatch "^(.+)@(.+)(\.)(.+)$")
+$LocalAdminCredential = Get-Credential -Message "Local Admin Credential" -UserName "localadmin"
+
 $Parameters = @{
     LocalAdminCredential = $LocalAdminCredential 
     ADJoinCredential     = $ADJoinCredential 
