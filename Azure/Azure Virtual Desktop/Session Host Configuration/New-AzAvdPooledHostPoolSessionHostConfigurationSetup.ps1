@@ -149,6 +149,7 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
         KeyVault                        = $KeyVault
         VMNumberOfInstances             = 3
         ResourceGroupName               = $ResourceGroupName
+        #Installing VS Code on All AVD Session Hosts
         CustomConfigurationScriptUrl    = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1"
     }
 
