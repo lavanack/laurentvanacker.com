@@ -33,7 +33,7 @@ $AzADGroup = Get-AzADGroup -DisplayName $DisplayName
 
 #Going through all subscriptions
 foreach ($Subscription in Get-AzSubscription) {
-    #Creating a CSV File per Subscription for exporting data
+    #Creating a timestamped CSV File per Subscription for exporting data
     $CSVFile = Join-Path -Path $CurrentDir -ChildPath $("{0} - Role Assignment Export - {1} - {2}.csv" -f $Timestamp, $Subscription.Name, $AzADGroup.DisplayName)
     Write-Host -Object "Switching to '$($Subscription.Name) ..."
     $null = Select-AzSubscription -Subscription $Subscription
