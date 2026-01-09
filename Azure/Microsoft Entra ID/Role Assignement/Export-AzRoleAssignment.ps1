@@ -16,6 +16,8 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 
+#requires -Modules Az.Accounts, Az.Resources
+
 #region Function Definitions
 function Export-AzRoleAssignment {
     [CmdletBinding(PositionalBinding = $false)]
