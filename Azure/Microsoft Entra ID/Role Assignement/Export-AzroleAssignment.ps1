@@ -37,7 +37,7 @@ foreach ($Subscription in Get-AzSubscription) {
     $CSVFile = Join-Path -Path $CurrentDir -ChildPath $("{0} - {1} - {2}.csv" -f $Subscription.Name, $AzADGroup.DisplayName, $Timestamp)
     $CurrentScript -replace "\.ps1", $("_{0:yyyyMMddHHmmss}.csv" -f $Timestamp)
     Write-Host "Switching to '$($Subscription.Name) ..."
-    Select-AzSubscription -Subscription $Subscription
+    $null = Select-AzSubscription -Subscription $Subscription
     $RoleAssignment = Get-AzRoleAssignment -Scope "/subscriptions/$($Subscription.Id)" -ObjectId $AzADGroup.Id
     $RoleAssignment | Export-Csv -Path $CSVFile -NoTypeInformation
     & $CSVFile
