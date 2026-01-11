@@ -84,8 +84,8 @@ Get-AzKeyVault -InRemovedState | Remove-AzKeyVault -InRemovedState -AsJob -Force
 #Set-PSDebug -Trace 2
 $PSBreakpoints = @() 
 $LatestPSAzureVirtualDesktopModule = Get-Module -Name PSAzureVirtualDesktop -ListAvailable | Sort-Object -Property Version -Descending | Select-Object -First 1
-#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Line 8812
-#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Command New-AzWvdRegistrationInfo, Add-PsAvdSessionHost, New-PsAvdSessionHost
+$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Line 4466, 5216, 9277
+$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Command ConvertTo-AzWvdHostPool, Get-PsAvdHostPoolDirectLaunchUrl
 #$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Variable $app -Mode ReadWrite
 if ($PSBreakpoints.Count -le 0) {
     & '.\Start.ps1' -LogDir $LogDir -Verbose -AsJob

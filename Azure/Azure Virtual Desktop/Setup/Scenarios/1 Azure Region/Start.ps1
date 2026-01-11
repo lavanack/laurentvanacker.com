@@ -116,8 +116,8 @@ if (-not([string]::IsNullOrEmpty($VaultName))) {
     $HostPoolSessionCredentialKeyVault = Get-AzKeyVault -VaultName $VaultName -ErrorAction Ignore
 }
 if ($null -eq $HostPoolSessionCredentialKeyVault) {
-    #region ADJoin User
-    $AdJoinUserName = 'adjoin'
+    #region ADJoin User - Enter the user name in the UPN Form : samaccountname@domain.com
+    $AdJoinUserName = 'adjoin@csa.fr'
     $AdJoinUserClearTextPassword = 'I@m@JediLikeMyF@therB4Me'
     $AdJoinUserPassword = ConvertTo-SecureString -String $AdJoinUserClearTextPassword -AsPlainText -Force
     $AdJoinCredential = New-Object System.Management.Automation.PSCredential -ArgumentList ($AdJoinUserName, $AdJoinUserPassword)
@@ -198,6 +198,9 @@ Get-PsAvdFSLogixProfileShare -HostPool $HostPools -Pester
 
 #Starting a Windows Explorer instance per AppAttach profiles share
 Get-PsAvdAppAttachProfileShare -HostPool $HostPools -Pester
+
+#Getting HostPool Direct Launch Url
+$HostPools | ConvertTo-AzWvdHostPool | Get-PsAvdHostPoolDirectLaunchUrl -Browse
 
 #region Adding Test Users (under the OrgUsers OU) as HostPool Users (for all HostPools)
 $AVDUserGroupName = 'AVD Users'
