@@ -117,9 +117,9 @@ function New-AzureComputeGallery {
 
 	#$Version = "1.0.0"
     #Tomorrow
-	#$Version = "{0:yyyy.MM.dd}" -f $((Get-date).AddDays(1))
+	$Version = "{0:yyyy.MM.dd}" -f $((Get-date).AddDays(1))
 	#$Version = "{0:yyyy.MM.dd}" -f $(Get-date)
-	$Version = Get-Date -UFormat "%Y.%m.%d"
+	#$Version = Get-Date -UFormat "%Y.%m.%d"
 
     if ($MyInvocation.MyCommand.ModuleName) {
         $Module = (Get-Module -Name $MyInvocation.MyCommand.ModuleName).Name
@@ -195,8 +195,13 @@ function New-AzureComputeGallery {
 	((Get-Content -Path $aibRoleImageCreationPath -Raw) -replace 'Azure Image Builder Service Image Creation Role', $imageRoleDefName) | Set-Content -Path $aibRoleImageCreationPath
 
 	#region Create a role definition
-	Write-Verbose -Message "Creating '$imageRoleDefName' Role Definition ..."
-	$RoleDefinition = New-AzRoleDefinition -InputFile $aibRoleImageCreationPath
+    if (Get-AzRoleDefinition -Name $imageRoleDefName) {
+	    Write-Verbose -Message "The '$imageRoleDefName' Role Definition already exists ..."
+    }
+    else {
+	    Write-Verbose -Message "Creating '$imageRoleDefName' Role Definition ..."
+	    $RoleDefinition = New-AzRoleDefinition -InputFile $aibRoleImageCreationPath
+    }
 	#endregion
 
 	# Grant the role definition to the VM Image Builder service principal
@@ -261,17 +266,6 @@ function New-AzureComputeGallery {
 	$GalleryName = "{0}_{1}_{2}_{3}" -f $AzureComputeGalleryPrefix, $Project, $LocationShortName, $timeInt
 	Write-Verbose -Message "`$GalleryName: $GalleryName"
 
-    $Parameters = @{
-        ResourceGroupName = $ResourceGroupName 
-        GalleryName = $GalleryName 
-    }
-    if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDefinitionNameARM).Name -eq $Version) {
-        Write-Error "The '$Version' for the '$($imageDefinitionNameARM)' Image Definition already exists on '$($Parameters.GalleryName)' Azure Compute Gallery (ResourceGroup: '$($Parameters.ResourceGroupName)'). Processing Stopped !" -ErrorAction "Stop"
-    }
-    if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDefinitionNamePowerShell).Name -eq $Version) {
-        Write-Error "The '$Version' for the '$($imageDefinitionNamePowerShell)' Image Definition already exists on '$($Parameters.GalleryName)' Azure Compute Gallery (ResourceGroup: '$($Parameters.ResourceGroupName)'). Processing Stopped !" -ErrorAction "Stop"
-    }
-
 	# Create the gallery
     $Parameters = @{
          GalleryName = $GalleryName 
@@ -286,6 +280,19 @@ function New-AzureComputeGallery {
     }
 	#endregion
 
+	#region Checking of Image version already exists
+    $Parameters = @{
+        ResourceGroupName = $ResourceGroupName 
+        GalleryName = $GalleryName 
+    }
+    if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDefinitionNameARM).Name -eq $Version) {
+        Write-Error "The '$Version' for the '$($imageDefinitionNameARM)' Image Definition already exists on '$($Parameters.GalleryName)' Azure Compute Gallery (ResourceGroup: '$($Parameters.ResourceGroupName)'). Processing Stopped !" -ErrorAction "Stop"
+    }
+    if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDefinitionNamePowerShell).Name -eq $Version) {
+        Write-Error "The '$Version' for the '$($imageDefinitionNamePowerShell)' Image Definition already exists on '$($Parameters.GalleryName)' Azure Compute Gallery (ResourceGroup: '$($Parameters.ResourceGroupName)'). Processing Stopped !" -ErrorAction "Stop"
+    }
+	#endregion
+   
 	#region Template #1 via a customized JSON file
 	#Based on https://github.com/Azure/azvmimagebuilder/tree/main/solutions/14_Building_Images_WVD
 
@@ -439,7 +446,7 @@ function New-AzureComputeGallery {
 		Customize              = $Customize
 		Location               = $location
 		UserAssignedIdentityId = $AssignedIdentity.Id
-		VMProfileVmsize        = "Standard_D4s_v5"
+		VMProfileVmsize        = "Standard_D8s_v6"
 		VMProfileOsdiskSizeGb  = 127
 		BuildTimeoutInMinute   = 240
 		StagingResourceGroup   = $StagingResourceGroupPowerShell.ResourceId
