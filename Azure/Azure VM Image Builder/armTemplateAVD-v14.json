@@ -94,7 +94,6 @@
                             "offer": "<offer>",
                             "sku": "<sku>"
                         },
-                        excludeFromLatest: "<excludeFromLatest>",
                         "targetRegions": <targetRegions>
                     }
                 ]

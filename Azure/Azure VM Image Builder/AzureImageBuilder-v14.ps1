@@ -66,7 +66,8 @@ function New-AzureComputeGallery {
 	}
 	Write-Verbose -Message "`$TargetRegions: $($TargetRegions -join ', ')"
 	[array] $TargetRegionSettings = foreach ($CurrentTargetRegion in $TargetRegions) {
-		@{"name" = $CurrentTargetRegion; "replicaCount" = $ReplicaCount; "storageAccountType" = "Premium_LRS"; "excludeFromLatest" = $excludeFromLatest }
+		#@{"name" = $CurrentTargetRegion; "replicaCount" = $ReplicaCount; "storageAccountType" = "Premium_LRS"; "excludeFromLatest" = $excludeFromLatest }
+		@{"name" = $CurrentTargetRegion; "replicaCount" = $ReplicaCount; "storageAccountType" = "Premium_LRS"}
 	}
 
 	$Project = "avd"
@@ -306,7 +307,7 @@ function New-AzureComputeGallery {
 
 	((Get-Content -Path $templateFilePath -Raw) -replace '<imageDefName>', $imageDefinitionNameARM) | Set-Content -Path $templateFilePath
 	((Get-Content -Path $templateFilePath -Raw) -replace '<sharedImageGalName>', $GalleryName) | Set-Content -Path $templateFilePath
-	((Get-Content -Path $templateFilePath -Raw) -replace '<excludeFromLatest>', $excludeFromLatest) | Set-Content -Path $templateFilePath
+	#((Get-Content -Path $templateFilePath -Raw) -replace '<excludeFromLatest>', $excludeFromLatest) | Set-Content -Path $templateFilePath
 	((Get-Content -Path $templateFilePath -Raw) -replace '<TargetRegions>', $(ConvertTo-Json -InputObject $TargetRegionSettings)) | Set-Content -Path $templateFilePath
 	((Get-Content -Path $templateFilePath -Raw) -replace '<imgBuilderId>', $AssignedIdentity.Id) | Set-Content -Path $templateFilePath
 	((Get-Content -Path $templateFilePath -Raw) -replace '<version>', $version) | Set-Content -Path $templateFilePath
@@ -387,7 +388,7 @@ function New-AzureComputeGallery {
 		TargetRegion           = $TargetRegionSettings
 
 		RunOutputName          = $runOutputNamePowerShell
-		ExcludeFromLatest      = $excludeFromLatest
+		#ExcludeFromLatest      = $excludeFromLatest
 	}
 	Write-Verbose -Message "Creating Azure Image Builder Template Distributor Object  ..."
 	$disSharedImg = New-AzImageBuilderTemplateDistributorObject @disObjParams
