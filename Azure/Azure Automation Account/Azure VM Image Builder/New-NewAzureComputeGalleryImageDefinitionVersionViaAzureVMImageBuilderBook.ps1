@@ -231,12 +231,12 @@ $LocationShortName = $shortNameHT[$Location].shortName
 $AzureVMNameMaxLength = $ResourceTypeShortNameHT["Compute/virtualMachines"].lengthMax
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
-$ResourceGroupNamePrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
+$ResourceGroupPrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
 $VirtualMachinePrefix = $ResourceTypeShortNameHT["Compute/virtualMachines"].lengthMax
 $RunBookPrefix = $ResourceTypeShortNameHT["Automation/automationAccounts/runbooks"].ShortName
 $AutomationAccountPrefix = $ResourceTypeShortNameHT["Automation/automationAccounts"].ShortName
 
-$Project = "automation"
+$Project = "auto"
 $Role = "acg"
 $DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role + $LocationShortName).Length
 #$DigitNumber = 3
@@ -267,20 +267,19 @@ $AutomationAccount = New-AzAutomationAccount -Name $AutomationAccountName -Locat
 
 #region Azurecompute Gallery Resource Group Setup
 $timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-$AzureComputeGalleryResourceGroupName = "{0}-avd-aib-{3}-{4}" -f $ResourceGroupPrefix, $LocationShortName, $TimeInt 
+$AzureComputeGalleryResourceGroupName = "{0}-avd-aib-{1}-{2}" -f $ResourceGroupPrefix, $LocationShortName, $TimeInt 
 $AzureComputeGalleryResourceGroup = Get-AzResourceGroup -Name $AzureComputeGalleryResourceGroupName -ErrorAction Ignore 
 if (-not($AzureComputeGalleryResourceGroup)) {
     # Create Resource Group
     $AzureComputeGalleryResourceGroup = New-AzResourceGroup -Name $AzureComputeGalleryResourceGroupName -Location $Location -Force
 }
 Write-Verbose "`$AzureComputeGalleryResourceGroup: $AzureComputeGalleryResourceGroup"
-
 #endregion
 
 #region 'Compute Gallery Artifacts Publisher' RBAC Assignment
 $RoleDefinition = Get-AzRoleDefinition -Name "Compute Gallery Artifacts Publisher"
 $Parameters = @{
-    SignInName         = $AutomationAccount.Identity.PrincipalId
+    ObjectId           = $AutomationAccount.Identity.PrincipalId
     RoleDefinitionName = $RoleDefinition.Name
     Scope              = $AzureComputeGalleryResourceGroup.ResourceId
 }
@@ -319,7 +318,7 @@ $VariableValue = $AzureComputeGalleryResourceGroup.ResourceId
 $Variable = New-AzAutomationVariable -AutomationAccountName $AutomationAccount.AutomationAccountName-Name $VariableName -Value $VariableValue -Encrypted $false -ResourceGroupName $ResourceGroupName -Description "LogAnalyticsWorkspace Ids (comma-separated values) for AVD Host Pools"
 #endregion 
 
-$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20VM%20Image%20Builder/Start/NewAzureVMImageBuilderVersionRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Generating an Azure Compute Gallery Image Definition Version Via Azure VM Image Builder" 
+$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20VM%20Image%20Builder/NewAzureComputeGalleryImageDefinitionVersionViaAzureVMImageBuilder.ps1" -Description "PowerShell Azure Automation Runbook for Generating an Azure Compute Gallery Image Definition Version Via Azure VM Image Builder" 
 #endregion 
 
 # Link the schedule to the runbook
