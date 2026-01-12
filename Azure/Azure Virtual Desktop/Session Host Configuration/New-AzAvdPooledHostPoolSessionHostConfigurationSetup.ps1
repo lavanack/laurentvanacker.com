@@ -238,8 +238,8 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
         VMSizeId                                    = $CurrentHostPool.VMSize
         ManagedDiskType                             = 'StandardSSD_LRS'
         NetworkInfoSubnetId                         = $CurrentHostPool.SubnetId
-        #DiffDiskSettingOption = 'Local'
-        #DiffDiskSettingPlacement = 'CacheDisk'
+        #DiffDiskSettingOption                       = 'Local'
+        #DiffDiskSettingPlacement                    = 'CacheDisk'
         SecurityInfoType                            = 'TrustedLaunch'
         VMAdminCredentialsUsernameKeyVaultSecretUri = ($CurrentHostPool.KeyVault | Get-AzKeyVaultSecret -Name "LocalAdminUserName").Id
         VMAdminCredentialsPasswordKeyVaultSecretUri = ($CurrentHostPool.KeyVault | Get-AzKeyVaultSecret -Name "LocalAdminPassword").Id
@@ -316,6 +316,56 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The WorkSpace for the '$($CurrentHostPool.Name)' Host Pool (in the '$($CurrentHostPool.ResourceGroupName)' Resource Group) is created"
     #endregion
 
+    #region Scaling Plan Setup
+    $ScalingPlanName = "sp-{0}" -f $CurrentHostPool.Name
+    $scalingPlanParams = @{
+        ResourceGroupName = $CurrentAzWvdHostPool.ResourceGroupName
+        Name              = $ScalingPlanName
+        Location          = $CurrentAzWvdHostPool.Location
+        Description       = $CurrentAzWvdHostPool.Name
+        FriendlyName      = $CurrentAzWvdHostPool.Name
+        HostPoolType      = 'Pooled'
+        TimeZone          = (Get-TimeZone).Id
+        HostPoolReference = @(@{'hostPoolArmPath' = $CurrentAzWvdHostPool.Id; 'scalingPlanEnabled' = $CurrentAzWvdHostPool.ScalingPlan })
+    }
+    $scalingPlan = New-AzWvdScalingPlan @scalingPlanParams
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$scalingPlan:`r`n$($scalingPlan | Out-String)"
+
+    $scalingPlanPooledScheduleParams = @{
+        ResourceGroupName                       = $CurrentHostPool.ResourceGroupName
+        ScalingPlanName                         = $ScalingPlanName
+        ScalingPlanScheduleName                 = 'PooledWeekDayDynamicSchedule'
+        DaysOfWeek                              = 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'
+        ScalingMethod                           = 'CreateDeletePowerManage'
+        RampUpStartTimeHour                     = '8'
+        RampUpStartTimeMinute                   = '0'
+        RampUpLoadBalancingAlgorithm            = 'BreadthFirst'
+        RampUpMinimumHostsPct                   = '100'
+        RampUpCapacityThresholdPct              = '50'
+        PeakStartTimeHour                       = '8'
+        PeakStartTimeMinute                     = '30'
+        PeakLoadBalancingAlgorithm              = 'DepthFirst'
+        RampDownStartTimeHour                   = '16'
+        RampDownStartTimeMinute                 = '0'
+        RampDownLoadBalancingAlgorithm          = 'BreadthFirst'
+        RampDownMinimumHostsPct                 = '100'
+        RampDownCapacityThresholdPct            = '20'
+        RampDownForceLogoffUser                 = $true
+        RampDownWaitTimeMinute                  = '30'
+        RampDownNotificationMessage             = 'Please log out of your session.'
+        RampDownStopHostsWhen                   = 'ZeroSessions'
+        OffPeakStartTimeHour                    = '19'
+        OffPeakStartTimeMinute                  = '0'
+        OffPeakLoadBalancingAlgorithm           = 'DepthFirst'
+        CreateDeleteRampUpMaximumHostPoolSize   = '10'
+        CreateDeleteRampUpMinimumHostPoolSize   = '5'
+        CreateDeleteRampDownMaximumHostPoolSize = '5'
+        CreateDeleteRampDownMinimumHostPoolSize = '1'
+    }
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Pooled ScalingPlan Schedule:`r`n$($scalingPlanPooledScheduleParams | Out-String)"
+    $scalingPlanPooledSchedule = New-AzWvdScalingPlanPooledSchedule @scalingPlanPooledScheduleParams
+    #endregion
+    
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
 
     return $CurrentAzWvdHostPool
