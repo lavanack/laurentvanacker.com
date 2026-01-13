@@ -295,16 +295,17 @@ $Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $Automati
 # Link the schedule to the runbook
 #region Variables for the Schedule
 $LogAnalyticsWorkspaceId = "00000000-0000-0000-0000-000000000000"
+$LogAnalyticsWorkspaceId = (Get-AzOperationalInsightsWorkspace -ResourceGroupName "rg-avd-dev-use2-monitoring" -Name "log-avd-dev-use2").CustomerId.Guid
 $DayAgo = 90
 <#
 #Right Syntax for production
 $ExcludedHostPool = @(
-    Get-AzWvdHostPool -ResourceGroupName "ExcludedResourceGroup1" -Name "ExcludedHosPoolName1"
-    Get-AzWvdHostPool -ResourceGroupName "ExcludedResourceGroup2" -Name "ExcludedHosPoolName2"
+    Get-AzWvdHostPool -ResourceGroupName "rg-avd-poc-test-use2-service-objects" -Name "vdpool-poc-test-use2-001"
+    Get-AzWvdHostPool -ResourceGroupName "rg-avd-poc-dev-use2-service-objects"  -Name "vdpool-poc-dev-use2-001"
 )
 #>
 #For Testing purpose
-$ExcludedHostPool = Get-AzWvdHostPool | Where-Object -FilterScript {$_.HostPoolType -eq 'Personal'} | Get-Random -Count 2
+$ExcludedHostPool = Get-AzWvdHostPool | Where-Object -FilterScript { ($_.HostPoolType -eq 'Personal') -and ($_.Name -match 'test') } | Get-Random -Count 2
 #endregion
 Register-AzAutomationScheduledRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ScheduleName $Schedule.Name -ResourceGroupName $ResourceGroupName -Parameters @{ LogAnalyticsWorkspaceId = $LogAnalyticsWorkspaceId; DayAgo = 90; ExcludedHostPoolResourceId=$ExcludedHostPool.Id}
 #endregion
