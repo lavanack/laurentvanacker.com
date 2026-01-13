@@ -20,7 +20,7 @@ of the Sample Code.
 #region Function definitions
 #FROM https://github.com/Azure/azvmimagebuilder/tree/main/solutions/14_Building_Images_WVD
 function New-AzureComputeGallery {
-	[CmdletBinding()]
+	[CmdletBinding(PositionalBinding = $false)]
 	Param(
 		[Parameter(Mandatory = $false)]
 		[string]$GalleryResourceId,
@@ -174,6 +174,7 @@ function New-AzureComputeGallery {
 	#endregion
 
 	#region RBAC Assignment(s)
+	#region User Assigned Identity
     $Scope = $ResourceGroup.ResourceId
     $RoleAssignment = Get-AzRoleAssignment -Scope $Scope | Where-Object -FilterScript { $_.RoleDefinitionName -match "^Azure Image Builder Image Def"}
     
@@ -196,6 +197,7 @@ function New-AzureComputeGallery {
 	    #endregion
         
     }
+	#endregion
 
 	#region RBAC Assignment(s)
 	#region aibRoleImageCreation.json creation and RBAC Assignment
@@ -548,7 +550,6 @@ function New-AzureComputeGallery {
 	#region Removing Staging ResourceGroups
 	$null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNameARM -Force -AsJob
 	$null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNamePowerShell -Force -AsJob
-
 	#endregion
 
 	return $Gallery
