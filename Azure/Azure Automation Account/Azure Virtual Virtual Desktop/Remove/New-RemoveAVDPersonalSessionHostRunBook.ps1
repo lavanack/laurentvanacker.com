@@ -309,3 +309,8 @@ $ExcludedHostPool = Get-AzWvdHostPool | Where-Object -FilterScript { ($_.HostPoo
 #endregion
 Register-AzAutomationScheduledRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ScheduleName $Schedule.Name -ResourceGroupName $ResourceGroupName -Parameters @{ LogAnalyticsWorkspaceId = $LogAnalyticsWorkspaceId; DayAgo = 90; ExcludedHostPoolResourceId=$ExcludedHostPool.Id}
 #endregion
+
+#region Test in the Portal
+"['{0}']" -f $ExcludedHostPool.id -join "','" | Set-Clipboard
+"['{0}']" -f $LogAnalyticsWorkspaceId -join "','" | Set-Clipboard
+#endregion

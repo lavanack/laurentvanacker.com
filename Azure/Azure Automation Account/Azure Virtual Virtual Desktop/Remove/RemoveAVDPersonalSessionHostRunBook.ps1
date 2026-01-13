@@ -48,6 +48,7 @@ Write-Output -InputObject "`$ExcludedHostPoolResourceId: $($ExcludedHostPoolReso
 #region Getting all Session Hosts but not the excluded one(s)
 $SessionHostNameHT = Get-AzWvdHostPool | Where-Object -FilterScript { $_.Id -notin $ExcludedHostPoolResourceId } | ForEach-Object -Process { 
     $HostPool = $_
+    Write-Output -InputObject "`$HostPool: $($HostPool | Out-String)"
     (Get-AzWvdSessionHost -HostPoolName $HostPool.Name -ResourceGroupName $HostPool.ResourceGroupName) | Select-Object -Property @{Name="Name"; Expression={$_.ResourceId -replace ".*/"}}, @{Name="ResourceId"; Expression={$_.ResourceId}}, @{Name="HostPool"; Expression={$HostPool}}
 } | Group-Object -Property Name -AsHashTable -AsString
 #endregion
