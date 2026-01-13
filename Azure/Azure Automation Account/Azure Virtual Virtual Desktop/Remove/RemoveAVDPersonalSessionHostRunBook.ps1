@@ -46,11 +46,28 @@ Write-Output -InputObject "`$ExcludedHostPoolResourceId: $($ExcludedHostPoolReso
 #endregion
 
 #region Getting all Session Hosts but not the excluded one(s)
-$SessionHostNameHT = Get-AzWvdHostPool | Where-Object -FilterScript { $_.Id -notin $ExcludedHostPoolResourceId } | ForEach-Object -Process { 
+$SessionHostNames = @()
+$PersonalHostPoolToProcess = Get-AzWvdHostPool | Where-Object -FilterScript { ($_.HostPoolType -eq 'Personal') -and ($_.Id -notin $ExcludedHostPoolResourceId) } 
+Write-Output -InputObject "`$PersonalHostPoolToProcess: $($PersonalHostPoolToProcess | Select-Object -Property * | Out-string)"
+$PersonalHostPoolToProcess | ForEach-Object -Process { 
     $HostPool = $_
-    Write-Output -InputObject "`$HostPool: $($HostPool | Out-String)"
-    (Get-AzWvdSessionHost -HostPoolName $HostPool.Name -ResourceGroupName $HostPool.ResourceGroupName) | Select-Object -Property @{Name="Name"; Expression={$_.ResourceId -replace ".*/"}}, @{Name="ResourceId"; Expression={$_.ResourceId}}, @{Name="HostPool"; Expression={$HostPool}}
-} | Group-Object -Property Name -AsHashTable -AsString
+    Write-Output -InputObject "`$HostPool: $($HostPool | Select-Object -Property * | Out-string)"
+    Write-Output -InputObject "`$HostPool Name: $($HostPool.Name)"
+    Write-Output -InputObject "`$HostPool Id: $($HostPool.Id)"
+    Write-Output -InputObject "`$HostPool ResourceGroupName: $($HostPool.ResourceGroupName)"
+    if ([string]::IsNullOrEmpty($HostPool.ResourceGroupName)) {
+        Write-Warning -Message "HostPool ResourceGroupName set to an empty value. Getting ResourceGroupName from the ResourceId"
+        $ResourceGroupName = $HostPool.Id -replace ".+/resourcegroups/" -replace "/providers/.+"
+    }
+    else {
+        $ResourceGroupName = $HostPool.ResourceGroupName
+    }
+    Write-Output -InputObject "`$HostPool ResourceGroupName: $ResourceGroupName"
+    $HostPoolObject = [PSCustomObject] @{Name=$HostPool.Name; ResourceGroupName = $ResourceGroupName}
+    $SessionHostNames += (Get-AzWvdSessionHost -HostPoolName $HostPool.Name -ResourceGroupName $ResourceGroupName) | Select-Object -Property @{Name="Name"; Expression={$_.ResourceId -replace ".*/"}}, @{Name="ResourceId"; Expression={$_.ResourceId}}, @{Name="HostPool"; Expression={$HostPoolObject}}
+} 
+Write-Output -InputObject "`$SessionHostNames: $($SessionHostNames | Out-String)"
+$SessionHostNameHT = $SessionHostNames | Group-Object -Property Name -AsHashTable -AsString
 #endregion
     
 
