@@ -287,17 +287,19 @@ $RunBookName = "{0}-RemoveAVDPersonalSessionHost" -f $RunBookPrefix
 #$Runbook = New-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName -Type PowerShell
 # Publish the runbook
 #Publish-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName
-
-# Create a new variable(s)
-$VariableName = "LogAnalyticsWorkspaceId"
-#Replace by your own LAW Id(s)
-$VariableValue = "00000000-0000-0000-0000-000000000000"
-$Variable = New-AzAutomationVariable -AutomationAccountName $AutomationAccount.AutomationAccountName-Name $VariableName -Value $VariableValue -Encrypted $false -ResourceGroupName $ResourceGroupName -Description "LogAnalyticsWorkspace Ids (comma-separated values) for AVD Host Pools"
 #endregion 
 
 $Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20Virtual%20Virtual%20Desktop/Remove/RemoveAVDPersonalSessionHostRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Starting AVD Personal Session Hosts" -Verbose 
 #endregion 
 
 # Link the schedule to the runbook
-Register-AzAutomationScheduledRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ScheduleName $Schedule.Name -ResourceGroupName $ResourceGroupName #-Parameters @{ }
+#region Variables for the Schedule
+$LogAnalyticsWorkspaceId = "00000000-0000-0000-0000-000000000000"
+$DayAgo = 90
+$ExcludedHostPool = @(
+    Get-AzWvdHostPool -ResourceGroupName "ExcludedResourceGroup1" -Name "ExcludedHosPoolName1"
+    Get-AzWvdHostPool -ResourceGroupName "ExcludedResourceGroup2" -Name "ExcludedHosPoolName2"
+)
+#endregion
+Register-AzAutomationScheduledRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ScheduleName $Schedule.Name -ResourceGroupName $ResourceGroupName -Parameters @{ LogAnalyticsWorkspaceId = $LogAnalyticsWorkspaceId; DayAgo = 90; ExcludedHostPoolResourceId=$ExcludedHostPool.Id}
 #endregion
