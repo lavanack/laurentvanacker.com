@@ -584,8 +584,8 @@ While (Get-AzResourceProvider -ProviderNamespace $RequiredResourceProviders | Wh
 }
 $Jobs | Remove-Job -Force
 #endregion
-$ResourceGroupName = "rg-avd-aib-use2-123456"
-$GalleryName = "gal_avd_use2_123456"
+$ResourceGroupName = "rg-avd-aib-use2-1768295361"
+$GalleryName = "gal_avd_use2_1768295361"
 $GalleryResourceId = (Get-AzGallery -ResourceGroupName $ResourceGroupName -GalleryName $GalleryName).Id
 #$AzureComputeGallery = New-AzureComputeGallery -GalleryResourceId $GalleryResourceId -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
 $AzureComputeGallery = New-AzureComputeGallery -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
