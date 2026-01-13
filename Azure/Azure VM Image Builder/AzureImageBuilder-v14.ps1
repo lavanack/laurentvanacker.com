@@ -587,7 +587,8 @@ $Jobs | Remove-Job -Force
 $ResourceGroupName = "rg-avd-aib-use2-123456"
 $GalleryName = "gal_avd_use2_123456"
 $GalleryResourceId = (Get-AzGallery -ResourceGroupName $ResourceGroupName -GalleryName $GalleryName).Id
-$AzureComputeGallery = New-AzureComputeGallery -GalleryResourceId $GalleryResourceId -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
+#$AzureComputeGallery = New-AzureComputeGallery -GalleryResourceId $GalleryResourceId -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
+$AzureComputeGallery = New-AzureComputeGallery -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
 $AzureComputeGallery
 
 $EndTime = Get-Date
