@@ -39,6 +39,11 @@ $AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -Defa
 Write-Output -InputObject $AzureContext
 #endregion
 
+#region Parameters
+Write-Output -InputObject "`$LogAnalyticsWorkspaceId: $($LogAnalyticsWorkspaceId -join ', ')" 
+Write-Output -InputObject "`$DayAgo: $DayAgo" 
+Write-Output -InputObject "`$ExcludedHostPoolResourceId: $($ExcludedHostPoolResourceId -join ', ')" 
+#endregion
 
 #region Getting all Session Hosts
 $SessionHostNameHT = Get-AzWvdHostPool | Where-Object -FilterScript { $_.Id -notin $ExcludedHostPoolResourceId } | ForEach-Object -Process { 
