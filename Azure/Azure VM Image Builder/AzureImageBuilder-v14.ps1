@@ -22,8 +22,8 @@ of the Sample Code.
 function New-AzureComputeGallery {
 	[CmdletBinding()]
 	Param(
-		[Parameter(Mandatory = $true)]
-		[int64]$TimeInt,
+		[Parameter(Mandatory = $false)]
+		[string]$GalleryResourceId,
 		[Parameter(Mandatory = $false)]
 		[string]$Location = "EastUS2",
 		[Parameter(Mandatory = $false)]
@@ -73,10 +73,17 @@ function New-AzureComputeGallery {
 	$Project = "avd"
 	$Role = "aib"
 	#Timestamp
-	#$timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-	$ResourceGroupName = "{0}-{1}-{2}-{3}-{4}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $TimeInt 
+    $timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+    if ([string]::IsNullOrEmpty($GalleryResourceId)) {
+	    $ResourceGroupName = "{0}-{1}-{2}-{3}-{4}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $TimeInt 
+    }
+    else {
+        $Gallery = Get-AzGallery -ResourceId $GalleryResourceId
+        $ResourceGroupName = $Gallery.ResourceGroupName
+    }
 	$ResourceGroupName = $ResourceGroupName.ToLower()
 	Write-Verbose -Message "`$ResourceGroupName: $ResourceGroupName"
+
 
 	#region Source Image 
 	$SrcObjParamsARM = @{
@@ -117,7 +124,8 @@ function New-AzureComputeGallery {
 
 	#$Version = "1.0.0"
     #Tomorrow
-	$Version = "{0:yyyy.MM.dd}" -f $((Get-date).AddDays(1))
+	#$Version = "{0:yyyy.MM.dd}" -f $((Get-date).AddDays(1))
+	$Version = "{0:yyyy.MM.dd}" -f $((Get-date).AddDays($(Get-Random -Minimum 1 -Maximum 365)))
 	#$Version = "{0:yyyy.MM.dd}" -f $(Get-date)
 	#$Version = Get-Date -UFormat "%Y.%m.%d"
 
@@ -139,7 +147,8 @@ function New-AzureComputeGallery {
 	#endregion
 
 	#region Create resource group
-	if (Get-AzResourceGroup -Name $ResourceGroupName -Location $location -ErrorAction Ignore) {
+    $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -Location $location -ErrorAction Ignore
+	if ($ResourceGroup) {
 		Write-Verbose -Message "'$ResourceGroupName' already exists ..."
 	}
     else {
@@ -161,19 +170,30 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "Creating '$StagingResourceGroupNamePowerShell' Resource Group Name ..."
 	$StagingResourceGroupPowerShell = New-AzResourceGroup -Name $StagingResourceGroupNamePowerShell -Location $location -Tag $Tags -Force
 	#endregion
-    
-	#region Permissions, user identity, and role
-	#region setup role def names, these need to be unique
-	$imageRoleDefName = "Azure Image Builder Image Def - $timeInt"
-	$identityName = "aibIdentity-$timeInt"
-	Write-Verbose -Message "`$imageRoleDefName: $imageRoleDefName"
-	Write-Verbose -Message "`$identityName: $identityName"
-	#endregion
 
-	#region Create the identity
-	Write-Verbose -Message "Creating User Assigned Identity '$identityName' ..."
-	$AssignedIdentity = New-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name $identityName -Location $location
-	#endregion
+	#region RBAC Assignment(s)
+    $Scope = $ResourceGroup.ResourceId
+    $RoleAssignment = Get-AzRoleAssignment -Scope $Scope | Where-Object -FilterScript { $_.RoleDefinitionName -match "^Azure Image Builder Image Def"}
+    
+    if ($RoleAssignment) {
+        Write-Verbose -Message "'$($RoleAssignment.RoleDefinitionName)' Role Definition is already set to '$($RoleAssignment.DisplayName)' on the '$($RoleAssignment.Scope)' scope ..."
+        $AssignedIdentity = Get-AzUserAssignedIdentity -ResourceGroupName $($RoleAssignment.Scope -replace ".+/") -Name $($RoleAssignment.DisplayName)
+        $imageRoleDefName = $RoleAssignment.RoleDefinitionName
+    }
+    else {
+	    #region setup role def names, these need to be unique
+	    $imageRoleDefName = "Azure Image Builder Image Def - $timeInt"
+	    $identityName = "aibIdentity-$timeInt"
+	    Write-Verbose -Message "`$imageRoleDefName: $imageRoleDefName"
+	    Write-Verbose -Message "`$identityName: $identityName"
+	    #endregion
+
+	    #region Create the identity
+	    Write-Verbose -Message "Creating User Assigned Identity '$identityName' ..."
+	    $AssignedIdentity = New-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name $identityName -Location $location
+	    #endregion
+        
+    }
 
 	#region RBAC Assignment(s)
 	#region aibRoleImageCreation.json creation and RBAC Assignment
@@ -195,7 +215,8 @@ function New-AzureComputeGallery {
 	((Get-Content -Path $aibRoleImageCreationPath -Raw) -replace 'Azure Image Builder Service Image Creation Role', $imageRoleDefName) | Set-Content -Path $aibRoleImageCreationPath
 
 	#region Create a role definition
-    if (Get-AzRoleDefinition -Name $imageRoleDefName) {
+    $RoleDefinition = Get-AzRoleDefinition -Name $imageRoleDefName
+    if ($RoleDefinition) {
 	    Write-Verbose -Message "The '$imageRoleDefName' Role Definition already exists ..."
     }
     else {
@@ -205,7 +226,6 @@ function New-AzureComputeGallery {
 	#endregion
 
 	# Grant the role definition to the VM Image Builder service principal
-	$Scope = $ResourceGroup.ResourceId
 	<#
     if (-not(Get-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $Scope)) {
         Write-Verbose -Message "Assigning the '$($RoleDefinition.Name)' RBAC role to the '$($AssignedIdentity.PrincipalId)' System Assigned Managed Identity"
@@ -262,28 +282,32 @@ function New-AzureComputeGallery {
 	#endregion
 	#endregion
 
-	#region Create an Azure Compute Gallery
-	$GalleryName = "{0}_{1}_{2}_{3}" -f $AzureComputeGalleryPrefix, $Project, $LocationShortName, $timeInt
-	Write-Verbose -Message "`$GalleryName: $GalleryName"
+    #region Azure Compute Gallery
+    if ([string]::IsNullOrEmpty($GalleryResourceId)) {
+	    #region Create an Azure Compute Gallery
+	    $GalleryName = "{0}_{1}_{2}_{3}" -f $AzureComputeGalleryPrefix, $Project, $LocationShortName, $timeInt
+	    Write-Verbose -Message "`$GalleryName: $GalleryName"
 
-	# Create the gallery
-    $Parameters = @{
-         GalleryName = $GalleryName 
-         ResourceGroupName = $ResourceGroupName 
+	    # Create the gallery
+        $Parameters = @{
+             GalleryName = $GalleryName 
+             ResourceGroupName = $ResourceGroupName 
+        }
+        if (Get-AzGallery @Parameters -ErrorAction Ignore) {
+	        Write-Verbose -Message "The '$GalleryName' Azure Compute Gallery already exists (ResourceGroup: '$($Parameters.ResourceGroupName)'..."
+        }
+        else {
+	        Write-Verbose -Message "Creating Azure Compute Gallery '$GalleryName' (ResourceGroup: '$($Parameters.ResourceGroupName)' ..."
+	        $Gallery = New-AzGallery @Parameters -Location $location
+        }
+	    #endregion
     }
-    if (Get-AzGallery @Parameters -ErrorAction Ignore) {
-	    Write-Verbose -Message "The '$GalleryName' Azure Compute Gallery already exists (ResourceGroup: '$($Parameters.ResourceGroupName)'..."
-    }
-    else {
-	    Write-Verbose -Message "Creating Azure Compute Gallery '$GalleryName' (ResourceGroup: '$($Parameters.ResourceGroupName)' ..."
-	    $Gallery = New-AzGallery @Parameters -Location $location
-    }
-	#endregion
+    #endregion
 
 	#region Checking of Image version already exists
     $Parameters = @{
         ResourceGroupName = $ResourceGroupName 
-        GalleryName = $GalleryName 
+        GalleryName = $Gallery.Name 
     }
     if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDefinitionNameARM).Name -eq $Version) {
         Write-Error "The '$Version' for the '$($imageDefinitionNameARM)' Image Definition already exists on '$($Parameters.GalleryName)' Azure Compute Gallery (ResourceGroup: '$($Parameters.ResourceGroupName)'). Processing Stopped !" -ErrorAction "Stop"
@@ -313,7 +337,7 @@ function New-AzureComputeGallery {
 	((Get-Content -Path $templateFilePath -Raw) -replace '<runOutputName>', $runOutputNameARM) | Set-Content -Path $templateFilePath
 
 	((Get-Content -Path $templateFilePath -Raw) -replace '<imageDefName>', $imageDefinitionNameARM) | Set-Content -Path $templateFilePath
-	((Get-Content -Path $templateFilePath -Raw) -replace '<sharedImageGalName>', $GalleryName) | Set-Content -Path $templateFilePath
+	((Get-Content -Path $templateFilePath -Raw) -replace '<sharedImageGalName>', $Gallery.Name) | Set-Content -Path $templateFilePath
 	#((Get-Content -Path $templateFilePath -Raw) -replace '<excludeFromLatest>', $excludeFromLatest) | Set-Content -Path $templateFilePath
 	((Get-Content -Path $templateFilePath -Raw) -replace '<TargetRegions>', $(ConvertTo-Json -InputObject $TargetRegionSettings)) | Set-Content -Path $templateFilePath
 	((Get-Content -Path $templateFilePath -Raw) -replace '<imgBuilderId>', $AssignedIdentity.Id) | Set-Content -Path $templateFilePath
@@ -327,7 +351,7 @@ function New-AzureComputeGallery {
 
 	#region Create the gallery definition
 	$GalleryParams = @{
-		GalleryName       = $GalleryName
+		GalleryName       = $Gallery.Name
 		ResourceGroupName = $ResourceGroupName
 		Location          = $location
 		Name              = $imageDefinitionNameARM
@@ -356,7 +380,7 @@ function New-AzureComputeGallery {
 	#region Template #2 via a image from the market place + customizations
 	# create gallery definition
 	$GalleryParams = @{
-		GalleryName       = $GalleryName
+		GalleryName       = $Gallery.Name
 		ResourceGroupName = $ResourceGroupName
 		Location          = $location
 		Name              = $imageDefinitionNamePowerShell
@@ -558,7 +582,7 @@ While (Get-AzResourceProvider -ProviderNamespace $RequiredResourceProviders | Wh
 $Jobs | Remove-Job -Force
 #endregion
 
-$AzureComputeGallery = New-AzureComputeGallery -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
+$AzureComputeGallery = New-AzureComputeGallery -GalleryResourceId /subscriptions/30c8d9eb-366e-4d2c-a723-95bc688f7c97/resourceGroups/rg-avd-aib-use2-123456/providers/Microsoft.Compute/galleries/gal_avd_use2_123456 -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
 $AzureComputeGallery
 
 $EndTime = Get-Date
