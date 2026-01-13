@@ -300,6 +300,8 @@ $ExcludedHostPool = @(
     Get-AzWvdHostPool -ResourceGroupName "ExcludedResourceGroup1" -Name "ExcludedHosPoolName1"
     Get-AzWvdHostPool -ResourceGroupName "ExcludedResourceGroup2" -Name "ExcludedHosPoolName2"
 )
+
+$ExcludedHostPool = Get-AzWvdHostPool | Get-Random -Count 2
 #endregion
 Register-AzAutomationScheduledRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ScheduleName $Schedule.Name -ResourceGroupName $ResourceGroupName -Parameters @{ LogAnalyticsWorkspaceId = $LogAnalyticsWorkspaceId; DayAgo = 90; ExcludedHostPoolResourceId=$ExcludedHostPool.Id}
 #endregion

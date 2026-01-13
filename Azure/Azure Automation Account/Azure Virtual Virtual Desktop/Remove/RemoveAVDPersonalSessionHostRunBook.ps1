@@ -21,7 +21,7 @@ of the Sample Code.
 
 Param(
 	[Parameter(Mandatory = $true)]
-	[string]$LogAnalyticsWorkspaceId,
+	[string[]]$LogAnalyticsWorkspaceId,
 	[Parameter(Mandatory = $false)]
 	[int]$DayAgo = 90,
 	[Parameter(Mandatory = $false)]
@@ -48,9 +48,8 @@ $SessionHostNameHT = Get-AzWvdHostPool | Where-Object -FilterScript { $_.Id -not
 #endregion
     
 
-#In case we enter multiple LogAnalyticsWorkspace Ids by using the comma as delimiter
-$LogAnalyticsWorkspaceIds = $LogAnalyticsWorkspaceId -split ','
-foreach ($CurrentLogAnalyticsWorkspaceId in $LogAnalyticsWorkspaceIds) {
+#In case we enter multiple LogAnalyticsWorkspace
+foreach ($CurrentLogAnalyticsWorkspaceId in $LogAnalyticsWorkspaceId) {
     Write-Output -InputObject "`$CurrentLogAnalyticsWorkspaceId: $CurrentLogAnalyticsWorkspaceId"
     #region Session Hosts not connected in the last 90 days
     $Query = "let daysAgo = {0}d; WVDConnections | sort by TimeGenerated asc | limit 1 | where TimeGenerated <= ago(daysAgo) | distinct SessionHostName" -f $DayAgo
