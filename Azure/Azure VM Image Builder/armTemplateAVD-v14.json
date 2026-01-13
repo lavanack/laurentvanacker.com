@@ -40,7 +40,7 @@
                 "buildTimeoutInMinutes": 240,
 
                 "vmProfile": {
-                    "vmSize": "Standard_D4s_v5",
+                    "vmSize": "Standard_D8s_v6",
                     "osDiskSizeGB": 127
                 },
                 "stagingResourceGroup": "/subscriptions/<subscriptionID>/resourceGroups/<stagingResourceGroupName>",
@@ -87,6 +87,7 @@
                 "distribute": [
                     {
                         "type": "SharedImage",
+                        "excludeFromLatest": <excludeFromLatest>,
                         "galleryImageId": "/subscriptions/<subscriptionID>/resourceGroups/<rgName>/providers/Microsoft.Compute/galleries/<sharedImageGalName>/images/<imageDefName>/versions/<version>",
                         "runOutputName": "<runOutputName>",
                         "artifactTags": {
