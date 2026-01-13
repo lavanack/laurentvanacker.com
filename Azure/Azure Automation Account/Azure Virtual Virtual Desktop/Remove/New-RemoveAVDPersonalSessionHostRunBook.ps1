@@ -307,10 +307,32 @@ $ExcludedHostPool = @(
 #For Testing purpose
 $ExcludedHostPool = Get-AzWvdHostPool | Where-Object -FilterScript { ($_.HostPoolType -eq 'Personal') -and ($_.Name -match 'test') } | Get-Random -Count 2
 #endregion
-Register-AzAutomationScheduledRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ScheduleName $Schedule.Name -ResourceGroupName $ResourceGroupName -Parameters @{ LogAnalyticsWorkspaceId = $LogAnalyticsWorkspaceId; DayAgo = 90; ExcludedHostPoolResourceId=$ExcludedHostPool.Id}
+$Parameters = @{ 
+    LogAnalyticsWorkspaceId = @($LogAnalyticsWorkspaceId)
+    DayAgo = 90
+    ExcludedHostPoolResourceId=$ExcludedHostPool.Id
+}
+Register-AzAutomationScheduledRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ScheduleName $Schedule.Name -ResourceGroupName $ResourceGroupName -Parameters $Parameters
 #endregion
 
+#region Test 
+<#
 #region Test in the Portal
 "['{0}']" -f $ExcludedHostPool.id -join "','" | Set-Clipboard
 "['{0}']" -f $LogAnalyticsWorkspaceId -join "','" | Set-Clipboard
+#endregion
+#>
+#region PowerShell
+$Params = @{
+    AutomationAccountName = $AutomationAccount.AutomationAccountName
+    ResourceGroupName = $ResourceGroupName
+}
+$Result = Start-AzAutomationRunbook @Params -Name $RunBookName -Parameters $Parameters
+
+$Params['Id']=$Result.JobId
+While ((Get-AzAutomationJob @Params).Status -notin @("Completed", "Failed")) {
+    Start-Sleep -Seconds 30
+}
+
+Get-AzAutomationJobOutput @Params
 #endregion
