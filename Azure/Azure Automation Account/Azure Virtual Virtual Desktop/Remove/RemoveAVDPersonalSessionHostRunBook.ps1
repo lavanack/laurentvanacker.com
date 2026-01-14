@@ -45,6 +45,7 @@ Write-Output -InputObject $AzureContext
 Write-Output -InputObject "`$LogAnalyticsWorkspaceId: $($LogAnalyticsWorkspaceId -join ', ')" 
 Write-Output -InputObject "`$DayAgo: $DayAgo" 
 Write-Output -InputObject "`$HostPoolResourceId: $($HostPoolResourceId -join ', ')" 
+Write-Output -InputObject "`$WhatIf: $WhatIf" 
 #endregion
 
 #region Getting all Session Hosts but not the excluded one(s)
