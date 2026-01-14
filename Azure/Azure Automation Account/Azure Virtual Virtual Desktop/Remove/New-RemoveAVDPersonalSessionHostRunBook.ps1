@@ -373,6 +373,7 @@ foreach ($LogAnalyticsWorkspace in $LogAnalyticsWorkspaces) {
 }
 #endregion
 
+<#
 #region 'Owner' RBAC Assignments
 $RoleDefinitionName = 'Owner'
 $RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
@@ -398,7 +399,7 @@ While (-not(Get-AzRoleAssignment @Parameters)) {
 	}
 }
 #endregion
-
+#>
 #endregion
 
 #region Enabling Log Verbose Records 
@@ -444,6 +445,6 @@ While ((Get-AzAutomationJob @Params).Status -notin @("Completed", "Failed")) {
 #All outputs except Verbose
 (Get-AzAutomationJobOutput @Params | Where-Object -FilterScript { $_.Type -ne "Verbose"}).Summary
 #All useful Verbose outputs
-(Get-AzAutomationJobOutput @Params | Where-Object -FilterScript { ($_.Type -eq "Verbose") -and ($_.Summary -notmatch "^Importing|^Exporting|^Loading module")}).Summary
+#(Get-AzAutomationJobOutput @Params | Where-Object -FilterScript { ($_.Type -eq "Verbose") -and ($_.Summary -notmatch "^Importing|^Exporting|^Loading module")}).Summary
 #endregion
 #endregion
