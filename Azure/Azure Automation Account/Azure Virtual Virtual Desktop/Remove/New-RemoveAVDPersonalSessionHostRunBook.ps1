@@ -393,8 +393,8 @@ Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
 #region PowerShell
 $Parameters = @{ 
     LogAnalyticsWorkspaceId = $LogAnalyticsWorkspaceIds
-    DayAgo = $DayAgo
     HostPoolResourceId = $HostPools.Id
+    DayAgo = $DayAgo
     WhatIf = $true
 }
 $Params = @{

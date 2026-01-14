@@ -21,25 +21,27 @@ of the Sample Code.
 
 Param(
 	[Parameter(Mandatory = $true)]
-	[string[]]$LogAnalyticsWorkspaceId,
+	[string[]]$LogAnalyticsWorkspaceId, 
+	[Parameter(Mandatory = $true)]
+	[string[]]$HostPoolResourceId,
 	[Parameter(Mandatory = $false)]
 	[int]$DayAgo = 90,
 	[Parameter(Mandatory = $false)]
-	[string[]]$HostPoolResourceId,
-	[Parameter(Mandatory = $false)]
-	[boolean]$WhatIf = $false
+	[boolean]$WhatIf = $true
 )
+
 
 #region Azure connection
 # Ensures you do not inherit an AzContext in your dirbook
 Disable-AzContextAutosave -Scope Process
-# Connect to Azure with system-assigned managed identity (Azure Automation account, which has been given VM Start permissions)
+# Connect to Azure with system-assigned managed identity (Azure Automation account, which has been given the right permissions)
 $AzureContext = (Connect-AzAccount -Identity).context
-Write-Output -InputObject $AzureContext
+Write-Output -InputObject "`$AzureContext: $($AzureContext | Select-Object -Property * | Out-string)"
 # set and store context
 $AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -DefaultProfile $AzureContext
-Write-Output -InputObject $AzureContext
+Write-Output -InputObject "`$AzureContext: $($AzureContext | Select-Object -Property * | Out-string)"
 #endregion
+
 
 #region Parameters
 Write-Output -InputObject "`$LogAnalyticsWorkspaceId: $($LogAnalyticsWorkspaceId -join ', ')" 
@@ -83,6 +85,7 @@ $SessionHostNameHT = $SessionHostNames | Group-Object -Property Name -AsHashTabl
     
 
 #In case we enter multiple LogAnalyticsWorkspace
+$NotConnectedVMs = @()
 foreach ($CurrentLogAnalyticsWorkspaceId in $LogAnalyticsWorkspaceId) {
     Write-Output -InputObject "`$CurrentLogAnalyticsWorkspaceId: $CurrentLogAnalyticsWorkspaceId"
     #region Session Hosts not connected in the last 90 days
@@ -92,76 +95,88 @@ foreach ($CurrentLogAnalyticsWorkspaceId in $LogAnalyticsWorkspaceId) {
     # Run the query
     $Result = Invoke-AzOperationalInsightsQuery -WorkspaceId $CurrentLogAnalyticsWorkspaceId -Query $Query
     Write-Output -InputObject "`$Result: $($Result | Out-String)"                
-    $NotConnectedVMs = $Result.Results.SessionHostName -replace "\..*$" | ForEach-Object -Process { if ($SessionHostNameHT[$_].ResourceId) { Get-AzResource -ResourceId $SessionHostNameHT[$_].ResourceId | Get-AzVM } } 
-    Write-Output -InputObject "`$NotConnectedVMs: $($NotConnectedVMs.Name -join ', ')"                
+    $NotConnectedVMs += $Result.Results.SessionHostName -replace "\..*$" | ForEach-Object -Process { if ($SessionHostNameHT[$_].ResourceId) { Get-AzVM -ResourceId $SessionHostNameHT[$_].ResourceId } } 
     #endregion 
+}
+Write-Output -InputObject "`$NotConnectedVMs: $($NotConnectedVMs.Name -join ', ')"                
 
-    #region Session Hosts not started in the last 90 days
-    Write-Output -InputObject "SessionHost Names: $($SessionHostNameHT.Keys -join ', ')"                
-    $NotStartedVMs = @()
-    foreach ($SessionHostName in $SessionHostNameHT.Keys) {
-        Write-Output -InputObject "`$SessionHostName: $SessionHostName"
-        $ResourceId = $SessionHostNameHT[$SessionHostName].ResourceId
-        Write-Output -InputObject "`$ResourceId: $ResourceId"
-        #Checking if the VM has been started in the last 90 days
-        if ((Get-AzLog -StartTime ((Get-Date).AddDays(-$DayAgo)) -ResourceId $ResourceId | Where-Object { $_.status -eq "Started" }).ResourceId) {
-            Write-Output -InputObject "The '$SessionHostName' has been started in the last $DayAgo days"
-        }
-        else {
-            Write-Output -InputObject "The '$SessionHostName' has NOT been started in the last $DayAgo days"
-            $NotStartedVM =  Get-AzResource -ResourceId $ResourceId | Get-AzVM
-            $NotStartedVMs += $NotStartedVM
-        }
+#region Session Hosts not started in the last 90 days
+Write-Output -InputObject "SessionHost Names: $($SessionHostNameHT.Keys -join ', ')"                
+$NotStartedVMs = @()
+foreach ($SessionHostName in $SessionHostNameHT.Keys) {
+    Write-Output -InputObject "`$SessionHostName: $SessionHostName"
+    $ResourceId = $SessionHostNameHT[$SessionHostName].ResourceId
+    Write-Output -InputObject "`$ResourceId: $ResourceId"
+    #Checking if the VM has been started in the last 90 days
+    if ((Get-AzLog -StartTime ((Get-Date).AddDays(-$DayAgo)) -ResourceId $ResourceId | Where-Object { $_.status -eq "Started" }).ResourceId) {
+        Write-Output -InputObject "The '$SessionHostName' has been started in the last $DayAgo days"
     }
-    Write-Output -InputObject "`$NotStartedVMs: $($NotStartedVMs.Name -join ', ')"                
-    #endregion 
+    else {
+        Write-Output -InputObject "The '$SessionHostName' has NOT been started in the last $DayAgo days"
+        $NotStartedVM =  Get-AzVM -ResourceId $ResourceId
+        $NotStartedVMs += $NotStartedVM
+    }
+}
+Write-Output -InputObject "`$NotStartedVMs: $($NotStartedVMs.Name -join ', ')"                
+#endregion 
 
-    [array] $VMs = $NotConnectedVMs+$NotStartedVMs
-    Write-Output -InputObject "`$VMs: $($VMs.Name -join ', ')"                
-    Foreach ($VM in $VMs) {
-        Write-Output -InputObject "Processing '$($VM.Name)' Session Host"                
-        $HostPool = $SessionHostNameHT[$VM.Name].HostPool
-        if ($WhatIf) {
-            Write-Warning -Message "WHATIF: Removing '$($VM.Name)' Session Host from '$($HostPool.Name)' HostPool (ResourceGroup: '$($HostPool.ResourceGroupName)')"                
+#If a VM has been started in the last 90 days but with no connection we keep it.
+[array] $VMs = $NotStartedVMs
+foreach ($NotConnectedVM in $NotConnectedVMs) {
+    if ($NotConnectedVM -notin $NotStartedVMs) {
+        Write-Output -InputObject "'$($NotConnectedVM.Name)' is not in the `$NotStartedVMs list. We exclude it !"                
+    }
+    else {
+        Write-Output -InputObject "Adding '$($NotConnectedVM.Name)' as VM to process !"                
+        $VMs += $NotConnectedVM
+    }
+}
+
+
+Write-Output -InputObject "`$VMs: $($VMs.Name -join ', ')"                
+Foreach ($VM in $VMs) {
+    Write-Output -InputObject "Processing '$($VM.Name)' Session Host"                
+    $HostPool = $SessionHostNameHT[$VM.Name].HostPool
+    if ($WhatIf) {
+        Write-Warning -Message "WHATIF: Removing '$($VM.Name)' Session Host from '$($HostPool.Name)' HostPool (ResourceGroup: '$($HostPool.ResourceGroupName)')"                
+    }
+    else {
+        #Normally this command line should be useless (if not connected or started in the last 90 days)
+        $VM | Stop-AzVM -Force
+        Write-Output -InputObject "`$HostPool: $($HostPool | Select-Object -Property * | Out-string)"
+        Write-Output -InputObject "Removing '$($VM.Name)' Session Host from '$($HostPool.Name)' HostPool (ResourceGroup: '$($HostPool.ResourceGroupName)')"                
+        Remove-AzWvdSessionHost -ResourceGroupName $HostPool.ResourceGroupName -HostPoolName $HostPool.Name -Name $VM.Name -Force
+
+        #region NICs
+        $VM.NetworkProfile.NetworkInterfaces.Id | ForEach-Object { 
+            Write-Output -InputObject "[$($VM.Name)] Removing NIC: '$_'"                
+            Remove-AzResource -ResourceId $_ -Force -AsJob 
         }
-        else {
-            #Normally this command line should be useless (if not connected or started in the last 90 days)
-            $VM | Stop-AzVM -Force
-            Write-Output -InputObject "`$HostPool: $($HostPool | Select-Object -Property * | Out-string)"
-            Write-Output -InputObject "Removing '$($VM.Name)' Session Host from '$($HostPool.Name)' HostPool (ResourceGroup: '$($HostPool.ResourceGroupName)')"                
-            Remove-AzWvdSessionHost -ResourceGroupName $HostPool.ResourceGroupName -HostPoolName $HostPool.Name -Name $VM.Name -Force
+        #endregion
 
-            #region NICs
-            $VM.NetworkProfile.NetworkInterfaces.Id | ForEach-Object { 
-                Write-Output -InputObject "[$($VM.Name)] Removing NIC: '$_'"                
-                Remove-AzResource -ResourceId $_ -Force -AsJob 
-            }
-            #endregion
+        #region Disks
+        $TimeStamp = '{0:yyyyMMddHHmmss}' -f (Get-Date)
+        #region OS Disk
+        $VMOSDisk = $VM.StorageProfile.OSDisk.ManagedDisk
+        $SnapshotName = "{0}_{1}" -f $VMOSAzDisk.Name, $TimeStamp
+        $SnapshotConfig = New-AzSnapshotConfig -SourceResourceId $VMOSAzDisk.Id -Location $VM.Location -CreateOption Copy
+        Write-Output -InputObject "[$($VM.Name)] Taking a snapshot of the OS Disk"                
+        $AzSnapshot = New-AzSnapshot -ResourceGroupName $VM.ResourceGroupName -SnapshotName $SnapshotName -Snapshot $SnapshotConfig
+        Write-Output -InputObject "[$($VM.Name)] Removing the OS Disk"                
+        $VMOSDisk | Get-AzResource | Remove-AzDisk -AsJob -Force
+        #endregion
 
-            #region Disks
-            $TimeStamp = '{0:yyyyMMddHHmmss}' -f (Get-Date)
-            #region OS Disk
-            $VMOSDisk = $VM.StorageProfile.OSDisk.ManagedDisk
-            $SnapshotName = "{0}_{1}" -f $VMOSAzDisk.Name, $TimeStamp
-            $SnapshotConfig = New-AzSnapshotConfig -SourceResourceId $VMOSAzDisk.Id -Location $VM.Location -CreateOption Copy
-            Write-Output -InputObject "[$($VM.Name)] Taking a snapshot of the OS Disk"                
+        #region Data Disk
+        foreach ($VMDataDisk in $VM.StorageProfile.DataDisks.ManagedDisk.Id) {
+            $SnapshotName = "{0}_{1}" -f $VMDataDisk.Name, $TimeStamp
+            $SnapshotConfig = New-AzSnapshotConfig -SourceResourceId $VMDataDisk.Id -Location $VM.Location -CreateOption Copy
+            Write-Output -InputObject "[$($VM.Name)] Taking a snapshot of the '$($VMDataDisk.Name)' Data Disk"                
             $AzSnapshot = New-AzSnapshot -ResourceGroupName $VM.ResourceGroupName -SnapshotName $SnapshotName -Snapshot $SnapshotConfig
-            Write-Output -InputObject "[$($VM.Name)] Removing the OS Disk"                
-            $VMOSDisk | Get-AzResource | Remove-AzDisk -AsJob -Force
-            #endregion
-
-            #region Data Disk
-            foreach ($VMDataDisk in $VM.StorageProfile.DataDisks.ManagedDisk.Id) {
-                $SnapshotName = "{0}_{1}" -f $VMDataDisk.Name, $TimeStamp
-                $SnapshotConfig = New-AzSnapshotConfig -SourceResourceId $VMDataDisk.Id -Location $VM.Location -CreateOption Copy
-                Write-Output -InputObject "[$($VM.Name)] Taking a snapshot of the '$($VMDataDisk.Name)' Data Disk"                
-                $AzSnapshot = New-AzSnapshot -ResourceGroupName $VM.ResourceGroupName -SnapshotName $SnapshotName -Snapshot $SnapshotConfig
-                Write-Output -InputObject "[$($VM.Name)] Removing the '$($VMDataDisk.Name)' Data Disk"                
-                $VMDataDisk | Get-AzResource | Remove-AzDisk -AsJob -Force
-            }
-            #endregion
-            #endregion
+            Write-Output -InputObject "[$($VM.Name)] Removing the '$($VMDataDisk.Name)' Data Disk"                
+            $VMDataDisk | Get-AzResource | Remove-AzDisk -AsJob -Force
         }
+        #endregion
+        #endregion
     }
 }
 Write-Output -InputObject "Runbook completed !"
