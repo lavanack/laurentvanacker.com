@@ -259,15 +259,56 @@ $AutomationAccount = New-AzAutomationAccount -Name $AutomationAccountName -Locat
 
 #region RBAC Assignment
 Start-Sleep -Seconds 30
-#region 'Desktop Virtualization Power On Contributor' RBAC Assignment
-Write-Verbose -Message "Assigning the 'Desktop Virtualization Power On Contributor' RBAC role to Automation Account Managed System Identity ..."
-New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefinitionName 'Desktop Virtualization Power On Contributor' -Scope "/subscriptions/$SubscriptionId"
+#region 'Desktop Virtualization Power On Off Contributor' RBAC Assignment
+$RoleDefinitionName = 'Desktop Virtualization Power On Off Contributor'
+$RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
+$Scope = "/subscriptions/$SubscriptionId"
+$Parameters = @{
+	ObjectId           = $AutomationAccount.Identity.PrincipalId 
+	RoleDefinitionName = $RoleDefinition.Name
+	Scope              = $Scope
+}
+
+While (-not(Get-AzRoleAssignment @Parameters)) {
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
+	try {
+		$RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
+	} 
+	catch {
+		$RoleAssignment = $null
+	}
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+	if ($null -eq $RoleAssignment) {
+		Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+		Start-Sleep -Seconds 30
+	}
+}
 #endregion
 
 #region 'Log Analytics Reader' RBAC Assignment
-Write-Verbose -Message "Assigning the 'Log Analytics Reader' RBAC role to Automation Account Managed System Identity ..."
-New-AzRoleAssignment -ObjectId $AutomationAccount.Identity.PrincipalId -RoleDefinitionName 'Log Analytics Reader' -Scope "/subscriptions/$SubscriptionId"
-#endregion
+$RoleDefinitionName = 'Log Analytics Reader'
+$RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
+$Scope = "/subscriptions/$SubscriptionId"
+$Parameters = @{
+	ObjectId           = $AutomationAccount.Identity.PrincipalId 
+	RoleDefinitionName = $RoleDefinition.Name
+	Scope              = $Scope
+}
+
+While (-not(Get-AzRoleAssignment @Parameters)) {
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
+	try {
+		$RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
+	} 
+	catch {
+		$RoleAssignment = $null
+	}
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+	if ($null -eq $RoleAssignment) {
+		Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+		Start-Sleep -Seconds 30
+	}
+}#endregion
 #endregion
 
 #region New-StartAzureVirtualMachineRunBook
@@ -355,4 +396,5 @@ While ((Get-AzAutomationJob @Params).Status -notin @("Completed", "Failed")) {
 (Get-AzAutomationJobOutput @Params | Where-Object -FilterScript { $_.Type -ne "Verbose"}).Summary
 #All useful Verbose outputs
 (Get-AzAutomationJobOutput @Params | Where-Object -FilterScript { ($_.Type -eq "Verbose") -and ($_.Summary -notmatch "^Importing|^Exporting|^Loading module")}).Summary
+#endregion
 #endregion
