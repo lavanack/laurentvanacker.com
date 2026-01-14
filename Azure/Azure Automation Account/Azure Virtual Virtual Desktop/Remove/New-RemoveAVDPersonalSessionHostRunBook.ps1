@@ -280,7 +280,7 @@ $Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $Automati
 
 #endregion 
 
-# Link the schedule to the runbook
+#region Link the schedule to the runbook
 #region Variables for the Schedule
 $LogAnalyticsWorkspaces = @(
     Get-AzOperationalInsightsWorkspace -ResourceGroupName "rg-avd-test-use2-monitoring" -Name "log-avd-test-use2"
@@ -300,7 +300,7 @@ $HostPools = Get-AzWvdHostPool | Where-Object -FilterScript { ($_.HostPoolType -
 #endregion
 $Parameters = @{ 
     LogAnalyticsWorkspaceId = $LogAnalyticsWorkspaceIds
-    DayAgo = 90
+    DayAgo = $DayAgo
     HostPoolResourceId = $HostPools.Id
     WhatIf = $true
 }
@@ -312,14 +312,14 @@ $Params = @{
 Register-AzAutomationScheduledRunbook @Params -ScheduleName $Schedule.Name -Parameters $Parameters
 #endregion
 
-#region RBAC Assignment
-Start-Sleep -Seconds 30
+#region RBAC Assignments
 #region 'Desktop Virtualization Power On Off Contributor', 'Virtual Machine Contributor', 'Network Contributor' RBAC Assignments
 $RoleDefinitionNames = 'Desktop Virtualization Power On Off Contributor', 'Virtual Machine Contributor', 'Network Contributor'
 foreach ($RoleDefinitionName in $RoleDefinitionNames){
     $RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
     foreach ($HostPool in $HostPools) {
-        $Scope = $HostPool.Id
+        $HostPoolResourceGroupId = $HostPool.Id -replace "/providers/.+"
+        $Scope = $HostPoolResourceGroupId
         $Parameters = @{
 	        ObjectId           = $AutomationAccount.Identity.PrincipalId 
 	        RoleDefinitionName = $RoleDefinition.Name
@@ -374,9 +374,12 @@ foreach ($LogAnalyticsWorkspace in $LogAnalyticsWorkspaces) {
 #endregion
 #endregion
 
-
-
 #region Enabling Log Verbose Records 
+$Params = @{
+    AutomationAccountName = $AutomationAccount.AutomationAccountName
+    ResourceGroupName = $ResourceGroupName
+    Name = $RunBookName 
+}
 Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
 #endregion
 
@@ -388,6 +391,12 @@ Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
 #endregion
 #>
 #region PowerShell
+$Parameters = @{ 
+    LogAnalyticsWorkspaceId = $LogAnalyticsWorkspaceIds
+    DayAgo = $DayAgo
+    HostPoolResourceId = $HostPools.Id
+    WhatIf = $true
+}
 $Params = @{
     AutomationAccountName = $AutomationAccount.AutomationAccountName
     ResourceGroupName = $ResourceGroupName
