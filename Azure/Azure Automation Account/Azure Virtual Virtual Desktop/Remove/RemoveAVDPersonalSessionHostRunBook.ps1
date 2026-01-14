@@ -120,9 +120,9 @@ foreach ($SessionHostName in $SessionHostNameHT.Keys) {
 Write-Output -InputObject "`$NotStartedVMs: $($NotStartedVMs.Name -join ', ')"                
 #endregion 
 
-#If a VM has been started in the last 90 days but with no connection we keep it.
 [array] $VMs = $NotStartedVMs
 foreach ($NotConnectedVM in $NotConnectedVMs) {
+    #If a VM has been started in the last 90 days but with no connection we keep it.
     if ($NotConnectedVM -notin $NotStartedVMs) {
         Write-Output -InputObject "'$($NotConnectedVM.Name)' is not in the `$NotStartedVMs list. We exclude it !"                
     }
