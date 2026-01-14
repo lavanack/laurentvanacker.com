@@ -290,6 +290,7 @@ $RunBookName = "{0}-RemoveAVDPersonalSessionHost" -f $RunBookPrefix
 #endregion 
 
 $Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20Virtual%20Virtual%20Desktop/Remove/RemoveAVDPersonalSessionHostRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Starting AVD Personal Session Hosts" -Verbose 
+
 #endregion 
 
 # Link the schedule to the runbook
@@ -313,7 +314,16 @@ $Parameters = @{
     HostPoolResourceId = $HostPool.Id
     WhatIf = $true
 }
-Register-AzAutomationScheduledRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ScheduleName $Schedule.Name -ResourceGroupName $ResourceGroupName -Parameters $Parameters
+$Params = @{
+    AutomationAccountName = $AutomationAccount.AutomationAccountName
+    ResourceGroupName = $ResourceGroupName
+    Name = $RunBookName 
+}
+Register-AzAutomationScheduledRunbook @Params -ScheduleName $Schedule.Name -Parameters $Parameters
+#endregion
+
+#region Enabling Log Verbose Records 
+Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
 #endregion
 
 #region Test 
@@ -327,13 +337,22 @@ Register-AzAutomationScheduledRunbook -AutomationAccountName $AutomationAccount.
 $Params = @{
     AutomationAccountName = $AutomationAccount.AutomationAccountName
     ResourceGroupName = $ResourceGroupName
+    Name = $RunBookName 
 }
-$Result = Start-AzAutomationRunbook @Params -Name $RunBookName -Parameters $Parameters
+$Result = Start-AzAutomationRunbook @Params -Parameters $Parameters
 
-$Params['Id']=$Result.JobId
+$Params = @{
+    AutomationAccountName = $AutomationAccount.AutomationAccountName
+    ResourceGroupName = $ResourceGroupName
+    Id = $Result.JobId
+}
+
 While ((Get-AzAutomationJob @Params).Status -notin @("Completed", "Failed")) {
     Start-Sleep -Seconds 30
 }
 
-Get-AzAutomationJobOutput @Params
+#All outputs except Verbose
+(Get-AzAutomationJobOutput @Params | Where-Object -FilterScript { $_.Type -ne "Verbose"}).Summary
+#All useful Verbose outputs
+(Get-AzAutomationJobOutput @Params | Where-Object -FilterScript { ($_.Type -eq "Verbose") -and ($_.Summary -notmatch "^Importing|^Exporting|^Loading module")}).Summary
 #endregion

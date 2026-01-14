@@ -48,6 +48,13 @@ Write-Output -InputObject "`$HostPoolResourceId: $($HostPoolResourceId -join ', 
 Write-Output -InputObject "`$WhatIf: $WhatIf" 
 #endregion
 
+#region WhatIf Mode
+if ($WhatIf) {
+    Write-Warning -Message "WHATIF MODE ENABLED"                
+}
+#endregion
+
+
 #region Getting all Session Hosts but not the excluded one(s)
 $SessionHostNames = @()
 $HostPoolToProcess = Get-AzWvdHostPool | Where-Object -FilterScript { ($_.Id -in $HostPoolResourceId) } 
@@ -88,21 +95,26 @@ foreach ($CurrentLogAnalyticsWorkspaceId in $LogAnalyticsWorkspaceId) {
     #endregion 
 
     #region Session Hosts not started in the last 90 days
-    $NotStartedVMs = foreach ($SessionHostName in $SessionHostNameHT.Keys) {
+    Write-Output -InputObject "SessionHost Names: $($SessionHostNameHT.Keys -join ', ')"                
+    $NotStartedVMs = @()
+    foreach ($SessionHostName in $SessionHostNameHT.Keys) {
+        Write-Output -InputObject "`$SessionHostName: $SessionHostName"
         $ResourceId = $SessionHostNameHT[$SessionHostName].ResourceId
-        #Checkinf if the VM has been started in the last 90 days
+        Write-Output -InputObject "`$ResourceId: $ResourceId"
+        #Checking if the VM has been started in the last 90 days
         if ((Get-AzLog -StartTime ((Get-Date).AddDays(-$DayAgo)) -ResourceId $ResourceId | Where-Object { $_.status -eq "Started" }).ResourceId) {
-            Write-Verbose -Message "The '$SessionHostName' has been started in the last $DayAgo days"
+            Write-Output -InputObject "The '$SessionHostName' has been started in the last $DayAgo days"
         }
         else {
-            Write-Verbose -Message "The '$SessionHostName' has NOT been started in the last $DayAgo days"
+            Write-Output -InputObject "The '$SessionHostName' has NOT been started in the last $DayAgo days"
             $NotStartedVM =  Get-AzResource -ResourceId $ResourceId | Get-AzVM
-            $NotStartedVM
+            $NotStartedVMs += $NotStartedVM
         }
     }
+    Write-Output -InputObject "`$NotStartedVMs: $($NotStartedVMs.Name -join ', ')"                
     #endregion 
 
-    [array] $VMs = $NotStartedVMs+$NotStartedVMs
+    [array] $VMs = $NotConnectedVMs+$NotStartedVMs
     if (-not([string]::IsNullOrEmpty($VMNames))) {
         Foreach ($CurrentVM in $VMs) {
             Write-Output -InputObject "Processing '$($CurrentVM.Name)' Session Host"                
