@@ -287,7 +287,7 @@ $LogAnalyticsWorkspaces = @(
     Get-AzOperationalInsightsWorkspace -ResourceGroupName "rg-avd-dev-use2-monitoring" -Name "log-avd-dev-use2"
 )
 $LogAnalyticsWorkspaceIds = $LogAnalyticsWorkspaces.CustomerId.Guid
-$DayAgo = 90
+$DayAgo = 1
 <#
 #Right Syntax for production
 $HostPools = @(
