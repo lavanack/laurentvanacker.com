@@ -337,7 +337,7 @@ $Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $Automati
 # Link the schedule to the runbook
 #region Variables for the Schedule
 $LogAnalyticsWorkspaceId = "00000000-0000-0000-0000-000000000000"
-$LogAnalyticsWorkspaceId = (Get-AzOperationalInsightsWorkspace -ResourceGroupName "rg-avd-test-use2-monitoring" -Name "log-avd-test-use2").CustomerId.Guid
+$LogAnalyticsWorkspaceId = (Get-AzOperationalInsightsWorkspace -ResourceGroupName "rg-avd-dev-use2-monitoring" -Name "log-avd-dev-use2").CustomerId.Guid
 $DayAgo = 90
 <#
 #Right Syntax for production
@@ -347,7 +347,7 @@ $HostPool = @(
 )
 #>
 #For Testing purpose
-$HostPool = Get-AzWvdHostPool | Where-Object -FilterScript { ($_.HostPoolType -eq 'Personal') -and ($_.Name -match 'test') } | Get-Random -Count 2
+$HostPool = Get-AzWvdHostPool | Where-Object -FilterScript { ($_.HostPoolType -eq 'Personal') -and ($_.Name -match 'dev') } | Get-Random -Count 2
 #endregion
 $Parameters = @{ 
     LogAnalyticsWorkspaceId = @($LogAnalyticsWorkspaceId)
