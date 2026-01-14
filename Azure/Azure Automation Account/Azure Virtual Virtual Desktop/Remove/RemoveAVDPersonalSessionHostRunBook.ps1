@@ -108,7 +108,7 @@ foreach ($SessionHostName in $SessionHostNameHT.Keys) {
     $ResourceId = $SessionHostNameHT[$SessionHostName].ResourceId
     Write-Output -InputObject "`$ResourceId: $ResourceId"
     #Checking if the VM has been started in the last 90 days
-    if ((Get-AzLog -StartTime ((Get-Date).AddDays(-$DayAgo)) -ResourceId $ResourceId | Where-Object { $_.status -eq "Started" }).ResourceId) {
+    if (Get-AzLog -StartTime ((Get-Date).AddDays(-$DayAgo)) -ResourceId $ResourceId -Status Succeeded | Where-Object { $_.OperationName -eq "Start Virtual Machine" }) {
         Write-Output -InputObject "The '$SessionHostName' has been started in the last $DayAgo days"
     }
     else {
