@@ -257,60 +257,6 @@ $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Locatio
 $AutomationAccount = New-AzAutomationAccount -Name $AutomationAccountName -Location $Location -ResourceGroupName $ResourceGroupName -AssignSystemIdentity
 #endregion
 
-#region RBAC Assignment
-Start-Sleep -Seconds 30
-#region 'Desktop Virtualization Power On Off Contributor' RBAC Assignment
-$RoleDefinitionName = 'Desktop Virtualization Power On Off Contributor'
-$RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
-$Scope = "/subscriptions/$SubscriptionId"
-$Parameters = @{
-	ObjectId           = $AutomationAccount.Identity.PrincipalId 
-	RoleDefinitionName = $RoleDefinition.Name
-	Scope              = $Scope
-}
-
-While (-not(Get-AzRoleAssignment @Parameters)) {
-	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
-	try {
-		$RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
-	} 
-	catch {
-		$RoleAssignment = $null
-	}
-	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-	if ($null -eq $RoleAssignment) {
-		Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
-		Start-Sleep -Seconds 30
-	}
-}
-#endregion
-
-#region 'Log Analytics Reader' RBAC Assignment
-$RoleDefinitionName = 'Log Analytics Reader'
-$RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
-$Scope = "/subscriptions/$SubscriptionId"
-$Parameters = @{
-	ObjectId           = $AutomationAccount.Identity.PrincipalId 
-	RoleDefinitionName = $RoleDefinition.Name
-	Scope              = $Scope
-}
-
-While (-not(Get-AzRoleAssignment @Parameters)) {
-	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
-	try {
-		$RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
-	} 
-	catch {
-		$RoleAssignment = $null
-	}
-	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-	if ($null -eq $RoleAssignment) {
-		Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
-		Start-Sleep -Seconds 30
-	}
-}#endregion
-#endregion
-
 #region New-StartAzureVirtualMachineRunBook
 #region Schedule Setup
 #region Azure Virtual Machine - Daily Removal Process
@@ -336,23 +282,26 @@ $Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $Automati
 
 # Link the schedule to the runbook
 #region Variables for the Schedule
-$LogAnalyticsWorkspaceId = "00000000-0000-0000-0000-000000000000"
-$LogAnalyticsWorkspaceId = (Get-AzOperationalInsightsWorkspace -ResourceGroupName "rg-avd-dev-use2-monitoring" -Name "log-avd-dev-use2").CustomerId.Guid
+$LogAnalyticsWorkspaces = @(
+    Get-AzOperationalInsightsWorkspace -ResourceGroupName "rg-avd-test-use2-monitoring" -Name "log-avd-test-use2"
+    Get-AzOperationalInsightsWorkspace -ResourceGroupName "rg-avd-dev-use2-monitoring" -Name "log-avd-dev-use2"
+)
+$LogAnalyticsWorkspaceIds = $LogAnalyticsWorkspaces.CustomerId.Guid
 $DayAgo = 90
 <#
 #Right Syntax for production
-$HostPool = @(
+$HostPools = @(
     Get-AzWvdHostPool -ResourceGroupName "rg-avd-poc-test-use2-service-objects" -Name "vdpool-poc-test-use2-001"
     Get-AzWvdHostPool -ResourceGroupName "rg-avd-poc-dev-use2-service-objects"  -Name "vdpool-poc-dev-use2-001"
 )
 #>
 #For Testing purpose
-$HostPool = Get-AzWvdHostPool | Where-Object -FilterScript { ($_.HostPoolType -eq 'Personal') -and ($_.Name -match 'dev') } | Get-Random -Count 2
+$HostPools = Get-AzWvdHostPool | Where-Object -FilterScript { ($_.HostPoolType -eq 'Personal') -and ($_.Name -match 'dev|test') } | Get-Random -Count 2
 #endregion
 $Parameters = @{ 
-    LogAnalyticsWorkspaceId = @($LogAnalyticsWorkspaceId)
+    LogAnalyticsWorkspaceId = $LogAnalyticsWorkspaceIds
     DayAgo = 90
-    HostPoolResourceId = $HostPool.Id
+    HostPoolResourceId = $HostPools.Id
     WhatIf = $true
 }
 $Params = @{
@@ -363,6 +312,70 @@ $Params = @{
 Register-AzAutomationScheduledRunbook @Params -ScheduleName $Schedule.Name -Parameters $Parameters
 #endregion
 
+#region RBAC Assignment
+Start-Sleep -Seconds 30
+#region 'Desktop Virtualization Power On Off Contributor', 'Virtual Machine Contributor' RBAC Assignments
+$RoleDefinitionNames = 'Desktop Virtualization Power On Off Contributor' 
+foreach ($RoleDefinitionName in $RoleDefinitionNames){
+    $RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
+    foreach ($HostPool in $HostPools) {
+        $Scope = $HostPool.Id
+        $Parameters = @{
+	        ObjectId           = $AutomationAccount.Identity.PrincipalId 
+	        RoleDefinitionName = $RoleDefinition.Name
+	        Scope              = $Scope
+        }
+
+        While (-not(Get-AzRoleAssignment @Parameters)) {
+	        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
+	        try {
+		        $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
+	        } 
+	        catch {
+		        $RoleAssignment = $null
+	        }
+	        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+	        if ($null -eq $RoleAssignment) {
+		        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+		        Start-Sleep -Seconds 30
+	        }
+        }
+    }
+}
+
+#endregion
+
+#region 'Log Analytics Reader' RBAC Assignment
+$RoleDefinitionName = 'Log Analytics Reader'
+$RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
+foreach ($LogAnalyticsWorkspace in $LogAnalyticsWorkspaces) {
+    $Scope = $LogAnalyticsWorkspace.ResourceId
+    $Parameters = @{
+	    ObjectId           = $AutomationAccount.Identity.PrincipalId 
+	    RoleDefinitionName = $RoleDefinition.Name
+	    Scope              = $Scope
+    }
+
+    While (-not(Get-AzRoleAssignment @Parameters)) {
+	    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
+	    try {
+		    $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
+	    } 
+	    catch {
+		    $RoleAssignment = $null
+	    }
+	    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+	    if ($null -eq $RoleAssignment) {
+		    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+		    Start-Sleep -Seconds 30
+	    }
+    }
+}
+#endregion
+#endregion
+
+
+
 #region Enabling Log Verbose Records 
 Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
 #endregion
@@ -370,8 +383,8 @@ Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
 #region Test 
 <#
 #region Test in the Portal
-"['{0}']" -f $HostPool.id -join "','" | Set-Clipboard
-"['{0}']" -f $LogAnalyticsWorkspaceId -join "','" | Set-Clipboard
+"['{0}']" -f $HostPools.id -join "','" | Set-Clipboard
+"['{0}']" -f $LogAnalyticsWorkspaceIds -join "','" | Set-Clipboard
 #endregion
 #>
 #region PowerShell
