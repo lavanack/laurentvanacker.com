@@ -314,8 +314,8 @@ Register-AzAutomationScheduledRunbook @Params -ScheduleName $Schedule.Name -Para
 
 #region RBAC Assignment
 Start-Sleep -Seconds 30
-#region 'Desktop Virtualization Power On Off Contributor', 'Virtual Machine Contributor' RBAC Assignments
-$RoleDefinitionNames = 'Desktop Virtualization Power On Off Contributor' 
+#region 'Desktop Virtualization Power On Off Contributor', 'Virtual Machine Contributor', 'Network Contributor' RBAC Assignments
+$RoleDefinitionNames = 'Desktop Virtualization Power On Off Contributor', 'Virtual Machine Contributor', 'Network Contributor'
 foreach ($RoleDefinitionName in $RoleDefinitionNames){
     $RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
     foreach ($HostPool in $HostPools) {
