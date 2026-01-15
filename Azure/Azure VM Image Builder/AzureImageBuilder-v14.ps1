@@ -441,6 +441,52 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgTimeZoneRedirectionPowerShellCustomizerParams.Name)' ..."
 	$TimeZoneRedirectionCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgTimeZoneRedirectionPowerShellCustomizerParams 
 
+	$ImgPowerShellCrossPlatformPowerShellCustomizerParams = @{  
+		PowerShellCustomizer = $true  
+		Name                 = 'Install PowerShell Cross Platform'  
+		RunElevated          = $true  
+		runAsSystem          = $true  
+		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-PowerShell.ps1'
+	}
+
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgPowerShellCrossPlatformPowerShellCustomizerParams.Name)' ..."
+	$PowerShellCrossPlatformCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgPowerShellCrossPlatformPowerShellCustomizerParams 
+
+	$ImgPuttyPowerShellCustomizerParams = @{  
+		PowerShellCustomizer = $true  
+		Name                 = 'Install Putty'  
+		RunElevated          = $true  
+		runAsSystem          = $true  
+		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-Putty.ps1'
+	}
+
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgPuttyPowerShellCustomizerParams.Name)' ..."
+	$PuttyCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgPuttyPowerShellCustomizerParams 
+
+	$ImgWinSCPPowerShellCustomizerParams = @{  
+		PowerShellCustomizer = $true  
+		Name                 = 'Install WinSCP'  
+		RunElevated          = $true  
+		runAsSystem          = $true  
+		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-WinSCP.ps1'
+	}
+
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgWinSCPPowerShellCustomizerParams.Name)' ..."
+	$WinSCPCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgWinSCPPowerShellCustomizerParams 
+
+	$ImgNotepadPlusPlusPowerShellCustomizerParams = @{  
+		PowerShellCustomizer = $true  
+		Name                 = 'Install Notepad++'  
+		RunElevated          = $true  
+		runAsSystem          = $true  
+		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-NotepadPlusPlus.ps1'
+	}
+
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgNotepadPlusPlusPowerShellCustomizerParams.Name)' ..."
+	$NotepadPlusPlusCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgNotepadPlusPlusPowerShellCustomizerParams 
+
+
+
 	$ImgVSCodePowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
 		Name                 = 'Install Visual Studio Code'  
@@ -467,7 +513,7 @@ function New-AzureComputeGallery {
 	$DisableAutoUpdatesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgDisableAutoUpdatesPowerShellCustomizerParams 
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
-	$Customize = $TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
+	$Customize = $TimeZoneRedirectionCustomizer, $PowerShellCrossPlatformCustomizer, $PuttyCustomizer, $WinSCPCustomizer, $NotepadPlusPlusCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
 	$ImgTemplateParams = @{
 		ImageTemplateName      = $imageTemplateNamePowerShell
 		ResourceGroupName      = $ResourceGroupName
@@ -592,8 +638,8 @@ $Jobs | Remove-Job -Force
 $ResourceGroupName = "rg-avd-aib-use2-1768295361"
 $GalleryName = "gal_avd_use2_1768295361"
 $GalleryResourceId = (Get-AzGallery -ResourceGroupName $ResourceGroupName -GalleryName $GalleryName).Id
-$AzureComputeGallery = New-AzureComputeGallery -GalleryResourceId $GalleryResourceId -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
-#$AzureComputeGallery = New-AzureComputeGallery -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
+#$AzureComputeGallery = New-AzureComputeGallery -GalleryResourceId $GalleryResourceId -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
+$AzureComputeGallery = New-AzureComputeGallery -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
 $AzureComputeGallery
 
 $EndTime = Get-Date
