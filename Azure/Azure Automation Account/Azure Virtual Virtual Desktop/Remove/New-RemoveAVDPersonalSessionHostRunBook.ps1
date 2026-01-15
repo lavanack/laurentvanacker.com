@@ -318,27 +318,29 @@ $RoleDefinitionNames = 'Desktop Virtualization Power On Off Contributor', 'Virtu
 foreach ($RoleDefinitionName in $RoleDefinitionNames){
     $RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
     foreach ($HostPool in $HostPools) {
-        $HostPoolResourceGroupId = $HostPool.Id -replace "/providers/.+"
-        $Scope = $HostPoolResourceGroupId
-        $Parameters = @{
-	        ObjectId           = $AutomationAccount.Identity.PrincipalId 
-	        RoleDefinitionName = $RoleDefinition.Name
-	        Scope              = $Scope
-        }
+        $HostPoolSessionHostResourceGroupIds = (Get-AzWvdSessionHost -HostPoolName $HostPool.Name -ResourceGroupName $HostPool.ResourceGroupName).ResourceId -replace "/providers/.+"
+        foreach ($HostPoolSessionHostResourceGroupId in $HostPoolSessionHostResourceGroupIds) {
+            $Scope = $HostPoolSessionHostResourceGroupId
+            $Parameters = @{
+	            ObjectId           = $AutomationAccount.Identity.PrincipalId 
+	            RoleDefinitionName = $RoleDefinition.Name
+	            Scope              = $Scope
+            }
 
-        While (-not(Get-AzRoleAssignment @Parameters)) {
-	        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
-	        try {
-		        $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
-	        } 
-	        catch {
-		        $RoleAssignment = $null
-	        }
-	        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-	        if ($null -eq $RoleAssignment) {
-		        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
-		        Start-Sleep -Seconds 30
-	        }
+            While (-not(Get-AzRoleAssignment @Parameters)) {
+	            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
+	            try {
+		            $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
+	            } 
+	            catch {
+		            $RoleAssignment = $null
+	            }
+	            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+	            if ($null -eq $RoleAssignment) {
+		            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+		            Start-Sleep -Seconds 30
+	            }
+            }
         }
     }
 }
