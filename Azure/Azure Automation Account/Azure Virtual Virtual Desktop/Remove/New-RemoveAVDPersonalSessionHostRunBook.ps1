@@ -374,34 +374,6 @@ foreach ($LogAnalyticsWorkspace in $LogAnalyticsWorkspaces) {
     }
 }
 #endregion
-
-<#
-#region 'Owner' RBAC Assignments
-$RoleDefinitionName = 'Owner'
-$RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
-$Scope = "/subscriptions/{0}" -f $SubscriptionId
-$Parameters = @{
-	ObjectId           = $AutomationAccount.Identity.PrincipalId 
-	RoleDefinitionName = $RoleDefinition.Name
-	Scope              = $Scope
-}
-
-While (-not(Get-AzRoleAssignment @Parameters)) {
-	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
-	try {
-		$RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
-	} 
-	catch {
-		$RoleAssignment = $null
-	}
-	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-	if ($null -eq $RoleAssignment) {
-		Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
-		Start-Sleep -Seconds 30
-	}
-}
-#endregion
-#>
 #endregion
 
 #region Enabling Log Verbose Records 
