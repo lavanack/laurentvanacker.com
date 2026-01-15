@@ -313,14 +313,48 @@ Register-AzAutomationScheduledRunbook @Params -ScheduleName $Schedule.Name -Para
 #endregion
 
 #region RBAC Assignments
-#region 'Desktop Virtualization Power On Off Contributor', 'Virtual Machine Contributor', 'Network Contributor' RBAC Assignments
-$RoleDefinitionNames = 'Desktop Virtualization Power On Off Contributor', 'Virtual Machine Contributor', 'Network Contributor'
+#region 'Desktop Virtualization Reader', 'Desktop Virtualization Power On Off Contributor', 'Virtual Machine Contributor', 'Network Contributor' RBAC Assignments
+$RoleDefinitionNames = 'Owner', 'Desktop Virtualization Reader', 'Desktop Virtualization Power On Off Contributor', 'Virtual Machine Contributor', 'Network Contributor'
 foreach ($RoleDefinitionName in $RoleDefinitionNames){
     $RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
     foreach ($HostPool in $HostPools) {
         $HostPoolSessionHostResourceGroupIds = (Get-AzWvdSessionHost -HostPoolName $HostPool.Name -ResourceGroupName $HostPool.ResourceGroupName).ResourceId -replace "/providers/.+"
         foreach ($HostPoolSessionHostResourceGroupId in $HostPoolSessionHostResourceGroupIds) {
             $Scope = $HostPoolSessionHostResourceGroupId
+            $Parameters = @{
+	            ObjectId           = $AutomationAccount.Identity.PrincipalId 
+	            RoleDefinitionName = $RoleDefinition.Name
+	            Scope              = $Scope
+            }
+
+            While (-not(Get-AzRoleAssignment @Parameters)) {
+	            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
+	            try {
+		            $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
+	            } 
+	            catch {
+		            $RoleAssignment = $null
+	            }
+	            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+	            if ($null -eq $RoleAssignment) {
+		            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+		            Start-Sleep -Seconds 30
+	            }
+            }
+        }
+    }
+}
+
+#endregion
+
+#region 'Desktop Virtualization Host Pool Reader' RBAC Assignments
+$RoleDefinitionNames = 'Desktop Virtualization Host Pool Reader'
+foreach ($RoleDefinitionName in $RoleDefinitionNames){
+    $RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
+    foreach ($HostPool in $HostPools) {
+        $HostPoolSessionIds = (Get-AzWvdHostPool -HostPoolName $HostPool.Name -ResourceGroupName $HostPool.ResourceGroupName).Id
+        foreach ($HostPoolSessionId in $HostPoolSessionIds) {
+            $Scope = $HostPoolSessionId
             $Parameters = @{
 	            ObjectId           = $AutomationAccount.Identity.PrincipalId 
 	            RoleDefinitionName = $RoleDefinition.Name
@@ -374,6 +408,7 @@ foreach ($LogAnalyticsWorkspace in $LogAnalyticsWorkspaces) {
     }
 }
 #endregion
+
 #endregion
 
 #region Enabling Log Verbose Records 

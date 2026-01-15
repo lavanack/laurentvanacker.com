@@ -96,10 +96,10 @@ foreach ($CurrentLogAnalyticsWorkspaceId in $LogAnalyticsWorkspaceId) {
     $Result = Invoke-AzOperationalInsightsQuery -WorkspaceId $CurrentLogAnalyticsWorkspaceId -Query $Query
     Write-Output -InputObject "`$Result: $($Result | Out-String)"                
     Write-Output -InputObject "`$Result.Results.SessionHostName: $($Result.Results.SessionHostName -join ', ')"                
-    $NotConnectedVMs = @() 
     $Result.Results.SessionHostName -replace "\..+$" | ForEach-Object -Process { 
         Write-Output -InputObject "`$_: $_"                
         if (($SessionHostNameHT) -and ($SessionHostNameHT[$_])) { 
+            Write-Output -InputObject "Adding '$_' as Not Connected VM ..."                
             $NotConnectedVMs += Get-AzVM -ResourceId $SessionHostNameHT[$_].ResourceId 
         } 
     } 
