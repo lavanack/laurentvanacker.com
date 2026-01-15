@@ -78,7 +78,7 @@ function Repair-AzImageBuilderTemplate {
                         #$CmdLine | Set-Clipboard
                         Write-Verbose -Message "Removing the '$CurrentUserAssignedIdentityId' User Assigned Identity from the '$($CurrentImageBuilderTemplate.Name)' Template ..."
                         Start-Process -FilePath "$env:comspec" -ArgumentList "/c", $CmdLine  -Wait #-WindowStyle Hidden
-
+                        #$CurrentImageBuilderTemplate | Update-AzImageBuilderTemplate -IdentityType None
                         <#
                         # Remove the user-assigned identity
                         $null = $CurrentImageBuilderTemplate.IdentityUserAssignedIdentity.Remove($CurrentUserAssignedIdentityId)
@@ -148,6 +148,8 @@ function Repair-AzImageBuilderTemplate {
                         #$CmdLine | Set-Clipboard
                         Write-Verbose -Message "Assigning the '$($UserAssignedIdentity.Name)' User Assigned Identity to the '$($CurrentImageBuilderTemplate.Name)' Template ..."
                         Start-Process -FilePath "$env:comspec" -ArgumentList "/c", $CmdLine  -Wait #-WindowStyle Hidden
+                        #$CurrentImageBuilderTemplate | Update-AzImageBuilderTemplate -IdentityType UserAssigned -UserAssignedIdentity $UserAssignedIdentity
+
                         #endregion
 
                         <#
