@@ -154,8 +154,18 @@ $GalleryImageDefinitionARM = New-AzGalleryImageDefinition @GalleryParams
 #endregion
 
 #region Submit the template
+Write-Output -InputObject "`$ResourceGroupName: $ResourceGroupName  ..."
+Write-Output -InputObject "`$templateFilePath: $templateFilePath  ..."
+Write-Output -InputObject "`$imageTemplateNameARM: $imageTemplateNameARM  ..."
+Write-Output -InputObject "`$location: $location  ..."
+
 Write-Output -InputObject "Starting Resource Group Deployment from '$templateFilePath' ..."
-$ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2022-07-01"; "imageTemplateName" = $imageTemplateNameARM; "svclocation" = $location }  #-Tag $Tags
+$TemplateParameterObject = @{
+    "api-Version" = "2022-07-01"
+    "imageTemplateName" = $imageTemplateNameARM
+    "svclocation" = $location 
+}  
+$ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject $TemplateParameterObject  #-Tag $Tags
 	
 #region Build the image
 Write-Output -InputObject "Starting Image Builder Template from '$imageTemplateNameARM' (As Job) ..."
