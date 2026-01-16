@@ -85,6 +85,7 @@ $Tags =  @{
 
 #region Image template and definition names
 #Image Market Place Image + customizations: VSCode
+$timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 $imageDefinitionNameARM = "{0}-arm-vscode" -f $SrcObjParamsARM.Sku
 $imageTemplateNameARM = "{0}-template-{1}" -f $imageDefinitionNameARM, $timeInt
 Write-Output -InputObject "`$imageDefinitionNameARM: $imageDefinitionNameARM"
@@ -111,7 +112,6 @@ if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDef
 $templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/armTemplateAVD-v14.json"
 $templateFilePath = Join-Path -Path $env:TEMP -ChildPath $(Split-Path $templateUrl -Leaf)
 #Generate a unique file name 
-$timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 $templateFilePath = $templateFilePath -replace ".json$", "_$timeInt.json"
 Write-Output -InputObject "`$templateFilePath: $templateFilePath  ..."
 
