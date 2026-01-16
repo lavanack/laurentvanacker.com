@@ -109,7 +109,7 @@ function New-AzureComputeGallery {
 
 	#region Image template and definition names
 	#Image Market Place Image + customizations: VSCode
-	$imageDefinitionNameARM = "{0}-arm-vscode" -f $SrcObjParamsARM.Sku
+	$imageDefinitionNameARM = "{0}-arm-softwares" -f $SrcObjParamsARM.Sku
 	$imageTemplateNameARM = "{0}-template-{1}" -f $imageDefinitionNameARM, $timeInt
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$imageDefinitionNameARM: $imageDefinitionNameARM"
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$imageTemplateNameARM: $imageTemplateNameARM"
@@ -117,7 +117,7 @@ function New-AzureComputeGallery {
 
 
 	#Image Market Place Image + customizations: VSCode
-	$imageDefinitionNamePowerShell = "{0}-posh-vscode" -f $SrcObjParamsPowerShell.Sku
+	$imageDefinitionNamePowerShell = "{0}-posh-softwares" -f $SrcObjParamsPowerShell.Sku
 	$imageTemplateNamePowerShell = "{0}-template-{1}" -f $imageDefinitionNamePowerShell, $timeInt
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$imageDefinitionNamePowerShell: $imageDefinitionNamePowerShell"
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$imageTemplateNamePowerShell: $imageTemplateNamePowerShell"
