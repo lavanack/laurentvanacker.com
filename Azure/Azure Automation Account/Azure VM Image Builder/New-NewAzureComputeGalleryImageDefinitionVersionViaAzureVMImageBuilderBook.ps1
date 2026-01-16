@@ -336,6 +336,7 @@ $Parameters = @{
     GalleryResourceId = $Gallery.Id
     Image = $($Image | ConvertTo-Json -Compress)
     StagingResourceGroupNameARM = $StagingResourceGroupARM.ResourceGroupName
+    AssignedIdentityId = $AssignedIdentity.Id
 }
 $Params = @{
     AutomationAccountName = $AutomationAccount.AutomationAccountName
@@ -485,6 +486,7 @@ $Parameters = @{
     GalleryResourceId = $Gallery.Id
     Image = $($Image | ConvertTo-Json -Compress)
     StagingResourceGroupNameARM = $StagingResourceGroupARM.ResourceGroupName
+    AssignedIdentityId = $AssignedIdentity.Id
 }
 $Params = @{
     AutomationAccountName = $AutomationAccount.AutomationAccountName

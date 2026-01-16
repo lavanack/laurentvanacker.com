@@ -25,6 +25,8 @@ Param(
 	[string]$Image,
 	[Parameter(Mandatory = $true)]
 	[string] $StagingResourceGroupNameARM,
+	[Parameter(Mandatory = $true)]
+	[string] $AssignedIdentityId,
 	[Parameter(Mandatory = $false)]
 	[string]$Location = "EastUS2",
 	[Parameter(Mandatory = $false)]
@@ -126,7 +128,7 @@ Invoke-WebRequest -Uri $templateUrl -OutFile $templateFilePath -UseBasicParsing
 ((Get-Content -Path $templateFilePath -Raw) -replace '<sharedImageGalName>', $Gallery.Name) | Set-Content -Path $templateFilePath
 ((Get-Content -Path $templateFilePath -Raw) -replace '<excludeFromLatest>', $excludeFromLatest.ToString().ToLower()) | Set-Content -Path $templateFilePath
 ((Get-Content -Path $templateFilePath -Raw) -replace '<TargetRegions>', $(ConvertTo-Json -InputObject $TargetRegionSettings)) | Set-Content -Path $templateFilePath
-((Get-Content -Path $templateFilePath -Raw) -replace '<imgBuilderId>', $AssignedIdentity.Id) | Set-Content -Path $templateFilePath
+((Get-Content -Path $templateFilePath -Raw) -replace '<imgBuilderId>', $AssignedIdentityId) | Set-Content -Path $templateFilePath
 ((Get-Content -Path $templateFilePath -Raw) -replace '<version>', $version) | Set-Content -Path $templateFilePath
 ((Get-Content -Path $templateFilePath -Raw) -replace '<stagingResourceGroupName>', $StagingResourceGroupNameARM) | Set-Content -Path $templateFilePath
 
