@@ -418,7 +418,8 @@ $Params = @{
 $null = Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
 #endregion
 
-#region Test 
+#region Test
+#Start-Sleep -Seconds 30
 <#
 #region Test in the Portal
 "['{0}']" -f $HostPools.id -join "','" | Set-Clipboard

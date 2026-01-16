@@ -63,7 +63,7 @@ $HostPoolToProcess = Get-AzWvdHostPool | Where-Object -FilterScript { ($_.Id -in
 Write-Output -InputObject "`$HostPoolToProcess: $($HostPoolToProcess | Select-Object -Property * | Out-string)"
 $HostPoolToProcess | ForEach-Object -Process { 
     $HostPool = $_
-    Write-Output -InputObject "`$HostPool: $($HostPool | Select-Object -Property * | Out-string)"
+    Write-Output -InputObject "`$HostPool: $($HostPool | Out-string)"
     Write-Output -InputObject "`$HostPool Name: $($HostPool.Name)"
     Write-Output -InputObject "`$HostPool Id: $($HostPool.Id)"
     Write-Output -InputObject "`$HostPool ResourceGroupName: $($HostPool.ResourceGroupName)"
@@ -76,7 +76,7 @@ $HostPoolToProcess | ForEach-Object -Process {
     }
     Write-Output -InputObject "`$HostPool ResourceGroupName: $ResourceGroupName"
     $HostPoolObject = [PSCustomObject] @{Name=$HostPool.Name; ResourceGroupName = $ResourceGroupName}
-    Write-Output -InputObject "`$HostPoolObject: $($HostPoolObject | Select-Object -Property * | Out-string)"
+    Write-Output -InputObject "`$HostPoolObject: $($HostPoolObject | Out-string)"
     $SessionHostNames += (Get-AzWvdSessionHost -HostPoolName $HostPool.Name -ResourceGroupName $ResourceGroupName) | Select-Object -Property @{Name="Name"; Expression={$_.ResourceId -replace ".*/"}}, @{Name="ResourceId"; Expression={$_.ResourceId}}, @{Name="HostPool"; Expression={$HostPoolObject}}
 } 
 Write-Output -InputObject "`$SessionHostNames: $($SessionHostNames | Out-String)"
@@ -123,7 +123,7 @@ Write-Output -InputObject "`$NotConnectedVMs: $($NotConnectedVMs.Name -join ', '
 Write-Output -InputObject "SessionHost Names: $($SessionHostNameHT.Keys -join ', ')"                
 $NotStartedVMs = @()
 foreach ($SessionHostName in $SessionHostNameHT.Keys) {
-    Write-Output -InputObject "`$SessionHostName: $SessionHostName"
+    Write-Output -InputObject "Processing '$SessionHostName' ..."
     $ResourceId = $SessionHostNameHT[$SessionHostName].ResourceId
     Write-Output -InputObject "`$ResourceId: $ResourceId"
     #Checking if the VM has been started in the last 90 days
@@ -162,7 +162,7 @@ Foreach ($VM in $VMs) {
     else {
         #Normally this command line should be useless (if not connected or started in the last 90 days)
         $VM | Stop-AzVM -Force
-        Write-Output -InputObject "`$HostPool: $($HostPool | Select-Object -Property * | Out-string)"
+        Write-Output -InputObject "`$HostPool: $($HostPool | Out-string)"
         Write-Output -InputObject "Removing '$($VM.Name)' Session Host from '$($HostPool.Name)' HostPool (ResourceGroup: '$($HostPool.ResourceGroupName)')"                
         Remove-AzWvdSessionHost -ResourceGroupName $HostPool.ResourceGroupName -HostPoolName $HostPool.Name -Name $VM.Name -Force
 
