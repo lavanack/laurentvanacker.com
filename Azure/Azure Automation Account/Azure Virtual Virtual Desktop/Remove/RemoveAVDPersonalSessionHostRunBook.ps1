@@ -57,7 +57,7 @@ if ($WhatIf) {
 #endregion
 
 
-#region Getting all Session Hosts but not the excluded one(s)
+#region Getting all Session Hosts
 $SessionHostNames = @()
 $HostPoolToProcess = Get-AzWvdHostPool | Where-Object -FilterScript { ($_.Id -in $HostPoolResourceId) } 
 Write-Output -InputObject "`$HostPoolToProcess: $($HostPoolToProcess | Select-Object -Property * | Out-string)"
@@ -88,7 +88,7 @@ $SessionHostNameHT = $SessionHostNames | Group-Object -Property Name -AsHashTabl
 $NotConnectedVMs = @()
 foreach ($CurrentLogAnalyticsWorkspaceId in $LogAnalyticsWorkspaceId) {
     Write-Output -InputObject "`$CurrentLogAnalyticsWorkspaceId: $CurrentLogAnalyticsWorkspaceId"
-    #region Session Hosts not connected in the last 90 days
+    #region Session Hosts not connected in the last X days
     $Query = "let daysAgo = {0}d; WVDConnections | sort by TimeGenerated asc | limit 1 | where TimeGenerated <= ago(daysAgo) | distinct SessionHostName" -f $DayAgo
 
     Write-Output -InputObject "`$Query: $Query"
@@ -119,14 +119,14 @@ foreach ($CurrentLogAnalyticsWorkspaceId in $LogAnalyticsWorkspaceId) {
 }
 Write-Output -InputObject "`$NotConnectedVMs: $($NotConnectedVMs.Name -join ', ')"                
 
-#region Session Hosts not started in the last 90 days
+#region Session Hosts not started in the last X days
 Write-Output -InputObject "SessionHost Names: $($SessionHostNameHT.Keys -join ', ')"                
 $NotStartedVMs = @()
 foreach ($SessionHostName in $SessionHostNameHT.Keys) {
     Write-Output -InputObject "Processing '$SessionHostName' ..."
     $ResourceId = $SessionHostNameHT[$SessionHostName].ResourceId
     Write-Output -InputObject "`$ResourceId: $ResourceId"
-    #Checking if the VM has been started in the last 90 days
+    #Checking if the VM has been started in the last X days
     if (Get-AzLog -StartTime ((Get-Date).AddDays(-$DayAgo)) -ResourceId $ResourceId -Status Succeeded | Where-Object { $_.OperationName -eq "Start Virtual Machine" }) {
         Write-Output -InputObject "The '$SessionHostName' has been started in the last $DayAgo days"
     }
@@ -141,7 +141,7 @@ Write-Output -InputObject "`$NotStartedVMs: $($NotStartedVMs.Name -join ', ')"
 
 [array] $VMs = $NotStartedVMs
 foreach ($NotConnectedVM in $NotConnectedVMs) {
-    #If a VM has been started in the last 90 days but with no connection we keep it.
+    #If a VM has been started in the last X days but with no connection we keep it.
     if ($NotConnectedVM -notin $NotStartedVMs) {
         Write-Output -InputObject "'$($NotConnectedVM.Name)' has no connection in the last last $DayAgo days, but it has been started in the last $DayAgo days. We exclude it !"                
     }
@@ -160,7 +160,7 @@ Foreach ($VM in $VMs) {
         Write-Warning -Message "WHATIF: Removing '$($VM.Name)' Session Host from '$($HostPool.Name)' HostPool (ResourceGroup: '$($HostPool.ResourceGroupName)')"                
     }
     else {
-        #Normally this command line should be useless (if not connected or started in the last 90 days)
+        #Normally this command line should be useless (if not connected or started in the last X days)
         $VM | Stop-AzVM -Force
         Write-Output -InputObject "`$HostPool: $($HostPool | Out-string)"
         Write-Output -InputObject "Removing '$($VM.Name)' Session Host from '$($HostPool.Name)' HostPool (ResourceGroup: '$($HostPool.ResourceGroupName)')"                

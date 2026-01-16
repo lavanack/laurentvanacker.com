@@ -320,11 +320,10 @@ foreach ($RoleDefinitionName in $RoleDefinitionNames){
     foreach ($HostPool in $HostPools) {
         $HostPoolSessionHostResourceGroupIds = (Get-AzWvdSessionHost -HostPoolName $HostPool.Name -ResourceGroupName $HostPool.ResourceGroupName).ResourceId -replace "/providers/.+"
         foreach ($HostPoolSessionHostResourceGroupId in $HostPoolSessionHostResourceGroupIds) {
-            $Scope = $HostPoolSessionHostResourceGroupId
             $Parameters = @{
 	            ObjectId           = $AutomationAccount.Identity.PrincipalId 
 	            RoleDefinitionName = $RoleDefinition.Name
-	            Scope              = $Scope
+	            Scope              = $HostPoolSessionHostResourceGroupId
             }
 
             While (-not(Get-AzRoleAssignment @Parameters)) {
@@ -353,11 +352,10 @@ foreach ($RoleDefinitionName in $RoleDefinitionNames){
     foreach ($HostPool in $HostPools) {
         $HostPoolSessionIds = (Get-AzWvdHostPool -HostPoolName $HostPool.Name -ResourceGroupName $HostPool.ResourceGroupName).Id
         foreach ($HostPoolSessionId in $HostPoolSessionIds) {
-            $Scope = $HostPoolSessionId
             $Parameters = @{
 	            ObjectId           = $AutomationAccount.Identity.PrincipalId 
 	            RoleDefinitionName = $RoleDefinition.Name
-	            Scope              = $Scope
+	            Scope              = $HostPoolSessionId
             }
 
             While (-not(Get-AzRoleAssignment @Parameters)) {
@@ -384,11 +382,10 @@ foreach ($RoleDefinitionName in $RoleDefinitionNames){
 $RoleDefinitionName = 'Log Analytics Reader'
 $RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
 foreach ($LogAnalyticsWorkspace in $LogAnalyticsWorkspaces) {
-    $Scope = $LogAnalyticsWorkspace.ResourceId
     $Parameters = @{
 	    ObjectId           = $AutomationAccount.Identity.PrincipalId 
 	    RoleDefinitionName = $RoleDefinition.Name
-	    Scope              = $Scope
+	    Scope              = $LogAnalyticsWorkspace.ResourceId
     }
 
     While (-not(Get-AzRoleAssignment @Parameters)) {
