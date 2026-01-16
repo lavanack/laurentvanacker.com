@@ -133,7 +133,7 @@ Invoke-WebRequest -Uri $templateUrl -OutFile $templateFilePath -UseBasicParsing
 ((Get-Content -Path $templateFilePath -Raw) -replace '<publisher>', $SrcObjParamsARM.Publisher) | Set-Content -Path $templateFilePath
 ((Get-Content -Path $templateFilePath -Raw) -replace '<offer>', $SrcObjParamsARM.Offer) | Set-Content -Path $templateFilePath
 ((Get-Content -Path $templateFilePath -Raw) -replace '<sku>', $SrcObjParamsARM.sku) | Set-Content -Path $templateFilePath
-Write-Output -InputObject "Template File Content: $(Set-Content -Path $templateFilePath)"
+Write-Output -InputObject "Template File Content: $(Get-Content -Path $templateFilePath)"
 #endregion
 
 #region Create the gallery definition

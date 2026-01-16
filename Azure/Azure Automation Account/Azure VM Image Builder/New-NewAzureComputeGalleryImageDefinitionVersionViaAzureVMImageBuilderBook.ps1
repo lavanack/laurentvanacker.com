@@ -225,7 +225,7 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 }
 
 
-$Location = "EastUS"
+$Location = "EastUS2"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
 $AzureVMNameMaxLength = $ResourceTypeShortNameHT["Compute/virtualMachines"].lengthMax
@@ -264,34 +264,6 @@ $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Locatio
 $AutomationAccount = New-AzAutomationAccount -Name $AutomationAccountName -Location $Location -ResourceGroupName $ResourceGroupName -AssignSystemIdentity
 #endregion
 
-
-#region Azurecompute Gallery Resource Group Setup
-$timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-$AzureComputeGalleryResourceGroupName = "{0}-avd-aib-{1}-{2}" -f $ResourceGroupPrefix, $LocationShortName, $TimeInt 
-$AzureComputeGalleryResourceGroup = Get-AzResourceGroup -Name $AzureComputeGalleryResourceGroupName -ErrorAction Ignore 
-if (-not($AzureComputeGalleryResourceGroup)) {
-    # Create Resource Group
-    $AzureComputeGalleryResourceGroup = New-AzResourceGroup -Name $AzureComputeGalleryResourceGroupName -Location $Location -Force
-}
-Write-Verbose "`$AzureComputeGalleryResourceGroup: $AzureComputeGalleryResourceGroup"
-#endregion
-
-#region 'Compute Gallery Artifacts Publisher' RBAC Assignment
-$RoleDefinition = Get-AzRoleDefinition -Name "Compute Gallery Artifacts Publisher"
-$Parameters = @{
-    ObjectId           = $AutomationAccount.Identity.PrincipalId
-    RoleDefinitionName = $RoleDefinition.Name
-    Scope              = $AzureComputeGalleryResourceGroup.ResourceId
-}
-while (-not(Get-AzRoleAssignment @Parameters)) {
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
-    $RoleAssignment = New-AzRoleAssignment @Parameters
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)]`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
-    Start-Sleep -Seconds 30
-}
-#endregion 
-
 #region New-StartAzureVirtualMachineRunBook
 #region Schedule Setup
 #region Azure Virtual Machine - Daily Start
@@ -315,10 +287,19 @@ $Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $Automati
 #endregion 
 
 #region Parameters
-$TimeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-$GalleryResourceGroupName = "rg-avd-aib-use2-{0}" -f $timeInt
+
+#region Azurecompute Gallery Resource Group Setup
+$timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+$GalleryResourceGroupName = "{0}-avd-aib-{1}-{2}" -f $ResourceGroupPrefix, $LocationShortName, $TimeInt 
+$GalleryResourceGroup = Get-AzResourceGroup -Name $GalleryResourceGroupName -ErrorAction Ignore 
+if (-not($GalleryResourceGroup)) {
+    # Create Resource Group
+    $GalleryResourceGroup = New-AzResourceGroup -Name $GalleryResourceGroupName -Location $Location -Force
+}
+Write-Verbose "`$GalleryResourceGroup: $GalleryResourceGroup"
+#endregion
+
 $GalleryName = "gal_avd_use2_{0}" -f $timeInt
-$Location = "EastUS2"
 $Tags =  @{
     "SecurityControl" = "Ignore"
     #"Script" = $(Split-Path -Path $MyInvocation.ScriptName -Leaf)
@@ -366,6 +347,22 @@ Register-AzAutomationScheduledRunbook @Params -ScheduleName $Schedule.Name -Para
 #endregion
 
 #region RBAC Assignments
+#region 'Compute Gallery Artifacts Publisher' RBAC Assignment
+$RoleDefinition = Get-AzRoleDefinition -Name "Compute Gallery Artifacts Publisher"
+$Parameters = @{
+    ObjectId           = $AutomationAccount.Identity.PrincipalId
+    RoleDefinitionName = $RoleDefinition.Name
+    Scope              = $GalleryResourceGroup.ResourceId
+}
+while (-not(Get-AzRoleAssignment @Parameters)) {
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
+    $RoleAssignment = New-AzRoleAssignment @Parameters
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)]`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+    Start-Sleep -Seconds 30
+}
+#endregion 
+
 #region 'Resource Group Contributor' RBAC Assignments
 foreach ($CurrentResourceGroup in $GalleryResourceGroup, $StagingResourceGroupARM)  {
     $RoleDefinition = Get-AzRoleDefinition -Name "Contributor"
@@ -470,28 +467,6 @@ While (-not(Get-AzRoleAssignment @Parameters)) {
 }
 #endregion
 
-#region RBAC Owner Role on both Staging Resource Groups
-foreach ($CurrentStagingResourceGroup in $StagingResourceGroupARM) {
-	$RoleDefinition = Get-AzRoleDefinition -Name "Contributor"
-	$Parameters = @{
-		ObjectId           = $AssignedIdentity.PrincipalId
-		RoleDefinitionName = $RoleDefinition.Name
-		Scope              = $CurrentStagingResourceGroup.ResourceId
-	}
-	while (-not(Get-AzRoleAssignment @Parameters)) {
-		Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' scope"
-		try {
-			$RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
-		} 
-		catch {
-			$RoleAssignment = $null
-		}
-		Write-Output -InputObject "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-		Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
-		Start-Sleep -Seconds 30
-	}
-}
-#endregion
 #endregion
 
 #region Disabling/Enabling Log Verbose Records 
