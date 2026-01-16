@@ -313,8 +313,8 @@ Register-AzAutomationScheduledRunbook @Params -ScheduleName $Schedule.Name -Para
 #endregion
 
 #region RBAC Assignments
-#region 'Desktop Virtualization Reader', 'Desktop Virtualization Power On Off Contributor', 'Virtual Machine Contributor', 'Network Contributor' RBAC Assignments
-$RoleDefinitionNames = 'Owner', 'Desktop Virtualization Reader', 'Desktop Virtualization Power On Off Contributor', 'Virtual Machine Contributor', 'Network Contributor'
+#region 'Desktop Virtualization Power On Off Contributor', 'Virtual Machine Contributor', 'Network Contributor' RBAC Assignments
+$RoleDefinitionNames = 'Desktop Virtualization Power On Off Contributor', 'Virtual Machine Contributor', 'Network Contributor'
 foreach ($RoleDefinitionName in $RoleDefinitionNames){
     $RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
     foreach ($HostPool in $HostPools) {
@@ -344,10 +344,9 @@ foreach ($RoleDefinitionName in $RoleDefinitionNames){
         }
     }
 }
-
 #endregion
 
-#region 'Desktop Virtualization Host Pool Reader' RBAC Assignments
+#region 'Desktop Virtualization Host Pool Reader' RBAC Assignment
 $RoleDefinitionNames = 'Desktop Virtualization Host Pool Reader'
 foreach ($RoleDefinitionName in $RoleDefinitionNames){
     $RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
@@ -408,16 +407,15 @@ foreach ($LogAnalyticsWorkspace in $LogAnalyticsWorkspaces) {
     }
 }
 #endregion
-
 #endregion
 
-#region Enabling Log Verbose Records 
+#region Disabling/Enabling Log Verbose Records 
 $Params = @{
     AutomationAccountName = $AutomationAccount.AutomationAccountName
     ResourceGroupName = $ResourceGroupName
     Name = $RunBookName 
 }
-Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
+$null = Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
 #endregion
 
 #region Test 
@@ -432,7 +430,7 @@ $Parameters = @{
     LogAnalyticsWorkspaceId = $LogAnalyticsWorkspaceIds
     HostPoolResourceId = $HostPools.Id
     DayAgo = $DayAgo
-    WhatIf = $true
+    WhatIf = $false
 }
 $Params = @{
     AutomationAccountName = $AutomationAccount.AutomationAccountName
