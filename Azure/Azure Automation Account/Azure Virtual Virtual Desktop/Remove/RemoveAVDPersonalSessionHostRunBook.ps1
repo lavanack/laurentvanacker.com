@@ -98,10 +98,18 @@ foreach ($CurrentLogAnalyticsWorkspaceId in $LogAnalyticsWorkspaceId) {
     Write-Output -InputObject "`$Result.Results.SessionHostName: $($Result.Results.SessionHostName -join ', ')"                
     $Result.Results.SessionHostName -replace "\..+$" | ForEach-Object -Process { 
         Write-Output -InputObject "`$_: $_"                
-        if (($SessionHostNameHT) -and ($SessionHostNameHT[$_])) { 
-            Write-Output -InputObject "Adding '$_' as Not Connected VM ..."                
-            $NotConnectedVMs += Get-AzVM -ResourceId $SessionHostNameHT[$_].ResourceId 
-        } 
+        if ($SessionHostNameHT)  { 
+            if ($SessionHostNameHT[$_]) {
+                Write-Output -InputObject "No connection in the last $DayAgo days for '$_' ..."                
+                $NotConnectedVMs += Get-AzVM -ResourceId $SessionHostNameHT[$_].ResourceId 
+            }
+            else {
+                Write-Output -InputObject "'$_' is not a member of the HostPool(s) to process ..."                
+            }
+        }
+        else {
+            Write-Output -InputObject "Nothing to process as not connected session hosts ..."                
+        }
     } 
     #endregion 
 }

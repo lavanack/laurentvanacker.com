@@ -430,7 +430,7 @@ $Parameters = @{
     LogAnalyticsWorkspaceId = $LogAnalyticsWorkspaceIds
     HostPoolResourceId = $HostPools.Id
     DayAgo = $DayAgo
-    WhatIf = $false
+    WhatIf = $true
 }
 $Params = @{
     AutomationAccountName = $AutomationAccount.AutomationAccountName
