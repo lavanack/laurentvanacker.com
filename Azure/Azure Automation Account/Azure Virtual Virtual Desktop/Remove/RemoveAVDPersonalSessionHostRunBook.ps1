@@ -143,7 +143,7 @@ Write-Output -InputObject "`$NotStartedVMs: $($NotStartedVMs.Name -join ', ')"
 foreach ($NotConnectedVM in $NotConnectedVMs) {
     #If a VM has been started in the last 90 days but with no connection we keep it.
     if ($NotConnectedVM -notin $NotStartedVMs) {
-        Write-Output -InputObject "'$($NotConnectedVM.Name)' is not in the `$NotStartedVMs list. We exclude it !"                
+        Write-Output -InputObject "'$($NotConnectedVM.Name)' has no connection in the last last $DayAgo days, but it has been started in the last $DayAgo days. We exclude it !"                
     }
     else {
         Write-Output -InputObject "Adding '$($NotConnectedVM.Name)' as VM to process !"                
