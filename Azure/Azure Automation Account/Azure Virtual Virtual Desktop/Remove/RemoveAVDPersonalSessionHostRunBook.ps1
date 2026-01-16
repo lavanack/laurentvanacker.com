@@ -94,23 +94,27 @@ foreach ($CurrentLogAnalyticsWorkspaceId in $LogAnalyticsWorkspaceId) {
     Write-Output -InputObject "`$Query: $Query"
     # Run the query
     $Result = Invoke-AzOperationalInsightsQuery -WorkspaceId $CurrentLogAnalyticsWorkspaceId -Query $Query
-    Write-Output -InputObject "`$Result: $($Result | Out-String)"                
-    Write-Output -InputObject "`$Result.Results.SessionHostName: $($Result.Results.SessionHostName -join ', ')"                
-    $Result.Results.SessionHostName -replace "\..+$" | ForEach-Object -Process { 
-        Write-Output -InputObject "`$_: $_"                
-        if ($SessionHostNameHT)  { 
-            if ($SessionHostNameHT[$_]) {
-                Write-Output -InputObject "No connection in the last $DayAgo days for '$_' ..."                
-                $NotConnectedVMs += Get-AzVM -ResourceId $SessionHostNameHT[$_].ResourceId 
+    Write-Output -InputObject "`$Result: $($Result | Out-String)"
+    if ($Result) {
+        Write-Output -InputObject "`$Result.Results.SessionHostName: $($Result.Results.SessionHostName -join ', ')"                
+        $Result.Results.SessionHostName -replace "\..+$" | ForEach-Object -Process { 
+            if ($SessionHostNameHT)  { 
+                if ($SessionHostNameHT[$_]) {
+                    Write-Output -InputObject "No connection in the last $DayAgo days for '$_' ..."                
+                    $NotConnectedVMs += Get-AzVM -ResourceId $SessionHostNameHT[$_].ResourceId 
+                }
+                else {
+                    Write-Output -InputObject "'$_' is not a member of the HostPool(s) to process ..."                
+                }
             }
             else {
-                Write-Output -InputObject "'$_' is not a member of the HostPool(s) to process ..."                
+                Write-Output -InputObject "Nothing to process as not connected session hosts ..."                
             }
-        }
-        else {
-            Write-Output -InputObject "Nothing to process as not connected session hosts ..."                
-        }
-    } 
+        } 
+    }
+    else {
+        Write-Output -InputObject "No result for Session Hosts Connection in the Log Analytics Workspace for the last $DayAgo days."                        
+    }                
     #endregion 
 }
 Write-Output -InputObject "`$NotConnectedVMs: $($NotConnectedVMs.Name -join ', ')"                
