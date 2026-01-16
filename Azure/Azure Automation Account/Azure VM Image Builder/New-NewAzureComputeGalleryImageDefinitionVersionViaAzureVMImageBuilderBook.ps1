@@ -291,7 +291,6 @@ while (-not(Get-AzRoleAssignment @Parameters)) {
     Start-Sleep -Seconds 30
 }
 #endregion 
-#endregion
 
 #region New-StartAzureVirtualMachineRunBook
 #region Schedule Setup
@@ -310,17 +309,65 @@ $RunBookName = "{0}-NewAzureComputeGalleryImageDefinitionVersionViaAzureVMImageB
 #$Runbook = New-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName -Type PowerShell
 # Publish the runbook
 #Publish-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName
-
-# Create a new variable(s)
-$VariableName = "ResourceGroupId"
-#Replace by your own LAW Id(s)
-$VariableValue = $AzureComputeGalleryResourceGroup.ResourceId
-$Variable = New-AzAutomationVariable -AutomationAccountName $AutomationAccount.AutomationAccountName-Name $VariableName -Value $VariableValue -Encrypted $false -ResourceGroupName $ResourceGroupName -Description "LogAnalyticsWorkspace Ids (comma-separated values) for AVD Host Pools"
 #endregion 
 
 $Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20VM%20Image%20Builder/NewAzureComputeGalleryImageDefinitionVersionViaAzureVMImageBuilder.ps1" -Description "PowerShell Azure Automation Runbook for Generating an Azure Compute Gallery Image Definition Version Via Azure VM Image Builder" 
 #endregion 
 
+#region Parameters
+$TimeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+$ResourceGroupName = "rg-avd-aib-use2-{0}" -f $timeInt
+$GalleryName = "gal_avd_use2_{0}" -f $timeInt
+$Location = "EastUS2"
+$Tags =  @{
+    "SecurityControl" = "Ignore"
+    #"Script" = $(Split-Path -Path $MyInvocation.ScriptName -Leaf)
+} 
+$Parameters = @{
+    ResourceGroupName = $ResourceGroupName 
+    GalleryName = $GalleryName 
+}
+#endregion
+
+#region Azure Compute Gallery
+$Gallery = Get-AzGallery @Parameters -ErrorAction Ignore
+if (-not($Gallery)) {
+    $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Tag $Tags -force
+    $Gallery = New-AzGallery @Parameters -Location $Location
+}
+#endregion
+
+#region Staging ResourceGroup
+$Image = @{
+	Publisher = 'MicrosoftWindowsDesktop'
+	Offer     = 'Windows-11'    
+	Sku       = 'win11-25h2-avd'  
+	Version   = 'latest'
+}
+$imageDefinitionNameARM = "{0}-arm-vscode" -f $Image.Sku
+$StagingResourceGroupNameARM = "IT_{0}_{1}_{2}" -f $ResourceGroupName, $imageTemplateNameARM.Substring(0, 13), (New-Guid).Guid
+$StagingResourceGroupARM = New-AzResourceGroup -Name $StagingResourceGroupNameARM -Location $Location -Tag $Tags -force
+#endregion
+
+#region 'Resource Group Contributor' RBAC Assignments
+foreach ($CurrentResourceGroup in $ResourceGroup, $StagingResourceGroupARM)  {
+    $RoleDefinition = Get-AzRoleDefinition -Name "Contributor"
+    $Parameters = @{
+        ObjectId           = $AutomationAccount.Identity.PrincipalId
+        RoleDefinitionName = $RoleDefinition.Name
+        Scope              = $CurrentResourceGroup.ResourceId
+    }
+    while (-not(Get-AzRoleAssignment @Parameters)) {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
+        $RoleAssignment = New-AzRoleAssignment @Parameters
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)]`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+        Start-Sleep -Seconds 30
+    }
+}
+#endregion 
+
+
 # Link the schedule to the runbook
-Register-AzAutomationScheduledRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ScheduleName $Schedule.Name -ResourceGroupName $ResourceGroupName #-Parameters @{ }
+Register-AzAutomationScheduledRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ScheduleName $Schedule.Name -ResourceGroupName $ResourceGroupName -Parameters @{ "GalleryResourceId" = $Gallery.Id; Image = $($Image | ConvertTo-Json -Compress); $StagingResourceGroupNameARM = $StagingResourceGroupARM.ResourceGroupName}
 #endregion
