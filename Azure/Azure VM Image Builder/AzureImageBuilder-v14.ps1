@@ -22,7 +22,11 @@ of the Sample Code.
 function New-AzureComputeGallery {
 	[CmdletBinding(PositionalBinding = $false)]
 	Param(
-		[Parameter(Mandatory = $false)]
+		[Parameter(Mandatory = $true, ParameterSetName='GalleryName')]
+		[string]$GalleryName,
+		[Parameter(Mandatory = $true, ParameterSetName='GalleryName')]
+		[string]$GalleryResourceGroupName,
+		[Parameter(Mandatory = $false, ParameterSetName='GalleryResourceId')]
 		[string]$GalleryResourceId,
 		[Parameter(Mandatory = $false)]
 		[string]$Location = "EastUS2",
@@ -73,12 +77,15 @@ function New-AzureComputeGallery {
 	$Role = "aib"
 	#Timestamp
     $timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-    if ([string]::IsNullOrEmpty($GalleryResourceId)) {
-	    $ResourceGroupName = "{0}-{1}-{2}-{3}-{4}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $TimeInt 
-    }
-    else {
+    if ($GalleryResourceId) {
         $Gallery = Get-AzGallery -ResourceId $GalleryResourceId
         $ResourceGroupName = $Gallery.ResourceGroupName
+    }
+    elseif ($GalleryName -and $GalleryResourceGroupName) {
+        $ResourceGroupName = $GalleryResourceGroupName
+    }
+    else {
+	    $ResourceGroupName = "{0}-{1}-{2}-{3}-{4}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $TimeInt 
     }
 	$ResourceGroupName = $ResourceGroupName.ToLower()
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ResourceGroupName: $ResourceGroupName"
@@ -289,9 +296,11 @@ function New-AzureComputeGallery {
 
     #region Azure Compute Gallery
     if ([string]::IsNullOrEmpty($GalleryResourceId)) {
-	    #region Create an Azure Compute Gallery
-	    $GalleryName = "{0}_{1}_{2}_{3}" -f $AzureComputeGalleryPrefix, $Project, $LocationShortName, $timeInt
-	    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$GalleryName: $GalleryName"
+        if ([string]::IsNullOrEmpty($GalleryName)) {
+	        #region Create an Azure Compute Gallery
+	        $GalleryName = "{0}_{1}_{2}_{3}" -f $AzureComputeGalleryPrefix, $Project, $LocationShortName, $timeInt
+	        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$GalleryName: $GalleryName"
+        }
 
 	    # Create the gallery
         $Parameters = @{
@@ -635,11 +644,22 @@ While (Get-AzResourceProvider -ProviderNamespace $RequiredResourceProviders | Wh
 }
 $Jobs | Remove-Job -Force
 #endregion
-$ResourceGroupName = "rg-avd-aib-use2-1768295361"
-$GalleryName = "gal_avd_use2_1768295361"
-$GalleryResourceId = (Get-AzGallery -ResourceGroupName $ResourceGroupName -GalleryName $GalleryName).Id
-#$AzureComputeGallery = New-AzureComputeGallery -GalleryResourceId $GalleryResourceId -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
-$AzureComputeGallery = New-AzureComputeGallery -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
+$timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+$ResourceGroupName = "rg-avd-aib-use2-{0}" -f $timeInt
+$GalleryName = "gal_avd_use2_{0}" -f $timeInt
+$GalleryResourceId = (Get-AzGallery -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -ErrorAction Ignore).Id
+#We specify an existing Azure Compute Gallery Resource Id
+if ($GalleryResourceId) {
+    $AzureComputeGallery = New-AzureComputeGallery -GalleryResourceId $GalleryResourceId -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
+}
+#We specify an Azure Compute Gallery Name and A Resource Group Name. If they exist they will be used, if not they will be created.
+elseif ($GalleryName -and $ResourceGroupName) {
+    $AzureComputeGallery = New-AzureComputeGallery  -GalleryName $GalleryName -GalleryResourceGroupName $ResourceGroupName -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
+}
+#We will create a new Azure Compute Gallery (and its related Resource Group)
+else {
+    $AzureComputeGallery = New-AzureComputeGallery -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
+}
 $AzureComputeGallery
 
 $EndTime = Get-Date
