@@ -54,7 +54,7 @@ Write-Output -InputObject "`$subscriptionID: $subscriptionID"
 $Parameters = @{
       Name = "Az.*"
       Repository = "PSGallery"
-      Scope = "CurrentUser"
+      Scope = "AllUsers"
       TrustRepository = $true
       AcceptLicense = $true
       Force = $true
@@ -65,7 +65,7 @@ $ModuleNames = "Az.Accounts", "Az.ImageBuilder", "Az.Compute"
 $Parameters = @{
       Name = $ModuleNames
       Repository = "PSGallery"
-      Scope = "CurrentUser"
+      Scope = "AllUsers"
       TrustRepository = $true
       AcceptLicense = $true
       Force = $true
