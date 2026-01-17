@@ -46,9 +46,33 @@ Write-Output -InputObject "`$AzureContext: $($AzureContext | Out-String)"
 # set and store context
 $AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -DefaultProfile $AzureContext
 Write-Output -InputObject "`$AzureContext: $($AzureContext | Out-String)" 
-$subscriptionID = $GalleryResourceId -replace "/resourcegroups/.+" -replace "/subscriptions/"
+$subscriptionID = $AzureContext.Subscription.Id
 Write-Output -InputObject "`$subscriptionID: $subscriptionID" 
 #endregion
+
+#region Module Setup
+$Parameters = @{
+      Name = "Az.*"
+      Repository = "PSGallery"
+      Scope = "CurrentUser"
+      TrustRepository = $true
+      AcceptLicense = $true
+      Force = $true
+}
+Update-PSResource @Parameters
+
+$ModuleNames = "Az.Accounts", "Az.ImageBuilder", "Az.Compute"
+$Parameters = @{
+      Name = $ModuleNames
+      Repository = "PSGallery"
+      Scope = "CurrentUser"
+      TrustRepository = $true
+      AcceptLicense = $true
+      Force = $true
+}
+Install-PSResource @Parameters
+#endregion
+
 
 #region Parameters
 Write-Output -InputObject "`$GalleryResourceId: $GalleryResourceId" 
@@ -75,7 +99,9 @@ $SrcObjParamsARM = $Image | ConvertFrom-Json
 #endregion
 
 $Gallery = Get-AzGallery -ResourceId $GalleryResourceId
+Write-Output -InputObject "`$Gallery: $($Gallery  | Select-Object -Property * | Out-String)..."
 $ResourceGroupName = $Gallery.ResourceGroupName
+Write-Output -InputObject "`$ResourceGroupName: $ResourceGroupName  ..."
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -Location $Gallery.Location
 $runOutputNameARM = "cgOutputARM"
 $Version = Get-Date -UFormat "%Y.%m.%d"
@@ -156,7 +182,6 @@ $GalleryImageDefinitionARM = New-AzGalleryImageDefinition @GalleryParams
 #endregion
 
 #region Submit the template
-Write-Output -InputObject "`$ResourceGroupName: $ResourceGroupName  ..."
 Write-Output -InputObject "`$templateFilePath: $templateFilePath  ..."
 Write-Output -InputObject "`$imageTemplateNameARM: $imageTemplateNameARM  ..."
 Write-Output -InputObject "`$location: $location  ..."
