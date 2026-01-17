@@ -54,7 +54,6 @@ Write-Output -InputObject "`$subscriptionID: $subscriptionID"
 $Parameters = @{
       Name = "Az.*"
       Repository = "PSGallery"
-      Scope = "AllUsers"
       TrustRepository = $true
       AcceptLicense = $true
       Force = $true
