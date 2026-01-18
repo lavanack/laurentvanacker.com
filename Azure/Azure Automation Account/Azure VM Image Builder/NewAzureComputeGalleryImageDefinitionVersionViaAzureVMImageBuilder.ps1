@@ -51,6 +51,16 @@ Write-Output -InputObject "`$subscriptionID: $subscriptionID"
 #endregion
 
 #region Module Setup
+$ModuleNames = "Az.Accounts", "Az.ImageBuilder", "Az.Compute"
+$Parameters = @{
+      Name = $ModuleNames
+      Repository = "PSGallery"
+      Scope = "AllUsers"
+      TrustRepository = $true
+      AcceptLicense = $true
+}
+Install-PSResource @Parameters
+
 $Parameters = @{
       Name = "Az.*"
       Repository = "PSGallery"
@@ -61,16 +71,6 @@ $Parameters = @{
 }
 Update-PSResource @Parameters
 
-$ModuleNames = "Az.Accounts", "Az.ImageBuilder", "Az.Compute"
-$Parameters = @{
-      Name = $ModuleNames
-      Repository = "PSGallery"
-      Scope = "AllUsers"
-      TrustRepository = $true
-      AcceptLicense = $true
-      Force = $true
-}
-Install-PSResource @Parameters
 #endregion
 
 
@@ -195,6 +195,7 @@ $TemplateParameterObject = @{
 $ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject $TemplateParameterObject  #-Tag $Tags
 	
 #region Build the image
+Import-Module -Name 'Az.ImageBuilder'
 Write-Output -InputObject "Starting Image Builder Template from '$imageTemplateNameARM' (As Job) ..."
 $Jobs += Start-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateNameARM -AsJob
 #endregion
