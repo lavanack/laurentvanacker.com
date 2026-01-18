@@ -503,7 +503,6 @@ $Params = @{
 $null = Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
 #endregion
 
-<#
 #region Module Setup
 $ModuleNames = "Az.Accounts", "Az.ImageBuilder", "Az.Compute"
 foreach ($ModuleName in $ModuleNames) {
@@ -528,7 +527,7 @@ While (Get-AzAutomationModule @Parameters | Where-Object -FilterScript { $_.Prov
     Start-Sleep -Seconds 30
 }
 #endregion
-#>
+
 #region Test
 #Start-Sleep -Seconds 30
 #region PowerShell
