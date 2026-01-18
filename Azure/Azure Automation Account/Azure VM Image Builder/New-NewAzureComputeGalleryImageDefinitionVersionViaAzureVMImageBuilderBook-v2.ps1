@@ -282,60 +282,14 @@ $RunBookName = "{0}-NewAzureComputeGalleryImageDefinitionVersionViaAzureVMImageB
 #Publish-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName
 #endregion 
 
+#$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20VM%20Image%20Builder/NewAzureComputeGalleryImageDefinitionVersionViaAzureVMImageBuilder-v2.ps1" -Description "PowerShell Azure Automation Runbook for Generating an Azure Compute Gallery Image Definition Version Via Azure VM Image Builder" 
 $Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20VM%20Image%20Builder/NewAzureComputeGalleryImageDefinitionVersionViaAzureVMImageBuilder.ps1" -Description "PowerShell Azure Automation Runbook for Generating an Azure Compute Gallery Image Definition Version Via Azure VM Image Builder" 
 #endregion 
 
-#region Parameters
-
-#region Azurecompute Gallery Resource Group Setup
-$timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-$GalleryResourceGroupName = "{0}-avd-aib-{1}-{2}" -f $ResourceGroupPrefix, $LocationShortName, $TimeInt 
-$GalleryResourceGroup = Get-AzResourceGroup -Name $GalleryResourceGroupName -ErrorAction Ignore 
-if (-not($GalleryResourceGroup)) {
-    # Create Resource Group
-    $GalleryResourceGroup = New-AzResourceGroup -Name $GalleryResourceGroupName -Location $Location -Force
-}
-Write-Verbose "`$GalleryResourceGroup: $GalleryResourceGroup"
-#endregion
-
-$GalleryName = "gal_avd_use2_{0}" -f $timeInt
-$Tags =  @{
-    "SecurityControl" = "Ignore"
-    #"Script" = $(Split-Path -Path $MyInvocation.ScriptName -Leaf)
-} 
-$Parameters = @{
-    ResourceGroupName = $GalleryResourceGroupName 
-    GalleryName = $GalleryName 
-}
-#endregion
-
-#region Azure Compute Gallery
-$Gallery = Get-AzGallery @Parameters -ErrorAction Ignore
-if (-not($Gallery)) {
-    $GalleryResourceGroup = New-AzResourceGroup -Name $GalleryResourceGroupName -Location $Location -Tag $Tags -force
-    $Gallery = New-AzGallery @Parameters -Location $Location
-}
-#endregion
-
-#region Staging ResourceGroup
-$Image = @{
-	Publisher = 'MicrosoftWindowsDesktop'
-	Offer     = 'Windows-11'    
-	Sku       = 'win11-25h2-avd'  
-	Version   = 'latest'
-}
-$imageDefinitionNameARM = "{0}-arm-vscode" -f $Image.Sku
-$imageTemplateNameARM = "{0}-template-{1}" -f $imageDefinitionNameARM, $timeInt
-$StagingResourceGroupNameARM = "IT_{0}_{1}_{2}" -f $GalleryResourceGroupName, $imageTemplateNameARM.Substring(0, 13), (New-Guid).Guid
-$StagingResourceGroupARM = New-AzResourceGroup -Name $StagingResourceGroupNameARM -Location $Location -Tag $Tags -force
-#endregion
-
 #region Link the schedule to the runbook
 $Parameters = @{ 
-    GalleryResourceId = $Gallery.Id
-    Image = $($Image | ConvertTo-Json -Compress)
-    StagingResourceGroupNameARM = $StagingResourceGroupARM.ResourceGroupName
-    AssignedIdentityId = $AIBAssignedIdentity.Id
+	GalleryName = $GalleryName
+	GalleryResourceGroupName = $GalleryResourceGroupName
 }
 $Params = @{
     AutomationAccountName = $AutomationAccount.AutomationAccountName
@@ -347,135 +301,10 @@ Register-AzAutomationScheduledRunbook @Params -ScheduleName $Schedule.Name -Para
 #endregion
 
 #region RBAC Assignments
-#region AIB User Assigned Identity
-#region AIB User Assigned Identity Setup
-$Scope = $GalleryResourceGroup.ResourceId
-$RoleAssignment = Get-AzRoleAssignment -Scope $Scope | Where-Object -FilterScript { $_.RoleDefinitionName -match "^Azure Image Builder Image Def"}
-    
-if ($RoleAssignment) {
-    Write-Output -InputObject "'$($RoleAssignment.RoleDefinitionName)' Role Definition is already set to '$($RoleAssignment.DisplayName)' on the '$($RoleAssignment.Scope)' scope ..."
-    $AIBAssignedIdentity = Get-AzUserAssignedIdentity -ResourceGroupName $($RoleAssignment.Scope -replace ".+/") -Name $($RoleAssignment.DisplayName)
-    $imageRoleDefName = $RoleAssignment.RoleDefinitionName
-}
-else {
-	#region setup role def names, these need to be unique
-	$imageRoleDefName = "Azure Image Builder Image Def - $timeInt"
-	$identityName = "aibIdentity-$timeInt"
-	Write-Output -InputObject "`$imageRoleDefName: $imageRoleDefName"
-	Write-Output -InputObject "`$identityName: $identityName"
-	#endregion
-
-	#region Create the identity
-	Write-Output -InputObject "Creating User Assigned Identity '$identityName' ..."
-	$AIBAssignedIdentity = New-AzUserAssignedIdentity -ResourceGroupName $Gallery.ResourceGroupName -Name $identityName -Location $location
-	#endregion
-        
-}
-#endregion
-
-#region aibRoleImageCreation.json creation and RBAC Assignment
-#$aibRoleImageCreationUrl="https://raw.githubusercontent.com/PeterR-msft/M365AVDWS/master/Azure%20Image%20Builder/aibRoleImageCreation.json"
-#$aibRoleImageCreationUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/12_Creating_AIB_Security_Roles/aibRoleImageCreation.json"
-#$aibRoleImageCreationUrl="https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/aibRoleImageCreation.json"
-$aibRoleImageCreationUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/aibRoleImageCreation.json"
-#$aibRoleImageCreationPath = "aibRoleImageCreation.json"
-$aibRoleImageCreationPath = Join-Path -Path $env:TEMP -ChildPath $(Split-Path $aibRoleImageCreationUrl -Leaf)
-#Generate a unique file name 
-$aibRoleImageCreationPath = $aibRoleImageCreationPath -replace ".json$", "_$timeInt.json"
-Write-Output -InputObject "`$aibRoleImageCreationPath: $aibRoleImageCreationPath"
-
-# Download the config
-Invoke-WebRequest -Uri $aibRoleImageCreationUrl -OutFile $aibRoleImageCreationPath -UseBasicParsing
-
-((Get-Content -Path $aibRoleImageCreationPath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $aibRoleImageCreationPath
-((Get-Content -Path $aibRoleImageCreationPath -Raw) -replace '<rgName>', $Gallery.ResourceGroupName) | Set-Content -Path $aibRoleImageCreationPath
-((Get-Content -Path $aibRoleImageCreationPath -Raw) -replace 'Azure Image Builder Service Image Creation Role', $imageRoleDefName) | Set-Content -Path $aibRoleImageCreationPath
-
-#region Create a role definition
-$RoleDefinition = Get-AzRoleDefinition -Name $imageRoleDefName
-if ($RoleDefinition) {
-	Write-Output -InputObject "The '$imageRoleDefName' Role Definition already exists ..."
-}
-else {
-	Write-Output -InputObject "Creating '$imageRoleDefName' Role Definition ..."
-	$RoleDefinition = New-AzRoleDefinition -InputFile $aibRoleImageCreationPath
-}
-#endregion
-
-# Grant the role definition to the VM Image Builder service principal
-<#
-if (-not(Get-AzRoleAssignment -ObjectId $AIBAssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $Scope)) {
-    Write-Output -InputObject "Assigning the '$($RoleDefinition.Name)' RBAC role to the '$($AIBAssignedIdentity.PrincipalId)' System Assigned Managed Identity"
-    $RoleAssignment = New-AzRoleAssignment -ObjectId $AIBAssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $Scope
-    Write-Output -InputObject "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-} else {
-    Write-Output -InputObject "The '$($RoleDefinition.Name)' RBAC role is already assigned to the '$($AIBAssignedIdentity.PrincipalId)' System Assigned Managed Identity"
-} 
-#> 
-$Parameters = @{
-	ObjectId           = $AIBAssignedIdentity.PrincipalId
-	RoleDefinitionName = $RoleDefinition.Name
-	Scope              = $Scope
-}
-
-While (-not(Get-AzRoleAssignment @Parameters)) {
-	Write-Output -InputObject "Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
-	try {
-		$RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
-	} 
-	catch {
-		$RoleAssignment = $null
-	}
-	Write-Output -InputObject "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-	if ($null -eq $RoleAssignment) {
-		Write-Output -InputObject "Sleeping 30 seconds"
-		Start-Sleep -Seconds 30
-	}
-}
-#endregion
-
-#region 'Resource Group Contributor' RBAC Assignments
-foreach ($CurrentResourceGroup in $StagingResourceGroupARM)  {
-    $RoleDefinition = Get-AzRoleDefinition -Name "Contributor"
-    $Parameters = @{
-        ObjectId           = $AIBAssignedIdentity.PrincipalId
-        RoleDefinitionName = $RoleDefinition.Name
-        Scope              = $CurrentResourceGroup.ResourceId
-    }
-    while (-not(Get-AzRoleAssignment @Parameters)) {
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
-        $RoleAssignment = New-AzRoleAssignment @Parameters
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)]`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
-        Start-Sleep -Seconds 30
-    }
-}
-#endregion 
-
-#endregion
-
 #region Automation Account System Assigned Identity
-#region 'Resource Group Contributor' RBAC Assignments
-foreach ($CurrentResourceGroup in $GalleryResourceGroup, $StagingResourceGroupARM)  {
-    $RoleDefinition = Get-AzRoleDefinition -Name "Contributor"
-    $Parameters = @{
-        ObjectId           = $AutomationAccount.Identity.PrincipalId
-        RoleDefinitionName = $RoleDefinition.Name
-        Scope              = $CurrentResourceGroup.ResourceId
-    }
-    while (-not(Get-AzRoleAssignment @Parameters)) {
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
-        $RoleAssignment = New-AzRoleAssignment @Parameters
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)]`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
-        Start-Sleep -Seconds 30
-    }
-}
-#endregion 
-
-#region 'Reader' RBAC Assignments
+#region 'Contributor' RBAC Assignments
 foreach ($CurrentResourceGroup in $StagingResourceGroupARM)  {
-    $RoleDefinition = Get-AzRoleDefinition -Name "Reader"
+    $RoleDefinition = Get-AzRoleDefinition -Name "Contributor"
     $Parameters = @{
         ObjectId           = $AutomationAccount.Identity.PrincipalId
         RoleDefinitionName = $RoleDefinition.Name
@@ -502,40 +331,12 @@ $Params = @{
 $null = Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
 #endregion
 
-<#
-#region Module Setup
-$ModuleNames = "Az.Accounts", "Az.ImageBuilder", "Az.Compute"
-foreach ($ModuleName in $ModuleNames) {
-    $Module = Find-Module -Name $ModuleName -Repository PSGallery
-    Write-Verbose -Message "Importing '$ModuleName' into '$($AutomationAccount.AutomationAccountName)' the Automation Account ..."
-    $Uri = "$($Module.RepositorySourceLocation)/package/$($Module.Name)/$($Module.Version)"
-
-    $Parameters = @{
-      ResourceGroupName = $ResourceGroupName
-      AutomationAccountName = $AutomationAccount.AutomationAccountName
-      Name = $module.Name
-      ContentLinkUri = $Uri
-    }
-    $null = New-AzAutomationModule @Parameters
-}
-
-$Parameters = @{
-    ResourceGroupName = $ResourceGroupName
-    AutomationAccountName = $AutomationAccount.AutomationAccountName
-}
-While (Get-AzAutomationModule @Parameters | Where-Object -FilterScript { $_.ProvisioningState -ne "Succeeded" }) {
-    Start-Sleep -Seconds 30
-}
-#endregion
-#>
 #region Test
 #Start-Sleep -Seconds 30
 #region PowerShell
 $Parameters = @{ 
-    GalleryResourceId = $Gallery.Id
-    Image = $($Image | ConvertTo-Json -Compress)
-    StagingResourceGroupNameARM = $StagingResourceGroupARM.ResourceGroupName
-    AssignedIdentityId = $AIBAssignedIdentity.Id
+	GalleryName = $GalleryName
+	GalleryResourceGroupName = $GalleryResourceGroupName
 }
 $Params = @{
     AutomationAccountName = $AutomationAccount.AutomationAccountName
