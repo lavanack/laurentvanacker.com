@@ -282,8 +282,7 @@ $RunBookName = "{0}-NewAzureComputeGalleryImageDefinitionVersionViaAzureVMImageB
 #Publish-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName
 #endregion 
 
-#$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20VM%20Image%20Builder/NewAzureComputeGalleryImageDefinitionVersionViaAzureVMImageBuilder-v2.ps1" -Description "PowerShell Azure Automation Runbook for Generating an Azure Compute Gallery Image Definition Version Via Azure VM Image Builder" 
-$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20VM%20Image%20Builder/NewAzureComputeGalleryImageDefinitionVersionViaAzureVMImageBuilder.ps1" -Description "PowerShell Azure Automation Runbook for Generating an Azure Compute Gallery Image Definition Version Via Azure VM Image Builder" 
+$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20VM%20Image%20Builder/NewAzureComputeGalleryImageDefinitionVersionViaAzureVMImageBuilder-v2.ps1" -Description "PowerShell Azure Automation Runbook for Generating an Azure Compute Gallery Image Definition Version Via Azure VM Image Builder" 
 #endregion 
 
 #region Link the schedule to the runbook
@@ -302,9 +301,9 @@ Register-AzAutomationScheduledRunbook @Params -ScheduleName $Schedule.Name -Para
 
 #region RBAC Assignments
 #region Automation Account System Assigned Identity
-#region 'Contributor' RBAC Assignments
+#region 'Onwer' RBAC Assignments
 foreach ($CurrentResourceGroup in $StagingResourceGroupARM)  {
-    $RoleDefinition = Get-AzRoleDefinition -Name "Contributor"
+    $RoleDefinition = Get-AzRoleDefinition -Name "Onwer"
     $Parameters = @{
         ObjectId           = $AutomationAccount.Identity.PrincipalId
         RoleDefinitionName = $RoleDefinition.Name
