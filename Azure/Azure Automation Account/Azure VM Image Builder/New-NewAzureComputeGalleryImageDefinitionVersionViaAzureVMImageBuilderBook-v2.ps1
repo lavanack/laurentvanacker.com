@@ -282,10 +282,13 @@ $RunBookName = "{0}-NewAzureComputeGalleryImageDefinitionVersionViaAzureVMImageB
 #Publish-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName
 #endregion 
 
-$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -RunbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20VM%20Image%20Builder/NewAzureComputeGalleryImageDefinitionVersionViaAzureVMImageBuilder-v2.ps1" -Description "PowerShell Azure Automation Runbook for Generating an Azure Compute Gallery Image Definition Version Via Azure VM Image Builder" -Debug
+$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -RunbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20VM%20Image%20Builder/NewAzureComputeGalleryImageDefinitionVersionViaAzureVMImageBuilder-v2.ps1" -Description "PowerShell Azure Automation Runbook for Generating an Azure Compute Gallery Image Definition Version Via Azure VM Image Builder"
 #endregion 
 
 #region Link the schedule to the runbook
+$timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+$GalleryResourceGroupName = "{0}-avd-aib-{1}-{2}" -f $ResourceGroupPrefix, $LocationShortName, $TimeInt 
+$GalleryName = "gal_avd_use2_{0}" -f $timeInt
 $Parameters = @{ 
 	GalleryName = $GalleryName
 	GalleryResourceGroupName = $GalleryResourceGroupName
@@ -328,6 +331,31 @@ $Params = @{
     Name = $RunBookName 
 }
 $null = Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
+#endregion
+
+#region Module Setup
+$ModuleNames = "Az.Accounts", "Az.ImageBuilder", "Az.Compute"
+foreach ($ModuleName in $ModuleNames) {
+    $Module = Find-Module -Name $ModuleName -Repository PSGallery
+    Write-Verbose -Message "Importing '$ModuleName' into '$($AutomationAccount.AutomationAccountName)' the Automation Account ..."
+    $Uri = "$($Module.RepositorySourceLocation)/package/$($Module.Name)/$($Module.Version)"
+
+    $Parameters = @{
+      ResourceGroupName = $ResourceGroupName
+      AutomationAccountName = $AutomationAccount.AutomationAccountName
+      Name = $module.Name
+      ContentLinkUri = $Uri
+    }
+    $null = New-AzAutomationModule @Parameters
+}
+
+$Parameters = @{
+    ResourceGroupName = $ResourceGroupName
+    AutomationAccountName = $AutomationAccount.AutomationAccountName
+}
+While (Get-AzAutomationModule @Parameters | Where-Object -FilterScript { $_.ProvisioningState -ne "Succeeded" }) {
+    Start-Sleep -Seconds 30
+}
 #endregion
 
 #region Test

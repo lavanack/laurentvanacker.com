@@ -15,6 +15,53 @@ Param(
     [bool] $excludeFromLatest = $true
 )
 
+
+#region Azure connection
+# Ensures you do not inherit an AzContext in your dirbook
+Disable-AzContextAutosave -Scope Process
+# Connect to Azure with system-assigned managed identity (Azure Automation account, which has been given VM Start permissions)
+$AzureContext = (Connect-AzAccount -Identity).context
+Write-Output -InputObject "`$AzureContext: $($AzureContext | Out-String)" 
+# set and store context
+$AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -DefaultProfile $AzureContext
+Write-Output -InputObject "`$AzureContext: $($AzureContext | Out-String)" 
+$subscriptionID = $AzureContext.Subscription.Id
+Write-Output -InputObject "`$subscriptionID: $subscriptionID" 
+#endregion
+
+<#
+#region Module Setup
+$ModuleNames = "Az.Accounts", "Az.ImageBuilder", "Az.Compute"
+$Parameters = @{
+      Name = $ModuleNames
+      Repository = "PSGallery"
+      Scope = "AllUsers"
+      TrustRepository = $true
+      AcceptLicense = $true
+}
+Install-PSResource @Parameters
+
+$Parameters = @{
+      Name = "Az.*"
+      Repository = "PSGallery"
+      Scope = "AllUsers"
+      TrustRepository = $true
+      AcceptLicense = $true
+      Force = $true
+}
+Update-PSResource @Parameters
+
+#endregion
+#>
+#region Parameters
+Write-Output -InputObject "`$GalleryName: $GalleryName" 
+Write-Output -InputObject "`$GalleryResourceGroupName: $GalleryResourceGroupName" 
+Write-Output -InputObject "`$Location: $Location" 
+Write-Output -InputObject "`$TargetRegions: $($TargetRegions -join ', ')" 
+Write-Output -InputObject "`$ReplicaCount: $ReplicaCount" 
+Write-Output -InputObject "`$excludeFromLatest: $excludeFromLatest" 
+#endregion
+
 #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
 $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
 $ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/main/src/repository/resourcelocations.json
