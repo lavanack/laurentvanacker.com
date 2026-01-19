@@ -342,6 +342,7 @@ foreach ($ModuleName in $ModuleNames) {
       ResourceGroupName = $ResourceGroupName
       AutomationAccountName = $AutomationAccount.AutomationAccountName
       Name = $module.Name
+      RuntimeVersion = "5.1"
       ContentLinkUri = $Uri
     }
     $null = New-AzAutomationModule @Parameters
