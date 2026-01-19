@@ -29,30 +29,7 @@ $subscriptionID = $AzureContext.Subscription.Id
 Write-Output -InputObject "`$subscriptionID: $subscriptionID" 
 #endregion
 
-<#
-#region Module Setup
-$ModuleNames = "Az.Accounts", "Az.ImageBuilder", "Az.Compute"
-$Parameters = @{
-      Name = $ModuleNames
-      Repository = "PSGallery"
-      Scope = "AllUsers"
-      TrustRepository = $true
-      AcceptLicense = $true
-}
-Install-PSResource @Parameters
-
-$Parameters = @{
-      Name = "Az.*"
-      Repository = "PSGallery"
-      Scope = "AllUsers"
-      TrustRepository = $true
-      AcceptLicense = $true
-      Force = $true
-}
-Update-PSResource @Parameters
-#endregion
-#>
-Import-Module -Name 'Az.Compute', 'Az.ImageBuilder' -Force
+Import-Module -Name 'Az.Accounts', 'Az.Compute', 'Az.ImageBuilder' -Force
 
 #region Parameters
 Write-Output -InputObject "`$GalleryName: $GalleryName" 

@@ -332,7 +332,7 @@ $null = Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
 #endregion
 
 #region Module Setup
-$ModuleNames = "Az.ImageBuilder", "Az.Compute"
+$ModuleNames = "Az.Accounts", "Az.ImageBuilder", "Az.Compute"
 foreach ($ModuleName in $ModuleNames) {
     $Module = Find-Module -Name $ModuleName -Repository PSGallery
     Write-Verbose -Message "Importing '$ModuleName' into '$($AutomationAccount.AutomationAccountName)' the Automation Account ..."
