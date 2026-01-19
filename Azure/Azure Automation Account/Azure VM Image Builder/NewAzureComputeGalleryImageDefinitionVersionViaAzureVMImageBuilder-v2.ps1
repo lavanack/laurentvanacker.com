@@ -314,6 +314,7 @@ $Parameters = @{
         GalleryName = $GalleryName 
         ResourceGroupName = $ResourceGroupName 
 }
+Import-Module -Name 'Az.Compute'
 $Gallery = Get-AzGallery @Parameters -ErrorAction Ignore
 if ($Gallery) {
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The '$GalleryName' Azure Compute Gallery already exists (ResourceGroup: '$($Parameters.ResourceGroupName)'..."
