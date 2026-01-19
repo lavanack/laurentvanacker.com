@@ -29,7 +29,6 @@ $subscriptionID = $AzureContext.Subscription.Id
 Write-Output -InputObject "`$subscriptionID: $subscriptionID" 
 #endregion
 
-<#
 #region Module Setup
 $ModuleNames = "Az.Accounts", "Az.ImageBuilder", "Az.Compute"
 $Parameters = @{
@@ -52,7 +51,7 @@ $Parameters = @{
 Update-PSResource @Parameters
 
 #endregion
-#>
+
 #region Parameters
 Write-Output -InputObject "`$GalleryName: $GalleryName" 
 Write-Output -InputObject "`$GalleryResourceGroupName: $GalleryResourceGroupName" 
@@ -393,6 +392,7 @@ Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocat
 $ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2022-07-01"; "imageTemplateName" = $imageTemplateNameARM; "svclocation" = $location }  #-Tag $Tags
 	
 #region Build the image
+Import-Module -Name 'Az.ImageBuilder'
 Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Starting Image Builder Template from '$imageTemplateNameARM' (As Job) ..."
 $Jobs += Start-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateNameARM -AsJob
 #endregion
