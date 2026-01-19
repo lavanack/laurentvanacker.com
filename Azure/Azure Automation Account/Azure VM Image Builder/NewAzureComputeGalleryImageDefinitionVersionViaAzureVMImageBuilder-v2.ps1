@@ -30,6 +30,7 @@ Write-Output -InputObject "`$subscriptionID: $subscriptionID"
 #endregion
 
 #region Module Setup
+<#
 $ModuleNames = "Az.Accounts", "Az.ImageBuilder", "Az.Compute"
 $Parameters = @{
       Name = $ModuleNames
@@ -39,9 +40,9 @@ $Parameters = @{
       AcceptLicense = $true
 }
 Install-PSResource @Parameters
-
+#>
 $Parameters = @{
-      Name = "Az.*"
+      Name = "Az.Accounts"
       Repository = "PSGallery"
       Scope = "AllUsers"
       TrustRepository = $true
@@ -314,7 +315,6 @@ $Parameters = @{
         GalleryName = $GalleryName 
         ResourceGroupName = $ResourceGroupName 
 }
-Import-Module -Name 'Az.Accounts' -RequiredVersion 5.3.2
 Import-Module -Name 'Az.Compute'
 $Gallery = Get-AzGallery @Parameters -ErrorAction Ignore
 if ($Gallery) {
