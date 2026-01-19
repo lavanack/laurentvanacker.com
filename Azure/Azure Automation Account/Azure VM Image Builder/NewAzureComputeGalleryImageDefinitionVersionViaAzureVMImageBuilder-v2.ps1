@@ -314,6 +314,7 @@ $Parameters = @{
         GalleryName = $GalleryName 
         ResourceGroupName = $ResourceGroupName 
 }
+Import-Module -Name 'Az.Accounts' -RequiredVersion 5.3.2
 Import-Module -Name 'Az.Compute'
 $Gallery = Get-AzGallery @Parameters -ErrorAction Ignore
 if ($Gallery) {

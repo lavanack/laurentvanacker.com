@@ -271,7 +271,7 @@ $StartTime = Get-Date "00:00:00"
 if ($(Get-Date) -gt $StartTime) {
     $StartTime = $StartTime.AddDays(1)
 }
-$Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Machine - Montly Start - 2nd Wednesday of the Month" -StartTime $StartTime -MonthInterval 1 -DayOfWeek "Wednesday" -DayOfWeekOccurrence "Second" -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
+$Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Machine - Monthly Start - 2nd Wednesday of the Month" -StartTime $StartTime -MonthInterval 1 -DayOfWeek "Wednesday" -DayOfWeekOccurrence "Second" -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
 #endregion 
 #endregion
 
