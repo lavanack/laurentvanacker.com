@@ -30,7 +30,6 @@ Write-Output -InputObject "`$subscriptionID: $subscriptionID"
 #endregion
 
 #region Module Setup
-<#
 $ModuleNames = "Az.Accounts", "Az.ImageBuilder", "Az.Compute"
 $Parameters = @{
       Name = $ModuleNames
@@ -40,9 +39,9 @@ $Parameters = @{
       AcceptLicense = $true
 }
 Install-PSResource @Parameters
-#>
+
 $Parameters = @{
-      Name = "Az.Accounts"
+      Name = "Az.*"
       Repository = "PSGallery"
       Scope = "AllUsers"
       TrustRepository = $true
