@@ -1,12 +1,10 @@
-﻿#requires -Modules Az.Accounts, Az.Compute, Az.ImageBuilder, Az.ManagedServiceIdentity, Az.Resources
+﻿#requires -Version 3.0 -Modules Az.Accounts, Az.Compute, Az.ImageBuilder, Az.ManagedServiceIdentity, Az.Resources
 
 Param(
-	[Parameter(Mandatory = $true, ParameterSetName='GalleryName')]
+	[Parameter(Mandatory = $true)]
 	[string]$GalleryName,
-	[Parameter(Mandatory = $true, ParameterSetName='GalleryName')]
+	[Parameter(Mandatory = $true)]
 	[string]$GalleryResourceGroupName,
-	[Parameter(Mandatory = $false, ParameterSetName='GalleryResourceId')]
-	[string]$GalleryResourceId,
 	[Parameter(Mandatory = $false)]
 	[string]$Location = "EastUS2",
 	[Parameter(Mandatory = $false)]
@@ -56,11 +54,7 @@ $Project = "avd"
 $Role = "aib"
 #Timestamp
 $timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-if ($GalleryResourceId) {
-    $Gallery = Get-AzGallery -ResourceId $GalleryResourceId
-    $ResourceGroupName = $Gallery.ResourceGroupName
-}
-elseif ($GalleryName -and $GalleryResourceGroupName) {
+if ($GalleryName -and $GalleryResourceGroupName) {
     $ResourceGroupName = $GalleryResourceGroupName
 }
 else {
@@ -274,28 +268,26 @@ foreach ($CurrentStagingResourceGroup in $StagingResourceGroupARM, $StagingResou
 #endregion
 
 #region Azure Compute Gallery
-if ([string]::IsNullOrEmpty($GalleryResourceId)) {
-    if ([string]::IsNullOrEmpty($GalleryName)) {
-	    #region Create an Azure Compute Gallery
-	    $GalleryName = "{0}_{1}_{2}_{3}" -f $AzureComputeGalleryPrefix, $Project, $LocationShortName, $timeInt
-	    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$GalleryName: $GalleryName"
-    }
-
-	# Create the gallery
-    $Parameters = @{
-            GalleryName = $GalleryName 
-            ResourceGroupName = $ResourceGroupName 
-    }
-    $Gallery = Get-AzGallery @Parameters -ErrorAction Ignore
-    if ($Gallery) {
-	    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The '$GalleryName' Azure Compute Gallery already exists (ResourceGroup: '$($Parameters.ResourceGroupName)'..."
-    }
-    else {
-	    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Compute Gallery '$GalleryName' (ResourceGroup: '$($Parameters.ResourceGroupName)' ..."
-	    $Gallery = New-AzGallery @Parameters -Location $location
-    }
-	#endregion
+if ([string]::IsNullOrEmpty($GalleryName)) {
+	#region Create an Azure Compute Gallery
+	$GalleryName = "{0}_{1}_{2}_{3}" -f $AzureComputeGalleryPrefix, $Project, $LocationShortName, $timeInt
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$GalleryName: $GalleryName"
 }
+
+# Create the gallery
+$Parameters = @{
+        GalleryName = $GalleryName 
+        ResourceGroupName = $ResourceGroupName 
+}
+$Gallery = Get-AzGallery @Parameters -ErrorAction Ignore
+if ($Gallery) {
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The '$GalleryName' Azure Compute Gallery already exists (ResourceGroup: '$($Parameters.ResourceGroupName)'..."
+}
+else {
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Compute Gallery '$GalleryName' (ResourceGroup: '$($Parameters.ResourceGroupName)' ..."
+	$Gallery = New-AzGallery @Parameters -Location $location
+}
+#endregion
 #endregion
 
 #region Checking of Image version already exists
