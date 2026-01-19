@@ -332,7 +332,7 @@ $null = Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
 #endregion
 
 #region Module Setup
-$ModuleNames = "Az.Accounts", "Az.ImageBuilder", "Az.Compute"
+$ModuleNames = "Az.ImageBuilder", "Az.Compute"
 foreach ($ModuleName in $ModuleNames) {
     $Module = Find-Module -Name $ModuleName -Repository PSGallery
     $Uri = "$($Module.RepositorySourceLocation)/package/$($Module.Name)/$($Module.Version)"
