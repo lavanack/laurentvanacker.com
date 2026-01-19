@@ -158,19 +158,8 @@ $runOutputNamePowerShell = "cgOutputPowerShell"
 $Version = Get-Date -UFormat "%Y.%m.%d"
 Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Version: $Version"
 
-if ($MyInvocation.MyCommand.ModuleName) {
-    $Module = (Get-Module -Name $MyInvocation.MyCommand.ModuleName).Name
-    $Tags =  @{
-        "SecurityControl" = "Ignore"
-        "Module" = $Module
-    }
-} 
-else {
-    $Script = $(Split-Path -Path $MyInvocation.ScriptName -Leaf)
-    $Tags =  @{
-        "SecurityControl" = "Ignore"
-        "Script" = $Script
-    }
+$Tags =  @{
+    "SecurityControl" = "Ignore"
 }
 $Jobs = @()
 #endregion

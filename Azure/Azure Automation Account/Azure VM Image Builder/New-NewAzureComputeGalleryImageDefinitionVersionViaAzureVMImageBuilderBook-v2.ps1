@@ -305,20 +305,18 @@ Register-AzAutomationScheduledRunbook @Params -ScheduleName $Schedule.Name -Para
 #region RBAC Assignments
 #region Automation Account System Assigned Identity
 #region 'Onwer' RBAC Assignments
-foreach ($CurrentResourceGroup in $StagingResourceGroupARM)  {
-    $RoleDefinition = Get-AzRoleDefinition -Name "Onwer"
-    $Parameters = @{
-        ObjectId           = $AutomationAccount.Identity.PrincipalId
-        RoleDefinitionName = $RoleDefinition.Name
-        Scope              = "/subscriptions/{0}" -f $SubscriptionId
-    }
-    while (-not(Get-AzRoleAssignment @Parameters)) {
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
-        $RoleAssignment = New-AzRoleAssignment @Parameters
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)]`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
-        Start-Sleep -Seconds 30
-    }
+$RoleDefinition = Get-AzRoleDefinition -Name "Owner"
+$Parameters = @{
+    ObjectId           = $AutomationAccount.Identity.PrincipalId
+    RoleDefinitionName = $RoleDefinition.Name
+    Scope              = "/subscriptions/{0}" -f $SubscriptionId
+}
+while (-not(Get-AzRoleAssignment @Parameters)) {
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
+    $RoleAssignment = New-AzRoleAssignment @Parameters
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)]`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+    Start-Sleep -Seconds 30
 }
 #endregion 
 #endregion
@@ -333,6 +331,7 @@ $Params = @{
 $null = Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
 #endregion
 
+<#
 #region Module Setup
 $ModuleNames = "Az.Accounts", "Az.ImageBuilder", "Az.Compute"
 foreach ($ModuleName in $ModuleNames) {
@@ -357,6 +356,8 @@ While (Get-AzAutomationModule @Parameters | Where-Object -FilterScript { $_.Prov
     Start-Sleep -Seconds 30
 }
 #endregion
+#>
+
 
 #region Test
 #Start-Sleep -Seconds 30
