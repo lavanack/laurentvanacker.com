@@ -335,8 +335,8 @@ $null = Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
 $ModuleNames = "Az.Accounts", "Az.ImageBuilder", "Az.Compute"
 foreach ($ModuleName in $ModuleNames) {
     $Module = Find-Module -Name $ModuleName -Repository PSGallery
-    Write-Verbose -Message "Importing '$ModuleName' into '$($AutomationAccount.AutomationAccountName)' the Automation Account ..."
     $Uri = "$($Module.RepositorySourceLocation)/package/$($Module.Name)/$($Module.Version)"
+    Write-Verbose -Message "Importing '$ModuleName' (version: $($Module.Version))into '$($AutomationAccount.AutomationAccountName)' the Automation Account ..."
 
     $Parameters = @{
       ResourceGroupName = $ResourceGroupName
