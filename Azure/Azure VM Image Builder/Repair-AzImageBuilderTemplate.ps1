@@ -22,7 +22,8 @@ function Repair-AzImageBuilderTemplate {
     [CmdletBinding()]
     Param(
 		[Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
-        [string[]]$ResourceGroupName
+        [string[]]$ResourceGroupName,
+        [switch]$Remove
     )
     begin {
         $SubscriptionId = (Get-AzContext).Subscription.Id
@@ -148,6 +149,10 @@ function Repair-AzImageBuilderTemplate {
                         #$CmdLine | Set-Clipboard
                         Write-Verbose -Message "Assigning the '$($UserAssignedIdentity.Name)' User Assigned Identity to the '$($CurrentImageBuilderTemplate.Name)' Template ..."
                         Start-Process -FilePath "$env:comspec" -ArgumentList "/c", $CmdLine  -Wait #-WindowStyle Hidden
+                        if ($Remove) {
+                            Write-Verbose -Message "Removing the '$($CurrentImageBuilderTemplate.Name)' Template ..."
+                            $CurrentImageBuilderTemplate | Remove-AzImageBuilderTemplate
+                        }
                         #$CurrentImageBuilderTemplate | Update-AzImageBuilderTemplate -IdentityType UserAssigned -UserAssignedIdentity $UserAssignedIdentity
 
                         #endregion
@@ -231,7 +236,8 @@ function Repair-AzImageBuilderTemplateWithRunSpace {
         [Parameter(Mandatory = $false)]
         [int] $RunspacePoolSize = $([math]::Max(1, (Get-CimInstance -ClassName Win32_Processor).NumberOfLogicalProcessors / 2)),
 		[Parameter(Mandatory = $True)]
-        [string[]]$ResourceGroupName
+        [string[]]$ResourceGroupName,
+        [switch]$Remove
     )
 
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RunspacePoolSize: $RunspacePoolSize"
@@ -253,6 +259,7 @@ function Repair-AzImageBuilderTemplateWithRunSpace {
 
         $null = $PowerShell.AddScript($ScriptBlock)
         $null = $PowerShell.AddParameter("ResourceGroupName", $CurrentResourceGroupName)
+        $null = $PowerShell.AddParameter("Remove", $Remove.IsPresent)
 
         Write-Host -Object "Invoking RunSpace for '$CurrentResourceGroupName' ..."
         $null = $RunspaceList.Add([PSCustomObject]@{
@@ -294,8 +301,8 @@ function Repair-AzImageBuilderTemplateWithThreadJob {
     param
     (
 		[Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $false)]
-		[Parameter(Mandatory = $True)]
-        [string[]]$ResourceGroupName
+        [string[]]$ResourceGroupName,
+        [switch]$Remove
     )
 
     begin {
@@ -309,7 +316,7 @@ function Repair-AzImageBuilderTemplateWithThreadJob {
     }
     process {
         foreach ($CurrentResourceGroupName in $ResourceGroupName) {
-            $Job = Start-ThreadJob -ScriptBlock {Repair-AzImageBuilderTemplate -ResourceGroupName $using:CurrentResourceGroupName} -InitializationScript $ExportedFunctions #-StreamingHost $Host
+            $Job = Start-ThreadJob -ScriptBlock {Repair-AzImageBuilderTemplate -ResourceGroupName $using:CurrentResourceGroupName -Remove:$Remove.IsPresent} -InitializationScript $ExportedFunctions #-StreamingHost $Host
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `Running Job #$($Job.Id) for '$CurrentResourceGroupName' ResourceGroup"
 			$Jobs += $Job
         }
@@ -345,9 +352,11 @@ $TimeStamp = 1758283049
 $ResourceGroupNames = "rg-avd-aib-use2-$TimeStamp"
 #>
 
-$ImageBuilderTemplate = Get-AzImageBuilderTemplate | Where-Object -FilterScript {$_.LastRunStatusRunState -notmatch "ing$"}
+$ImageBuilderTemplate = Get-AzImageBuilderTemplate | Where-Object -FilterScript { $_.LastRunStatusRunState -notmatch "ing$" }
 $ResourceGroupNames = $ImageBuilderTemplate.ResourceGroupName | Select-Object -Unique
-$ResourceGroupNames | Repair-AzImageBuilderTemplate -Verbose
+$ResourceGroupNames | Repair-AzImageBuilderTemplate  -Remove -Verbose
+#Repair-AzImageBuilderTemplateWithRunSpace -ResourceGroupName $ResourceGroupNames -Remove -Verbose
+#Repair-AzImageBuilderTemplateWithThreadJob -ResourceGroupName $ResourceGroupNames -Remove -Verbose
 
 #Cleanup
 <#
