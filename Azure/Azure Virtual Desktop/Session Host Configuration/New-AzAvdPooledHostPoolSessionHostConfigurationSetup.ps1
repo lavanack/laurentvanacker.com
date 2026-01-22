@@ -138,18 +138,19 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
         PreferredAppGroupType           = "Desktop"
         MaxSessionLimit                 = 5
         Location                        = $Location
-        NamePrefix                      = "namuse2{0:D3}" -f $Index
+        NamePrefix                      = "nam{0}{1:D3}" -f $LocationShortName, $Instance
         VMSize                          = "Standard_D2s_v5"
         SubnetId                        = $SubNetId
         ImagePublisherName              = "microsoftwindowsdesktop"
-        ImageOffer                      = "windows-11"
-        ImageSku                        = "win11-25h2-ent"
+        ImageOffer                      = "office-365"
+        ImageSku                        = "win11-24h2-avd-m365"
         DistinguishedName               = $OUPath
         DomainName                      = $DomainName
         KeyVault                        = $KeyVault
-        VMNumberOfInstances             = 3
+        VMNumberOfInstances             = 1
         ResourceGroupName               = $ResourceGroupName
         WorkSpaceName                   = $ResourceGroupName -replace "^rg", "ws"
+        ScalingPlan                     = $true
         #Installing VS Code on All AVD Session Hosts
         CustomConfigurationScriptUrl    = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1"
     }
@@ -326,7 +327,7 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
         FriendlyName      = $CurrentAzWvdHostPool.Name
         HostPoolType      = 'Pooled'
         TimeZone          = (Get-TimeZone).Id
-        HostPoolReference = @(@{'hostPoolArmPath' = $CurrentAzWvdHostPool.Id; 'scalingPlanEnabled' = $CurrentAzWvdHostPool.ScalingPlan })
+        HostPoolReference = @(@{'hostPoolArmPath' = $CurrentAzWvdHostPool.Id; 'scalingPlanEnabled' = $CurrentHostPool.ScalingPlan })
     }
     $scalingPlan = New-AzWvdScalingPlan @scalingPlanParams
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$scalingPlan:`r`n$($scalingPlan | Out-String)"
@@ -357,10 +358,10 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
         OffPeakStartTimeHour                    = '19'
         OffPeakStartTimeMinute                  = '0'
         OffPeakLoadBalancingAlgorithm           = 'DepthFirst'
-        CreateDeleteRampUpMaximumHostPoolSize   = '10'
-        CreateDeleteRampUpMinimumHostPoolSize   = '5'
+        CreateDeleteRampUpMaximumHostPoolSize   = '5'
+        CreateDeleteRampUpMinimumHostPoolSize   = '2'
         CreateDeleteRampDownMaximumHostPoolSize = '5'
-        CreateDeleteRampDownMinimumHostPoolSize = '1'
+        CreateDeleteRampDownMinimumHostPoolSize = '2'
     }
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Pooled ScalingPlan Schedule:`r`n$($scalingPlanPooledScheduleParams | Out-String)"
     $scalingPlanPooledSchedule = New-AzWvdScalingPlanPooledSchedule @scalingPlanPooledScheduleParams
