@@ -336,7 +336,7 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
         ResourceGroupName                       = $CurrentHostPool.ResourceGroupName
         ScalingPlanName                         = $ScalingPlanName
         ScalingPlanScheduleName                 = 'PooledWeekDayDynamicSchedule'
-        DaysOfWeek                              = 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'
+        DaysOfWeek                              = [System.DayOfWeek]::Monday..[System.DayOfWeek]::Friday #'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'
         ScalingMethod                           = 'CreateDeletePowerManage'
         RampUpStartTimeHour                     = '8'
         RampUpStartTimeMinute                   = '0'
@@ -358,10 +358,10 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
         OffPeakStartTimeHour                    = '19'
         OffPeakStartTimeMinute                  = '0'
         OffPeakLoadBalancingAlgorithm           = 'DepthFirst'
-        CreateDeleteRampUpMaximumHostPoolSize   = '5'
-        CreateDeleteRampUpMinimumHostPoolSize   = '2'
-        CreateDeleteRampDownMaximumHostPoolSize = '5'
-        CreateDeleteRampDownMinimumHostPoolSize = '2'
+        CreateDeleteRampUpMaximumHostPoolSize   = $CurrentHostPool.VMNumberOfInstances+4
+        CreateDeleteRampUpMinimumHostPoolSize   = $CurrentHostPool.VMNumberOfInstances+1
+        CreateDeleteRampDownMaximumHostPoolSize = $CurrentHostPool.VMNumberOfInstances+4
+        CreateDeleteRampDownMinimumHostPoolSize = $CurrentHostPool.VMNumberOfInstances
     }
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Pooled ScalingPlan Schedule:`r`n$($scalingPlanPooledScheduleParams | Out-String)"
     $scalingPlanPooledSchedule = New-AzWvdScalingPlanPooledSchedule @scalingPlanPooledScheduleParams
@@ -378,7 +378,8 @@ Clear-Host
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
-
+Set-Location -Path $CurrentDir
+ 
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount
@@ -399,7 +400,7 @@ $Parameters = @{
     ADJoinCredential     = $ADJoinCredential 
     Location             = $Location 
     DomainName           = $DomainName
-    SubNetId             = $("/subscriptions/{0}/resourceGroups/rg-avd-ad-use2-002/providers/Microsoft.Network/virtualNetworks/vnet-avd-avd-use2-002/subnets/snet-avd-avd-use2-002" -f $SubscriptionId)
+    SubNetId             = "/subscriptions/{0}/resourceGroups/rg-avd-ad-use2-002/providers/Microsoft.Network/virtualNetworks/vnet-avd-avd-use2-002/subnets/snet-avd-avd-use2-002" -f $SubscriptionId
     OUPath               = "OU=PooledDesktops,OU={0},OU=AVD,DC={1}" -f $Location, $($DomainName -replace "\.", ",DC=")
     Verbose              = $true
 }
