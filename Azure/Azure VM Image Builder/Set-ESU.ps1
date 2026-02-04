@@ -21,6 +21,7 @@ of the Sample Code.
 param (
     [Parameter(Mandatory = $true)]
     [ValidateNotNullOrEmpty()] 
+    [ValidatePattern("\w{5}-\w{5}-\w{5}-\w{5}-\w{5}")] 
     [string]$MAKKey,
     [Parameter(Mandatory = $true)]
     [ValidateSet(1,2,3)] 
@@ -56,6 +57,7 @@ function Install-ESU {
     param (
         [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()] 
+        [ValidatePattern("\w{5}-\w{5}-\w{5}-\w{5}-\w{5}")] 
         [string]$MAKKey,
         
         [Parameter(Mandatory = $true)]
