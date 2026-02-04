@@ -643,7 +643,7 @@ While (Get-AzResourceProvider -ProviderNamespace $RequiredResourceProviders | Wh
 $Jobs | Remove-Job -Force
 #endregion
 $timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-$timeInt = "1768915186"
+#$timeInt = "1768915186"
 $ResourceGroupName = "rg-avd-aib-use2-{0}" -f $timeInt
 $GalleryName = "gal_avd_use2_{0}" -f $timeInt
 $GalleryResourceId = (Get-AzGallery -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -ErrorAction Ignore).Id
