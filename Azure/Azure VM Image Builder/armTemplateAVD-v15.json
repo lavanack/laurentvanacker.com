@@ -69,7 +69,7 @@
                         "name": "avdBuiltInScript_SetESU-parameter",
                         "type": "PowerShell",
                         "inline": [
-                            "C:\\AVDImage\\Set-ESU.ps1 -MAKKey <MAKKey> -Year <Year>"
+                            "C:\\AVDImage\\Set-ESU.ps1 -MAKKey \"<MAKKey>\" -Year \"<Year>\""
                         ],
                         "runAsSystem": true,
                         "runElevated": true
