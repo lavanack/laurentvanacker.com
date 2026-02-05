@@ -63,7 +63,7 @@
                         "name": "avdBuiltInScript_SetESU",
                         "type": "File",
                         "destination": "C:\\AVDImage\\Install-ESU.ps1",
-                        "sourceUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-ESU.ps1"
+                        "sourceUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Windows%20Powershell/Windows/Extended%20Security%20Updates/Install-ESU.ps1"
                     },
                     {
                         "name": "avdBuiltInScript_SetESU-parameter",
