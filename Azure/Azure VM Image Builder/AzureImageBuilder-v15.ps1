@@ -462,11 +462,11 @@ function New-AzureComputeGallery {
 	$ImgCopyInstallESUFileCustomizerParams = @{  
 		FileCustomizer = $true  
 		Name           = 'CopySetESU'  
-		sourceUri      = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Set-ESU.ps1'
-		destination    = "C:\AVDImage\Set-ESU.ps1"
+		sourceUri      = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Windows%20Powershell/Windows/Extended%20Security%20Updates/Install-ESU.ps1'
+		destination    = "C:\AVDImage\Install-ESU.ps1"
 	}
 
-	Write-Verbose -Message "Creating Azure Image Builder Template Customizer Object for copying 'Set-ESU.ps1' from My Github repository ..."
+	Write-Verbose -Message "Creating Azure Image Builder Template Customizer Object for copying 'Install-ESU.ps1' from My Github repository ..."
 	$CopyInstallESUCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgCopyInstallESUFileCustomizerParams 
 
 	$ImgInstallESUFileCustomizerParams = @{  
@@ -474,9 +474,9 @@ function New-AzureComputeGallery {
 		Name                 = 'SetESU'  
 		RunElevated          = $true  
 		runAsSystem          = $true
-		inline               = "C:\AVDImage\Set-ESU.ps1 -MAKKey $MAKKey -Year $Year"
+		inline               = "C:\AVDImage\Install-ESU.ps1 -MAKKey $MAKKey -Year $Year"
 	}
-	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for running 'Set-ESU.ps1' ..."
+	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for running 'Install-ESU.ps1' ..."
 	$InstallESUCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgInstallESUFileCustomizerParams 
 
 	$ImgPowerShellCrossPlatformPowerShellCustomizerParams = @{  
@@ -678,7 +678,8 @@ $timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 $ResourceGroupName = "rg-avd-aib-use2-{0}" -f $timeInt
 $GalleryName = "gal_avd_use2_{0}" -f $timeInt
 $GalleryResourceId = (Get-AzGallery -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -ErrorAction Ignore).Id
-#$MAKKey = "AAAAA-BBBBB-CCCCC-DDDDD-EEEEE"
+#Put your own MAK key below
+#$MAKKey = "A1B2C-3D4E5-F6G7H-8I9J1-0K11L"
 $Year = 1
 
 #We specify an existing Azure Compute Gallery Resource Id
