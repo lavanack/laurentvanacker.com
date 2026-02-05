@@ -35,7 +35,7 @@ function New-AzureComputeGallery {
 		[Parameter(Mandatory = $false)]
 		[int]$ReplicaCount = 1,
 		[Parameter(Mandatory = $false)]
-		[bool] $excludeFromLatest = $true,
+		[bool] $excludeFromLatest = $false,
         [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()] 
         [ValidatePattern("\w{5}-\w{5}-\w{5}-\w{5}-\w{5}")] 

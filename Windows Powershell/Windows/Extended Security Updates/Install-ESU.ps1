@@ -123,7 +123,7 @@ if ($BuildNumber -eq $ExpectedVersion) {
         $Condition = "Client-ESU-Year{0}" -f $Year
  
         if ($IsSucceeded) {
-            Write-Log -Message "✅ ESU already installed" Green
+            Write-Log -Message "✅ ESU already installed" -Color Green
             # Extraire les numéros
             $IsSucceededYear = [int]([regex]::Match($IsSucceeded.Name, 'Year(\d+)').Groups[1].Value)
             $ConditionYear = [int]([regex]::Match($Condition, 'Year(\d+)').Groups[1].Value)
