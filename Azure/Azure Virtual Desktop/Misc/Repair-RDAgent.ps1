@@ -26,13 +26,9 @@ Param(
 )
 
 #region Function Definitions
-function Repair-RDAgent {
+function Uninstall-RDAgent {
     [CmdletBinding(PositionalBinding = $false)]
     Param(
-        [parameter(Mandatory=$true)]
-        [ValidateNotNullOrEmpty()]
-        [String]$RegistrationInfoToken,
-        [Switch]$Restart
     )
 
     $IsRemoved = $false
@@ -70,12 +66,20 @@ function Repair-RDAgent {
         Write-Warning -Message "No 'Remote Desktop Agent' applications found"
     }
 
-    <#
     if ($IsRemoved) {
         Write-Verbose -Message "Rebooting ..."
         Restart-Computer -Force
     }
-    #>
+}
+
+function Install-RDAgent {
+    [CmdletBinding(PositionalBinding = $false)]
+    Param(
+        [parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [String]$RegistrationInfoToken,
+        [Switch]$Restart
+    )
 
     #$null = Get-ChildItem -Path $(Join-Path -Path $env:ProgramFiles -ChildPath "Microsoft RDInfra") -Filter *.msi | Remove-Item -Force
 
@@ -143,5 +147,6 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 
-Repair-RDAgent -RegistrationInfoToken $RegistrationInfoToken -Restart:$Restart.IsPresent -Verbose
+Uninstall-RDAgent -Verbose
+Install-RDAgent -RegistrationInfoToken $RegistrationInfoToken -Restart:$Restart.IsPresent -Verbose
 #endregion
