@@ -69,6 +69,8 @@ function Install-ESU {
         #To replace with the year associated to the MAK Key : 1, 2 or 3
         [int]$Year
     )
+
+    $ExitCode = 0
     Write-Log -Message "Installing the MAK ESU Key..."
     $null = cscript.exe /b "$env:windir\system32\slmgr.vbs" /ipk $MAKKey 
  
@@ -85,10 +87,14 @@ function Install-ESU {
  
     if ($IsSucceeded) {
         Write-Log -Message "✅ ESU Installation succeeded " -Color Green
+        $ExitCode = 0
     }
     else {
         Write-Log -Message "❌ Key not found after the Setup" -Color Red
+        $ExitCode = 1
     }
+    return $ExitCode
+
 }
 #endregion
 
