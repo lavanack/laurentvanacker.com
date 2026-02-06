@@ -34,6 +34,7 @@ function Repair-RDAgent {
         [Switch]$Restart
     )
 
+    $IsRemoved = $false
     $RDSApp = Get-WmiObject -Class Win32_Product | Where-Object -FilterScript {$_.Name -like "*Remote Desktop Services*"}
     if ($RDSApp) {
         Write-Verbose -Message "Uninstalling 'Remote Desktop Services' applications"
@@ -41,6 +42,7 @@ function Repair-RDAgent {
         $RDSApp = Get-WmiObject -Class Win32_Product | Where-Object -FilterScript {$_.Name -like "*Remote Desktop Services*"}
         if (-not($RDSApp)) {
             Write-Host -Object "✅ 'Remote Desktop Services' applications were successfully removed !" -ForegroundColor Green
+            $IsRemoved = $true
         }
         else {
             Write-Host -Object "❌ 'Remote Desktop Services' applications  were NOT successfully removed !" -ForegroundColor Red
@@ -57,6 +59,7 @@ function Repair-RDAgent {
         $RDAApp = Get-WmiObject -Class Win32_Product | Where-Object -FilterScript {$_.Name -like "*Remote Desktop Services*"}
         if (-not($RDAApp)) {
             Write-Host -Object "✅ 'Remote Desktop Agent' applications were successfully removed !" -ForegroundColor Green
+            $IsRemoved = $true
         }
         else {
             Write-Host -Object "❌ 'Remote Desktop Agent' applications were NOT successfully removed !" -ForegroundColor Red
@@ -65,6 +68,14 @@ function Repair-RDAgent {
     else {
         Write-Warning -Message "No 'Remote Desktop Agent' applications found"
     }
+
+    <#
+    if ($IsRemoved) {
+        Write-Verbose -Message "Rebooting ..."
+        Restart-Computer -Force
+    }
+    #>
+
     $WVDAgentInstaller = Join-Path -Path $env:TEMP -ChildPath "WVD-Agent.msi"
     $WVDBootLoaderInstaller = Join-Path -Path $env:TEMP -ChildPath "WVD-BootLoader.msi"
 
@@ -73,12 +84,24 @@ function Repair-RDAgent {
         @{URL = "https://query.prod.cms.rt.microsoft.com/cms/api/am/binary/RWrxrH"; Path = $WVDBootLoaderInstaller}
     )
 
+<#
+    #Alternate URIs
+    $Files = @(
+        @{URL = "https://go.microsoft.com/fwlink/?linkid=2310011"; Path = $WVDAgentInstaller}
+        @{URL = "https://go.microsoft.com/fwlink/?linkid=2311028"; Path = $WVDBootLoaderInstaller}
+    )
+#>
+
+
     Start-BitsTransfer -Source $Files.URL -Destination $Files.Path
 
-    Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $WVDAgentInstaller", "/quiet", "REGISTRATIONTOKEN=$RegistrationInfoToken", "/l* C:\Users\AgentInstall.txt" -Wait
+    Write-Verbose -Message "Installing '$WVDAgentInstaller' ..."
+    Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $WVDAgentInstaller", "/quiet", "REGISTRATIONTOKEN=$RegistrationInfoToken", "/l* $env:Temp\AgentInstall.txt" -Wait
     Write-Verbose -Message "Sleeping 30 seconds ..."
     Start-Sleep -Seconds 30
-    Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $WVDBootLoaderInstaller", "/quiet", "/l* C:\Users\AgentBootLoaderInstall.txt" -Wait
+
+    Write-Verbose -Message "Installing '$WVDBootLoaderInstaller' ..."
+    Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $WVDBootLoaderInstaller", "/quiet", "/l* $env:Temp\AgentBootLoaderInstall.txt" -Wait
     Write-Verbose -Message "Sleeping 30 seconds ..."
     Start-Sleep -Seconds 30
 
