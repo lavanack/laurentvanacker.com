@@ -21,7 +21,8 @@ of the Sample Code.
 Param(
     [parameter(Mandatory=$true)]
     [ValidateNotNullOrEmpty()]
-    [String]$RegistrationInfoToken
+    [String]$RegistrationInfoToken,
+    [Switch]$Restart
 )
 
 #region Function Definitions
@@ -142,5 +143,5 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 
-Repair-RDAgent -RegistrationInfoToken $RegistrationInfoToken -Restart -Verbose
+Repair-RDAgent -RegistrationInfoToken $RegistrationInfoToken -Restart:$Restart.IsPresent -Verbose
 #endregion
