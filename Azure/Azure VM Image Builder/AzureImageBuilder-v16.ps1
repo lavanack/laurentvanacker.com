@@ -478,6 +478,17 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for running 'OfficeSetup.exe' ..."
 	$InstallOfficeLanguagePacksPowershellCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgInstallOfficeLanguagePacksPowershellCustomizerParams 
 
+	$ImgSetOfficeDisplayLanguageToFrenchPowerShellCustomizerParams = @{  
+		PowerShellCustomizer = $true  
+		Name                 = 'SetOfficeDisplayLanguageToFrench'  
+		RunElevated          = $true  
+		runAsSystem          = $true  
+		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Set-OfficeDisplayLanguageToFrench.ps1'
+	}
+
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgPowerShellCrossPlatformPowerShellCustomizerParams.Name)' ..."
+	$SetOfficeDisplayLanguageToFrenchPowerShellCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgSetOfficeDisplayLanguageToFrenchPowerShellCustomizerParams 
+
 	$ImgPowerShellCrossPlatformPowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
 		Name                 = 'Install PowerShell Cross Platform'  
@@ -550,7 +561,7 @@ function New-AzureComputeGallery {
 	$DisableAutoUpdatesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgDisableAutoUpdatesPowerShellCustomizerParams 
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
-	$Customize = $TimeZoneRedirectionCustomizer, $CopyInstallOfficeLanguagePacksFileCustomizer, $CopyOfficeFrenchXMLFileCustomizer, $InstallOfficeLanguagePacksPowershellCustomizer, $PowerShellCrossPlatformCustomizer, $PuttyCustomizer, $WinSCPCustomizer, $NotepadPlusPlusCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
+	$Customize = $TimeZoneRedirectionCustomizer, $CopyInstallOfficeLanguagePacksFileCustomizer, $CopyOfficeFrenchXMLFileCustomizer, $InstallOfficeLanguagePacksPowershellCustomizer, $SetOfficeDisplayLanguageToFrenchPowerShellCustomizer, $PowerShellCrossPlatformCustomizer, $PuttyCustomizer, $WinSCPCustomizer, $NotepadPlusPlusCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
 	$ImgTemplateParams = @{
 		ImageTemplateName      = $imageTemplateNamePowerShell
 		ResourceGroupName      = $ResourceGroupName
