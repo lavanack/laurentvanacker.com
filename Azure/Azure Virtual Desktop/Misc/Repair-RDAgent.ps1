@@ -76,9 +76,12 @@ function Repair-RDAgent {
     Start-BitsTransfer -Source $Files.URL -Destination $Files.Path
 
     Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $WVDAgentInstaller", "/quiet", "REGISTRATIONTOKEN=$RegistrationInfoToken", "/l* C:\Users\AgentInstall.txt" -Wait
-    Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $WVDBootLoaderInstaller", "/quiet", "/l* C:\Users\AgentBootLoaderInstall.txt" -Wait
-
+    Write-Verbose -Message "Sleeping 30 seconds ..."
     Start-Sleep -Seconds 30
+    Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $WVDBootLoaderInstaller", "/quiet", "/l* C:\Users\AgentBootLoaderInstall.txt" -Wait
+    Write-Verbose -Message "Sleeping 30 seconds ..."
+    Start-Sleep -Seconds 30
+
     $RDSApp = Get-WmiObject -Class Win32_Product | Where-Object -FilterScript {$_.Name -like "*Remote Desktop Services Infrastructure Agent*"}
     if ($RDSApp) {
         Write-Host -Object "✅ $($RDSApp.Name) was successfully installed !" -ForegroundColor Green
@@ -114,5 +117,5 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 
-Repair-RDAgent -RegistrationInfoToken $RegistrationInfoToken
+Repair-RDAgent -RegistrationInfoToken $RegistrationInfoToken -Restart
 #endregion
