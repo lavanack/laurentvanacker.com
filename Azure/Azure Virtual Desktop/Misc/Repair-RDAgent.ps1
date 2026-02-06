@@ -30,7 +30,8 @@ function Repair-RDAgent {
     Param(
         [parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
-        [String]$RegistrationInfoToken
+        [String]$RegistrationInfoToken,
+        [Switch]$Restart
     )
 
     $RDSApp = Get-WmiObject -Class Win32_Product | Where-Object -FilterScript {$_.Name -like "*Remote Desktop Services*"}
@@ -94,7 +95,13 @@ function Repair-RDAgent {
         Write-Host -Object "❌ $($RDAApp.Name) was NOT installed !" -ForegroundColor Red
     }
 
+    Write-Verbose -Message "Removing '$WVDAgentInstaller', '$WVDBootLoaderInstaller' files ..."
     $null = Remove-Item -Path $WVDAgentInstaller, $WVDBootLoaderInstaller -Force -ErrorAction Ignore
+
+    if ($Restart) {
+        Write-Verbose -Message "Rebooting ..."
+        Restart-Computer -Force
+    }
 }
 #endregion
 
