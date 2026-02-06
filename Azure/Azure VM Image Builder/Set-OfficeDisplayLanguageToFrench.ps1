@@ -20,7 +20,7 @@ of the Sample Code.
 $LangId = 'fr-fr'
 $Policies = 'HKLM:\SOFTWARE\Policies\Microsoft\Office\16.0\Common\LanguageResources'
 $null = New-Item -Path $Policies -Force
-$null = New-ItemProperty -Path $Policies -Name 'InstallLanguage' -Value 1 -PropertyType DWord -Force
+$null = New-ItemProperty -Path $Policies -Name 'InstallLanguage' -Value 0x040C -PropertyType DWord -Force
 $null = New-ItemProperty -Path $Policies -Name 'UILanguage' -Value $LangId -PropertyType String -Force
 $null = New-ItemProperty -Path $Policies -Name 'PreferredEditingLanguage' -Value $LangId -PropertyType String -Force
 $null = New-ItemProperty -Path $Policies -Name 'HelpLanguage' -Value $LangId -PropertyType String -Force
