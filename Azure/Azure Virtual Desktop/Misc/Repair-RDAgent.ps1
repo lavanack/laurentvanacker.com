@@ -76,6 +76,8 @@ function Repair-RDAgent {
     }
     #>
 
+    $null = Get-ChildItem -Path $(Join-Path -Path $env:ProgramFiles -ChildPath "Microsoft RDInfra") -Filter *.msi | Remove-Item -Force
+
     $WVDAgentInstaller = Join-Path -Path $env:TEMP -ChildPath "WVD-Agent.msi"
     $WVDBootLoaderInstaller = Join-Path -Path $env:TEMP -ChildPath "WVD-BootLoader.msi"
 
@@ -126,7 +128,7 @@ function Repair-RDAgent {
 
     if ($Restart) {
         Write-Verbose -Message "Rebooting ..."
-        Restart-Computer -Force
+        $null = Restart-Computer -Force
     }
 }
 #endregion
@@ -140,5 +142,5 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 
-Repair-RDAgent -RegistrationInfoToken $RegistrationInfoToken -Restart
+Repair-RDAgent -RegistrationInfoToken $RegistrationInfoToken -Restart -Verbose
 #endregion
