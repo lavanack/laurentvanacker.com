@@ -469,7 +469,7 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "Creating Azure Image Builder Template Customizer Object for copying 'Install-ESU.ps1' from My Github repository ..."
 	$CopyInstallESUCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgCopyInstallESUFileCustomizerParams 
 
-	$ImgInstallESUFileCustomizerParams = @{  
+	$ImgInstallESUPowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
 		Name                 = 'SetESU'  
 		RunElevated          = $true  
@@ -477,7 +477,7 @@ function New-AzureComputeGallery {
 		inline               = "C:\AVDImage\Install-ESU.ps1 -MAKKey $MAKKey -Year $Year"
 	}
 	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for running 'Install-ESU.ps1' ..."
-	$InstallESUCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgInstallESUFileCustomizerParams 
+	$InstallESUPowerShellCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgInstallESUPowerShellCustomizerParams 
 
 	$ImgPowerShellCrossPlatformPowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
@@ -551,7 +551,7 @@ function New-AzureComputeGallery {
 	$DisableAutoUpdatesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgDisableAutoUpdatesPowerShellCustomizerParams 
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
-	$Customize = $TimeZoneRedirectionCustomizer, $CopyInstallESUCustomizer, $InstallESUCustomizer, $PowerShellCrossPlatformCustomizer, $PuttyCustomizer, $WinSCPCustomizer, $NotepadPlusPlusCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
+	$Customize = $TimeZoneRedirectionCustomizer, $CopyInstallESUCustomizer, $InstallESUPowerShellCustomizer, $PowerShellCrossPlatformCustomizer, $PuttyCustomizer, $WinSCPCustomizer, $NotepadPlusPlusCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
 	$ImgTemplateParams = @{
 		ImageTemplateName      = $imageTemplateNamePowerShell
 		ResourceGroupName      = $ResourceGroupName

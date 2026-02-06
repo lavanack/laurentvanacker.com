@@ -60,14 +60,14 @@
                         "scriptUri": "https://raw.githubusercontent.com/Azure/RDS-Templates/refs/heads/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2024-03-27/TimezoneRedirection.ps1"
                     },
                     {
-                        "name": "avdBuiltInScript_SetESU",
                         "type": "File",
+                        "name": "Copy Install-ESU.ps1",
                         "destination": "C:\\AVDImage\\Install-ESU.ps1",
                         "sourceUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Windows%20Powershell/Windows/Extended%20Security%20Updates/Install-ESU.ps1"
                     },
                     {
-                        "name": "avdBuiltInScript_SetESU-parameter",
                         "type": "PowerShell",
+                        "name": "Install-ESU.ps1",
                         "inline": [
                             "C:\\AVDImage\\Install-ESU.ps1 -MAKKey \"<MAKKey>\" -Year \"<Year>\""
                         ],

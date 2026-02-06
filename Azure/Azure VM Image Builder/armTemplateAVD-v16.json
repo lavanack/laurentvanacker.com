@@ -60,22 +60,22 @@
                         "scriptUri": "https://raw.githubusercontent.com/Azure/RDS-Templates/refs/heads/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2024-03-27/TimezoneRedirection.ps1"
                     },
                     {
-                        "name": "avdBuiltInScript_CopyInstallOfficeLanguagePacks",
+                        "name": "Copy OfficeSetup",
                         "type": "File",
                         "destination": "C:\\AVDImage\\OfficeSetup.exe",
                         "sourceUri": "https://c2rsetup.officeapps.live.com/c2r/download.aspx?ProductreleaseID=languagepack&language=fr-fr&platform=x64&source=O16LAP&version=O16GA"
                     },
                     {
-                        "name": "avdBuiltInScript_CopyFrenchXML",
+                        "name": "Copy Install-Office-FR.xml",
                         "type": "File",
-                        "destination": "C:\\AVDImage\\french.xml",
-                        "sourceUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/french.xml"
+                        "destination": "C:\\AVDImage\\Install-Office-FR.xml",
+                        "sourceUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-Office-FR.xml"
                     },
                     {
-                        "name": "avdBuiltInScript_InstallOfficeLanguagePacks-parameter",
+                        "name": "OfficeSetup - French",
                         "type": "PowerShell",
                         "inline": [
-                            "C:\\AVDImage\\OfficeSetup.exe /configure C:\\AVDImage\\french.xml"
+                            "C:\\AVDImage\\OfficeSetup.exe /configure C:\\AVDImage\\Install-Office-FR.xml"
                         ],
                         "runAsSystem": true,
                         "runElevated": true

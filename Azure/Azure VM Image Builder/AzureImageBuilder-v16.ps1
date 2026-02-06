@@ -448,6 +448,36 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgTimeZoneRedirectionPowerShellCustomizerParams.Name)' ..."
 	$TimeZoneRedirectionCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgTimeZoneRedirectionPowerShellCustomizerParams 
 
+	$ImgCopyInstallOfficeLanguagePacksFileCustomizerParams = @{  
+		FileCustomizer = $true  
+		Name           = 'Copy OfficeSetup'  
+		sourceUri      = 'https://c2rsetup.officeapps.live.com/c2r/download.aspx?ProductreleaseID=languagepack&language=fr-fr&platform=x64&source=O16LAP&version=O16GA'
+		destination    = "C:\AVDImage\OfficeSetup.exe"
+	}
+
+	Write-Verbose -Message "Creating Azure Image Builder Template Customizer Object for copying 'OfficeSetup.exe' from Internet ..."
+	$CopyInstallOfficeLanguagePacksFileCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgCopyInstallOfficeLanguagePacksFileCustomizerParams 
+
+	$ImgCopyOfficeFrenchXMLFileCustomizerParams = @{  
+		FileCustomizer = $true  
+		Name           = 'Copy Install-Office-FR.xml'  
+		sourceUri      = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-Office-FR.xml'
+		destination    = "C:\AVDImage\Install-Office-FR.xml"
+	}
+
+	Write-Verbose -Message "Creating Azure Image Builder Template Customizer Object for copying 'OfficeSetup.exe' from Internet ..."
+	$CopyOfficeFrenchXMLFileCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgCopyOfficeFrenchXMLFileCustomizerParams 
+
+	$ImgInstallOfficeLanguagePacksPowershellCustomizerParams = @{  
+		PowerShellCustomizer = $true  
+		Name                 = 'OfficeSetup - French'  
+		RunElevated          = $true  
+		runAsSystem          = $true
+		inline               = "C:\AVDImage\OfficeSetup.exe /configure C:\AVDImage\Install-Office-FR.xml"
+	}
+	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for running 'OfficeSetup.exe' ..."
+	$InstallOfficeLanguagePacksPowershellCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgInstallOfficeLanguagePacksPowershellCustomizerParams 
+
 	$ImgPowerShellCrossPlatformPowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
 		Name                 = 'Install PowerShell Cross Platform'  
@@ -520,7 +550,7 @@ function New-AzureComputeGallery {
 	$DisableAutoUpdatesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgDisableAutoUpdatesPowerShellCustomizerParams 
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
-	$Customize = $TimeZoneRedirectionCustomizer, $PowerShellCrossPlatformCustomizer, $PuttyCustomizer, $WinSCPCustomizer, $NotepadPlusPlusCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
+	$Customize = $TimeZoneRedirectionCustomizer, $CopyInstallOfficeLanguagePacksFileCustomizer, $CopyOfficeFrenchXMLFileCustomizer, $InstallOfficeLanguagePacksPowershellCustomizer, $PowerShellCrossPlatformCustomizer, $PuttyCustomizer, $WinSCPCustomizer, $NotepadPlusPlusCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
 	$ImgTemplateParams = @{
 		ImageTemplateName      = $imageTemplateNamePowerShell
 		ResourceGroupName      = $ResourceGroupName

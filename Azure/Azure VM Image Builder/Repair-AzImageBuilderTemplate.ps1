@@ -354,8 +354,8 @@ $ResourceGroupNames = "rg-avd-aib-use2-$TimeStamp"
 
 $ImageBuilderTemplate = Get-AzImageBuilderTemplate | Where-Object -FilterScript { $_.LastRunStatusRunState -notmatch "ing$" }
 $ResourceGroupNames = $ImageBuilderTemplate.ResourceGroupName | Select-Object -Unique
-$ResourceGroupNames | Repair-AzImageBuilderTemplate  -Remove -Verbose
-#Repair-AzImageBuilderTemplateWithRunSpace -ResourceGroupName $ResourceGroupNames -Remove -Verbose
+#$ResourceGroupNames | Repair-AzImageBuilderTemplate  -Remove -Verbose
+Repair-AzImageBuilderTemplateWithRunSpace -ResourceGroupName $ResourceGroupNames -Remove -Verbose
 #Repair-AzImageBuilderTemplateWithThreadJob -ResourceGroupName $ResourceGroupNames -Remove -Verbose
 
 #Cleanup
