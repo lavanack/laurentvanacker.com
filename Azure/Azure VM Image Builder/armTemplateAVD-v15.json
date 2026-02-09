@@ -66,6 +66,15 @@
                         "sourceUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Windows%20Powershell/Windows/Extended%20Security%20Updates/Install-ESU.ps1"
                     },
                     {
+                        "type": "PowerShell",
+                        "name": "Install-ESU.ps1",
+                        "inline": [
+                            "C:\\AVDImage\\Install-ESU.ps1 -MAKKey \"<MAKKey>\" -Year \"<Year>\""
+                        ],
+                        "runAsSystem": true,
+                        "runElevated": true
+                    },
+                    {
                         "type": "WindowsUpdate",
                         "searchCriteria": "IsInstalled=0",
                         "filters": [

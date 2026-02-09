@@ -491,8 +491,7 @@ function New-AzureComputeGallery {
 	$DisableAutoUpdatesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgDisableAutoUpdatesPowerShellCustomizerParams 
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
-	#$Customize = $TimeZoneRedirectionCustomizer, $CopyInstallESUCustomizer, $InstallESUPowerShellCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
-	$Customize = $TimeZoneRedirectionCustomizer, $CopyInstallESUCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
+	$Customize = $TimeZoneRedirectionCustomizer, $CopyInstallESUCustomizer, $InstallESUPowerShellCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
 	$ImgTemplateParams = @{
 		ImageTemplateName      = $imageTemplateNamePowerShell
 		ResourceGroupName      = $ResourceGroupName
