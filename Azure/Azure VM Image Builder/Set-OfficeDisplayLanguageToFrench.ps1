@@ -18,7 +18,7 @@ of the Sample Code.
 
 #region Set the French as Display Language for Office for all users via Local Machine Policies in the Registry (HKLM)
 $LangId = 'fr-fr'
-$Policies = 'HKCU:\SOFTWARE\Policies\Microsoft\Office\16.0\Common\LanguageResources'
+$Policies = 'HKLM:\SOFTWARE\Microsoft\Office\16.0\Common\LanguageResources'
 New-Item -Path $Policies -Force
 New-ItemProperty -Path $Policies -Name 'InstallLanguage' -Value 0x040C -PropertyType DWord -Force
 New-ItemProperty -Path $Policies -Name 'UILanguage' -Value $LangId -PropertyType String -Force
