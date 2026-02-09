@@ -82,6 +82,7 @@ function Install-ESU {
     Write-Log -Message "Checking Setup ..."
     $ActivationStatus = Get-CimInstance -Query "SELECT * FROM SoftwareLicensingProduct WHERE PartialProductKey IS NOT NULL"
     $IsSucceeded = $ActivationStatus | Where-Object { $_.Name -like "*ESU*" } | Select-Object Name, LicenseStatus, Description, PartialProductKey
+    Write-Log -Message "$($IsSucceeded | Out-String)"
  
     if ($IsSucceeded) {
         Write-Log -Message "✅ ESU Installation succeeded " -Color Green
@@ -153,5 +154,5 @@ else {
 #endregion
 
 Write-Log -Message "=== End Of The Script ===" -Color Cyan
-
+$LASTEXITCODE = 0
 #endregion
