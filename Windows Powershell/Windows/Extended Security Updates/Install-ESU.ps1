@@ -71,13 +71,13 @@ function Install-ESU {
     )
     Write-Log -Message "Installing the MAK ESU Key..."
     #$null = cscript.exe /b "$env:windir\system32\slmgr.vbs" /ipk $MAKKey 
-    $null = cscript.exe "$env:windir\system32\slmgr.vbs" /ipk $MAKKey 
-    #Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cscript.exe ""$env:windir\system32\slmgr.vbs"" /ipk $MAKKey" -Wait
+    #$null = cscript.exe "$env:windir\system32\slmgr.vbs" /ipk $MAKKey 
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cscript.exe ""$env:windir\system32\slmgr.vbs"" /ipk $MAKKey" -Wait
 
     Write-Log -Message "Enabling ESU for the Year #$Year ..."
     #$null = cscript.exe /b "$env:windir\system32\slmgr.vbs" /ato $ActivationID
-    $null = cscript.exe "$env:windir\system32\slmgr.vbs" /ato $ActivationID
-    #Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cscript.exe ""$env:windir\system32\slmgr.vbs"" /ato $ActivationID" -Wait
+    #$null = cscript.exe "$env:windir\system32\slmgr.vbs" /ato $ActivationID
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cscript.exe ""$env:windir\system32\slmgr.vbs"" /ato $ActivationID" -Wait
  
     #Manual Troubleshoot 
     #$MAKKey = "<YOUR_MAKKEY_HERE>"
