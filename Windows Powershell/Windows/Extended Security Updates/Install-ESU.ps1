@@ -159,5 +159,5 @@ else {
 #endregion
 
 Write-Log -Message "=== End Of The Script ===" -Color Cyan
-
+return 0
 #endregion
