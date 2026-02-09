@@ -69,8 +69,6 @@ function Install-ESU {
         #To replace with the year associated to the MAK Key : 1, 2 or 3
         [int]$Year
     )
-
-    $ExitCode = 0
     Write-Log -Message "Installing the MAK ESU Key..."
     $null = cscript.exe /b "$env:windir\system32\slmgr.vbs" /ipk $MAKKey 
  
@@ -87,14 +85,10 @@ function Install-ESU {
  
     if ($IsSucceeded) {
         Write-Log -Message "✅ ESU Installation succeeded " -Color Green
-        $ExitCode = 0
     }
     else {
         Write-Log -Message "❌ Key not found after the Setup" -Color Red
-        $ExitCode = 1
     }
-    return $ExitCode
-
 }
 #endregion
 
@@ -129,7 +123,7 @@ if ($BuildNumber -eq $ExpectedVersion) {
         $Condition = "Client-ESU-Year{0}" -f $Year
  
         if ($IsSucceeded) {
-            Write-Log -Message "✅ ESU already installed" -Color Green
+            Write-Log -Message "✅ ESU already installed" Green
             # Extraire les numéros
             $IsSucceededYear = [int]([regex]::Match($IsSucceeded.Name, 'Year(\d+)').Groups[1].Value)
             $ConditionYear = [int]([regex]::Match($Condition, 'Year(\d+)').Groups[1].Value)
@@ -146,7 +140,7 @@ if ($BuildNumber -eq $ExpectedVersion) {
         }
         else {
             Write-Log -Message "❌ ESU Not Set, Installation in Progress ..." -Color Cyan
-            $Result = Install-ESU -MAKKey $MAKKey -ActivationID $ActivationIDs[$Year] -Year $Year
+            Install-ESU -MAKKey $MAKKey -ActivationID $ActivationIDs[$Year] -Year $Year
         }
     }
     else {
@@ -159,5 +153,5 @@ else {
 #endregion
 
 Write-Log -Message "=== End Of The Script ===" -Color Cyan
-return 0
+
 #endregion
