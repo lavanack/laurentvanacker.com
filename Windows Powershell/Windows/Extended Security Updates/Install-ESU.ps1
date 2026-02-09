@@ -70,10 +70,10 @@ function Install-ESU {
         [int]$Year
     )
     Write-Log -Message "Installing the MAK ESU Key..."
-    $null = cscript.exe /b "$env:windir\system32\slmgr.vbs" /ipk $MAKKey 
+    #$null = cscript.exe /b "$env:windir\system32\slmgr.vbs" /ipk $MAKKey 
  
     Write-Log -Message "Enabling ESU for the Year #$Year ..."
-    $null = cscript.exe /b "$env:windir\system32\slmgr.vbs" /ato $ActivationID
+    #$null = cscript.exe /b "$env:windir\system32\slmgr.vbs" /ato $ActivationID
  
     #Manual Troubleshoot 
     #$MAKKey = "<YOUR_MAKKEY_HERE>"
@@ -107,7 +107,7 @@ Write-Log -Message "=== Start Of The Script ===" -Color Cyan
  
 #region Checking Windows Version
 $BuildNumber = (Get-ComputerInfo).OsBuildNumber
-Write-Log -Message "Version détectée : $BuildNumber"
+Write-Log -Message "Detected Version: $BuildNumber"
 #endregion
 
 #region Setup
@@ -154,5 +154,4 @@ else {
 #endregion
 
 Write-Log -Message "=== End Of The Script ===" -Color Cyan
-$LASTEXITCODE = 0
 #endregion
