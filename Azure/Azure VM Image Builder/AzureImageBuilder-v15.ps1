@@ -455,7 +455,6 @@ function New-AzureComputeGallery {
 		runAsSystem          = $true  
 		ScriptUri            = 'https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-07-31/TimezoneRedirection.ps1'
 	}
-
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgTimeZoneRedirectionPowerShellCustomizerParams.Name)' ..."
 	$TimeZoneRedirectionCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgTimeZoneRedirectionPowerShellCustomizerParams 
 
@@ -465,7 +464,6 @@ function New-AzureComputeGallery {
 		sourceUri      = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Windows%20Powershell/Windows/Extended%20Security%20Updates/Install-ESU.ps1'
 		destination    = "C:\AVDImage\Install-ESU.ps1"
 	}
-
 	Write-Verbose -Message "Creating Azure Image Builder Template Customizer Object for copying 'Install-ESU.ps1' from My Github repository ..."
 	$CopyInstallESUCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgCopyInstallESUFileCustomizerParams 
 
@@ -479,63 +477,6 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for running 'Install-ESU.ps1' ..."
 	$InstallESUPowerShellCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgInstallESUPowerShellCustomizerParams 
 
-	$ImgPowerShellCrossPlatformPowerShellCustomizerParams = @{  
-		PowerShellCustomizer = $true  
-		Name                 = 'Install PowerShell Cross Platform'  
-		RunElevated          = $true  
-		runAsSystem          = $true  
-		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-PowerShell.ps1'
-	}
-
-	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgPowerShellCrossPlatformPowerShellCustomizerParams.Name)' ..."
-	$PowerShellCrossPlatformCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgPowerShellCrossPlatformPowerShellCustomizerParams 
-
-	$ImgPuttyPowerShellCustomizerParams = @{  
-		PowerShellCustomizer = $true  
-		Name                 = 'Install Putty'  
-		RunElevated          = $true  
-		runAsSystem          = $true  
-		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-Putty.ps1'
-	}
-
-	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgPuttyPowerShellCustomizerParams.Name)' ..."
-	$PuttyCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgPuttyPowerShellCustomizerParams 
-
-	$ImgWinSCPPowerShellCustomizerParams = @{  
-		PowerShellCustomizer = $true  
-		Name                 = 'Install WinSCP'  
-		RunElevated          = $true  
-		runAsSystem          = $true  
-		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-WinSCP.ps1'
-	}
-
-	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgWinSCPPowerShellCustomizerParams.Name)' ..."
-	$WinSCPCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgWinSCPPowerShellCustomizerParams 
-
-	$ImgNotepadPlusPlusPowerShellCustomizerParams = @{  
-		PowerShellCustomizer = $true  
-		Name                 = 'Install Notepad++'  
-		RunElevated          = $true  
-		runAsSystem          = $true  
-		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-NotepadPlusPlus.ps1'
-	}
-
-	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgNotepadPlusPlusPowerShellCustomizerParams.Name)' ..."
-	$NotepadPlusPlusCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgNotepadPlusPlusPowerShellCustomizerParams 
-
-
-
-	$ImgVSCodePowerShellCustomizerParams = @{  
-		PowerShellCustomizer = $true  
-		Name                 = 'Install Visual Studio Code'  
-		RunElevated          = $true  
-		runAsSystem          = $true  
-		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1'
-	}
-
-	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgVSCodePowerShellCustomizerParams.Name)' ..."
-	$VSCodeCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgVSCodePowerShellCustomizerParams 
-
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template WindowsUpdate Customizer Object ..."
 	$WindowsUpdateCustomizer = New-AzImageBuilderTemplateCustomizerObject -WindowsUpdateCustomizer -Name 'WindowsUpdate' -Filter @('exclude:$_.Title -like ''*Preview*''', 'include:$true') -SearchCriterion "IsInstalled=0" -UpdateLimit 40
 
@@ -546,12 +487,12 @@ function New-AzureComputeGallery {
 		runAsSystem          = $true  
 		ScriptUri            = 'https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-07-31/TimezoneRedirection.ps1'
 	}
-
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgDisableAutoUpdatesPowerShellCustomizerParams.Name)' ..."
 	$DisableAutoUpdatesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgDisableAutoUpdatesPowerShellCustomizerParams 
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
-	$Customize = $TimeZoneRedirectionCustomizer, $CopyInstallESUCustomizer, $InstallESUPowerShellCustomizer, $PowerShellCrossPlatformCustomizer, $PuttyCustomizer, $WinSCPCustomizer, $NotepadPlusPlusCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
+	#$Customize = $TimeZoneRedirectionCustomizer, $CopyInstallESUCustomizer, $InstallESUPowerShellCustomizer, $PowerShellCrossPlatformCustomizer, $PuttyCustomizer, $WinSCPCustomizer, $NotepadPlusPlusCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
+	$Customize = $TimeZoneRedirectionCustomizer, $CopyInstallESUCustomizer, $InstallESUPowerShellCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
 	$ImgTemplateParams = @{
 		ImageTemplateName      = $imageTemplateNamePowerShell
 		ResourceGroupName      = $ResourceGroupName

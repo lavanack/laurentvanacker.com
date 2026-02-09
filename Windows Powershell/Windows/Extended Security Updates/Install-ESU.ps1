@@ -146,7 +146,7 @@ if ($BuildNumber -eq $ExpectedVersion) {
         }
         else {
             Write-Log -Message "❌ ESU Not Set, Installation in Progress ..." -Color Cyan
-            Install-ESU -MAKKey $MAKKey -ActivationID $ActivationIDs[$Year] -Year $Year
+            $Result = Install-ESU -MAKKey $MAKKey -ActivationID $ActivationIDs[$Year] -Year $Year
         }
     }
     else {
