@@ -15,8 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 3.0 -Modules Az.Accounts, Az.Resources, Az.OperationalInsights
-#Modified version from https://luke.geek.nz/azure/turn-on-a-azure-virtual-machine-using-azure-automation/
+#requires -Version 3.0 -Modules Az.Accounts, Az.ImageBuilder, Az.Compute
 
 Param(
 	[Parameter(Mandatory = $true)]
@@ -24,7 +23,7 @@ Param(
 	[Parameter(Mandatory = $true)]
 	[string]$UserAssignedManagedIdentityId,
 	[Parameter(Mandatory = $false)]
-	[bool] $excludeFromLatest = $true
+	[bool] $excludeFromLatest = $false
 )
 
 #region Azure connection
@@ -32,16 +31,21 @@ Param(
 Disable-AzContextAutosave -Scope Process
 # Connect to Azure with system-assigned managed identity (Azure Automation account, which has been given VM Start permissions)
 $AzureContext = (Connect-AzAccount -Identity).context
-Write-Output -InputObject $AzureContext
+Write-Output -InputObject "`$AzureContext: $AzureContext"
 # set and store context
 $AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -DefaultProfile $AzureContext
-Write-Output -InputObject $AzureContext
-$subscriptionID = $AzureContext.Subscription.Id
-Write-Output -InputObject $subscriptionID
+Write-Output -InputObject "`$AzureContext: $AzureContext"
+$SubscriptionID = $AzureContext.Subscription.Id
+Write-Output -InputObject "`$SubscriptionID: $subscriptionID"
+#endregion
+
+#region Parameters
+Write-Output -InputObject "`$GalleryId: $GalleryId"
+Write-Output -InputObject "`$UserAssignedManagedIdentityId: $UserAssignedManagedIdentityId"
+Write-Output -InputObject "`$excludeFromLatest: $excludeFromLatest"
 #endregion
 
 #region Azure Gallery Image Definition Version
-
 $Gallery = Get-AzGallery -ResourceId $GalleryResourceId
 $ResourceGroupName = $Gallery.ResourceGroupName
 $UserAssignedManagedIdentity = Get-AzResource -ResourceId $UserAssignedManagedIdentityId
@@ -66,17 +70,18 @@ $SrcObjParamsPowerShell = @{
 #Image Market Place Image + customizations: VSCode
 $imageDefinitionNameARM = "{0}-arm-softwares" -f $SrcObjParamsARM.Sku
 $imageTemplateNameARM = "{0}-template-{1}" -f $imageDefinitionNameARM, $timeInt
-Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$imageDefinitionNameARM: $imageDefinitionNameARM"
-Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$imageTemplateNameARM: $imageTemplateNameARM"
+Write-Output -InputObject "`$imageDefinitionNameARM: $imageDefinitionNameARM"
+Write-Output -InputObject "`$imageTemplateNameARM: $imageTemplateNameARM"
 $StagingResourceGroupNameARM = "IT_{0}_{1}_{2}" -f $ResourceGroupName, $imageTemplateNameARM.Substring(0, 13), (New-Guid).Guid
-
+Write-Output -InputObject "`$StagingResourceGroupNameARM: $StagingResourceGroupNameARM"
 
 #Image Market Place Image + customizations: VSCode
 $imageDefinitionNamePowerShell = "{0}-posh-softwares" -f $SrcObjParamsPowerShell.Sku
 $imageTemplateNamePowerShell = "{0}-template-{1}" -f $imageDefinitionNamePowerShell, $timeInt
-Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$imageDefinitionNamePowerShell: $imageDefinitionNamePowerShell"
-Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$imageTemplateNamePowerShell: $imageTemplateNamePowerShell"
+Write-Output -InputObject "`$imageDefinitionNamePowerShell: $imageDefinitionNamePowerShell"
+Write-Output -InputObject "`$imageTemplateNamePowerShell: $imageTemplateNamePowerShell"
 $StagingResourceGroupNamePowerShell = "IT_{0}_{1}_{2}" -f $ResourceGroupName, $imageTemplateNamePowerShell.Substring(0, 13), (New-Guid).Guid
+Write-Output -InputObject "`$StagingResourceGroupNamePowerShell: $StagingResourceGroupNamePowerShell"
 #endregion
 
 # Distribution properties object name (runOutput). Gives you the properties of the managed image on completion
@@ -84,23 +89,23 @@ $runOutputNameARM = "cgOutputARM"
 $runOutputNamePowerShell = "cgOutputPowerShell"
 
 $Version = Get-Date -UFormat "%Y.%m.%d"
-Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Version: $Version"
+Write-Output -InputObject "`$Version: $Version"
 
 $Jobs = @()
 
 #region Create resource group
 if (Get-AzResourceGroup -Name $StagingResourceGroupNameARM -Location $location -ErrorAction Ignore) {
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Removing '$StagingResourceGroupNameARM' Resource Group Name ..."
+	Write-Output -InputObject "Removing '$StagingResourceGroupNameARM' Resource Group Name ..."
 	Remove-AzResource -Name $StagingResourceGroupNameARM -Force
 }
-Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating '$StagingResourceGroupNameARM' Resource Group Name ..."
+Write-Output -InputObject "Creating '$StagingResourceGroupNameARM' Resource Group Name ..."
 $StagingResourceGroupARM = New-AzResourceGroup -Name $StagingResourceGroupNameARM -Tag $Tags -Location $location -Force
 
 if (Get-AzResourceGroup -Name $StagingResourceGroupNamePowerShell -Location $location -ErrorAction Ignore) {
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Removing '$StagingResourceGroupNamePowerShell' Resource Group Name ..."
+	Write-Output -InputObject "Removing '$StagingResourceGroupNamePowerShell' Resource Group Name ..."
 	Remove-AzResource -Name $StagingResourceGroupNamePowerShell -Force
 }
-Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating '$StagingResourceGroupNamePowerShell' Resource Group Name ..."
+Write-Output -InputObject "Creating '$StagingResourceGroupNamePowerShell' Resource Group Name ..."
 $StagingResourceGroupPowerShell = New-AzResourceGroup -Name $StagingResourceGroupNamePowerShell -Location $location -Tag $Tags -Force
 
 $ResourceGroup = Get-AzResourceGroup -ResourceGroupName $ResourceGroupName
@@ -116,15 +121,15 @@ foreach ($CurrentStagingResourceGroup in $StagingResourceGroupARM, $StagingResou
 		Scope              = $CurrentStagingResourceGroup.ResourceId
 	}
 	while (-not(Get-AzRoleAssignment @Parameters)) {
-		Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' scope"
+		Write-Output -InputObject "Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' scope"
 		try {
 			$RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
 		} 
 		catch {
 			$RoleAssignment = $null
 		}
-		Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-		Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+		Write-Output -InputObject "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+		Write-Output -InputObject "Sleeping 30 seconds"
 		Start-Sleep -Seconds 30
 	}
 }
@@ -156,11 +161,11 @@ if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDef
 	$templateFilePath = Join-Path -Path $env:TEMP -ChildPath $(Split-Path $templateUrl -Leaf)
 	#Generate a unique file name 
 	$templateFilePath = $templateFilePath -replace ".json$", "_$timeInt.json"
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$templateFilePath: $templateFilePath  ..."
+	Write-Output -InputObject "`$templateFilePath: $templateFilePath  ..."
 
 	Invoke-WebRequest -Uri $templateUrl -OutFile $templateFilePath -UseBasicParsing
 
-	((Get-Content -Path $templateFilePath -Raw) -replace '<subscriptionID>', $subscriptionID) | Set-Content -Path $templateFilePath
+	((Get-Content -Path $templateFilePath -Raw) -replace '<subscriptionID>', $SubscriptionID) | Set-Content -Path $templateFilePath
 	((Get-Content -Path $templateFilePath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $templateFilePath
 	#((Get-Content -Path $templateFilePath -Raw) -replace '<region>',$location) | Set-Content -Path $templateFilePath
 	((Get-Content -Path $templateFilePath -Raw) -replace '<runOutputName>', $runOutputNameARM) | Set-Content -Path $templateFilePath
@@ -191,16 +196,16 @@ if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDef
 		Sku               = "{0}-arm" -f $SrcObjParamsARM.Sku
 		HyperVGeneration  = 'V2'
 	}
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Compute Gallery Image Definition '$imageDefinitionNameARM' (From ARM)..."
+	Write-Output -InputObject "Creating Azure Compute Gallery Image Definition '$imageDefinitionNameARM' (From ARM)..."
 	$GalleryImageDefinitionARM = New-AzGalleryImageDefinition @GalleryParams
 	#endregion
 
 #region Submit the template
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Starting Resource Group Deployment from '$templateFilePath' ..."
+	Write-Output -InputObject "Starting Resource Group Deployment from '$templateFilePath' ..."
 	$ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2022-07-01"; "imageTemplateName" = $imageTemplateNameARM; "svclocation" = $location }  #-Tag $Tags
 	
 	#region Build the image
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Starting Image Builder Template from '$imageTemplateNameARM' (As Job) ..."
+	Write-Output -InputObject "Starting Image Builder Template from '$imageTemplateNameARM' (As Job) ..."
 	$Jobs += Start-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateNameARM -AsJob
 	#endregion
 	#endregion
@@ -220,10 +225,10 @@ if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDef
 		Sku               = "{0}-posh" -f $SrcObjParamsPowerShell.Sku
 		HyperVGeneration  = 'V2'
 	}
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Compute Gallery Image Definition '$imageDefinitionNamePowerShell' (From Powershell)..."
+	Write-Output -InputObject "Creating Azure Compute Gallery Image Definition '$imageDefinitionNamePowerShell' (From Powershell)..."
 	$GalleryImageDefinitionPowerShell = New-AzGalleryImageDefinition @GalleryParams
 
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template Source Object  ..."
+	Write-Output -InputObject "Creating Azure Image Builder Template Source Object  ..."
 	$srcPlatform = New-AzImageBuilderTemplateSourceObject @SrcObjParamsPowerShell -PlatformImageSource
 
 	<# 
@@ -250,7 +255,7 @@ if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDef
 		RunOutputName          = $runOutputNamePowerShell
 		ExcludeFromLatest      = $excludeFromLatest
 	}
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template Distributor Object  ..."
+	Write-Output -InputObject "Creating Azure Image Builder Template Distributor Object  ..."
 	$disSharedImg = New-AzImageBuilderTemplateDistributorObject @disObjParams
 
 	$ImgTimeZoneRedirectionPowerShellCustomizerParams = @{  
@@ -261,7 +266,7 @@ if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDef
 		ScriptUri            = 'https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-07-31/TimezoneRedirection.ps1'
 	}
 
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgTimeZoneRedirectionPowerShellCustomizerParams.Name)' ..."
+	Write-Output -InputObject "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgTimeZoneRedirectionPowerShellCustomizerParams.Name)' ..."
 	$TimeZoneRedirectionCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgTimeZoneRedirectionPowerShellCustomizerParams 
 
 	$ImgPowerShellCrossPlatformPowerShellCustomizerParams = @{  
@@ -272,7 +277,7 @@ if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDef
 		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-PowerShell.ps1'
 	}
 
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgPowerShellCrossPlatformPowerShellCustomizerParams.Name)' ..."
+	Write-Output -InputObject "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgPowerShellCrossPlatformPowerShellCustomizerParams.Name)' ..."
 	$PowerShellCrossPlatformCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgPowerShellCrossPlatformPowerShellCustomizerParams 
 
 	$ImgPuttyPowerShellCustomizerParams = @{  
@@ -283,7 +288,7 @@ if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDef
 		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-Putty.ps1'
 	}
 
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgPuttyPowerShellCustomizerParams.Name)' ..."
+	Write-Output -InputObject "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgPuttyPowerShellCustomizerParams.Name)' ..."
 	$PuttyCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgPuttyPowerShellCustomizerParams 
 
 	$ImgWinSCPPowerShellCustomizerParams = @{  
@@ -294,7 +299,7 @@ if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDef
 		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-WinSCP.ps1'
 	}
 
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgWinSCPPowerShellCustomizerParams.Name)' ..."
+	Write-Output -InputObject "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgWinSCPPowerShellCustomizerParams.Name)' ..."
 	$WinSCPCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgWinSCPPowerShellCustomizerParams 
 
 	$ImgNotepadPlusPlusPowerShellCustomizerParams = @{  
@@ -305,7 +310,7 @@ if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDef
 		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-NotepadPlusPlus.ps1'
 	}
 
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgNotepadPlusPlusPowerShellCustomizerParams.Name)' ..."
+	Write-Output -InputObject "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgNotepadPlusPlusPowerShellCustomizerParams.Name)' ..."
 	$NotepadPlusPlusCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgNotepadPlusPlusPowerShellCustomizerParams 
 
 
@@ -318,10 +323,10 @@ if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDef
 		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1'
 	}
 
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgVSCodePowerShellCustomizerParams.Name)' ..."
+	Write-Output -InputObject "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgVSCodePowerShellCustomizerParams.Name)' ..."
 	$VSCodeCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgVSCodePowerShellCustomizerParams 
 
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template WindowsUpdate Customizer Object ..."
+	Write-Output -InputObject "Creating Azure Image Builder Template WindowsUpdate Customizer Object ..."
 	$WindowsUpdateCustomizer = New-AzImageBuilderTemplateCustomizerObject -WindowsUpdateCustomizer -Name 'WindowsUpdate' -Filter @('exclude:$_.Title -like ''*Preview*''', 'include:$true') -SearchCriterion "IsInstalled=0" -UpdateLimit 40
 
 	$ImgDisableAutoUpdatesPowerShellCustomizerParams = @{  
@@ -332,7 +337,7 @@ if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDef
 		ScriptUri            = 'https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-07-31/TimezoneRedirection.ps1'
 	}
 
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgDisableAutoUpdatesPowerShellCustomizerParams.Name)' ..."
+	Write-Output -InputObject "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgDisableAutoUpdatesPowerShellCustomizerParams.Name)' ..."
 	$DisableAutoUpdatesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgDisableAutoUpdatesPowerShellCustomizerParams 
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
@@ -351,18 +356,18 @@ if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDef
 		StagingResourceGroup   = $StagingResourceGroupPowerShell.ResourceId
 		#Tag                    = @{"SecurityControl"="Ignore"}
 	}
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template from '$imageTemplateNamePowerShell' Image Template Name ..."
+	Write-Output -InputObject "Creating Azure Image Builder Template from '$imageTemplateNamePowerShell' Image Template Name ..."
 	$ImageBuilderTemplate = New-AzImageBuilderTemplate @ImgTemplateParams
 
 	#region Build the image
 	#Start the image building process using Start-AzImageBuilderTemplate cmdlet:
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Starting Image Builder Template from '$imageTemplateNamePowerShell' (As Job) ..."
+	Write-Output -InputObject "Starting Image Builder Template from '$imageTemplateNamePowerShell' (As Job) ..."
 	$Jobs += Start-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateNamePowerShell -AsJob
 	#endregion
 	#endregion
 	
 #region Waiting for jobs to complete
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Waiting for jobs to complete ..."
+	Write-Output -InputObject "Waiting for jobs to complete ..."
 	#$Jobs | Wait-Job | Out-Null
 	$null = $Jobs | Receive-Job -Wait -AutoRemoveJob
 	#endregion
@@ -371,23 +376,23 @@ if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDef
 	#To determine whenever or not the template upload process was successful, run the following command.
 	$getStatusARM = Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateNameARM
 	# Optional - if you have any errors running the preceding command, run:
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNameARM' ProvisioningErrorCode: $($getStatusARM.ProvisioningErrorCode) "
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNameARM' ProvisioningErrorMessage: $($getStatusARM.ProvisioningErrorMessage) "
+	Write-Output -InputObject "'$imageTemplateNameARM' ProvisioningErrorCode: $($getStatusARM.ProvisioningErrorCode) "
+	Write-Output -InputObject "'$imageTemplateNameARM' ProvisioningErrorMessage: $($getStatusARM.ProvisioningErrorMessage) "
 	# Shows the status of the build
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNameARM' LastRunStatusRunState: $($getStatusARM.LastRunStatusRunState) "
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNameARM' LastRunStatusMessage: $($getStatusARM.LastRunStatusMessage) "
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNameARM' LastRunStatusRunSubState: $($getStatusARM.LastRunStatusRunSubState) "
+	Write-Output -InputObject "'$imageTemplateNameARM' LastRunStatusRunState: $($getStatusARM.LastRunStatusRunState) "
+	Write-Output -InputObject "'$imageTemplateNameARM' LastRunStatusMessage: $($getStatusARM.LastRunStatusMessage) "
+	Write-Output -InputObject "'$imageTemplateNameARM' LastRunStatusRunSubState: $($getStatusARM.LastRunStatusRunSubState) "
 	if ($getStatusARM.LastRunStatusRunState -eq "Failed") {
 		Write-Error -Message "The Image Builder Template for '$imageTemplateNameARM' has failed:\r\n$($getStatusARM.LastRunStatusMessage)"
 	}
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Removing Azure Image Builder Template for '$imageTemplateNameARM' ..."
+	Write-Output -InputObject "Removing Azure Image Builder Template for '$imageTemplateNameARM' ..."
 	#$Jobs += $getStatusARM | Remove-AzImageBuilderTemplate -AsJob
 	$getStatusARM | Remove-AzImageBuilderTemplate #-NoWait
 	if ($aibRoleImageCreationPath) {
-		Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Removing '$aibRoleImageCreationPath' ..."
+		Write-Output -InputObject "Removing '$aibRoleImageCreationPath' ..."
 		Remove-Item -Path $aibRoleImageCreationPath -Force
 	}
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Removing '$templateFilePath' ..."
+	Write-Output -InputObject "Removing '$templateFilePath' ..."
 	Remove-Item -Path $templateFilePath -Force
 	#endregion
 
@@ -395,16 +400,16 @@ if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDef
 	#To determine whenever or not the template upload process was successful, run the following command.
 	$getStatusPowerShell = Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateNamePowerShell
 	# Optional - if you have any errors running the preceding command, run:
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNamePowerShell' ProvisioningErrorCode: $($getStatusPowerShell.ProvisioningErrorCode) "
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNamePowerShell' ProvisioningErrorMessage: $($getStatusPowerShell.ProvisioningErrorMessage) "
+	Write-Output -InputObject "'$imageTemplateNamePowerShell' ProvisioningErrorCode: $($getStatusPowerShell.ProvisioningErrorCode) "
+	Write-Output -InputObject "'$imageTemplateNamePowerShell' ProvisioningErrorMessage: $($getStatusPowerShell.ProvisioningErrorMessage) "
 	# Shows the status of the build
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNamePowerShell' LastRunStatusRunState: $($getStatusPowerShell.LastRunStatusRunState) "
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNamePowerShell' LastRunStatusMessage: $($getStatusPowerShell.LastRunStatusMessage) "
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNamePowerShell' LastRunStatusRunSubState: $($getStatusPowerShell.LastRunStatusRunSubState) "
+	Write-Output -InputObject "'$imageTemplateNamePowerShell' LastRunStatusRunState: $($getStatusPowerShell.LastRunStatusRunState) "
+	Write-Output -InputObject "'$imageTemplateNamePowerShell' LastRunStatusMessage: $($getStatusPowerShell.LastRunStatusMessage) "
+	Write-Output -InputObject "'$imageTemplateNamePowerShell' LastRunStatusRunSubState: $($getStatusPowerShell.LastRunStatusRunSubState) "
 	if ($getStatusPowerShell.LastRunStatusRunState -eq "Failed") {
 		Write-Error -Message "The Image Builder Template for '$imageTemplateNamePowerShell' has failed:\r\n$($getStatusPowerShell.LastRunStatusMessage)"
 	}
-	Write-Output -InputObject "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Removing Azure Image Builder Template for '$imageTemplateNamePowerShell' ..."
+	Write-Output -InputObject "Removing Azure Image Builder Template for '$imageTemplateNamePowerShell' ..."
 	#$Jobs += $getStatusPowerShell | Remove-AzImageBuilderTemplate -AsJob
 	$getStatusPowerShell | Remove-AzImageBuilderTemplate #-NoWait
 	#endregion

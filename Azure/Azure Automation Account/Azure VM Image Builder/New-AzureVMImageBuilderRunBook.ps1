@@ -261,30 +261,6 @@ $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Locatio
 $AutomationAccount = New-AzAutomationAccount -Name $AutomationAccountName -Location $Location -ResourceGroupName $ResourceGroupName -AssignSystemIdentity
 #endregion
 
-#region RBAC Assignment
-Start-Sleep -Seconds 30
-#region 'Role Based Access Control Administrator' RBAC Assignment
-$RoleDefinition = Get-AzRoleDefinition -Name "Role Based Access Control Administrator"
-$Parameters = @{
-	ObjectId           = $AutomationAccount.Identity.PrincipalId
-	RoleDefinitionName = $RoleDefinition.Name
-	Scope              = "/subscriptions/$SubscriptionId"
-}
-while (-not(Get-AzRoleAssignment @Parameters)) {
-	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' scope"
-	try {
-		$RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
-	} 
-	catch {
-		$RoleAssignment = $null
-	}
-	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
-	Start-Sleep -Seconds 30
-}
-#endregion
-#endregion
-
 #region New-StartAzureVirtualMachineRunBook
 #region Schedule Setup
 #region Azure Virtual Machine - Daily Start
@@ -308,10 +284,9 @@ $Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $Automati
 
 # Link the schedule to the runbook
 $TimeInt = "1770706539"
-$SubscriptionId = 
 $Parameters = @{ 
-    GalleryId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.Compute/galleries/gal_avd_use2_{1}" -f $SubscriptionId,$TimeInt
-    UserAssignedManagedIdentityId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/aibIdentity-{1}" -f $SubscriptionId,$TimeInt
+    GalleryId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.Compute/galleries/gal_avd_use2_{1}" -f $SubscriptionId, $TimeInt
+    UserAssignedManagedIdentityId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/aibIdentity-{1}" -f $SubscriptionId, $TimeInt
     excludeFromLatest = $true
 }
 $Params = @{
@@ -320,4 +295,92 @@ $Params = @{
     Name = $RunBookName 
 }
 Register-AzAutomationScheduledRunbook @Params -ScheduleName $Schedule.Name -Parameters $Parameters
+#endregion
+
+#region RBAC Assignments
+#region Automation Account System Assigned Identity
+#region 'Role Based Access Control Administrator' RBAC Assignments
+$RoleDefinition = Get-AzRoleDefinition -Name "Role Based Access Control Administrator"
+$Parameters = @{
+    ObjectId           = $AutomationAccount.Identity.PrincipalId
+    RoleDefinitionName = $RoleDefinition.Name
+    Scope              = "/subscriptions/{0}" -f $SubscriptionId
+}
+while (-not(Get-AzRoleAssignment @Parameters)) {
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
+    $RoleAssignment = New-AzRoleAssignment @Parameters
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)]`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+    Start-Sleep -Seconds 30
+}
+#endregion 
+#endregion
+#endregion
+
+#region Disabling/Enabling Log Verbose Records 
+$Params = @{
+    AutomationAccountName = $AutomationAccount.AutomationAccountName
+    ResourceGroupName = $ResourceGroupName
+    Name = $RunBookName 
+}
+$null = Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
+#endregion
+
+#region Module Setup
+$ModuleNames = "Az.Accounts", "Az.ImageBuilder", "Az.Compute"
+foreach ($ModuleName in $ModuleNames) {
+    $Module = Find-Module -Name $ModuleName -Repository PSGallery
+    $Uri = "$($Module.RepositorySourceLocation)/package/$($Module.Name)/$($Module.Version)"
+    Write-Verbose -Message "Importing '$ModuleName' (version: $($Module.Version))into '$($AutomationAccount.AutomationAccountName)' the Automation Account ..."
+
+    $Parameters = @{
+      ResourceGroupName = $ResourceGroupName
+      AutomationAccountName = $AutomationAccount.AutomationAccountName
+      Name = $module.Name
+      RuntimeVersion = "5.1"
+      ContentLinkUri = $Uri
+    }
+    $null = New-AzAutomationModule @Parameters
+}
+
+$Parameters = @{
+    ResourceGroupName = $ResourceGroupName
+    AutomationAccountName = $AutomationAccount.AutomationAccountName
+}
+While (Get-AzAutomationModule @Parameters | Where-Object -FilterScript { $_.ProvisioningState -ne "Succeeded" }) {
+    Start-Sleep -Seconds 30
+}
+#endregion
+
+#region Test
+#Start-Sleep -Seconds 30
+#region PowerShell
+$TimeInt = "1770706539"
+$Parameters = @{ 
+    GalleryId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.Compute/galleries/gal_avd_use2_{1}" -f $SubscriptionId, $TimeInt
+    UserAssignedManagedIdentityId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/aibIdentity-{1}" -f $SubscriptionId, $TimeInt
+    excludeFromLatest = $true
+}
+$Params = @{
+    AutomationAccountName = $AutomationAccount.AutomationAccountName
+    ResourceGroupName = $ResourceGroupName
+    Name = $RunBookName 
+}
+$Result = Start-AzAutomationRunbook @Params -Parameters $Parameters
+
+$Params = @{
+    AutomationAccountName = $AutomationAccount.AutomationAccountName
+    ResourceGroupName = $ResourceGroupName
+    Id = $Result.JobId
+}
+
+While ((Get-AzAutomationJob @Params).Status -notin @("Completed", "Failed")) {
+    Start-Sleep -Seconds 30
+}
+
+#All outputs except Verbose
+(Get-AzAutomationJobOutput @Params | Where-Object -FilterScript { $_.Type -ne "Verbose"}).Summary
+#All useful Verbose outputs
+#(Get-AzAutomationJobOutput @Params | Where-Object -FilterScript { ($_.Type -eq "Verbose") -and ($_.Summary -notmatch "^Importing|^Exporting|^Loading module")}).Summary
+#endregion
 #endregion
