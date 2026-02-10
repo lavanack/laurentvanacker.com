@@ -23,6 +23,8 @@ Param(
 	[Parameter(Mandatory = $true)]
 	[string]$UserAssignedManagedIdentityId,
 	[Parameter(Mandatory = $false)]
+	[string[]]$TargetRegions,
+	[Parameter(Mandatory = $false)]
 	[bool] $excludeFromLatest = $false
 )
 
@@ -46,10 +48,25 @@ Write-Output -InputObject "`$excludeFromLatest: $excludeFromLatest"
 #endregion
 
 #region Azure Gallery Image Definition Version
-$Gallery = Get-AzGallery -ResourceId $GalleryResourceId
+$Gallery = Get-AzGallery -ResourceId $GalleryId
 $ResourceGroupName = $Gallery.ResourceGroupName
 $UserAssignedManagedIdentity = Get-AzResource -ResourceId $UserAssignedManagedIdentityId
 $AssignedIdentity = Get-AzUserAssignedIdentity -Name $UserAssignedManagedIdentity.Name -ResourceGroupName $UserAssignedManagedIdentity.ResourceGroupName
+$Location = $Gallery.Location
+
+if ([string]::IsNullOrEmpty($TargetRegions)) {
+    $TargetRegions = @($Location)
+}
+elseif ($Location -notin $TargetRegions) {
+	$TargetRegions += $Location
+}
+
+[array] $TargetRegionSettings = foreach ($CurrentTargetRegion in $TargetRegions) {
+	@{"name" = $CurrentTargetRegion; "replicaCount" = $ReplicaCount; "storageAccountType" = "Premium_LRS" }
+}
+
+
+
 #region Source Image 
 $SrcObjParamsARM = @{
 	Publisher = 'MicrosoftWindowsDesktop'
@@ -94,19 +111,19 @@ Write-Output -InputObject "`$Version: $Version"
 $Jobs = @()
 
 #region Create resource group
-if (Get-AzResourceGroup -Name $StagingResourceGroupNameARM -Location $location -ErrorAction Ignore) {
+if (Get-AzResourceGroup -Name $StagingResourceGroupNameARM -Location $Location -ErrorAction Ignore) {
 	Write-Output -InputObject "Removing '$StagingResourceGroupNameARM' Resource Group Name ..."
 	Remove-AzResource -Name $StagingResourceGroupNameARM -Force
 }
 Write-Output -InputObject "Creating '$StagingResourceGroupNameARM' Resource Group Name ..."
-$StagingResourceGroupARM = New-AzResourceGroup -Name $StagingResourceGroupNameARM -Tag $Tags -Location $location -Force
+$StagingResourceGroupARM = New-AzResourceGroup -Name $StagingResourceGroupNameARM -Tag $Tags -Location $Location -Force
 
-if (Get-AzResourceGroup -Name $StagingResourceGroupNamePowerShell -Location $location -ErrorAction Ignore) {
+if (Get-AzResourceGroup -Name $StagingResourceGroupNamePowerShell -Location $Location -ErrorAction Ignore) {
 	Write-Output -InputObject "Removing '$StagingResourceGroupNamePowerShell' Resource Group Name ..."
 	Remove-AzResource -Name $StagingResourceGroupNamePowerShell -Force
 }
 Write-Output -InputObject "Creating '$StagingResourceGroupNamePowerShell' Resource Group Name ..."
-$StagingResourceGroupPowerShell = New-AzResourceGroup -Name $StagingResourceGroupNamePowerShell -Location $location -Tag $Tags -Force
+$StagingResourceGroupPowerShell = New-AzResourceGroup -Name $StagingResourceGroupNamePowerShell -Location $Location -Tag $Tags -Force
 
 $ResourceGroup = Get-AzResourceGroup -ResourceGroupName $ResourceGroupName
 #endregion
@@ -167,7 +184,7 @@ if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDef
 
 	((Get-Content -Path $templateFilePath -Raw) -replace '<subscriptionID>', $SubscriptionID) | Set-Content -Path $templateFilePath
 	((Get-Content -Path $templateFilePath -Raw) -replace '<rgName>', $ResourceGroupName) | Set-Content -Path $templateFilePath
-	#((Get-Content -Path $templateFilePath -Raw) -replace '<region>',$location) | Set-Content -Path $templateFilePath
+	#((Get-Content -Path $templateFilePath -Raw) -replace '<region>',$Location) | Set-Content -Path $templateFilePath
 	((Get-Content -Path $templateFilePath -Raw) -replace '<runOutputName>', $runOutputNameARM) | Set-Content -Path $templateFilePath
 
 	((Get-Content -Path $templateFilePath -Raw) -replace '<imageDefName>', $imageDefinitionNameARM) | Set-Content -Path $templateFilePath
@@ -187,7 +204,7 @@ if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDef
 	$GalleryParams = @{
 		GalleryName       = $Gallery.Name
 		ResourceGroupName = $ResourceGroupName
-		Location          = $location
+		Location          = $Location
 		Name              = $imageDefinitionNameARM
 		OsState           = 'generalized'
 		OsType            = 'Windows'
@@ -202,7 +219,7 @@ if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDef
 
 #region Submit the template
 	Write-Output -InputObject "Starting Resource Group Deployment from '$templateFilePath' ..."
-	$ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2022-07-01"; "imageTemplateName" = $imageTemplateNameARM; "svclocation" = $location }  #-Tag $Tags
+	$ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2022-07-01"; "imageTemplateName" = $imageTemplateNameARM; "svclocation" = $Location }  #-Tag $Tags
 	
 	#region Build the image
 	Write-Output -InputObject "Starting Image Builder Template from '$imageTemplateNameARM' (As Job) ..."
@@ -216,7 +233,7 @@ if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDef
 	$GalleryParams = @{
 		GalleryName       = $Gallery.Name
 		ResourceGroupName = $ResourceGroupName
-		Location          = $location
+		Location          = $Location
 		Name              = $imageDefinitionNamePowerShell
 		OsState           = 'generalized'
 		OsType            = 'Windows'
@@ -247,7 +264,7 @@ if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDef
 		ArtifactTag            = @{Publisher = $SrcObjParamsPowerShell.Publisher; Offer = $SrcObjParamsPowerShell.Publisher; Sku = $SrcObjParamsPowerShell.Publisher }
 
 		# 1. Uncomment following line for a single region deployment.
-		#ReplicationRegion = $location
+		#ReplicationRegion = $Location
 
 		# 2. Uncomment following line if the custom image should be replicated to another region(s).
 		TargetRegion           = $TargetRegionSettings
@@ -348,7 +365,7 @@ if ((Get-AzGalleryImageVersion @Parameters -GalleryImageDefinitionName $imageDef
 		Source                 = $srcPlatform
 		Distribute             = $disSharedImg
 		Customize              = $Customize
-		Location               = $location
+		Location               = $Location
 		UserAssignedIdentityId = $AssignedIdentity.Id
 		VMProfileVmsize        = "Standard_D8s_v6"
 		VMProfileOsdiskSizeGb  = 127

@@ -223,6 +223,7 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
 }
 
+
 $Location = "EastUS2"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
@@ -230,12 +231,14 @@ $AzureVMNameMaxLength = $ResourceTypeShortNameHT["Compute/virtualMachines"].leng
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
 $ResourceGroupPrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
+$VirtualMachinePrefix = $ResourceTypeShortNameHT["Compute/virtualMachines"].lengthMax
 $RunBookPrefix = $ResourceTypeShortNameHT["Automation/automationAccounts/runbooks"].ShortName
 $AutomationAccountPrefix = $ResourceTypeShortNameHT["Automation/automationAccounts"].ShortName
 
-$Project = "automation"
-$Role = "aib"
-$DigitNumber = 3
+$Project = "auto"
+$Role = "acg"
+$DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role + $LocationShortName).Length
+#$DigitNumber = 3
 $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
 
 
@@ -245,17 +248,16 @@ $SubscriptionId = $((Get-AzContext).Subscription.Id)
 $TimeStamp = Get-Date -Format 'yyyyMMddHHmmss'
 #endregion
 
-#region Resource Group Setup
+#region Resource Group and AutomationAccount Setup
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
 if ($ResourceGroup) {
-    #Step 0: Remove previously existing Azure Resource Group with the same name
-    $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
+    #Remove previously existing Azure Resource Group with the same name
+    $ResourceGroup | Remove-AzResourceGroup -Force
 }
 Write-Verbose "`$ResourceGroupName: $ResourceGroupName"
 Write-Verbose "`$AutomationAccountName: $AutomationAccountName"
 
-
-#Step 1: Create Azure Resource Group
+#Create Azure Resource Group
 # Create Resource Groups
 $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 $AutomationAccount = New-AzAutomationAccount -Name $AutomationAccountName -Location $Location -ResourceGroupName $ResourceGroupName -AssignSystemIdentity
@@ -265,42 +267,44 @@ $AutomationAccount = New-AzAutomationAccount -Name $AutomationAccountName -Locat
 #region Schedule Setup
 #region Azure Virtual Machine - Daily Start
 $TimeZone = ([System.TimeZoneInfo]::Local).Id
-$StartTime = Get-Date "08:00:00"
+$StartTime = Get-Date "00:00:00"
 if ($(Get-Date) -gt $StartTime) {
     $StartTime = $StartTime.AddDays(1)
 }
-$Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Image Builder - Daily Start" -StartTime $StartTime -DayInterval 1 -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
+$Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Machine - Monthly Start - 2nd Wednesday of the Month" -StartTime $StartTime -MonthInterval 1 -DayOfWeek "Wednesday" -DayOfWeekOccurrence "Second" -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
 #endregion 
 #endregion
 
 #region RunBook Setup
-$RunBookName = "{0}-AzureVMImageBuilder" -f $RunBookPrefix
+$RunBookName = "{0}-NewAzureComputeGalleryImageDefinitionVersionViaAzureVMImageBuilder" -f $RunBookPrefix
 #$Runbook = New-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName -Type PowerShell
 # Publish the runbook
 #Publish-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName
-
-$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20VM%20Image%20Builder/AzureVMImageBuilderRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Building New Azure Gallery Image Definition Versions" -Verbose 
 #endregion 
 
-# Link the schedule to the runbook
-$TimeInt = "1770718943"
+$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -RunbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20VM%20Image%20Builder/NewAzureComputeGalleryImageDefinitionVersionViaAzureVMImageBuilder-v2.ps1" -Description "PowerShell Azure Automation Runbook for Generating an Azure Compute Gallery Image Definition Version Via Azure VM Image Builder"
+#endregion 
+
+#region Link the schedule to the runbook
+$timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+$GalleryResourceGroupName = "{0}-avd-aib-{1}-{2}" -f $ResourceGroupPrefix, $LocationShortName, $TimeInt 
+$GalleryName = "gal_avd_use2_{0}" -f $timeInt
 $Parameters = @{ 
-    GalleryId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.Compute/galleries/gal_avd_use2_{1}" -f $SubscriptionId, $TimeInt
-    UserAssignedManagedIdentityId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/aibIdentity-{1}" -f $SubscriptionId, $TimeInt
-    excludeFromLatest = $true
+	GalleryName = $GalleryName
+	GalleryResourceGroupName = $GalleryResourceGroupName
 }
 $Params = @{
     AutomationAccountName = $AutomationAccount.AutomationAccountName
     ResourceGroupName = $ResourceGroupName
     Name = $RunBookName 
 }
+
 Register-AzAutomationScheduledRunbook @Params -ScheduleName $Schedule.Name -Parameters $Parameters
 #endregion
 
 #region RBAC Assignments
 #region Automation Account System Assigned Identity
-#region 'Role Based Access Control Administrator' RBAC Assignments
-$RoleDefinition = Get-AzRoleDefinition -Name "Role Based Access Control Administrator"
+#region 'Onwer' RBAC Assignments
 $RoleDefinition = Get-AzRoleDefinition -Name "Owner"
 $Parameters = @{
     ObjectId           = $AutomationAccount.Identity.PrincipalId
@@ -327,7 +331,6 @@ $Params = @{
 $null = Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
 #endregion
 
-<#
 #region Module Setup
 $ModuleNames = "Az.Accounts", "Az.ImageBuilder", "Az.Compute"
 foreach ($ModuleName in $ModuleNames) {
@@ -353,15 +356,14 @@ While (Get-AzAutomationModule @Parameters | Where-Object -FilterScript { $_.Prov
     Start-Sleep -Seconds 30
 }
 #endregion
-#>
+
+
 #region Test
 #Start-Sleep -Seconds 30
 #region PowerShell
-$TimeInt = "1770718943"
 $Parameters = @{ 
-    GalleryId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.Compute/galleries/gal_avd_use2_{1}" -f $SubscriptionId, $TimeInt
-    UserAssignedManagedIdentityId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/aibIdentity-{1}" -f $SubscriptionId, $TimeInt
-    excludeFromLatest = $true
+	GalleryName = $GalleryName
+	GalleryResourceGroupName = $GalleryResourceGroupName
 }
 $Params = @{
     AutomationAccountName = $AutomationAccount.AutomationAccountName
