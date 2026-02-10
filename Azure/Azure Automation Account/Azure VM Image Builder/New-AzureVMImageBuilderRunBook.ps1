@@ -327,13 +327,14 @@ $Params = @{
 $null = Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
 #endregion
 
+<#
 #region Module Setup
-#$ModuleNames = "Az.Accounts", "Az.ImageBuilder", "Az.Compute"
-$ModuleNames = "Az.ImageBuilder"
+$ModuleNames = "Az.Accounts", "Az.ImageBuilder", "Az.Compute"
+#$ModuleNames = "Az.ImageBuilder"
 foreach ($ModuleName in $ModuleNames) {
     $Module = Find-Module -Name $ModuleName -Repository PSGallery
     $Uri = "$($Module.RepositorySourceLocation)/package/$($Module.Name)/$($Module.Version)"
-    Write-Verbose -Message "Importing '$ModuleName' (version: $($Module.Version))into '$($AutomationAccount.AutomationAccountName)' the Automation Account ..."
+    Write-Verbose -Message "Importing '$ModuleName' (version: $($Module.Version)) into '$($AutomationAccount.AutomationAccountName)' the Automation Account ..."
 
     $Parameters = @{
       ResourceGroupName = $ResourceGroupName
@@ -344,7 +345,7 @@ foreach ($ModuleName in $ModuleNames) {
     }
     $null = New-AzAutomationModule @Parameters
 }
-
+#>
 $Parameters = @{
     ResourceGroupName = $ResourceGroupName
     AutomationAccountName = $AutomationAccount.AutomationAccountName
