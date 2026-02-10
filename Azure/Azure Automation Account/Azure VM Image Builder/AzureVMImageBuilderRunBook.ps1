@@ -30,7 +30,7 @@ Param(
 )
 
 #region Importing Modules
-#Import-Module Az.Accounts -Force
+Import-Module Az.Accounts -Force
 Import-Module Az.Compute -Force
 Import-Module Az.ImageBuilder -Force
 Import-Module Az.Resources -Force

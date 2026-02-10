@@ -159,7 +159,7 @@ function New-AzAPIAutomationPowerShellRunbook {
             logVerbose         = $false
             logProgress        = $false
             logActivityTrace   = 0
-            runbookType        = "PowerShell"
+            runbookType        = "PowerShell72"
             publishContentLink = @{
                 uri         = $RunBookPowerShellScriptURI
                 contentHash = [ordered]@{
@@ -339,7 +339,7 @@ foreach ($ModuleName in $ModuleNames) {
       ResourceGroupName = $ResourceGroupName
       AutomationAccountName = $AutomationAccount.AutomationAccountName
       Name = $module.Name
-      RuntimeVersion = "5.1"
+      RuntimeVersion = "7.2"
       ContentLinkUri = $Uri
     }
     $null = New-AzAutomationModule @Parameters
