@@ -287,7 +287,7 @@ $TimeInt = "1770718943"
 $Parameters = @{ 
     GalleryId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.Compute/galleries/gal_avd_use2_{1}" -f $SubscriptionId, $TimeInt
     UserAssignedManagedIdentityId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/aibIdentity-{1}" -f $SubscriptionId, $TimeInt
-    excludeFromLatest = $true
+    excludeFromLatest = $false
 }
 $Params = @{
     AutomationAccountName = $AutomationAccount.AutomationAccountName
@@ -330,6 +330,7 @@ $null = Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
 <#
 #region Module Setup
 $ModuleNames = "Az.Accounts", "Az.ImageBuilder", "Az.Compute"
+$ModuleNames = "Az.ImageBuilder"
 foreach ($ModuleName in $ModuleNames) {
     $Module = Find-Module -Name $ModuleName -Repository PSGallery
     $Uri = "$($Module.RepositorySourceLocation)/package/$($Module.Name)/$($Module.Version)"
@@ -361,7 +362,7 @@ $TimeInt = "1770718943"
 $Parameters = @{ 
     GalleryId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.Compute/galleries/gal_avd_use2_{1}" -f $SubscriptionId, $TimeInt
     UserAssignedManagedIdentityId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/aibIdentity-{1}" -f $SubscriptionId, $TimeInt
-    excludeFromLatest = $true
+    excludeFromLatest = $false
 }
 $Params = @{
     AutomationAccountName = $AutomationAccount.AutomationAccountName
