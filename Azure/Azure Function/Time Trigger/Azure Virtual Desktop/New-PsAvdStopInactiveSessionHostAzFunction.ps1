@@ -182,6 +182,11 @@ function New-PsAvdStopInactiveSessionHostAzFunction {
         # Input bindings are passed in via param block.
         param($Timer)
 
+        # The 'IsPastDue' property is 'true' when the current function invocation is later than scheduled.
+        if ($myTimer.IsPastDue) {
+            Write-Host "PowerShell timer is running late!"
+        }
+
         $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
         Write-Host -Object "PowerShell timer trigger function executed at: $timestamp"
 
