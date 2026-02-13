@@ -74,10 +74,13 @@ function New-PsAvdStopInactiveSessionHostAzFunction {
     [CmdletBinding(PositionalBinding = $false)]
     param
     (
-        [uint16] $FrequencyInMinutes = 5,
+        [Parameter(Mandatory = $false)]
+        [uint16] $FrequencyInMinutes = 15,
+        [Parameter(Mandatory = $false)]
         [ValidateSet('Personal', 'Pooled')]
-        [string[]] $HostPoolType = 'Personal',
-        [string] $Location = (Get-AzVMCompute).Location,
+        [string[]] $HostPoolType = @('Personal', 'Pooled'),
+        [Parameter(Mandatory = $false)]
+        [string] $Location = "eastus2",
         [switch] $PassThru,
         [switch] $Force
     )
