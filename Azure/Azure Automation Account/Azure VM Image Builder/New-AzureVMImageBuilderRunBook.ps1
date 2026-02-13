@@ -18,7 +18,7 @@ of the Sample Code.
 #requires -Version 5 -Modules Az.Automation, Az.Resources
 
 #From https://luke.geek.nz/azure/turn-on-a-azure-virtual-machine-using-azure-automation/
-[CmdletBinding()]
+[CmdletBinding(PositionalBinding = $false)]
 param
 (
 )
@@ -27,7 +27,7 @@ param
 #region function definitions 
 #From https://learn.microsoft.com/en-us/rest/api/automation/runbook/get-content?view=rest-automation-2023-11-01&tabs=HTTP
 function Get-AzAPIAutomationRunbookDefinition {
-    [CmdletBinding()]
+    [CmdletBinding(PositionalBinding = $false)]
     Param(
         [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
         [string]$ResourceGroupName,
@@ -74,7 +74,7 @@ function Get-AzAPIAutomationRunbookDefinition {
 
 #From https://learn.microsoft.com/en-us/rest/api/automation/runbook/get?view=rest-automation-2023-11-01&tabs=HTTP
 function Get-AzAPIAutomationRunbook {
-    [CmdletBinding()]
+    [CmdletBinding(PositionalBinding = $false)]
     Param(
         [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
         [string]$ResourceGroupName,
@@ -121,7 +121,7 @@ function Get-AzAPIAutomationRunbook {
 
 #From https://learn.microsoft.com/en-us/rest/api/automation/runbook/create-or-update?view=rest-automation-2023-11-01&tabs=HTTP#create-or-update-runbook-and-publish-it
 function New-AzAPIAutomationPowerShellRunbook {
-    [CmdletBinding()]
+    [CmdletBinding(PositionalBinding = $false)]
     Param(
         [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
         [string]$ResourceGroupName,
@@ -134,7 +134,9 @@ function New-AzAPIAutomationPowerShellRunbook {
         [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
         [string]$RunBookPowerShellScriptURI,
         [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
-        [string]$Description
+        [string]$Description,
+        [Parameter(Mandatory = $false, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+        [string]$RuntimeEnvironment = "PowerShell72"
     )
     #region Azure Context
     # Log in first with Connect-AzAccount if not using Cloud Shell
@@ -159,7 +161,7 @@ function New-AzAPIAutomationPowerShellRunbook {
             logVerbose         = $false
             logProgress        = $false
             logActivityTrace   = 0
-            runbookType        = "PowerShell72"
+            runbookType = "PowerShell"
             publishContentLink = @{
                 uri         = $RunBookPowerShellScriptURI
                 contentHash = [ordered]@{
@@ -176,6 +178,77 @@ function New-AzAPIAutomationPowerShellRunbook {
     try {
         # Invoke the REST API
         $Response = Invoke-RestMethod -Method PUT -Headers $authHeader -Body $($Body | ConvertTo-Json -Depth 100) -ContentType "application/json" -Uri $URI -ErrorVariable ResponseError
+        $Runbook = Get-AzAutomationRunbook -AutomationAccountName $AutomationAccountName -ResourceGroupName $ResourceGroupName -Name $RunbookName
+        return $Runbook
+    }
+    catch [System.Net.WebException] {   
+        # Dig into the exception to get the Response details.
+        # Note that value__ is not a typo.
+        Write-Warning -Message "StatusCode: $($_.Exception.Response.StatusCode.value__ )"
+        Write-Warning -Message "StatusDescription: $($_.Exception.Response.StatusDescription)"
+        $respStream = $_.Exception.Response.GetResponseStream()
+        $reader = New-Object System.IO.StreamReader($respStream)
+        $Response = $reader.ReadToEnd() | ConvertFrom-Json
+        if (-not([string]::IsNullOrEmpty($Response.message))) {
+            Write-Warning -Message $Response.message
+        }
+        return $Response
+    }
+    finally {
+    }
+}
+
+function New-AzAPIAutomationAccountRuntimeEnvironment {
+    [CmdletBinding(PositionalBinding = $false)]
+    Param(
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+        [Microsoft.Azure.Commands.Automation.Model.AutomationAccount] $AutomationAccount,
+        [Parameter(Mandatory = $false)]
+        [string] $RuntimeEnvironment = "PowerShell-74",
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('5.1', '7.1', '7.4')]
+        [string] $Version = "7.4",
+        [Parameter(Mandatory = $false)]
+        [string[]] $Modules =   @("Az.Accounts", "Az.Compute", "Az.ImageBuilder", "Az.ManagedServiceIdentity", "Az.Resources"),
+        [Parameter(Mandatory = $false)]
+        [hashtable] $DefaultPackages = @{"Az" = "12.3.0"},
+        [Parameter(Mandatory = $false)]
+        [string] $API="2024-10-23"
+    )
+
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
+
+    #region Azure Context
+    # Log in first with Connect-AzAccount if not using Cloud Shell
+    $azContext = Get-AzContext
+    $SubscriptionID = $azContext.Subscription.Id
+    $azProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile
+    $profileClient = New-Object -TypeName Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient -ArgumentList ($azProfile)
+    $token = $profileClient.AcquireAccessToken($azContext.Subscription.TenantId)
+    $authHeader = @{
+        'Content-Type'  = 'application/json'
+        'Authorization' = 'Bearer ' + $token.AccessToken
+    }
+    #endregion
+
+    #region Creating the Runtime Environment
+    $Body = @{
+        Properties = @{
+            Runtime = @{
+                language = "PowerShell"
+                version = $Version
+            }
+            defaultPackages = $DefaultPackages
+        }
+        name = $RuntimeEnvironment
+    }
+
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the '$RuntimeEnvironment' Runtime Environment ..."
+    $URI = "https://management.azure.com/subscriptions/$($AutomationAccount.SubscriptionId)/resourceGroups/$($AutomationAccount.ResourceGroupName)/providers/Microsoft.Automation/automationAccounts/$($AutomationAccount.AutomationAccountName)/runtimeEnvironments/$($RuntimeEnvironment)?api-version=$API"
+    try {
+        # Invoke the REST API
+        $Response = Invoke-RestMethod -Method PUT -Headers $authHeader -ContentType "application/json" -Body $($Body | ConvertTo-Json -Depth 100) -Uri $URI -ErrorVariable ResponseError
+        Write-Verbose -Message "`$Response: $($Response | Select-Object -Property * | Out-String)"
     }
     catch [System.Net.WebException] {   
         # Dig into the exception to get the Response details.
@@ -191,7 +264,133 @@ function New-AzAPIAutomationPowerShellRunbook {
     }
     finally {
     }
-    return $Response
+    #endregion
+
+    #region Importing PowerShell Modules
+    foreach ($Module in $Modules) {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Adding the '$Module' PowerShell Module to the Runtime Environment ..."
+        $LatestPowerShellGalleryModule = Find-Module -Name $Module -Repository PSGallery
+        $NugetPackageName = "{0}.{1}.nupkg" -f $LatestPowerShellGalleryModule.Name.ToLower(),$LatestPowerShellGalleryModule.Version
+        $Body = @{
+            Properties = @{
+                contentLink = @{
+                    uri = "https://cdn.powershellgallery.com/packages/{0}" -f $NugetPackageName
+                    
+                }
+            }
+        }
+    
+        $URI = "https://management.azure.com/subscriptions/$($AutomationAccount.SubscriptionId)/resourceGroups/$($AutomationAccount.ResourceGroupName)/providers/Microsoft.Automation/automationAccounts/$($AutomationAccount.AutomationAccountName)/runtimeEnvironments/$RuntimeEnvironment/packages/$($LatestPowerShellGalleryModule.Name)?api-version=$API"
+        try {
+            # Invoke the REST API
+            $Response = Invoke-RestMethod -Method PUT -Headers $authHeader -ContentType "application/json" -Body $($Body | ConvertTo-Json -Depth 100) -Uri $URI -ErrorVariable ResponseError
+            Write-Verbose -Message "`$Response: $($Response | Select-Object -Property * | Out-String)"
+        }
+        catch [System.Net.WebException] {   
+            # Dig into the exception to get the Response details.
+            # Note that value__ is not a typo.
+            Write-Warning -Message "StatusCode: $($_.Exception.Response.StatusCode.value__ )"
+            Write-Warning -Message "StatusDescription: $($_.Exception.Response.StatusDescription)"
+            $respStream = $_.Exception.Response.GetResponseStream()
+            $reader = New-Object System.IO.StreamReader($respStream)
+            $Response = $reader.ReadToEnd() | ConvertFrom-Json
+            if (-not([string]::IsNullOrEmpty($Response.message))) {
+                Write-Warning -Message $Response.message
+            }
+        }
+        finally {
+        }
+    }
+    #endregion
+
+    #region Waiting the PowerShell Module Imports Complete
+    $URI = "https://management.azure.com/subscriptions/$($AutomationAccount.SubscriptionId)/resourceGroups/$($AutomationAccount.ResourceGroupName)/providers/Microsoft.Automation/automationAccounts/$($AutomationAccount.AutomationAccountName)/runtimeEnvironments/$RuntimeEnvironment/packages?api-version=$API"
+    Do {
+        Write-Verbose -Message "Sleeping 30 seconds"
+        Start-Sleep -Seconds 30
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Waiting the PowerShell Module Imports Complete ..."
+        try {
+            # Invoke the REST API
+            $Response = Invoke-RestMethod -Method GET -Headers $authHeader -ContentType "application/json" -Uri $URI -ErrorVariable ResponseError
+            Write-Verbose -Message "`$Response: $($Response.value.properties | Select-Object -Property name, @{Name="version";Expression={$_.properties.version}}, @{Name="provisioningState";Expression={$_.properties.provisioningState}})"
+        }
+        catch [System.Net.WebException] {   
+            # Dig into the exception to get the Response details.
+            # Note that value__ is not a typo.
+            Write-Warning -Message "StatusCode: $($_.Exception.Response.StatusCode.value__ )"
+            Write-Warning -Message "StatusDescription: $($_.Exception.Response.StatusDescription)"
+            $respStream = $_.Exception.Response.GetResponseStream()
+            $reader = New-Object System.IO.StreamReader($respStream)
+            $Response = $reader.ReadToEnd() | ConvertFrom-Json
+            if (-not([string]::IsNullOrEmpty($Response.message))) {
+                Write-Warning -Message $Response.message
+            }
+        }
+        finally {
+        }
+    } While ($Response.value.properties.provisioningState -match "ing$")
+    #endregion
+
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
+}
+
+function Set-AzAPIAutomationRunbookRuntimeEnvironment {
+    [CmdletBinding(PositionalBinding = $false)]
+    Param(
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+        [Microsoft.Azure.Commands.Automation.Model.Runbook] $Runbook,
+        [Parameter(Mandatory = $true)]
+        [string] $RuntimeEnvironment,
+        [string] $API="2024-10-23"
+    )
+
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
+
+    #region Azure Context
+    # Log in first with Connect-AzAccount if not using Cloud Shell
+    $azContext = Get-AzContext
+    $SubscriptionID = $azContext.Subscription.Id
+    $azProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile
+    $profileClient = New-Object -TypeName Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient -ArgumentList ($azProfile)
+    $token = $profileClient.AcquireAccessToken($azContext.Subscription.TenantId)
+    $authHeader = @{
+        'Content-Type'  = 'application/json'
+        'Authorization' = 'Bearer ' + $token.AccessToken
+    }
+    #endregion
+
+    #region Creating the Runtime Environment
+    $AutomationAccount = $Runbook | Get-AzAutomationAccount
+    $Body = @{
+        Properties = @{
+            runtimeEnvironment = $RuntimeEnvironment
+        }
+    }
+
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Setting the '$RuntimeEnvironment' Runtime Environment to the '$($Runbook.Name)' Runbook ..."
+    $URI = "https://management.azure.com/subscriptions/$($AutomationAccount.SubscriptionId)/resourceGroups/$($AutomationAccount.ResourceGroupName)/providers/Microsoft.Automation/automationAccounts/$($AutomationAccount.AutomationAccountName)/runbooks/$($Runbook.Name)?api-version=$API"
+    try {
+        # Invoke the REST API
+        $Response = Invoke-RestMethod -Method PATCH -Headers $authHeader -ContentType "application/json" -Body $($Body | ConvertTo-Json -Depth 100) -Uri $URI -ErrorVariable ResponseError
+        Write-Verbose -Message "`$Response: $($Response | Select-Object -Property * | Out-String)"
+    }
+    catch [System.Net.WebException] {   
+        # Dig into the exception to get the Response details.
+        # Note that value__ is not a typo.
+        Write-Warning -Message "StatusCode: $($_.Exception.Response.StatusCode.value__ )"
+        Write-Warning -Message "StatusDescription: $($_.Exception.Response.StatusDescription)"
+        $respStream = $_.Exception.Response.GetResponseStream()
+        $reader = New-Object System.IO.StreamReader($respStream)
+        $Response = $reader.ReadToEnd() | ConvertFrom-Json
+        if (-not([string]::IsNullOrEmpty($Response.message))) {
+            Write-Warning -Message $Response.message
+        }
+    }
+    finally {
+    }
+    #endregion
+
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
 }
 #endregion
 
@@ -258,7 +457,12 @@ Write-Verbose "`$AutomationAccountName: $AutomationAccountName"
 #Step 1: Create Azure Resource Group
 # Create Resource Groups
 $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
+#endregion
+
+#region Automation Account Setup
 $AutomationAccount = New-AzAutomationAccount -Name $AutomationAccountName -Location $Location -ResourceGroupName $ResourceGroupName -AssignSystemIdentity
+$RuntimeEnvironment = "PowerShell-74-AIB" 
+$AutomationAccount | New-AzAPIAutomationAccountRuntimeEnvironment -RuntimeEnvironment $RuntimeEnvironment -Verbose
 #endregion
 
 #region New-StartAzureVirtualMachineRunBook
@@ -266,7 +470,8 @@ $AutomationAccount = New-AzAutomationAccount -Name $AutomationAccountName -Locat
 #region Azure Virtual Machine - Daily Start
 $TimeZone = ([System.TimeZoneInfo]::Local).Id
 $StartTime = Get-Date "08:00:00"
-if ($(Get-Date) -gt $StartTime) {
+#The start time of the schedule must be at least 5 minutes after the time you create the schedule. 
+if ($(Get-Date) -gt $StartTime.AddMinutes(-5)) {
     $StartTime = $StartTime.AddDays(1)
 }
 $Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Image Builder - Daily Start" -StartTime $StartTime -DayInterval 1 -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
@@ -274,16 +479,17 @@ $Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.A
 #endregion
 
 #region RunBook Setup
-$RunBookName = "{0}-AzureVMImageBuilder" -f $RunBookPrefix
-#$Runbook = New-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName -Type PowerShell
+$RunbookName = "{0}-AzureVMImageBuilder" -f $RunBookPrefix
+#$Runbook = New-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunbookName -ResourceGroupName $ResourceGroupName -Type PowerShell
 # Publish the runbook
-#Publish-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName
+#Publish-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunbookName -ResourceGroupName $ResourceGroupName
 
-$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20VM%20Image%20Builder/AzureVMImageBuilderRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Building New Azure Gallery Image Definition Versions" -Verbose 
+$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -RunbookName $RunbookName -RuntimeEnvironment $RuntimeEnvironment -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20VM%20Image%20Builder/AzureVMImageBuilderRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Building New Azure Gallery Image Definition Versions" -Verbose 
+$Runbook | Set-AzAPIAutomationRunbookRuntimeEnvironment -RuntimeEnvironment $RuntimeEnvironment
 #endregion 
 
 # Link the schedule to the runbook
-$TimeInt = "1770718943"
+$TimeInt = "1770917139"
 $Parameters = @{ 
     GalleryId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.Compute/galleries/gal_avd_use2_{1}" -f $SubscriptionId, $TimeInt
     UserAssignedManagedIdentityId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/aibIdentity-{1}" -f $SubscriptionId, $TimeInt
@@ -292,7 +498,7 @@ $Parameters = @{
 $Params = @{
     AutomationAccountName = $AutomationAccount.AutomationAccountName
     ResourceGroupName = $ResourceGroupName
-    Name = $RunBookName 
+    Name = $RunbookName 
 }
 Register-AzAutomationScheduledRunbook @Params -ScheduleName $Schedule.Name -Parameters $Parameters
 #endregion
@@ -322,43 +528,15 @@ while (-not(Get-AzRoleAssignment @Parameters)) {
 $Params = @{
     AutomationAccountName = $AutomationAccount.AutomationAccountName
     ResourceGroupName = $ResourceGroupName
-    Name = $RunBookName 
+    Name = $RunbookName 
 }
 $null = Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
-#endregion
-
-<#
-#region Module Setup
-$ModuleNames = "Az.Accounts", "Az.ImageBuilder", "Az.Compute"
-#$ModuleNames = "Az.ImageBuilder"
-foreach ($ModuleName in $ModuleNames) {
-    $Module = Find-Module -Name $ModuleName -Repository PSGallery
-    $Uri = "$($Module.RepositorySourceLocation)/package/$($Module.Name)/$($Module.Version)"
-    Write-Verbose -Message "Importing '$ModuleName' (version: $($Module.Version)) into '$($AutomationAccount.AutomationAccountName)' the Automation Account ..."
-
-    $Parameters = @{
-      ResourceGroupName = $ResourceGroupName
-      AutomationAccountName = $AutomationAccount.AutomationAccountName
-      Name = $module.Name
-      RuntimeVersion = "7.2"
-      ContentLinkUri = $Uri
-    }
-    $null = New-AzAutomationModule @Parameters
-}
-#>
-$Parameters = @{
-    ResourceGroupName = $ResourceGroupName
-    AutomationAccountName = $AutomationAccount.AutomationAccountName
-}
-While (Get-AzAutomationModule @Parameters | Where-Object -FilterScript { $_.ProvisioningState -ne "Succeeded" }) {
-    Start-Sleep -Seconds 30
-}
 #endregion
 
 #region Test
 #Start-Sleep -Seconds 30
 #region PowerShell
-$TimeInt = "1770718943"
+$TimeInt = "1770917139"
 $Parameters = @{ 
     GalleryId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.Compute/galleries/gal_avd_use2_{1}" -f $SubscriptionId, $TimeInt
     UserAssignedManagedIdentityId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/aibIdentity-{1}" -f $SubscriptionId, $TimeInt
@@ -367,7 +545,7 @@ $Parameters = @{
 $Params = @{
     AutomationAccountName = $AutomationAccount.AutomationAccountName
     ResourceGroupName = $ResourceGroupName
-    Name = $RunBookName 
+    Name = $RunbookName 
 }
 $Result = Start-AzAutomationRunbook @Params -Parameters $Parameters
 
