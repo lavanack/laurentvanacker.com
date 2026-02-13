@@ -35,7 +35,15 @@ function New-AzureComputeGallery {
 		[Parameter(Mandatory = $false)]
 		[int]$ReplicaCount = 1,
 		[Parameter(Mandatory = $false)]
-		[bool] $excludeFromLatest = $false
+		[bool] $excludeFromLatest = $false,
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()] 
+        [ValidatePattern("\w{5}-\w{5}-\w{5}-\w{5}-\w{5}")] 
+        [string]$MAKKey,
+        [Parameter(Mandatory = $true)]
+        [ValidateSet(1,2,3)] 
+        #To replace with the year associated to the MAK Key : 1, 2 or 3
+        [int]$Year
 	)
 
 	#region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
@@ -336,7 +344,7 @@ function New-AzureComputeGallery {
 	#region Download and configure the template
 	#$templateUrl="https://raw.githubusercontent.com/azure/azvmimagebuilder/main/solutions/14_Building_Images_WVD/armTemplateWVD.json"
 	#$templateFilePath = "armTemplateWVD.json"
-	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/armTemplateAVD-v15-bis.json"
+	$templateUrl = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/armTemplateAVD-v15.json"
 	$templateFilePath = Join-Path -Path $env:TEMP -ChildPath $(Split-Path $templateUrl -Leaf)
 	#Generate a unique file name 
 	$templateFilePath = $templateFilePath -replace ".json$", "_$timeInt.json"
@@ -360,6 +368,9 @@ function New-AzureComputeGallery {
 	((Get-Content -Path $templateFilePath -Raw) -replace '<publisher>', $SrcObjParamsARM.Publisher) | Set-Content -Path $templateFilePath
 	((Get-Content -Path $templateFilePath -Raw) -replace '<offer>', $SrcObjParamsARM.Offer) | Set-Content -Path $templateFilePath
 	((Get-Content -Path $templateFilePath -Raw) -replace '<sku>', $SrcObjParamsARM.sku) | Set-Content -Path $templateFilePath
+
+	((Get-Content -Path $templateFilePath -Raw) -replace '<MAKKey>', $MAKKey) | Set-Content -Path $templateFilePath
+	((Get-Content -Path $templateFilePath -Raw) -replace '<Year>', $Year) | Set-Content -Path $templateFilePath
 	#endregion
 
 	#region Create the gallery definition
@@ -447,6 +458,25 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgTimeZoneRedirectionPowerShellCustomizerParams.Name)' ..."
 	$TimeZoneRedirectionCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgTimeZoneRedirectionPowerShellCustomizerParams 
 
+	$ImgCopyInstallESUFileCustomizerParams = @{  
+		FileCustomizer = $true  
+		Name           = 'CopySetESU'  
+		sourceUri      = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Windows%20Powershell/Windows/Extended%20Security%20Updates/Install-ESU.ps1'
+		destination    = "C:\AVDImage\Install-ESU.ps1"
+	}
+	Write-Verbose -Message "Creating Azure Image Builder Template Customizer Object for copying 'Install-ESU.ps1' from My Github repository ..."
+	$CopyInstallESUCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgCopyInstallESUFileCustomizerParams 
+
+	$ImgInstallESUPowerShellCustomizerParams = @{  
+		PowerShellCustomizer = $true  
+		Name                 = 'SetESU'  
+		RunElevated          = $true  
+		runAsSystem          = $true
+		inline               = "C:\AVDImage\Install-ESU.ps1 -MAKKey $MAKKey -Year $Year"
+	}
+	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for running 'Install-ESU.ps1' ..."
+	$InstallESUPowerShellCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgInstallESUPowerShellCustomizerParams 
+
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template WindowsUpdate Customizer Object ..."
 	$WindowsUpdateCustomizer = New-AzImageBuilderTemplateCustomizerObject -WindowsUpdateCustomizer -Name 'WindowsUpdate' -Filter @('exclude:$_.Title -like ''*Preview*''', 'include:$true') -SearchCriterion "IsInstalled=0" -UpdateLimit 40
 
@@ -461,7 +491,7 @@ function New-AzureComputeGallery {
 	$DisableAutoUpdatesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgDisableAutoUpdatesPowerShellCustomizerParams 
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
-	$Customize = $TimeZoneRedirectionCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
+	$Customize = $TimeZoneRedirectionCustomizer, $CopyInstallESUCustomizer, $InstallESUPowerShellCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
 	$ImgTemplateParams = @{
 		ImageTemplateName      = $imageTemplateNamePowerShell
 		ResourceGroupName      = $ResourceGroupName
@@ -589,6 +619,8 @@ $ResourceGroupName = "rg-avd-aib-use2-{0}" -f $timeInt
 $GalleryName = "gal_avd_use2_{0}" -f $timeInt
 $GalleryResourceId = (Get-AzGallery -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -ErrorAction Ignore).Id
 #Put your own MAK key below
+#$MAKKey = "A1B2C-3D4E5-F6G7H-8I9J1-0K11L"
+$Year = 1
 
 #We specify an existing Azure Compute Gallery Resource Id
 if ($GalleryResourceId) {
@@ -596,11 +628,11 @@ if ($GalleryResourceId) {
 }
 #We specify an Azure Compute Gallery Name and A Resource Group Name. If they exist they will be used, if not they will be created.
 elseif ($GalleryName -and $ResourceGroupName) {
-	$AzureComputeGallery = New-AzureComputeGallery  -GalleryName $GalleryName -GalleryResourceGroupName $ResourceGroupName -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
+	$AzureComputeGallery = New-AzureComputeGallery  -GalleryName $GalleryName -GalleryResourceGroupName $ResourceGroupName -Location EastUS2 -TargetRegions EastUS2, CentralUS -MAKKey $MAKKey -Year $Year -Verbose
 }
 #We will create a new Azure Compute Gallery (and its related Resource Group)
 else {
-	$AzureComputeGallery = New-AzureComputeGallery -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
+	$AzureComputeGallery = New-AzureComputeGallery -Location EastUS2 -TargetRegions EastUS2, CentralUS -MAKKey $MAKKey -Year $Year -Verbose
 }
 $AzureComputeGallery
 
