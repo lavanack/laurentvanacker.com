@@ -253,7 +253,7 @@ function Repair-AzImageBuilderTemplateWithRunSpace {
     $OverallStartTime = Get-Date
 
     Foreach ($CurrentResourceGroupName in $ResourceGroupName) {
-        Write-Host -Object "Processing '$CurrentResourceGroupName' VM"
+        Write-Host -Object "Processing '$CurrentResourceGroupName' ResourceGroup"
         $PowerShell = [powershell]::Create()
         $PowerShell.RunspacePool = $RunspacePool
 
@@ -263,10 +263,10 @@ function Repair-AzImageBuilderTemplateWithRunSpace {
 
         Write-Host -Object "Invoking RunSpace for '$CurrentResourceGroupName' ..."
         $null = $RunspaceList.Add([PSCustomObject]@{
-                VMName      = $CurrentResourceGroupName.Name
-                PowerShell  = $PowerShell
-                AsyncResult = $PowerShell.BeginInvoke()
-                Result      = $null
+                ResourceGroupName = $CurrentResourceGroupName.Name
+                PowerShell        = $PowerShell
+                AsyncResult       = $PowerShell.BeginInvoke()
+                Result            = $null
             })
     }
 
@@ -300,14 +300,14 @@ function Repair-AzImageBuilderTemplateWithThreadJob {
     [CmdletBinding(PositionalBinding = $false)]    
     param
     (
-		[Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $false)]
+		[Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
         [string[]]$ResourceGroupName,
         [switch]$Remove
     )
 
     begin {
         $OverallStartTime = Get-Date
-        $ConvertedVMs = @()
+        $Results = @()
         $Jobs = @()
         $ExportedFunctions = [scriptblock]::Create(@"
             Function Repair-AzImageBuilderTemplate { ${Function:Repair-AzImageBuilderTemplate} }
@@ -316,17 +316,17 @@ function Repair-AzImageBuilderTemplateWithThreadJob {
     }
     process {
         foreach ($CurrentResourceGroupName in $ResourceGroupName) {
-            $Job = Start-ThreadJob -ScriptBlock {Repair-AzImageBuilderTemplate -ResourceGroupName $using:CurrentResourceGroupName -Remove:$Remove.IsPresent} -InitializationScript $ExportedFunctions #-StreamingHost $Host
+            $Job = Start-ThreadJob -ScriptBlock {Repair-AzImageBuilderTemplate -ResourceGroupName $using:CurrentResourceGroupName -Remove:$($using:Remove).IsPresent} -InitializationScript $ExportedFunctions #-StreamingHost $Host
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `Running Job #$($Job.Id) for '$CurrentResourceGroupName' ResourceGroup"
 			$Jobs += $Job
         }
     }
     end {
-		$ConvertedVMs = $Jobs | Receive-Job -Wait -AutoRemoveJob
+		$Results = $Jobs | Receive-Job -Wait -AutoRemoveJob
         $OverallEndTime = Get-Date
         $TimeSpan = New-TimeSpan -Start $OverallStartTime -End $OverallEndTime
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Overall - Processing Time: $TimeSpan"
-        return $ConvertedVMs 
+        return $Results 
     }
 }
 #endregion 

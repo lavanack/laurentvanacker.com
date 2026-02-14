@@ -474,7 +474,10 @@ $StartTime = Get-Date "08:00:00"
 if ($(Get-Date) -gt $StartTime.AddMinutes(-5)) {
     $StartTime = $StartTime.AddDays(1)
 }
-$Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Image Builder - Daily Start" -StartTime $StartTime -DayInterval 1 -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
+#Daily Schedule
+#$Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Image Builder - Daily Start" -StartTime $StartTime -DayInterval 1 -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
+#Monthly Schedule : 2nd Wednesday of the month (Patching Day)
+$Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Image Builder - Monthly Start - 2nd Wednesday Of The Month" -StartTime $StartTime MonthInterval 1 -DayOfWeek [System.DayOfWeek]::Wednesday -DayOfWeekOccurrence Second -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
 #endregion 
 #endregion
 
@@ -489,7 +492,7 @@ $Runbook | Set-AzAPIAutomationRunbookRuntimeEnvironment -RuntimeEnvironment $Run
 #endregion 
 
 # Link the schedule to the runbook
-$TimeInt = "1770917139"
+$TimeInt = "1771071561"
 $Parameters = @{ 
     GalleryId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.Compute/galleries/gal_avd_use2_{1}" -f $SubscriptionId, $TimeInt
     UserAssignedManagedIdentityId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/aibIdentity-{1}" -f $SubscriptionId, $TimeInt
@@ -505,8 +508,10 @@ Register-AzAutomationScheduledRunbook @Params -ScheduleName $Schedule.Name -Para
 
 #region RBAC Assignments
 #region Automation Account System Assigned Identity
-#region 'Role Based Access Control Administrator' RBAC Assignments
-$RoleDefinition = Get-AzRoleDefinition -Name "Role Based Access Control Administrator"
+<#
+#region 'Owner' RBAC Assignments
+#$RoleDefinition = Get-AzRoleDefinition -Name "Role Based Access Control Administrator"
+#$RoleDefinition = Get-AzRoleDefinition -Name "Contributor"
 $RoleDefinition = Get-AzRoleDefinition -Name "Owner"
 $Parameters = @{
     ObjectId           = $AutomationAccount.Identity.PrincipalId
@@ -519,6 +524,26 @@ while (-not(Get-AzRoleAssignment @Parameters)) {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)]`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
     Start-Sleep -Seconds 30
+}
+#endregion 
+#>
+#region "Role Based Access Control Administrator", "Contributor" RBAC Assignments
+#$RoleDefinitionNames = "Role Based Access Control Administrator", "Contributor"
+$RoleDefinitionNames = "Contributor"
+foreach ($RoleDefinitionName in $RoleDefinitionNames) {
+    $RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
+    $Parameters = @{
+        ObjectId           = $AutomationAccount.Identity.PrincipalId
+        RoleDefinitionName = $RoleDefinition.Name
+        Scope              = "/subscriptions/{0}" -f $SubscriptionId
+    }
+    while (-not(Get-AzRoleAssignment @Parameters)) {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
+        $RoleAssignment = New-AzRoleAssignment @Parameters
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)]`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+        Start-Sleep -Seconds 30
+    }
 }
 #endregion 
 #endregion
@@ -536,7 +561,7 @@ $null = Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
 #region Test
 #Start-Sleep -Seconds 30
 #region PowerShell
-$TimeInt = "1770917139"
+$TimeInt = "1771071561"
 $Parameters = @{ 
     GalleryId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.Compute/galleries/gal_avd_use2_{1}" -f $SubscriptionId, $TimeInt
     UserAssignedManagedIdentityId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/aibIdentity-{1}" -f $SubscriptionId, $TimeInt

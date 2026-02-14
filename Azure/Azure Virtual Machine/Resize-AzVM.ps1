@@ -56,7 +56,7 @@ function Resize-AzVM {
             }
         }
         foreach ($CurrentVM in $VM) {
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentVM:`r`n$($CurrentVM | Out-String))"
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentVM: $($CurrentVM.Id)"
             if ($CurrentVM.HardwareProfile.VmSize -ne $OldVMSize) {
                 Write-Warning -Message "$($CurrentVM.Id) is not a '$OldVMSize' VM. Skipping it ..."
             }
@@ -68,7 +68,7 @@ function Resize-AzVM {
                     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$PowerState: $PowerState"
                     if (-not([string]::IsNullOrEmpty($PowerState))) {
                         if ($Force) {
-                            Write-Warning -Message "$($CurrentVM.Id) is running -Force specify to force the shutdown. Turned it Off ..."
+                            Write-Warning -Message "$($CurrentVM.Id) is running -Force specify to force the shutdown. Turned it off ..."
                             $null = $VM | Stop-AzVM -Force
                             $WasTurnedOff = $true
                             $OKForResizing = $true
@@ -100,6 +100,212 @@ function Resize-AzVM {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
     }
 }
+
+function Get-RunspaceState {
+    [CmdletBinding()]
+    param
+    (
+        [Parameter(ValueFromPipelineByPropertyName = $true, Mandatory = $true)]
+        [Alias('PowerShell')]
+        [PowerShell]$PS,
+
+        [Parameter(ValueFromPipelineByPropertyName = $true, Mandatory = $true)]
+        [Alias('Handle')]
+        # Should be of type [System.Management.Automation.PowerShellAsyncResult]. value returned from BeginInvoke
+        [PSObject]$AsyncResult
+    )
+
+    Begin {
+        # Set the Binding Flags for Reflection to get Non-Public Fields from PowerShell Instance
+        $BindingFlags = [System.Reflection.BindingFlags]'static', 'nonpublic', 'instance'
+    }
+    process {
+        # Get Value Runspace Worker Field
+        $Worker = $PS.GetType().GetField('worker', $BindingFlags).GetValue($PS)
+
+        # Get the 'CurrentlyRunningPipline' Property for the runspaces worker
+        $CurrentlyRunningPipeline = $worker.GetType().GetProperty('CurrentlyRunningPipeline', $BindingFlags).GetValue($Worker)
+
+        # Check Com
+        if ($AsyncResult.IsCompleted -and $null -eq $CurrentlyRunningPipeline) {
+            $State = 'Completed'
+        }
+        elseif (-not $AsyncResult.IsCompleted -and $null -ne $CurrentlyRunningPipeline ) {       
+
+            $State = 'Running'
+        }
+        elseif (-not $AsyncResult.IsCompleted -and $null -eq $CurrentlyRunningPipeline) {
+            # The logic here is that pipeline will be cleared when Completed.
+            # So if it is Not Completed and there nothing in the Pipeline it has not started yet
+            $State = 'NotStarted'
+        }
+        
+        [PSCustomObject]@{
+            PipelineRunning = [bool]$CurrentlyRunningPipeline
+            State           = $State
+            IsCompleted     = $AsyncResult.IsCompleted
+            Synchronous     = $AsyncResult.CompletedSynchronously
+        }
+    }
+}
+
+function Resize-AzVMWithRunSpace {
+    [CmdletBinding(PositionalBinding = $false, SupportsShouldProcess = $true)]
+    param
+    (
+        [Parameter(Mandatory = $false)]
+        [int] $RunspacePoolSize = $([math]::Max(1, (Get-CimInstance -ClassName Win32_Processor).NumberOfLogicalProcessors / 2)),
+        [Parameter(Mandatory = $true, ValueFromPipeline = $false, ValueFromPipelineByPropertyName = $false, ParameterSetName = 'VM')]
+        [ValidateNotNullOrEmpty()]
+        [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine[]]$VM,
+        [Parameter(Mandatory = $true, ValueFromPipeline = $false, ValueFromPipelineByPropertyName = $false, ParameterSetName = 'HostPool' )]
+        [ValidateNotNullOrEmpty()]
+        [ Microsoft.Azure.PowerShell.Cmdlets.DesktopVirtualization.Models.HostPool[]]$HostPool,
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        $OldVMSize = "Standard_NV8as_v4",
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        $NewVMSize = "Standard_NV8ads_V710_v5",
+        [switch] $Force
+    )
+
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RunspacePoolSize: $RunspacePoolSize"
+
+    #[scriptblock] $scriptblock = Get-Content -Path Function:\Resize-AzVM
+    [scriptblock] $scriptblock = [Scriptblock]::Create(((Get-Content -Path Function:\Resize-AzVM) -replace "Write-Verbose\s+(-Message)?\s*", "Write-Output -InputObject "))
+
+    #region RunSpace Management
+    $RunspacePool = [runspacefactory]::CreateRunspacePool(1, $RunspacePoolSize)
+    $RunspacePool.Open()
+    [System.Collections.ArrayList]$RunspaceList = @()
+
+    $OverallStartTime = Get-Date
+
+    if ($VM) {
+        foreach ($CurrentVM in $VM) {
+            Write-Host -Object "Processing '$($CurrentVM.Id)' VM"
+            $PowerShell = [powershell]::Create()
+            $PowerShell.RunspacePool = $RunspacePool
+
+            $null = $PowerShell.AddScript($ScriptBlock)
+            $null = $PowerShell.AddParameter("VM", $CurrentVM)
+            $null = $PowerShell.AddParameter("OldVMSize", $OldVMSize)
+            $null = $PowerShell.AddParameter("NewVMSize", $NewVMSize)
+            $null = $PowerShell.AddParameter("Force", $Force.IsPresent)
+
+            Write-Host -Object "Invoking RunSpace for '$($CurrentVM.Id)' ..."
+            $null = $RunspaceList.Add([PSCustomObject]@{
+                    VMName      = $CurrentVM.Name
+                    PowerShell  = $PowerShell
+                    AsyncResult = $PowerShell.BeginInvoke()
+                    Result      = $null
+                })
+        }
+    }
+
+    if ($HostPool) {
+        foreach ($CurrentHostPool in $HostPool) {
+            Write-Host -Object "Processing '$CurrentHostPool' VM"
+            $PowerShell = [powershell]::Create()
+            $PowerShell.RunspacePool = $RunspacePool
+
+            $null = $PowerShell.AddScript($ScriptBlock)
+            $null = $PowerShell.AddParameter("HostPool", $HostPool)
+            $null = $PowerShell.AddParameter("OldVMSize", $OldVMSize)
+            $null = $PowerShell.AddParameter("NewVMSize", $NewVMSize)
+            $null = $PowerShell.AddParameter("Force", $Force.IsPresent)
+
+            Write-Host -Object "Invoking RunSpace for '$CurrentHostPool' ..."
+            $null = $RunspaceList.Add([PSCustomObject]@{
+                    HostPoolName = $CurrentHostPool.Name
+                    PowerShell   = $PowerShell
+                    AsyncResult  = $PowerShell.BeginInvoke()
+                    Result       = $null
+                })
+        }
+    }
+
+    # View available runspaces
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Available Runspaces: $($RunspacePool.GetAvailableRunspaces())"
+
+    # View the list object runspace status
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Runspace Status:`r`n$($RunspaceList.AsyncResult | Out-String)"
+
+    # View the list using the function declared at the top of this file !!!
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Runspace State:`r`n$($RunspaceList | Get-RunspaceState | Out-String)"
+
+    Write-Host -Object "Waiting the overall processing completes ..."
+
+    Foreach ($Instance in $RunspaceList) {
+        $Instance.Result = $Instance.PowerShell.Endinvoke($Instance.AsyncResult)
+        $Instance.PowerShell.Dispose()
+    }
+    $RunspacePool.Dispose() 
+
+    $OverallEndTime = Get-Date
+
+    Write-Host -Object "Runspace Results:`r`n$($RunspaceList.Result | Out-String)"
+
+    $TimeSpan = New-TimeSpan -Start $OverallStartTime -End $OverallEndTime
+    Write-Host -Object "Overall - Processing Time: $($TimeSpan.ToString())" -ForegroundColor Green
+    #endregion
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
+}
+
+function Resize-AzVMWithThreadJob {
+    [CmdletBinding(PositionalBinding = $false, SupportsShouldProcess = $true)]
+    Param(
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, ParameterSetName = 'VM')]
+        [ValidateNotNullOrEmpty()]
+        [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine[]]$VM,
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, ParameterSetName = 'HostPool' )]
+        [ValidateNotNullOrEmpty()]
+        [ Microsoft.Azure.PowerShell.Cmdlets.DesktopVirtualization.Models.HostPool[]]$HostPool,
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        $OldVMSize = "Standard_NV8as_v4",
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        $NewVMSize = "Standard_NV8ads_V710_v5",
+        [switch] $Force
+    )
+
+    begin {
+        $OverallStartTime = Get-Date
+        $Results = @()
+        $Jobs = @()
+        $ExportedFunctions = [scriptblock]::Create(@"
+            Function Resize-AzVM { ${Function:Resize-AzVM} }
+"@)
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ExportedFunctions:`r`n$($ExportedFunctions | Out-String)"
+    }
+    process {
+        if ($VM) {
+            foreach ($CurrentVM in $VM) {
+                $Job = Start-ThreadJob -ScriptBlock {Resize-AzVM -VM $using:CurrentVM -OldVMSize $using:OldVMSize -NewVMSize $using:NewVMSize -Force:$($using:Force).IsPresent} -InitializationScript $ExportedFunctions #-StreamingHost $Host
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `Running Job #$($Job.Id) for '$($CurrentVM.Id)' VM"
+			    $Jobs += $Job
+            }
+        }
+
+        if ($HostPool) {
+            foreach ($CurrentHostPool in $HostPool) {
+                $Job = Start-ThreadJob -ScriptBlock {Resize-AzVM -HostPool $using:HostPool -OldVMSize $using:OldVMSize -NewVMSize $using:NewVMSize -Force:$($using:Force).IsPresent} -InitializationScript $ExportedFunctions #-StreamingHost $Host
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `Running Job #$($Job.Id) for '$($CurrentHostPool.Id)' HostPool"
+			    $Jobs += $Job
+            }
+        }
+    }
+    end {
+		$Results = $Jobs | Receive-Job -Wait -AutoRemoveJob
+        $OverallEndTime = Get-Date
+        $TimeSpan = New-TimeSpan -Start $OverallStartTime -End $OverallEndTime
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Overall - Processing Time: $TimeSpan"
+        return $Results 
+    }
+}
 #endregion
 
 #region Main Code
@@ -118,11 +324,10 @@ $SessionHosts = Get-AzWvdHostPool | ForEach-Object {
         Get-AzResource -ResourceId $_.ResourceId | Get-AzVM
     }
 }
-$FilteredSessionHosts = $SessionHosts #| Where-Object -FilterScript { $_.HardwareProfile.VmSize -eq "Standard_NV8as_v4"}
 
 #region Parameters
-$OldVMSize = "Standard_D8ads_v5"
-$NewVMSize = "Standard_D4ads_v5"
+$OldVMSize = "Standard_D4s_v5"
+$NewVMSize = "Standard_D2s_v5"
 
 $Parameters = @{
     OldVMSize = $OldVMSize
@@ -130,8 +335,13 @@ $Parameters = @{
 }
 #endregion 
 
+#$FilteredVMs = $SessionHosts #| Where-Object -FilterScript { $_.HardwareProfile.VmSize -eq $Parameters['OldVMSize']}
+$FilteredVMs = Get-AzVM -Name vm2602*
+
 #VM Context 
-$FilteredSessionHosts | Resize-AzVM @Parameters -Force -Verbose
+#$FilteredVMs | Resize-AzVM @Parameters -Force -Verbose
+#Resize-AzVMWithRunSpace -VM $FilteredVMs @Parameters -Force -Verbose
+$FilteredVMs | Resize-AzVMWithThreadJob @Parameters -Force -Verbose
 
 #AVD Host Context
 #Get-AzWvdHostPool | Resize-AzVM @Parameters -Force -Verbose
