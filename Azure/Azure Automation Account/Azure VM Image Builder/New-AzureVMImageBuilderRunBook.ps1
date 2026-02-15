@@ -477,7 +477,7 @@ if ($(Get-Date) -gt $StartTime.AddMinutes(-5)) {
 #Daily Schedule
 #$Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Image Builder - Daily Start" -StartTime $StartTime -DayInterval 1 -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
 #Monthly Schedule : 2nd Wednesday of the month (Patching Day)
-$Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Image Builder - Monthly Start - 2nd Wednesday Of The Month" -StartTime $StartTime MonthInterval 1 -DayOfWeek [System.DayOfWeek]::Wednesday -DayOfWeekOccurrence Second -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
+$Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Image Builder - Monthly Start - 2nd Wednesday Of The Month" -StartTime $StartTime -MonthInterval 1 -DayOfWeek $([System.DayOfWeek]::Wednesday) -DayOfWeekOccurrence Second -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
 #endregion 
 #endregion
 
@@ -528,8 +528,8 @@ while (-not(Get-AzRoleAssignment @Parameters)) {
 #endregion 
 #>
 #region "Role Based Access Control Administrator", "Contributor" RBAC Assignments
-#$RoleDefinitionNames = "Role Based Access Control Administrator", "Contributor"
-$RoleDefinitionNames = "Contributor"
+$RoleDefinitionNames = "Role Based Access Control Administrator", "Contributor"
+#$RoleDefinitionNames = "Contributor"
 foreach ($RoleDefinitionName in $RoleDefinitionNames) {
     $RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
     $Parameters = @{

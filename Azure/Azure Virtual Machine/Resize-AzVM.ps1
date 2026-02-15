@@ -326,8 +326,8 @@ $SessionHosts = Get-AzWvdHostPool | ForEach-Object {
 }
 
 #region Parameters
-$OldVMSize = "Standard_D4s_v5"
-$NewVMSize = "Standard_D2s_v5"
+$OldVMSize = "Standard_D2s_v5"
+$NewVMSize = "Standard_D4s_v5"
 
 $Parameters = @{
     OldVMSize = $OldVMSize
@@ -339,9 +339,9 @@ $Parameters = @{
 $FilteredVMs = Get-AzVM -Name vm2602*
 
 #VM Context 
-#$FilteredVMs | Resize-AzVM @Parameters -Force -Verbose
+$FilteredVMs | Resize-AzVM @Parameters -Force -Verbose
 #Resize-AzVMWithRunSpace -VM $FilteredVMs @Parameters -Force -Verbose
-$FilteredVMs | Resize-AzVMWithThreadJob @Parameters -Force -Verbose
+#$FilteredVMs | Resize-AzVMWithThreadJob @Parameters -Force -Verbose
 
 #AVD Host Context
 #Get-AzWvdHostPool | Resize-AzVM @Parameters -Force -Verbose
