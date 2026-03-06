@@ -440,7 +440,7 @@ Invoke-LabCommand -ActivityName 'DNS, AD & GPO Settings on DC' -ComputerName DC0
     dsacls (Get-ADServiceAccount -Identity $using:gMSASqlServiceName).DistinguishedName /G "SELF:RPWP;servicePrincipalName" 
 }
 
-Invoke-LabCommand -ActivityName 'Add Permissions to SQL Database for DSC Reporting' -ComputerName $SQLServerTargetNodes -ScriptBlock {
+Invoke-LabCommand -ActivityName 'Add the SqlServer PowerShell Module' -ComputerName $SQLServerTargetNodes -ScriptBlock {
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
     Install-Module -Name SqlServer -Scope AllUsers -Force
 } -Verbose
