@@ -318,16 +318,15 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 $SubscriptionId = (Get-AzContext).Subscription.Id
 
-$SessionHosts = Get-AzWvdHostPool | ForEach-Object { 
-    $HostPoolId=$_.Id
-    (Get-AzWvdSessionHost -HostPoolName $_.Name -ResourceGroupName $_.ResourceGroupName) | ForEach-Object { 
-        Get-AzResource -ResourceId $_.ResourceId | Get-AzVM
-    }
-}
 
 #region Parameters
 $OldVMSize = "Standard_D2s_v5"
 $NewVMSize = "Standard_D4s_v5"
+
+<#
+$OldVMSize = "Standard_NV8as_v4"
+$NewVMSize = "Standard_NV8ads_V710_v5"
+#>
 
 $Parameters = @{
     OldVMSize = $OldVMSize
@@ -335,13 +334,29 @@ $Parameters = @{
 }
 #endregion 
 
-#$FilteredVMs = $SessionHosts #| Where-Object -FilterScript { $_.HardwareProfile.VmSize -eq $Parameters['OldVMSize']}
-$FilteredVMs = Get-AzVM -Name vm2602*
+
+#region AVD Session Hosts
+$SessionHosts = Get-AzWvdHostPool | ForEach-Object { 
+    $HostPoolId=$_.Id
+    (Get-AzWvdSessionHost -HostPoolName $_.Name -ResourceGroupName $_.ResourceGroupName) | ForEach-Object { 
+        Get-AzResource -ResourceId $_.ResourceId | Get-AzVM
+    }
+}
+$FilteredVMs = $SessionHosts #| Where-Object -FilterScript { $_.HardwareProfile.VmSize -eq $Parameters['OldVMSize'] }
+#endregion
+
+#region Azure VM
+$FilteredVMs = Get-AzResourceGroup -ResourceGroupName rg-vm-rand-* | Get-AzVM #| Where-Object -FilterScript { $_.HardwareProfile.VmSize -eq $Parameters['OldVMSize'] }
+#endregion
 
 #VM Context 
-$FilteredVMs | Resize-AzVM @Parameters -Force -Verbose
-#Resize-AzVMWithRunSpace -VM $FilteredVMs @Parameters -Force -Verbose
+$StartTime = Get-Date
+#$FilteredVMs | Resize-AzVM @Parameters -Force -Verbose
+Resize-AzVMWithRunSpace -VM $FilteredVMs @Parameters -Force -Verbose
 #$FilteredVMs | Resize-AzVMWithThreadJob @Parameters -Force -Verbose
+$EndTime = Get-Date
+$TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
+Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Processing Time: $TimeSpan"
 
 #AVD Host Context
 #Get-AzWvdHostPool | Resize-AzVM @Parameters -Force -Verbose
