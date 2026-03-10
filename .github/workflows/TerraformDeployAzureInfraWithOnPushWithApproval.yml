@@ -154,7 +154,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: terraform-workspace
-          path: /home/runner/work/{REPO_NAME}/{REPO_NAME}/.terraform.lock.hcl
+          path: /home/runner/work/laurentvanacker.com/laurentvanacker.com/.terraform.lock.hcl
           include-hidden-files: true
 
       - name: Terraform Plan Status
