@@ -148,7 +148,7 @@ jobs:
 
       #From https://medium.com/@nisrine.guesmi/implementing-manual-approval-in-github-actions-between-terraform-plan-and-apply-a302d174148d
       - name: Copy .terraform.lock.hcl to workspace
-        run: cp <path>/.terraform.lock.hcl /home/runner/work/laurentvanacker.com/laurentvanacker.com/.terraform.lock.hcl
+        run: cp .terraform.lock.hcl /home/runner/work/laurentvanacker.com/laurentvanacker.com/.terraform.lock.hcl
 
       - name: Upload .terraform.lock.hcl
         uses: actions/upload-artifact@v4
