@@ -76,6 +76,7 @@ jobs:
           framework: terraform
           output_format: sarif
           soft_fail: true
+          output_file_path: console,checkov.sarif
 
         # Upload results to GitHub Advanced Security
       - name: Upload SARIF file
