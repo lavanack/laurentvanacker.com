@@ -1,5 +1,5 @@
 #From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/quick-create-terraform
-#Adding Comments v8
+#Adding Comments v09
 resource "azurerm_resource_group" "rg" {
   location = var.resource_group_location
   name     = "${random_pet.prefix.id}-rg"
