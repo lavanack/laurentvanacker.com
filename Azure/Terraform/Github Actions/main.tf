@@ -1,5 +1,5 @@
 #From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/quick-create-terraform
-#Adding Comments v18
+#Adding Comments v19
 
 resource "azurerm_resource_group" "rg" {
   location = var.resource_group_location
