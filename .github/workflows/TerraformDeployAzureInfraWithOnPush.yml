@@ -76,14 +76,14 @@ jobs:
           framework: terraform
           output_format: sarif
           soft_fail: true
-          output_file_path: console,checkov.sarif
+          output_file_path: console,results.sarif
 
         # Upload results to GitHub Advanced Security
       - name: Upload SARIF file
         if: success() || failure()
         uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: checkov.sarif
+          sarif_file: results.sarif
           category: checkov          
           
   terraform-plan:
