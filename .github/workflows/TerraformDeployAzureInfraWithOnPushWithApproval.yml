@@ -146,6 +146,17 @@ jobs:
           name: tfplan
           path: './Azure/Terraform/Github Actions/tfplan'
 
+      #From https://medium.com/@nisrine.guesmi/implementing-manual-approval-in-github-actions-between-terraform-plan-and-apply-a302d174148d
+      - name: Copy .terraform.lock.hcl to workspace
+        run: cp <path>/.terraform.lock.hcl /home/runner/work/{REPO_NAME}/{REPO_NAME}/.terraform.lock.hcl
+
+      - name: Upload .terraform.lock.hcl
+        uses: actions/upload-artifact@v3
+        with:
+          name: terraform-workspace
+          path: /home/runner/work/{REPO_NAME}/{REPO_NAME}/.terraform.lock.hcl
+          include-hidden-files: true
+
       - name: Terraform Plan Status
         if: steps.plan.outcome == 'failure'
         run: exit 1
