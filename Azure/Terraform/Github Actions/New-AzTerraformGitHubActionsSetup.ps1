@@ -68,7 +68,8 @@ function New-AzTerraformGitHubActionsSetup {
         Remove-AzResourceGroup -Name $ResourceGroupName -Force
     }
     Write-Verbose -Message "Creating '$ResourceGroupName' Resource Group Name ..."
-    $StorageResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
+    $Tags = @{"SecurityControl" = "Ignore" }
+    $StorageResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force -Tag $Tags
     #endregion
 
     #region Configure remote state storage account
