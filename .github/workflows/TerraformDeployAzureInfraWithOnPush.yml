@@ -43,6 +43,7 @@ jobs:
         run: cat tfsec.sarif
 
       - name: Upload SARIF file
+        if: success() || failure()
         uses: github/codeql-action/upload-sarif@v4
         with:
           # Path to SARIF file relative to the root of the repository
@@ -64,7 +65,7 @@ jobs:
         run: cat 'trivy-results.sarif'
 
       - name: Upload Trivy scan results to GitHub Security tab
-        if: always()
+        if: success() || failure()
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-results.sarif'
