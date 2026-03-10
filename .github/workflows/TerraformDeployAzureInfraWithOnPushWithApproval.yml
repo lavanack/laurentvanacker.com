@@ -151,7 +151,7 @@ jobs:
         run: cp <path>/.terraform.lock.hcl /home/runner/work/{REPO_NAME}/{REPO_NAME}/.terraform.lock.hcl
 
       - name: Upload .terraform.lock.hcl
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: terraform-workspace
           path: /home/runner/work/{REPO_NAME}/{REPO_NAME}/.terraform.lock.hcl
