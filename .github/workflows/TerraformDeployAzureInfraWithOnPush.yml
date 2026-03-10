@@ -51,21 +51,21 @@ jobs:
 
       # Perform a security scan of the terraform code using Trivy
       - name: Run Trivy vulnerability scanner in IaC mode
-        uses: aquasecurity/trivy-action@0.34.1
+        uses: aquasecurity/trivy-action@0.35.0
         with:
-          scan-type: 'config'
+          scan-type: 'fs'
           scan-ref: "Azure/Terraform/Github Actions/"
           #hide-progress: true
           format: 'sarif'
           output: 'trivy-results.sarif'
-          exit-code: '1'
+          exit-code: "1" # Fail the build!
           severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
 
       - name: Print SARIF file for debugging
         run: cat 'trivy-results.sarif'
 
       - name: Upload Trivy scan results to GitHub Security tab
-        if: success() || failure()
+        if: always()
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-results.sarif'
