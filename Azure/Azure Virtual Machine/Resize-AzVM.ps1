@@ -42,6 +42,7 @@ function Resize-AzVM {
 
     begin {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
+        $Statuses = @()
     }
 
     process {
@@ -57,7 +58,8 @@ function Resize-AzVM {
         }
         foreach ($CurrentVM in $VM) {
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentVM: $($CurrentVM.Id)"
-            if ($CurrentVM.HardwareProfile.VmSize -ne $OldVMSize) {
+            $OldEffectiveVMSize = $CurrentVM.HardwareProfile.VmSize
+            if ($OldEffectiveVMSize -ne $OldVMSize) {
                 Write-Warning -Message "$($CurrentVM.Id) is not a '$OldVMSize' VM. Skipping it ..."
             }
             else {
@@ -84,7 +86,8 @@ function Resize-AzVM {
                     if ($OKForResizing) {
                         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Resizing '$($CurrentVM.Id)' from '$OldVMSize' to '$NewVMSize'"
                         $CurrentVM.HardwareProfile.VmSize = $NewVMSize
-                        $null = Update-AzVM -VM $CurrentVM -ResourceGroupName $CurrentVM.ResourceGroupName
+                        $Result = Update-AzVM -VM $CurrentVM -ResourceGroupName $CurrentVM.ResourceGroupName
+                        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Result:`r`n$($Result | Out-String)"
                     }
                     
                     if ($WasTurnedOff) {
@@ -93,10 +96,15 @@ function Resize-AzVM {
                     }
                 }
             }
+            $NewEffectiveVMSize = $(Get-AzVM -VMName $CurrentVM.Name -ResourceGroupName $CurrentVM.ResourceGroupName).HardwareProfile.VmSize
+            $CurrentStatus = [PSCustomObject]@{Id=$CurrentVM.Id; OldVMSize=$OldEffectiveVMSize; NewVMSize = $NewEffectiveVMSize }
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentStatus:`r`n$($CurrentStatus | Out-String)"
+            $Statuses += $CurrentStatus
         }
     }
 
     end {
+        $Statuses
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
     }
 }
@@ -345,7 +353,7 @@ $SessionHosts = Get-AzWvdHostPool | ForEach-Object {
 $FilteredVMs = $SessionHosts #| Where-Object -FilterScript { $_.HardwareProfile.VmSize -eq $Parameters['OldVMSize'] }
 #endregion
 
-#region Azure VM
+#region Azure VMs
 $FilteredVMs = Get-AzResourceGroup -ResourceGroupName rg-vm-rand-* | Get-AzVM #| Where-Object -FilterScript { $_.HardwareProfile.VmSize -eq $Parameters['OldVMSize'] }
 #endregion
 
