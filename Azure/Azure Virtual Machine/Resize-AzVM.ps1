@@ -69,7 +69,7 @@ function Resize-AzVM {
                     if (-not([string]::IsNullOrEmpty($PowerState))) {
                         if ($Force) {
                             Write-Warning -Message "$($CurrentVM.Id) is running -Force specify to force the shutdown. Turned it off ..."
-                            $null = $VM | Stop-AzVM -Force
+                            $null = $CurrentVM | Stop-AzVM -Force
                             $WasTurnedOff = $true
                             $OKForResizing = $true
                         }
@@ -89,7 +89,7 @@ function Resize-AzVM {
                     
                     if ($WasTurnedOff) {
                         Write-Warning -Message "$($CurrentVM.Id) was running before the resizing. Restarting it ..."
-                        $null = $VM | Start-AzVM -NoWait
+                        $null = $CurrentVM | Start-AzVM -NoWait
                     }
                 }
             }
