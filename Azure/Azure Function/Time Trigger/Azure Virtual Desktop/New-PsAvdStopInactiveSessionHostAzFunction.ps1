@@ -30,11 +30,11 @@ function Test-FunctionAppNameAvailability {
 
     #region Azure Context
     # Log in first with Connect-AzAccount if not using Cloud Shell
-    $azContext = Get-AzContext
-    $SubcriptionID = $azContext.Subscription.Id
+    $AzContext = Get-AzContext
+    $SubcriptionID = $AzContext.Subscription.Id
     $azProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile
     $profileClient = New-Object -TypeName Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient -ArgumentList ($azProfile)
-    $token = $profileClient.AcquireAccessToken($azContext.Subscription.TenantId)
+    $token = $profileClient.AcquireAccessToken($AzContext.Subscription.TenantId)
     $authHeader = @{
         'Content-Type'  = 'application/json'
         'Authorization' = 'Bearer ' + $token.AccessToken
@@ -116,12 +116,12 @@ function New-PsAvdStopInactiveSessionHostAzFunction {
     #endregion 
 
     #region Latest DotNet SDK
-    $LatestDotNetCoreSDKURIPath = (Invoke-WebRequest https://dotnet.microsoft.com/en-us/download).links.href | Where-Object -FilterScript { $_ -match "sdk.*windows.*-x64" } | Sort-Object -Descending | Select-Object -First 1
+    $LatestDotNetCoreSDKURIPath = (Invoke-WebRequest https://dotnet.microsoft.com/en-us/download -UseBasicParsing).links.href | Where-Object -FilterScript { $_ -match "sdk.*windows.*-x64" } | Sort-Object -Descending | Select-Object -First 1
     $Version = [regex]::Match($LatestDotNetCoreSDKURIPath, "sdk-(?<Version>\d+\.\d+)").Groups["Version"].Value
     if ($null -eq $(Get-WmiObject -Class Win32Reg_AddRemovePrograms -Filter "DisplayName LIKE '%sdk%$Version%'")) {
         #region Downloading
         $LatestDotNetCoreSDKURI = "https://dotnet.microsoft.com$($LatestDotNetCoreSDKURIPath)"
-        $LatestDotNetCoreSDKSetupURI = (Invoke-WebRequest $LatestDotNetCoreSDKURI).links.href | Where-Object -FilterScript { $_ -match "sdk.*win.*-x64" } | Select-Object -Unique
+        $LatestDotNetCoreSDKSetupURI = (Invoke-WebRequest $LatestDotNetCoreSDKURI -UseBasicParsing).links.href | Where-Object -FilterScript { $_ -match "sdk.*win.*-x64" } | Select-Object -Unique
         $LatestDotNetCoreSDKSetupFileName = Split-Path -Path $LatestDotNetCoreSDKSetupURI -Leaf
         $LatestDotNetCoreSDKSetupFilePath = Join-Path -Path $env:TEMP -ChildPath $LatestDotNetCoreSDKSetupFileName 
         Start-BitsTransfer -Source $LatestDotNetCoreSDKSetupURI -Destination $LatestDotNetCoreSDKSetupFilePath
@@ -141,12 +141,14 @@ function New-PsAvdStopInactiveSessionHostAzFunction {
 
     #region Azure Resource Creation if needed
     #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
-    [HostPool]::BuildAzureLocationShortNameHashtable()
+    $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
+    $ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/main/src/repository/resourcelocations.json
+    $AzureLocationShortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @{Name = 'Location'; Expression = { $AzLocation[$_.name].Location } } | Where-Object -FilterScript { $_.Location } | Group-Object -Property Location -AsHashTable -AsString
     #endregion
 
-    $ResourceGroupNamePattern = "rg-avd-func-poc-{0}" -f [HostPool]::GetAzLocationShortName($Location)
-    $AzureFunctionNamePattern = "func-avd-func-poc-{0}" -f [HostPool]::GetAzLocationShortName($Location)                   
-    $StorageAccountNamePattern = "saavdfuncpoc{0}" -f [HostPool]::GetAzLocationShortName($Location)
+    $ResourceGroupNamePattern = "rg-avd-func-poc-{0}" -f $AzureLocationShortNameHT[$Location].shortName
+    $AzureFunctionNamePattern = "func-avd-func-poc-{0}" -f $AzureLocationShortNameHT[$Location].shortName                
+    $StorageAccountNamePattern = "saavdfuncpoc{0}" -f $AzureLocationShortNameHT[$Location].shortName
 
     $FunctionApp = Get-AzFunctionApp | Where-Object -FilterScript { $_.Name -match "^$AzureFunctionNamePattern"} | Select-Object -First 1
     if (-not($FunctionApp) -or $Force) {
@@ -157,6 +159,12 @@ function New-PsAvdStopInactiveSessionHostAzFunction {
             $AzureFunctionName = "$AzureFunctionNamePattern-{0:D$DigitNumber}" -f $Instance
         } While ((-not(Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable) -or (-not(Test-FunctionAppNameAvailability -FunctionAppName $AzureFunctionName)))
         $ResourceGroupName = "$ResourceGroupNamePattern-{0:D$DigitNumber}" -f $Instance
+
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Instance: $Instance"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$StorageAccountName: $StorageAccountName"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzureFunctionName: $AzureFunctionName"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ResourceGroupName: $ResourceGroupName"
+
         $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
         if ($null -eq $ResourceGroup) {
             $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
@@ -167,7 +175,7 @@ function New-PsAvdStopInactiveSessionHostAzFunction {
         #region Create Azure Function
         #$RuntimeVersion = "{0}.{1}" -f $PowerShellVersion.Major, $PowerShellVersion.Minor
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the '$AzureFunctionName' Azure Function"
-        $FunctionApp = New-AzFunctionApp -Name $AzureFunctionName -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Runtime "PowerShell" -RuntimeVersion $RuntimeVersion -OSType "Linux" -Location $Location -IdentityType SystemAssigned
+        $FunctionApp = New-AzFunctionApp -Name $AzureFunctionName -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Runtime 'PowerShell' -RuntimeVersion $RuntimeVersion -OSType 'Linux' -Location $Location -IdentityType SystemAssigned -ErrorAction Ignore
 
         #region Creating the Function Locally
         $AzureFunctionsCoreToolsDirectory = "$env:ProgramFiles\Microsoft\Azure Functions Core Tools\"
@@ -291,6 +299,10 @@ function New-PsAvdStopInactiveSessionHostAzFunction {
     #endregion
 
     #region RBAC Assignment
+    # Log in first with Connect-AzAccount if not using Cloud Shell
+    $AzContext = Get-AzContext
+    $SubcriptionID = $AzContext.Subscription.Id
+
     #region 'Virtual Machine Contributor' RBAC Assignment
     $RoleDefinition = Get-AzRoleDefinition "Virtual Machine Contributor"
     $objId = $FunctionApp.IdentityPrincipalId
