@@ -93,6 +93,9 @@ function New-PsAvdStopInactiveSessionHostAzFunction {
     $DigitNumber = 3
     Set-Location -Path $env:TEMP
     $SubscriptionId = $((Get-AzContext).Subscription.Id)
+	$Tags = @{
+		"SecurityControl" = "Ignore"
+	}
 
     #region Prerequisites
     #region Azure Functions Core Tools
@@ -150,152 +153,137 @@ function New-PsAvdStopInactiveSessionHostAzFunction {
     $AzureFunctionNamePattern = "func-avd-func-poc-{0}" -f $AzureLocationShortNameHT[$Location].shortName                
     $StorageAccountNamePattern = "saavdfuncpoc{0}" -f $AzureLocationShortNameHT[$Location].shortName
 
+    Do {
+        $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
+        $StorageAccountName = "$StorageAccountNamePattern{0:D$DigitNumber}" -f $Instance
+        $AzureFunctionName = "$AzureFunctionNamePattern-{0:D$DigitNumber}" -f $Instance
+    } While ((-not(Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable) -or (-not(Test-FunctionAppNameAvailability -FunctionAppName $AzureFunctionName)))
+    $ResourceGroupName = "$ResourceGroupNamePattern-{0:D$DigitNumber}" -f $Instance
+
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Instance: $Instance"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$StorageAccountName: $StorageAccountName"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzureFunctionName: $AzureFunctionName"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ResourceGroupName: $ResourceGroupName"
+
+    $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
+    if ($null -eq $ResourceGroup) {
+        $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Tag $Tags -Force
+    }
+    #Create Azure Storage Account
+    $StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true
+
+    #region Create Azure Function
+    #$RuntimeVersion = "{0}.{1}" -f $PowerShellVersion.Major, $PowerShellVersion.Minor
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the '$AzureFunctionName' Azure Function"
+    #Buggy command
+    #$FunctionApp = New-AzFunctionApp -Name $AzureFunctionName -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Runtime 'PowerShell' -RuntimeVersion $RuntimeVersion -OSType 'Linux' -Location $Location -IdentityType SystemAssigned -ErrorAction Ignore
+
+    #region az cli alternative ti the bug
+    # Create the Function App (Consumption on Linux)
+    az functionapp create --name "$AzureFunctionName" --resource-group "$ResourceGroupName" --storage-account "$StorageAccountName" --consumption-plan-location "$Location" --runtime powershell --runtime-version "$RuntimeVersion" --functions-version 4 --os-type Linux 
+
+    # Assign System-Assigned Managed Identity (equivalent of -IdentityType SystemAssigned)
+    az functionapp identity assign --name "$AzureFunctionName" --resource-group "$ResourceGroupName"
     $FunctionApp = Get-AzFunctionApp | Where-Object -FilterScript { $_.Name -match "^$AzureFunctionNamePattern"} | Select-Object -First 1
-    if (-not($FunctionApp) -or $Force) {
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] No Azure Function with the '^$AzureFunctionNamePattern' RegExp pattern found"
-        Do {
-            $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
-            $StorageAccountName = "$StorageAccountNamePattern{0:D$DigitNumber}" -f $Instance
-            $AzureFunctionName = "$AzureFunctionNamePattern-{0:D$DigitNumber}" -f $Instance
-        } While ((-not(Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable) -or (-not(Test-FunctionAppNameAvailability -FunctionAppName $AzureFunctionName)))
-        $ResourceGroupName = "$ResourceGroupNamePattern-{0:D$DigitNumber}" -f $Instance
+    #endregion
 
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Instance: $Instance"
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$StorageAccountName: $StorageAccountName"
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzureFunctionName: $AzureFunctionName"
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ResourceGroupName: $ResourceGroupName"
+    #region Creating the Function Locally
+    $AzureFunctionsCoreToolsDirectory = "$env:ProgramFiles\Microsoft\Azure Functions Core Tools\"
+    $Func = Join-Path -Path $AzureFunctionsCoreToolsDirectory -ChildPath "func"
+    #$FunctionName = (Get-Item -Path $CurrentScript).BaseName
+    $FunctionName = $MyInvocation.MyCommand
+    $null = Remove-Item -Path $FunctionName -Recurse -ErrorAction Ignore -Force
+    #Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$env:ProgramFiles\Microsoft\Azure Functions Core Tools\func"" init $FunctionName --powershell" -WorkingDirectory $env:TEMP
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" init $FunctionName --powershell"
 
-        $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
-        if ($null -eq $ResourceGroup) {
-            $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
-        }
-        #Create Azure Storage Account
-        $StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true
+    #region Local code
+    $Directory = New-Item -Path $FunctionName\$FunctionName -ItemType Directory -Force
+    #From https://faultbucket.ca/2019/08/use-azure-function-to-start-vms/
+    $ScriptContent = @'
+    # Input bindings are passed in via param block.
+    param($Timer)
 
-        #region Create Azure Function
-        #$RuntimeVersion = "{0}.{1}" -f $PowerShellVersion.Major, $PowerShellVersion.Minor
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the '$AzureFunctionName' Azure Function"
-        $FunctionApp = New-AzFunctionApp -Name $AzureFunctionName -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Runtime 'PowerShell' -RuntimeVersion $RuntimeVersion -OSType 'Linux' -Location $Location -IdentityType SystemAssigned -ErrorAction Ignore
+    # The 'IsPastDue' property is 'true' when the current function invocation is later than scheduled.
+    if ($Timer.IsPastDue) {
+        Write-Host "PowerShell timer is running late!"
+    }
 
-        #region Creating the Function Locally
-        $AzureFunctionsCoreToolsDirectory = "$env:ProgramFiles\Microsoft\Azure Functions Core Tools\"
-        $Func = Join-Path -Path $AzureFunctionsCoreToolsDirectory -ChildPath "func"
-        #$FunctionName = (Get-Item -Path $CurrentScript).BaseName
-        $FunctionName = $MyInvocation.MyCommand
-        $null = Remove-Item -Path $FunctionName -Recurse -ErrorAction Ignore -Force
-        #Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$env:ProgramFiles\Microsoft\Azure Functions Core Tools\func"" init $FunctionName --powershell" -WorkingDirectory $env:TEMP
-        Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" init $FunctionName --powershell"
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Write-Host -Object "PowerShell timer trigger function executed at: $timestamp"
 
-        #region Local code
-        $Directory = New-Item -Path $FunctionName\$FunctionName -ItemType Directory -Force
-        #From https://faultbucket.ca/2019/08/use-azure-function-to-start-vms/
-        $ScriptContent = @'
-        # Input bindings are passed in via param block.
-        param($Timer)
+    $AzInactiveRunningVMs = Get-AzWvdHostPool | Where-Object -FilterScript { $_.HostPoolType -in <HostPoolType> } | ForEach-Object -Process {
+        (Get-AzWvdSessionHost -HostPoolName $_.Name -ResourceGroupName $_.ResourceGroupName) | Where-Object -FilterScript { $_.Session -le 0 } | Select-Object -Property ResourceId | Get-AzVM -Status | Where-Object -FilterScript { ($_.Statuses.code -eq "PowerState/running") -and ($_.Statuses.DisplayStatus -eq "VM running") }
+    }
 
-        # The 'IsPastDue' property is 'true' when the current function invocation is later than scheduled.
-        if ($myTimer.IsPastDue) {
-            Write-Host "PowerShell timer is running late!"
-        }
 
-        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-        Write-Host -Object "PowerShell timer trigger function executed at: $timestamp"
+    if (-not([string]::IsNullOrEmpty($AzInactiveRunningVMs))) {
+        Write-Host -Object "The following VMs will be hibernated :`r`n$($AzInactiveRunningVMs | Select-Object -Property ResourceGroupName, Name | Out-String)"
+        $Jobs = $AzInactiveRunningVMs | Stop-AzVM -Hibernate -Force -AsJob -Verbose
+        Write-Host -Object "Waiting the hibernation jobs complete ..."
+        $null = $Jobs | Receive-Job -Wait -AutoRemoveJob -ErrorAction SilentlyContinue
 
         $AzInactiveRunningVMs = Get-AzWvdHostPool | Where-Object -FilterScript { $_.HostPoolType -in <HostPoolType> } | ForEach-Object -Process {
             (Get-AzWvdSessionHost -HostPoolName $_.Name -ResourceGroupName $_.ResourceGroupName) | Where-Object -FilterScript { $_.Session -le 0 } | Select-Object -Property ResourceId | Get-AzVM -Status | Where-Object -FilterScript { ($_.Statuses.code -eq "PowerState/running") -and ($_.Statuses.DisplayStatus -eq "VM running") }
         }
-
-
         if (-not([string]::IsNullOrEmpty($AzInactiveRunningVMs))) {
-            Write-Host -Object "The following VMs will be hibernated :`r`n$($AzInactiveRunningVMs | Select-Object -Property ResourceGroupName, Name | Out-String)"
-            $Jobs = $AzInactiveRunningVMs | Stop-AzVM -Hibernate -Force -AsJob -Verbose
-            Write-Host -Object "Waiting the hibernation jobs complete ..."
-            $null = $Jobs | Receive-Job -Wait -AutoRemoveJob -ErrorAction SilentlyContinue
-
-            $AzInactiveRunningVMs = Get-AzWvdHostPool | Where-Object -FilterScript { $_.HostPoolType -in <HostPoolType> } | ForEach-Object -Process {
-                (Get-AzWvdSessionHost -HostPoolName $_.Name -ResourceGroupName $_.ResourceGroupName) | Where-Object -FilterScript { $_.Session -le 0 } | Select-Object -Property ResourceId | Get-AzVM -Status | Where-Object -FilterScript { ($_.Statuses.code -eq "PowerState/running") -and ($_.Statuses.DisplayStatus -eq "VM running") }
-            }
-            if (-not([string]::IsNullOrEmpty($AzInactiveRunningVMs))) {
-                Write-Warning -Message "The following VMs will be shutdown (hibernation failed) :`r`n$($AzInactiveRunningVMs | Select-Object -Property ResourceGroupName, Name | Out-String)"
-                $Jobs = $AzInactiveRunningVMs | Stop-AzVM -Force -AsJob -Verbose
-                Write-Host -Object "Waiting the shutdown jobs complete ..."
-                $null = $Jobs | Receive-Job -Wait -AutoRemoveJob #-ErrorAction SilentlyContinue
-            }
-        }
-'@ -replace "<HostPoolType>", $("'{0}'" -f $($HostPoolType -join "', '"))
-
-        $FunctionJSONContent = @"
-        {
-          "bindings": [
-            {
-              "name": "Timer",
-              "type": "timerTrigger",
-              "direction": "in",
-              "schedule": "0 */$FrequencyInMinutes * * * *"
-            }
-          ],
-          "scriptFile": "run.ps1"
-        }
-"@
-
-        New-Item -Path $(Join-Path -Path $Directory -ChildPath "run.ps1") -Value $ScriptContent -Force
-        New-Item -Path $(Join-Path -Path $Directory -ChildPath "function.json") -Value $FunctionJSONContent -Force
-
-        #region Requiring Az PowerShell modules
-        Set-Location -Path $FunctionName
-        While (-not(Test-Path -Path requirements.psd1)) {
-            Start-Sleep -Seconds 10
-        }
-
-        (Get-Content -Path requirements.psd1) -replace "# 'Az'", "'Az'" | Set-Content -Path requirements.psd1 
-        #Increasing Timeout from 5 to 10 minutes
-        Get-Content -Path host.json | ConvertFrom-Json | Add-Member -Name "functionTimeout" -Value "00:10:00" -MemberType NoteProperty -PassThru -Force | ConvertTo-Json | Set-Content -Path host.json
-        #endregion
-
-
-        <#
-        $FuncProcess = Start-Process -FilePath """$Func""" -ArgumentList "start", "--verbose" -PassThru
-
-        #Waiting some seconds the process be available
-        Do {
-            Start-Sleep -Second 30
-        } While (-not(Get-NetTCPConnection -LocalPort 7071 -ErrorAction Ignore))
-        #>
-
-        #endregion
-        #endregion
-
-        #region Publishing the Azure Function
-        Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" azure functionapp publish $($FunctionApp.Name) --powershell" -Wait
-        # Enable Logs
-        Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" azure functionapp logstream $($FunctionApp.Name) --browser" -Wait
-        #endregion
-
-        #endregion
-    } 
-    else {
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The '$($FunctionApp.Name)' Azure Function already exists"
-        if ($FunctionApp.Name -match "\d+$") {
-            $Instance = $Matches[0]
-        } else {
-            $Instance = 1
-        }
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Instance: $Instance"
-        $AzureFunctionName = $FunctionApp.Name
-        $ResourceGroupName = $FunctionApp.ResourceGroup
-        $StorageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName | Where-Object -FilterScript { $_.StorageAccountName -match "^$StorageAccountNamePattern"} | Select-Object -First 1
-        if (-not($StorageAccount)) {
-            Do {
-                $StorageAccountName = "$StorageAccountNamePattern{0:D$DigitNumber}" -f $Instance
-                $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
-            } While (-not(Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable)
-            #Create Azure Storage Account
-            $StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true
-        }
-        else {
-            $StorageAccountName = $StorageAccount.StorageAccountName
+            Write-Warning -Message "The following VMs will be shutdown (hibernation failed) :`r`n$($AzInactiveRunningVMs | Select-Object -Property ResourceGroupName, Name | Out-String)"
+            $Jobs = $AzInactiveRunningVMs | Stop-AzVM -Force -AsJob -Verbose
+            Write-Host -Object "Waiting the shutdown jobs complete ..."
+            $null = $Jobs | Receive-Job -Wait -AutoRemoveJob #-ErrorAction SilentlyContinue
         }
     }
+'@ -replace "<HostPoolType>", $("'{0}'" -f $($HostPoolType -join "', '"))
+
+    $FunctionJSONContent = @"
+    {
+        "bindings": [
+        {
+            "name": "Timer",
+            "type": "timerTrigger",
+            "direction": "in",
+            "schedule": "0 */$FrequencyInMinutes * * * *"
+        }
+        ],
+        "scriptFile": "run.ps1"
+    }
+"@
+
+    $null = New-Item -Path $(Join-Path -Path $Directory -ChildPath "run.ps1") -Value $ScriptContent -Force
+    $null = New-Item -Path $(Join-Path -Path $Directory -ChildPath "function.json") -Value $FunctionJSONContent -Force
+    $Modules = New-Item -Path $(Join-Path -Path $Directory -ChildPath "..\Modules") -ItemType Directory -Force
+    Find-Module -Name Az.Accounts, Az.Compute, Az.DesktopVirtualization | Save-Module -Path $Modules
+
+    #region Requiring Az PowerShell modules
+    Set-Location -Path $FunctionName
+    While (-not(Test-Path -Path requirements.psd1)) {
+        Start-Sleep -Seconds 10
+    }
+
+    #(Get-Content -Path requirements.psd1) -replace "# 'Az'", "'Az'" | Set-Content -Path requirements.psd1 
+    #Increasing Timeout from 5 to 10 minutes
+    Get-Content -Path host.json | ConvertFrom-Json | Add-Member -Name "functionTimeout" -Value "00:10:00" -MemberType NoteProperty -PassThru -Force | ConvertTo-Json | Set-Content -Path host.json
+    #endregion
+
+
+    <#
+    $FuncProcess = Start-Process -FilePath """$Func""" -ArgumentList "start", "--verbose" -PassThru
+
+    #Waiting some seconds the process be available
+    Do {
+        Start-Sleep -Second 30
+    } While (-not(Get-NetTCPConnection -LocalPort 7071 -ErrorAction Ignore))
+    #>
+
+    #endregion
+    #endregion
+
+    #region Publishing the Azure Function
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" azure functionapp publish $($FunctionApp.Name) --powershell" -Wait
+    # Enable Logs
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", """$Func"" azure functionapp logstream $($FunctionApp.Name) --browser" -Wait
+    #endregion
+
+    #endregion
     #endregion
 
     #region RBAC Assignment
