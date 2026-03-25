@@ -1,5 +1,5 @@
 #Deploy 1 Pooled HostPools Azure App Attach and with FSLogix and FSLogix Cloud Cache Enabled 
-[PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableWatermarking().EnableScalingPlan()
+[PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableWatermarking().EnableScalingPlan().EnableSpotInstance()
 #Deploy 1 Pooled HostPools Azure App Attach and with FSLogix and FSLogix Cloud Cache Enabled for Remote Apps. The Session Host VMs will be Spot instances.
 [PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).EnableSpotInstance().SetPreferredAppGroupType("RailApplications")
 

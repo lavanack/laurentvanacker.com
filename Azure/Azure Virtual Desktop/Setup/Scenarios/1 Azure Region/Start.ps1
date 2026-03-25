@@ -93,7 +93,7 @@ $PrimaryRegion = $PrimaryRegionVNet.Location
 #endregion
 
 #region Looking for Azure Compute Gallery Image Definition(s) with image version(s) in the primary region
-$GalleryImageDefinition = Get-PsAvdAzGalleryImageDefinition -Region $PrimaryRegion
+$GalleryImageDefinition = Get-PsAvdAzGalleryImageDefinition -Region $PrimaryRegion | Get-Random
 if (-not($GalleryImageDefinition)) {
     #Creating an Azure Compute Gallery if needed
     $AzureComputeGallery = New-AzureComputeGallery -Location $PrimaryRegion -TargetRegions $PrimaryRegion
@@ -152,9 +152,9 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 #$HostPools = & "..\1 Azure Region\1_Pooled_1_Personal_Intune.ps1"
 #$HostPools = & "..\1 Azure Region\1_Personal_AD_Win10.ps1"
 #$HostPools = & "..\1 Azure Region\1_Personal_AD.ps1"
-#$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach_PrivateEndpoint.ps1"
+$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach_PrivateEndpoint.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach.ps1"
-$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach_SessionHostConfiguration.ps1"
+#$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach_SessionHostConfiguration.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_FSLogix_AzureAppAttach.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_2_Personal_AD_Misc.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_AD_AzureAppAttach.ps1"
