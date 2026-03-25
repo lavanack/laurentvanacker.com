@@ -16,6 +16,10 @@
   - [AzureImageBuilder-v11.ps1](#azureimagebuilder-v11ps1)
   - [AzureImageBuilder-v12.ps1](#azureimagebuilder-v12ps1)
   - [AzureImageBuilder-v13.ps1](#azureimagebuilder-v13ps1)
+  - [AzureImageBuilder-v14.ps1](#azureimagebuilder-v14ps1)
+  - [AzureImageBuilder-v15.ps1](#azureimagebuilder-v15ps1)
+  - [AzureImageBuilder-v16.ps1](#azureimagebuilder-v16ps1)
+  - [AzureImageBuilder-v17.ps1](#azureimagebuilder-v17ps1)
   - [AzureImageBuilder with CMK.ps1](#azureimagebuilder-with-cmkps1)
   - [New-AzureComputeGalleryVM.ps1](#new-azurecomputegalleryvmps1)
   - [Get-AzureVMImageBuilderCustomizationLog.ps1](#get-azurevmimagebuildercustomizationlogps1)
@@ -118,6 +122,28 @@ The [AzureImageBuilder-v12.ps1](AzureImageBuilder-v12.ps1) script is an update o
 ## AzureImageBuilder-v13.ps1
 
 The [AzureImageBuilder-v13.ps1](AzureImageBuilder-v13.ps1) script is similar to [AzureImageBuilder.ps1](AzureImageBuilder.ps1) script (with different customization scripts) but using an Ubuntu mono-session image (tested for a customer scenario).
+
+## AzureImageBuilder-v14.ps1
+
+The [AzureImageBuilder-v14.ps1](AzureImageBuilder-v14.ps1) is an evolution of the [AzureImageBuilder-v13.ps1](AzureImageBuilder-v13.ps1). You can use the New-AzureComputeGallery  function in 3 different contexts
+
+- Without argument an Azure Compute Gallery will be created
+- By specifying an existing Azure Compute Gallery ResourceId, this Azure Compute Gallery will be reused
+- By specifying an existing Azure Compute Gallery Name and a Resource Goup Name : If the Azure Compute Gallery Name and the Resource Group Name exist they will be used else they will be created
+
+In addition, the latest versions of Notepad++, Putty, WinSCP and Visual Studio Code will always be installed. 
+
+## AzureImageBuilder-v15.ps1
+
+The [AzureImageBuilder-v15.ps1](AzureImageBuilder-v15.ps1) was just a useless test for setting up MAK Key during the build. Do not use ! 
+
+## AzureImageBuilder-v16.ps1
+
+The [AzureImageBuilder-v16.ps1](AzureImageBuilder-v16.ps1) is an evolution of the [AzureImageBuilder-v14.ps1](AzureImageBuilder-v14.ps1). We use a Windows 365 image (With Microsoft 365) and we setup Officde in French.
+
+## AzureImageBuilder-v17.ps1
+
+The [AzureImageBuilder-v17.ps1](AzureImageBuilder-v17.ps1) just create an Azure Compute Gallery and the required RBAC roles for using it in an Azure Runbook for a scheduled building. More details [here](https://github.com/lavanack/laurentvanacker.com/tree/master/Azure/Azure%20Automation%20Account/Azure%20VM%20Image%20Builder).
 
 ## AzureImageBuilder with CMK.ps1
 

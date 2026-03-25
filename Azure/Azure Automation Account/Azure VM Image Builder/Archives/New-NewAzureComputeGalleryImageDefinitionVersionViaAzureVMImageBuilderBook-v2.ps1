@@ -211,10 +211,9 @@ $shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @
 #endregion
 
 #region Building an Hashtable to get the shortname of every Azure resource based on a JSON file on the Github repository of the Azure Naming Tool
-$ANTResourceType = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/refs/heads/main/src/repository/resourcetypes.json 
-$ResourceTypeShortNameHT = $ANTResourceType | Where-Object -FilterScript { $_.property -in @('', 'Windows') } | Select-Object -Property resource, shortName, lengthMax | Group-Object -Property resource -AsHashTable -AsString
+$Result = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/refs/heads/main/src/repository/resourcetypes.json 
+$ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -notin @('Linux') } | Select-Object -Property resource, shortName, property, lengthMax | Group-Object -Property resource -AsHashTable -AsString
 #endregion
-
 
 # Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
@@ -224,16 +223,24 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
 }
 
-$Location = "EastUS"
+
+$Location = "EastUS2"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
-$RunBookPrefix = $ResourceTypeShortNameHT["Automation/automationAccounts/runbooks"].ShortName
+$AzureVMNameMaxLength = $ResourceTypeShortNameHT["Compute/virtualMachines"].lengthMax
+$LocationShortName = $shortNameHT[$Location].shortName
+#Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
 $ResourceGroupPrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
+$VirtualMachinePrefix = $ResourceTypeShortNameHT["Compute/virtualMachines"].lengthMax
+$RunBookPrefix = $ResourceTypeShortNameHT["Automation/automationAccounts/runbooks"].ShortName
 $AutomationAccountPrefix = $ResourceTypeShortNameHT["Automation/automationAccounts"].ShortName
-$Project = "automation"
-$Role = "avd"
-$DigitNumber = 3
+
+$Project = "auto"
+$Role = "acg"
+$DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role + $LocationShortName).Length
+#$DigitNumber = 3
 $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
+
 
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
 $AutomationAccountName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $AutomationAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
@@ -241,17 +248,16 @@ $SubscriptionId = $((Get-AzContext).Subscription.Id)
 $TimeStamp = Get-Date -Format 'yyyyMMddHHmmss'
 #endregion
 
-#region Resource Group Setup
+#region Resource Group and AutomationAccount Setup
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
 if ($ResourceGroup) {
-    #Step 0: Remove previously existing Azure Resource Group with the same name
-    $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
+    #Remove previously existing Azure Resource Group with the same name
+    $ResourceGroup | Remove-AzResourceGroup -Force
 }
 Write-Verbose "`$ResourceGroupName: $ResourceGroupName"
 Write-Verbose "`$AutomationAccountName: $AutomationAccountName"
 
-
-#Step 1: Create Azure Resource Group
+#Create Azure Resource Group
 # Create Resource Groups
 $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 $AutomationAccount = New-AzAutomationAccount -Name $AutomationAccountName -Location $Location -ResourceGroupName $ResourceGroupName -AssignSystemIdentity
@@ -259,150 +265,60 @@ $AutomationAccount = New-AzAutomationAccount -Name $AutomationAccountName -Locat
 
 #region New-StartAzureVirtualMachineRunBook
 #region Schedule Setup
-#region Azure Virtual Machine - Daily Removal Process
+#region Azure Virtual Machine - Daily Start
 $TimeZone = ([System.TimeZoneInfo]::Local).Id
-$StartTime = Get-Date "08:00:00"
+$StartTime = Get-Date "00:00:00"
 if ($(Get-Date) -gt $StartTime) {
     $StartTime = $StartTime.AddDays(1)
 }
-$Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Machine - Daily Removal Process" -StartTime $StartTime -WeekInterval 1 -DaysOfWeek "Monday", "Tuesday", "Wednesday", "Thursday", "Friday" -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
+$Schedule = New-AzAutomationSchedule -AutomationAccountName $AutomationAccount.AutomationAccountName -Name "Azure Virtual Machine - Monthly Start - 2nd Wednesday of the Month" -StartTime $StartTime -MonthInterval 1 -DayOfWeek "Wednesday" -DayOfWeekOccurrence "Second" -ResourceGroupName $ResourceGroupName  -TimeZone $TimeZone
 #endregion 
 #endregion
 
 #region RunBook Setup
-$RunBookName = "{0}-RemoveAVDPersonalSessionHost" -f $RunBookPrefix
+$RunBookName = "{0}-NewAzureComputeGalleryImageDefinitionVersionViaAzureVMImageBuilder" -f $RunBookPrefix
 #$Runbook = New-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName -Type PowerShell
 # Publish the runbook
 #Publish-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunBookName -ResourceGroupName $ResourceGroupName
 #endregion 
 
-$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -runbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20Virtual%20Virtual%20Desktop/Remove/RemoveAVDPersonalSessionHostRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Starting AVD Personal Session Hosts" -Verbose 
-
+$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -RunbookName $RunBookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20VM%20Image%20Builder/NewAzureComputeGalleryImageDefinitionVersionViaAzureVMImageBuilder-v2.ps1" -Description "PowerShell Azure Automation Runbook for Generating an Azure Compute Gallery Image Definition Version Via Azure VM Image Builder"
 #endregion 
 
 #region Link the schedule to the runbook
-#region Variables for the Schedule
-$LogAnalyticsWorkspaces = @(
-    Get-AzOperationalInsightsWorkspace -ResourceGroupName "rg-avd-test-use2-monitoring" -Name "log-avd-test-use2"
-    Get-AzOperationalInsightsWorkspace -ResourceGroupName "rg-avd-dev-use2-monitoring" -Name "log-avd-dev-use2"
-)
-$LogAnalyticsWorkspaceIds = $LogAnalyticsWorkspaces.CustomerId.Guid
-$DayAgo = 1
-<#
-#Right Syntax for production
-$HostPools = @(
-    Get-AzWvdHostPool -ResourceGroupName "rg-avd-poc-test-use2-service-objects" -Name "vdpool-poc-test-use2-001"
-    Get-AzWvdHostPool -ResourceGroupName "rg-avd-poc-dev-use2-service-objects"  -Name "vdpool-poc-dev-use2-001"
-)
-#>
-#For Testing purpose
-$HostPools = Get-AzWvdHostPool | Where-Object -FilterScript { ($_.HostPoolType -eq 'Personal') -and ($_.Name -match 'dev|test') } | Get-Random -Count 2
-#endregion
+$timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+$GalleryResourceGroupName = "{0}-avd-aib-{1}-{2}" -f $ResourceGroupPrefix, $LocationShortName, $TimeInt 
+$GalleryName = "gal_avd_use2_{0}" -f $timeInt
 $Parameters = @{ 
-    LogAnalyticsWorkspaceId = $LogAnalyticsWorkspaceIds
-    DayAgo = $DayAgo
-    HostPoolResourceId = $HostPools.Id
-    WhatIf = $true
+	GalleryName = $GalleryName
+	GalleryResourceGroupName = $GalleryResourceGroupName
 }
 $Params = @{
     AutomationAccountName = $AutomationAccount.AutomationAccountName
     ResourceGroupName = $ResourceGroupName
     Name = $RunBookName 
 }
+
 Register-AzAutomationScheduledRunbook @Params -ScheduleName $Schedule.Name -Parameters $Parameters
 #endregion
 
 #region RBAC Assignments
-#region 'Desktop Virtualization Power On Off Contributor', 'Virtual Machine Contributor', 'Network Contributor' RBAC Assignments
-$RoleDefinitionNames = 'Desktop Virtualization Power On Off Contributor', 'Virtual Machine Contributor', 'Network Contributor'
-foreach ($RoleDefinitionName in $RoleDefinitionNames){
-    $RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
-    foreach ($HostPool in $HostPools) {
-        $HostPoolSessionHostResourceGroupIds = (Get-AzWvdSessionHost -HostPoolName $HostPool.Name -ResourceGroupName $HostPool.ResourceGroupName).ResourceId -replace "/providers/.+"
-        foreach ($HostPoolSessionHostResourceGroupId in $HostPoolSessionHostResourceGroupIds) {
-            $Parameters = @{
-	            ObjectId           = $AutomationAccount.Identity.PrincipalId 
-	            RoleDefinitionName = $RoleDefinition.Name
-	            Scope              = $HostPoolSessionHostResourceGroupId
-            }
-
-            While (-not(Get-AzRoleAssignment @Parameters)) {
-	            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
-	            try {
-		            $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
-	            } 
-	            catch {
-		            $RoleAssignment = $null
-	            }
-	            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-	            if ($null -eq $RoleAssignment) {
-		            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
-		            Start-Sleep -Seconds 30
-	            }
-            }
-        }
-    }
+#region Automation Account System Assigned Identity
+#region 'Onwer' RBAC Assignments
+$RoleDefinition = Get-AzRoleDefinition -Name "Owner"
+$Parameters = @{
+    ObjectId           = $AutomationAccount.Identity.PrincipalId
+    RoleDefinitionName = $RoleDefinition.Name
+    Scope              = "/subscriptions/{0}" -f $SubscriptionId
 }
-#endregion
-
-#region 'Desktop Virtualization Host Pool Reader' RBAC Assignment
-$RoleDefinitionNames = 'Desktop Virtualization Host Pool Reader'
-foreach ($RoleDefinitionName in $RoleDefinitionNames){
-    $RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
-    foreach ($HostPool in $HostPools) {
-        $HostPoolSessionIds = (Get-AzWvdHostPool -HostPoolName $HostPool.Name -ResourceGroupName $HostPool.ResourceGroupName).Id
-        foreach ($HostPoolSessionId in $HostPoolSessionIds) {
-            $Parameters = @{
-	            ObjectId           = $AutomationAccount.Identity.PrincipalId 
-	            RoleDefinitionName = $RoleDefinition.Name
-	            Scope              = $HostPoolSessionId
-            }
-
-            While (-not(Get-AzRoleAssignment @Parameters)) {
-	            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
-	            try {
-		            $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
-	            } 
-	            catch {
-		            $RoleAssignment = $null
-	            }
-	            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-	            if ($null -eq $RoleAssignment) {
-		            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
-		            Start-Sleep -Seconds 30
-	            }
-            }
-        }
-    }
+while (-not(Get-AzRoleAssignment @Parameters)) {
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
+    $RoleAssignment = New-AzRoleAssignment @Parameters
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)]`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+    Start-Sleep -Seconds 30
 }
-
-#endregion
-
-#region 'Log Analytics Reader' RBAC Assignment
-$RoleDefinitionName = 'Log Analytics Reader'
-$RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
-foreach ($LogAnalyticsWorkspace in $LogAnalyticsWorkspaces) {
-    $Parameters = @{
-	    ObjectId           = $AutomationAccount.Identity.PrincipalId 
-	    RoleDefinitionName = $RoleDefinition.Name
-	    Scope              = $LogAnalyticsWorkspace.ResourceId
-    }
-
-    While (-not(Get-AzRoleAssignment @Parameters)) {
-	    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
-	    try {
-		    $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
-	    } 
-	    catch {
-		    $RoleAssignment = $null
-	    }
-	    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-	    if ($null -eq $RoleAssignment) {
-		    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
-		    Start-Sleep -Seconds 30
-	    }
-    }
-}
+#endregion 
 #endregion
 #endregion
 
@@ -415,20 +331,39 @@ $Params = @{
 $null = Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
 #endregion
 
+#region Module Setup
+$ModuleNames = "Az.Accounts", "Az.ImageBuilder", "Az.Compute"
+foreach ($ModuleName in $ModuleNames) {
+    $Module = Find-Module -Name $ModuleName -Repository PSGallery
+    $Uri = "$($Module.RepositorySourceLocation)/package/$($Module.Name)/$($Module.Version)"
+    Write-Verbose -Message "Importing '$ModuleName' (version: $($Module.Version))into '$($AutomationAccount.AutomationAccountName)' the Automation Account ..."
+
+    $Parameters = @{
+      ResourceGroupName = $ResourceGroupName
+      AutomationAccountName = $AutomationAccount.AutomationAccountName
+      Name = $module.Name
+      RuntimeVersion = "5.1"
+      ContentLinkUri = $Uri
+    }
+    $null = New-AzAutomationModule @Parameters
+}
+
+$Parameters = @{
+    ResourceGroupName = $ResourceGroupName
+    AutomationAccountName = $AutomationAccount.AutomationAccountName
+}
+While (Get-AzAutomationModule @Parameters | Where-Object -FilterScript { $_.ProvisioningState -ne "Succeeded" }) {
+    Start-Sleep -Seconds 30
+}
+#endregion
+
+
 #region Test
 #Start-Sleep -Seconds 30
-<#
-#region Test in the Portal
-"['{0}']" -f $HostPools.id -join "','" | Set-Clipboard
-"['{0}']" -f $LogAnalyticsWorkspaceIds -join "','" | Set-Clipboard
-#endregion
-#>
 #region PowerShell
 $Parameters = @{ 
-    LogAnalyticsWorkspaceId = $LogAnalyticsWorkspaceIds
-    HostPoolResourceId = $HostPools.Id
-    DayAgo = $DayAgo
-    WhatIf = $true
+	GalleryName = $GalleryName
+	GalleryResourceGroupName = $GalleryResourceGroupName
 }
 $Params = @{
     AutomationAccountName = $AutomationAccount.AutomationAccountName

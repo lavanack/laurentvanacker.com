@@ -1,4 +1,4 @@
-name: Terraform - Deploy Azure Infra On Push
+name: Terraform - Deploy Azure Infra On Push - With Approval
 on:
   push:
     branches: [ "master" ]
@@ -18,6 +18,42 @@ env:
   ARM_USE_AZUREAD: true
 
 jobs:
+  tflint:
+    name: TFLint
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        #os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest]
+
+    steps:
+    - uses: actions/checkout@v4
+      name: Checkout source code
+
+    - uses: actions/cache@v4
+      name: Cache plugin dir
+      with:
+        path: ~/.tflint.d/plugins
+        key: ${{ matrix.os }}-tflint-${{ hashFiles('.tflint.hcl') }}
+
+    - uses: terraform-linters/setup-tflint@v4
+      name: Setup TFLint
+      with:
+        tflint_version: v0.52.0
+        tflint_wrapper: true
+    - name: Show version
+      run: tflint --version
+
+    - name: Init TFLint
+      run: tflint --init
+      env:
+        # https://github.com/terraform-linters/tflint/blob/master/docs/user-guide/plugins.md#avoiding-rate-limiting
+        GITHUB_TOKEN: ${{ github.token }}
+
+    - name: Run TFLint
+      run: tflint -f compact
+
   terraform-security-scans:
     name: Terraform Security Scans
     runs-on: ubuntu-latest
@@ -43,31 +79,33 @@ jobs:
         run: cat tfsec.sarif
 
       - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v3
+        if: success() || failure()
+        uses: github/codeql-action/upload-sarif@v4
         with:
           # Path to SARIF file relative to the root of the repository
           sarif_file: tfsec.sarif
 
       # Perform a security scan of the terraform code using Trivy
       - name: Run Trivy vulnerability scanner in IaC mode
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
-          scan-type: 'config'
+          scan-type: 'fs'
           scan-ref: "Azure/Terraform/Github Actions/"
-          hide-progress: true
+          #hide-progress: true
           format: 'sarif'
-          output: 'trivy.sarif'
-          exit-code: '0'
+          output: 'trivy-results.sarif'
+          exit-code: "1" # Fail the build!
           severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
 
       - name: Print SARIF file for debugging
-        run: cat trivy.sarif
+        run: cat 'trivy-results.sarif'
 
-      - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v3
+      - name: Upload Trivy scan results to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: trivy.sarif
-
+          sarif_file: 'trivy-results.sarif'
+          
       # Perform a security scan of the terraform code using checkov
       - name: Run Checkov action
         id: checkov
@@ -76,11 +114,12 @@ jobs:
           framework: terraform
           output_format: sarif
           soft_fail: true
+          output_file_path: results.sarif
 
         # Upload results to GitHub Advanced Security
       - name: Upload SARIF file
         if: success() || failure()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: results.sarif
           category: checkov          
@@ -143,6 +182,17 @@ jobs:
           name: tfplan
           path: './Azure/Terraform/Github Actions/tfplan'
 
+      #From https://medium.com/@nisrine.guesmi/implementing-manual-approval-in-github-actions-between-terraform-plan-and-apply-a302d174148d
+      - name: Copy .terraform.lock.hcl to workspace
+        run: cp .terraform.lock.hcl /home/runner/work/laurentvanacker.com/laurentvanacker.com/.terraform.lock.hcl
+
+      - name: Upload .terraform.lock.hcl
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-workspace
+          path: /home/runner/work/laurentvanacker.com/laurentvanacker.com/.terraform.lock.hcl
+          include-hidden-files: true
+
       - name: Terraform Plan Status
         if: steps.plan.outcome == 'failure'
         run: exit 1
@@ -185,8 +235,29 @@ jobs:
         run: terraform show -json tfplan | tf-summarize -tree -draw
         working-directory: './Azure/Terraform/Github Actions'
 
+  manual-approval:
+      name: manual approval
+      runs-on: ubuntu-latest
+      needs: terraform-plan
+      if: success()
+
+      permissions:
+        issues: write
+        contents: read
+
+      steps: 
+        - name: Await for manual approval
+          uses: trstringer/manual-approval@v1
+          with:
+            secret: ${{ github.TOKEN }}
+            approvers: lavanack #add the usernames of the users who can approve the deployment
+            minimum-approvals: 1 #specify the number of approvals needed
+            issue-title: "Manual Approval Required for Terraform Apply"
+            issue-body: "Please approve or deny the deployment."
+            exclude-workflow-initiator-as-approver: false
+
   terraform-apply:
-    needs: terraform-plan
+    needs: manual-approval
     name: Terraform Apply
     runs-on: ubuntu-latest
     #environment: dev

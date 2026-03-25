@@ -13,7 +13,7 @@ variable "location" {
 
 variable "password" {
   description = "The Azure VM password."
-  default     = "Pssw0rd1234!"
+  default     = "P@ssw0rd1234!"
   sensitive   = true
 }
 

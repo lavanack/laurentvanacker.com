@@ -40,7 +40,7 @@
                 "buildTimeoutInMinutes": 240,
 
                 "vmProfile": {
-                    "vmSize": "Standard_D4s_v5",
+                    "vmSize": "Standard_D8s_v6",
                     "osDiskSizeGB": 127
                 },
                 "stagingResourceGroup": "/subscriptions/<subscriptionID>/resourceGroups/<stagingResourceGroupName>",
@@ -53,26 +53,39 @@
                 },
                 "customize": [
                     {
-                        "type": "File",
-                        "name": "Copy installLanguagePacks.ps1",
-                        "destination": "C:\\AVDImage\\installLanguagePacks.ps1",
-                        "sourceUri": "https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-11-20/InstallLanguagePacks.ps1"
-                    },
-                    {
-                        "type": "PowerShell",
-                        "name": "installLanguagePacks.ps1",
-                        "inline": [
-                            "C:\\AVDImage\\installLanguagePacks.ps1 -LanguageList \"German (Germany)\",\"French (France)\""
-                        ],
-                        "runAsSystem": true,
-                        "runElevated": true
-                    },
-                    {
                         "type": "PowerShell",
                         "name": "Timezone Redirection",
                         "runElevated": true,
                         "runAsSystem": true,
                         "scriptUri": "https://raw.githubusercontent.com/Azure/RDS-Templates/refs/heads/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2024-03-27/TimezoneRedirection.ps1"
+                    },
+                    {
+                        "type": "PowerShell",
+                        "name": "Install PowerShellCrossPlatform",
+                        "runElevated": true,
+                        "runAsSystem": true,
+                        "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-PowerShell.ps1"
+                    },
+                    {
+                        "type": "PowerShell",
+                        "name": "Install Putty",
+                        "runElevated": true,
+                        "runAsSystem": true,
+                        "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-Putty.ps1"
+                    },
+                    {
+                        "type": "PowerShell",
+                        "name": "Install WinSCP",
+                        "runElevated": true,
+                        "runAsSystem": true,
+                        "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-WinSCP.ps1"
+                    },
+                    {
+                        "type": "PowerShell",
+                        "name": "Install NotepadPlusPlus",
+                        "runElevated": true,
+                        "runAsSystem": true,
+                        "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-NotepadPlusPlus.ps1"
                     },
                     {
                         "type": "PowerShell",
@@ -102,6 +115,7 @@
                 "distribute": [
                     {
                         "type": "SharedImage",
+                        "excludeFromLatest": <excludeFromLatest>,
                         "galleryImageId": "/subscriptions/<subscriptionID>/resourceGroups/<rgName>/providers/Microsoft.Compute/galleries/<sharedImageGalName>/images/<imageDefName>/versions/<version>",
                         "runOutputName": "<runOutputName>",
                         "artifactTags": {

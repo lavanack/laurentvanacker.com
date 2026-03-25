@@ -138,18 +138,19 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
         PreferredAppGroupType           = "Desktop"
         MaxSessionLimit                 = 5
         Location                        = $Location
-        NamePrefix                      = "namuse2{0:D3}" -f $Index
+        NamePrefix                      = "nam{0}{1:D3}" -f $LocationShortName, $Instance
         VMSize                          = "Standard_D2s_v5"
         SubnetId                        = $SubNetId
         ImagePublisherName              = "microsoftwindowsdesktop"
-        ImageOffer                      = "windows-11"
-        ImageSku                        = "win11-25h2-ent"
+        ImageOffer                      = "office-365"
+        ImageSku                        = "win11-24h2-avd-m365"
         DistinguishedName               = $OUPath
         DomainName                      = $DomainName
         KeyVault                        = $KeyVault
-        VMNumberOfInstances             = 3
+        VMNumberOfInstances             = 1
         ResourceGroupName               = $ResourceGroupName
         WorkSpaceName                   = $ResourceGroupName -replace "^rg", "ws"
+        ScalingPlan                     = $true
         #Installing VS Code on All AVD Session Hosts
         CustomConfigurationScriptUrl    = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1"
     }
@@ -238,8 +239,8 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
         VMSizeId                                    = $CurrentHostPool.VMSize
         ManagedDiskType                             = 'StandardSSD_LRS'
         NetworkInfoSubnetId                         = $CurrentHostPool.SubnetId
-        #DiffDiskSettingOption = 'Local'
-        #DiffDiskSettingPlacement = 'CacheDisk'
+        #DiffDiskSettingOption                       = 'Local'
+        #DiffDiskSettingPlacement                    = 'CacheDisk'
         SecurityInfoType                            = 'TrustedLaunch'
         VMAdminCredentialsUsernameKeyVaultSecretUri = ($CurrentHostPool.KeyVault | Get-AzKeyVaultSecret -Name "LocalAdminUserName").Id
         VMAdminCredentialsPasswordKeyVaultSecretUri = ($CurrentHostPool.KeyVault | Get-AzKeyVaultSecret -Name "LocalAdminPassword").Id
@@ -316,6 +317,56 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The WorkSpace for the '$($CurrentHostPool.Name)' Host Pool (in the '$($CurrentHostPool.ResourceGroupName)' Resource Group) is created"
     #endregion
 
+    #region Scaling Plan Setup
+    $ScalingPlanName = "sp-{0}" -f $CurrentHostPool.Name
+    $scalingPlanParams = @{
+        ResourceGroupName = $CurrentAzWvdHostPool.ResourceGroupName
+        Name              = $ScalingPlanName
+        Location          = $CurrentAzWvdHostPool.Location
+        Description       = $CurrentAzWvdHostPool.Name
+        FriendlyName      = $CurrentAzWvdHostPool.Name
+        HostPoolType      = 'Pooled'
+        TimeZone          = (Get-TimeZone).Id
+        HostPoolReference = @(@{'hostPoolArmPath' = $CurrentAzWvdHostPool.Id; 'scalingPlanEnabled' = $CurrentHostPool.ScalingPlan })
+    }
+    $scalingPlan = New-AzWvdScalingPlan @scalingPlanParams
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$scalingPlan:`r`n$($scalingPlan | Out-String)"
+
+    $scalingPlanPooledScheduleParams = @{
+        ResourceGroupName                       = $CurrentHostPool.ResourceGroupName
+        ScalingPlanName                         = $ScalingPlanName
+        ScalingPlanScheduleName                 = 'PooledWeekDayDynamicSchedule'
+        DaysOfWeek                              = [System.DayOfWeek]::Monday..[System.DayOfWeek]::Friday #'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'
+        ScalingMethod                           = 'CreateDeletePowerManage'
+        RampUpStartTimeHour                     = '8'
+        RampUpStartTimeMinute                   = '0'
+        RampUpLoadBalancingAlgorithm            = 'BreadthFirst'
+        RampUpMinimumHostsPct                   = '100'
+        RampUpCapacityThresholdPct              = '50'
+        PeakStartTimeHour                       = '8'
+        PeakStartTimeMinute                     = '30'
+        PeakLoadBalancingAlgorithm              = 'DepthFirst'
+        RampDownStartTimeHour                   = '16'
+        RampDownStartTimeMinute                 = '0'
+        RampDownLoadBalancingAlgorithm          = 'BreadthFirst'
+        RampDownMinimumHostsPct                 = '100'
+        RampDownCapacityThresholdPct            = '20'
+        RampDownForceLogoffUser                 = $true
+        RampDownWaitTimeMinute                  = '30'
+        RampDownNotificationMessage             = 'Please log out of your session.'
+        RampDownStopHostsWhen                   = 'ZeroSessions'
+        OffPeakStartTimeHour                    = '19'
+        OffPeakStartTimeMinute                  = '0'
+        OffPeakLoadBalancingAlgorithm           = 'DepthFirst'
+        CreateDeleteRampUpMaximumHostPoolSize   = $CurrentHostPool.VMNumberOfInstances+4
+        CreateDeleteRampUpMinimumHostPoolSize   = $CurrentHostPool.VMNumberOfInstances+1
+        CreateDeleteRampDownMaximumHostPoolSize = $CurrentHostPool.VMNumberOfInstances+4
+        CreateDeleteRampDownMinimumHostPoolSize = $CurrentHostPool.VMNumberOfInstances
+    }
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Pooled ScalingPlan Schedule:`r`n$($scalingPlanPooledScheduleParams | Out-String)"
+    $scalingPlanPooledSchedule = New-AzWvdScalingPlanPooledSchedule @scalingPlanPooledScheduleParams
+    #endregion
+    
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
 
     return $CurrentAzWvdHostPool
@@ -327,7 +378,8 @@ Clear-Host
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
-
+Set-Location -Path $CurrentDir
+ 
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount
@@ -348,7 +400,7 @@ $Parameters = @{
     ADJoinCredential     = $ADJoinCredential 
     Location             = $Location 
     DomainName           = $DomainName
-    SubNetId             = $("/subscriptions/{0}/resourceGroups/rg-avd-ad-use2-002/providers/Microsoft.Network/virtualNetworks/vnet-avd-avd-use2-002/subnets/snet-avd-avd-use2-002" -f $SubscriptionId)
+    SubNetId             = "/subscriptions/{0}/resourceGroups/rg-avd-ad-use2-002/providers/Microsoft.Network/virtualNetworks/vnet-avd-avd-use2-002/subnets/snet-avd-avd-use2-002" -f $SubscriptionId
     OUPath               = "OU=PooledDesktops,OU={0},OU=AVD,DC={1}" -f $Location, $($DomainName -replace "\.", ",DC=")
     Verbose              = $true
 }

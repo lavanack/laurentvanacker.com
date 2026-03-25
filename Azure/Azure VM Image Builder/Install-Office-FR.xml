@@ -1,0 +1,9 @@
+﻿<Configuration>
+    <Add Channel="MonthlyEnterpriseChannel">
+        <Product ID="LanguagePack">
+            <Language ID="fr-fr" />
+        </Product>
+    </Add>
+    <Property Name="AutoAcceptEula" Value="TRUE"/>
+    <Property Name="SharedComputerLicensing" Value="1"/>
+</Configuration>

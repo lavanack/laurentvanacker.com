@@ -20,7 +20,7 @@ of the Sample Code.
 [CmdletBinding()]
 Param (
     [Alias("Number")]
-    [uint16] $VMNumber = 3,
+    [uint16] $VMNumber = 10,
 
     [ValidateScript({ $_ -in (Get-AzLocation).Location })]
     [string] $Location = "eastus2",
@@ -32,7 +32,7 @@ Param (
     [uint16] $AvailabilityZone,
 
     [Alias('VMSize', 'Sku')]
-    [string] $Size = "Standard_D2s_v3"
+    [string] $Size = "Standard_D2s_v5"
 )
 
 #region function definitions
@@ -73,6 +73,7 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
+$StartTime = Get-Date
 
 #region Defining variables 
 #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
@@ -182,4 +183,7 @@ $null = $Jobs | Remove-Job
 
 Write-Host -Object "Jobs completed"
 #endregion
+$EndTime = Get-Date
+$TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
+Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Processing Time: $TimeSpan"
 #endregion

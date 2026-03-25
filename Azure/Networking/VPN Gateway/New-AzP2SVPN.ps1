@@ -105,7 +105,6 @@ function Add-AzP2SVPN {
     #region Variables
     $TimeStamp = "{0:yyyyMMddHHmmss}" -f (Get-Date)
 
-    $LocationShortName = $ResourceLocationShortNameHT[$Location].shortName
     #Naming convention based on https://github.com/mspnp/AzureNamingTool/blob/main/src/repository/resourcetypes.json
     $AzureVMNameMaxLength = $ResourceTypeShortNameHT["Compute/virtualMachines"].lengthMax
     $VirtualMachinePrefix = $ResourceTypeShortNameHT["Compute/virtualMachines"].ShortName
@@ -116,6 +115,7 @@ function Add-AzP2SVPN {
     $ResourceGroupName = $VirtualNetwork.ResourceGroupName
     $VirtualNetworkName = $VirtualNetwork.Name
     $Location = $VirtualNetwork.Location
+    $LocationShortName = $ResourceLocationShortNameHT[$Location].shortName
 
     if ($VirtualNetworkName -match $("{0}-(?<Project>\w+)-(?<Role>\w+)-(?<LocationShortName>\w+)-(?<Instance>\d+)" -f $VirtualNetworkPrefix)) {
         $Project = $Matches["Project"]
@@ -265,18 +265,19 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 
+<#
 #region Creating a new Virtual Network with P2S VPN Gateway
 New-AzP2SVPN -Connect -Verbose
 #Checking the IP address after P2S VPN connection
 Get-NetIPConfiguration -InterfaceAlias vnet-p2s*
 #endregion
+#>
 
-<#
 #region Updating an existing Virtual Network by adding a P2S VPN Gateway
 #Taking a Virtual Network without a Gateway Subnet
-Get-AzVirtualNetwork -Name "vnet-avd-ad-use2-002" | Where-Object -FilterScript { "GatewaySubnet" -notin $_.Subnets.Name } | Select-Object -First 1 | Add-AzP2SVPN -Connect -Verbose
+Get-AzVirtualNetwork -Name "vnet-poc-test-usc-001" | Where-Object -FilterScript { "GatewaySubnet" -notin $_.Subnets.Name } | Select-Object -First 1 | Add-AzP2SVPN -Connect -Verbose
 #endregion
-#>
+
 
 <#
 #region Cleaning
