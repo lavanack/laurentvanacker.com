@@ -20,6 +20,50 @@ of the Sample Code.
 #From https://learn.microsoft.com/en-us/azure/vpn-gateway/vpn-gateway-howto-point-to-site-rm-ps
 
 #region function definitions
+#Based from https://adamtheautomator.com/powershell-random-password/
+function New-RandomPassword {
+    [CmdletBinding(PositionalBinding = $false, DefaultParameterSetName = 'GeneratePassword')]
+    param
+    (
+        [ValidateRange(12, 122)]
+        [int] $minLength = 12, ## characters
+        [ValidateRange(13, 123)]
+        [ValidateScript({ $_ -gt $minLength })]
+        [int] $maxLength = 15, ## characters
+        [switch] $AsSecureString,
+        [switch] $ClipBoard,
+        [Parameter(ParameterSetName = 'GeneratePassword')]
+        [int] $nonAlphaChars = 3,
+        [Parameter(ParameterSetName = 'DinoPass')]
+        [switch] $Online
+    )
+    #From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/faq#what-are-the-password-requirements-when-creating-a-vm-
+    $ProhibitedPasswords = @('abc@123', 'iloveyou!', 'P@$$w0rd', 'P@ssw0rd', 'P@ssword123', 'Pa$$word', 'pass@word1', 'Password!', 'Password1', 'Password22')
+    $length = Get-Random -Minimum $minLength -Maximum $maxLength
+    Do {
+        if ($Online) {
+            $URI = "https://www.dinopass.com/password/custom?length={0}&useSymbols=true&useNumbers=true&useCapitals=true" -f $length
+            $RandomPassword = Invoke-RestMethod -Uri $URI
+        }
+        else {
+            Add-Type -AssemblyName 'System.Web'
+            $RandomPassword = [System.Web.Security.Membership]::GeneratePassword($length, $nonAlphaChars)
+        }
+    } Until (($RandomPassword -notin $ProhibitedPasswords) -and (($RandomPassword -match '[A-Z]') -and ($RandomPassword -match '[a-z]') -and ($RandomPassword -match '\d') -and ($RandomPassword -match '\W')))
+
+    #Write-Host -Object "The password is : $RandomPassword"
+    if ($ClipBoard) {
+        #Write-Verbose -Message "The password has beeen copied into the clipboard (Use Win+V) ..."
+        $RandomPassword | Set-Clipboard
+    }
+    if ($AsSecureString) {
+        ConvertTo-SecureString -String $RandomPassword -AsPlainText -Force
+    }
+    else {
+        $RandomPassword
+    }
+}
+
 function New-AzP2SVPN {
     [CmdletBinding(PositionalBinding = $false)]
     param
@@ -85,6 +129,7 @@ function Add-AzP2SVPN {
     param
     (
         [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $False)]
+        [ValidateNotNullOrEmpty()]
         [Microsoft.Azure.Commands.Network.Models.PSVirtualNetwork] $VirtualNetwork,
         [switch] $Connect
     )
@@ -146,8 +191,13 @@ function Add-AzP2SVPN {
     #We take the first subnet as Frontend subnet
     $SubnetConfigGatewayName = "GatewaySubnet"
     $SubnetConfigGatewayAddressPrefix = $VirtualNetwork.AddressSpace.AddressPrefixes -replace "(\d+)\.(\d+)\.(\d+)\.(\d+)/(\d+)", '$1.$2.255.0/27'
+    <#
     $ClearTextPassword = 'P@ssw0rd'
     $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
+    #>
+    $SecurePassword = New-RandomPassword -ClipBoard -AsSecureString -Verbose
+
+    #endregion
     #endregion
 
     $DestinationFolder = New-Item -Path $(Join-Path -Path $CurrentDir -ChildPath $TimeStamp) -ItemType Directory -Force
@@ -158,12 +208,13 @@ function Add-AzP2SVPN {
     #endregion
 
     #region Create the VPN gateway
-    $GatewayPIP = New-AzPublicIpAddress -Name $PublicIpAddressName -ResourceGroupName $ResourceGroupName -Location $Location -AllocationMethod Static -Sku Standard
+    $GatewayPIP = New-AzPublicIpAddress -Name $PublicIpAddressName -ResourceGroupName $ResourceGroupName -Location $Location -AllocationMethod Static -Sku Standard -Force
     $VirtualNetwork = Get-AzVirtualNetwork -Name $VirtualNetworkName -ResourceGroupName $ResourceGroupName
     $GatewaySubnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetConfigGatewayName -VirtualNetwork $VirtualNetwork
     $GatewayIPConfig = New-AzVirtualNetworkGatewayIpConfig -Name $GatewayIpConfigName -SubnetId $GatewaySubnet.Id -PublicIpAddressId $GatewayPIP.Id
     #$Gateway = New-AzVirtualNetworkGateway -Name $VirtualNetworkGatewayName -ResourceGroupName $ResourceGroupName -Location $Location -IpConfigurations $GatewayIPConfig -GatewayType Vpn -VpnType RouteBased -EnableBgp $false -GatewaySku VpnGw2 -VpnGatewayGeneration "Generation2" -VpnClientProtocol IkeV2,OpenVPN -VpnClientAddressPool $VPNClientAddressPool
     $Gateway = New-AzVirtualNetworkGateway -Name $VirtualNetworkGatewayName -ResourceGroupName $ResourceGroupName -Location $Location -IpConfigurations $GatewayIPConfig -GatewayType Vpn -VpnType RouteBased -EnableBgp $false -GatewaySku VpnGw1 -VpnGatewayGeneration "Generation1" -VpnClientProtocol IkeV2, OpenVPN -VpnClientAddressPool $VPNClientAddressPool
+
     #endregion
 
     #region Generate certificates
@@ -220,8 +271,8 @@ function Add-AzP2SVPN {
     #endregion
 
     #region Upload root certificate public key information
-    $cert = new-object System.Security.Cryptography.X509Certificates.X509Certificate2($RootCertFilePath)
-    $CertBase64 = [system.convert]::ToBase64String($cert.RawData)
+    $cert = New-Object -TypeName System.Security.Cryptography.X509Certificates.X509Certificate2($RootCertFilePath)
+    $CertBase64 = [System.Convert]::ToBase64String($cert.RawData)
 
     $P2SRootCertName = Split-Path -Path $RootCertFilePath -Leaf
     Add-AzVpnClientRootCertificate -VpnClientRootCertificateName $P2SRootCertName -VirtualNetworkGatewayname $VirtualNetworkGatewayName -ResourceGroupName $ResourceGroupName -PublicCertData $CertBase64
@@ -238,7 +289,10 @@ function Add-AzP2SVPN {
 
     Start-BitsTransfer -Source $profile.VPNProfileSASUrl -Destination $DestinationFile
     Expand-Archive -Path $DestinationFile -DestinationPath $DestinationPath
+
     $VpnProfileSetupPowerShellScript = (Get-ChildItem -Path $DestinationPath -Filter VpnProfileSetup.ps1 -Recurse).FullName
+    $AzureVpnConfig = (Get-ChildItem -Path $DestinationPath -Filter azurevpnconfig.xml -Recurse).FullName
+
     #Return an error if the VpnConnection doesn't exist (around line 61 - an -ErrorAction Ignore could solve this)
     & $VpnProfileSetupPowerShellScript -Force 2>&1 | Out-Null
     #endregion
@@ -252,7 +306,6 @@ function Add-AzP2SVPN {
         #rasdial $VirtualNetworkName /DISCONNECT
         #endregion
     }
-    #endregion
 }
 #endregion 
 
@@ -265,6 +318,12 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 
+#region Login to your Azure subscription.
+While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
+	Connect-AzAccount
+}
+#endregion
+
 <#
 #region Creating a new Virtual Network with P2S VPN Gateway
 New-AzP2SVPN -Connect -Verbose
@@ -275,17 +334,31 @@ Get-NetIPConfiguration -InterfaceAlias vnet-p2s*
 
 #region Updating an existing Virtual Network by adding a P2S VPN Gateway
 #Taking a Virtual Network without a Gateway Subnet
-Get-AzVirtualNetwork -Name "vnet-poc-test-usc-001" | Where-Object -FilterScript { "GatewaySubnet" -notin $_.Subnets.Name } | Select-Object -First 1 | Add-AzP2SVPN -Connect -Verbose
+$VirtualNetworkName = "vnet-poc-test-usc-001"
+$ResourceGroupName = "rg-avd-poc-test-usc-network"
+$GatewaySubnetName = "GatewaySubnet"
+Get-AzVirtualNetwork -Name $VirtualNetworkName -ResourceGroupName $ResourceGroupName | Where-Object -FilterScript { $GatewaySubnetName -notin $_.Subnets.Name } | Add-AzP2SVPN -Connect -Verbose 
 #endregion
 
 
 <#
 #region Cleaning
-#Cleaning Up the local VPN Connections
+#region Cleaning Up the Azure Resources
+#Cleaning Up the Virtual Network Gateway
+Get-AzVirtualNetworkGateway -ResourceGroupName $ResourceGroupName | Remove-AzVirtualNetworkGateway -Force
+
+#Cleaning Up the Gateway Subnet
+$VirtualNetwork = Get-AzVirtualNetwork -Name $VirtualNetworkName 
+$VirtualNetwork | Remove-AzVirtualNetworkSubnetConfig -Name $GatewaySubnetName
+Set-AzVirtualNetwork -VirtualNetwork $VirtualNetwork
+#endregion 
+
+#region Cleaning Up the local VPN Connections
 Get-VpnConnection  | Where-Object -FilterScript { $_.Name -match "^vnet-p2s-vpn" } | Remove-VpnConnection -Force -AsJob
 #Cleaning Up the Resource Groups
 Get-AzResourceGroup rg-p2s-vpn-* | Remove-AzResourceGroup -AsJob -Force
 #endregion
 Get-ChildItem Cert:\CurrentUser\My\ | Where-Object { $_.Subject -match "^CN=P2S"} | Remove-Item
+#endregion
 #>
 #endregion
