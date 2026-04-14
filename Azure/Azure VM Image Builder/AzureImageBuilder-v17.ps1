@@ -249,7 +249,7 @@ While (Get-AzResourceProvider -ProviderNamespace $RequiredResourceProviders | Wh
 }
 $Jobs | Remove-Job -Force
 #endregion
-$AzureComputeGallery = New-AzureComputeGallery -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
+$AzureComputeGallery = New-AzureComputeGallery -Location CentralUS -TargetRegions CentralUS, EastUS2 -Verbose
 $AzureComputeGallery
 
 $EndTime = Get-Date
