@@ -24,5 +24,5 @@ Write-Output -InputObject $AzureContext
 
 
 #region Set Storage Account Configuration
-Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $Name -PublicNetworkAccess Enabled -AllowSharedKeyAccess $true -NetworkRuleSet (@{ipRules = (@{IPAddressOrRange = $IPAddressOrRange; Action = "allow" }); defaultAction = "deny" })
+Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $Name -PublicNetworkAccess Enabled -AllowSharedKeyAccess $true -NetworkRuleSet (@{ipRules = (@{IPAddressOrRange = $IPAddressOrRange; Action = "allow" }); defaultAction = "deny" }) -Tag @{ SecurityControl = "Ignore" }
 #endregion
