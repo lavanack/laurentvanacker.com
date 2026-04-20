@@ -79,6 +79,8 @@ function New-PsAvdStopInactiveSessionHostAzFunction {
         [ValidateSet('Personal', 'Pooled')]
         [string[]] $HostPoolType = @('Personal', 'Pooled'),
         [Parameter(Mandatory = $false)]
+        [string[]] $HostPoolName,
+        [Parameter(Mandatory = $false)]
         [string] $Location = "eastus2",
         [switch] $PassThru,
         [switch] $Force
@@ -204,40 +206,87 @@ function New-PsAvdStopInactiveSessionHostAzFunction {
     #region Local code
     $Directory = New-Item -Path $FunctionName\$FunctionName -ItemType Directory -Force
     #From https://faultbucket.ca/2019/08/use-azure-function-to-start-vms/
-    $ScriptContent = @'
-    # Input bindings are passed in via param block.
-    param($Timer)
+    if ([string]::IsNullOrEmpty($HostPoolName)) {
+        $ScriptContent = @'
+# Input bindings are passed in via param block.
+param($Timer)
 
-    # The 'IsPastDue' property is 'true' when the current function invocation is later than scheduled.
-    if ($Timer.IsPastDue) {
-        Write-Host "PowerShell timer is running late!"
-    }
+# The 'IsPastDue' property is 'true' when the current function invocation is later than scheduled.
+if ($Timer.IsPastDue) {
+    Write-Host "PowerShell timer is running late!"
+}
 
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    Write-Host -Object "PowerShell timer trigger function executed at: $timestamp"
+$timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+Write-Host -Object "PowerShell timer trigger function executed at: $timestamp"
+
+$AzInactiveRunningVMs = Get-AzWvdHostPool | Where-Object -FilterScript { $_.HostPoolType -in <HostPoolType> } | ForEach-Object -Process {
+    (Get-AzWvdSessionHost -HostPoolName $_.Name -ResourceGroupName $_.ResourceGroupName) | Where-Object -FilterScript { $_.Session -le 0 } | Select-Object -Property ResourceId | Get-AzVM -Status | Where-Object -FilterScript { ($_.Statuses.code -eq "PowerState/running") -and ($_.Statuses.DisplayStatus -eq "VM running") }
+}
+
+
+if ($null -ne $AzInactiveRunningVMs) {
+    Write-Host -Object "The following VMs will be hibernated :`r`n$($AzInactiveRunningVMs | Select-Object -Property ResourceGroupName, Name | Out-String)"
+    $Jobs = $AzInactiveRunningVMs | Stop-AzVM -Hibernate -Force -AsJob -Verbose
+    Write-Host -Object "Waiting the hibernation jobs complete ..."
+    $null = $Jobs | Receive-Job -Wait -AutoRemoveJob -ErrorAction SilentlyContinue
 
     $AzInactiveRunningVMs = Get-AzWvdHostPool | Where-Object -FilterScript { $_.HostPoolType -in <HostPoolType> } | ForEach-Object -Process {
         (Get-AzWvdSessionHost -HostPoolName $_.Name -ResourceGroupName $_.ResourceGroupName) | Where-Object -FilterScript { $_.Session -le 0 } | Select-Object -Property ResourceId | Get-AzVM -Status | Where-Object -FilterScript { ($_.Statuses.code -eq "PowerState/running") -and ($_.Statuses.DisplayStatus -eq "VM running") }
     }
-
-
-    if ($null -ne $AzInactiveRunningVMs) {
-        Write-Host -Object "The following VMs will be hibernated :`r`n$($AzInactiveRunningVMs | Select-Object -Property ResourceGroupName, Name | Out-String)"
-        $Jobs = $AzInactiveRunningVMs | Stop-AzVM -Hibernate -Force -AsJob -Verbose
-        Write-Host -Object "Waiting the hibernation jobs complete ..."
-        $null = $Jobs | Receive-Job -Wait -AutoRemoveJob -ErrorAction SilentlyContinue
-
-        $AzInactiveRunningVMs = Get-AzWvdHostPool | Where-Object -FilterScript { $_.HostPoolType -in <HostPoolType> } | ForEach-Object -Process {
-            (Get-AzWvdSessionHost -HostPoolName $_.Name -ResourceGroupName $_.ResourceGroupName) | Where-Object -FilterScript { $_.Session -le 0 } | Select-Object -Property ResourceId | Get-AzVM -Status | Where-Object -FilterScript { ($_.Statuses.code -eq "PowerState/running") -and ($_.Statuses.DisplayStatus -eq "VM running") }
-        }
-        if (-not([string]::IsNullOrEmpty($AzInactiveRunningVMs))) {
-            Write-Warning -Message "The following VMs will be shutdown (hibernation failed) :`r`n$($AzInactiveRunningVMs | Select-Object -Property ResourceGroupName, Name | Out-String)"
-            $Jobs = $AzInactiveRunningVMs | Stop-AzVM -Force -AsJob -Verbose
-            Write-Host -Object "Waiting the shutdown jobs complete ..."
-            $null = $Jobs | Receive-Job -Wait -AutoRemoveJob #-ErrorAction SilentlyContinue
-        }
+    if (-not([string]::IsNullOrEmpty($AzInactiveRunningVMs))) {
+        Write-Warning -Message "The following VMs will be shutdown (hibernation failed) :`r`n$($AzInactiveRunningVMs | Select-Object -Property ResourceGroupName, Name | Out-String)"
+        $Jobs = $AzInactiveRunningVMs | Stop-AzVM -Force -AsJob -Verbose
+        Write-Host -Object "Waiting the shutdown jobs complete ..."
+        $null = $Jobs | Receive-Job -Wait -AutoRemoveJob #-ErrorAction SilentlyContinue
     }
+}
 '@ -replace "<HostPoolType>", $("'{0}'" -f $($HostPoolType -join "', '"))
+    }
+    else {
+        #Adding an AppSetting for filtering on some HostPool names
+        $AppSetting = @{
+            HostPoolName = $HostPoolName -join ','
+        }
+
+        Update-AzFunctionAppSetting -Name $AzureFunctionName -ResourceGroupName $ResourceGroupName -AppSetting $AppSetting
+
+        $ScriptContent = @'
+# Input bindings are passed in via param block.
+param($Timer)
+
+# The 'IsPastDue' property is 'true' when the current function invocation is later than scheduled.
+if ($Timer.IsPastDue) {
+    Write-Host "PowerShell timer is running late!"
+}
+
+$timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+Write-Host -Object "PowerShell timer trigger function executed at: $timestamp"
+
+Write-Host -Object "`$env:HostPoolName: $($env:HostPoolName)"
+$HostPoolName = $env:HostPoolName -split ','
+$AzInactiveRunningVMs = Get-AzWvdHostPool | Where-Object -FilterScript { ($_.HostPoolType -in <HostPoolType>) -and ($_.Name -in $HostPoolName) } | ForEach-Object -Process {
+    (Get-AzWvdSessionHost -HostPoolName $_.Name -ResourceGroupName $_.ResourceGroupName) | Where-Object -FilterScript { $_.Session -le 0 } | Select-Object -Property ResourceId | Get-AzVM -Status | Where-Object -FilterScript { ($_.Statuses.code -eq "PowerState/running") -and ($_.Statuses.DisplayStatus -eq "VM running") }
+}
+
+
+if ($null -ne $AzInactiveRunningVMs) {
+    Write-Host -Object "The following VMs will be hibernated :`r`n$($AzInactiveRunningVMs | Select-Object -Property ResourceGroupName, Name | Out-String)"
+    $Jobs = $AzInactiveRunningVMs | Stop-AzVM -Hibernate -Force -AsJob -Verbose
+    Write-Host -Object "Waiting the hibernation jobs complete ..."
+    $null = $Jobs | Receive-Job -Wait -AutoRemoveJob -ErrorAction SilentlyContinue
+
+    $AzInactiveRunningVMs = Get-AzWvdHostPool | Where-Object -FilterScript { ($_.HostPoolType -in <HostPoolType>) -and ($_.Name -in $HostPoolName) } | ForEach-Object -Process {
+        (Get-AzWvdSessionHost -HostPoolName $_.Name -ResourceGroupName $_.ResourceGroupName) | Where-Object -FilterScript { $_.Session -le 0 } | Select-Object -Property ResourceId | Get-AzVM -Status | Where-Object -FilterScript { ($_.Statuses.code -eq "PowerState/running") -and ($_.Statuses.DisplayStatus -eq "VM running") }
+    }
+    if (-not([string]::IsNullOrEmpty($AzInactiveRunningVMs))) {
+        Write-Warning -Message "The following VMs will be shutdown (hibernation failed) :`r`n$($AzInactiveRunningVMs | Select-Object -Property ResourceGroupName, Name | Out-String)"
+        $Jobs = $AzInactiveRunningVMs | Stop-AzVM -Force -AsJob -Verbose
+        Write-Host -Object "Waiting the shutdown jobs complete ..."
+        $null = $Jobs | Receive-Job -Wait -AutoRemoveJob #-ErrorAction SilentlyContinue
+    }
+}
+'@ -replace "<HostPoolType>", $("'{0}'" -f $($HostPoolType -join "', '"))
+    }
 
     $FunctionJSONContent = @"
     {
@@ -360,6 +409,7 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
-New-PsAvdStopInactiveSessionHostAzFunction -Location eastus2 -FrequencyInMinutes 5 -Verbose
+#New-PsAvdStopInactiveSessionHostAzFunction -Location eastus2 -Verbose
+New-PsAvdStopInactiveSessionHostAzFunction -Location eastus2 -FrequencyInMinutes 5 -HostPoolName $((Get-AzWvdHostPool).Name) -Verbose
 #endregion
 
