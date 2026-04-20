@@ -649,15 +649,15 @@ $GalleryName = "gal_avd_use2_{0}" -f $timeInt
 $GalleryResourceId = (Get-AzGallery -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -ErrorAction Ignore).Id
 #We specify an existing Azure Compute Gallery Resource Id
 if ($GalleryResourceId) {
-	$AzureComputeGallery = New-AzureComputeGallery -GalleryResourceId $GalleryResourceId -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
+	$AzureComputeGallery = New-AzureComputeGallery -GalleryResourceId $GalleryResourceId -Location CentralUS -TargetRegions CentralUS, EastUS2 -Verbose
 }
 #We specify an Azure Compute Gallery Name and A Resource Group Name. If they exist they will be used, if not they will be created.
 elseif ($GalleryName -and $ResourceGroupName) {
-	$AzureComputeGallery = New-AzureComputeGallery  -GalleryName $GalleryName -GalleryResourceGroupName $ResourceGroupName -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
+	$AzureComputeGallery = New-AzureComputeGallery  -GalleryName $GalleryName -GalleryResourceGroupName $ResourceGroupName -Location CentralUS -TargetRegions CentralUS, EastUS2 -Verbose
 }
 #We will create a new Azure Compute Gallery (and its related Resource Group)
 else {
-	$AzureComputeGallery = New-AzureComputeGallery -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
+	$AzureComputeGallery = New-AzureComputeGallery -Location CentralUS -TargetRegions CentralUS, EastUS2 -Verbose
 }
 $AzureComputeGallery
 

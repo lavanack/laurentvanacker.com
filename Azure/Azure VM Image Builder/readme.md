@@ -139,7 +139,7 @@ The [AzureImageBuilder-v15.ps1](AzureImageBuilder-v15.ps1) was just a useless te
 
 ## AzureImageBuilder-v16.ps1
 
-The [AzureImageBuilder-v16.ps1](AzureImageBuilder-v16.ps1) is an evolution of the [AzureImageBuilder-v14.ps1](AzureImageBuilder-v14.ps1). We use a Windows 365 image (With Microsoft 365) and we setup Officde in French.
+The [AzureImageBuilder-v16.ps1](AzureImageBuilder-v16.ps1) is an evolution of the [AzureImageBuilder-v14.ps1](AzureImageBuilder-v14.ps1). We use a Windows 365 image (With Microsoft 365) and we setup Office in French.
 
 ## AzureImageBuilder-v17.ps1
 

@@ -414,7 +414,7 @@ Write-Output -InputObject "'$imageTemplateNameARM' LastRunStatusRunState: $($get
 Write-Output -InputObject "'$imageTemplateNameARM' LastRunStatusMessage: $($getStatusARM.LastRunStatusMessage) "
 Write-Output -InputObject "'$imageTemplateNameARM' LastRunStatusRunSubState: $($getStatusARM.LastRunStatusRunSubState) "
 if ($getStatusARM.LastRunStatusRunState -eq "Failed") {
-	Write-Error -Message "The Image Builder Template for '$imageTemplateNameARM' has failed:\r\n$($getStatusARM.LastRunStatusMessage)"
+	Write-Error -Message "The Image Builder Template for '$imageTemplateNameARM' has failed:`r`n$($getStatusARM.LastRunStatusMessage).`r`nThe logs are available in the '$StagingResourceGroupNameARM' ResourceGroup."
 }
 Write-Output -InputObject "Removing Azure Image Builder Template for '$imageTemplateNameARM' ..."
 #$Jobs += $getStatusARM | Remove-AzImageBuilderTemplate -AsJob
@@ -438,7 +438,7 @@ Write-Output -InputObject "'$imageTemplateNamePowerShell' LastRunStatusRunState:
 Write-Output -InputObject "'$imageTemplateNamePowerShell' LastRunStatusMessage: $($getStatusPowerShell.LastRunStatusMessage) "
 Write-Output -InputObject "'$imageTemplateNamePowerShell' LastRunStatusRunSubState: $($getStatusPowerShell.LastRunStatusRunSubState) "
 if ($getStatusPowerShell.LastRunStatusRunState -eq "Failed") {
-	Write-Error -Message "The Image Builder Template for '$imageTemplateNamePowerShell' has failed:\r\n$($getStatusPowerShell.LastRunStatusMessage)"
+	Write-Error -Message "The Image Builder Template for '$imageTemplateNamePowerShell' has failed:`r`n$($getStatusPowerShell.LastRunStatusMessage).`r`nThe logs are available in the '$StagingResourceGroupNameARM' ResourceGroup."
 }
 Write-Output -InputObject "Removing Azure Image Builder Template for '$imageTemplateNamePowerShell' ..."
 #$Jobs += $getStatusPowerShell | Remove-AzImageBuilderTemplate -AsJob
@@ -457,6 +457,10 @@ Remove-AzRoleDefinition -Name $RoleDefinition.Name -Force
 #endregion
   
 #region Removing Staging ResourceGroups
-$null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNameARM -Force -AsJob
-$null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNamePowerShell -Force -AsJob
+if ($getStatusPowerShell.LastRunStatusRunState -ne "Failed") {
+    $null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNameARM -Force -AsJob
+}
+if ($getStatusARM.LastRunStatusRunState -ne "Failed") {
+    $null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNamePowerShell -Force -AsJob
+}
 #endregion

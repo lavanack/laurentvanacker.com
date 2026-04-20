@@ -422,7 +422,9 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     #Select-AzSubscription -SubscriptionName $SubscriptionName | Select-Object -Property *
 }
 
-$Location = "EastUS2"
+#$Location = "EastUS2"
+$Location = "CentralUS"
+$TargetRegions = $Location, "EastUS2"
 $LocationShortName = $shortNameHT[$Location].shortName
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
 $AzureVMNameMaxLength = $ResourceTypeShortNameHT["Compute/virtualMachines"].lengthMax
@@ -492,10 +494,11 @@ $Runbook | Set-AzAPIAutomationRunbookRuntimeEnvironment -RuntimeEnvironment $Run
 #endregion 
 
 # Link the schedule to the runbook
-$TimeInt = "1771071561"
+$TimeInt = "1775647109"
 $Parameters = @{ 
-    GalleryId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.Compute/galleries/gal_avd_use2_{1}" -f $SubscriptionId, $TimeInt
-    UserAssignedManagedIdentityId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/aibIdentity-{1}" -f $SubscriptionId, $TimeInt
+    GalleryId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-usc-{1}/providers/Microsoft.Compute/galleries/gal_avd_usc_{1}" -f $SubscriptionId, $TimeInt
+    UserAssignedManagedIdentityId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-usc-{1}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/aibIdentity-{1}" -f $SubscriptionId, $TimeInt
+    TargetRegions = $TargetRegions
     excludeFromLatest = $false
 }
 $Params = @{
@@ -561,10 +564,11 @@ $null = Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
 #region Test
 #Start-Sleep -Seconds 30
 #region PowerShell
-$TimeInt = "1771071561"
+$TimeInt = "1775647109"
 $Parameters = @{ 
-    GalleryId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.Compute/galleries/gal_avd_use2_{1}" -f $SubscriptionId, $TimeInt
-    UserAssignedManagedIdentityId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-use2-{1}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/aibIdentity-{1}" -f $SubscriptionId, $TimeInt
+    GalleryId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-usc-{1}/providers/Microsoft.Compute/galleries/gal_avd_usc_{1}" -f $SubscriptionId, $TimeInt
+    UserAssignedManagedIdentityId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-usc-{1}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/aibIdentity-{1}" -f $SubscriptionId, $TimeInt
+    TargetRegions = $TargetRegions
     excludeFromLatest = $false
 }
 $Params = @{
