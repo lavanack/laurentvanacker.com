@@ -75,7 +75,7 @@ Install-PsAvdAvdGpoSettings #-Force
 #endregion
 
 #region Getting Current Azure location (based on the Subnet location of this DC) to deploy the Azure compute Gallery in the same location that the other resources
-$ThisDomainControllerSubnet = Get-AzVMSubnet
+$ThisDomainControllerVirtualNetwork = Get-AzVMVirtualNetwork
 #endregion
 
 #region AVD Dedicated VNets and Subnets
@@ -88,6 +88,9 @@ $PrimaryRegionSubnetName = "snet-avd-avd-use2-002"
 $PrimaryRegionVNet = Get-AzVirtualNetwork -Name $PrimaryRegionVNetName -ResourceGroupName $PrimaryRegionResourceGroupName
 $PrimaryRegionSubnet = $PrimaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $PrimaryRegionSubnetName
 $PrimaryRegion = $PrimaryRegionVNet.Location
+$PrimaryRegionPESubnetName = "snet-avd-pe-use2-002"
+$PrimaryRegionPESubnet = $PrimaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $PrimaryRegionPESubnetName
+
 #$PrimaryRegion                  = (Get-AzVMCompute).Location
 #endregion
 #endregion
@@ -122,12 +125,12 @@ if ($null -eq $HostPoolSessionCredentialKeyVault) {
     $AdJoinUserPassword = ConvertTo-SecureString -String $AdJoinUserClearTextPassword -AsPlainText -Force
     $AdJoinCredential = New-Object System.Management.Automation.PSCredential -ArgumentList ($AdJoinUserName, $AdJoinUserPassword)
     #endregion
-    $HostPoolSessionCredentialKeyVault = New-PsAvdHostPoolSessionHostCredentialKeyVault -ADJoinCredential $ADJoinCredential -Subnet $ThisDomainControllerSubnet
+    $HostPoolSessionCredentialKeyVault = New-PsAvdHostPoolSessionHostCredentialKeyVault -PrivateEndpointSubnetId $PrimaryRegionPESubnet.Id -PrivateDNSZoneVirtualNetworkId $ThisDomainControllerVirtualNetwork.Id, $PrimaryRegionVNet.Id -ADJoinCredential $ADJoinCredential
 }
 else {
     Write-Warning -Message "We are reusing '$($HostPoolSessionCredentialKeyVault.VaultName)' the KeyVault"
     #Creating a Private EndPoint for this KeyVault on this Subnet
-    New-PsAvdPrivateEndpointSetup -SubnetId $ThisDomainControllerSubnet.Id -KeyVault $HostPoolSessionCredentialKeyVault
+    New-PsAvdPrivateEndpointSetup -PrivateEndpointSubnetId $PrimaryRegionPESubnet.Id -PrivateDNSZoneVirtualNetworkId $ThisDomainControllerVirtualNetwork.Id, $PrimaryRegionVNet.Id -KeyVault $HostPoolSessionCredentialKeyVault
 }
 #endregion
 #endregion
@@ -147,12 +150,12 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 
 #Uncomment the best scenario for your usage or create your own
 #$HostPools = & "..\1 Azure Region\1_Pooled_Intune_FSLogix_ScalingPlan_Watermarking.ps1"
-#$HostPools = & "..\1 Azure Region\2_Pooled_1_Personal_AD_SpotInstance.ps1"
+$HostPools = & "..\1 Azure Region\2_Pooled_1_Personal_AD_SpotInstance.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_1_Personal_SSO.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_1_Personal_Intune.ps1"
 #$HostPools = & "..\1 Azure Region\1_Personal_AD_Win10.ps1"
 #$HostPools = & "..\1 Azure Region\1_Personal_AD.ps1"
-$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach_PrivateEndpoint.ps1"
+#$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach_PrivateEndpoint.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach_SessionHostConfiguration.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_FSLogix_AzureAppAttach.ps1"
@@ -170,7 +173,7 @@ $HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach_PrivateEndp
 $HostPools = $HostPools | Where-Object -FilterScript { $null -ne $_ }
 #endregion
 
-#region Checking  Storage Account and Key Vault Name Availability
+#region Checking Storage Account and Key Vault Name Availability
 if (-not(Test-PsAvdStorageAccountNameAvailability -HostPool $HostPools)) {
     Stop-Transcript
     Write-Error -Message "Storage Account Name(s) NOT available" -ErrorAction Stop 
@@ -189,7 +192,7 @@ $HostPoolBackup = New-PsAvdHostPoolBackup -HostPool $HostPools -Directory $Backu
 #region Setting up
 #Setting up the hostpool(s)
 $NoMFAEntraIDGroupName = "No-MFA Users"
-New-PsAvdHostPoolSetup -HostPool $HostPools -NoMFAEntraIDGroupName $NoMFAEntraIDGroupName -LogDir $CurrentLogDir  -AMBA -WorkBook -Restart -RDCMan -Pester -AsJob:$AsJob
+New-PsAvdHostPoolSetup -HostPool $HostPools -NoMFAEntraIDGroupName $NoMFAEntraIDGroupName -LogDir $CurrentLogDir  -AMBA -WorkBook -Restart -RDCMan -AsJob:$AsJob #-Pester 
 #Or pipeline processing call
 #$HostPools | New-PsAvdHostPoolSetup #-AsJob 
 

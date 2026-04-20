@@ -30,6 +30,7 @@ $Error.Clear()
 $PSDefaultParameterValues = @{
     #To avoid warning message like: WARNING: The names of some imported commands from the module 'Microsoft.Azure.PowerShell.Cmdlets.Network' include unapproved verbs that might make them less discoverable
     'Import-Module:DisableNameChecking' = $true
+    'Import-Module:Verbose' = $false
 }
 #From https://helloitsliam.com/2021/10/25/powershell-function-and-variable-issue/
 $Global:MaximumFunctionCount = 32768
@@ -74,17 +75,22 @@ Install-PsAvdAvdGpoSettings #-Force
 #endregion
 
 #region Getting Current Azure location (based on the Subnet location of this DC) to deploy the Azure compute Gallery in the same location that the other resources
-$ThisDomainControllerSubnet = Get-AzVMSubnet
+$ThisDomainControllerVirtualNetwork = Get-AzVMVirtualNetwork
 #endregion
 
 #region AVD Dedicated VNets and Subnets
 #region Primary Region
 $PrimaryRegionResourceGroupName = "rg-avd-ad-use2-002"
 $PrimaryRegionVNetName = "vnet-avd-avd-use2-002"
+#$PrimaryRegionSubnetName = "snet-avd-pe-use2-002"
+#$PrimaryRegionSubnetName = "snet-avd-natgw-use2-002"
 $PrimaryRegionSubnetName = "snet-avd-avd-use2-002"
 $PrimaryRegionVNet = Get-AzVirtualNetwork -Name $PrimaryRegionVNetName -ResourceGroupName $PrimaryRegionResourceGroupName
 $PrimaryRegionSubnet = $PrimaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $PrimaryRegionSubnetName
 $PrimaryRegion = $PrimaryRegionVNet.Location
+$PrimaryRegionPESubnetName = "snet-avd-pe-use2-002"
+$PrimaryRegionPESubnet = $PrimaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $PrimaryRegionPESubnetName
+
 #$PrimaryRegion                  = (Get-AzVMCompute).Location
 #endregion
 
@@ -95,13 +101,12 @@ $SecondaryRegionSubnetName = "snet-avd-avd-usc-002"
 $SecondaryRegionVNet = Get-AzVirtualNetwork -Name $SecondaryRegionVNetName -ResourceGroupName $SecondaryRegionResourceGroupName
 $SecondaryRegionSubnet = $SecondaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $SecondaryRegionSubnetName
 $SecondaryRegion = $SecondaryRegionVNet.Location
-#$SecondaryRegion                  = [HostPool]::GetAzurePairedRegion($PrimaryRegion)
+#$SecondaryRegion = [HostPool]::GetAzurePairedRegion($PrimaryRegion)
 #endregion
 #endregion
 
-#region Creating a new Pooled Host Pool for every image definition from an Azure Compute Gallery
-#Looging for Azure Compute Gallery Image Definition with image version in the primary and secondary regions
-$GalleryImageDefinition = Get-PsAvdAzGalleryImageDefinition -Region $PrimaryRegion, $SecondaryRegion
+#region Looking for Azure Compute Gallery Image Definition(s) with image version(s) in the primary region
+$GalleryImageDefinition = Get-PsAvdAzGalleryImageDefinition -Region $PrimaryRegion, SecondaryRegion | Get-Random
 if (-not($GalleryImageDefinition)) {
     #Creating an Azure Compute Gallery if needed
     $AzureComputeGallery = New-AzureComputeGallery -Location $PrimaryRegion -TargetRegions $PrimaryRegion, $SecondaryRegion
@@ -124,18 +129,18 @@ if (-not([string]::IsNullOrEmpty($VaultName))) {
     $HostPoolSessionCredentialKeyVault = Get-AzKeyVault -VaultName $VaultName -ErrorAction Ignore
 }
 if ($null -eq $HostPoolSessionCredentialKeyVault) {
-    #region ADJoin User
-    $AdJoinUserName = 'adjoin'
+    #region ADJoin User - Enter the user name in the UPN Form : samaccountname@domain.com
+    $AdJoinUserName = 'adjoin@csa.fr'
     $AdJoinUserClearTextPassword = 'I@m@JediLikeMyF@therB4Me'
     $AdJoinUserPassword = ConvertTo-SecureString -String $AdJoinUserClearTextPassword -AsPlainText -Force
     $AdJoinCredential = New-Object System.Management.Automation.PSCredential -ArgumentList ($AdJoinUserName, $AdJoinUserPassword)
     #endregion
-    $HostPoolSessionCredentialKeyVault = New-PsAvdHostPoolSessionHostCredentialKeyVault -ADJoinCredential $ADJoinCredential -Subnet $ThisDomainControllerSubnet
+    $HostPoolSessionCredentialKeyVault = New-PsAvdHostPoolSessionHostCredentialKeyVault -PrivateEndpointSubnetId $PrimaryRegionPESubnet.Id -PrivateDNSZoneVirtualNetworkId $ThisDomainControllerVirtualNetwork.Id, $PrimaryRegionVNet.Id -ADJoinCredential $ADJoinCredential
 }
 else {
     Write-Warning -Message "We are reusing '$($HostPoolSessionCredentialKeyVault.VaultName)' the KeyVault"
     #Creating a Private EndPoint for this KeyVault on this Subnet
-    New-PsAvdPrivateEndpointSetup -SubnetId $ThisDomainControllerSubnet.Id -KeyVault $HostPoolSessionCredentialKeyVault
+    New-PsAvdPrivateEndpointSetup -PrivateEndpointSubnetId $PrimaryRegionPESubnet.Id -PrivateDNSZoneVirtualNetworkId $ThisDomainControllerVirtualNetwork.Id, $PrimaryRegionVNet.Id -KeyVault $HostPoolSessionCredentialKeyVault
 }
 #endregion
 #endregion
@@ -176,6 +181,7 @@ $HostPools = & "..\2 Azure Regions\2_Pooled_AD_FSLogixCloudCache_1_Personal_AD.p
 #$HostPools = & "..\1 Azure Region\1_Personal_AD.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach_PrivateEndpoint.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach.ps1"
+#$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach_SessionHostConfiguration.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_FSLogix_AzureAppAttach.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_2_Personal_AD_Misc.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_AD_AzureAppAttach.ps1"
@@ -210,15 +216,18 @@ $HostPoolBackup = New-PsAvdHostPoolBackup -HostPool $HostPools -Directory $Backu
 #region Setting up
 #Setting up the hostpool(s)
 $NoMFAEntraIDGroupName = "No-MFA Users"
-New-PsAvdHostPoolSetup -HostPool $HostPools -NoMFAEntraIDGroupName $NoMFAEntraIDGroupName -LogDir $CurrentLogDir  -AMBA -WorkBook -Restart -RDCMan -AsJob:$AsJob
+New-PsAvdHostPoolSetup -HostPool $HostPools -NoMFAEntraIDGroupName $NoMFAEntraIDGroupName -LogDir $CurrentLogDir  -AMBA -WorkBook -Restart -RDCMan -AsJob:$AsJob #-Pester 
 #Or pipeline processing call
 #$HostPools | New-PsAvdHostPoolSetup #-AsJob 
 
 #Starting a Windows Explorer instance per FSLogix profiles share
-Get-PsAvdFSLogixProfileShare -HostPool $HostPools
+Get-PsAvdFSLogixProfileShare -HostPool $HostPools -Pester
 
 #Starting a Windows Explorer instance per AppAttach profiles share
-Get-PsAvdAppAttachProfileShare -HostPool $HostPools
+Get-PsAvdAppAttachProfileShare -HostPool $HostPools -Pester
+
+#Getting HostPool Direct Launch Url
+$HostPools | ConvertTo-AzWvdHostPool | Get-PsAvdHostPoolDirectLaunchUrl -Browse
 
 #region Adding Test Users (under the OrgUsers OU) as HostPool Users (for all HostPools)
 $AVDUserGroupName = 'AVD Users'
