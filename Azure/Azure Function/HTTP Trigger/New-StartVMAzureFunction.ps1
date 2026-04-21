@@ -338,7 +338,7 @@ while (-not(Get-AzRoleAssignment @Parameters)) {
 Invoke-RestMethod -Uri "https://$AzureFunctionName.azurewebsites.net/api/$FunctionName" -Body $Body
 <#
 #region Adding CORS for testing from the Azure Portal (Not directly possible via PowerShell)
-#region Powershell Way
+#region Az CLI Way
 az functionapp cors add -g $FunctionApp.ResourceGroupName -n $FunctionApp.Name --allowed-origins https://portal.azure.com
 #endregion
 
