@@ -32,8 +32,6 @@ function New-PsAvdNatGatewaySetup {
     )
 
     begin {
-    }
-    process {
         #region Defining variables 
         #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
         $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
@@ -49,7 +47,10 @@ function New-PsAvdNatGatewaySetup {
         $PublicIPAddressPrefix = $ResourceTypeShortNameHT["Network/publicIPAddresses"].ShortName
         $VirtualNetworkPrefix = $ResourceTypeShortNameHT["Network/virtualNetworks"].ShortName
         $SubnetPrefix = $ResourceTypeShortNameHT["Network/virtualnetworks/subnets"].ShortName
-
+        #endregion
+    }
+    process {
+        #region Defining variables 
         if ($SubnetConfig) {
             $VirtualNetworkId = $SubnetConfig.Id -replace "/subnets/.*"
             $VirtualNetwork = Get-AzResource -ResourceId $VirtualNetworkId | Get-AzVirtualNetwork
@@ -145,11 +146,6 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
-
-#region VirtualNetwork
-$VirtualNetworkName = "vnet-avd-avd-use2-002"
-#Get-AzVirtualNetwork -Name $VirtualNetworkName | New-PsAvdNatGatewaySetup -Verbose
-#endregion
 
 #region SubNet
 $VirtualNetworkName = "vnet-avd-avd-use2-002"
