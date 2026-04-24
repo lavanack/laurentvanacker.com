@@ -59,10 +59,10 @@ else {
 
     # Change la langue d’affichage (UI)
     $Parameters = @{
-        Path = $OfficeLanguageResourcesRegName 
-        Value = $Lang 
+        Path         = $OfficeLanguageResourcesRegName 
+        Value        = $Lang 
         PropertyType = "String" 
-        Force = $true
+        Force        = $true
     }
     $null = New-ItemProperty @Parameters -Name "UILanguageTag"
     $null = New-ItemProperty @Parameters -Name "HelpLanguageTag"
