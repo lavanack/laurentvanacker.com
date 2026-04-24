@@ -46,30 +46,39 @@ function New-PsAvdNatGatewaySetup {
 
         $PublicIPAddressPrefix = $ResourceTypeShortNameHT["Network/publicIPAddresses"].ShortName
         $VirtualNetworkPrefix = $ResourceTypeShortNameHT["Network/virtualNetworks"].ShortName
+        $NetworkSecurityGroupPrefix = $ResourceTypeShortNameHT["Network/networkSecurityGroups"].ShortName
         $SubnetPrefix = $ResourceTypeShortNameHT["Network/virtualnetworks/subnets"].ShortName
         #endregion
     }
     process {
         #region Defining variables 
+        $ResourceGroupName = $VirtualNetwork.ResourceGroupName
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ResourceGroupName: $ResourceGroupName"
+        $Location = $VirtualNetwork.Location
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Location: $Location"
+        $LocationShortName = $shortNameHT[$Location].shortName
+
         if ($SubnetConfig) {
             $VirtualNetworkId = $SubnetConfig.Id -replace "/subnets/.*"
             $VirtualNetwork = Get-AzResource -ResourceId $VirtualNetworkId | Get-AzVirtualNetwork
         }
+        else {
+            #If we create a dedicated subnet we also create a dedicated NSG.
+            $NetworkSecurityGroupName = $VirtualNetwork.Name -replace $VirtualNetworkPrefix, $NetworkSecurityGroupPrefix -replace "(\w+)-(\w+)-(\w+)-(\w+)-(\d+)", '$1-$2-natgw-$4-$5'
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$NetworkSecurityGroupName: $NetworkSecurityGroupName"
+            $NetworkSecurityGroup = New-AzNetworkSecurityGroup -Name $NetworkSecurityGroupName -ResourceGroupName $ResourceGroupName -Location $Location
+        }
         $NatGatewayPrefix = "natgw"
         $NatGatewayName = $VirtualNetwork.Name -replace $VirtualNetworkPrefix, $NatGatewayPrefix
         $SubnetName = $VirtualNetwork.Name -replace $VirtualNetworkPrefix, $SubnetPrefix -replace "(\w+)-(\w+)-(\w+)-(\w+)-(\d+)", '$1-$2-natgw-$4-$5'
-        $ResourceGroupName = $VirtualNetwork.ResourceGroupName
-        $Location = $VirtualNetwork.Location
         $NatGatewayPublicIpName = "{0}-{1}" -f $PublicIPAddressPrefix, $NatGatewayName
 
-        $NetworkSecurityGroup = Get-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName
-
         #region NatGateway Subnet Address Prefix Calculation by taking the Subnet with the Highest Address Prefix incrementing the third octect to 1 (10.0.0.0 ==> 10.0.1.0)
-        $RegExpPattern = "(\d+)\.(\d+).(\d+).(\d+)"
+        $RegExpPattern = "(\d+)\.(\d+).(\d+).(\d+)/(\d{1,2})"
         $HighestAddressPrefix = ((Get-AzVirtualNetwork -Name $VirtualNetwork.Name).Subnets.AddressPrefix) | Sort-Object -Descending | Select-Object -First 1
         [int]$Octet3 = ([regex]::match($HighestAddressPrefix, $RegExpPattern).Groups[3].Value)
         $Octet3++
-        $NatGatewaySubnetAddressPrefix = $HighestAddressPrefix -replace $RegExpPattern, "`$1.`$2.$Octet3.`$4"
+        $NatGatewaySubnetAddressPrefix = $HighestAddressPrefix -replace $RegExpPattern, "`$1.`$2.$Octet3.`$4/24"
 
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$NatGatewayName: $NatGatewayName"
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SubnetName: $SubnetName"
@@ -116,14 +125,14 @@ function New-PsAvdNatGatewaySetup {
         else
         {
             #region Create subnet config and associate NAT gateway to subnet
-            $Subnet = @{
+            $Parameters = @{
                 Name                 = $SubnetName
                 AddressPrefix        = $NatGatewaySubnetAddressPrefix
                 NatGateway           = $NatGateway
                 NetworkSecurityGroup = $NetworkSecurityGroup
             }
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating SubNet: $SubnetName"
-            $SubnetConfig = New-AzVirtualNetworkSubnetConfig @subnet 
+            $SubnetConfig = New-AzVirtualNetworkSubnetConfig @Parameters 
             #endregion 
         
             #region Add the NatGateway subnet to vnet
@@ -147,10 +156,16 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
-#region SubNet
-$VirtualNetworkName = "vnet-avd-avd-use2-002"
-$SubnetName = "snet-avd-pe-use2-002"
-Get-AzVirtualNetwork -Name $VirtualNetworkName | Get-AzVirtualNetworkSubnetConfig -Name $SubnetName | New-PsAvdNatGatewaySetup -Force -Verbose
+#region VirtualNetwork
+$VirtualNetworkName = "vnet-avd-avd-bec-002"
+Get-AzVirtualNetwork -Name $VirtualNetworkName | New-PsAvdNatGatewaySetup -Force -Verbose
 #endregion
 
+<#
+#region SubNet
+$VirtualNetworkName = "vnet-avd-avd-bec-002"
+$SubnetName = "snet-avd-pe-bec-001"
+Get-AzVirtualNetwork -Name $VirtualNetworkName | Get-AzVirtualNetworkSubnetConfig -Name $SubnetName | New-PsAvdNatGatewaySetup -Force -Verbose
+#endregion
+#>
 #endregion

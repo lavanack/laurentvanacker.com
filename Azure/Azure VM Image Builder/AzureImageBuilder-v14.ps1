@@ -562,7 +562,7 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNameARM' LastRunStatusMessage: $($getStatusARM.LastRunStatusMessage) "
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNameARM' LastRunStatusRunSubState: $($getStatusARM.LastRunStatusRunSubState) "
 	if ($getStatusARM.LastRunStatusRunState -eq "Failed") {
-		Write-Error -Message "The Image Builder Template for '$imageTemplateNameARM' has failed:\r\n$($getStatusARM.LastRunStatusMessage)"
+		Write-Error -Message "The Image Builder Template for '$imageTemplateNameARM' has failed:`r`n$($getStatusARM.LastRunStatusMessage)"
 	}
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Removing Azure Image Builder Template for '$imageTemplateNameARM' ..."
 	#$Jobs += $getStatusARM | Remove-AzImageBuilderTemplate -AsJob
@@ -586,7 +586,7 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNamePowerShell' LastRunStatusMessage: $($getStatusPowerShell.LastRunStatusMessage) "
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNamePowerShell' LastRunStatusRunSubState: $($getStatusPowerShell.LastRunStatusRunSubState) "
 	if ($getStatusPowerShell.LastRunStatusRunState -eq "Failed") {
-		Write-Error -Message "The Image Builder Template for '$imageTemplateNamePowerShell' has failed:\r\n$($getStatusPowerShell.LastRunStatusMessage)"
+		Write-Error -Message "The Image Builder Template for '$imageTemplateNamePowerShell' has failed:`r`n$($getStatusPowerShell.LastRunStatusMessage)"
 	}
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Removing Azure Image Builder Template for '$imageTemplateNamePowerShell' ..."
 	#$Jobs += $getStatusPowerShell | Remove-AzImageBuilderTemplate -AsJob
@@ -605,8 +605,12 @@ function New-AzureComputeGallery {
 	#endregion
   
 	#region Removing Staging ResourceGroups
-	$null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNameARM -Force -AsJob
-	$null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNamePowerShell -Force -AsJob
+    if ($getStatusPowerShell.LastRunStatusRunState -ne "Failed") {
+        $null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNameARM -Force -AsJob
+    }
+    if ($getStatusARM.LastRunStatusRunState -ne "Failed") {
+        $null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNamePowerShell -Force -AsJob
+    }
 	#endregion
 
 	return $Gallery
@@ -644,20 +648,31 @@ $Jobs | Remove-Job -Force
 #endregion
 $timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 #$timeInt = "1768915186"
-$ResourceGroupName = "rg-avd-aib-use2-{0}" -f $timeInt
-$GalleryName = "gal_avd_use2_{0}" -f $timeInt
+$Location = "CentralUS"
+$TargetRegions = $Location, "EastUS2"
+
+#region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
+$AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
+$ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/main/src/repository/resourcelocations.json
+$shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @{Name = 'Location'; Expression = { $AzLocation[$_.name].Location } } | Where-Object -FilterScript { $_.Location } | Group-Object -Property Location -AsHashTable -AsString
+#endregion
+
+$LocationShortName = $shortNameHT[$Location].shortName
+
+$ResourceGroupName = "rg-avd-aib-{0}-{1}" -f $LocationShortName, $timeInt
+$GalleryName = "gal_avd_{0}_{1}" -f $LocationShortName, $timeInt
 $GalleryResourceId = (Get-AzGallery -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -ErrorAction Ignore).Id
 #We specify an existing Azure Compute Gallery Resource Id
 if ($GalleryResourceId) {
-	$AzureComputeGallery = New-AzureComputeGallery -GalleryResourceId $GalleryResourceId -Location CentralUS -TargetRegions CentralUS, EastUS2 -Verbose
+	$AzureComputeGallery = New-AzureComputeGallery -GalleryResourceId $GalleryResourceId -Location $Location -TargetRegions $TargetRegions -Verbose
 }
 #We specify an Azure Compute Gallery Name and A Resource Group Name. If they exist they will be used, if not they will be created.
 elseif ($GalleryName -and $ResourceGroupName) {
-	$AzureComputeGallery = New-AzureComputeGallery  -GalleryName $GalleryName -GalleryResourceGroupName $ResourceGroupName -Location CentralUS -TargetRegions CentralUS, EastUS2 -Verbose
+	$AzureComputeGallery = New-AzureComputeGallery  -GalleryName $GalleryName -GalleryResourceGroupName $ResourceGroupName -Location $Location -TargetRegions $TargetRegions -Verbose
 }
 #We will create a new Azure Compute Gallery (and its related Resource Group)
 else {
-	$AzureComputeGallery = New-AzureComputeGallery -Location CentralUS -TargetRegions CentralUS, EastUS2 -Verbose
+	$AzureComputeGallery = New-AzureComputeGallery -Location $Location -TargetRegions $TargetRegions -Verbose
 }
 $AzureComputeGallery
 
