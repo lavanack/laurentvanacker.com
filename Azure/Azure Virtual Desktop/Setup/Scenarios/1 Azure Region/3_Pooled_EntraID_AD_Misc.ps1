@@ -1,6 +1,6 @@
 #Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with FSLogix and Azure App Attach AppAttach
-[PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id)
+[PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id, $PrimaryRegionPESubnet.Id)
 #Deploy a Pooled HostPool with 3 (default value) Session Hosts (EntraID joined) with FSLogix 
-[PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID)
+[PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id, $PrimaryRegionPESubnet.Id).SetIdentityProvider([IdentityProvider]::MicrosoftEntraID)
 #Deploy a Pooled HostPool with 3 (default value) Session Hosts (AD Domain joined) with FSLogix and Azure AppAttach
-[PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id)
+[PooledHostPool]::new($HostPoolSessionCredentialKeyVault, $PrimaryRegionSubnet.Id, $PrimaryRegionPESubnet.Id)
