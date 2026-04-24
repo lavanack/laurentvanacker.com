@@ -365,7 +365,7 @@ $ImgDisableAutoUpdatesPowerShellCustomizerParams = @{
 	Name                 = 'Disable AutoUpdates'  
 	RunElevated          = $true  
 	runAsSystem          = $true  
-	ScriptUri            = 'https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-07-31/TimezoneRedirection.ps1'
+	ScriptUri            = 'https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-07-31/DisableAutoUpdates.ps1'
 }
 
 Write-Output -InputObject "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgDisableAutoUpdatesPowerShellCustomizerParams.Name)' ..."
