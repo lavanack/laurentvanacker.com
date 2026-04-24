@@ -47,7 +47,7 @@ $AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -Defa
 
 #region Set Storage Account Configuration
 $MyPublicIp = (Invoke-WebRequest -uri "https://ipv4.seeip.org" -UseBasicParsing).Content
-$null = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Enabled -AllowSharedKeyAccess $true -NetworkRuleSet (@{ipRules = (@{IPAddressOrRange = $MyPublicIp; Action = "allow" }); defaultAction = "deny" })
+$null = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Enabled -AllowSharedKeyAccess $true -NetworkRuleSet (@{ipRules = (@{IPAddressOrRange = $MyPublicIp; Action = "allow" }); defaultAction = "deny" }) -Tag @{ SecurityControl = "Ignore" }
 Start-Sleep -Seconds 10
 #endregion
 
