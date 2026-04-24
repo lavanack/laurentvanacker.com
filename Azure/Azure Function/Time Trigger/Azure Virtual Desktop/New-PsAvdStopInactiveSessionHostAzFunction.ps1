@@ -181,17 +181,13 @@ function New-PsAvdStopInactiveSessionHostAzFunction {
 
     #region az cli alternative to the bug
     # Create the Function App (Consumption on Linux)
-    az functionapp create --name "$AzureFunctionName" --resource-group "$ResourceGroupName" --storage-account "$StorageAccountName" --consumption-plan-location "$Location" --runtime powershell --runtime-version "$RuntimeVersion" --functions-version 4 --os-type Linux  --only-show-errors
-
+    <#
+    az functionapp create --name "$AzureFunctionName" --resource-group "$ResourceGroupName" --storage-account "$StorageAccountName" --consumption-plan-location "$Location" --runtime powershell --runtime-version "$RuntimeVersion" --functions-version 4 --os-type Linux --only-show-errors
     # Assign System-Assigned Managed Identity (equivalent of -IdentityType SystemAssigned)
     az functionapp identity assign --name "$AzureFunctionName" --resource-group "$ResourceGroupName"
-    $PSDefaultParameterValues = @{
-        'Invoke-WebRequest:UseBasicParsing' = $true
-    }
-    $FunctionApp = Get-AzFunctionApp | Where-Object -FilterScript { $_.Name -match "^$AzureFunctionNamePattern"} | Select-Object -First 1
-    $PSDefaultParameterValues = @{
-        'Invoke-WebRequest:UseBasicParsing' = $false
-    }
+    #>
+    $FunctionApp = New-AzFunctionApp -Name $AzureFunctionName -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Runtime 'PowerShell' -RuntimeVersion $RuntimeVersion -OSType 'Linux' -Location $Location -IdentityType SystemAssigned -FunctionsVersion 4 -ErrorAction Ignore
+    #$FunctionApp = Get-AzFunctionApp | Where-Object -FilterScript { $_.Name -match "^$AzureFunctionNamePattern"} | Select-Object -First 1
     #endregion
 
     #region Creating the Function Locally
@@ -388,14 +384,34 @@ if ($null -ne $AzInactiveRunningVMs) {
     #endregion
     #endregion
 
-    <#
     #region Adding CORS for testing from the Azure Portal (Not directly possible via PowerShell)
-    #region Powershell Way
-    az functionapp cors add -g $FunctionApp.ResourceGroupName -n $FunctionApp.Name --allowed-origins https://portal.azure.com
+    #region Az CLI Way
+    #az functionapp cors add -g $FunctionApp.ResourceGroupName -n $FunctionApp.Name --allowed-origins https://portal.azure.com
     #endregion
-    #>
+
+    #region Powershell Way
+    $AllowedCorsHosts = @("https://portal.azure.com")
+    
+    $Parameters = @{
+        ResourceGroupName = $FunctionApp.ResourceGroupName
+        ResourceType = "Microsoft.Web/sites"
+        ResourceName = $FunctionApp.Name
+    }
+
+    $fa = Get-AzResource @Parameters
+
+    $fa.Properties.siteConfig.cors = @{
+      allowedOrigins      = $AllowedCorsHosts
+      # supportCredentials = $true   # only if you explicitly need it
+    }
+
+    $null = $fa | Set-AzResource -Force
+
+    #endregion
+    #endregion
+
     if ($PassThru) {
-        return $FunctionApp
+        return Get-AzFunctionApp -Name $AzureFunctionName -ResourceGroupName $ResourceGroupName
     }
 }
 #endregion
@@ -410,6 +426,8 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
 #New-PsAvdStopInactiveSessionHostAzFunction -Location eastus2 -Verbose
-New-PsAvdStopInactiveSessionHostAzFunction -Location eastus2 -FrequencyInMinutes 5 -HostPoolName $((Get-AzWvdHostPool).Name) -Verbose
+#Filtering on Some HostPools
+$HostPoolName = (Get-AzWvdHostPool).Name | Get-Random -Count 2
+New-PsAvdStopInactiveSessionHostAzFunction -Location eastus2 -FrequencyInMinutes 5 -HostPoolName $HostPoolName -Verbose
 #endregion
 
