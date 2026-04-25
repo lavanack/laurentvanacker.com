@@ -490,7 +490,7 @@ function New-AzureComputeGallery {
 
 	$ImgSetOfficeLanguageScheduledTaskPowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
-		Name                 = 'Setting Office Language to FR-FR'  
+		Name                 = 'Setting Office Language to FR-FR via a Scheduled Task At Logon'  
 		RunElevated          = $true  
 		runAsSystem          = $true  
 		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/New-SetOfficeLanguageScheduledTask.ps1'
