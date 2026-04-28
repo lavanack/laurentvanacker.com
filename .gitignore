@@ -4,3 +4,4 @@
 *_Keys.*
 .vscode/*
 *.tfstate
+.terraform*
