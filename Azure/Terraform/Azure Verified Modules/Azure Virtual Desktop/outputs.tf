@@ -3,3 +3,10 @@ output "vm_password" {
   sensitive = true
 }
 
+output "expected_roles" {
+  value = local.expected_roles
+}
+
+output "asigned_roles" {
+  value = values(azurerm_role_assignment.new).*
+}

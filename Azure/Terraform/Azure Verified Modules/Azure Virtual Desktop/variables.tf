@@ -66,3 +66,14 @@ variable "subnet_address_prefixes" {
   default     = ["10.1.6.0/27"]
   description = "The address prefixes for the AVD subnet."
 }
+variable "user_group_name" {
+  type        = string
+  default     = "AVD Users"
+  description = "The name of the user group for AVD users."
+}
+
+variable "virtual_desktop_application_group_type" {
+  type        = string
+  default     = "Desktop"
+  description = "The type of the application group. Possible values are Desktop and RemoteApp."
+}
