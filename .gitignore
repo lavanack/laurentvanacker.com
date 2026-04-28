@@ -3,5 +3,5 @@
 *.txt
 *_Keys.*
 .vscode/*
-*.tfstate.*
+*.tfstate*
 .terraform*
