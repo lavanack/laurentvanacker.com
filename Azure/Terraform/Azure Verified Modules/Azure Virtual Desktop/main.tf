@@ -218,7 +218,7 @@ module "avm-res-desktopvirtualization-scalingplan" {
       }
     ]
   )
-  virtual_desktop_scaling_plan_time_zone = "Central European Standard Time"
+  virtual_desktop_scaling_plan_time_zone = "Romance Standard Time" #Paris
   enable_telemetry                       = var.enable_telemetry
   virtual_desktop_scaling_plan_host_pool = toset(
     [
