@@ -19,7 +19,7 @@ of the Sample Code.
 
 
 #region Function Definitions
-Function New-AzAvdSessionHostNetworkSecurityGroup {
+Function New-AzAvdPrivateEndPointNetworkSecurityGroup {
     [CmdletBinding(PositionalBinding = $false)]
     param
     (
@@ -34,7 +34,7 @@ Function New-AzAvdSessionHostNetworkSecurityGroup {
     New-AzNetworkSecurityGroup -Name $NetworkSecurityGroupName -ResourceGroupName $ResourceGroupName -Location $Location
 }
 
-Function New-AzAvdPrivateEndPointNetworkSecurityGroup {
+Function New-AzAvdSessionHostNetworkSecurityGroup {
     [CmdletBinding(PositionalBinding = $false)]
     param
     (

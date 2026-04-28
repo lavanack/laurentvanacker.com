@@ -439,10 +439,10 @@ function New-AzureComputeGallery {
 
 	$ImgTimeZoneRedirectionPowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
-		Name                 = 'Timezone Redirection'  
+		Name                 = 'Setting Timezone Redirection'  
 		RunElevated          = $true  
 		runAsSystem          = $true  
-		ScriptUri            = 'https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-07-31/TimezoneRedirection.ps1'
+		ScriptUri            = 'https://raw.githubusercontent.com/Azure/RDS-Templates/refs/heads/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2024-03-27/TimezoneRedirection.ps1'
 	}
 
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgTimeZoneRedirectionPowerShellCustomizerParams.Name)' ..."
@@ -450,37 +450,59 @@ function New-AzureComputeGallery {
 
 	$ImgCopyInstallOfficeLanguagePacksFileCustomizerParams = @{  
 		FileCustomizer = $true  
-		Name           = 'Copy OfficeSetup'  
+		Name           = 'Copying OfficeSetup from Internet'  
 		sourceUri      = 'https://c2rsetup.officeapps.live.com/c2r/download.aspx?ProductreleaseID=languagepack&language=fr-fr&platform=x64&source=O16LAP&version=O16GA'
 		destination    = "C:\AVDImage\OfficeSetup.exe"
 	}
 
-	Write-Verbose -Message "Creating Azure Image Builder Template Customizer Object for copying 'OfficeSetup.exe' from Internet ..."
+	Write-Verbose -Message "Creating Azure Image Builder Template Customizer Object for '$($ImgCopyInstallOfficeLanguagePacksFileCustomizerParams.Name)' from Internet ..."
 	$CopyInstallOfficeLanguagePacksFileCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgCopyInstallOfficeLanguagePacksFileCustomizerParams 
 
 	$ImgCopyOfficeFrenchXMLFileCustomizerParams = @{  
 		FileCustomizer = $true  
-		Name           = 'Copy Install-Office-FR.xml'  
+		Name           = 'Copying Install-Office-FR.xml from Internet'  
 		sourceUri      = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-Office-FR.xml'
 		destination    = "C:\AVDImage\Install-Office-FR.xml"
 	}
 
-	Write-Verbose -Message "Creating Azure Image Builder Template Customizer Object for copying 'OfficeSetup.exe' from Internet ..."
+	Write-Verbose -Message "Creating Azure Image Builder Template Customizer Object for '$($ImgCopyOfficeFrenchXMLFileCustomizerParams.Name)' ..."
 	$CopyOfficeFrenchXMLFileCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgCopyOfficeFrenchXMLFileCustomizerParams 
 
 	$ImgInstallOfficeLanguagePacksPowershellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
-		Name                 = 'OfficeSetup - French'  
+		Name                 = 'Installing Office French Language'  
 		RunElevated          = $true  
 		runAsSystem          = $true
 		inline               = "C:\AVDImage\OfficeSetup.exe /configure C:\AVDImage\Install-Office-FR.xml"
 	}
-	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for running 'OfficeSetup.exe' ..."
+	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgInstallOfficeLanguagePacksPowershellCustomizerParams.Name)' ..."
 	$InstallOfficeLanguagePacksPowershellCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgInstallOfficeLanguagePacksPowershellCustomizerParams 
+
+	$ImgCopySetOfficeLanguageScriptFileCustomizerParams = @{  
+		FileCustomizer = $true  
+		Name           = 'Copying Set-OfficeLanguage.ps1 from Internet'  
+		sourceUri      = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Set-OfficeLanguage.ps1'
+		destination    = "C:\AVDImage\Set-OfficeLanguage.ps1"
+	}
+
+	Write-Verbose -Message "Creating Azure Image Builder Template Customizer Object for '$($CopySetOfficeLanguageScriptFileCustomizer.Name)' ..."
+	$CopySetOfficeLanguageScriptFileCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgCopySetOfficeLanguageScriptFileCustomizerParams 
+
+	$ImgSetOfficeLanguageScheduledTaskPowerShellCustomizerParams = @{  
+		PowerShellCustomizer = $true  
+		Name                 = 'Setting Office Language to FR-FR via a Scheduled Task At Logon'  
+		RunElevated          = $true  
+		runAsSystem          = $true  
+		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/New-SetOfficeLanguageScheduledTask.ps1'
+	}
+
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgSetOfficeLanguageScheduledTaskPowerShellCustomizerParams.Name)' ..."
+	$SetOfficeLanguageScheduledTaskCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgSetOfficeLanguageScheduledTaskPowerShellCustomizerParams 
+
 
 	$ImgPowerShellCrossPlatformPowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
-		Name                 = 'Install PowerShell Cross Platform'  
+		Name                 = 'Installing PowerShell Cross Platform'  
 		RunElevated          = $true  
 		runAsSystem          = $true  
 		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-PowerShell.ps1'
@@ -491,7 +513,7 @@ function New-AzureComputeGallery {
 
 	$ImgPuttyPowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
-		Name                 = 'Install Putty'  
+		Name                 = 'Installing Putty'  
 		RunElevated          = $true  
 		runAsSystem          = $true  
 		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-Putty.ps1'
@@ -502,7 +524,7 @@ function New-AzureComputeGallery {
 
 	$ImgWinSCPPowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
-		Name                 = 'Install WinSCP'  
+		Name                 = 'Installing WinSCP'  
 		RunElevated          = $true  
 		runAsSystem          = $true  
 		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-WinSCP.ps1'
@@ -513,7 +535,7 @@ function New-AzureComputeGallery {
 
 	$ImgNotepadPlusPlusPowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
-		Name                 = 'Install Notepad++'  
+		Name                 = 'Installing Notepad++'  
 		RunElevated          = $true  
 		runAsSystem          = $true  
 		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-NotepadPlusPlus.ps1'
@@ -523,10 +545,9 @@ function New-AzureComputeGallery {
 	$NotepadPlusPlusCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgNotepadPlusPlusPowerShellCustomizerParams 
 
 
-
 	$ImgVSCodePowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
-		Name                 = 'Install Visual Studio Code'  
+		Name                 = 'Installing Visual Studio Code'  
 		RunElevated          = $true  
 		runAsSystem          = $true  
 		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1'
@@ -540,17 +561,17 @@ function New-AzureComputeGallery {
 
 	$ImgDisableAutoUpdatesPowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
-		Name                 = 'Disable AutoUpdates'  
+		Name                 = 'Disabling AutoUpdates'  
 		RunElevated          = $true  
 		runAsSystem          = $true  
-		ScriptUri            = 'https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-07-31/TimezoneRedirection.ps1'
+		ScriptUri            = 'https://raw.githubusercontent.com/Azure/RDS-Templates/refs/heads/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2024-03-27/DisableAutoUpdates.ps1'
 	}
 
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgDisableAutoUpdatesPowerShellCustomizerParams.Name)' ..."
 	$DisableAutoUpdatesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgDisableAutoUpdatesPowerShellCustomizerParams 
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
-	$Customize = $TimeZoneRedirectionCustomizer, $CopyInstallOfficeLanguagePacksFileCustomizer, $CopyOfficeFrenchXMLFileCustomizer, $InstallOfficeLanguagePacksPowershellCustomizer, $PowerShellCrossPlatformCustomizer, $PuttyCustomizer, $WinSCPCustomizer, $NotepadPlusPlusCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
+	$Customize = $TimeZoneRedirectionCustomizer, $CopyInstallOfficeLanguagePacksFileCustomizer, $CopyOfficeFrenchXMLFileCustomizer, $InstallOfficeLanguagePacksPowershellCustomizer, $CopySetOfficeLanguageScriptFileCustomizer, $SetOfficeLanguageScheduledTaskCustomizer, $PowerShellCrossPlatformCustomizer, $PuttyCustomizer, $WinSCPCustomizer, $NotepadPlusPlusCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
 	$ImgTemplateParams = @{
 		ImageTemplateName      = $imageTemplateNamePowerShell
 		ResourceGroupName      = $ResourceGroupName
@@ -592,7 +613,7 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNameARM' LastRunStatusMessage: $($getStatusARM.LastRunStatusMessage) "
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNameARM' LastRunStatusRunSubState: $($getStatusARM.LastRunStatusRunSubState) "
 	if ($getStatusARM.LastRunStatusRunState -eq "Failed") {
-		Write-Error -Message "The Image Builder Template for '$imageTemplateNameARM' has failed:\r\n$($getStatusARM.LastRunStatusMessage)"
+		Write-Error -Message "The Image Builder Template for '$imageTemplateNameARM' has failed:`r`n$($getStatusARM.LastRunStatusMessage)"
 	}
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Removing Azure Image Builder Template for '$imageTemplateNameARM' ..."
 	#$Jobs += $getStatusARM | Remove-AzImageBuilderTemplate -AsJob
@@ -616,7 +637,7 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNamePowerShell' LastRunStatusMessage: $($getStatusPowerShell.LastRunStatusMessage) "
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNamePowerShell' LastRunStatusRunSubState: $($getStatusPowerShell.LastRunStatusRunSubState) "
 	if ($getStatusPowerShell.LastRunStatusRunState -eq "Failed") {
-		Write-Error -Message "The Image Builder Template for '$imageTemplateNamePowerShell' has failed:\r\n$($getStatusPowerShell.LastRunStatusMessage)"
+		Write-Error -Message "The Image Builder Template for '$imageTemplateNamePowerShell' has failed:`r`n$($getStatusPowerShell.LastRunStatusMessage)"
 	}
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Removing Azure Image Builder Template for '$imageTemplateNamePowerShell' ..."
 	#$Jobs += $getStatusPowerShell | Remove-AzImageBuilderTemplate -AsJob
@@ -635,8 +656,12 @@ function New-AzureComputeGallery {
 	#endregion
   
 	#region Removing Staging ResourceGroups
-	$null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNameARM -Force -AsJob
-	$null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNamePowerShell -Force -AsJob
+    if ($getStatusPowerShell.LastRunStatusRunState -ne "Failed") {
+        $null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNameARM -Force -AsJob
+    }
+    if ($getStatusARM.LastRunStatusRunState -ne "Failed") {
+        $null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNamePowerShell -Force -AsJob
+    }
 	#endregion
 
 	return $Gallery
@@ -674,20 +699,32 @@ $Jobs | Remove-Job -Force
 #endregion
 $timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 #$timeInt = "1768915186"
-$ResourceGroupName = "rg-avd-aib-use2-{0}" -f $timeInt
-$GalleryName = "gal_avd_use2_{0}" -f $timeInt
+
+$Location = "CentralUS"
+$TargetRegions = $Location, "EastUS2"
+
+#region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
+$AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
+$ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/main/src/repository/resourcelocations.json
+$shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @{Name = 'Location'; Expression = { $AzLocation[$_.name].Location } } | Where-Object -FilterScript { $_.Location } | Group-Object -Property Location -AsHashTable -AsString
+#endregion
+
+$LocationShortName = $shortNameHT[$Location].shortName
+
+$ResourceGroupName = "rg-avd-aib-{0}-{1}" -f $LocationShortName, $timeInt
+$GalleryName = "gal_avd_{0}_{1}" -f $LocationShortName, $timeInt
 $GalleryResourceId = (Get-AzGallery -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -ErrorAction Ignore).Id
 #We specify an existing Azure Compute Gallery Resource Id
 if ($GalleryResourceId) {
-	$AzureComputeGallery = New-AzureComputeGallery -GalleryResourceId $GalleryResourceId -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
+	$AzureComputeGallery = New-AzureComputeGallery -GalleryResourceId $GalleryResourceId -Location $Location -TargetRegions $TargetRegions -Verbose
 }
 #We specify an Azure Compute Gallery Name and A Resource Group Name. If they exist they will be used, if not they will be created.
 elseif ($GalleryName -and $ResourceGroupName) {
-	$AzureComputeGallery = New-AzureComputeGallery  -GalleryName $GalleryName -GalleryResourceGroupName $ResourceGroupName -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
+	$AzureComputeGallery = New-AzureComputeGallery  -GalleryName $GalleryName -GalleryResourceGroupName $ResourceGroupName -Location $Location -TargetRegions $TargetRegions -Verbose
 }
 #We will create a new Azure Compute Gallery (and its related Resource Group)
 else {
-	$AzureComputeGallery = New-AzureComputeGallery -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
+	$AzureComputeGallery = New-AzureComputeGallery -Location $Location -TargetRegions $TargetRegions -Verbose
 }
 $AzureComputeGallery
 

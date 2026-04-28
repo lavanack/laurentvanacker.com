@@ -15,23 +15,28 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#Installing WinSCP
+#requires -Version 5
 
-#region Getting the URI of lastest release of WinSCP
-$WinSCPUri = ((Invoke-WebRequest -Uri "https://winscp.net/eng/download.php" -UseBasicParsing).Links | Where-Object -FilterScript { $_.href -match "/download/WinSCP-\d\.\d\.\d-Setup.exe/download"}).href
-$WinSCPUri = "https://winscp.net{0}" -f $WinSCPUri
-$WinSCPUri = ((Invoke-WebRequest -Uri $WinSCPUri -UseBasicParsing).Links | Where-Object -FilterScript { $_.href -match "\.exe"}).href | Select-Object -First 1
-#endregion 
+[CmdletBinding(PositionalBinding = $false)]
+Param(
+    [Parameter(Mandatory = $false)]
+    [string] $ScriptPath = "C:\AVDImage\Set-OfficeLanguage.ps1"
+)
 
-#region Downloading WinSCP
-$FileName = $(Split-Path -Path $WinSCPUri -Leaf) -replace "\?.+"
-$Outfile = Join-Path -Path $env:TEMP -ChildPath $FileName
-If (-not(Test-Path -Path $Outfile)) {
-    Write-Verbose -Message "Downloading winSCP ..."
-    Invoke-WebRequest -Uri $WinSCPUri -UseBasicParsing -OutFile $Outfile -Verbose
-}
-#endregion 
+#region Main Code
+Clear-Host
+$Error.Clear()
+$StartTime = Get-Date
 
-#region Installing WinSCP 
-Start-Process -FilePath $Outfile -ArgumentList '/SILENT /ALLUSERS' -Verb runas -Wait
-#endregion 
+$CurrentScript = $MyInvocation.MyCommand.Path
+#Getting the current directory (where this script file resides)
+$CurrentDir = Split-Path -Path $CurrentScript -Parent
+Set-Location -Path $CurrentDir
+
+#region Scheduled Task Parameters
+$Action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File `"$ScriptPath`""
+$Trigger = New-ScheduledTaskTrigger -AtLogOn
+$Principal = New-ScheduledTaskPrincipal -GroupId "Users" -RunLevel LeastPrivilege
+Register-ScheduledTask -TaskName "Set-OfficeLanguage" -Action $Action -Trigger $Trigger -Principal $Principal -Description "Initialize Office language per user"
+#endregion
+#endregion

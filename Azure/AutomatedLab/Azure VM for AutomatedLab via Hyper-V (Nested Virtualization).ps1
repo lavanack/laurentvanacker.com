@@ -82,7 +82,7 @@ $AzureVMNameMaxLength = 15
 $RDPPort = 3389
 $JitPolicyTimeInHours = 3
 $JitPolicyName = "Default"
-$Location = "eastus2"
+$Location = "centralus"
 #$VMSize = "Standard_D16s_v6"
 #Always get the latest generation available in the Azure region
 $VMSize = (Get-AzComputeResourceSku -Location $Location | Where-Object -FilterScript { $_.Name -match "^Standard_D16s_v" } | Sort-Object -Property Name -Descending | Select-Object -First 1).Name
@@ -183,7 +183,7 @@ elseif ($null -eq (Get-AzComputeResourceSku -Location $Location | Where-Object -
 $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 
 #Step 2: Create Azure Storage Account
-New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true
+New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $true -Tag @{ SecurityControl= "Ignore" }
 
 #Step 3: Create Azure Network Security Group
 #RDP only for my public IP address
@@ -207,7 +207,6 @@ Add-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwo
 
 $VirtualNetwork = Set-AzVirtualNetwork -VirtualNetwork $VirtualNetwork
 $Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork
-
 
 #Step 6: Create Azure Public Address
 $PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $ResourceGroupName -Location $Location -AlLocationMethod Static -DomainNameLabel $VMName.ToLower()
@@ -324,6 +323,7 @@ Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 #region Setting up the DSC extension
 
 # Publishing DSC Configuration for AutomatedLab via Hyper-V (Nested Virtualization)
+Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $true -Tag @{ SecurityControl= "Ignore" }
 Publish-AzVMDscConfiguration -ConfigurationPath $ConfigurationFilePath -ConfigurationDataPath $ConfigurationDataFilePath -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Force -Verbose
 
 Do {
