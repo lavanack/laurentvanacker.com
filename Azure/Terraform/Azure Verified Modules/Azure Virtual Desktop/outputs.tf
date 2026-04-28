@@ -7,6 +7,6 @@ output "expected_roles" {
   value = local.expected_roles
 }
 
-output "asigned_roles" {
-  value = values(azurerm_role_assignment.new).*
+output "assigned_roles" {
+  value = azurerm_role_assignment.new
 }

@@ -136,11 +136,11 @@ resource "random_uuid" "example" {}
 
 data "azurerm_role_definition" "roles" {
   for_each = toset([
-    "Desktop Virtualization Power On Off Contributor"
+    "Desktop Virtualization Power On Off Contributor",
   ])
 
-  name  = each.key
-  scope = data.azurerm_subscription.primary.id
+  name = each.key
+  #scope = data.azurerm_subscription.primary.id
 }
 
 
