@@ -150,8 +150,8 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 
 #Uncomment the best scenario for your usage or create your own
 #$HostPools = & "..\1 Azure Region\1_Pooled_Intune_FSLogix_ScalingPlan_Watermarking.ps1"
-$HostPools = & "..\1 Azure Region\2_Pooled_1_Personal_AD_SpotInstance.ps1"
-#$HostPools = & "..\1 Azure Region\1_Pooled_1_Personal_SSO.ps1"
+#$HostPools = & "..\1 Azure Region\2_Pooled_1_Personal_AD_SpotInstance.ps1"
+$HostPools = & "..\1 Azure Region\1_Pooled_1_Personal_SSO.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_1_Personal_Intune.ps1"
 #$HostPools = & "..\1 Azure Region\1_Personal_AD_Win10.ps1"
 #$HostPools = & "..\1 Azure Region\1_Personal_AD.ps1"
@@ -235,22 +235,24 @@ $UsageLocation = "FR"
 Update-PsAvdMgBetaUserUsageLocation -UsageLocation $UsageLocation -Force -Verbose
 #endregion
 
-#region Assigning E5 licenses (if available) to the 'AVD Users' Entra ID Group
-$SkuPartNumber = 'Microsoft_365_E5_(no_Teams)'
-#https://developer.microsoft.com/en-us/graph/known-issues/?search=20454
-#$SubscribedSku = Get-MgBetaSubscribedSku -All -Search "SkuPartNumber:'$SkuPartNumber'"
-$SubscribedSku = Get-MgBetaSubscribedSku -All | Where-Object -FilterScript { $_.SkuPartNumber -eq $SkuPartNumber }
-$SubscribedSkuAvailableLicenses = $SubscribedSku.PrepaidUnits.Enabled - $SubscribedSku.ConsumedUnits
-Write-Verbose -Message "'$SkuPartNumber' Available License Number: $SubscribedSkuAvailableLicenses"
-if ($SubscribedSkuAvailableLicenses -gt 0) {
-    Set-PsAvdMgBetaUsersGroupLicense -GroupDisplayName $AVDUserGroupName -SkuPartNumber $SkuPartNumber -Verbose
-}
-else {
-    Write-Verbose -Message "No more licenses availables for '$SkuPartNumber'"
-    $AssignedLicenses = Get-MgBetaUser -Filter "assignedLicenses/any(x:x/skuId eq $($SubscribedSku.SkuId) )" -ConsistencyLevel eventual -CountVariable e5licensedUserCount -All
-    Write-Verbose -Message "Assigned Licenses for '$SkuPartNumber': $($AssignedLicenses.DisplayName -join ', ')"
-    $AVDUserGroupMembersWithoutAssignedLicenses = Get-MgBetaUser -Filter "not(assignedLicenses/any(x:x/skuId eq $($SubscribedSku.SkuId))) and UserType eq 'Member'" -ConsistencyLevel eventual -CountVariable e5licensedUserCount -All | Where-Object -FilterScript { $_.Id -in $((Get-MgBetaGroupMember -GroupId $(Get-MgBetaGroup -Filter "DisplayName eq '$AVDUserGroupName'").Id).Id) }
-    Write-Verbose -Message "AVD User Group Members Without Assigned Licenses for '$SkuPartNumber': $($AVDUserGroupMembersWithoutAssignedLicenses.DisplayName -join ', ')"
+#region Assigning E5 and Teams licenses (if available) to the 'AVD Users' Entra ID Group
+$SkuPartNumber = 'Microsoft_365_E5_(no_Teams)', 'Microsoft_Teams_Enterprise_New'
+foreach ($CurrentSkuPartNumber in $SkuPartNumber) {
+    #https://developer.microsoft.com/en-us/graph/known-issues/?search=20454
+    #$SubscribedSku = Get-MgBetaSubscribedSku -All -Search "CurrentSkuPartNumber:'$CurrentSkuPartNumber'"
+    $SubscribedSku = Get-MgBetaSubscribedSku -All | Where-Object -FilterScript { $_.SkuPartNumber -eq $CurrentSkuPartNumber }
+    $SubscribedSkuAvailableLicenses = $SubscribedSku.PrepaidUnits.Enabled - $SubscribedSku.ConsumedUnits
+    Write-Verbose -Message "'$CurrentSkuPartNumber' Available License Number: $SubscribedSkuAvailableLicenses"
+    if ($SubscribedSkuAvailableLicenses -gt 0) {
+        Set-PsAvdMgBetaUsersGroupLicense -GroupDisplayName $AVDUserGroupName -SkuPartNumber $CurrentSkuPartNumber -Verbose
+    }
+    else {
+        Write-Verbose -Message "No more licenses availables for '$CurrentSkuPartNumber'"
+        $AssignedLicenses = Get-MgBetaUser -Filter "assignedLicenses/any(x:x/skuId eq $($SubscribedSku.SkuId) )" -ConsistencyLevel eventual -CountVariable e5licensedUserCount -All
+        Write-Verbose -Message "Assigned Licenses for '$CurrentSkuPartNumber': $($AssignedLicenses.DisplayName -join ', ')"
+        $AVDUserGroupMembersWithoutAssignedLicenses = Get-MgBetaUser -Filter "not(assignedLicenses/any(x:x/skuId eq $($SubscribedSku.SkuId))) and UserType eq 'Member'" -ConsistencyLevel eventual -CountVariable e5licensedUserCount -All | Where-Object -FilterScript { $_.Id -in $((Get-MgBetaGroupMember -GroupId $(Get-MgBetaGroup -Filter "DisplayName eq '$AVDUserGroupName'").Id).Id) }
+        Write-Verbose -Message "AVD User Group Members Without Assigned Licenses for '$CurrentSkuPartNumber': $($AVDUserGroupMembersWithoutAssignedLicenses.DisplayName -join ', ')"
+    }
 }
 #endregion
 
