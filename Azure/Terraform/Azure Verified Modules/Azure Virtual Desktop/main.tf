@@ -51,8 +51,9 @@ module "avm_res_desktopvirtualization_hostpool" {
   virtual_desktop_host_pool_custom_rdp_properties = {
     audiomode        = 1 # Local audio only
     use_multimon     = 1 # Enable multi-monitor
-    redirectprinters = 0 # Disable printer redirection    
+    redirectprinters = 0 # Disable printer redirection   
     custom_properties = {
+      "enablerdsaadauth"  = "i:1"
       "camerastoredirect" = "s:*"
       "redirectlocation"  = "i:1"
     }
@@ -139,8 +140,8 @@ data "azurerm_role_definition" "roles" {
     "Desktop Virtualization Power On Off Contributor",
   ])
 
-  name = each.key
-  #scope = data.azurerm_subscription.primary.id
+  name  = each.key
+  scope = data.azurerm_subscription.primary.id
 }
 
 
@@ -279,7 +280,7 @@ resource "azurerm_windows_virtual_machine" "this" {
   name                       = "${local.virtual_desktop_vm_prefix}-${count.index}"
   network_interface_ids      = [azurerm_network_interface.this[count.index].id]
   resource_group_name        = azurerm_resource_group.this.name
-  size                       = var.avd_vm_size
+  size                       = var.virtual_desktop_vm_size
   computer_name              = "${local.virtual_desktop_vm_prefix}-${count.index}"
   encryption_at_host_enabled = true
   secure_boot_enabled        = true

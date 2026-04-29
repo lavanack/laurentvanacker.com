@@ -34,13 +34,13 @@ variable "vm_count" {
   description = "The number of AVD session host VMs to deploy."
 }
 
-variable "avd_vm_prefix" {
+variable "virtual_desktop_vm_prefix" {
   type        = string
   default     = "nem"
   description = "The base name for the AVD session host VMs."
 }
 
-variable "avd_vm_size" {
+variable "virtual_desktop_vm_size" {
   type        = string
   default     = "Standard_B2as_v2"
   description = "The size of the AVD session host VMs."
@@ -49,7 +49,7 @@ variable "avd_vm_size" {
 variable "tags" {
   type = map(string)
   default = {
-    environment = "demo"
+    environment = "POC"
     owner       = "Laurent VAN ACKER"
   }
   description = "Azure resource tags to apply to some resources."

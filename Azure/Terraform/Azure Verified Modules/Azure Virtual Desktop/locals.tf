@@ -100,7 +100,7 @@ locals {
   }
 
   virtual_desktop_hostpool_name                                  = "hp-np-ei-tf-mp-${local.azure_regions[random_shuffle.region.result[0]]}-${random_integer.instance_index.result}"
-  virtual_desktop_vm_prefix                                      = "${var.avd_vm_prefix}${local.azure_regions[random_shuffle.region.result[0]]}${random_integer.instance_index.result}"
+  virtual_desktop_vm_prefix                                      = "${var.virtual_desktop_vm_prefix}${local.azure_regions[random_shuffle.region.result[0]]}${random_integer.instance_index.result}"
   virtual_desktop_application_group_default_desktop_display_name = "${local.virtual_desktop_hostpool_name}-DAG"
   virtual_desktop_application_group_description                  = "Default desktop application group for host pool ${local.virtual_desktop_hostpool_name}"
   virtual_desktop_application_group_friendly_name                = local.virtual_desktop_application_group_default_desktop_display_name
