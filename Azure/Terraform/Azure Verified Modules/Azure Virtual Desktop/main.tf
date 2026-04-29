@@ -297,6 +297,12 @@ resource "azurerm_windows_virtual_machine" "this" {
     sku       = "win11-25h2-avd"
     version   = "latest"
   }
+
+  lifecycle {
+    ignore_changes = [
+      tags
+    ]
+  }
 }
 
 # Virtual Machine Extension for AMA agent
