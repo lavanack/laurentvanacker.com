@@ -70,7 +70,7 @@ module "avm_res_desktopvirtualization_hostpool" {
 }
 
 # Get an existing built-in role definition
-data "azurerm_role_definition" "this" {
+data "azurerm_role_definition" "desktop_virtualization_user" {
   name = "Desktop Virtualization User"
 }
 
@@ -83,16 +83,18 @@ data "azuread_group" "existing" {
 data "azurerm_subscription" "primary" {}
 
 # Get the service principal for Azure Vitual Desktop
-data "azuread_service_principal" "spn" {
-  client_id = "9cdead84-a844-4324-93f2-b2e6bb768d07"
+data "azuread_service_principal" "virtual_desktop_spn" {
+  #client_id = "9cdead84-a844-4324-93f2-b2e6bb768d07"
+  display_name = "Azure Virtual Desktop"
 }
 
 # Assign the Azure AD group to the application group
 resource "azurerm_role_assignment" "this" {
   principal_id                     = data.azuread_group.existing.object_id
   scope                            = module.avm_res_desktopvirtualization_applicationgroup.resource.id
-  role_definition_id               = data.azurerm_role_definition.this.id
+  role_definition_id               = data.azurerm_role_definition.desktop_virtualization_user.id
   skip_service_principal_aad_check = false
+  name                             = uuidv5("dns", "${module.avm_res_desktopvirtualization_applicationgroup.resource.id}-${data.azuread_group.existing.object_id}-${data.azurerm_role_definition.desktop_virtualization_user.id}")
 }
 
 # This is the module desktop application group
@@ -147,7 +149,7 @@ data "azurerm_role_definition" "roles" {
 
 data "azurerm_role_assignments" "existing" {
   scope        = data.azurerm_subscription.primary.id
-  principal_id = data.azuread_service_principal.spn.object_id
+  principal_id = data.azuread_service_principal.virtual_desktop_spn.object_id
 }
 
 resource "azurerm_role_assignment" "new" {
@@ -157,10 +159,11 @@ resource "azurerm_role_assignment" "new" {
     if(!contains(data.azurerm_role_assignments.existing.role_assignments[*].role_definition_id, v))
   }
 
-  principal_id                     = data.azuread_service_principal.spn.object_id
+  principal_id                     = data.azuread_service_principal.virtual_desktop_spn.object_id
   scope                            = data.azurerm_subscription.primary.id
   role_definition_name             = each.key
   skip_service_principal_aad_check = true
+  name                             = uuidv5("dns", "${data.azurerm_subscription.primary.id}-${data.azuread_service_principal.virtual_desktop_spn.object_id}-${each.key}")
 
   lifecycle {
     ignore_changes = all
