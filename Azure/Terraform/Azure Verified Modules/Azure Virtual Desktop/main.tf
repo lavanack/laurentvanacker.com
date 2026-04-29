@@ -71,7 +71,8 @@ module "avm_res_desktopvirtualization_hostpool" {
 
 # Get an existing built-in role definition
 data "azurerm_role_definition" "desktop_virtualization_user" {
-  name = "Desktop Virtualization User"
+  name  = "Desktop Virtualization User"
+  scope = data.azurerm_subscription.primary.id
 }
 
 data "azuread_group" "existing" {
@@ -147,17 +148,10 @@ data "azurerm_role_definition" "roles" {
 }
 
 
-data "azurerm_role_assignments" "existing" {
-  scope        = data.azurerm_subscription.primary.id
-  principal_id = data.azuread_service_principal.virtual_desktop_spn.object_id
-}
+
 
 resource "azurerm_role_assignment" "new" {
-  for_each = {
-    for k, v in local.expected_roles :
-    k => v
-    if(!contains(data.azurerm_role_assignments.existing.role_assignments[*].role_definition_id, v))
-  }
+  for_each = local.expected_roles
 
   principal_id                     = data.azuread_service_principal.virtual_desktop_spn.object_id
   scope                            = data.azurerm_subscription.primary.id
