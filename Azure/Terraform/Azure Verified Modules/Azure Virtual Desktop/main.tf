@@ -72,7 +72,7 @@ module "avm_res_desktopvirtualization_hostpool" {
 # Get an existing built-in role definition
 data "azurerm_role_definition" "desktop_virtualization_user" {
   name  = "Desktop Virtualization User"
-  scope = data.azurerm_subscription.primary.id
+  scope = data.azurerm_subscription.current.id
 }
 
 resource "azuread_group" "virtual_desktop_dag_group" {
@@ -80,8 +80,10 @@ resource "azuread_group" "virtual_desktop_dag_group" {
   security_enabled = true
 }
 
+data "azurerm_client_config" "current" {}
+
 # Get the subscription
-data "azurerm_subscription" "primary" {}
+data "azurerm_subscription" "current" {}
 
 # Get the service principal for Azure Vitual Desktop
 data "azuread_service_principal" "virtual_desktop_spn" {
@@ -95,7 +97,7 @@ resource "azurerm_role_assignment" "desktop_virtualization_user_assignment_on_da
   scope                            = module.avm_res_desktopvirtualization_applicationgroup.resource.id
   role_definition_id               = data.azurerm_role_definition.desktop_virtualization_user.id
   skip_service_principal_aad_check = false
-  name                             = uuidv5("dns", "${module.avm_res_desktopvirtualization_applicationgroup.resource.id}-${azuread_group.virtual_desktop_dag_group.object_id}-${data.azurerm_role_definition.desktop_virtualization_user.id}")
+  name                             = uuidv5("00000000-0000-0000-0000-000000000000", "${module.avm_res_desktopvirtualization_applicationgroup.resource.id}-${azuread_group.virtual_desktop_dag_group.object_id}-${data.azurerm_role_definition.desktop_virtualization_user.id}")
 }
 
 
@@ -104,20 +106,17 @@ resource "azurerm_role_assignment" "desktop_virtualization_user_assignment_on_rg
   scope                            = azurerm_resource_group.hostpoool_rg.id
   role_definition_id               = data.azurerm_role_definition.desktop_virtualization_user.id
   skip_service_principal_aad_check = false
-  name                             = uuidv5("dns", "${azurerm_resource_group.hostpoool_rg.id}-${azuread_group.virtual_desktop_dag_group.object_id}-${data.azurerm_role_definition.desktop_virtualization_user.id}")
+  name                             = uuidv5("00000000-0000-0000-0000-000000000000", "${azurerm_resource_group.hostpoool_rg.id}-${azuread_group.virtual_desktop_dag_group.object_id}-${data.azurerm_role_definition.desktop_virtualization_user.id}")
 }
-
-
-
 
 resource "azurerm_role_assignment" "rbac_assignment_on_subscription" {
   for_each = local.expected_roles
 
   principal_id                     = data.azuread_service_principal.virtual_desktop_spn.object_id
-  scope                            = data.azurerm_subscription.primary.id
+  scope                            = data.azurerm_subscription.current.id
   role_definition_name             = each.key
   skip_service_principal_aad_check = true
-  name                             = uuidv5("dns", "${data.azurerm_subscription.primary.id}-${data.azuread_service_principal.virtual_desktop_spn.object_id}-${each.key}")
+  name                             = uuidv5("00000000-0000-0000-0000-000000000000", "${data.azurerm_subscription.current.id}-${data.azuread_service_principal.virtual_desktop_spn.object_id}-${each.key}")
 
   lifecycle {
     ignore_changes = all
@@ -170,7 +169,7 @@ data "azurerm_role_definition" "roles" {
   ])
 
   name  = each.key
-  scope = data.azurerm_subscription.primary.id
+  scope = data.azurerm_subscription.current.id
 
 }
 
