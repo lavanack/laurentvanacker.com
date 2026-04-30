@@ -108,6 +108,7 @@ locals {
   virtual_desktop_workspace_description                          = "Workspace for host pool ${local.virtual_desktop_hostpool_name}"
   virtual_desktop_workspace_friendly_name                        = local.virtual_desktop_workspace_description
   virtual_desktop_scalingplan_name                               = "sp-${local.virtual_desktop_hostpool_name}"
+  virtual_desktop_dag_group_name                                 = "${local.virtual_desktop_hostpool_name} - Desktop Application Group Users"
 
   expected_roles = {
     for k, v in data.azurerm_role_definition.roles :

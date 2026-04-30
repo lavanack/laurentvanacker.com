@@ -7,6 +7,10 @@ output "expected_roles" {
   value = local.expected_roles
 }
 
-output "assigned_roles" {
-  value = azurerm_role_assignment.new
+output "rbac_assignment_on_subscription" {
+  value = azurerm_role_assignment.rbac_assignment_on_subscription
+}
+
+output "avd_power_assigned_on_subscription" {
+  value = data.azurerm_role_definition.roles
 }

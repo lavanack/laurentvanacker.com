@@ -17,17 +17,17 @@ resource "random_integer" "instance_index" {
 }
 
 # This is required for resource modules
-resource "azurerm_resource_group" "this" {
+resource "azurerm_resource_group" "hostpoool_rg" {
   location = random_shuffle.region.result[0]
   #name     = module.naming.resource_group.name_unique
   name = "rg-avd-${local.virtual_desktop_hostpool_name}"
   tags = var.tags
 }
 
-resource "azurerm_log_analytics_workspace" "this" {
-  location            = azurerm_resource_group.this.location
+resource "azurerm_log_analytics_workspace" "law" {
+  location            = azurerm_resource_group.hostpoool_rg.location
   name                = "log${replace(local.virtual_desktop_hostpool_name, "-", "")}"
-  resource_group_name = azurerm_resource_group.this.name
+  resource_group_name = azurerm_resource_group.hostpoool_rg.name
 }
 
 # This is the module call
@@ -35,16 +35,16 @@ module "avm_res_desktopvirtualization_hostpool" {
   source  = "Azure/avm-res-desktopvirtualization-hostpool/azurerm"
   version = "0.4.0"
 
-  resource_group_name                           = azurerm_resource_group.this.name
+  resource_group_name                           = azurerm_resource_group.hostpoool_rg.name
   virtual_desktop_host_pool_load_balancer_type  = var.virtual_desktop_host_pool_load_balancer_type
-  virtual_desktop_host_pool_location            = azurerm_resource_group.this.location
+  virtual_desktop_host_pool_location            = azurerm_resource_group.hostpoool_rg.location
   virtual_desktop_host_pool_name                = local.virtual_desktop_hostpool_name
-  virtual_desktop_host_pool_resource_group_name = azurerm_resource_group.this.name
+  virtual_desktop_host_pool_resource_group_name = azurerm_resource_group.hostpoool_rg.name
   virtual_desktop_host_pool_type                = var.virtual_desktop_host_pool_type
   diagnostic_settings = {
     to_law = {
       name                  = local.virtual_desktop_hostpool_name
-      workspace_resource_id = azurerm_log_analytics_workspace.this.id
+      workspace_resource_id = azurerm_log_analytics_workspace.law.id
     }
   }
   enable_telemetry = var.enable_telemetry
@@ -75,8 +75,8 @@ data "azurerm_role_definition" "desktop_virtualization_user" {
   scope = data.azurerm_subscription.primary.id
 }
 
-data "azuread_group" "existing" {
-  display_name     = var.user_group_name
+resource "azuread_group" "virtual_desktop_dag_group" {
+  display_name     = local.virtual_desktop_dag_group_name
   security_enabled = true
 }
 
@@ -90,12 +90,38 @@ data "azuread_service_principal" "virtual_desktop_spn" {
 }
 
 # Assign the Azure AD group to the application group
-resource "azurerm_role_assignment" "this" {
-  principal_id                     = data.azuread_group.existing.object_id
+resource "azurerm_role_assignment" "desktop_virtualization_user_assignment_on_dag" {
+  principal_id                     = azuread_group.virtual_desktop_dag_group.object_id
   scope                            = module.avm_res_desktopvirtualization_applicationgroup.resource.id
   role_definition_id               = data.azurerm_role_definition.desktop_virtualization_user.id
   skip_service_principal_aad_check = false
-  name                             = uuidv5("dns", "${module.avm_res_desktopvirtualization_applicationgroup.resource.id}-${data.azuread_group.existing.object_id}-${data.azurerm_role_definition.desktop_virtualization_user.id}")
+  name                             = uuidv5("dns", "${module.avm_res_desktopvirtualization_applicationgroup.resource.id}-${azuread_group.virtual_desktop_dag_group.object_id}-${data.azurerm_role_definition.desktop_virtualization_user.id}")
+}
+
+
+resource "azurerm_role_assignment" "desktop_virtualization_user_assignment_on_rg" {
+  principal_id                     = azuread_group.virtual_desktop_dag_group.object_id
+  scope                            = azurerm_resource_group.hostpoool_rg.id
+  role_definition_id               = data.azurerm_role_definition.desktop_virtualization_user.id
+  skip_service_principal_aad_check = false
+  name                             = uuidv5("dns", "${azurerm_resource_group.hostpoool_rg.id}-${azuread_group.virtual_desktop_dag_group.object_id}-${data.azurerm_role_definition.desktop_virtualization_user.id}")
+}
+
+
+
+
+resource "azurerm_role_assignment" "rbac_assignment_on_subscription" {
+  for_each = local.expected_roles
+
+  principal_id                     = data.azuread_service_principal.virtual_desktop_spn.object_id
+  scope                            = data.azurerm_subscription.primary.id
+  role_definition_name             = each.key
+  skip_service_principal_aad_check = true
+  name                             = uuidv5("dns", "${data.azurerm_subscription.primary.id}-${data.azuread_service_principal.virtual_desktop_spn.object_id}-${each.key}")
+
+  lifecycle {
+    ignore_changes = all
+  }
 }
 
 # This is the module desktop application group
@@ -106,8 +132,8 @@ module "avm_res_desktopvirtualization_applicationgroup" {
   virtual_desktop_application_group_description                  = local.virtual_desktop_application_group_description
   virtual_desktop_application_group_friendly_name                = local.virtual_desktop_application_group_friendly_name
   virtual_desktop_application_group_host_pool_id                 = module.avm_res_desktopvirtualization_hostpool.resource.id
-  virtual_desktop_application_group_location                     = azurerm_resource_group.this.location
-  virtual_desktop_application_group_resource_group_name          = azurerm_resource_group.this.name
+  virtual_desktop_application_group_location                     = azurerm_resource_group.hostpoool_rg.location
+  virtual_desktop_application_group_resource_group_name          = azurerm_resource_group.hostpoool_rg.name
   virtual_desktop_application_group_name                         = local.virtual_desktop_application_group_default_desktop_display_name
   virtual_desktop_application_group_type                         = var.virtual_desktop_application_group_type
 }
@@ -116,13 +142,13 @@ module "avm_res_desktopvirtualization_applicationgroup" {
 module "avm_res_desktopvirtualization_workspace" {
   source = "Azure/avm-res-desktopvirtualization-workspace/azurerm"
 
-  virtual_desktop_workspace_location            = azurerm_resource_group.this.location
+  virtual_desktop_workspace_location            = azurerm_resource_group.hostpoool_rg.location
   virtual_desktop_workspace_name                = local.virtual_desktop_workspace_name
-  virtual_desktop_workspace_resource_group_name = azurerm_resource_group.this.name
+  virtual_desktop_workspace_resource_group_name = azurerm_resource_group.hostpoool_rg.name
   diagnostic_settings = {
     to_law = {
       name                  = "to-law"
-      workspace_resource_id = azurerm_log_analytics_workspace.this.id
+      workspace_resource_id = azurerm_log_analytics_workspace.law.id
     }
   }
   enable_telemetry                        = var.enable_telemetry
@@ -145,33 +171,18 @@ data "azurerm_role_definition" "roles" {
 
   name  = each.key
   scope = data.azurerm_subscription.primary.id
+
 }
 
-
-
-
-resource "azurerm_role_assignment" "new" {
-  for_each = local.expected_roles
-
-  principal_id                     = data.azuread_service_principal.virtual_desktop_spn.object_id
-  scope                            = data.azurerm_subscription.primary.id
-  role_definition_name             = each.key
-  skip_service_principal_aad_check = true
-  name                             = uuidv5("dns", "${data.azurerm_subscription.primary.id}-${data.azuread_service_principal.virtual_desktop_spn.object_id}-${each.key}")
-
-  lifecycle {
-    ignore_changes = all
-  }
-}
 
 # This is the module call
 module "avm-res-desktopvirtualization-scalingplan" {
   source = "Azure/avm-res-desktopvirtualization-scalingplan/azurerm"
 
 
-  virtual_desktop_scaling_plan_location            = azurerm_resource_group.this.location
+  virtual_desktop_scaling_plan_location            = azurerm_resource_group.hostpoool_rg.location
   virtual_desktop_scaling_plan_name                = local.virtual_desktop_scalingplan_name
-  virtual_desktop_scaling_plan_resource_group_name = azurerm_resource_group.this.name
+  virtual_desktop_scaling_plan_resource_group_name = azurerm_resource_group.hostpoool_rg.name
   virtual_desktop_scaling_plan_schedule = toset(
     [
       {
@@ -227,38 +238,38 @@ module "avm-res-desktopvirtualization-scalingplan" {
     ]
   )
 
-  depends_on = [azurerm_resource_group.this, module.avm_res_desktopvirtualization_hostpool]
+  depends_on = [azurerm_resource_group.hostpoool_rg, module.avm_res_desktopvirtualization_hostpool]
 }
 
 
 # Deploy an vnet and subnet for AVD session hosts
-resource "azurerm_virtual_network" "this_vnet" {
+resource "azurerm_virtual_network" "vnet" {
   address_space       = var.vnet_address_space
-  location            = azurerm_resource_group.this.location
+  location            = azurerm_resource_group.hostpoool_rg.location
   name                = "vnet-avd-${local.virtual_desktop_hostpool_name}"
-  resource_group_name = azurerm_resource_group.this.name
+  resource_group_name = azurerm_resource_group.hostpoool_rg.name
 }
 
-resource "azurerm_subnet" "this_subnet_1" {
+resource "azurerm_subnet" "subnet_1" {
   address_prefixes     = var.subnet_address_prefixes
   name                 = "snet-avd-${local.virtual_desktop_hostpool_name}-1"
-  resource_group_name  = azurerm_resource_group.this.name
-  virtual_network_name = azurerm_virtual_network.this_vnet.name
+  resource_group_name  = azurerm_resource_group.hostpoool_rg.name
+  virtual_network_name = azurerm_virtual_network.vnet.name
 }
 
 # Deploy a single AVD session host using marketplace image
-resource "azurerm_network_interface" "this" {
+resource "azurerm_network_interface" "nic" {
   count = var.vm_count
 
-  location                       = azurerm_resource_group.this.location
+  location                       = azurerm_resource_group.hostpoool_rg.location
   name                           = "${local.virtual_desktop_vm_prefix}-${count.index}-nic"
-  resource_group_name            = azurerm_resource_group.this.name
+  resource_group_name            = azurerm_resource_group.hostpoool_rg.name
   accelerated_networking_enabled = true
 
   ip_configuration {
     name                          = "internal"
     private_ip_address_allocation = "Dynamic"
-    subnet_id                     = azurerm_subnet.this_subnet_1.id
+    subnet_id                     = azurerm_subnet.subnet_1.id
   }
 }
 
@@ -268,15 +279,15 @@ resource "random_password" "vmpass" {
   special = true
 }
 
-resource "azurerm_windows_virtual_machine" "this" {
+resource "azurerm_windows_virtual_machine" "sessionhost" {
   count = var.vm_count
 
   admin_password             = random_password.vmpass.result
   admin_username             = "adminuser"
-  location                   = azurerm_resource_group.this.location
+  location                   = azurerm_resource_group.hostpoool_rg.location
   name                       = "${local.virtual_desktop_vm_prefix}-${count.index}"
-  network_interface_ids      = [azurerm_network_interface.this[count.index].id]
-  resource_group_name        = azurerm_resource_group.this.name
+  network_interface_ids      = [azurerm_network_interface.nic[count.index].id]
+  resource_group_name        = azurerm_resource_group.hostpoool_rg.name
   size                       = var.virtual_desktop_vm_size
   computer_name              = "${local.virtual_desktop_vm_prefix}-${count.index}"
   encryption_at_host_enabled = true
@@ -313,7 +324,7 @@ resource "azurerm_virtual_machine_extension" "ama" {
   publisher                 = "Microsoft.Azure.Monitor"
   type                      = "AzureMonitorWindowsAgent"
   type_handler_version      = "1.2"
-  virtual_machine_id        = azurerm_windows_virtual_machine.this[count.index].id
+  virtual_machine_id        = azurerm_windows_virtual_machine.sessionhost[count.index].id
   automatic_upgrade_enabled = true
 
   depends_on = [module.avm_res_desktopvirtualization_hostpool]
@@ -327,7 +338,7 @@ resource "azurerm_virtual_machine_extension" "aadjoin" {
   publisher                  = "Microsoft.Azure.ActiveDirectory"
   type                       = "AADLoginForWindows"
   type_handler_version       = "2.0"
-  virtual_machine_id         = azurerm_windows_virtual_machine.this[count.index].id
+  virtual_machine_id         = azurerm_windows_virtual_machine.sessionhost[count.index].id
   auto_upgrade_minor_version = true
 }
 
@@ -339,7 +350,7 @@ resource "azurerm_virtual_machine_extension" "vmext_dsc" {
   publisher                  = "Microsoft.Powershell"
   type                       = "DSC"
   type_handler_version       = "2.73"
-  virtual_machine_id         = azurerm_windows_virtual_machine.this[count.index].id
+  virtual_machine_id         = azurerm_windows_virtual_machine.sessionhost[count.index].id
   auto_upgrade_minor_version = true
   protected_settings         = <<PROTECTED_SETTINGS
   {
