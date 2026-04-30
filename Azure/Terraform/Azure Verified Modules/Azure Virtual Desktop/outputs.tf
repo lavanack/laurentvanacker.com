@@ -3,14 +3,6 @@ output "vm_password" {
   sensitive = true
 }
 
-output "expected_roles" {
-  value = local.expected_roles
-}
-
-output "rbac_assignment_on_subscription" {
-  value = azurerm_role_assignment.rbac_assignment_on_subscription
-}
-
-output "avd_power_assigned_on_subscription" {
-  value = data.azurerm_role_definition.roles
+output "avd_power_role_assignment_id" {
+  value = local.role_assignment_exists ? local.matching_role_assignments[0].id : azapi_resource.avd_power_on_off_contributor[0].id
 }

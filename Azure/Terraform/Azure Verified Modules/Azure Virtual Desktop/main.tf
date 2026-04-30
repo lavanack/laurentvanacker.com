@@ -1,4 +1,39 @@
 
+
+resource "azuread_group" "virtual_desktop_dag_group" {
+  display_name     = local.virtual_desktop_dag_group_name
+  security_enabled = true
+}
+
+data "azurerm_client_config" "current" {}
+
+# Get the subscription
+data "azurerm_subscription" "current" {}
+
+# Get the service principal for Azure Virtual Desktop
+data "azuread_service_principal" "avd_spn" {
+  display_name = "Azure Virtual Desktop"
+}
+# Get an existing built-in role definition
+data "azurerm_role_definition" "desktop_virtualization_user" {
+  name  = "Desktop Virtualization User"
+  scope = data.azurerm_subscription.current.id
+}
+
+data "azurerm_role_definition" "power_role" {
+  name  = "Desktop Virtualization Power On Off Contributor"
+  scope = data.azurerm_subscription.current.id
+}
+
+# ✅ List all roleAssignments at the subscription scope
+data "azapi_resource_list" "role_assignments_sub" {
+  type      = "Microsoft.Authorization/roleAssignments@2022-04-01"
+  parent_id = data.azurerm_subscription.current.id
+
+  # we get the entire payload, including .value[]
+  response_export_values = ["*"]
+} # 【2-09b099】
+
 # This ensures we have unique CAF compliant names for our resources.
 module "naming" {
   source  = "Azure/naming/azurerm"
@@ -6,7 +41,7 @@ module "naming" {
 }
 
 
-resource "random_shuffle" "region" {
+resource "random_shuffle" "avd_region" {
   input        = keys(local.virtual_desktop_azure_regions)
   result_count = 1
 }
@@ -18,7 +53,7 @@ resource "random_integer" "instance_index" {
 
 # This is required for resource modules
 resource "azurerm_resource_group" "hostpoool_rg" {
-  location = random_shuffle.region.result[0]
+  location = random_shuffle.avd_region.result[0]
   #name     = module.naming.resource_group.name_unique
   name = "rg-avd-${local.virtual_desktop_hostpool_name}"
   tags = var.tags
@@ -69,28 +104,6 @@ module "avm_res_desktopvirtualization_hostpool" {
   virtual_desktop_host_pool_start_vm_on_connect = var.virtual_desktop_host_pool_start_vm_on_connect
 }
 
-# Get an existing built-in role definition
-data "azurerm_role_definition" "desktop_virtualization_user" {
-  name  = "Desktop Virtualization User"
-  scope = data.azurerm_subscription.current.id
-}
-
-resource "azuread_group" "virtual_desktop_dag_group" {
-  display_name     = local.virtual_desktop_dag_group_name
-  security_enabled = true
-}
-
-data "azurerm_client_config" "current" {}
-
-# Get the subscription
-data "azurerm_subscription" "current" {}
-
-# Get the service principal for Azure Vitual Desktop
-data "azuread_service_principal" "virtual_desktop_spn" {
-  #client_id = "9cdead84-a844-4324-93f2-b2e6bb768d07"
-  display_name = "Azure Virtual Desktop"
-}
-
 # Assign the Azure AD group to the application group
 resource "azurerm_role_assignment" "desktop_virtualization_user_assignment_on_dag" {
   principal_id                     = azuread_group.virtual_desktop_dag_group.object_id
@@ -109,19 +122,21 @@ resource "azurerm_role_assignment" "desktop_virtualization_user_assignment_on_rg
   name                             = uuidv5("00000000-0000-0000-0000-000000000000", "${azurerm_resource_group.hostpoool_rg.id}-${azuread_group.virtual_desktop_dag_group.object_id}-${data.azurerm_role_definition.desktop_virtualization_user.id}")
 }
 
-resource "azurerm_role_assignment" "rbac_assignment_on_subscription" {
-  for_each = local.expected_roles
+# ✅ Created only if missing
+resource "azapi_resource" "avd_power_on_off_contributor" {
+  count     = local.role_assignment_exists ? 0 : 1
+  type      = "Microsoft.Authorization/roleAssignments@2022-04-01"
+  name      = local.role_assignment_guid
+  parent_id = data.azurerm_subscription.current.id
 
-  principal_id                     = data.azuread_service_principal.virtual_desktop_spn.object_id
-  scope                            = data.azurerm_subscription.current.id
-  role_definition_name             = each.key
-  skip_service_principal_aad_check = true
-  name                             = uuidv5("00000000-0000-0000-0000-000000000000", "${data.azurerm_subscription.current.id}-${data.azuread_service_principal.virtual_desktop_spn.object_id}-${each.key}")
-
-  lifecycle {
-    ignore_changes = all
+  body = {
+    properties = {
+      principalId      = data.azuread_service_principal.avd_spn.object_id
+      principalType    = "ServicePrincipal"
+      roleDefinitionId = data.azurerm_role_definition.power_role.id
+    }
   }
-}
+} # 【4-d7df72】【5-2ea74c】
 
 # This is the module desktop application group
 module "avm_res_desktopvirtualization_applicationgroup" {
@@ -162,17 +177,6 @@ resource "azurerm_virtual_desktop_workspace_application_group_association" "work
 
 
 resource "random_uuid" "example" {}
-
-data "azurerm_role_definition" "roles" {
-  for_each = toset([
-    "Desktop Virtualization Power On Off Contributor",
-  ])
-
-  name  = each.key
-  scope = data.azurerm_subscription.current.id
-
-}
-
 
 # This is the module call
 module "avm-res-desktopvirtualization-scalingplan" {
