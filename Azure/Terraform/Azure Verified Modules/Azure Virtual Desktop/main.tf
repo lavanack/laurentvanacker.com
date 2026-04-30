@@ -1,71 +1,89 @@
 
+###############################################################################
+# Identity & RBAC data sources
+###############################################################################
 
+# Entra ID security group whose members will be granted access to the Desktop
+# Application Group (DAG) and its hosting resource group.
 resource "azuread_group" "virtual_desktop_dag_group" {
   display_name     = local.virtual_desktop_dag_group_name
   security_enabled = true
 }
 
-data "azurerm_client_config" "current" {}
-
-# Get the subscription
+# Current subscription (used as scope for role lookups and assignments).
 data "azurerm_subscription" "current" {}
 
-# Get the service principal for Azure Virtual Desktop
+# Built-in service principal for the Azure Virtual Desktop first-party app.
+# Required to grant the "Power On/Off Contributor" role for Start VM on Connect.
 data "azuread_service_principal" "avd_spn" {
   display_name = "Azure Virtual Desktop"
 }
-# Get an existing built-in role definition
+
+# Built-in role: granted to end users so they can launch the published desktop.
 data "azurerm_role_definition" "desktop_virtualization_user" {
   name  = "Desktop Virtualization User"
   scope = data.azurerm_subscription.current.id
 }
 
+# Built-in role: granted to the AVD service principal so it can start/stop VMs
+# (used by Start VM on Connect and the scaling plan).
 data "azurerm_role_definition" "power_role" {
   name  = "Desktop Virtualization Power On Off Contributor"
   scope = data.azurerm_subscription.current.id
 }
 
-# ✅ List all roleAssignments at the subscription scope
+# List all role assignments at subscription scope. The result is consumed in
+# locals.tf to detect whether the AVD power role assignment already exists
+# (avoids creating duplicate assignments on re-runs).
 data "azapi_resource_list" "role_assignments_sub" {
   type      = "Microsoft.Authorization/roleAssignments@2022-04-01"
   parent_id = data.azurerm_subscription.current.id
 
-  # we get the entire payload, including .value[]
+  # Export full payload so we can read .value[] in locals
   response_export_values = ["*"]
-} # 【2-09b099】
-
-# This ensures we have unique CAF compliant names for our resources.
-module "naming" {
-  source  = "Azure/naming/azurerm"
-  version = "0.3.0"
 }
 
+###############################################################################
+# Randomization (region selection + unique instance index)
+###############################################################################
 
+# Pick a random AVD-supported region for the deployment
 resource "random_shuffle" "avd_region" {
   input        = keys(local.virtual_desktop_azure_regions)
   result_count = 1
 }
 
+# Random index appended to resource names to make them unique across runs
 resource "random_integer" "instance_index" {
   max = 999
   min = 0
 }
 
-# This is required for resource modules
+###############################################################################
+# Core infrastructure: Resource Group + Log Analytics
+###############################################################################
+
+# Resource group hosting all AVD resources for this deployment
 resource "azurerm_resource_group" "hostpoool_rg" {
   location = random_shuffle.avd_region.result[0]
-  #name     = module.naming.resource_group.name_unique
-  name = "rg-avd-${local.virtual_desktop_hostpool_name}"
-  tags = var.tags
+  name     = "rg-avd-${local.virtual_desktop_hostpool_name}"
+  tags     = var.tags
 }
 
+# Log Analytics workspace used as the diagnostic settings target for the
+# host pool and the workspace.
 resource "azurerm_log_analytics_workspace" "law" {
   location            = azurerm_resource_group.hostpoool_rg.location
   name                = "log${replace(local.virtual_desktop_hostpool_name, "-", "")}"
   resource_group_name = azurerm_resource_group.hostpoool_rg.name
 }
 
-# This is the module call
+###############################################################################
+# AVD Host Pool (AVM module)
+###############################################################################
+
+# Deploys the AVD host pool with diagnostic settings, custom RDP properties,
+# scheduled agent updates, and Start VM on Connect.
 module "avm_res_desktopvirtualization_hostpool" {
   source  = "Azure/avm-res-desktopvirtualization-hostpool/azurerm"
   version = "0.4.0"
@@ -104,7 +122,12 @@ module "avm_res_desktopvirtualization_hostpool" {
   virtual_desktop_host_pool_start_vm_on_connect = var.virtual_desktop_host_pool_start_vm_on_connect
 }
 
-# Assign the Azure AD group to the application group
+###############################################################################
+# Role assignments
+###############################################################################
+
+# Allow DAG group members to launch the published desktop (assignment scoped
+# to the application group). Name is a deterministic GUID so re-runs are idempotent.
 resource "azurerm_role_assignment" "desktop_virtualization_user_assignment_on_dag" {
   principal_id                     = azuread_group.virtual_desktop_dag_group.object_id
   scope                            = module.avm_res_desktopvirtualization_applicationgroup.resource.id
@@ -113,7 +136,8 @@ resource "azurerm_role_assignment" "desktop_virtualization_user_assignment_on_da
   name                             = uuidv5("00000000-0000-0000-0000-000000000000", "${module.avm_res_desktopvirtualization_applicationgroup.resource.id}-${azuread_group.virtual_desktop_dag_group.object_id}-${data.azurerm_role_definition.desktop_virtualization_user.id}")
 }
 
-
+# Same role granted at the resource group scope so DAG group members can also
+# see/connect to the underlying session host VMs.
 resource "azurerm_role_assignment" "desktop_virtualization_user_assignment_on_rg" {
   principal_id                     = azuread_group.virtual_desktop_dag_group.object_id
   scope                            = azurerm_resource_group.hostpoool_rg.id
@@ -122,7 +146,9 @@ resource "azurerm_role_assignment" "desktop_virtualization_user_assignment_on_rg
   name                             = uuidv5("00000000-0000-0000-0000-000000000000", "${azurerm_resource_group.hostpoool_rg.id}-${azuread_group.virtual_desktop_dag_group.object_id}-${data.azurerm_role_definition.desktop_virtualization_user.id}")
 }
 
-# ✅ Created only if missing
+# Grant the AVD service principal the Power On/Off Contributor role at
+# subscription scope. Created only if a matching assignment doesn't already
+# exist (see role_assignment_exists in locals.tf).
 resource "azapi_resource" "avd_power_on_off_contributor" {
   count     = local.role_assignment_exists ? 0 : 1
   type      = "Microsoft.Authorization/roleAssignments@2022-04-01"
@@ -136,9 +162,13 @@ resource "azapi_resource" "avd_power_on_off_contributor" {
       roleDefinitionId = data.azurerm_role_definition.power_role.id
     }
   }
-} # 【4-d7df72】【5-2ea74c】
+}
 
-# This is the module desktop application group
+###############################################################################
+# Application Group, Workspace and Workspace<->AppGroup association (AVM modules)
+###############################################################################
+
+# Desktop Application Group (DAG) attached to the host pool
 module "avm_res_desktopvirtualization_applicationgroup" {
   source                                                         = "Azure/avm-res-desktopvirtualization-applicationgroup/azurerm"
   enable_telemetry                                               = var.enable_telemetry
@@ -152,7 +182,7 @@ module "avm_res_desktopvirtualization_applicationgroup" {
   virtual_desktop_application_group_type                         = var.virtual_desktop_application_group_type
 }
 
-# This is the module call
+# AVD workspace that publishes the application group to end users
 module "avm_res_desktopvirtualization_workspace" {
   source = "Azure/avm-res-desktopvirtualization-workspace/azurerm"
 
@@ -170,15 +200,18 @@ module "avm_res_desktopvirtualization_workspace" {
   virtual_desktop_workspace_friendly_name = local.virtual_desktop_workspace_friendly_name
 }
 
+# Bind the application group to the workspace so the desktop appears in the client
 resource "azurerm_virtual_desktop_workspace_application_group_association" "workappgrassoc" {
   application_group_id = module.avm_res_desktopvirtualization_applicationgroup.resource.id
   workspace_id         = module.avm_res_desktopvirtualization_workspace.resource.id
 }
 
+###############################################################################
+# Scaling Plan (AVM module)
+###############################################################################
 
-resource "random_uuid" "example" {}
-
-# This is the module call
+# Auto-scales session hosts based on weekday/weekend ramp-up, peak,
+# ramp-down, and off-peak schedules (Paris time zone).
 module "avm-res-desktopvirtualization-scalingplan" {
   source = "Azure/avm-res-desktopvirtualization-scalingplan/azurerm"
 
@@ -245,7 +278,11 @@ module "avm-res-desktopvirtualization-scalingplan" {
 }
 
 
-# Deploy an vnet and subnet for AVD session hosts
+###############################################################################
+# Networking: VNet + Subnet for session hosts
+###############################################################################
+
+# Virtual network hosting the session host NICs
 resource "azurerm_virtual_network" "vnet" {
   address_space       = var.vnet_address_space
   location            = azurerm_resource_group.hostpoool_rg.location
@@ -253,6 +290,7 @@ resource "azurerm_virtual_network" "vnet" {
   resource_group_name = azurerm_resource_group.hostpoool_rg.name
 }
 
+# Subnet for session host NICs
 resource "azurerm_subnet" "subnet_1" {
   address_prefixes     = var.subnet_address_prefixes
   name                 = "snet-avd-${local.virtual_desktop_hostpool_name}-1"
@@ -260,7 +298,11 @@ resource "azurerm_subnet" "subnet_1" {
   virtual_network_name = azurerm_virtual_network.vnet.name
 }
 
-# Deploy a single AVD session host using marketplace image
+###############################################################################
+# Session host VMs and extensions
+###############################################################################
+
+# One NIC per session host (with accelerated networking enabled)
 resource "azurerm_network_interface" "nic" {
   count = var.vm_count
 
@@ -276,12 +318,13 @@ resource "azurerm_network_interface" "nic" {
   }
 }
 
-# Generate VM local password
+# Random local-admin password (exposed via outputs.tf as a sensitive value)
 resource "random_password" "vmpass" {
   length  = 20
   special = true
 }
 
+# Windows 11 multi-session AVD session host VMs (Trusted Launch + host encryption)
 resource "azurerm_windows_virtual_machine" "sessionhost" {
   count = var.vm_count
 
@@ -319,7 +362,7 @@ resource "azurerm_windows_virtual_machine" "sessionhost" {
   }
 }
 
-# Virtual Machine Extension for AMA agent
+# Azure Monitor Agent extension - sends VM metrics/logs to Log Analytics
 resource "azurerm_virtual_machine_extension" "ama" {
   count = var.vm_count
 
@@ -333,7 +376,7 @@ resource "azurerm_virtual_machine_extension" "ama" {
   depends_on = [module.avm_res_desktopvirtualization_hostpool]
 }
 
-# Virtual Machine Extension for AAD Join
+# AAD Join extension - joins the VM to Entra ID (required for AVD AAD-joined hosts)
 resource "azurerm_virtual_machine_extension" "aadjoin" {
   count = var.vm_count
 
@@ -345,7 +388,8 @@ resource "azurerm_virtual_machine_extension" "aadjoin" {
   auto_upgrade_minor_version = true
 }
 
-# Virtual Machine Extension for AVD Agent
+# DSC extension - installs the AVD agent and registers the VM with the host pool
+# using the registration token exported by the host pool module
 resource "azurerm_virtual_machine_extension" "vmext_dsc" {
   count = var.vm_count
 
