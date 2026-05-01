@@ -1,1 +1,1 @@
-
+enable_telemetry = false
