@@ -25,6 +25,12 @@ data "azurerm_role_definition" "desktop_virtualization_user" {
   scope = data.azurerm_subscription.current.id
 }
 
+# Built-in role: granted to end users so they can sigin on the session hosts.
+data "azurerm_role_definition" "virtual_machine_user_login" {
+  name  = "Virtual Machine User Login"
+  scope = data.azurerm_subscription.current.id
+}
+
 # Built-in role: granted to the AVD service principal so it can start/stop VMs
 # (used by Start VM on Connect and the scaling plan).
 data "azurerm_role_definition" "power_role" {
@@ -43,12 +49,26 @@ data "azapi_resource_list" "role_assignments_sub" {
   response_export_values = ["*"]
 }
 
+# Get current IP address for use in KV firewall rules
+data "http" "ip" {
+  url = "https://api.ipify.org/"
+  retry {
+    attempts     = 5
+    max_delay_ms = 1000
+    min_delay_ms = 500
+  }
+}
+
+# Retrieving information about the currently authenticated Azure client (tenant ID, subscription ID, object ID of the principal running Terraform).
+data "azurerm_client_config" "current" {}
+
 ###############################################################################
 # Randomization (region selection + unique instance index)
 ###############################################################################
 
 # Pick a random AVD-supported region for the deployment
 resource "random_shuffle" "avd_region" {
+  # Extract the region keys from the map of AVD-supported regions
   input        = keys(local.virtual_desktop_azure_regions)
   result_count = 1
 }
@@ -78,6 +98,43 @@ resource "azurerm_log_analytics_workspace" "law" {
   resource_group_name = azurerm_resource_group.hostpoool_rg.name
 }
 
+module "key_vault" {
+  source = "Azure/avm-res-keyvault-vault/azurerm"
+
+
+  location = azurerm_resource_group.hostpoool_rg.location
+  # source             = "Azure/avm-res-keyvault-vault/azurerm"
+  name                = local.key_vault_name
+  resource_group_name = azurerm_resource_group.hostpoool_rg.name
+  tenant_id           = data.azurerm_client_config.current.tenant_id
+  enable_telemetry    = var.enable_telemetry
+  network_acls = {
+    bypass   = "AzureServices"
+    ip_rules = ["${data.http.ip.response_body}/32"]
+  }
+  public_network_access_enabled = true
+  role_assignments = {
+    deployment_user_kv_admin = {
+      role_definition_id_or_name = "Key Vault Administrator"
+      principal_id               = data.azurerm_client_config.current.object_id
+    }
+  }
+  secrets = {
+    admin_username = {
+      name = "admin-username"
+    }
+    admin_password = {
+      name = "admin-password"
+    }
+  }
+  secrets_value = {
+    admin_username = "adminuser"
+    admin_password = random_password.vmpass.result
+  }
+  wait_for_rbac_before_secret_operations = {
+    create = "60s"
+  }
+}
 ###############################################################################
 # AVD Host Pool (AVM module)
 ###############################################################################
@@ -136,14 +193,13 @@ resource "azurerm_role_assignment" "desktop_virtualization_user_assignment_on_da
   name                             = uuidv5("00000000-0000-0000-0000-000000000000", "${module.avm_res_desktopvirtualization_applicationgroup.resource.id}-${azuread_group.virtual_desktop_dag_group.object_id}-${data.azurerm_role_definition.desktop_virtualization_user.id}")
 }
 
-# Same role granted at the resource group scope so DAG group members can also
-# see/connect to the underlying session host VMs.
-resource "azurerm_role_assignment" "desktop_virtualization_user_assignment_on_rg" {
+# Allow DAG group members to sign in to session hosts (assignment scoped to the host pool resource group). Name is a deterministic GUID so re-runs are idempotent.
+resource "azurerm_role_assignment" "virtual_machine_user_login_assignment_on_rg" {
   principal_id                     = azuread_group.virtual_desktop_dag_group.object_id
   scope                            = azurerm_resource_group.hostpoool_rg.id
-  role_definition_id               = data.azurerm_role_definition.desktop_virtualization_user.id
+  role_definition_id               = data.azurerm_role_definition.virtual_machine_user_login.id
   skip_service_principal_aad_check = false
-  name                             = uuidv5("00000000-0000-0000-0000-000000000000", "${azurerm_resource_group.hostpoool_rg.id}-${azuread_group.virtual_desktop_dag_group.object_id}-${data.azurerm_role_definition.desktop_virtualization_user.id}")
+  name                             = uuidv5("00000000-0000-0000-0000-000000000000", "${azurerm_resource_group.hostpoool_rg.id}-${azuread_group.virtual_desktop_dag_group.object_id}-${data.azurerm_role_definition.virtual_machine_user_login.id}")
 }
 
 # Grant the AVD service principal the Power On/Off Contributor role at
@@ -324,12 +380,28 @@ resource "random_password" "vmpass" {
   special = true
 }
 
+# Read back the admin credentials from Key Vault (created by module.key_vault).
+# depends_on ensures the secrets exist before we try to read them.
+data "azurerm_key_vault_secret" "admin_username" {
+  name         = "admin-username"
+  key_vault_id = module.key_vault.resource_id
+
+  depends_on = [module.key_vault]
+}
+
+data "azurerm_key_vault_secret" "admin_password" {
+  name         = "admin-password"
+  key_vault_id = module.key_vault.resource_id
+
+  depends_on = [module.key_vault]
+}
+
 # Windows 11 multi-session AVD session host VMs (Trusted Launch + host encryption)
 resource "azurerm_windows_virtual_machine" "sessionhost" {
   count = var.vm_count
 
-  admin_password             = random_password.vmpass.result
-  admin_username             = "adminuser"
+  admin_password             = data.azurerm_key_vault_secret.admin_password.value
+  admin_username             = data.azurerm_key_vault_secret.admin_username.value
   location                   = azurerm_resource_group.hostpoool_rg.location
   name                       = "${local.virtual_desktop_vm_prefix}-${count.index}"
   network_interface_ids      = [azurerm_network_interface.nic[count.index].id]

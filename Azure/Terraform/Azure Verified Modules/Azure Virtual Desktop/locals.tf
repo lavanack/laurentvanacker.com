@@ -1,76 +1,5 @@
 locals {
   # ─────────────────────────────────────────────────────────────────────────────
-  # Azure region abbreviation map (all regions)
-  # Used for generating short, consistent resource naming conventions
-  # ─────────────────────────────────────────────────────────────────────────────
-  azure_regions = {
-    # Europe
-    "northeurope"        = "eun"
-    "westeurope"         = "euw"
-    "francecentral"      = "frc"
-    "francesouth"        = "frs"
-    "germanywestcentral" = "dewc"
-    "germanynorth"       = "den"
-    "swedencentral"      = "swc"
-    "swedensouth"        = "sws"
-    "switzerlandnorth"   = "szn"
-    "switzerlandwest"    = "szw"
-    "norwayeast"         = "noe"
-    "norwaywest"         = "now"
-    "uksouth"            = "uks"
-    "ukwest"             = "ukw"
-    "spaincentral"       = "spc"
-    "polandcentral"      = "plc"
-    "italynorth"         = "itn"
-    "denmarkeast"        = "dke"
-    "belgiumcentral"     = "bec"
-    "austriaeast"        = "ate"
-
-    # Americas
-    "eastus"          = "use"
-    "eastus2"         = "use2"
-    "centralus"       = "usc"
-    "northcentralus"  = "usnc"
-    "southcentralus"  = "ussc"
-    "westus"          = "usw"
-    "westcentralus"   = "uscw"
-    "westus2"         = "usw2"
-    "westus3"         = "usw3"
-    "canadacentral"   = "cac"
-    "canadaeast"      = "cae"
-    "brazilsouth"     = "brs"
-    "brazilsoutheast" = "brse"
-    "mexicocentral"   = "mxc"
-    "chilecentral"    = "clc"
-
-    # Asia Pacific
-    "eastasia"           = "ase"
-    "southeastasia"      = "sea"
-    "japaneast"          = "jpe"
-    "japanwest"          = "jpw"
-    "koreacentral"       = "krc"
-    "koreasouth"         = "krs"
-    "centralindia"       = "inc"
-    "southindia"         = "sin"
-    "westindia"          = "win"
-    "indonesiacentral"   = "idc"
-    "malaysiawest"       = "myw"
-    "australiaeast"      = "aue"
-    "australiasoutheast" = "aus"
-    "australiacentral"   = "auc"
-    "australiacentral2"  = "auc2"
-    "newzealandnorth"    = "nzn"
-
-    # Middle East & Africa
-    "uaenorth"         = "uan"
-    "uaecentral"       = "uac"
-    "qatarcentral"     = "qac"
-    "israelcentral"    = "ilc"
-    "southafricanorth" = "san"
-    "southafricawest"  = "saw"
-  }
-
-  # ─────────────────────────────────────────────────────────────────────────────
   # Azure Virtual Desktop supported regions (subset of all regions)
   # Only regions where AVD host pools can be deployed
   # ─────────────────────────────────────────────────────────────────────────────
@@ -113,10 +42,10 @@ locals {
   # ─────────────────────────────────────────────────────────────────────────────
 
   # Host pool name (e.g., "hp-np-ei-tf-mp-euw-1")
-  virtual_desktop_hostpool_name = "hp-np-ei-tf-mp-${local.azure_regions[random_shuffle.avd_region.result[0]]}-${random_integer.instance_index.result}"
+  virtual_desktop_hostpool_name = "hp-np-ei-tf-mp-${local.virtual_desktop_azure_regions[random_shuffle.avd_region.result[0]]}-${random_integer.instance_index.result}"
 
   # VM name prefix for session hosts (e.g., "vmeuw1")
-  virtual_desktop_vm_prefix = "${var.virtual_desktop_vm_prefix}${local.azure_regions[random_shuffle.avd_region.result[0]]}${random_integer.instance_index.result}"
+  virtual_desktop_vm_prefix = "${var.virtual_desktop_vm_prefix}${local.virtual_desktop_azure_regions[random_shuffle.avd_region.result[0]]}${random_integer.instance_index.result}"
 
   # Desktop Application Group (DAG) display name
   virtual_desktop_application_group_default_desktop_display_name = "${local.virtual_desktop_hostpool_name}-DAG"
@@ -141,6 +70,9 @@ locals {
 
   # Entra ID group name for DAG users
   virtual_desktop_dag_group_name = "${local.virtual_desktop_hostpool_name} - Desktop Application Group Users"
+
+  # Key Vault name
+  key_vault_name = "kv${replace(local.virtual_desktop_hostpool_name, "-", "")}"
 
   # ─────────────────────────────────────────────────────────────────────────────
   # AVD Power On/Off Role Assignment
@@ -169,7 +101,7 @@ locals {
   # Deterministic GUID for the role assignment name (ensures idempotency)
   # Generated from subscription ID + principal ID + role definition ID
   role_assignment_guid = uuidv5(
-    "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-    "${data.azurerm_subscription.current.id}|${data.azuread_service_principal.avd_spn.object_id}|${data.azurerm_role_definition.power_role.id}"
+    "00000000-0000-0000-0000-000000000000",
+    "${data.azurerm_subscription.current.id}-${data.azuread_service_principal.avd_spn.object_id}-${data.azurerm_role_definition.power_role.id}"
   )
 }

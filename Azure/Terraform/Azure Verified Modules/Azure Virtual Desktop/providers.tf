@@ -10,6 +10,12 @@ terraform {
       version = ">= 3.5.1, < 4.0.0"
     }
 
+    # HTTP provider for making HTTP requests
+    http = {
+      source  = "hashicorp/http"
+      version = "~> 3.4"
+    }
+
     # Azure Resource Manager provider for managing Azure resources
     azurerm = {
       source  = "hashicorp/azurerm"

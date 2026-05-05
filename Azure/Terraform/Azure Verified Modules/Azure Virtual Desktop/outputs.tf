@@ -9,3 +9,8 @@ output "vm_password" {
 output "avd_power_role_assignment_id" {
   value = local.role_assignment_exists ? local.matching_role_assignments[0].id : azapi_resource.avd_power_on_off_contributor[0].id
 }
+
+
+output "hostpool_name" {
+  value = local.virtual_desktop_hostpool_name
+}
