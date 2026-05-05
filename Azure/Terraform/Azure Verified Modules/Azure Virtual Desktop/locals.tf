@@ -1,3 +1,14 @@
+###############################################################################
+# Local values for the Azure Virtual Desktop deployment.
+#
+# Centralizes:
+#   - The list of AVD-supported Azure regions used by random_shuffle in main.tf
+#   - Deterministic naming for every resource (host pool, workspace, DAG,
+#     scaling plan, VMs, Key Vault, Entra ID group)
+#   - Detection of an existing "Power On/Off Contributor" role assignment for
+#     the AVD service principal (used to make the deployment idempotent)
+###############################################################################
+
 locals {
   # ─────────────────────────────────────────────────────────────────────────────
   # Azure Virtual Desktop supported regions (subset of all regions)

@@ -1,3 +1,13 @@
+###############################################################################
+# Outputs for the Azure Virtual Desktop deployment.
+#
+# Exposes:
+#   - The generated local-admin password for the session host VMs (sensitive)
+#   - The ID of the AVD "Power On/Off Contributor" role assignment
+#     (existing one if already present, otherwise the newly created assignment)
+#   - The deterministic host pool name (useful for downstream tooling/CI)
+###############################################################################
+
 # Output the randomly generated password for the session host VMs (marked sensitive to prevent display in logs)
 output "vm_password" {
   value     = random_password.vmpass.result
@@ -11,6 +21,7 @@ output "avd_power_role_assignment_id" {
 }
 
 
+# Deterministic name of the deployed AVD host pool (see locals.tf)
 output "hostpool_name" {
   value = local.virtual_desktop_hostpool_name
 }

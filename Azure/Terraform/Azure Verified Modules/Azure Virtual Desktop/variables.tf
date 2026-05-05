@@ -1,3 +1,15 @@
+###############################################################################
+# Input variables for the Azure Virtual Desktop deployment.
+#
+# Override any of these defaults in terraform.tfvars or via -var/-var-file.
+# Variables are grouped by purpose:
+#   - AVD host pool configuration (type, load balancer, sessions, SVMOC)
+#   - Module behavior (telemetry)
+#   - Session host VMs (count, name prefix, size)
+#   - Tagging and networking (VNet/subnet address space)
+#   - Identity (user group) and application group type
+###############################################################################
+
 variable "virtual_desktop_host_pool_start_vm_on_connect" {
   type        = bool
   default     = true

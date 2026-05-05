@@ -1,3 +1,20 @@
+###############################################################################
+# Azure Virtual Desktop (AVD) - Main Terraform configuration
+#
+# Deploys an end-to-end AVD environment using the Azure Verified Modules (AVM):
+#   - Resource group, VNet/subnet and Log Analytics workspace
+#   - Key Vault to store the local-admin credentials of the session hosts
+#   - AVD host pool, application group, workspace and scaling plan
+#   - Required RBAC role assignments (end users + AVD service principal)
+#   - Windows 11 multi-session session host VMs with AMA, AAD join and
+#     DSC extensions to register them with the host pool
+#
+# Companion files:
+#   - variables.tf  : input variables
+#   - locals.tf     : computed names and lookups
+#   - outputs.tf    : exported values (incl. sensitive admin password)
+#   - terraform.tf  : provider/backend configuration
+###############################################################################
 
 ###############################################################################
 # Identity & RBAC data sources
@@ -98,6 +115,14 @@ resource "azurerm_log_analytics_workspace" "law" {
   resource_group_name = azurerm_resource_group.hostpoool_rg.name
 }
 
+###############################################################################
+# Key Vault (AVM module)
+###############################################################################
+
+# Stores the local-admin credentials (username + random password) used by the
+# session host VMs. Public network access is enabled but restricted via network
+# ACLs to the IP address running Terraform. The deploying user is granted the
+# "Key Vault Administrator" role so secrets can be created/read by this run.
 module "key_vault" {
   source = "Azure/avm-res-keyvault-vault/azurerm"
 
@@ -396,7 +421,10 @@ data "azurerm_key_vault_secret" "admin_password" {
   depends_on = [module.key_vault]
 }
 
-# Windows 11 multi-session AVD session host VMs (Trusted Launch + host encryption)
+# Windows 11 multi-session AVD session host VMs.
+# Trusted Launch (secure boot + vTPM) and host-level encryption are enabled.
+# A system-assigned managed identity is created for use by the AMA extension.
+# Tag changes are ignored to avoid drift from out-of-band tagging policies.
 resource "azurerm_windows_virtual_machine" "sessionhost" {
   count = var.vm_count
 
