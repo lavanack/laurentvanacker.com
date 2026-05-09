@@ -518,7 +518,7 @@ if (-not(Get-AzContext)) {
 $scriptBlock = { (Get-AzLocation).Location }
 Register-ArgumentCompleter -CommandName New-AAD-Hybrid-BCDR-Lab -ParameterName Location -ScriptBlock $scriptBlock
 
-#region Example #1
+#region Examples
 #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Verbose
 $null = Get-PackageProvider -Name NuGet -Force -Verbose
 $RequiredModules = 'ActiveDirectoryDSC', 'NetworkingDSC', 'ComputerManagementDSC'
@@ -538,6 +538,7 @@ $AdminCredential = Get-Credential -Credential $env:USERNAME
 #$Instance = Get-Random -Minimum 1 -Maximum 1000
 $Instance = 2
 
+#region for Adding a DC in an addition region
 $Parameters = @{
     "AdminCredential"      = $AdminCredential
     "VMSize"               = "Standard_D2s_v5"
@@ -558,7 +559,10 @@ $Parameters = @{
     "Bastion"              = $false
     "Verbose"              = $true
 }
+#New-AAD-Hybrid-BCDR-Lab @Parameters
+#endregion
 
+#region for Adding an addition DC in a region
 $Parameters = @{
     "AdminCredential"      = $AdminCredential
     "VMSize"               = "Standard_D2s_v5"
@@ -567,15 +571,16 @@ $Parameters = @{
     "Role"                 = "ad"
     "ADDomainName"         = "csa.fr"
 
-    "ResourceGroupName"    = "rg-avd-ad-bec-002"
-    "Subnet"               = Get-AzVirtualNetwork -Name "vnet-avd-ad-bec-002" -ResourceGroupName "rg-avd-ad-bec-002" | Get-AzVirtualNetworkSubnetConfig -Name "snet-avd-ad-bec-002"
+    "ResourceGroupName"    = "rg-avd-ad-use2-002"
+    "Subnet"               = Get-AzVirtualNetwork -Name "vnet-avd-ad-use2-002" -ResourceGroupName "rg-avd-ad-use2-002" | Get-AzVirtualNetworkSubnetConfig -Name "snet-avd-ad-use2-002"
 
-    "FirstDCIP"            = '10.5.1.4'
-    "DomainControllerIP"   = '10.5.1.5'
+    "FirstDCIP"            = '10.0.1.4'
+    "DomainControllerIP"   = '10.0.1.5'
     "Instance"             = $Instance+1
     "Spot"                 = $false
     "Bastion"              = $false
     "Verbose"              = $true
 }
 New-AAD-Hybrid-BCDR-Lab @Parameters
+#endregion
 #endregion
