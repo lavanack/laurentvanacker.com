@@ -42,10 +42,10 @@ $null = Remove-Module -Name PSAzureVirtualDesktop -Force -ErrorAction Ignore
 $Global:MaximumFunctionCount = 32768
 Import-Module -Name PSAzureVirtualDesktop -DisableNameChecking -Force #-Verbose
 
-Connect-MgGraph -NoWelcome
+Connect-MgGraph -NoWelcome -UseDeviceCode
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
-	Connect-AzAccount
+	Connect-AzAccount -UseDeviceAuthentication
 }
 #endregion
 
@@ -84,8 +84,8 @@ Get-AzKeyVault -InRemovedState | Remove-AzKeyVault -InRemovedState -AsJob -Force
 #Set-PSDebug -Trace 2
 $PSBreakpoints = @() 
 $LatestPSAzureVirtualDesktopModule = Get-Module -Name PSAzureVirtualDesktop -ListAvailable | Sort-Object -Property Version -Descending | Select-Object -First 1
-#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Line 3775
-$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Command Import-AzWvdAppAttachPackageInfo
+#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Line 1063
+$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Command Start-MicrosoftEntraIDConnectSync
 #$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Variable $app -Mode ReadWrite
 if ($PSBreakpoints.Count -le 0) {
     & '.\Start.ps1' -LogDir $LogDir -Verbose -AsJob
