@@ -57,7 +57,7 @@ function New-AAD-Hybrid-Lab {
         [int] $Instance = $(Get-Random -Minimum 0 -Maximum 1000),
         [parameter(Mandatory = $false, HelpMessage = 'The Azure location where you want to deploy your ressources.')]
         [ValidateScript({ $_ -in $((Get-AzLocation).Location) })] 
-        [string] $Location = "eastus",
+        [string] $Location = "eastus2",
         [switch] $Spot,
         [switch] $Bastion
     )
@@ -109,7 +109,7 @@ function New-AAD-Hybrid-Lab {
     $VirtualNetworkName = $VirtualNetworkName.ToLower()
     $SubnetName = $SubnetName.ToLower()
     $ResourceGroupName = $ResourceGroupName.ToLower()
-                         
+
     $UserArray = @(
         @{"FName" = "Bob"; "LName" = "Jones"; "SAM" = "bjones" }
         @{"FName" = "Bill"; "LName" = "Smith"; "SAM" = "bsmith" }
@@ -132,7 +132,7 @@ function New-AAD-Hybrid-Lab {
     #region Define Variables needed for Virtual Machine
     $ImagePublisherName = "MicrosoftWindowsServer"
     $ImageOffer = "WindowsServer"
-    $ImageSku = "2022-datacenter-g2"
+    $ImageSku = "2025-datacenter-azure-edition"
     $PublicIPName = "pip-$VMName" 
     $NICName = "nic-$VMName"
     $OSDiskName = '{0}_OSDisk' -f $VMName
@@ -176,7 +176,7 @@ function New-AAD-Hybrid-Lab {
     elseif (-not(Test-AzDnsAvailability -DomainNameLabel $VMName -Location $Location)) {
         Write-Error "$FQDN is NOT available" -ErrorAction Stop
     }
-    elseif ($null -eq (Get-AzVMSize -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
+    elseif ($null -eq (Get-AzComputeResourceSku -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
         Write-Error "The '$VMSize' is not available in the '$Location' location ..." -ErrorAction Stop
     }
 
@@ -185,7 +185,7 @@ function New-AAD-Hybrid-Lab {
     $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 
     #Step 2: Create Azure Storage Account
-    $StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true
+    $StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $true -Tag @{ SecurityControl = "Ignore" }
 
     #Step 3: Create Azure Network Security Group
     #RDP only for my public IP address
@@ -238,7 +238,7 @@ function New-AAD-Hybrid-Lab {
         #endregion
         #>
     )
-    
+
     $NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NetworkSecurityGroupName -SecurityRules $SecurityRules -Force
 
     #Steps 4 + 5: Create Azure Virtual network using the virtual network subnet configuration
@@ -288,14 +288,14 @@ function New-AAD-Hybrid-Lab {
         #Adding Security Rules for allowing connection from Bastion
         #RDP
         Get-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Name $NetworkSecurityGroupName | `
-            Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_RDP -Description "Allow RDP Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange $RDPPort -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 101 -Direction Inbound | `
-            Set-AzNetworkSecurityGroup
+        Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_RDP -Description "Allow RDP Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange $RDPPort -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 101 -Direction Inbound | `
+        Set-AzNetworkSecurityGroup
         #SSH
         Get-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Name $NetworkSecurityGroupName | `
-            Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_SSH -Description "Allow SSH Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange 22 -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 102 -Direction Inbound | `
-            Set-AzNetworkSecurityGroup
+        Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_SSH -Description "Allow SSH Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange 22 -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 102 -Direction Inbound | `
+        Set-AzNetworkSecurityGroup
     }
-    
+
     #Step 6: Create Azure Public Address
     $PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $ResourceGroupName -Location $Location -AllocationMethod Static -DomainNameLabel $VMName.ToLower()
     #Setting up the DNS Name
@@ -400,7 +400,7 @@ function New-AAD-Hybrid-Lab {
     $Properties.Add('dailyRecurrence', @{'time' = "2300" })
     $Properties.Add('timeZoneId', (Get-TimeZone).Id)
     $Properties.Add('targetResourceId', $VM.Id)
-    New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Properties $Properties -Force
+    New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Properties $Properties -Force -ErrorAction Ignore
     #endregion
     #Step 12: Start Azure Virtual Machine
     Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
@@ -421,6 +421,8 @@ function New-AAD-Hybrid-Lab {
         #$ModuleFolders = (Get-ChildItem -Path $DestinationFolder -Directory).FullName
         #Copying the module folders locally to avoid an error when using the Publish-AzVMDscConfiguration cmdlet
         #Copy-Item -Path $ModuleFolders -Destination $env:ProgramFiles\WindowsPowerShell\Modules -Recurse -Force -Verbose
+        #Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $true -Tag @{ SecurityControl="Ignore" }
+        $StorageAccount | Set-AzStorageAccount -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $true -Tag @{ SecurityControl = "Ignore" }
         $DSCConfigurationZipFileURI = Publish-AzVMDscConfiguration $DSCConfigurationFile -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Force -Verbose
         try {
             Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$(Split-Path -Path $DSCConfigurationZipFileURI -Leaf)" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $DSCConfigurationName -ConfigurationArgument $DSCConfigurationArguments -Version "2.80" -Location $Location -AutoUpdate -Verbose #-ErrorAction Ignore
@@ -440,6 +442,7 @@ function New-AAD-Hybrid-Lab {
         Write-Verbose -Message "Waiting the creation of the Bastion completes ..."
         $BastionJob | Wait-Job | Out-Null
     }
+
     # Adding Credentials to the Credential Manager (and escaping the password)
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDN /user:$($AdminCredential.UserName) /pass:$($AdminCredential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
 
@@ -491,7 +494,7 @@ $AdminCredential = Get-Credential -Credential $env:USERNAME
 $UserCredential = Get-Credential -Credential "Only password is required"
 
 #$Instance = Get-Random -Minimum 1 -Maximum 1000
-$Instance = 1
+$Instance = 2
 
 $Parameters = @{
     "AdminCredential"      = $AdminCredential

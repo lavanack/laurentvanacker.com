@@ -62,12 +62,26 @@ function New-AzureComputeGallery {
 	$AzureComputeGalleryPrefix = $ResourceTypeShortNameHT["Compute/galleries"].ShortName
 
 	# Location (see possible locations in the main docs)
-	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Location: $Location"
-	$LocationShortName = $shortNameHT[$Location].shortName
-	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$LocationShortName: $LocationShortName"
 	if ($Location -notin $TargetRegions) {
 		$TargetRegions += $Location
 	}
+
+	#region Checking the specified region support image templates
+    $ImageTemplateDisplayNameLocations = (Get-AzResourceProvider -ProviderNamespace Microsoft.VirtualMachineImages).ResourceTypes | Where-Object ResourceTypeName -eq "imageTemplates" | Select-Object -ExpandProperty Locations
+    $ImageTemplateLocations = Get-AzLocation | Where-Object -FilterScript { $_.DisplayName -in $ImageTemplateDisplayNameLocations}
+    if (-not(($Location -in $ImageTemplateLocations.Location) -or ($Location -in $ImageTemplateLocations.DisplayName))) {
+        $FallBackLocation = 'EastUS2'
+        Write-Warning "'$Location' is not supported for image templates. We switch to '$FallBackLocation' and use '$Location' for replication."
+        $Location = $FallBackLocation
+	    if ($Location -notin $TargetRegions) {
+		    $TargetRegions += $Location
+	    }
+    }
+	Write-Verbose -Message "`$Location: $Location"
+	$LocationShortName = $shortNameHT[$Location].shortName
+	Write-Verbose -Message "`$LocationShortName: $LocationShortName"
+	#endregion
+
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$TargetRegions: $($TargetRegions -join ', ')"
 	[array] $TargetRegionSettings = foreach ($CurrentTargetRegion in $TargetRegions) {
 		@{"name" = $CurrentTargetRegion; "replicaCount" = $ReplicaCount; "storageAccountType" = "Premium_LRS" }

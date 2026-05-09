@@ -1,3 +1,15 @@
+###############################################################################
+# Input variables for the Azure Virtual Desktop deployment.
+#
+# Override any of these defaults in terraform.tfvars or via -var/-var-file.
+# Variables are grouped by purpose:
+#   - AVD host pool configuration (type, load balancer, sessions, SVMOC)
+#   - Module behavior (telemetry)
+#   - Session host VMs (count, name prefix, size)
+#   - Tagging and networking (VNet/subnet address space)
+#   - Identity (user group) and application group type
+###############################################################################
+
 variable "virtual_desktop_host_pool_start_vm_on_connect" {
   type        = bool
   default     = true
@@ -34,13 +46,13 @@ variable "vm_count" {
   description = "The number of AVD session host VMs to deploy."
 }
 
-variable "avd_vm_prefix" {
+variable "virtual_desktop_vm_prefix" {
   type        = string
   default     = "nem"
   description = "The base name for the AVD session host VMs."
 }
 
-variable "avd_vm_size" {
+variable "virtual_desktop_vm_size" {
   type        = string
   default     = "Standard_B2as_v2"
   description = "The size of the AVD session host VMs."
@@ -49,7 +61,7 @@ variable "avd_vm_size" {
 variable "tags" {
   type = map(string)
   default = {
-    environment = "demo"
+    environment = "POC"
     owner       = "Laurent VAN ACKER"
   }
   description = "Azure resource tags to apply to some resources."
@@ -65,4 +77,15 @@ variable "subnet_address_prefixes" {
   type        = list(string)
   default     = ["10.1.6.0/27"]
   description = "The address prefixes for the AVD subnet."
+}
+variable "user_group_name" {
+  type        = string
+  default     = "AVD Users"
+  description = "The name of the user group for AVD users."
+}
+
+variable "virtual_desktop_application_group_type" {
+  type        = string
+  default     = "Desktop"
+  description = "The type of the application group. Possible values are Desktop and RemoteApp."
 }

@@ -16,7 +16,6 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 #requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.Network, Az.Resources, Az.Security, Az.Storage  -RunAsAdministrator 
-##requires -Version 5 -RunAsAdministrator 
 
 #region Function definition
 function New-AAD-Hybrid-BCDR-Lab {
@@ -96,7 +95,7 @@ function New-AAD-Hybrid-BCDR-Lab {
     $NetworkSecurityGroupPrefix = "nsg"
     $VirtualNetworkPrefix = "vnet"
     $SubnetPrefix = "snet"
-                         
+
     $StorageAccountName = '{0}{1}{2}{3}{4:D3}' -f $StorageAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
     $VMName = '{0}{1}{2}{3}{4:D3}' -f $VirtualMachinePrefix, $Project, $Role, $LocationShortName, $Instance                       
     $NetworkSecurityGroupName = '{0}-{1}-{2}-{3}-{4:D3}' -f $NetworkSecurityGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
@@ -111,7 +110,7 @@ function New-AAD-Hybrid-BCDR-Lab {
     $VirtualNetworkName = $VirtualNetworkName.ToLower()
     $SubnetName = $SubnetName.ToLower()
     $ResourceGroupName = $ResourceGroupName.ToLower()
-
+    
     $FQDN = "$VMName.$Location.cloudapp.azure.com".ToLower()
 
     $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
@@ -119,12 +118,12 @@ function New-AAD-Hybrid-BCDR-Lab {
         #Step 0: Remove previously existing Azure Resource Group with the same name
         $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
     }
-    $MyPublicIp = (Invoke-WebRequest -Uri "https://ipv4.seeip.org" -UseBasicParsing).Content
+    $MyPublicIp = Invoke-RestMethod -Uri "https://ipv4.seeip.org"
 
     #region Define Variables needed for Virtual Machine
     $ImagePublisherName = "MicrosoftWindowsServer"
     $ImageOffer = "WindowsServer"
-    $ImageSku = "2022-datacenter-g2"
+    $ImageSku = "2025-datacenter-azure-edition"
     $PublicIPName = "pip-$VMName" 
     $NICName = "nic-$VMName"
     $OSDiskName = '{0}_OSDisk' -f $VMName
@@ -166,7 +165,7 @@ function New-AAD-Hybrid-BCDR-Lab {
     elseif (-not(Test-AzDnsAvailability -DomainNameLabel $VMName -Location $Location)) {
         Write-Error "$FQDN is NOT available" -ErrorAction Stop
     }
-    elseif ($null -eq (Get-AzVMSize -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
+    elseif ($null -eq (Get-AzComputeResourceSku -Location $Location | Where-Object -FilterScript { $_.Name -eq $VMSize })) {
         Write-Error "The '$VMSize' is not available in the '$Location' location ..." -ErrorAction Stop
     }
 
@@ -175,7 +174,7 @@ function New-AAD-Hybrid-BCDR-Lab {
     $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 
     #Step 2: Create Azure Storage Account
-    $StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true
+    $StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $true -Tag @{ SecurityControl = "Ignore" }
 
     #Step 3: Create Azure Network Security Group
     #RDP only for my public IP address
@@ -275,11 +274,11 @@ function New-AAD-Hybrid-BCDR-Lab {
         #Adding Security Rules for allowing connection from Bastion
         #RDP
         Get-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Name $NetworkSecurityGroupName | `
-            Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_RDP -Description "Allow RDP Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange $RDPPort -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 101 -Direction Inbound | `
-            Set-AzNetworkSecurityGroup
+        Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_RDP -Description "Allow RDP Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange $RDPPort -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 101 -Direction Inbound | `
+        Set-AzNetworkSecurityGroup
         #SSH
         Get-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Name $NetworkSecurityGroupName | `
-            Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_SSH -Description "Allow SSH Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange 22 -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 102 -Direction Inbound 
+        Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_SSH -Description "Allow SSH Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange 22 -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 102 -Direction Inbound | `
         Set-AzNetworkSecurityGroup
     }
 
@@ -339,19 +338,21 @@ function New-AAD-Hybrid-BCDR-Lab {
 
     #region vNet Peering
     $RemoteVNetwork = Get-AzVirtualNetwork -Name $RemoteVNetName
-    $VirtualNetworkPeeringName = "peer-{0}-{1}" -f $VirtualNetworkName, $RemoteVNetName
-    $RemoteVirtualNetworkPeeringName = "peer-{0}-{1}" -f $RemoteVNetName, $VirtualNetworkName
-    Write-Verbose -Message "Creating '$VirtualNetworkPeeringName': '$VirtualNetworkName' <==> '$RemoteVNetName'"
-    $vNetPeeringStatus = Add-AzVirtualNetworkPeering -Name $VirtualNetworkPeeringName -VirtualNetwork $vNetwork -RemoteVirtualNetworkId $RemoteVNetwork.Id -AllowForwardedTraffic
-    Write-Verbose -Message "`$vNetPeeringStatus: $($vNetPeeringStatus.PeeringState)"
-    if ($vNetPeeringStatus.PeeringState -ne 'Initiated') {
-        Write-Error "The '$VirtualNetworkPeeringName' peering state is $($vNetPeeringStatus.PeeringState)" -ErrorAction Stop
-    }
-    Write-Verbose -Message "Creating '$RemoteVirtualNetworkPeeringName': '$RemoteVNetName' <==> '$VirtualNetworkName'"
-    $RemoteVNetPeeringStatus = Add-AzVirtualNetworkPeering -Name $RemoteVirtualNetworkPeeringName -VirtualNetwork $RemoteVNetwork -RemoteVirtualNetworkId $vNetwork.Id -AllowForwardedTraffic
-    Write-Verbose -Message "`$RemoteVNetPeeringStatus: $($RemoteVNetPeeringStatus.PeeringState)"
-    if ($RemoteVNetPeeringStatus.PeeringState -ne 'Connected') {
-        Write-Error "The '$($RemoteVNetName)-$($VirtualNetworkName)' peering state is $($vNetPeeringStatus.PeeringState)" -ErrorAction Stop
+    if ($RemoteVNetwork) {
+        $VirtualNetworkPeeringName = "peer-{0}-{1}" -f $VirtualNetworkName, $RemoteVNetName
+        $RemoteVirtualNetworkPeeringName = "peer-{0}-{1}" -f $RemoteVNetName, $VirtualNetworkName
+        Write-Verbose -Message "Creating '$VirtualNetworkPeeringName': '$VirtualNetworkName' <==> '$RemoteVNetName'"
+        $vNetPeeringStatus = Add-AzVirtualNetworkPeering -Name $VirtualNetworkPeeringName -VirtualNetwork $vNetwork -RemoteVirtualNetworkId $RemoteVNetwork.Id -AllowForwardedTraffic
+        Write-Verbose -Message "`$vNetPeeringStatus: $($vNetPeeringStatus.PeeringState)"
+        if ($vNetPeeringStatus.PeeringState -ne 'Initiated') {
+            Write-Error "The '$VirtualNetworkPeeringName' peering state is $($vNetPeeringStatus.PeeringState)" -ErrorAction Stop
+        }
+        Write-Verbose -Message "Creating '$RemoteVirtualNetworkPeeringName': '$RemoteVNetName' <==> '$VirtualNetworkName'"
+        $RemoteVNetPeeringStatus = Add-AzVirtualNetworkPeering -Name $RemoteVirtualNetworkPeeringName -VirtualNetwork $RemoteVNetwork -RemoteVirtualNetworkId $vNetwork.Id -AllowForwardedTraffic
+        Write-Verbose -Message "`$RemoteVNetPeeringStatus: $($RemoteVNetPeeringStatus.PeeringState)"
+        if ($RemoteVNetPeeringStatus.PeeringState -ne 'Connected') {
+            Write-Error "The '$($RemoteVNetName)-$($VirtualNetworkName)' peering state is $($vNetPeeringStatus.PeeringState)" -ErrorAction Stop
+        }
     }
     #endregion
 
@@ -404,7 +405,7 @@ function New-AAD-Hybrid-BCDR-Lab {
     $Properties.Add('dailyRecurrence', @{'time' = "2300" })
     $Properties.Add('timeZoneId', (Get-TimeZone).Id)
     $Properties.Add('targetResourceId', $VM.Id)
-    New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Properties $Properties -Force
+    New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Properties $Properties -Force -ErrorAction Ignore
     #endregion
     #Step 12: Start Azure Virtual Machine
     Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
@@ -425,6 +426,8 @@ function New-AAD-Hybrid-BCDR-Lab {
         #$ModuleFolders = (Get-ChildItem -Path $DestinationFolder -Directory).FullName
         #Copying the module folders locally to avoid an error when using the Publish-AzVMDscConfiguration cmdlet
         #Copy-Item -Path $ModuleFolders -Destination $env:ProgramFiles\WindowsPowerShell\Modules -Recurse -Force -Verbose
+        #Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $true -Tag @{ SecurityControl="Ignore" }
+        $StorageAccount | Set-AzStorageAccount -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $true -Tag @{ SecurityControl = "Ignore" }
         $DSCConfigurationZipFileURI = Publish-AzVMDscConfiguration $DSCConfigurationFile -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Force -Verbose
         try {
             Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$(Split-Path -Path $DSCConfigurationZipFileURI -Leaf)" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $DSCConfigurationName -ConfigurationArgument $DSCConfigurationArguments -Version "2.80" -Location $Location -AutoUpdate -Verbose #-ErrorAction Ignore
@@ -473,6 +476,7 @@ if (-not(Get-AzContext)) {
     Write-Verbose -Message "Subscription : $((Get-AzContext).Subscription.Name)"
 }
 #endregion
+
 $scriptBlock = { (Get-AzLocation).Location }
 Register-ArgumentCompleter -CommandName New-AAD-Hybrid-BCDR-Lab -ParameterName Location -ScriptBlock $scriptBlock
 
@@ -494,7 +498,7 @@ if (-not([String]::IsNullOrEmpty($MissingModules))) {
 $AdminCredential = Get-Credential -Credential $env:USERNAME
 
 #$Instance = Get-Random -Minimum 1 -Maximum 1000
-$Instance = 1
+$Instance = 2
 
 $Parameters = @{
     "AdminCredential"      = $AdminCredential
@@ -503,7 +507,7 @@ $Parameters = @{
     "Project"              = "avd"
     "Role"                 = "ad"
     "ADDomainName"         = "csa.fr"
-    "RemoteVNetName"       = "vnet-avd-ad-use2-001"
+    "RemoteVNetName"       = "vnet-avd-ad-use2-002"
     "VNetAddressRange"     = '10.5.0.0/16'
     "ADSubnetAddressRange" = '10.5.1.0/24'
     "FirstDCIP"            = '10.0.1.4'

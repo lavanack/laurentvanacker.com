@@ -68,7 +68,7 @@ function Request-AzRunningVMJITAccess {
                     }
                 )
                 $ActivationVM = @($JitPolicy)
-                Write-Host "Requesting Temporary Acces via Just in Time for $($CurrentVM.Name) on port number(s) $($JitPolicy.Ports.Number -join ', ') for maximum $JitPolicyTimeInHours hours ..."
+                Write-Host "Requesting Temporary Acces via Just in Time for $($CurrentVM.Name) from $IP on port number(s) $($JitPolicy.Ports.Number -join ', ') for maximum $JitPolicyTimeInHours hours ..."
                 if ($ASJob) {
                     $AzJitNetworkAccessPolicy += $(Start-Job -Name $($CurrentVM.Name) -ScriptBlock { Start-AzJitNetworkAccessPolicy -ResourceGroupName $($using:CurrentVM.ResourceGroupName) -Location $using:CurrentVM.Location -Name $using:JitPolicyName -VirtualMachine $using:ActivationVM | Select-Object -Property *, @{Name = 'startTime'; Expression = { $_.startTimeUtc.ToLocalTime() } }, @{Name = 'endTime'; Expression = { $($using:JitPolicy).ports.endTimeUtc.ToLocalTime() } } -ExcludeProperty StartTimeUtc })
                 }
@@ -85,7 +85,7 @@ function Request-AzRunningVMJITAccess {
     end {
         if ($PassThru) {
             if ($AsJob) {
-                $AzJitNetworkAccessPolicy | Receive-Job -Wait -AutoRemoveJob
+                $AzJitNetworkAccessPolicy | Receive-Job -Wait -AutoRemoveJob | Select-Object -Property @{Name="VirtualMachines"; Expression={$_.VirtualMachines.Id}}, Requestor, startTime, endTime
             }
             else {
                 $AzJitNetworkAccessPolicy
