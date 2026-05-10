@@ -80,15 +80,15 @@ $ThisDomainControllerVirtualNetwork = Get-AzVMVirtualNetwork
 
 #region AVD Dedicated VNets and Subnets
 #region Primary Region
-$PrimaryRegionResourceGroupName = "rg-avd-ad-bec-002"
-$PrimaryRegionVNetName = "vnet-avd-avd-bec-002"
-#$PrimaryRegionSubnetName = "snet-avd-pe-bec-002"
-#$PrimaryRegionSubnetName = "snet-avd-natgw-bec-002"
-$PrimaryRegionSubnetName = "snet-avd-avd-bec-002"
+$PrimaryRegionResourceGroupName = "rg-avd-ad-use2-002"
+$PrimaryRegionVNetName = "vnet-avd-avd-use2-002"
+#$PrimaryRegionSubnetName = "snet-avd-pe-use2-002"
+#$PrimaryRegionSubnetName = "snet-avd-natgw-use2-002"
+$PrimaryRegionSubnetName = "snet-avd-avd-use2-002"
 $PrimaryRegionVNet = Get-AzVirtualNetwork -Name $PrimaryRegionVNetName -ResourceGroupName $PrimaryRegionResourceGroupName
 $PrimaryRegionSubnet = $PrimaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $PrimaryRegionSubnetName
 $PrimaryRegion = $PrimaryRegionVNet.Location
-$PrimaryRegionPESubnetName = "snet-avd-pe-bec-002"
+$PrimaryRegionPESubnetName = "snet-avd-pe-use2-002"
 $PrimaryRegionPESubnet = $PrimaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $PrimaryRegionPESubnetName
 
 #$PrimaryRegion                  = (Get-AzVMCompute).Location
