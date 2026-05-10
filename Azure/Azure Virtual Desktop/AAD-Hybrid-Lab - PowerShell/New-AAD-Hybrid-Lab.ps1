@@ -19,7 +19,7 @@ of the Sample Code.
 
 #region Function definition
 function New-AAD-Hybrid-Lab {
-    [CmdletBinding()]
+    [CmdletBinding(PositionalBinding= $false)]
     param
     (
         [parameter(Mandatory = $true, HelpMessage = 'Please specify the administrator credential. The Username cannot be "Administrator", "root" and possibly other such common account names.')]
@@ -302,7 +302,7 @@ function New-AAD-Hybrid-Lab {
     #$PublicIP.DnsSettings.Fqdn = $FQDN
 
     #Step 7: Create Network Interface Card 
-    $NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $(Get-AzVirtualNetworkSubnetConfig -VirtualNetwork $vNetwork).Id -PublicIpAddressId $PublicIP.Id -PrivateIpAddress $DomainControllerIP #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
+    $NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -PublicIpAddressId $PublicIP.Id -PrivateIpAddress $DomainControllerIP
 
     <# Optional : Step 8: Get Virtual Machine publisher, Image Offer, Sku and Image
     $ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq "MicrosoftWindowsDesktop"}
@@ -392,7 +392,7 @@ function New-AAD-Hybrid-Lab {
     #endregion
 
     #region Enabling auto-shutdown at 11:00 PM in the user time zome
-    $SubscriptionId = ($VM.Id).Split('/')[2]
+    $SubscriptionId = (Get-AzContext).Subscription.Id
     $ScheduledShutdownResourceId = "/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroupName/providers/microsoft.devtestlab/schedules/shutdown-computevm-$VMName"
     $Properties = @{}
     $Properties.Add('status', 'Enabled')

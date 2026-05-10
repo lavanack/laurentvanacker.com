@@ -19,7 +19,7 @@ of the Sample Code.
 
 #region Function definition
 function New-AAD-Hybrid-BCDR-Lab {
-    [CmdletBinding()]
+    [CmdletBinding(PositionalBinding= $false, DefaultParameterSetName = 'AdditionalRegion')]
     param
     (
         [parameter(Mandatory = $true, HelpMessage = 'Please specify the administrator credential. The Username cannot be "Administrator", "root" and possibly other such common account names.')]
@@ -38,14 +38,23 @@ function New-AAD-Hybrid-BCDR-Lab {
         [parameter(Mandatory = $false, HelpMessage = 'IMPORTANT: Two-part internal AD name - short/NB name will be first part ("contoso"). The short name will be reused and should be unique when deploying this template in your selected region. If a name is reused, DNS name collisions may occur.')]
         [ValidatePattern("\w+\.\w+")] 
         [string] $ADDomainName = "contoso.local",
-        [parameter(Mandatory = $true, HelpMessage = 'The virtual network to peer')]
+
+        [parameter(Mandatory = $true, HelpMessage = 'The virtual network to peer', ParameterSetName='AdditionalRegion')]
+        [ValidateNotNull()]
         [string] $RemoteVNetName,
-        [parameter(Mandatory = $false, HelpMessage = 'The address range of the new virtual network in CIDR format')]
+        [parameter(Mandatory = $false, HelpMessage = 'The address range of the new virtual network in CIDR format', ParameterSetName='AdditionalRegion')]
         [ValidatePattern("\d{1,3}\.\d{1,3}.\d{1,3}.\d{1,3}/\d{2}")] 
         [string] $VNetAddressRange = '10.1.0.0/16',
-        [parameter(Mandatory = $false, HelpMessage = 'The address range of the desired subnet for Active Directory.')]
+        [parameter(Mandatory = $false, HelpMessage = 'The address range of the desired subnet for Active Directory.', ParameterSetName='AdditionalRegion')]
         [ValidatePattern("\d{1,3}\.\d{1,3}.\d{1,3}.\d{1,3}/\d{2}")] 
         [string] $ADSubnetAddressRange = '10.1.1.0/24',
+        
+        
+        [parameter(Mandatory = $true, HelpMessage = 'The ResourceGroupName used to store the deployed DC', ParameterSetName='AdditionalDC')]
+        [string] $ResourceGroupName,
+        [parameter(Mandatory = $true, HelpMessage = 'The Subnet used to connect the deployed DC', ParameterSetName='AdditionalDC')]
+        [Microsoft.Azure.Commands.Network.Models.PSSubnet] $Subnet,
+        
         [parameter(Mandatory = $false, HelpMessage = 'The IP Addresses assigned to the domain controllers (a, b). Remember the first IP in a subnet is .4 e.g. 10.0.0.0/16 reserves 10.0.0.0-3. Specify one IP per server - must match numberofVMInstances or deployment will fail.')]
         [ValidatePattern("\d{1,3}\.\d{1,3}.\d{1,3}.\d{1,3}")] 
         [string] $FirstDCIP = '10.0.1.4',
@@ -57,10 +66,17 @@ function New-AAD-Hybrid-BCDR-Lab {
         [int] $Instance = $(Get-Random -Minimum 0 -Maximum 1000),
         [parameter(Mandatory = $false, HelpMessage = 'The Azure location where you want to deploy your ressources.')]
         [ValidateScript({ $_ -in $((Get-AzLocation).Location) })] 
+        [parameter(ParameterSetName='AdditionalRegion')]
         [string] $Location = "eastus2",
         [switch] $Spot,
         [switch] $Bastion
     )
+
+    if ($PSCmdlet.ParameterSetName -eq "AdditionalDC") {
+        $vNetworkId = $SubNet.Id -replace "/subnets/.*"
+        $vNetwork = Get-AzResource -ResourceId $vNetworkId | Get-AzVirtualNetwork
+        $Location = $vNetwork.Location
+    }
 
     Write-Verbose "`$VMSize: $VMSize"
     Write-Verbose "`$Project: $Project"         
@@ -68,7 +84,8 @@ function New-AAD-Hybrid-BCDR-Lab {
     Write-Verbose "`$ADDomainName: $ADDomainName"       
     Write-Verbose "`$RemoteVNetName: $RemoteVNetName"
     Write-Verbose "`$VNetAddressRange: $VNetAddressRange"
-    Write-Verbose "`$ADSubnetAddressRange: $ADSubnetAddressRange"
+    Write-Verbose "`$Mandatory: $Mandatory"
+    Write-Verbose "`$Subnet: $($Subnet.Id)"
     Write-Verbose "`$FirstDCIP: $FirstDCIP"
     Write-Verbose "`$DomainControllerIP: $DomainControllerIP"
     Write-Verbose "`$Instance: $Instance"
@@ -100,8 +117,10 @@ function New-AAD-Hybrid-BCDR-Lab {
     $VMName = '{0}{1}{2}{3}{4:D3}' -f $VirtualMachinePrefix, $Project, $Role, $LocationShortName, $Instance                       
     $NetworkSecurityGroupName = '{0}-{1}-{2}-{3}-{4:D3}' -f $NetworkSecurityGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
     $VirtualNetworkName = '{0}-{1}-{2}-{3}-{4:D3}' -f $VirtualNetworkPrefix, $Project, $Role, $LocationShortName, $Instance                       
-    $SubnetName = '{0}-{1}-{2}-{3}-{4:D3}' -f $SubnetPrefix, $Project, $Role, $LocationShortName, $Instance                       
-    $ResourceGroupName = '{0}-{1}-{2}-{3}-{4:D3}' -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
+    $SubnetName = '{0}-{1}-{2}-{3}-{4:D3}' -f $SubnetPrefix, $Project, $Role, $LocationShortName, $Instance
+    if ($PSCmdlet.ParameterSetName -eq "AdditionalRegion") {
+        $ResourceGroupName = '{0}-{1}-{2}-{3}-{4:D3}' -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
+    }                       
 
 
     $StorageAccountName = $StorageAccountName.ToLower()
@@ -113,10 +132,12 @@ function New-AAD-Hybrid-BCDR-Lab {
     
     $FQDN = "$VMName.$Location.cloudapp.azure.com".ToLower()
 
-    $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
-    if ($ResourceGroup) {
-        #Step 0: Remove previously existing Azure Resource Group with the same name
-        $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
+    if ($PSCmdlet.ParameterSetName -eq "AdditionalRegion") {
+        $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
+        if ($ResourceGroup) {
+            #Step 0: Remove previously existing Azure Resource Group with the same name
+            $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
+        }
     }
     $MyPublicIp = Invoke-RestMethod -Uri "https://ipv4.seeip.org"
 
@@ -142,7 +163,6 @@ function New-AAD-Hybrid-BCDR-Lab {
 
     Write-Verbose "`$VMName: $VMName"
     Write-Verbose "`$NetworkSecurityGroupName: $NetworkSecurityGroupName"         
-    Write-Verbose "`$VirtualNetworkName: $VirtualNetworkName"         
     Write-Verbose "`$SubnetName: $SubnetName"       
     Write-Verbose "`$ResourceGroupName: $ResourceGroupName"
     Write-Verbose "`$PublicIPName: $PublicIPName"
@@ -169,70 +189,86 @@ function New-AAD-Hybrid-BCDR-Lab {
         Write-Error "The '$VMSize' is not available in the '$Location' location ..." -ErrorAction Stop
     }
 
-    #Step 1: Create Azure Resource Group
-    # Create Resource Groups
-    $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
+    if ($PSCmdlet.ParameterSetName -eq "AdditionalRegion") {
+        #Step 1: Create Azure Resource Group
+        # Create Resource Groups
+        $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 
-    #Step 2: Create Azure Storage Account
-    $StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $true -Tag @{ SecurityControl = "Ignore" }
+        #Step 2: Create Azure Storage Account
+        $StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $true -Tag @{ SecurityControl = "Ignore" }
 
-    #Step 3: Create Azure Network Security Group
-    #RDP only for my public IP address
-    $CommonParameters = @{
-        'SourceAddressPrefix'      = 'VirtualNetwork'
-        'SourcePortRange'          = '*'
-        'DestinationAddressPrefix' = $ADSubnetAddressRange
-        'Access'                   = 'Allow'
-        'Direction'                = 'Inbound' 
+        #Step 3: Create Azure Network Security Group
+        #RDP only for my public IP address
+        $CommonParameters = @{
+            'SourceAddressPrefix'      = 'VirtualNetwork'
+            'SourcePortRange'          = '*'
+            'DestinationAddressPrefix' = $ADSubnetAddressRange
+            'Access'                   = 'Allow'
+            'Direction'                = 'Inbound' 
+        }
+        $SecurityRules = @(
+            #region Inbound
+            New-AzNetworkSecurityRuleConfig -Name allow_AD_RDP -Description "Allow RDP Communication" -Protocol Tcp -SourcePortRange * -DestinationPortRange $RDPPort -SourceAddressPrefix $MyPublicIp -DestinationAddressPrefix $ADSubnetAddressRange -Access Allow  -Priority 120 -Direction Inbound 
+            New-AzNetworkSecurityRuleConfig -Name allow_AD_SMTP -Description 'Allow AD Communication' -Protocol Tcp -DestinationPortRange 25 -Priority 121 @CommonParameters
+            New-AzNetworkSecurityRuleConfig -Name allow_AD_WINS -Description 'Allow AD Communication' -Protocol Tcp -DestinationPortRange 42 -Priority 122 @CommonParameters
+            New-AzNetworkSecurityRuleConfig -Name allow_AD_Repl -Description 'Allow AD Communication' -Protocol Tcp -DestinationPortRange 135 -Priority 123 @CommonParameters
+            New-AzNetworkSecurityRuleConfig -Name allow_AD_NetBIOS -Description 'Allow AD Communication' -Protocol Tcp -DestinationPortRange 137 -Priority 124 @CommonParameters
+            New-AzNetworkSecurityRuleConfig -Name allow_AD_netlogin -Description 'Allow AD Communication - DFSN, NetBIOS Session, NetLogon' -Protocol Tcp -DestinationPortRange 139 -Priority 125 @CommonParameters
+            New-AzNetworkSecurityRuleConfig -Name allow_AD_LDAP -Description 'Allow AD Communication' -Protocol Tcp -DestinationPortRange 389 -Priority 126 @CommonParameters
+            New-AzNetworkSecurityRuleConfig -Name allow_AD_LDAP_udp -Description 'Allow AD Communication' -Protocol Udp -DestinationPortRange 389 -Priority 127 @CommonParameters
+            New-AzNetworkSecurityRuleConfig -Name allow_AD_LDAPS -Description 'Allow AD Communication' -Protocol Tcp -DestinationPortRange 636 -Priority 128 @CommonParameters
+            New-AzNetworkSecurityRuleConfig -Name allow_AD_LDAP_GC -Description 'Allow AD Communication' -Protocol Tcp -DestinationPortRange 3268-3269 -Priority 129 @CommonParameters
+            New-AzNetworkSecurityRuleConfig -Name allow_AD_KRB -Description 'Allow AD Communication' -Protocol Tcp -DestinationPortRange 88 -Priority 130 @CommonParameters
+            New-AzNetworkSecurityRuleConfig -Name allow_AD_KRB_udp -Description 'Allow AD Communication' -Protocol Udp -DestinationPortRange 88 -Priority 131 @CommonParameters
+            New-AzNetworkSecurityRuleConfig -Name allow_AD_DNS -Description 'Allow AD Communication' -Protocol Tcp -DestinationPortRange 53 -Priority 132 @CommonParameters
+            New-AzNetworkSecurityRuleConfig -Name allow_AD_DNS_udp -Description 'Allow AD Communication' -Protocol Udp -DestinationPortRange 53 -Priority 133 @CommonParameters
+            New-AzNetworkSecurityRuleConfig -Name allow_AD_445 -Description 'Allow AD Communication - SMB, CIFS,SMB2, DFSN, LSARPC, NbtSS, NetLogonR, SamR, SrvSvc' -Protocol Tcp -DestinationPortRange 445 -Priority 134 @CommonParameters
+            New-AzNetworkSecurityRuleConfig -Name allow_AD_445_udp -Description 'Allow AD Communication - SMB, CIFS,SMB2, DFSN, LSARPC, NbtSS, NetLogonR, SamR, SrvSvc' -Protocol Udp -DestinationPortRange 445 -Priority 135 @CommonParameters
+            New-AzNetworkSecurityRuleConfig -Name allow_AD_SOAP -Description 'Allow AD Communication' -Protocol Tcp -DestinationPortRange 9389 -Priority 136 @CommonParameters
+            New-AzNetworkSecurityRuleConfig -Name allow_AD_DFSR -Description 'Allow AD Communication - DFSR/Sysvol' -Protocol Tcp -DestinationPortRange 5722 -Priority 137 @CommonParameters
+            New-AzNetworkSecurityRuleConfig -Name allow_AD_KRB2 -Description 'Allow AD Communication - Kerberos change/set password' -Protocol Tcp -DestinationPortRange 464 -Priority 138 @CommonParameters
+            New-AzNetworkSecurityRuleConfig -Name allow_AD_KRB2_udp -Description 'Allow AD Communication - Kerberos change/set password' -Protocol Udp -DestinationPortRange 464 -Priority 139 @CommonParameters
+            New-AzNetworkSecurityRuleConfig -Name allow_AD_time -Description 'Allow AD Communication - Windows Time Protocol' -Protocol Udp -DestinationPortRange 123 -Priority 140 @CommonParameters
+            New-AzNetworkSecurityRuleConfig -Name allow_AD_auth -Description 'Allow AD Communication' -Protocol Udp -DestinationPortRange 137-138 -Priority 141 @CommonParameters
+            New-AzNetworkSecurityRuleConfig -Name allow_AD_ephemeral -Description 'Allow AD Communication' -Protocol Tcp -DestinationPortRange 49152-65535 -Priority 142 @CommonParameters
+            New-AzNetworkSecurityRuleConfig -Name allow_AD_ephemeral_udp -Description 'Allow AD Communication' -Protocol Udp -DestinationPortRange 49152-65535 -Priority 143 @CommonParameters
+            New-AzNetworkSecurityRuleConfig -Name allow_WinRM_vNet -Description 'Allow WinRM sessions within the vNet' -Protocol Tcp -DestinationPortRange 5985-5986 -Priority 198 @CommonParameters
+            #endregion
+            <#
+            #region Outbound
+            #Only Allow AVD OutBound traffic
+            #From https://learn.microsoft.com/en-us/azure/virtual-desktop/safe-url-list?tabs=azure#session-host-virtual-machines
+            New-AzNetworkSecurityRuleConfig -Name Allow_AVD_OutBound -Description 'Allow AVD OutBound' -SourceAddressPrefix * -SourcePortRange * -DestinationAddressPrefix "WindowsVirtualDesktop" -DestinationPortRange 443 -Protocol Tcp -Access Allow -Priority 1000  -Direction Outbound 
+            New-AzNetworkSecurityRuleConfig -Name Allow_AzureCloud_OutBound -Description 'Allow AzureCloud OutBound' -SourceAddressPrefix * -SourcePortRange * -DestinationAddressPrefix "AzureCloud" -DestinationPortRange 443 -Protocol Tcp -Access Allow -Priority 1010  -Direction Outbound 
+            New-AzNetworkSecurityRuleConfig -Name Allow_KMS_OutBound -Description 'Allow KMS OutBound to kms.core.windows.net' -SourceAddressPrefix * -SourcePortRange * -DestinationAddressPrefix "Internet" -DestinationPortRange 1688 -Protocol Tcp -Access Allow -Priority 1020  -Direction Outbound 
+            New-AzNetworkSecurityRuleConfig -Name Allow_AzureFrontDoor_OutBound -Description 'Allow AzureFrontDoor OutBound' -SourceAddressPrefix * -SourcePortRange * -DestinationAddressPrefix "AzureFrontDoor.FrontEnd" -DestinationPortRange 443 -Protocol Tcp -Access Allow -Priority 1030  -Direction Outbound 
+            New-AzNetworkSecurityRuleConfig -Name Allow_AzureMonitor_OutBound -Description 'Allow AzureMonitor OutBound' -SourceAddressPrefix * -SourcePortRange * -DestinationAddressPrefix "AzureMonitor" -DestinationPortRange 443 -Protocol Tcp -Access Allow -Priority 1040  -Direction Outbound 
+            New-AzNetworkSecurityRuleConfig -Name Allow_HTTP_HTTPS_OutBound -Description 'Allow HTTP/HTTPS OutBound' -SourceAddressPrefix * -SourcePortRange * -DestinationAddressPrefix "Internet" -DestinationPortRange 80,443 -Protocol Tcp -Access Allow -Priority 1050  -Direction Outbound 
+            #To be continued ...
+            #endregion
+            #>
+        )
+
+        $NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NetworkSecurityGroupName -SecurityRules $SecurityRules -Force
+
+        #Steps 4 + 5: Create Azure Virtual network using the virtual network subnet configuration
+        $subnet = New-AzVirtualNetworkSubnetConfig -Name $subnetName -AddressPrefix $ADSubnetAddressRange -NetworkSecurityGroup $NetworkSecurityGroup -DefaultOutboundAccess $true
+        $vNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName  -AddressPrefix $VNetAddressRange -Location $Location -Subnet $Subnet
     }
-    $SecurityRules = @(
-        #region Inbound
-        New-AzNetworkSecurityRuleConfig -Name allow_AD_RDP -Description "Allow RDP Communication" -Protocol Tcp -SourcePortRange * -DestinationPortRange $RDPPort -SourceAddressPrefix $MyPublicIp -DestinationAddressPrefix $ADSubnetAddressRange -Access Allow  -Priority 120 -Direction Inbound 
-        New-AzNetworkSecurityRuleConfig -Name allow_AD_SMTP -Description 'Allow AD Communication' -Protocol Tcp -DestinationPortRange 25 -Priority 121 @CommonParameters
-        New-AzNetworkSecurityRuleConfig -Name allow_AD_WINS -Description 'Allow AD Communication' -Protocol Tcp -DestinationPortRange 42 -Priority 122 @CommonParameters
-        New-AzNetworkSecurityRuleConfig -Name allow_AD_Repl -Description 'Allow AD Communication' -Protocol Tcp -DestinationPortRange 135 -Priority 123 @CommonParameters
-        New-AzNetworkSecurityRuleConfig -Name allow_AD_NetBIOS -Description 'Allow AD Communication' -Protocol Tcp -DestinationPortRange 137 -Priority 124 @CommonParameters
-        New-AzNetworkSecurityRuleConfig -Name allow_AD_netlogin -Description 'Allow AD Communication - DFSN, NetBIOS Session, NetLogon' -Protocol Tcp -DestinationPortRange 139 -Priority 125 @CommonParameters
-        New-AzNetworkSecurityRuleConfig -Name allow_AD_LDAP -Description 'Allow AD Communication' -Protocol Tcp -DestinationPortRange 389 -Priority 126 @CommonParameters
-        New-AzNetworkSecurityRuleConfig -Name allow_AD_LDAP_udp -Description 'Allow AD Communication' -Protocol Udp -DestinationPortRange 389 -Priority 127 @CommonParameters
-        New-AzNetworkSecurityRuleConfig -Name allow_AD_LDAPS -Description 'Allow AD Communication' -Protocol Tcp -DestinationPortRange 636 -Priority 128 @CommonParameters
-        New-AzNetworkSecurityRuleConfig -Name allow_AD_LDAP_GC -Description 'Allow AD Communication' -Protocol Tcp -DestinationPortRange 3268-3269 -Priority 129 @CommonParameters
-        New-AzNetworkSecurityRuleConfig -Name allow_AD_KRB -Description 'Allow AD Communication' -Protocol Tcp -DestinationPortRange 88 -Priority 130 @CommonParameters
-        New-AzNetworkSecurityRuleConfig -Name allow_AD_KRB_udp -Description 'Allow AD Communication' -Protocol Udp -DestinationPortRange 88 -Priority 131 @CommonParameters
-        New-AzNetworkSecurityRuleConfig -Name allow_AD_DNS -Description 'Allow AD Communication' -Protocol Tcp -DestinationPortRange 53 -Priority 132 @CommonParameters
-        New-AzNetworkSecurityRuleConfig -Name allow_AD_DNS_udp -Description 'Allow AD Communication' -Protocol Udp -DestinationPortRange 53 -Priority 133 @CommonParameters
-        New-AzNetworkSecurityRuleConfig -Name allow_AD_445 -Description 'Allow AD Communication - SMB, CIFS,SMB2, DFSN, LSARPC, NbtSS, NetLogonR, SamR, SrvSvc' -Protocol Tcp -DestinationPortRange 445 -Priority 134 @CommonParameters
-        New-AzNetworkSecurityRuleConfig -Name allow_AD_445_udp -Description 'Allow AD Communication - SMB, CIFS,SMB2, DFSN, LSARPC, NbtSS, NetLogonR, SamR, SrvSvc' -Protocol Udp -DestinationPortRange 445 -Priority 135 @CommonParameters
-        New-AzNetworkSecurityRuleConfig -Name allow_AD_SOAP -Description 'Allow AD Communication' -Protocol Tcp -DestinationPortRange 9389 -Priority 136 @CommonParameters
-        New-AzNetworkSecurityRuleConfig -Name allow_AD_DFSR -Description 'Allow AD Communication - DFSR/Sysvol' -Protocol Tcp -DestinationPortRange 5722 -Priority 137 @CommonParameters
-        New-AzNetworkSecurityRuleConfig -Name allow_AD_KRB2 -Description 'Allow AD Communication - Kerberos change/set password' -Protocol Tcp -DestinationPortRange 464 -Priority 138 @CommonParameters
-        New-AzNetworkSecurityRuleConfig -Name allow_AD_KRB2_udp -Description 'Allow AD Communication - Kerberos change/set password' -Protocol Udp -DestinationPortRange 464 -Priority 139 @CommonParameters
-        New-AzNetworkSecurityRuleConfig -Name allow_AD_time -Description 'Allow AD Communication - Windows Time Protocol' -Protocol Udp -DestinationPortRange 123 -Priority 140 @CommonParameters
-        New-AzNetworkSecurityRuleConfig -Name allow_AD_auth -Description 'Allow AD Communication' -Protocol Udp -DestinationPortRange 137-138 -Priority 141 @CommonParameters
-        New-AzNetworkSecurityRuleConfig -Name allow_AD_ephemeral -Description 'Allow AD Communication' -Protocol Tcp -DestinationPortRange 49152-65535 -Priority 142 @CommonParameters
-        New-AzNetworkSecurityRuleConfig -Name allow_AD_ephemeral_udp -Description 'Allow AD Communication' -Protocol Udp -DestinationPortRange 49152-65535 -Priority 143 @CommonParameters
-        New-AzNetworkSecurityRuleConfig -Name allow_WinRM_vNet -Description 'Allow WinRM sessions within the vNet' -Protocol Tcp -DestinationPortRange 5985-5986 -Priority 198 @CommonParameters
-        #endregion
-        <#
-        #region Outbound
-        #Only Allow AVD OutBound traffic
-        #From https://learn.microsoft.com/en-us/azure/virtual-desktop/safe-url-list?tabs=azure#session-host-virtual-machines
-        New-AzNetworkSecurityRuleConfig -Name Allow_AVD_OutBound -Description 'Allow AVD OutBound' -SourceAddressPrefix * -SourcePortRange * -DestinationAddressPrefix "WindowsVirtualDesktop" -DestinationPortRange 443 -Protocol Tcp -Access Allow -Priority 1000  -Direction Outbound 
-        New-AzNetworkSecurityRuleConfig -Name Allow_AzureCloud_OutBound -Description 'Allow AzureCloud OutBound' -SourceAddressPrefix * -SourcePortRange * -DestinationAddressPrefix "AzureCloud" -DestinationPortRange 443 -Protocol Tcp -Access Allow -Priority 1010  -Direction Outbound 
-        New-AzNetworkSecurityRuleConfig -Name Allow_KMS_OutBound -Description 'Allow KMS OutBound to kms.core.windows.net' -SourceAddressPrefix * -SourcePortRange * -DestinationAddressPrefix "Internet" -DestinationPortRange 1688 -Protocol Tcp -Access Allow -Priority 1020  -Direction Outbound 
-        New-AzNetworkSecurityRuleConfig -Name Allow_AzureFrontDoor_OutBound -Description 'Allow AzureFrontDoor OutBound' -SourceAddressPrefix * -SourcePortRange * -DestinationAddressPrefix "AzureFrontDoor.FrontEnd" -DestinationPortRange 443 -Protocol Tcp -Access Allow -Priority 1030  -Direction Outbound 
-        New-AzNetworkSecurityRuleConfig -Name Allow_AzureMonitor_OutBound -Description 'Allow AzureMonitor OutBound' -SourceAddressPrefix * -SourcePortRange * -DestinationAddressPrefix "AzureMonitor" -DestinationPortRange 443 -Protocol Tcp -Access Allow -Priority 1040  -Direction Outbound 
-        New-AzNetworkSecurityRuleConfig -Name Allow_HTTP_HTTPS_OutBound -Description 'Allow HTTP/HTTPS OutBound' -SourceAddressPrefix * -SourcePortRange * -DestinationAddressPrefix "Internet" -DestinationPortRange 80,443 -Protocol Tcp -Access Allow -Priority 1050  -Direction Outbound 
-        #To be continued ...
-        #endregion
-        #>
-    )
+    else {
+        $NetworkSecurityGroup = Get-AzResource -ResourceId $Subnet.NetworkSecurityGroup.Id | Get-AzNetworkSecurityGroup
+        $VirtualNetworkName = $vNetwork.Name
+        Write-Verbose "`$VirtualNetworkName: $VirtualNetworkName"         
 
-    $NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NetworkSecurityGroupName -SecurityRules $SecurityRules -Force
-
-    #Steps 4 + 5: Create Azure Virtual network using the virtual network subnet configuration
-    $subnet = New-AzVirtualNetworkSubnetConfig -Name $subnetName -AddressPrefix $ADSubnetAddressRange -NetworkSecurityGroup $NetworkSecurityGroup -DefaultOutboundAccess $true
-    $vNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName  -AddressPrefix $VNetAddressRange -Location $Location -Subnet $Subnet
+        $StorageAccount = foreach ($CurrentStorageAccount in $(Get-AzStorageAccount -ResourceGroupName $ResourceGroupName)) {
+            $StorageContainer = Get-AzStorageContainer -Name windows-powershell-dsc -Context $CurrentStorageAccount.Context -ErrorAction Ignore
+            if ($StorageContainer) {
+                $CurrentStorageAccount
+                break
+            }
+        }
+        $StorageAccountName = $StorageAccount.StorageAccountName
+    }
 
     if ($Bastion) {
         
@@ -288,7 +324,7 @@ function New-AAD-Hybrid-BCDR-Lab {
     #$PublicIP.DnsSettings.Fqdn = $FQDN
 
     #Step 7: Create Network Interface Card 
-    $NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $(Get-AzVirtualNetworkSubnetConfig -VirtualNetwork $vNetwork).Id -PublicIpAddressId $PublicIP.Id -PrivateIpAddress $DomainControllerIP #-NetworkSecurityGroupId $NetworkSecurityGroup.Id
+    $NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -PublicIpAddressId $PublicIP.Id -PrivateIpAddress $DomainControllerIP
 
     <# Optional : Step 8: Get Virtual Machine publisher, Image Offer, Sku and Image
     $ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq "MicrosoftWindowsDesktop"}
@@ -333,25 +369,27 @@ function New-AAD-Hybrid-BCDR-Lab {
     New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig #-DisableBginfoExtension
 
     #Step 11: Updating the DNS Servers of the VNet to point to the DC.
-    $vNetwork.DhcpOptions = [PSCustomObject]@{"DnsServers" = $DomainControllerIP }
+    $vNetwork.DhcpOptions = [PSCustomObject]@{"DnsServers" = @($DomainControllerIP, $FirstDCIP) }
     $vNetwork | Set-AzVirtualNetwork
 
     #region vNet Peering
-    $RemoteVNetwork = Get-AzVirtualNetwork -Name $RemoteVNetName
-    if ($RemoteVNetwork) {
-        $VirtualNetworkPeeringName = "peer-{0}-{1}" -f $VirtualNetworkName, $RemoteVNetName
-        $RemoteVirtualNetworkPeeringName = "peer-{0}-{1}" -f $RemoteVNetName, $VirtualNetworkName
-        Write-Verbose -Message "Creating '$VirtualNetworkPeeringName': '$VirtualNetworkName' <==> '$RemoteVNetName'"
-        $vNetPeeringStatus = Add-AzVirtualNetworkPeering -Name $VirtualNetworkPeeringName -VirtualNetwork $vNetwork -RemoteVirtualNetworkId $RemoteVNetwork.Id -AllowForwardedTraffic
-        Write-Verbose -Message "`$vNetPeeringStatus: $($vNetPeeringStatus.PeeringState)"
-        if ($vNetPeeringStatus.PeeringState -ne 'Initiated') {
-            Write-Error "The '$VirtualNetworkPeeringName' peering state is $($vNetPeeringStatus.PeeringState)" -ErrorAction Stop
-        }
-        Write-Verbose -Message "Creating '$RemoteVirtualNetworkPeeringName': '$RemoteVNetName' <==> '$VirtualNetworkName'"
-        $RemoteVNetPeeringStatus = Add-AzVirtualNetworkPeering -Name $RemoteVirtualNetworkPeeringName -VirtualNetwork $RemoteVNetwork -RemoteVirtualNetworkId $vNetwork.Id -AllowForwardedTraffic
-        Write-Verbose -Message "`$RemoteVNetPeeringStatus: $($RemoteVNetPeeringStatus.PeeringState)"
-        if ($RemoteVNetPeeringStatus.PeeringState -ne 'Connected') {
-            Write-Error "The '$($RemoteVNetName)-$($VirtualNetworkName)' peering state is $($vNetPeeringStatus.PeeringState)" -ErrorAction Stop
+    if ($PSCmdlet.ParameterSetName -eq "AdditionalRegion") {
+        $RemoteVNetwork = Get-AzVirtualNetwork -Name $RemoteVNetName
+        if ($RemoteVNetwork) {
+            $VirtualNetworkPeeringName = "peer-{0}-{1}" -f $VirtualNetworkName, $RemoteVNetName
+            $RemoteVirtualNetworkPeeringName = "peer-{0}-{1}" -f $RemoteVNetName, $VirtualNetworkName
+            Write-Verbose -Message "Creating '$VirtualNetworkPeeringName': '$VirtualNetworkName' <==> '$RemoteVNetName'"
+            $vNetPeeringStatus = Add-AzVirtualNetworkPeering -Name $VirtualNetworkPeeringName -VirtualNetwork $vNetwork -RemoteVirtualNetworkId $RemoteVNetwork.Id -AllowForwardedTraffic
+            Write-Verbose -Message "`$vNetPeeringStatus: $($vNetPeeringStatus.PeeringState)"
+            if ($vNetPeeringStatus.PeeringState -ne 'Initiated') {
+                Write-Error "The '$VirtualNetworkPeeringName' peering state is $($vNetPeeringStatus.PeeringState)" -ErrorAction Stop
+            }
+            Write-Verbose -Message "Creating '$RemoteVirtualNetworkPeeringName': '$RemoteVNetName' <==> '$VirtualNetworkName'"
+            $RemoteVNetPeeringStatus = Add-AzVirtualNetworkPeering -Name $RemoteVirtualNetworkPeeringName -VirtualNetwork $RemoteVNetwork -RemoteVirtualNetworkId $vNetwork.Id -AllowForwardedTraffic
+            Write-Verbose -Message "`$RemoteVNetPeeringStatus: $($RemoteVNetPeeringStatus.PeeringState)"
+            if ($RemoteVNetPeeringStatus.PeeringState -ne 'Connected') {
+                Write-Error "The '$($RemoteVNetName)-$($VirtualNetworkName)' peering state is $($vNetPeeringStatus.PeeringState)" -ErrorAction Stop
+            }
         }
     }
     #endregion
@@ -397,7 +435,7 @@ function New-AAD-Hybrid-BCDR-Lab {
     #endregion
 
     #region Enabling auto-shutdown at 11:00 PM in the user time zome
-    $SubscriptionId = ($VM.Id).Split('/')[2]
+    $SubscriptionId = (Get-AzContext).Subscription.Id
     $ScheduledShutdownResourceId = "/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroupName/providers/microsoft.devtestlab/schedules/shutdown-computevm-$VMName"
     $Properties = @{}
     $Properties.Add('status', 'Enabled')
@@ -480,7 +518,7 @@ if (-not(Get-AzContext)) {
 $scriptBlock = { (Get-AzLocation).Location }
 Register-ArgumentCompleter -CommandName New-AAD-Hybrid-BCDR-Lab -ParameterName Location -ScriptBlock $scriptBlock
 
-#region Example #1
+#region Examples
 #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Verbose
 $null = Get-PackageProvider -Name NuGet -Force -Verbose
 $RequiredModules = 'ActiveDirectoryDSC', 'NetworkingDSC', 'ComputerManagementDSC'
@@ -500,6 +538,7 @@ $AdminCredential = Get-Credential -Credential $env:USERNAME
 #$Instance = Get-Random -Minimum 1 -Maximum 1000
 $Instance = 2
 
+#region for Adding a DC in an addition region
 $Parameters = @{
     "AdminCredential"      = $AdminCredential
     "VMSize"               = "Standard_D2s_v5"
@@ -507,9 +546,11 @@ $Parameters = @{
     "Project"              = "avd"
     "Role"                 = "ad"
     "ADDomainName"         = "csa.fr"
+
     "RemoteVNetName"       = "vnet-avd-ad-use2-002"
     "VNetAddressRange"     = '10.5.0.0/16'
     "ADSubnetAddressRange" = '10.5.1.0/24'
+
     "FirstDCIP"            = '10.0.1.4'
     "DomainControllerIP"   = '10.5.1.4'
     "Instance"             = $Instance
@@ -518,6 +559,28 @@ $Parameters = @{
     "Bastion"              = $false
     "Verbose"              = $true
 }
+#New-AAD-Hybrid-BCDR-Lab @Parameters
+#endregion
 
+#region for Adding an addition DC in a region
+$Parameters = @{
+    "AdminCredential"      = $AdminCredential
+    "VMSize"               = "Standard_D2s_v5"
+    "OSDiskType"           = "StandardSSD_LRS"
+    "Project"              = "avd"
+    "Role"                 = "ad"
+    "ADDomainName"         = "csa.fr"
+
+    "ResourceGroupName"    = "rg-avd-ad-use2-002"
+    "Subnet"               = Get-AzVirtualNetwork -Name "vnet-avd-ad-use2-002" -ResourceGroupName "rg-avd-ad-use2-002" | Get-AzVirtualNetworkSubnetConfig -Name "snet-avd-ad-use2-002"
+
+    "FirstDCIP"            = '10.0.1.4'
+    "DomainControllerIP"   = '10.0.1.5'
+    "Instance"             = $Instance+1
+    "Spot"                 = $false
+    "Bastion"              = $false
+    "Verbose"              = $true
+}
 New-AAD-Hybrid-BCDR-Lab @Parameters
+#endregion
 #endregion
