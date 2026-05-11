@@ -19,7 +19,7 @@ of the Sample Code.
 
 #region Function definition
 function New-AAD-Hybrid-BCDR-Lab {
-    [CmdletBinding(PositionalBinding= $false, DefaultParameterSetName = 'AdditionalRegion')]
+    [CmdletBinding(PositionalBinding = $false, DefaultParameterSetName = 'AdditionalRegion')]
     param
     (
         [parameter(Mandatory = $true, HelpMessage = 'Please specify the administrator credential. The Username cannot be "Administrator", "root" and possibly other such common account names.')]
@@ -39,20 +39,20 @@ function New-AAD-Hybrid-BCDR-Lab {
         [ValidatePattern("\w+\.\w+")] 
         [string] $ADDomainName = "contoso.local",
 
-        [parameter(Mandatory = $true, HelpMessage = 'The virtual network to peer', ParameterSetName='AdditionalRegion')]
+        [parameter(Mandatory = $true, HelpMessage = 'The virtual network to peer', ParameterSetName = 'AdditionalRegion')]
         [ValidateNotNull()]
         [string] $RemoteVNetName,
-        [parameter(Mandatory = $false, HelpMessage = 'The address range of the new virtual network in CIDR format', ParameterSetName='AdditionalRegion')]
+        [parameter(Mandatory = $false, HelpMessage = 'The address range of the new virtual network in CIDR format', ParameterSetName = 'AdditionalRegion')]
         [ValidatePattern("\d{1,3}\.\d{1,3}.\d{1,3}.\d{1,3}/\d{2}")] 
         [string] $VNetAddressRange = '10.1.0.0/16',
-        [parameter(Mandatory = $false, HelpMessage = 'The address range of the desired subnet for Active Directory.', ParameterSetName='AdditionalRegion')]
+        [parameter(Mandatory = $false, HelpMessage = 'The address range of the desired subnet for Active Directory.', ParameterSetName = 'AdditionalRegion')]
         [ValidatePattern("\d{1,3}\.\d{1,3}.\d{1,3}.\d{1,3}/\d{2}")] 
         [string] $ADSubnetAddressRange = '10.1.1.0/24',
         
         
-        [parameter(Mandatory = $true, HelpMessage = 'The ResourceGroupName used to store the deployed DC', ParameterSetName='AdditionalDC')]
+        [parameter(Mandatory = $true, HelpMessage = 'The ResourceGroupName used to store the deployed DC', ParameterSetName = 'AdditionalDC')]
         [string] $ResourceGroupName,
-        [parameter(Mandatory = $true, HelpMessage = 'The Subnet used to connect the deployed DC', ParameterSetName='AdditionalDC')]
+        [parameter(Mandatory = $true, HelpMessage = 'The Subnet used to connect the deployed DC', ParameterSetName = 'AdditionalDC')]
         [Microsoft.Azure.Commands.Network.Models.PSSubnet] $Subnet,
         
         [parameter(Mandatory = $false, HelpMessage = 'The IP Addresses assigned to the domain controllers (a, b). Remember the first IP in a subnet is .4 e.g. 10.0.0.0/16 reserves 10.0.0.0-3. Specify one IP per server - must match numberofVMInstances or deployment will fail.')]
@@ -66,7 +66,7 @@ function New-AAD-Hybrid-BCDR-Lab {
         [int] $Instance = $(Get-Random -Minimum 0 -Maximum 1000),
         [parameter(Mandatory = $false, HelpMessage = 'The Azure location where you want to deploy your ressources.')]
         [ValidateScript({ $_ -in $((Get-AzLocation).Location) })] 
-        [parameter(ParameterSetName='AdditionalRegion')]
+        [parameter(ParameterSetName = 'AdditionalRegion')]
         [string] $Location = "eastus2",
         [switch] $Spot,
         [switch] $Bastion
@@ -313,12 +313,12 @@ function New-AAD-Hybrid-BCDR-Lab {
         #Adding Security Rules for allowing connection from Bastion
         #RDP
         Get-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Name $NetworkSecurityGroupName | `
-        Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_RDP -Description "Allow RDP Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange $RDPPort -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 101 -Direction Inbound | `
-        Set-AzNetworkSecurityGroup
+            Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_RDP -Description "Allow RDP Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange $RDPPort -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 101 -Direction Inbound | `
+            Set-AzNetworkSecurityGroup
         #SSH
         Get-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Name $NetworkSecurityGroupName | `
-        Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_SSH -Description "Allow SSH Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange 22 -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 102 -Direction Inbound | `
-        Set-AzNetworkSecurityGroup
+            Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_SSH -Description "Allow SSH Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange 22 -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 102 -Direction Inbound | `
+            Set-AzNetworkSecurityGroup
     }
 
     #Step 6: Create Azure Public Address
@@ -567,22 +567,22 @@ $Parameters = @{
 
 #region for Adding an addition DC in a region
 $Parameters = @{
-    "AdminCredential"      = $AdminCredential
-    "VMSize"               = "Standard_B4as_v2"
-    "OSDiskType"           = "StandardSSD_LRS"
-    "Project"              = "avd"
-    "Role"                 = "ad"
-    "ADDomainName"         = "csa.fr"
+    "AdminCredential"    = $AdminCredential
+    "VMSize"             = "Standard_D4s_v5"
+    "OSDiskType"         = "StandardSSD_LRS"
+    "Project"            = "avd"
+    "Role"               = "ad"
+    "ADDomainName"       = "csa.fr"
 
-    "ResourceGroupName"    = "rg-avd-ad-usc-002"
-    "Subnet"               = Get-AzVirtualNetwork -Name "vnet-avd-ad-usc-002" -ResourceGroupName "rg-avd-ad-usc-002" | Get-AzVirtualNetworkSubnetConfig -Name "snet-avd-ad-usc-002"
+    "ResourceGroupName"  = "rg-avd-ad-usc-002"
+    "Subnet"             = Get-AzVirtualNetwork -Name "vnet-avd-ad-usc-002" -ResourceGroupName "rg-avd-ad-usc-002" | Get-AzVirtualNetworkSubnetConfig -Name "snet-avd-ad-usc-002"
 
-    "FirstDCIP"            = '10.1.1.4'
-    "DomainControllerIP"   = '10.1.1.5'
-    "Instance"             = $Instance
-    "Spot"                 = $false
-    "Bastion"              = $false
-    "Verbose"              = $true
+    "FirstDCIP"          = '10.1.1.4'
+    "DomainControllerIP" = '10.1.1.5'
+    "Instance"           = $Instance
+    "Spot"               = $false
+    "Bastion"            = $false
+    "Verbose"            = $true
 }
 New-AAD-Hybrid-BCDR-Lab @Parameters
 #endregion
