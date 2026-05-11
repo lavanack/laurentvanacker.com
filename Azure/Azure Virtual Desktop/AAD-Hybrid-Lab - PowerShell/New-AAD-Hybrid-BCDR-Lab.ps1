@@ -261,13 +261,16 @@ function New-AAD-Hybrid-BCDR-Lab {
         Write-Verbose "`$VirtualNetworkName: $VirtualNetworkName"         
 
         $StorageAccount = foreach ($CurrentStorageAccount in $(Get-AzStorageAccount -ResourceGroupName $ResourceGroupName)) {
+            $null = $CurrentStorageAccount | Set-AzStorageAccount -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $true -Tag @{ SecurityControl = "Ignore" }
             $StorageContainer = Get-AzStorageContainer -Name windows-powershell-dsc -Context $CurrentStorageAccount.Context -ErrorAction Ignore
             if ($StorageContainer) {
                 $CurrentStorageAccount
+                Write-Verbose "`$CurrentStorageAccount: $($CurrentStorageAccount | Out-String)"
                 break
             }
         }
         $StorageAccountName = $StorageAccount.StorageAccountName
+        Write-Verbose "`$StorageAccountName: $StorageAccountName"
     }
 
     if ($Bastion) {
@@ -536,7 +539,7 @@ if (-not([String]::IsNullOrEmpty($MissingModules))) {
 $AdminCredential = Get-Credential -Credential $env:USERNAME
 
 #$Instance = Get-Random -Minimum 1 -Maximum 1000
-$Instance = 2
+$Instance = 3
 
 #region for Adding a DC in an addition region
 $Parameters = @{
@@ -547,7 +550,7 @@ $Parameters = @{
     "Role"                 = "ad"
     "ADDomainName"         = "csa.fr"
 
-    "RemoteVNetName"       = "vnet-avd-ad-use2-002"
+    "RemoteVNetName"       = "vnet-avd-ad-usc-002"
     "VNetAddressRange"     = '10.5.0.0/16'
     "ADSubnetAddressRange" = '10.5.1.0/24'
 
@@ -565,18 +568,18 @@ $Parameters = @{
 #region for Adding an addition DC in a region
 $Parameters = @{
     "AdminCredential"      = $AdminCredential
-    "VMSize"               = "Standard_D2s_v5"
+    "VMSize"               = "Standard_B4as_v2"
     "OSDiskType"           = "StandardSSD_LRS"
     "Project"              = "avd"
     "Role"                 = "ad"
     "ADDomainName"         = "csa.fr"
 
-    "ResourceGroupName"    = "rg-avd-ad-use2-002"
-    "Subnet"               = Get-AzVirtualNetwork -Name "vnet-avd-ad-use2-002" -ResourceGroupName "rg-avd-ad-use2-002" | Get-AzVirtualNetworkSubnetConfig -Name "snet-avd-ad-use2-002"
+    "ResourceGroupName"    = "rg-avd-ad-usc-002"
+    "Subnet"               = Get-AzVirtualNetwork -Name "vnet-avd-ad-usc-002" -ResourceGroupName "rg-avd-ad-usc-002" | Get-AzVirtualNetworkSubnetConfig -Name "snet-avd-ad-usc-002"
 
-    "FirstDCIP"            = '10.0.1.4'
-    "DomainControllerIP"   = '10.0.1.5'
-    "Instance"             = $Instance+1
+    "FirstDCIP"            = '10.1.1.4'
+    "DomainControllerIP"   = '10.1.1.5'
+    "Instance"             = $Instance
     "Spot"                 = $false
     "Bastion"              = $false
     "Verbose"              = $true
