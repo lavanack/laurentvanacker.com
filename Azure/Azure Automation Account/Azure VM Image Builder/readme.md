@@ -48,12 +48,12 @@ When triggered (by schedule or manually):
 
 ## Parameters (Runbook)
 
-| Parameter                       | Required | Description                                                                            |
-| ------------------------------- | -------- | -------------------------------------------------------------------------------------- |
-| `GalleryId`                     | Yes      | Azure resource ID of the target Azure Compute Gallery.                                 |
-| `UserAssignedManagedIdentityId` | Yes      | Azure resource ID of the User-Assigned Managed Identity for AIB.                       |
-| `TargetRegions`                 | No       | Array of Azure regions for image replication (defaults to gallery location).           |
-| `excludeFromLatest`             | No       | Whether to exclude the new version from being considered "latest" (default: `$false`). |
+| Parameter                       | Required | Description                                                                                                                                                                                                                                               |
+| ------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GalleryId`                     | Yes      | Azure resource ID of the target Azure Compute Gallery.                                                                                                                                                                                                    |
+| `UserAssignedManagedIdentityId` | Yes      | Azure resource ID of the User-Assigned Managed Identity for AIB (With the appropriate RBAC Roles - cf. the [following](https://github.com/lavanack/laurentvanacker.com/blob/master/Azure/Azure%20VM%20Image%20Builder/AzureImageBuilder-v17.ps1) script). |
+| `TargetRegions`                 | No       | Array of Azure regions for image replication (defaults to gallery location).                                                                                                                                                                              |
+| `excludeFromLatest`             | No       | Whether to exclude the new version from being considered "latest" (default: `$false`).                                                                                                                                                                    |
 
 if you need to create these prerequisites you can use the [following](https://github.com/lavanack/laurentvanacker.com/blob/master/Azure/Azure%20VM%20Image%20Builder/AzureImageBuilder-v17.ps1) script.
 ## Naming Convention
