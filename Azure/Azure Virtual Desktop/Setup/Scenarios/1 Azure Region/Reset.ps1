@@ -27,6 +27,7 @@ $PSDefaultParameterValues = @{
     #To avoid warning message like: WARNING: The names of some imported commands from the module 'Microsoft.Azure.PowerShell.Cmdlets.Network' include unapproved verbs that might make them less discoverable
     'Import-Module:DisableNameChecking' = $true
     'Import-Module:Verbose' = $false
+    'Update-AzConfig:DisplayBreakingChangeWarning' =  $false
 }
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
@@ -58,7 +59,7 @@ $LatestHostPoolJSONFile = $BackupDirs | Get-ChildItem -Filter "HostPool_*.json" 
 if ($LatestHostPoolJSONFile) {
     Remove-PsAvdHostPoolSetup -FullName $LatestHostPoolJSONFile.FullName #-KeepAzureAppAttachStorage
 }
-else {
+elseif ($HostPools) {
     Remove-PsAvdHostPoolSetup -HostPool $HostPools #-KeepAzureAppAttachStorage
 }
 #endregion
@@ -85,8 +86,8 @@ Get-AzKeyVault -InRemovedState | Remove-AzKeyVault -InRemovedState -AsJob -Force
 $PSBreakpoints = @() 
 $LatestPSAzureVirtualDesktopModule = Get-Module -Name PSAzureVirtualDesktop -ListAvailable | Sort-Object -Property Version -Descending | Select-Object -First 1
 #$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Line 1063
-$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Command Start-MicrosoftEntraIDConnectSync
-#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Variable $app -Mode ReadWrite
+#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Command Start-MicrosoftEntraIDConnectSync
+$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Variable $existingAcl -Mode ReadWrite
 if ($PSBreakpoints.Count -le 0) {
     & '.\Start.ps1' -LogDir $LogDir -Verbose -AsJob
 }
