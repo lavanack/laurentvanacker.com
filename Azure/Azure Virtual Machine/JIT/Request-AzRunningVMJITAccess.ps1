@@ -28,7 +28,7 @@ function Request-AzRunningVMJITAccess {
         [Parameter(ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
         [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachineList[]] $VM = $(Get-AzVM -Status | Where-Object -FilterScript { $_.PowerState -match "running" }),
         [Alias('PublicIP')]
-        [string[]] $IP = $((Invoke-RestMethod -Uri http://ip-api.com/json/?fields=query).query),
+        [string[]] $IP = $(Invoke-RestMethod -Uri https://api.ipify.org),
         [switch] $PassThru,
         [switch] $AsJob
     )
