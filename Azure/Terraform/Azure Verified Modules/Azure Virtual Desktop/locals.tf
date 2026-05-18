@@ -85,6 +85,9 @@ locals {
   # Key Vault name
   key_vault_name = "kv${replace(local.virtual_desktop_hostpool_name, "-", "")}"
 
+  # Storage Account for FSLogix
+  fslogix_storage_account_name = "fsl${replace(local.virtual_desktop_hostpool_name, "-", "")}"
+
   # ─────────────────────────────────────────────────────────────────────────────
   # AVD Power On/Off Role Assignment
   # Checks if the "Desktop Virtualization Power On Off Contributor" role is
@@ -115,4 +118,24 @@ locals {
     "00000000-0000-0000-0000-000000000000",
     "${data.azurerm_subscription.current.id}-${data.azuread_service_principal.avd_spn.object_id}-${data.azurerm_role_definition.power_role.id}"
   )
+
+  # Endpoints for the storage account (only "file" is needed for FSLogix, but can be extended if necessary)
+  #endpoints = toset(["blob", "queue", "table", "file"])
+  endpoints = toset(["file"])
+
+  fslogix_file_shares = {
+    profiles = {
+      name             = "profiles"
+      quota            = 100
+      access_tier      = "TransactionOptimized"
+      enabled_protocol = "SMB"
+    }
+    odfc = {
+      name             = "odfc"
+      quota            = 50
+      access_tier      = "TransactionOptimized"
+      enabled_protocol = "SMB"
+    }
+  }
+
 }
