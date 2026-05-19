@@ -160,6 +160,71 @@ module "key_vault" {
     create = "60s"
   }
 }
+
+###############################################################################
+# Storage Account
+###############################################################################
+## Azure Storage Accounts requires a globally unique names
+## https://docs.microsoft.com/en-us/azure/storage/common/storage-account-overview
+## Create a File Storage Account 
+resource "azurerm_storage_account" "fslogix" {
+  name                      = local.fslogix_storage_account_name
+  resource_group_name       = azurerm_resource_group.hostpoool_rg.name
+  location                  = azurerm_resource_group.hostpoool_rg.location
+  account_tier              = "Standard"
+  account_replication_type  = "LRS"
+  shared_access_key_enabled = true
+
+  azure_files_authentication {
+    directory_type = "AADKERB" # or AD / AADDS
+  }
+
+  tags = {
+    "SecurityControl" = "Ignore"
+  }
+
+}
+
+resource "azurerm_storage_share" "profiles" {
+  name               = "profiles"
+  storage_account_id = azurerm_storage_account.fslogix.id
+  depends_on         = [azurerm_storage_account.fslogix]
+  quota              = 100
+
+}
+
+## Azure built-in roles
+## https://docs.microsoft.com/en-us/azure/role-based-access-control/built-in-roles
+data "azurerm_role_definition" "storage_role" {
+  name  = "Storage File Data SMB Share Contributor"
+  scope = data.azurerm_subscription.current.id
+}
+
+resource "azurerm_role_assignment" "af_role" {
+  scope              = azurerm_storage_account.fslogix.id
+  role_definition_id = data.azurerm_role_definition.storage_role.id
+  principal_id       = azuread_group.virtual_desktop_dag_group.object_id
+  name               = uuidv5("00000000-0000-0000-0000-000000000000", "${azurerm_storage_account.fslogix.id}-${azuread_group.virtual_desktop_dag_group.object_id}-${azuread_group.virtual_desktop_dag_group.object_id}")
+}
+
+
+resource "azapi_update_resource" "default_share_permission" {
+  type        = "Microsoft.Storage/storageAccounts@2023-01-01"
+  resource_id = azurerm_storage_account.fslogix.id
+
+  body = {
+    properties = {
+      shareProperties = {
+        smb = {
+          defaultSharePermission = "StorageFileDataSmbShareContributor"
+        }
+      }
+    }
+  }
+  depends_on = [azurerm_storage_account.fslogix]
+}
+
+
 ###############################################################################
 # AVD Host Pool (AVM module)
 ###############################################################################
@@ -178,7 +243,7 @@ module "avm_res_desktopvirtualization_hostpool" {
   virtual_desktop_host_pool_type                = var.virtual_desktop_host_pool_type
   diagnostic_settings = {
     to_law = {
-      name                  = local.virtual_desktop_hostpool_name
+      name                  = "${local.virtual_desktop_hostpool_name}-diag"
       workspace_resource_id = azurerm_log_analytics_workspace.law.id
     }
   }
@@ -261,6 +326,12 @@ module "avm_res_desktopvirtualization_applicationgroup" {
   virtual_desktop_application_group_resource_group_name          = azurerm_resource_group.hostpoool_rg.name
   virtual_desktop_application_group_name                         = local.virtual_desktop_application_group_default_desktop_display_name
   virtual_desktop_application_group_type                         = var.virtual_desktop_application_group_type
+  diagnostic_settings = {
+    to_law = {
+      name                  = "${local.virtual_desktop_application_group_default_desktop_display_name}-diag"
+      workspace_resource_id = azurerm_log_analytics_workspace.law.id
+    }
+  }
 }
 
 # AVD workspace that publishes the application group to end users
@@ -272,7 +343,7 @@ module "avm_res_desktopvirtualization_workspace" {
   virtual_desktop_workspace_resource_group_name = azurerm_resource_group.hostpoool_rg.name
   diagnostic_settings = {
     to_law = {
-      name                  = "to-law"
+      name                  = "${local.virtual_desktop_workspace_name}-diag"
       workspace_resource_id = azurerm_log_analytics_workspace.law.id
     }
   }
@@ -379,6 +450,24 @@ resource "azurerm_subnet" "subnet_1" {
   virtual_network_name = azurerm_virtual_network.vnet.name
 }
 
+
+resource "azapi_resource" "private_dns_zone" {
+  for_each = local.endpoints
+
+  location  = "global"
+  name      = "privatelink.${each.value}.core.windows.net"
+  parent_id = azurerm_resource_group.hostpoool_rg.id
+  type      = "Microsoft.Network/privateDnsZones@2024-06-01"
+  body = {
+    properties = {}
+  }
+  response_export_values = []
+  retry = {
+    error_message_regex  = ["CannotDeleteResource"]
+    interval_seconds     = 15
+    max_interval_seconds = 60
+  }
+}
 ###############################################################################
 # Session host VMs and extensions
 ###############################################################################

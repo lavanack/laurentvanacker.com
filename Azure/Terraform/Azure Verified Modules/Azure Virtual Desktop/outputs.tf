@@ -25,3 +25,8 @@ output "avd_power_role_assignment_id" {
 output "hostpool_name" {
   value = local.virtual_desktop_hostpool_name
 }
+
+
+output "public_ip" {
+  value = data.http.ip.response_body
+}
