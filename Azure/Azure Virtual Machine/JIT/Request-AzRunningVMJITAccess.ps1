@@ -80,8 +80,8 @@ function Request-AzRunningVMJITAccess {
                 Write-Warning -Message "Just in Time for is not enabled for $($CurrentVM.Name)"
             }
         }
+        #endregion
     }
-    #endregion
     end {
         if ($PassThru) {
             if ($AsJob) {
