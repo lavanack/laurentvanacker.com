@@ -41,7 +41,7 @@ try { while (Stop-Transcript) {} } catch {}
 Get-Job | Where-Object -FilterScript {$_.PSJobTypeName -eq "ThreadJob"} | Remove-Job -Force -Verbose
 $null = Remove-Module -Name PSAzureVirtualDesktop -Force -ErrorAction Ignore
 $Global:MaximumFunctionCount = 32768
-Import-Module -Name PSAzureVirtualDesktop -DisableNameChecking -Force #-Verbose
+Import-Module -Name PSAzureVirtualDesktop -DisableNameChecking -Force -Verbose
 
 Connect-MgGraph -NoWelcome -UseDeviceCode
 #region Login to your Azure subscription.
