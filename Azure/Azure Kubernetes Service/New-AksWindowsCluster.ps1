@@ -17,14 +17,57 @@ of the Sample Code.
 #>
 #requires -Version 5 -Modules Az.Accounts, Az.Aks, Az.Compute, Az.Network, Az.Resources, Az.Security
 
-#From https://learn.microsoft.com/en-us/azure/aks/learn/quick-kubernetes-deploy-powershell
+#From https://learn.microsoft.com/en-us/azure/aks/learn/quick-windows-container-deploy-powershell
 
 [CmdletBinding()]
 param
 (
 )
 
+#region function definitions 
+function New-RandomPassword {
+    [CmdletBinding(PositionalBinding = $false)]
+    param(
+        [ValidateScript({$_ -ge 14 -and $_ -le 123})]
+        [int]$Length = 14,
+        [switch] $AsSecureString,
+        [switch] $ClipBoard
+    )
 
+    # Character sets
+    $lower   = 'abcdefghijklmnopqrstuvwxyz'.ToCharArray()
+    $upper   = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.ToCharArray()
+    $digits  = '0123456789'.ToCharArray()
+    $special = '!@#$%^&*()'.ToCharArray()
+
+    $all = $lower + $upper + $digits + $special
+
+    # Ensure at least one of each required category
+    $RandomPassword = @($(Get-Random -InputObject $lower), $(Get-Random -InputObject $upper), $(Get-Random -InputObject $special))
+
+    # Fill the rest randomly
+    for ($i = $RandomPassword.Count; $i -lt $Length; $i++) {
+        $RandomPassword += Get-Random -InputObject $all
+    }
+
+    # Shuffle the result
+    $RandomPassword = -join $($RandomPassword | Sort-Object { Get-Random })
+
+    #Write-Host -Object "The password is : $RandomPassword"
+    if ($ClipBoard) {
+        #Write-Verbose -Message "The password has beeen copied into the clipboard (Use Win+V) ..."
+        $RandomPassword | Set-Clipboard
+    }
+    if ($AsSecureString) {
+        ConvertTo-SecureString -String $RandomPassword -AsPlainText -Force
+    }
+    else {
+        $RandomPassword
+    }
+}
+#endregion
+
+#region Main Code
 Clear-Host
 $Error.Clear()
 
@@ -32,6 +75,16 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
+
+$FeatureName="AksWindows2025Preview" 
+$ProviderNamespace="Microsoft.ContainerService"
+Register-AzProviderFeature -ProviderNamespace $ProviderNamespace -FeatureName $FeatureName
+do {
+    $FeatureStatus = (Get-AzProviderFeature -ProviderNamespace $ProviderNamespace -FeatureName $FeatureName).RegistrationState
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Waiting for '$ProviderNamespace' Resource Provider to be registered ... Waiting 10 seconds"
+    Start-Sleep -Seconds 10
+} until ($FeatureStatus -eq "Registered")
+
 
 try {
     $null = kubectl
@@ -59,7 +112,7 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 }
 
 
-$Location = "eastus"
+$Location = "eastus2"
 $LocationShortName = $shortNameHT[$Location].shortName
 
 #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
@@ -69,6 +122,11 @@ $Project = "aks"
 $Role = "cluster"
 $DigitNumber = 4
 $AKSStoreQuickstartURI = 'https://raw.githubusercontent.com/Azure-Samples/aks-store-demo/main/aks-store-quickstart.yaml'
+$UserNP = "npwin"
+$Username = $env:USERNAME
+$SecurePassword = New-RandomPassword -ClipBoard -AsSecureString -Verbose
+$AdminCreds = New-Object System.Management.Automation.PSCredential -ArgumentList ($Username, $SecurePassword)
+
 
 $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
 $ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
@@ -89,13 +147,16 @@ $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Locatio
 #region Create AKS cluster
 $SshKeyValue = Join-Path -Path $HOME -ChildPath '.ssh\id_rsa.pub'
 if (Test-Path -Path $SshKeyValue -PathType Leaf) {
-    $AksCluster = New-AzAksCluster -ResourceGroupName $ResourceGroupName -Name $AKSClusterName -NodeCount 1 -EnableManagedIdentity -SshKeyValue $SshKeyValue -Force
+    $AksCluster = New-AzAksCluster -ResourceGroupName $ResourceGroupName -Name $AKSClusterName -NodeCount 2 -EnableManagedIdentity -NetworkPlugin azure -NodeVmSetType VirtualMachineScaleSets -WindowsProfileAdminUserName $AdminCreds.UserName -WindowsProfileAdminUserPassword $AdminCreds.Password -SshKeyValue $SshKeyValue -Force
 }
 else {
-    $AksCluster = New-AzAksCluster -ResourceGroupName $ResourceGroupName -Name $AKSClusterName -NodeCount 1 -EnableManagedIdentity -GenerateSshKey -Force
+    $AksCluster = New-AzAksCluster -ResourceGroupName $ResourceGroupName -Name $AKSClusterName -NodeCount 2 -EnableManagedIdentity -NetworkPlugin azure -NodeVmSetType VirtualMachineScaleSets -WindowsProfileAdminUserName $AdminCreds.UserName -WindowsProfileAdminUserPassword $AdminCreds.Password -Force
 }
 
 #endregion
+
+#Adding a user mode node pool
+$AksNodePool = New-AzAksNodePool -ResourceGroupName $ResourceGroupName -ClusterName $AKSClusterName -VmSetType VirtualMachineScaleSets -OsType Windows -OsSKU Windows2022 -Name $UserNP
 
 #region Connect to the cluster
 Import-AzAksCredential -ResourceGroupName $ResourceGroupName -Name $AKSCluster.Name -Force
@@ -105,8 +166,7 @@ kubectl get nodes
 #endregion
 
 #region Deploy the application
-$AKSClusterFile = Join-Path -Path $CurrentDir -ChildPath "aks-store-quickstart.yaml"
-Invoke-RestMethod -Uri $AKSStoreQuickstartURI -OutFile $AKSClusterFile
+$AKSClusterFile = Join-Path -Path $CurrentDir -ChildPath "sample.yaml"
 
 kubectl apply -f $AKSClusterFile
 Remove-Item -Path $AKSClusterFile -Force
@@ -117,10 +177,10 @@ Remove-Item -Path $AKSClusterFile -Force
 kubectl get pods
 
 #Check for a public IP address for the store-front applicatio
-While (kubectl get service store-front | Select-String -Pattern "pending") {
+While (kubectl get service sample | Select-String -Pattern "pending") {
     Start-Sleep -Seconds 10
 }
-$ExternalIP = ((kubectl get service store-front | Select-Object -Skip 1) -split "\s+")[3]
+$ExternalIP = ((kubectl get service sample | Select-Object -Skip 1) -split "\s+")[3]
 Start-Process $("http://{0}" -f $ExternalIP)
 #endregion
 #endregion
@@ -129,3 +189,4 @@ Start-Process $("http://{0}" -f $ExternalIP)
 #Cleanup
 Get-AzResourceGroup "*$ResourceGroupName*" | Remove-AzResourceGroup -Force -AsJob
 #>
+#endregion
