@@ -30,7 +30,7 @@ $Error.Clear()
 $PSDefaultParameterValues = @{
     #To avoid warning message like: WARNING: The names of some imported commands from the module 'Microsoft.Azure.PowerShell.Cmdlets.Network' include unapproved verbs that might make them less discoverable
     'Import-Module:DisableNameChecking' = $true
-    'Import-Module:Verbose' = $false
+    'Import-Module:Verbose'             = $false
 }
 #From https://helloitsliam.com/2021/10/25/powershell-function-and-variable-issue/
 $Global:MaximumFunctionCount = 32768
@@ -213,9 +213,8 @@ Get-ADGroup -Filter "Name -like 'hp*-*Application Group Users'" | Add-ADGroupMem
 Start-MicrosoftEntraIDConnectSync
 #endregion
 
-
 #region Adding Test Users (CloudOnly) as HostPool Users (for all HostPools)
-Get-MgBetaGroup -All | Where-Object -FilterScript { ($_.displayName -like 'hp*-*Application Group Users') -and  (-not($_.OnPremisesSyncEnabled))} | ForEach-Object -Process {
+Get-MgBetaGroup -All | Where-Object -FilterScript { ($_.displayName -like 'hp*-*Application Group Users') -and (-not($_.OnPremisesSyncEnabled)) } | ForEach-Object -Process {
     New-MGBetaGroupMember -GroupId $_.Id -DirectoryObjectId $((Get-MgBetaGroup -Filter "displayName eq '$AVDUserGroupName'").Id) -ErrorAction Ignore
 }
 #endregion
