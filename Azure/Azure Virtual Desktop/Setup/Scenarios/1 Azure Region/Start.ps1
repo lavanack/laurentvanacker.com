@@ -213,6 +213,13 @@ Get-ADGroup -Filter "Name -like 'hp*-*Application Group Users'" | Add-ADGroupMem
 Start-MicrosoftEntraIDConnectSync
 #endregion
 
+
+#region Adding Test Users (CloudOnly) as HostPool Users (for all HostPools)
+Get-MgBetaGroup -All | Where-Object -FilterScript { ($_.displayName -like 'hp*-*Application Group Users') -and  (-not($_.OnPremisesSyncEnabled))} | ForEach-Object -Process {
+    New-MGBetaGroupMember -GroupId $_.Id -DirectoryObjectId $((Get-MgBetaGroup -Filter "displayName eq '$AVDUserGroupName'").Id) -ErrorAction Ignore
+}
+#endregion
+
 <#
 #region Adding Test Users (under the OrgUsers OU) as Memebers of the "No-MFA Users" group (if any)
 $NoMFAEntraIDGroup = Get-MgBetaGroup -Filter "DisplayName eq '$NoMFAEntraIDGroupName'"
