@@ -208,21 +208,22 @@ Get-PsAvdAppAttachProfileShare -HostPool $HostPools -Pester
 $HostPools | ConvertTo-AzWvdHostPool | Get-PsAvdHostPoolDirectLaunchUrl -Browse
 
 #region Adding Test Users (under the OrgUsers OU) as HostPool Users (for all HostPools)
-$AVDUserGroupName = 'AVD Users'
-Get-ADGroup -Filter "Name -like 'hp*-*Application Group Users'" | Add-ADGroupMember -Members $AVDUserGroupName
+$AVDUsersGroupName = 'AVD Users'
+Get-ADGroup -Filter "Name -like 'hp*-*Application Group Users'" | Add-ADGroupMember -Members $AVDUsersGroupName
 Start-MicrosoftEntraIDConnectSync
 #endregion
 
 #region Adding Test Users (CloudOnly) as HostPool Users (for all HostPools)
+$CloudOnlyUsersGroupName = 'Cloud Only Users'
 Get-MgBetaGroup -All | Where-Object -FilterScript { ($_.displayName -like 'hp*-*Application Group Users') -and (-not($_.OnPremisesSyncEnabled)) } | ForEach-Object -Process {
-    New-MGBetaGroupMember -GroupId $_.Id -DirectoryObjectId $((Get-MgBetaGroup -Filter "displayName eq '$AVDUserGroupName'").Id) -ErrorAction Ignore
+    New-MGBetaGroupMember -GroupId $_.Id -DirectoryObjectId $((Get-MgBetaGroup -Filter "displayName eq '$CloudOnlyUsersGroupName'").Id) -ErrorAction Ignore
 }
 #endregion
 
 <#
 #region Adding Test Users (under the OrgUsers OU) as Memebers of the "No-MFA Users" group (if any)
 $NoMFAEntraIDGroup = Get-MgBetaGroup -Filter "DisplayName eq '$NoMFAEntraIDGroupName'"
-$AVDUserGroup = Get-MgBetaGroup -Filter "DisplayName eq '$AVDUserGroupName'"
+$AVDUserGroup = Get-MgBetaGroup -Filter "DisplayName eq '$AVDUsersGroupName'"
 if (($null -ne $NoMFAEntraIDGroup) -and (-not((Get-MgBetaGroupMember -GroupId $NoMFAEntraIDGroup.Id).Id -contains $AVDUserGroup.Id))) {
     New-MgBetaGroupMember -GroupId $NoMFAEntraIDGroup.Id -DirectoryObjectId $AVDUserGroup.Id
 }
@@ -252,13 +253,13 @@ foreach ($CurrentSkuPartNumber in $SkuPartNumber) {
     $SubscribedSkuAvailableLicenses = $SubscribedSku.PrepaidUnits.Enabled - $SubscribedSku.ConsumedUnits
     Write-Verbose -Message "'$CurrentSkuPartNumber' Available License Number: $SubscribedSkuAvailableLicenses"
     if ($SubscribedSkuAvailableLicenses -gt 0) {
-        Set-PsAvdMgBetaUsersGroupLicense -GroupDisplayName $AVDUserGroupName -SkuPartNumber $CurrentSkuPartNumber -Verbose
+        Set-PsAvdMgBetaUsersGroupLicense -GroupDisplayName $AVDUsersGroupName -SkuPartNumber $CurrentSkuPartNumber -Verbose
     }
     else {
         Write-Verbose -Message "No more licenses availables for '$CurrentSkuPartNumber'"
         $AssignedLicenses = Get-MgBetaUser -Filter "assignedLicenses/any(x:x/skuId eq $($SubscribedSku.SkuId) )" -ConsistencyLevel eventual -CountVariable e5licensedUserCount -All
         Write-Verbose -Message "Assigned Licenses for '$CurrentSkuPartNumber': $($AssignedLicenses.DisplayName -join ', ')"
-        $AVDUserGroupMembersWithoutAssignedLicenses = Get-MgBetaUser -Filter "not(assignedLicenses/any(x:x/skuId eq $($SubscribedSku.SkuId))) and UserType eq 'Member'" -ConsistencyLevel eventual -CountVariable e5licensedUserCount -All | Where-Object -FilterScript { $_.Id -in $((Get-MgBetaGroupMember -GroupId $(Get-MgBetaGroup -Filter "DisplayName eq '$AVDUserGroupName'").Id).Id) }
+        $AVDUserGroupMembersWithoutAssignedLicenses = Get-MgBetaUser -Filter "not(assignedLicenses/any(x:x/skuId eq $($SubscribedSku.SkuId))) and UserType eq 'Member'" -ConsistencyLevel eventual -CountVariable e5licensedUserCount -All | Where-Object -FilterScript { $_.Id -in $((Get-MgBetaGroupMember -GroupId $(Get-MgBetaGroup -Filter "DisplayName eq '$AVDUsersGroupName'").Id).Id) }
         Write-Verbose -Message "AVD User Group Members Without Assigned Licenses for '$CurrentSkuPartNumber': $($AVDUserGroupMembersWithoutAssignedLicenses.DisplayName -join ', ')"
     }
 }
