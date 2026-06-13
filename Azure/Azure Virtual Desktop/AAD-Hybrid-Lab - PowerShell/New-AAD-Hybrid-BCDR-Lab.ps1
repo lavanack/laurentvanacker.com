@@ -327,6 +327,7 @@ function New-AAD-Hybrid-BCDR-Lab {
     #$PublicIP.DnsSettings.Fqdn = $FQDN
 
     #Step 7: Create Network Interface Card 
+    $subnet = Get-AzVirtualNetworkSubnetConfig -Name $subnetName -VirtualNetwork $vNetwork
     $NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -PublicIpAddressId $PublicIP.Id -PrivateIpAddress $DomainControllerIP
 
     <# Optional : Step 8: Get Virtual Machine publisher, Image Offer, Sku and Image

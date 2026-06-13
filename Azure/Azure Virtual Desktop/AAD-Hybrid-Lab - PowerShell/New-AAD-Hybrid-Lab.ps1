@@ -15,7 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.Network, Az.Resources, Az.Security, Az.Storage  -RunAsAdministrator 
+#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.Network, Az.Resources, Az.Security, Az.Storage
 
 #region Function definition
 function New-AAD-Hybrid-Lab {
@@ -302,6 +302,7 @@ function New-AAD-Hybrid-Lab {
     #$PublicIP.DnsSettings.Fqdn = $FQDN
 
     #Step 7: Create Network Interface Card 
+    $subnet = Get-AzVirtualNetworkSubnetConfig -Name $subnetName -VirtualNetwork $vNetwork
     $NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -PublicIpAddressId $PublicIP.Id -PrivateIpAddress $DomainControllerIP
 
     <# Optional : Step 8: Get Virtual Machine publisher, Image Offer, Sku and Image
@@ -503,13 +504,13 @@ $Parameters = @{
     "OSDiskType"           = "StandardSSD_LRS"
     "Project"              = "avd"
     "Role"                 = "ad"
-    "ADDomainName"         = "csa.fr"
+    "ADDomainName"         = "csa2.fr"
     #"CustomUPNSuffix"      = "cloudsolutionarchitect.fr"
     "VNetAddressRange"     = '10.0.0.0/16'
     "ADSubnetAddressRange" = '10.0.1.0/24'
     "DomainControllerIP"   = '10.0.1.4'
     "Instance"             = $Instance
-    "Location"             = "eastus2"
+    "Location"             = "belgiumcentral"
     "Spot"                 = $false
     "Bastion"              = $false
     "Verbose"              = $true

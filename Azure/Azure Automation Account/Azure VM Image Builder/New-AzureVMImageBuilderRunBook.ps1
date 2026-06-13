@@ -494,7 +494,7 @@ $Runbook | Set-AzAPIAutomationRunbookRuntimeEnvironment -RuntimeEnvironment $Run
 #endregion 
 
 # Link the schedule to the runbook
-$TimeInt = "1775647109"
+$TimeInt = "1778476256"
 $Parameters = @{ 
     GalleryId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-usc-{1}/providers/Microsoft.Compute/galleries/gal_avd_usc_{1}" -f $SubscriptionId, $TimeInt
     UserAssignedManagedIdentityId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-usc-{1}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/aibIdentity-{1}" -f $SubscriptionId, $TimeInt
@@ -564,7 +564,7 @@ $null = Set-AzAutomationRunbook @Params -LogVerbose $false # <-- Verbose stream
 #region Test
 #Start-Sleep -Seconds 30
 #region PowerShell
-$TimeInt = "1775647109"
+$TimeInt = "1778476256"
 $Parameters = @{ 
     GalleryId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-usc-{1}/providers/Microsoft.Compute/galleries/gal_avd_usc_{1}" -f $SubscriptionId, $TimeInt
     UserAssignedManagedIdentityId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-usc-{1}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/aibIdentity-{1}" -f $SubscriptionId, $TimeInt

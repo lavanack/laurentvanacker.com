@@ -50,8 +50,9 @@ Function Merge-PowerPointPresentation {
 		#The collection of the powerpoint files to merge
 		[Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
 		[ValidateScript( {
-				(Test-Path -Path $_ -PathType Leaf) -and ($_ -match "\.pptx?$")
+				(Test-Path -Path $($_ -replace "\[", '`[' -replace "\]", '`]') -PathType Leaf) -and ($_ -match "\.ppt(x{0,1})$")
 			})]
+
 		[alias('FilePath', 'Path', 'FullName')]
 		[string[]]$Source,
 
@@ -76,8 +77,8 @@ Function Merge-PowerPointPresentation {
 	process {
 		#For all files passed as argument outside a pipeline context
 		foreach ($CurrentSource in $Source) {
-			#Getting the base name of the processed presentation
-			$CurrentPresentationName = (Get-Item -Path $CurrentSource).BaseName
+            #Getting the base name of the processed presentation
+			$CurrentPresentationName = (Get-Item -Path $($CurrentSource -replace "\[", '`[' -replace "\]", '`]')).BaseName
 			
 			#Inserting the slide of the current presentation to the new one
 			$InsertedSlidesNb = $NewPresentation.Slides.InsertFromfile($CurrentSource, $SlidesNb)
@@ -119,5 +120,5 @@ Get-ChildItem -Path $CurrentDir -Filter "*.pptx" -File | Sort-Object -Property N
 
 
 #Example 2 : Processing a list of some PowerPoint presentations specified by their absolute path
-$Presentations = "$CurrentDir\Sample_0.pptx", "$CurrentDir\Sample_1.pptx", "$CurrentDir\Sample_2.pptx", "$CurrentDir\Sample_3.pptx", "$CurrentDir\Sample_4.pptx", "$CurrentDir\Sample_5.pptx", "$CurrentDir\Sample_6.pptx", "$CurrentDir\Sample_7.pptx", "$CurrentDir\Sample_8.pptx", "$CurrentDir\Sample_9.pptx"
-Merge-PowerPointPresentation -Source $Presentations -Destination $CurrentDir\all.pptx -Verbose
+#$Presentations = "$CurrentDir\0.pptx", "$CurrentDir\1.pptx", "$CurrentDir\2.pptx", "$CurrentDir\3.pptx", "$CurrentDir\4.pptx", "$CurrentDir\5.pptx", "$CurrentDir\6.pptx", "$CurrentDir\7.pptx", "$CurrentDir\8.pptx", "$CurrentDir\9.pptx"
+#Merge-PowerPointPresentation -Source $Presentations -Destination $CurrentDir\all.pptx -Verbose
