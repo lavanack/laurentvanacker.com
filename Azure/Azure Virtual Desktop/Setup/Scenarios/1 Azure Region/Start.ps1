@@ -149,7 +149,7 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 [PersonalHostPool]::SetIndex($RandomNumber, $PrimaryRegion)
 
 #Uncomment the best scenario for your usage or create your own
-$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_CloudOnly_FSLogix_Watermarking_ScalingPlan.ps1"
+$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_CloudOnly_FSLogix.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_Hybrid_FSLogix_AzureAppAttach_SSO.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_Intune_FSLogix_ScalingPlan_Watermarking.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_1_Personal_AD_SpotInstance.ps1"
@@ -215,10 +215,23 @@ Start-MicrosoftEntraIDConnectSync
 
 #region Adding Test Users (CloudOnly) as HostPool Users (for all HostPools)
 $CloudOnlyUsersGroupName = 'Cloud Only Users'
+$CloudOnlyUsersGroupId = (Get-MgBetaGroup -Filter "displayName eq '$CloudOnlyUsersGroupName'").Id
 Get-MgBetaGroup -All | Where-Object -FilterScript { ($_.displayName -like 'hp*-*Application Group Users') -and (-not($_.OnPremisesSyncEnabled)) } | ForEach-Object -Process {
-    New-MGBetaGroupMember -GroupId $_.Id -DirectoryObjectId $((Get-MgBetaGroup -Filter "displayName eq '$CloudOnlyUsersGroupName'").Id) -ErrorAction Ignore
+    New-MGBetaGroupMember -GroupId $_.Id -DirectoryObjectId $CloudOnlyUsersGroupId -ErrorAction Ignore
 }
 #endregion
+
+#region Adding Test Users (CloudOnly) as members of "the hp-np-ei-poc-* - FSLogix Contributor" groups because No nested group support in Azure AD tokens for file access for the moment
+$CloudOnlyUsersGroupMembers = Get-MgBetaGroupMember -GroupId $CloudOnlyUsersGroupId 
+Get-MgBetaGroup -All | Where-Object -FilterScript { ($_.displayName -like 'hp*-*FSLogix Contributor') -and (-not($_.OnPremisesSyncEnabled)) } | ForEach-Object -Process {
+    $Group = $_
+    $CloudOnlyUsersGroupMembers| ForEach-Object -Process {
+        New-MGBetaGroupMember -GroupId $Group.Id -DirectoryObjectId $_.Id -ErrorAction Ignore
+    }
+}
+#endregion
+
+
 
 <#
 #region Adding Test Users (under the OrgUsers OU) as Memebers of the "No-MFA Users" group (if any)
@@ -267,7 +280,7 @@ foreach ($CurrentSkuPartNumber in $SkuPartNumber) {
 
 $EndTime = Get-Date
 $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
-Write-Host -Object "Overall Processing Time: $($TimeSpan.ToString())"
+Write-Host -Object "Overall Processing Time: $($TimeSpan.ToString())" -ForegroundColor Green
 
 #$VerbosePreference = $PreviousVerbosePreference
 Stop-Transcript
