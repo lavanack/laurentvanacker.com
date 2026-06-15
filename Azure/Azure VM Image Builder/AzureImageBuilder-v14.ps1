@@ -661,7 +661,7 @@ While (Get-AzResourceProvider -ProviderNamespace $RequiredResourceProviders | Wh
 $Jobs | Remove-Job -Force
 #endregion
 $timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-#$timeInt = "1768915186"
+#$timeInt = "1778476256"
 $Location = "CentralUS"
 $TargetRegions = $Location, "EastUS2"
 
