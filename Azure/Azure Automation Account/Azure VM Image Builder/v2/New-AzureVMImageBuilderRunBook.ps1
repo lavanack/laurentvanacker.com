@@ -552,8 +552,8 @@ $Parameters = @{
     SrcParamsARM = $SrcObjParamsARM | ConvertTo-Json -Compress
     SrcParamsPowerShell = $SrcObjParamsPowerShell | ConvertTo-Json -Compress
     imageDefinitionNameARM = $imageDefinitionNameARM
-    imageTemplateNameARM = $imageTemplateNameARM
     imageDefinitionNamePowerShell = $imageDefinitionNamePowerShell
+    imageTemplateNameARM = $imageTemplateNameARM
     imageTemplateNamePowerShell = $imageTemplateNamePowerShell
     excludeFromLatest = $false
 }
@@ -646,8 +646,8 @@ $Parameters = @{
     SrcParamsARM = $SrcObjParamsARM | ConvertTo-Json -Compress
     SrcParamsPowerShell = $SrcObjParamsPowerShell | ConvertTo-Json -Compress
     imageDefinitionNameARM = $imageDefinitionNameARM
-    imageTemplateNameARM = $imageTemplateNameARM
     imageDefinitionNamePowerShell = $imageDefinitionNamePowerShell
+    imageTemplateNameARM = $imageTemplateNameARM
     imageTemplateNamePowerShell = $imageTemplateNamePowerShell
     excludeFromLatest = $false
 }

@@ -36,9 +36,9 @@ Param(
     [Parameter(Mandatory = $true)]
 	[string] $imageDefinitionNameARM,
     [Parameter(Mandatory = $true)]
-	[string] $imageTemplateNameARM,
-    [Parameter(Mandatory = $true)]
 	[string] $imageDefinitionNamePowerShell,
+    [Parameter(Mandatory = $true)]
+	[string] $imageTemplateNameARM,
     [Parameter(Mandatory = $true)]
 	[string] $imageTemplateNamePowerShell,
 	[Parameter(Mandatory = $false)]
@@ -69,6 +69,16 @@ Write-Output -InputObject "`$SubscriptionID: $subscriptionID"
 #region Parameters
 Write-Output -InputObject "`$GalleryId: $GalleryId"
 Write-Output -InputObject "`$UserAssignedManagedIdentityId: $UserAssignedManagedIdentityId"
+Write-Output -InputObject "`$UserAssignedManagedIdentityId = $UserAssignedManagedIdentityId"
+Write-Output -InputObject "`$TargetRegions = $($TargetRegions | Out-string)"
+Write-Output -InputObject "`$StagingResourceGroupARMId = $StagingResourceGroupARMId"
+Write-Output -InputObject "`$StagingResourceGroupPowerShellId = $StagingResourceGroupPowerShellId"
+Write-Output -InputObject "`$SrcParamsARM = $SrcObjParamsARM"
+Write-Output -InputObject "`$SrcParamsPowerShell = $SrcObjParamsPowerShell"
+Write-Output -InputObject "`$imageDefinitionNameARM = $imageDefinitionNameARM"
+Write-Output -InputObject "`$imageDefinitionNamePowerShell = $imageDefinitionNamePowerShell"
+Write-Output -InputObject "`$imageTemplateNameARM = $imageTemplateNameARM"
+Write-Output -InputObject "`$imageTemplateNamePowerShell = $imageTemplateNamePowerShell"
 Write-Output -InputObject "`$excludeFromLatest: $excludeFromLatest"
 #endregion
 
@@ -90,6 +100,7 @@ if ([string]::IsNullOrEmpty($TargetRegions)) {
 elseif ($Location -notin $TargetRegions) {
 	$TargetRegions += $Location
 }
+Write-Output -InputObject "`$TargetRegions = $($TargetRegions | Out-string)"
 
 [array] $TargetRegionSettings = foreach ($CurrentTargetRegion in $TargetRegions) {
 	@{"name" = $CurrentTargetRegion; "replicaCount" = $ReplicaCount; "storageAccountType" = "Premium_LRS" }
