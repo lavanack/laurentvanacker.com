@@ -22,9 +22,25 @@ Param(
 	[Parameter(Mandatory = $true)]
 	[string]$GalleryId,
 	[Parameter(Mandatory = $true)]
-	[string]$UserAssignedManagedIdentityResourceId,
+	[string]$UserAssignedManagedIdentityId,
 	[Parameter(Mandatory = $false)]
 	[string[]]$TargetRegions,
+	[Parameter(Mandatory = $true)]
+	[string]$StagingResourceGroupARMId,
+	[Parameter(Mandatory = $true)]
+	[string]$StagingResourceGroupPowerShellId,
+	[Parameter(Mandatory = $true)]
+	[string] $SrcParamsARM,
+	[Parameter(Mandatory = $true)]
+	[string] $SrcParamsPowerShell,
+    [Parameter(Mandatory = $true)]
+	[string] $imageDefinitionNameARM,
+    [Parameter(Mandatory = $true)]
+	[string] $imageTemplateNameARM,
+    [Parameter(Mandatory = $true)]
+	[string] $imageDefinitionNamePowerShell,
+    [Parameter(Mandatory = $true)]
+	[string] $imageTemplateNamePowerShell,
 	[Parameter(Mandatory = $false)]
 	[bool] $excludeFromLatest = $false
 )
@@ -51,14 +67,14 @@ Write-Output -InputObject "`$SubscriptionID: $subscriptionID"
 
 #region Parameters
 Write-Output -InputObject "`$GalleryId: $GalleryId"
-Write-Output -InputObject "`$UserAssignedManagedIdentityResourceId: $UserAssignedManagedIdentityResourceId"
+Write-Output -InputObject "`$UserAssignedManagedIdentityId: $UserAssignedManagedIdentityId"
 Write-Output -InputObject "`$excludeFromLatest: $excludeFromLatest"
 #endregion
 
 #region Azure Gallery Image Definition Version
 $Gallery = Get-AzGallery -ResourceId $GalleryId
 $ResourceGroupName = $Gallery.ResourceGroupName
-$UserAssignedManagedIdentityResource = Get-AzResource -ResourceId $UserAssignedManagedIdentityResourceId
+$UserAssignedManagedIdentityResource = Get-AzResource -ResourceId $UserAssignedManagedIdentityId
 $UserAssignedManagedIdentity = Get-AzUserAssignedIdentity -Name $UserAssignedManagedIdentityResource.Name -ResourceGroupName $UserAssignedManagedIdentityResource.ResourceGroupName
 $Location = $Gallery.Location
 $timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
@@ -81,36 +97,20 @@ elseif ($Location -notin $TargetRegions) {
 
 
 #region Source Image 
-$SrcObjParamsARM = @{
-	Publisher = 'MicrosoftWindowsDesktop'
-	Offer     = 'Windows-11'    
-	Sku       = 'win11-25h2-avd'  
-	Version   = 'latest'
-}
+$SrcObjParamsARM = $SrcParamsARM | ConvertFrom-Json
 
-$SrcObjParamsPowerShell = @{
-	Publisher = 'MicrosoftWindowsDesktop'
-	Offer     = 'Office-365'    
-	Sku       = 'win11-25h2-avd-m365'  
-	Version   = 'latest'
-}
+$SrcObjParamsPowerShell = $SrcObjPowerShell | ConvertFrom-Json
 #endregion
 
 #region Image template and definition names
 #Image Market Place Image + customizations: VSCode
-$imageDefinitionNameARM = "{0}-arm-softwares" -f $SrcObjParamsARM.Sku
-$imageTemplateNameARM = "{0}-template-{1}" -f $imageDefinitionNameARM, $timeInt
 Write-Output -InputObject "`$imageDefinitionNameARM: $imageDefinitionNameARM"
 Write-Output -InputObject "`$imageTemplateNameARM: $imageTemplateNameARM"
-$StagingResourceGroupNameARM = "IT_{0}_{1}_{2}" -f $ResourceGroupName, $imageTemplateNameARM.Substring(0, 13), (New-Guid).Guid
 Write-Output -InputObject "`$StagingResourceGroupNameARM: $StagingResourceGroupNameARM"
 
 #Image Market Place Image + customizations: VSCode
-$imageDefinitionNamePowerShell = "{0}-posh-softwares" -f $SrcObjParamsPowerShell.Sku
-$imageTemplateNamePowerShell = "{0}-template-{1}" -f $imageDefinitionNamePowerShell, $timeInt
 Write-Output -InputObject "`$imageDefinitionNamePowerShell: $imageDefinitionNamePowerShell"
 Write-Output -InputObject "`$imageTemplateNamePowerShell: $imageTemplateNamePowerShell"
-$StagingResourceGroupNamePowerShell = "IT_{0}_{1}_{2}" -f $ResourceGroupName, $imageTemplateNamePowerShell.Substring(0, 13), (New-Guid).Guid
 Write-Output -InputObject "`$StagingResourceGroupNamePowerShell: $StagingResourceGroupNamePowerShell"
 #endregion
 
@@ -123,47 +123,13 @@ Write-Output -InputObject "`$Version: $Version"
 
 $Jobs = @()
 
-#region Create resource group
-if (Get-AzResourceGroup -Name $StagingResourceGroupNameARM -Location $Location -ErrorAction Ignore) {
-	Write-Output -InputObject "Removing '$StagingResourceGroupNameARM' Resource Group Name ..."
-	Remove-AzResource -Name $StagingResourceGroupNameARM -Force
-}
-Write-Output -InputObject "Creating '$StagingResourceGroupNameARM' Resource Group Name ..."
-$StagingResourceGroupARM = New-AzResourceGroup -Name $StagingResourceGroupNameARM -Tag $Tags -Location $Location -Force
-
-if (Get-AzResourceGroup -Name $StagingResourceGroupNamePowerShell -Location $Location -ErrorAction Ignore) {
-	Write-Output -InputObject "Removing '$StagingResourceGroupNamePowerShell' Resource Group Name ..."
-	Remove-AzResource -Name $StagingResourceGroupNamePowerShell -Force
-}
-Write-Output -InputObject "Creating '$StagingResourceGroupNamePowerShell' Resource Group Name ..."
-$StagingResourceGroupPowerShell = New-AzResourceGroup -Name $StagingResourceGroupNamePowerShell -Location $Location -Tag $Tags -Force
-
+#region Getting Resource groups
+Write-Output -InputObject "Getting '$StagingResourceGroupARMId' Resource Group ..."
+$StagingResourceGroupARM = Get-AzResource -Id $StagingResourceGroupARMId | Get-AzResourceGroup
+Write-Output -InputObject "Getting '$StagingResourceGroupPowerShellId' Resource Group ..."
+$StagingResourceGroupPowerShell = Get-AzResource -Id $StagingResourceGroupPowerShellId | Get-AzResourceGroup
+Write-Output -InputObject "Getting '$ResourceGroupName' Resource Group Name ..."
 $ResourceGroup = Get-AzResourceGroup -ResourceGroupName $ResourceGroupName
-#endregion
-
-#region RBAC Assignment(s)
-#region RBAC Owner Role on both Staging Resource Groups
-foreach ($CurrentStagingResourceGroup in $StagingResourceGroupARM, $StagingResourceGroupPowerShell) {
-	$RoleDefinition = Get-AzRoleDefinition -Name "Contributor"
-	$Parameters = @{
-		ObjectId           = $UserAssignedManagedIdentity.PrincipalId
-		RoleDefinitionName = $RoleDefinition.Name
-		Scope              = $CurrentStagingResourceGroup.ResourceId
-	}
-	while (-not(Get-AzRoleAssignment @Parameters)) {
-		Write-Output -InputObject "Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' scope"
-		try {
-			$RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
-		} 
-		catch {
-			$RoleAssignment = $null
-		}
-		Write-Output -InputObject "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-		Write-Output -InputObject "Sleeping 30 seconds"
-		Start-Sleep -Seconds 30
-	}
-}
-#endregion
 #endregion
 
 #endregion
