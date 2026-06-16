@@ -445,9 +445,11 @@ Remove-AzRoleDefinition -Name $RoleDefinition.Name -Force
   
 #region Removing Staging ResourceGroups
 if ($getStatusARM.LastRunStatusRunState -ne "Failed") {
-	$null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNameARM -Force -AsJob
+    while (Get-AzResource -ResourceGroupName $StagingResourceGroupNameARM | ForEach-Object -Parallel { Remove-AzResource -ResourceId $_.ResourceId -Force -ErrorAction SilentlyContinue } -ThrottleLimit 10) {
+    }
 }
 if ($getStatusPowerShell.LastRunStatusRunState -ne "Failed") {
-	$null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNamePowerShell -Force -AsJob
+    while (Get-AzResource -ResourceGroupName $StagingResourceGroupNamePowerShell | ForEach-Object -Parallel { Remove-AzResource -ResourceId $_.ResourceId -Force -ErrorAction SilentlyContinue } -ThrottleLimit 10) {
+    }
 }
 #endregion
