@@ -110,8 +110,10 @@ Write-Output -InputObject "`$TargetRegions = $($TargetRegions | Out-string)"
 
 #region Source Image 
 $SrcObjParamsARM = $SrcParamsARM | ConvertFrom-Json
+Write-Output -InputObject "`$SrcObjParamsARM: $($SrcObjParamsARM | Out-string)"
 
 $SrcObjParamsPowerShell = $SrcObjPowerShell | ConvertFrom-Json
+Write-Output -InputObject "`$SrcObjParamsPowerShell: $($SrcObjParamsPowerShell | Out-string)"
 #endregion
 
 #region Image template and definition names
