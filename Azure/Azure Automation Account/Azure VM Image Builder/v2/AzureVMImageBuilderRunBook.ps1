@@ -20,7 +20,7 @@ of the Sample Code.
 
 Param(
 	[ValidateNotNull()]
-    [Parameter(Mandatory = $true)]
+	[Parameter(Mandatory = $true)]
 	[string]$GalleryId,
 	[ValidateNotNull()]
 	[Parameter(Mandatory = $true)]
@@ -41,19 +41,21 @@ Param(
 	[Parameter(Mandatory = $true)]
 	[string] $SrcParamsPowerShell,
 	[ValidateNotNull()]
-    [Parameter(Mandatory = $true)]
+	[Parameter(Mandatory = $true)]
 	[string] $imageDefinitionNameARM,
 	[ValidateNotNull()]
-    [Parameter(Mandatory = $true)]
+	[Parameter(Mandatory = $true)]
 	[string] $imageDefinitionNamePowerShell,
 	[ValidateNotNull()]
-    [Parameter(Mandatory = $true)]
+	[Parameter(Mandatory = $true)]
 	[ValidateNotNull()]
 	[string] $imageTemplateNameARM,
 	[ValidateNotNull()]
-    [Parameter(Mandatory = $true)]
+	[Parameter(Mandatory = $true)]
 	[ValidateNotNull()]
 	[string] $imageTemplateNamePowerShell,
+	[Parameter(Mandatory = $false)]
+	[int]$ReplicaCount = 1,
 	[Parameter(Mandatory = $false)]
 	[bool] $excludeFromLatest = $false
 )
@@ -85,7 +87,7 @@ Write-Output -InputObject "`$UserAssignedManagedIdentityId: $UserAssignedManaged
 Write-Output -InputObject "`$TargetRegions: $($TargetRegions | Out-string)"
 Write-Output -InputObject "`$StagingResourceGroupARMId: $StagingResourceGroupARMId"
 Write-Output -InputObject "`$StagingResourceGroupPowerShellId: $StagingResourceGroupPowerShellId"
-Write-Output -InputObject "`$SrcParamsARM: $SrcObjParamsARM"
+Write-Output -InputObject "`$SrcParamsARM: $SrcParamsARM"
 Write-Output -InputObject "`$SrcParamsPowerShell: $SrcParamsPowerShell"
 Write-Output -InputObject "`$imageDefinitionNameARM: $imageDefinitionNameARM"
 Write-Output -InputObject "`$imageDefinitionNamePowerShell: $imageDefinitionNamePowerShell"
@@ -101,13 +103,9 @@ $UserAssignedManagedIdentityResource = Get-AzResource -ResourceId $UserAssignedM
 $UserAssignedManagedIdentity = Get-AzUserAssignedIdentity -Name $UserAssignedManagedIdentityResource.Name -ResourceGroupName $UserAssignedManagedIdentityResource.ResourceGroupName
 $Location = $Gallery.Location
 $timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-$Tags = @{
-	"SecurityControl" = "Ignore"
-	"RunBook"          = $Invocation.MyCommand.Name
-}
 
 if ([string]::IsNullOrEmpty($TargetRegions)) {
-    $TargetRegions = @($Location)
+	$TargetRegions = @($Location)
 }
 elseif ($Location -notin $TargetRegions) {
 	$TargetRegions += $Location
@@ -118,15 +116,25 @@ Write-Output -InputObject "`$TargetRegions = $($TargetRegions | Out-string)"
 	@{"name" = $CurrentTargetRegion; "replicaCount" = $ReplicaCount; "storageAccountType" = "Premium_LRS" }
 }
 
-
-
 #region Source Image 
 $SrcObjParamsARM = $SrcParamsARM | ConvertFrom-Json
 Write-Output -InputObject "`$SrcObjParamsARM: $($SrcObjParamsARM | Out-string)"
 
-$SrcObjParamsPowerShell = $SrcObjPowerShell | ConvertFrom-Json
+$SrcObjParamsPowerShell = $SrcParamsPowerShell | ConvertFrom-Json #-AsHashtable
 Write-Output -InputObject "`$SrcObjParamsPowerShell: $($SrcObjParamsPowerShell | Out-string)"
 #endregion
+
+#region Getting Resource groups
+Write-Output -InputObject "Getting '$StagingResourceGroupARMId' Resource Group ..."
+$StagingResourceGroupARM = Get-AzResourceGroup -ResourceId $StagingResourceGroupARMId
+Write-Output -InputObject "Getting '$StagingResourceGroupPowerShellId' Resource Group ..."
+$StagingResourceGroupPowerShell = Get-AzResourceGroup -ResourceId $StagingResourceGroupPowerShellId
+Write-Output -InputObject "Getting '$ResourceGroupName' Resource Group Name ..."
+$ResourceGroup = Get-AzResourceGroup -ResourceGroupName $ResourceGroupName
+$StagingResourceGroupNameARM = $StagingResourceGroupARM.ResourceGroupName
+$StagingResourceGroupNamePowerShell = $StagingResourceGroupPowerShell.ResourceGroupName
+#endregion
+
 
 #region Image template and definition names
 #Image Market Place Image + customizations: VSCode
@@ -148,15 +156,6 @@ $Version = Get-Date -UFormat "%Y.%m.%d"
 Write-Output -InputObject "`$Version: $Version"
 
 $Jobs = @()
-
-#region Getting Resource groups
-Write-Output -InputObject "Getting '$StagingResourceGroupARMId' Resource Group ..."
-$StagingResourceGroupARM = Get-AzResource -Id $StagingResourceGroupARMId | Get-AzResourceGroup
-Write-Output -InputObject "Getting '$StagingResourceGroupPowerShellId' Resource Group ..."
-$StagingResourceGroupPowerShell = Get-AzResource -Id $StagingResourceGroupPowerShellId | Get-AzResourceGroup
-Write-Output -InputObject "Getting '$ResourceGroupName' Resource Group Name ..."
-$ResourceGroup = Get-AzResourceGroup -ResourceGroupName $ResourceGroupName
-#endregion
 
 #endregion
 
@@ -267,7 +266,7 @@ $LatestImage = $AllImages | Select-Object -First 1
 $disObjParams = @{
 	SharedImageDistributor = $true
 	GalleryImageId         = "$($GalleryImageDefinitionPowerShell.Id)/versions/$version"
-	ArtifactTag            = @{Publisher = $SrcObjParamsPowerShell.Publisher; Offer = $SrcObjParamsPowerShell.Publisher; Sku = $SrcObjParamsPowerShell.Publisher }
+	ArtifactTag            = @{Publisher = $SrcObjParamsPowerShell.Publisher; Offer = $SrcObjParamsPowerShell.Offer; Sku = $SrcObjParamsPowerShell.Sku }
 
 	# 1. Uncomment following line for a single region deployment.
 	#ReplicationRegion = $Location
@@ -445,10 +444,10 @@ Remove-AzRoleDefinition -Name $RoleDefinition.Name -Force
 #endregion
   
 #region Removing Staging ResourceGroups
-if ($getStatusPowerShell.LastRunStatusRunState -ne "Failed") {
-    $null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNameARM -Force -AsJob
-}
 if ($getStatusARM.LastRunStatusRunState -ne "Failed") {
-    $null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNamePowerShell -Force -AsJob
+	$null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNameARM -Force -AsJob
+}
+if ($getStatusPowerShell.LastRunStatusRunState -ne "Failed") {
+	$null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNamePowerShell -Force -AsJob
 }
 #endregion

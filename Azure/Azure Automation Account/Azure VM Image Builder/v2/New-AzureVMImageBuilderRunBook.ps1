@@ -600,7 +600,7 @@ $RoleDefinitionNames = "Contributor"
 $StagingResourceGroups = $StagingResourceGroupARM, $StagingResourceGroupPowerShell
 $UserAssignedManagedIdentityResource = Get-AzResource -ResourceId $UserAssignedManagedIdentityId
 $UserAssignedManagedIdentity = Get-AzUserAssignedIdentity -Name $UserAssignedManagedIdentityResource.Name -ResourceGroupName $UserAssignedManagedIdentityResource.ResourceGroupName
-$ObjectIds = $UserAssignedManagedIdentity.PrincipalId
+$ObjectIds = $AutomationAccount.Identity.PrincipalId, $UserAssignedManagedIdentity.PrincipalId
 foreach ($CurrentStagingResourceGroup in $StagingResourceGroups) {
     foreach ($RoleDefinitionName in $RoleDefinitionNames) {
         $RoleDefinition = Get-AzRoleDefinition -Name $RoleDefinitionName
