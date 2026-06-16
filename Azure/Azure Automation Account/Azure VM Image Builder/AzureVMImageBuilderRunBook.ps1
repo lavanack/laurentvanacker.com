@@ -26,6 +26,8 @@ Param(
 	[Parameter(Mandatory = $false)]
 	[string[]]$TargetRegions,
 	[Parameter(Mandatory = $false)]
+	[int]$ReplicaCount = 1,
+	[Parameter(Mandatory = $false)]
 	[bool] $excludeFromLatest = $false
 )
 
@@ -64,7 +66,7 @@ $Location = $Gallery.Location
 $timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 $Tags = @{
 	"SecurityControl" = "Ignore"
-	"RunBook"          = $Invocation.MyCommand.Name
+	"RunBook"          = $MyInvocation.MyCommand.Name
 }
 
 if ([string]::IsNullOrEmpty($TargetRegions)) {
