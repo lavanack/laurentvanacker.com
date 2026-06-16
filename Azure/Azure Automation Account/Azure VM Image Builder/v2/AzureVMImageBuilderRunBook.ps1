@@ -19,27 +19,40 @@ of the Sample Code.
 
 
 Param(
-	[Parameter(Mandatory = $true)]
+	[ValidateNotNull()]
+    [Parameter(Mandatory = $true)]
 	[string]$GalleryId,
+	[ValidateNotNull()]
 	[Parameter(Mandatory = $true)]
 	[string]$UserAssignedManagedIdentityId,
+	[ValidateNotNull()]
 	[Parameter(Mandatory = $false)]
 	[string[]]$TargetRegions,
+	[ValidateNotNull()]
 	[Parameter(Mandatory = $true)]
 	[string]$StagingResourceGroupARMId,
+	[ValidateNotNull()]
 	[Parameter(Mandatory = $true)]
 	[string]$StagingResourceGroupPowerShellId,
+	[ValidateNotNull()]
 	[Parameter(Mandatory = $true)]
 	[string] $SrcParamsARM,
+	[ValidateNotNull()]
 	[Parameter(Mandatory = $true)]
 	[string] $SrcParamsPowerShell,
+	[ValidateNotNull()]
     [Parameter(Mandatory = $true)]
 	[string] $imageDefinitionNameARM,
+	[ValidateNotNull()]
     [Parameter(Mandatory = $true)]
 	[string] $imageDefinitionNamePowerShell,
+	[ValidateNotNull()]
     [Parameter(Mandatory = $true)]
+	[ValidateNotNull()]
 	[string] $imageTemplateNameARM,
+	[ValidateNotNull()]
     [Parameter(Mandatory = $true)]
+	[ValidateNotNull()]
 	[string] $imageTemplateNamePowerShell,
 	[Parameter(Mandatory = $false)]
 	[bool] $excludeFromLatest = $false
@@ -68,7 +81,6 @@ Write-Output -InputObject "`$SubscriptionID: $subscriptionID"
 
 #region Parameters
 Write-Output -InputObject "`$GalleryId: $GalleryId"
-Write-Output -InputObject "`$UserAssignedManagedIdentityId: $UserAssignedManagedIdentityId"
 Write-Output -InputObject "`$UserAssignedManagedIdentityId: $UserAssignedManagedIdentityId"
 Write-Output -InputObject "`$TargetRegions: $($TargetRegions | Out-string)"
 Write-Output -InputObject "`$StagingResourceGroupARMId: $StagingResourceGroupARMId"
