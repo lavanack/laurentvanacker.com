@@ -45,6 +45,7 @@ Param(
 	[bool] $excludeFromLatest = $false
 )
 
+
 #region Importing Modules
 Import-Module Az.Accounts -Force
 Import-Module Az.Compute -Force
