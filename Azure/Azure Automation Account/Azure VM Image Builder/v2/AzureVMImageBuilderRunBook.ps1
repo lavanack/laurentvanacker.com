@@ -117,10 +117,10 @@ Write-Output -InputObject "`$TargetRegions = $($TargetRegions | Out-string)"
 }
 
 #region Source Image 
-$SrcObjParamsARM = $SrcParamsARM | ConvertFrom-Json
+$SrcObjParamsARM = $SrcParamsARM | ConvertFrom-Json -AsHashtable
 Write-Output -InputObject "`$SrcObjParamsARM: $($SrcObjParamsARM | Out-string)"
 
-$SrcObjParamsPowerShell = $SrcParamsPowerShell | ConvertFrom-Json #-AsHashtable
+$SrcObjParamsPowerShell = $SrcParamsPowerShell | ConvertFrom-Json -AsHashtable
 Write-Output -InputObject "`$SrcObjParamsPowerShell: $($SrcObjParamsPowerShell | Out-string)"
 #endregion
 
