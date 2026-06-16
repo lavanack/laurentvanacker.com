@@ -22,7 +22,7 @@ Param(
 	[Parameter(Mandatory = $true)]
 	[string]$GalleryId,
 	[Parameter(Mandatory = $true)]
-	[string]$UserAssignedManagedIdentityResourceId,
+	[string]$UserAssignedManagedIdentityId,
 	[Parameter(Mandatory = $false)]
 	[string[]]$TargetRegions,
 	[Parameter(Mandatory = $false)]
@@ -51,14 +51,14 @@ Write-Output -InputObject "`$SubscriptionID: $subscriptionID"
 
 #region Parameters
 Write-Output -InputObject "`$GalleryId: $GalleryId"
-Write-Output -InputObject "`$UserAssignedManagedIdentityResourceId: $UserAssignedManagedIdentityResourceId"
+Write-Output -InputObject "`$UserAssignedManagedIdentityId: $UserAssignedManagedIdentityId"
 Write-Output -InputObject "`$excludeFromLatest: $excludeFromLatest"
 #endregion
 
 #region Azure Gallery Image Definition Version
 $Gallery = Get-AzGallery -ResourceId $GalleryId
 $ResourceGroupName = $Gallery.ResourceGroupName
-$UserAssignedManagedIdentityResource = Get-AzResource -ResourceId $UserAssignedManagedIdentityResourceId
+$UserAssignedManagedIdentityResource = Get-AzResource -ResourceId $UserAssignedManagedIdentityId
 $UserAssignedManagedIdentity = Get-AzUserAssignedIdentity -Name $UserAssignedManagedIdentityResource.Name -ResourceGroupName $UserAssignedManagedIdentityResource.ResourceGroupName
 $Location = $Gallery.Location
 $timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
