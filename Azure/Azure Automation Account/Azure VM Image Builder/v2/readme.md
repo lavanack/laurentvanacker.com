@@ -35,7 +35,7 @@ The solution builds custom Windows 11 (25H2) Azure Virtual Desktop (AVD) images 
 - Publishes `AzureVMImageBuilderRunBook.ps1` as a runbook (fetched from this GitHub repo) and assigns it the custom runtime environment.
 - Defines the ARM and PowerShell source images, image definition / template names, and creates the two **staging resource groups** (ARM + PowerShell).
 - Creates a **monthly schedule** (2nd Wednesday of the month at 08:00 local time) and registers the runbook with its parameters.
-- Assigns the **Contributor** RBAC role to the Automation Account's system-assigned managed identity (on the gallery resource group and both staging resource groups) and to the User-Assigned Managed Identity (on both staging resource groups).
+- Assigns the **Contributor** RBAC role to the Automation Account's system-assigned managed identity (on the gallery resource group and both staging resource groups) and to the User-Assigned Managed Identity (on both staging resource groups). This v2 version requires less privileges (in terms of RBAC assignments) than the [v1](../v1/) version.
 - Optionally runs a **test invocation** of the runbook and waits for the result.
 
 ### 2. Runbook Execution (`AzureVMImageBuilderRunBook.ps1`)
