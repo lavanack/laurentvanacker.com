@@ -32,7 +32,7 @@ The solution builds custom Windows 11 Azure Virtual Desktop (AVD) images on a mo
 - Provisions a custom **PowerShell 7.4** runtime environment with the required Az modules.
 - Publishes `AzureVMImageBuilderRunBook.ps1` as a runbook (fetched from this GitHub repo).
 - Creates a **monthly schedule** (2nd Wednesday of the month at 08:00 local time).
-- Assigns **Contributor** and **Role Based Access Control Administrator** roles to the Automation Account's system-assigned managed identity.
+- Assigns **Contributor** and **Role Based Access Control Administrator** roles to the Automation Account's system-assigned managed identity. A [v2](../v2) version requiring less privileges exists.  
 
 ### 2. Runbook Execution (`AzureVMImageBuilderRunBook.ps1`)
 
