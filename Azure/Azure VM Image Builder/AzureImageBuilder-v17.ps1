@@ -147,7 +147,7 @@ function New-AzureComputeGallery {
 		((Get-Content -Path $aibRoleImageCreationPath -Raw) -replace 'Azure Image Builder Service Image Creation Role', $imageRoleDefName) | Set-Content -Path $aibRoleImageCreationPath
 
 		#region Create a role definition
-		$RoleDefinition = Get-AzRoleDefinition -Name $imageRoleDefName
+		$RoleDefinition = Get-AzRoleDefinition -Name $imageRoleDefName -WarningAction Ignore
 		if ($RoleDefinition) {
 			Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The '$imageRoleDefName' Role Definition already exists ..."
 		}

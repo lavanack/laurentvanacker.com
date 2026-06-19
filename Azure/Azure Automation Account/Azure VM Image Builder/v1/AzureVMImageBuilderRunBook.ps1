@@ -26,6 +26,8 @@ Param(
 	[Parameter(Mandatory = $false)]
 	[string[]]$TargetRegions,
 	[Parameter(Mandatory = $false)]
+	[int]$ReplicaCount = 1,
+	[Parameter(Mandatory = $false)]
 	[bool] $excludeFromLatest = $false
 )
 
@@ -58,13 +60,13 @@ Write-Output -InputObject "`$excludeFromLatest: $excludeFromLatest"
 #region Azure Gallery Image Definition Version
 $Gallery = Get-AzGallery -ResourceId $GalleryId
 $ResourceGroupName = $Gallery.ResourceGroupName
-$UserAssignedManagedIdentity = Get-AzResource -ResourceId $UserAssignedManagedIdentityId
-$AssignedIdentity = Get-AzUserAssignedIdentity -Name $UserAssignedManagedIdentity.Name -ResourceGroupName $UserAssignedManagedIdentity.ResourceGroupName
+$UserAssignedManagedIdentityResource = Get-AzResource -ResourceId $UserAssignedManagedIdentityId
+$UserAssignedManagedIdentity = Get-AzUserAssignedIdentity -Name $UserAssignedManagedIdentityResource.Name -ResourceGroupName $UserAssignedManagedIdentityResource.ResourceGroupName
 $Location = $Gallery.Location
 $timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 $Tags = @{
 	"SecurityControl" = "Ignore"
-	"RunBook"          = $Invocation.MyCommand.Name
+	"RunBook"          = $MyInvocation.MyCommand.Name
 }
 
 if ([string]::IsNullOrEmpty($TargetRegions)) {
@@ -146,7 +148,7 @@ $ResourceGroup = Get-AzResourceGroup -ResourceGroupName $ResourceGroupName
 foreach ($CurrentStagingResourceGroup in $StagingResourceGroupARM, $StagingResourceGroupPowerShell) {
 	$RoleDefinition = Get-AzRoleDefinition -Name "Contributor"
 	$Parameters = @{
-		ObjectId           = $AssignedIdentity.PrincipalId
+		ObjectId           = $UserAssignedManagedIdentity.PrincipalId
 		RoleDefinitionName = $RoleDefinition.Name
 		Scope              = $CurrentStagingResourceGroup.ResourceId
 	}
@@ -204,7 +206,7 @@ Invoke-WebRequest -Uri $templateUrl -OutFile $templateFilePath -UseBasicParsing
 ((Get-Content -Path $templateFilePath -Raw) -replace '<sharedImageGalName>', $Gallery.Name) | Set-Content -Path $templateFilePath
 ((Get-Content -Path $templateFilePath -Raw) -replace '<excludeFromLatest>', $excludeFromLatest.ToString().ToLower()) | Set-Content -Path $templateFilePath
 ((Get-Content -Path $templateFilePath -Raw) -replace '<TargetRegions>', $(ConvertTo-Json -InputObject $TargetRegionSettings)) | Set-Content -Path $templateFilePath
-((Get-Content -Path $templateFilePath -Raw) -replace '<imgBuilderId>', $AssignedIdentity.Id) | Set-Content -Path $templateFilePath
+((Get-Content -Path $templateFilePath -Raw) -replace '<imgBuilderId>', $UserAssignedManagedIdentity.Id) | Set-Content -Path $templateFilePath
 ((Get-Content -Path $templateFilePath -Raw) -replace '<version>', $version) | Set-Content -Path $templateFilePath
 ((Get-Content -Path $templateFilePath -Raw) -replace '<stagingResourceGroupName>', $StagingResourceGroupNameARM) | Set-Content -Path $templateFilePath
 
@@ -380,7 +382,7 @@ $ImgTemplateParams = @{
 	Distribute             = $disSharedImg
 	Customize              = $Customize
 	Location               = $Location
-	UserAssignedIdentityId = $AssignedIdentity.Id
+	UserAssignedIdentityId = $UserAssignedManagedIdentity.Id
 	VMProfileVmsize        = "Standard_D8s_v6"
 	VMProfileOsdiskSizeGb  = 127
 	BuildTimeoutInMinute   = 240
@@ -419,10 +421,6 @@ if ($getStatusARM.LastRunStatusRunState -eq "Failed") {
 Write-Output -InputObject "Removing Azure Image Builder Template for '$imageTemplateNameARM' ..."
 #$Jobs += $getStatusARM | Remove-AzImageBuilderTemplate -AsJob
 $getStatusARM | Remove-AzImageBuilderTemplate #-NoWait
-if ($aibRoleImageCreationPath) {
-	Write-Output -InputObject "Removing '$aibRoleImageCreationPath' ..."
-	Remove-Item -Path $aibRoleImageCreationPath -Force
-}
 Write-Output -InputObject "Removing '$templateFilePath' ..."
 Remove-Item -Path $templateFilePath -Force
 #endregion
