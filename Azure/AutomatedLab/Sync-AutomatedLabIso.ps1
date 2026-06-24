@@ -44,7 +44,11 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 
 #region Set Storage Account Configuration
 $MyPublicIp = Invoke-RestMethod -Uri "https://ipv4.seeip.org"
-$null = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Enabled -AllowSharedKeyAccess $true -NetworkRuleSet (@{ipRules = (@{IPAddressOrRange = $MyPublicIp; Action = "allow" }); defaultAction = "deny" }) -Tag @{ SecurityControl = "Ignore" }
+$StorageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName
+$NetworkRuleSet = $StorageAccount.NetworkRuleSet
+$NetworkRuleSet.defaultAction = "deny"
+$NetworkRuleSet.ipRules += @{IPAddressOrRange = $MyPublicIp; Action = "allow" }
+$null = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Enabled -AllowSharedKeyAccess $true -NetworkRuleSet $NetworkRuleSet -Tag @{ SecurityControl = "Ignore" }
 Start-Sleep -Seconds 10
 #endregion
 

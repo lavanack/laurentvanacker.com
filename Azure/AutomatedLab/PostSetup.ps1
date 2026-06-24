@@ -90,6 +90,7 @@ Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git lfs install" -Wa
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git clone https://github.com/lavanack/$GitHubRepoName.git ""$GitHubRepoDir""" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "C:\Tools\junction -accepteula $env:SystemDrive\$GitHubRepoName ""$GitHubRepoDir""" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
 #endregion
+#endregion
 
 #region AutomatedLab ISO downloads
 $StartTime = Get-Date

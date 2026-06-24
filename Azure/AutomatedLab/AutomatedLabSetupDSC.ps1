@@ -1,4 +1,5 @@
-﻿#More details on https://automatedlab.org/en/latest/Wiki/Basic/install/
+﻿
+#More details on https://automatedlab.org/en/latest/Wiki/Basic/install/
 <#
 This Sample Code is provided for the purpose of illustration only
 and is not intended to be used in a production environment.  THIS
@@ -22,6 +23,7 @@ of the Sample Code.
 # For installing prerequisites
 #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 Get-PackageProvider -Name Nuget -ForceBootstrap -Force
+Install-Module -Name PowershellGet -Scope AllUsers -Force -Verbose 
 Install-Module -Name 'PSDscResources', 'StorageDsc', 'xPSDesiredStateConfiguration', 'ComputerManagementDsc' -Scope AllUsers -Force -Verbose 
 Install-Module -Name HyperVDsc -AllowPrerelease -Scope AllUsers -Force -Verbose 
 #>
@@ -100,7 +102,7 @@ Configuration AutomatedLabSetupDSC {
             Role    = 'Users'
             Enabled = $false
         }
-        
+
         WindowsOptionalFeature  HyperVAll {
             Name   = 'Microsoft-Hyper-V-All'
             Ensure = 'Present'
@@ -172,7 +174,7 @@ Configuration AutomatedLabSetupDSC {
             IsSingleInstance    = 'Yes'
             VirtualHardDiskPath = "$($DriveLetter):\Virtual Machines\Hyper-V"
             VirtualMachinePath  = "$($DriveLetter):\Virtual Machines\Hyper-V"
-            DependsOn           = '[File]HyperVPath'
+            DependsOn           = '[WindowsOptionalFeature]HyperVAll', '[File]HyperVPath'
         }
 
         Script InstallAutomatedLabModule {
@@ -186,7 +188,7 @@ Configuration AutomatedLabSetupDSC {
  
             SetScript  = {
                 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-                Install-Module -Name AutomatedLab -Scope AllUsers -RequiredVersion 5.56.0 -SkipPublisherCheck -AllowClobber -Force
+                Install-Module -Name AutomatedLab -Scope AllUsers -SkipPublisherCheck -AllowClobber -Force
             }
  
             TestScript = {
