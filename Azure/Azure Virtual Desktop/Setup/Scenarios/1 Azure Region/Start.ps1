@@ -278,9 +278,22 @@ foreach ($CurrentSkuPartNumber in $SkuPartNumber) {
 }
 #endregion
 
+#region CloudOnly Identiti Azure File ACE Setup
+foreach ($CurrentHostPool in $HostPools) {
+    if ($CurrentHostPool.IdentityModel -eq [IdentityModel]::CloudOnly) {
+        $Path = Join-Path -Path $env:Temp -ChildPath $("pwsh_AzFileAce_{0}.ps1" -f $CurrentHostPool.Name)                            
+        if (Test-Path -Path $Path -PathType Leaf) {
+            Write-Host "You have to run the following command line (Powershell 7+ is required) to set the Azure File ACE:`r`npwsh -NoProfile -ExecutionPolicy Bypass -File $Path" -ForegroundColor Red
+        }
+    }
+
+}
+#endregion
+
 $EndTime = Get-Date
 $TimeSpan = New-TimeSpan -Start $StartTime -End $EndTime
 Write-Host -Object "Overall Processing Time: $($TimeSpan.ToString())" -ForegroundColor Green
+
 
 #$VerbosePreference = $PreviousVerbosePreference
 Stop-Transcript
