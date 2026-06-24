@@ -19,24 +19,17 @@ of the Sample Code.
 #requires -Modules Az.Accounts, Az.Compute, Az.DesktopVirtualization, Az.KeyVault, Az.Network, Az.Resources
 #From https://learn.microsoft.com/en-us/azure/virtual-desktop/deploy-azure-virtual-desktop?pivots=host-pool-session-host-configuration&tabs=portal-standard%2Cpowershell-session-host-configuration%2Cportal#create-a-host-pool-with-a-session-host-configuration
 #region Function Definitions
-function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
+function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
     [CmdletBinding(PositionalBinding = $false)]
     param
     (
         [Parameter(Mandatory = $true)]
         [System.Management.Automation.PSCredential] $LocalAdminCredential,
-        [Parameter(Mandatory = $true)]
-        [System.Management.Automation.PSCredential] $ADJoinCredential,
         [ValidateScript({ $_ -in (Get-AzLocation).Location })]
         [string] $Location = "centralus",
         [Parameter(Mandatory = $true)]
-        [string]$DomainName,
-        [Parameter(Mandatory = $true)]
         [ValidatePattern("/subscriptions/\w{8}-\w{4}-\w{4}-\w{4}-\w{12}/resourceGroups/.+/providers/Microsoft\.Network/virtualNetworks/.+/subnets/.+")] 
-        [string]$SubNetId = "/subscriptions/30c8d9eb-366e-4d2c-a723-95bc688f7c97/resourceGroups/rg-avd-ad-usc-002/providers/Microsoft.Network/virtualNetworks/vnet-avd-avd-usc-002/subnets/snet-avd-avd-usc-002",
-        [Parameter(Mandatory = $true)]
-        [ValidatePattern("OU=.+")] 
-        [string]$OUPath
+        [string]$SubNetId = "/subscriptions/30c8d9eb-366e-4d2c-a723-95bc688f7c97/resourceGroups/rg-avd-ad-usc-002/providers/Microsoft.Network/virtualNetworks/vnet-avd-avd-usc-002/subnets/snet-avd-avd-usc-002"
     )
 
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
@@ -61,7 +54,7 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
     $DigitNumber = 3
     Do {
         $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
-        $HostPoolName = "hp-np-ad-shc-mp-{0}-{1:D3}" -f $LocationShortName, $Instance
+        $HostPoolName = "hp-np-ei-shc-mp-{0}-{1:D3}" -f $LocationShortName, $Instance
         $KeyVaultName = "{0}{1}" -f $KeyVaultPrefix, $($HostPoolName -replace "\W")
         $ResourceGroupName = "{0}-{1}" -f $ResourceGroupNamePrefix, $HostPoolName
     } while (-not(Test-AzKeyVaultNameAvailability -Name $KeyVaultName).NameAvailable)
@@ -115,18 +108,6 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
     $secret = Set-AzKeyVaultSecret -VaultName $KeyVaultName -Name $SecretPassword -SecretValue $SecurePassword
     #endregion
 
-    #region Defining AD join credential(s)
-    $SecureUserName = $(ConvertTo-SecureString -String $ADJoinCredential.UserName -AsPlainText -Force) 
-    $SecurePassword = $ADJoinCredential.Password
-
-    $SecretUserName = "ADJoinUserName"
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating a secret in $KeyVaultName called '$SecretUserName'"
-    $secret = Set-AzKeyVaultSecret -VaultName $KeyVaultName -Name $SecretUserName -SecretValue $SecureUserName
-
-    $SecretPassword = "ADJoinPassword"
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating a secret in $KeyVaultName called '$SecretPassword'"
-    $secret = Set-AzKeyVaultSecret -VaultName $KeyVaultName -Name $SecretPassword -SecretValue $SecurePassword
-    #endregion
     #endregion 
 
     #region HostPool Setup
@@ -144,15 +125,13 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
         ImagePublisherName              = "microsoftwindowsdesktop"
         ImageOffer                      = "office-365"
         ImageSku                        = "win11-24h2-avd-m365"
-        DistinguishedName               = $OUPath
-        DomainName                      = $DomainName
         KeyVault                        = $KeyVault
         VMNumberOfInstances             = 1
         ResourceGroupName               = $ResourceGroupName
         WorkSpaceName                   = $ResourceGroupName -replace "^rg", "ws"
         ScalingPlan                     = $true
         #Installing VS Code on All AVD Session Hosts
-        #CustomConfigurationScriptUrl    = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1"
+        CustomConfigurationScriptUrl    = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1"
     }
 
     $Parameters = @{
@@ -248,11 +227,7 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
         MarketplaceInfoOffer                        = $CurrentHostPool.ImageOffer 
         MarketplaceInfoSku                          = $CurrentHostPool.ImageSku
         MarketplaceInfoExactVersion                 = $LatestImage.Version
-        DomainInfoJoinType                          = 'ActiveDirectory'
-        ActiveDirectoryInfoOuPath                   = $CurrentHostPoolOU.DistinguishedName
-        ActiveDirectoryInfoDomainName               = $CurrentHostPoolOU.DomainName
-        DomainCredentialsUsernameKeyVaultSecretUri  = ($CurrentHostPool.KeyVault | Get-AzKeyVaultSecret -Name "AdJoinUserName").Id
-        DomainCredentialsPasswordKeyVaultSecretUri  = ($CurrentHostPool.KeyVault | Get-AzKeyVaultSecret -Name "AdJoinPassword").Id
+        DomainInfoJoinType                          = 'AzureActiveDirectory'
         CustomConfigurationScriptUrl                = $CurrentHostPool.CustomConfigurationScriptUrl
         #Debug = $true
     }
@@ -388,21 +363,13 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 
 $SubscriptionId = (Get-AzContext).Subscription.Id
 $Location = "centralus"
-$DomainName = "csa.fr"
-$ADJoinUserName = "{0}@{1}" -f $env:USERNAME, $DomainName
-Do {
-    $ADJoinCredential = Get-Credential -Message "AD Join Credential (UPN Form : samaccountname@domain.com)" -UserName $ADJoinUserName
-} While ($ADJoinCredential.UserName -notmatch "^(.+)@(.+)(\.)(.+)$")
 $LocalAdminCredential = Get-Credential -Message "Local Admin Credential" -UserName "localadmin"
 
 $Parameters = @{
     LocalAdminCredential = $LocalAdminCredential 
-    ADJoinCredential     = $ADJoinCredential 
     Location             = $Location 
-    DomainName           = $DomainName
     SubNetId             = "/subscriptions/{0}/resourceGroups/rg-avd-ad-usc-002/providers/Microsoft.Network/virtualNetworks/vnet-avd-avd-usc-002/subnets/snet-avd-avd-usc-002" -f $SubscriptionId
-    OUPath               = "OU=PooledDesktops,OU={0},OU=AVD,DC={1}" -f $Location, $($DomainName -replace "\.", ",DC=")
     Verbose              = $true
 }
-$PooledHostPool = New-AzAvdPooledHostPoolSessionHostConfigurationSetup @Parameters
+$PooledHostPool = New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup @Parameters
 #endregion
