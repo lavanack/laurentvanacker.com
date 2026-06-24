@@ -17,7 +17,7 @@ of the Sample Code.
 #>
 
 #requires -Modules Az.Accounts, Az.Compute, Az.DesktopVirtualization, Az.KeyVault, Az.Network, Az.Resources
-
+#From https://learn.microsoft.com/en-us/azure/virtual-desktop/deploy-azure-virtual-desktop?pivots=host-pool-session-host-configuration&tabs=portal-standard%2Cpowershell-session-host-configuration%2Cportal#create-a-host-pool-with-a-session-host-configuration
 #region Function Definitions
 function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
     [CmdletBinding(PositionalBinding = $false)]
@@ -28,12 +28,12 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
         [Parameter(Mandatory = $true)]
         [System.Management.Automation.PSCredential] $ADJoinCredential,
         [ValidateScript({ $_ -in (Get-AzLocation).Location })]
-        [string] $Location = "eastus2",
+        [string] $Location = "centralus",
         [Parameter(Mandatory = $true)]
         [string]$DomainName,
         [Parameter(Mandatory = $true)]
         [ValidatePattern("/subscriptions/\w{8}-\w{4}-\w{4}-\w{4}-\w{12}/resourceGroups/.+/providers/Microsoft\.Network/virtualNetworks/.+/subnets/.+")] 
-        [string]$SubNetId = "/subscriptions/30c8d9eb-366e-4d2c-a723-95bc688f7c97/resourceGroups/rg-avd-ad-use2-002/providers/Microsoft.Network/virtualNetworks/vnet-avd-avd-use2-002/subnets/snet-avd-avd-use2-002",
+        [string]$SubNetId = "/subscriptions/30c8d9eb-366e-4d2c-a723-95bc688f7c97/resourceGroups/rg-avd-ad-usc-002/providers/Microsoft.Network/virtualNetworks/vnet-avd-avd-usc-002/subnets/snet-avd-avd-usc-002",
         [Parameter(Mandatory = $true)]
         [ValidatePattern("OU=.+")] 
         [string]$OUPath
@@ -152,7 +152,7 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
         WorkSpaceName                   = $ResourceGroupName -replace "^rg", "ws"
         ScalingPlan                     = $true
         #Installing VS Code on All AVD Session Hosts
-        CustomConfigurationScriptUrl    = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1"
+        #CustomConfigurationScriptUrl    = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1"
     }
 
     $Parameters = @{
@@ -183,7 +183,7 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
     $NsgId = (Get-AzVirtualNetworkSubnetConfig -ResourceId $SubNetId).NetworkSecurityGroup.Id
     $vNetId = $SubNetId -replace "/subnets/.*"
     $Scopes = (Get-AzResourceGroup -ResourceGroupName $CurrentHostPool.ResourceGroupName).ResourceId, $vNetId, $NsgId
-    #/subscriptions/30c8d9eb-366e-4d2c-a723-95bc688f7c97/resourceGroups/rg-avd-aib-use2-1750417854/providers/Microsoft.Compute/galleries/acg_avd_use2_1750417854/images/win11-24h2-avd-json-vscode/versions/2025.06.20
+    #/subscriptions/30c8d9eb-366e-4d2c-a723-95bc688f7c97/resourceGroups/rg-avd-aib-usc-1750417854/providers/Microsoft.Compute/galleries/acg_avd_usc_1750417854/images/win11-24h2-avd-json-vscode/versions/2025.06.20
     if ($CurrentHostPool.VMSourceImageId) {
         #$ACGResourceGroupId = $(Get-AzresourceGroup  -ResourceGroupName $((Get-AzResource -ResourceId $CurrentHostPool.VMSourceImageId).ResourceGroupName)).ResourceId
         $ACGResourceGroupId = $CurrentHostPool.VMSourceImageId -replace "/providers/.+"
@@ -387,7 +387,7 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 #endregion
 
 $SubscriptionId = (Get-AzContext).Subscription.Id
-$Location = "eastus2"
+$Location = "centralus"
 $DomainName = "csa.fr"
 $ADJoinUserName = "{0}@{1}" -f $env:USERNAME, $DomainName
 Do {
@@ -400,7 +400,7 @@ $Parameters = @{
     ADJoinCredential     = $ADJoinCredential 
     Location             = $Location 
     DomainName           = $DomainName
-    SubNetId             = "/subscriptions/{0}/resourceGroups/rg-avd-ad-use2-002/providers/Microsoft.Network/virtualNetworks/vnet-avd-avd-use2-002/subnets/snet-avd-avd-use2-002" -f $SubscriptionId
+    SubNetId             = "/subscriptions/{0}/resourceGroups/rg-avd-ad-usc-002/providers/Microsoft.Network/virtualNetworks/vnet-avd-avd-usc-002/subnets/snet-avd-avd-usc-002" -f $SubscriptionId
     OUPath               = "OU=PooledDesktops,OU={0},OU=AVD,DC={1}" -f $Location, $($DomainName -replace "\.", ",DC=")
     Verbose              = $true
 }

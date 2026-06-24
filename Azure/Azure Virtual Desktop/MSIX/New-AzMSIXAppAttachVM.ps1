@@ -21,7 +21,7 @@ of the Sample Code.
 param
 (
     [ValidateScript({ $_ -in (Get-AzLocation).Location })]
-    [string] $Location = "EastUS2",
+    [string] $Location = "centralus",
     [string] $VMSize = "Standard_D2s_v5" 
 )
 
