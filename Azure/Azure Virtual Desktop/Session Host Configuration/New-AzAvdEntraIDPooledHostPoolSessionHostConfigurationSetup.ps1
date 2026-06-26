@@ -119,7 +119,7 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
         PreferredAppGroupType           = "Desktop"
         MaxSessionLimit                 = 5
         Location                        = $Location
-        NamePrefix                      = "nam{0}{1:D3}" -f $LocationShortName, $Instance
+        NamePrefix                      = "nem{0}{1:D3}" -f $LocationShortName, $Instance
         VMSize                          = "Standard_D2s_v5"
         SubnetId                        = $SubNetId
         ImagePublisherName              = "microsoftwindowsdesktop"
@@ -131,7 +131,7 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
         WorkSpaceName                   = $ResourceGroupName -replace "^rg", "ws"
         ScalingPlan                     = $true
         #Installing VS Code on All AVD Session Hosts
-        CustomConfigurationScriptUrl    = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1"
+        #CustomConfigurationScriptUrl    = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1"
     }
 
     $Parameters = @{
@@ -228,7 +228,7 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
         MarketplaceInfoSku                          = $CurrentHostPool.ImageSku
         MarketplaceInfoExactVersion                 = $LatestImage.Version
         DomainInfoJoinType                          = 'AzureActiveDirectory'
-        CustomConfigurationScriptUrl                = $CurrentHostPool.CustomConfigurationScriptUrl
+        #CustomConfigurationScriptUrl                = $CurrentHostPool.CustomConfigurationScriptUrl
         #Debug = $true
     }
     $SessionHostConfiguration = New-AzWvdSessionHostConfiguration @Parameters
@@ -334,7 +334,7 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
         OffPeakStartTimeMinute                  = '0'
         OffPeakLoadBalancingAlgorithm           = 'DepthFirst'
         CreateDeleteRampUpMaximumHostPoolSize   = $CurrentHostPool.VMNumberOfInstances+4
-        CreateDeleteRampUpMinimumHostPoolSize   = $CurrentHostPool.VMNumberOfInstances+1
+        CreateDeleteRampUpMinimumHostPoolSize   = $CurrentHostPool.VMNumberOfInstances
         CreateDeleteRampDownMaximumHostPoolSize = $CurrentHostPool.VMNumberOfInstances+4
         CreateDeleteRampDownMinimumHostPoolSize = $CurrentHostPool.VMNumberOfInstances
     }

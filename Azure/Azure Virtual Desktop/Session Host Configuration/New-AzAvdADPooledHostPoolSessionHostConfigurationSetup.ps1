@@ -152,7 +152,7 @@ function New-AzAvdADPooledHostPoolSessionHostConfigurationSetup {
         WorkSpaceName                   = $ResourceGroupName -replace "^rg", "ws"
         ScalingPlan                     = $true
         #Installing VS Code on All AVD Session Hosts
-        CustomConfigurationScriptUrl    = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1"
+        CustomConfigurationScriptUrl    = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-PowerShell.ps1"
     }
 
     $Parameters = @{
@@ -253,7 +253,7 @@ function New-AzAvdADPooledHostPoolSessionHostConfigurationSetup {
         ActiveDirectoryInfoDomainName               = $CurrentHostPoolOU.DomainName
         DomainCredentialsUsernameKeyVaultSecretUri  = ($CurrentHostPool.KeyVault | Get-AzKeyVaultSecret -Name "AdJoinUserName").Id
         DomainCredentialsPasswordKeyVaultSecretUri  = ($CurrentHostPool.KeyVault | Get-AzKeyVaultSecret -Name "AdJoinPassword").Id
-        CustomConfigurationScriptUrl                = $CurrentHostPool.CustomConfigurationScriptUrl
+        #CustomConfigurationScriptUrl                = $CurrentHostPool.CustomConfigurationScriptUrl
         #Debug = $true
     }
     $SessionHostConfiguration = New-AzWvdSessionHostConfiguration @Parameters
@@ -359,7 +359,7 @@ function New-AzAvdADPooledHostPoolSessionHostConfigurationSetup {
         OffPeakStartTimeMinute                  = '0'
         OffPeakLoadBalancingAlgorithm           = 'DepthFirst'
         CreateDeleteRampUpMaximumHostPoolSize   = $CurrentHostPool.VMNumberOfInstances+4
-        CreateDeleteRampUpMinimumHostPoolSize   = $CurrentHostPool.VMNumberOfInstances+1
+        CreateDeleteRampUpMinimumHostPoolSize   = $CurrentHostPool.VMNumberOfInstances
         CreateDeleteRampDownMaximumHostPoolSize = $CurrentHostPool.VMNumberOfInstances+4
         CreateDeleteRampDownMinimumHostPoolSize = $CurrentHostPool.VMNumberOfInstances
     }
