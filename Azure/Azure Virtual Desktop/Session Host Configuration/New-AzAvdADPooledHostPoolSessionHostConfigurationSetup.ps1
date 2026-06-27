@@ -331,12 +331,12 @@ function New-AzAvdADPooledHostPoolSessionHostConfigurationSetup {
     }
     $scalingPlan = New-AzWvdScalingPlan @scalingPlanParams
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$scalingPlan:`r`n$($scalingPlan | Out-String)"
-
+    
     $scalingPlanPooledScheduleParams = @{
         ResourceGroupName                       = $CurrentHostPool.ResourceGroupName
         ScalingPlanName                         = $ScalingPlanName
         ScalingPlanScheduleName                 = 'PooledWeekDayDynamicSchedule'
-        DaysOfWeek                              = [System.DayOfWeek]::Monday..[System.DayOfWeek]::Friday #'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'
+        DaysOfWeek                              = [System.DayOfWeek]::Monday..[System.DayOfWeek]::Sunday
         ScalingMethod                           = 'CreateDeletePowerManage'
         RampUpStartTimeHour                     = '8'
         RampUpStartTimeMinute                   = '0'
