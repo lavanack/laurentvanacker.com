@@ -56,7 +56,8 @@ function New-PsAvdVirtualNetwork {
         $Role = "avd"
 
         $VirtualNetworkName = '{0}-{1}-{2}-{3}-{4:D3}' -f $VirtualNetworkPrefix, $Project, $Role, $LocationShortName, $Instance                       
-        $ResourceGroupName = '{0}-{1}-{2}-{3}-{4:D3}' -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
+        #$ResourceGroupName = '{0}-{1}-{2}-{3}-{4:D3}' -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
+        $ResourceGroupName = '{0}-{1}-ad-{2}-{3:D3}' -f $ResourceGroupPrefix, $Project, $LocationShortName, $Instance                       
         $VirtualNetworkName = $VirtualNetworkName.ToLower()
         $ResourceGroupName = $ResourceGroupName.ToLower()
 
@@ -164,7 +165,7 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
 #region SubNet
-New-PsAvdVirtualNetwork -Location BelgiumCentral -Instance 2 -Verbose
+New-PsAvdVirtualNetwork -Location centralus -Instance 2 -Verbose
 #endregion
 
 #endregion

@@ -157,7 +157,7 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
 #region VirtualNetwork
-$VirtualNetworkName = "vnet-avd-avd-bec-002"
+$VirtualNetworkName = "vnet-avd-avd-usc-002"
 Get-AzVirtualNetwork -Name $VirtualNetworkName | New-PsAvdNatGatewaySetup -Force -Verbose
 #endregion
 
