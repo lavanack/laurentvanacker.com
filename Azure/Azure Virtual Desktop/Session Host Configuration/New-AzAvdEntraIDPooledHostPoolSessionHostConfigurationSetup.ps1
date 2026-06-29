@@ -136,6 +136,7 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
 
     $Parameters = @{
         Name                  = $CurrentHostPool.Name
+        FriendlyName          = "{0} (HostPool Friendly Name)" -f $CurrentHostPool.Name
         ResourceGroupName     = $ResourceGroupName
         HostPoolType          = 'Pooled'
         LoadBalancerType      = $CurrentHostPool.LoadBalancerType
@@ -209,7 +210,7 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
     $LatestImage = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer -sku $ImageSku.Skus | Sort-Object -Property Version -Descending | Select-Object -First 1
 
     $Parameters = @{
-        FriendlyName                                = $CurrentHostPool.GetSessionHostConfigurationName
+        FriendlyName                                = "{0} (SessionHostConfiguration Friendly Name)" -f $CurrentHostPool.GetSessionHostConfigurationName
         HostPoolName                                = $CurrentHostPool.Name
         ResourceGroupName                           = $CurrentHostPool.ResourceGroupName
         VMNamePrefix                                = $CurrentHostPool.NamePrefix
@@ -253,7 +254,7 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
     #region Desktop Application Group Setup
     $Parameters = @{
         Name                 = "{0}-DAG" -f $CurrentHostPool.Name
-        #FriendlyName         = $CurrentHostPool.Name
+        FriendlyName         = "{0}(DAG Friendly Name)" -f $CurrentHostPool.Name
         ResourceGroupName    = $CurrentHostPool.ResourceGroupName
         Location             = $CurrentHostPool.Location
         HostPoolArmPath      = $CurrentAzWvdHostPool.Id
@@ -271,7 +272,8 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
         ApplicationGroupName = $CurrentAzDesktopApplicationGroup.Name
         ResourceGroupName    = $CurrentHostPool.ResourceGroupName
     }
-    $null = Get-AzWvdDesktop @parameters | Update-AzWvdDesktop -FriendlyName $CurrentHostPool.Name
+    $FriendlyName = "{0} (Desktop Friendly Name)" -f $Parameters["Name"]
+    $null = Get-AzWvdDesktop @parameters | Update-AzWvdDesktop -FriendlyName $FriendlyName
     #endregion
 
     #region Workspace Setup
@@ -280,7 +282,7 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
 
     $Parameters = @{
         Name                      = $CurrentHostPool.WorkSpaceName
-        FriendlyName              = $FriendlyName
+        FriendlyName              = "{0} (Workspace Friendly Name)" -f $CurrentHostPool.WorkSpaceName
         ResourceGroupName         = $CurrentHostPool.ResourceGroupName
         ApplicationGroupReference = $ApplicationGroupReference
         Location                  = $CurrentHostPool.Location
@@ -299,7 +301,7 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
         Name              = $ScalingPlanName
         Location          = $CurrentAzWvdHostPool.Location
         Description       = $CurrentAzWvdHostPool.Name
-        FriendlyName      = $CurrentAzWvdHostPool.Name
+        FriendlyName      = "{0} (ScalingPlan Friendly Name)" -f $CurrentAzWvdHostPool.Name
         HostPoolType      = 'Pooled'
         TimeZone          = (Get-TimeZone).Id
         HostPoolReference = @(@{'hostPoolArmPath' = $CurrentAzWvdHostPool.Id; 'scalingPlanEnabled' = $CurrentHostPool.ScalingPlan })
