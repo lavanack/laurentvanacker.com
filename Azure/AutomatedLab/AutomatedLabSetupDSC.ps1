@@ -93,16 +93,6 @@ Configuration AutomatedLabSetupDSC {
             Ensure    = 'Present'
         }		
 
-        IEEnhancedSecurityConfiguration 'DisableForAdministrators' {
-            Role    = 'Administrators'
-            Enabled = $false
-        }
-        
-        IEEnhancedSecurityConfiguration 'DisableForUsers' {
-            Role    = 'Users'
-            Enabled = $false
-        }
-
         WindowsOptionalFeature  HyperVAll {
             Name   = 'Microsoft-Hyper-V-All'
             Ensure = 'Present'
