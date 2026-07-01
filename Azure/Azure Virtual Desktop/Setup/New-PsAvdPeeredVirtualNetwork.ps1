@@ -70,8 +70,8 @@ Set-Location -Path $CurrentDir
 
 $AzurePairedRegionHT = Get-AzurePairedRegion
 $AzureLocationShortName = Get-AzureLocationShortName
-$Instance = 1
-$PrimaryLocation = "EastUS2"
+$Instance = 2
+$PrimaryLocation = "CentralUS"
 $SecondaryLocation = $AzurePairedRegionHT[$PrimaryLocation].PairedRegion
 #$SecondaryLocation = "WestUS2"
 $VirtualNetworkTemplateName = "vnet-avd-ad-{0}-{1:D3}"
@@ -87,8 +87,10 @@ foreach ($Location in $PrimaryLocation, $SecondaryLocation) {
     $LocationShortName = $AzureLocationShortName[$Location].shortName
     $VirtualNetworkName = $VirtualNetworkTemplateName -f $LocationShortName, $Instance
     $ResourceGroupName = $ResourceGroupTemplateName -f $LocationShortName, $Instance
-    $AzVirtualNetwork = Get-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName
-    $ADVirtualNetwork[$Location] = $AzVirtualNetwork
+    $AzVirtualNetwork = Get-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName -ErrorAction Ignore
+    if ($AzVirtualNetwork) {
+        $ADVirtualNetwork[$Location] = $AzVirtualNetwork
+    }
 }
 
 
@@ -123,7 +125,7 @@ foreach ($CurrentItem in $ADVirtualNetwork.GetEnumerator()) {
     $AVDVirtualNetwork[$Location] = $AzVirtualNetwork
 }
 
-
+<#
 #region Primary Location AVD <-> Secondary Location AVD vNet Peering
 Add-PsAvdVirtualNetworkPeering -VirtualNetwork $AVDVirtualNetwork[$PrimaryLocation] -RemoteVirtualNetwork $AVDVirtualNetwork[$SecondaryLocation] -Verbose
 Add-PsAvdVirtualNetworkPeering -VirtualNetwork $AVDVirtualNetwork[$SecondaryLocation] -RemoteVirtualNetwork $AVDVirtualNetwork[$PrimaryLocation] -Verbose
@@ -133,12 +135,13 @@ Add-PsAvdVirtualNetworkPeering -VirtualNetwork $AVDVirtualNetwork[$SecondaryLoca
 Add-PsAvdVirtualNetworkPeering -VirtualNetwork $ADVirtualNetwork[$PrimaryLocation] -RemoteVirtualNetwork $ADVirtualNetwork[$SecondaryLocation] -Verbose
 Add-PsAvdVirtualNetworkPeering -VirtualNetwork $ADVirtualNetwork[$SecondaryLocation] -RemoteVirtualNetwork $ADVirtualNetwork[$PrimaryLocation] -Verbose
 #endregion
-
+#>
 #region Primary Location AD <-> Primary Location AVD vNet Peering
 Add-PsAvdVirtualNetworkPeering -VirtualNetwork $ADVirtualNetwork[$PrimaryLocation] -RemoteVirtualNetwork $AVDVirtualNetwork[$PrimaryLocation] -Verbose
 Add-PsAvdVirtualNetworkPeering -VirtualNetwork $AVDVirtualNetwork[$PrimaryLocation] -RemoteVirtualNetwork $ADVirtualNetwork[$PrimaryLocation] -Verbose
 #endregion
 
+<#
 #region Primary Location AD <-> Secondary Location AVD vNet Peering
 Add-PsAvdVirtualNetworkPeering -VirtualNetwork $ADVirtualNetwork[$PrimaryLocation] -RemoteVirtualNetwork $AVDVirtualNetwork[$SecondaryLocation] -Verbose
 Add-PsAvdVirtualNetworkPeering -VirtualNetwork $AVDVirtualNetwork[$SecondaryLocation] -RemoteVirtualNetwork $ADVirtualNetwork[$PrimaryLocation] -Verbose
@@ -153,4 +156,5 @@ Add-PsAvdVirtualNetworkPeering -VirtualNetwork $AVDVirtualNetwork[$SecondaryLoca
 Add-PsAvdVirtualNetworkPeering -VirtualNetwork $ADVirtualNetwork[$SecondaryLocation] -RemoteVirtualNetwork $AVDVirtualNetwork[$PrimaryLocation] -Verbose
 Add-PsAvdVirtualNetworkPeering -VirtualNetwork $AVDVirtualNetwork[$PrimaryLocation] -RemoteVirtualNetwork $ADVirtualNetwork[$SecondaryLocation] -Verbose
 #endregion
+#>
 #endregion

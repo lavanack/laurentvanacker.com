@@ -31,7 +31,7 @@ Function New-AzAvdPrivateEndPointNetworkSecurityGroup {
         [Parameter(Mandatory = $True)]
         [string] $ResourceGroupName
     )
-    New-AzNetworkSecurityGroup -Name $NetworkSecurityGroupName -ResourceGroupName $ResourceGroupName -Location $Location
+    New-AzNetworkSecurityGroup -Name $NetworkSecurityGroupName -ResourceGroupName $ResourceGroupName -Location $Location -Force
 }
 
 Function New-AzAvdSessionHostNetworkSecurityGroup {
@@ -70,7 +70,7 @@ Function New-AzAvdSessionHostNetworkSecurityGroup {
     )
 
     # --- Create NSG with all rules ---
-    New-AzNetworkSecurityGroup -Name $NsgName -ResourceGroupName $ResourceGroupName -Location $Location -SecurityRules $SecurityRules$rule_RDPShortpathTurnRelay
+    New-AzNetworkSecurityGroup -Name $NetworkSecurityGroupName -ResourceGroupName $ResourceGroupName -Location $Location -SecurityRules $SecurityRules -Force
 }
 #endregion
 
@@ -85,16 +85,16 @@ $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 
 $Parameters = @{
-    $NetworkSecurityGroupName = "nsg-avd-avd-use2-002"
-    $Location = "EastUS2"
-    $ResourceGroupName = "rg-avd-ad-use2-002"
+    NetworkSecurityGroupName = "nsg-avd-avd-usc-002"
+    Location = "CentralUS"
+    ResourceGroupName = "rg-avd-ad-usc-002"
 }
 New-AzAvdSessionHostNetworkSecurityGroup @Parameters -Verbose
 
 $Parameters = @{
-    $NetworkSecurityGroupName = "nsg-avd-pe-use2-002"
-    $Location = "EastUS2"
-    $ResourceGroupName = "rg-avd-ad-use2-002"
+    NetworkSecurityGroupName = "nsg-avd-pe-usc-002"
+    Location = "CentralUS"
+    ResourceGroupName = "rg-avd-ad-usc-002"
 }
 New-AzAvdPrivateEndPointNetworkSecurityGroup @Parameters -Verbose
 #endregion
