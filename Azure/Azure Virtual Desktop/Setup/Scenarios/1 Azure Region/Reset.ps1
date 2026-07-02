@@ -43,7 +43,14 @@ $null = Remove-Module -Name PSAzureVirtualDesktop -Force -ErrorAction Ignore
 $Global:MaximumFunctionCount = 32768
 Import-Module -Name PSAzureVirtualDesktop -DisableNameChecking -Force -Verbose
 
-Connect-MgGraph -NoWelcome -UseDeviceCode
+#region Microsoft Graph Connection
+try {
+    $null = Get-MgBetaDevice -All -ErrorAction Stop
+}
+catch {
+    Connect-MgGraph -NoWelcome -UseDeviceCode
+}
+#endregion
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 	Connect-AzAccount -UseDeviceAuthentication
@@ -85,9 +92,9 @@ Get-AzKeyVault -InRemovedState | Remove-AzKeyVault -InRemovedState -AsJob -Force
 #Set-PSDebug -Trace 2
 $PSBreakpoints = @() 
 $LatestPSAzureVirtualDesktopModule = Get-Module -Name PSAzureVirtualDesktop -ListAvailable | Sort-Object -Property Version -Descending | Select-Object -First 1
-$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Line 9366
-#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Command New-PsAvdRdcMan
-#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Variable $existingAcl -Mode ReadWrite
+#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Line 4110, 7441
+#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Command Set-AzVMADDomainExtension, Get-ADUser
+#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Variable PerformanceCounters -Mode ReadWrite
 if ($PSBreakpoints.Count -le 0) {
     & '.\Start.ps1' -LogDir $LogDir -Verbose -AsJob
 }
