@@ -171,8 +171,8 @@ function Add-PsAvdVirtualNetworkPeering {
     $VirtualNetworkPeeringName = "peer-{0}-{1}" -f $VirtualNetwork.Name, $RemoteVirtualNetwork.Name
     if (-not(Get-AzVirtualNetworkPeering -Name $VirtualNetworkPeeringName -VirtualNetworkName $VirtualNetwork.Name -ResourceGroupName $VirtualNetwork.ResourceGroupName -ErrorAction Ignore)) {
         $vNetPeeringStatus = Add-AzVirtualNetworkPeering -Name $VirtualNetworkPeeringName -VirtualNetwork $VirtualNetwork -RemoteVirtualNetworkId $RemoteVirtualNetwork.Id -AllowForwardedTraffic
-        Write-Verbose -Message "Creating '$VirtualNetworkPeeringName': '$($VirtualNetwork.Name)' <==> '$($RemoteVirtualNetwork.Name)'"
-        Write-Verbose -Message "`$vNetPeeringStatus: $($vNetPeeringStatus.PeeringState)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating '$VirtualNetworkPeeringName': '$($VirtualNetwork.Name)' <==> '$($RemoteVirtualNetwork.Name)'"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$vNetPeeringStatus: $($vNetPeeringStatus.PeeringState)"
         if ($vNetPeeringStatus.PeeringState -notin 'Initiated' , 'Connected') {
             Write-Error "The '$VirtualNetworkPeeringName' peering state is '$($vNetPeeringStatus.PeeringState)'" #-ErrorAction Stop
         }
@@ -319,7 +319,7 @@ function New-AAD-Hybrid-Lab {
         [parameter(Mandatory = $true, HelpMessage = 'Enter the password that will be applied to each user account to be created in AD.')]
         [PSCredential] $UserCredential,
         [parameter(Mandatory = $false, HelpMessage = 'Select a VM SKU (please ensure the SKU is available in your selected region).')]
-        [string] $VMSize = "Standard_D2s_v5",
+        [string] $VMSize = "Standard_D4s_v7",
         [parameter(Mandatory = $false, HelpMessage = 'Select an OS Disk Type')]
         [ValidateSet("StandardSSD_LRS", "Premium_LRS")] 
         [string] $OSDiskType = "StandardSSD_LRS",
@@ -744,7 +744,7 @@ function New-AAD-Hybrid-Lab {
     #endregion
 
     if ($null -ne $BastionJob) {
-        Write-Verbose -Message "Waiting the creation of the Bastion completes ..."
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Waiting the creation of the Bastion completes ..."
         $BastionJob | Wait-Job | Out-Null
     }
 
