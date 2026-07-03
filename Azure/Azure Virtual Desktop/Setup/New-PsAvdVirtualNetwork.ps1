@@ -23,13 +23,15 @@ function New-PsAvdVirtualNetwork {
     Param( 
         [Parameter(Mandatory = $false, HelpMessage = 'The Azure location for your Virtual Network.')]
         [ValidateScript({ $_ -in $((Get-AzLocation).Location) })] 
-        [string] $Location = "centralus",
+        [string] $Location = "CentralUS",
         [parameter(Mandatory = $false, HelpMessage = 'The instance number for your deployment.')]
         [ValidateScript({ $_ -in 0..999 })] 
         [int] $Instance = $(Get-Random -Minimum 0 -Maximum 1000),
         [parameter(Mandatory = $false, HelpMessage = 'The address range of the new virtual network in CIDR format')]
         [ValidatePattern("\d{1,3}\.\d{1,3}.\d{1,3}.\d{1,3}/\d{2}")] 
-        [string] $AddressRange = '10.5.0.0/16'
+        [string] $AddressRange = '10.5.0.0/16',
+        [parameter(Mandatory = $false, HelpMessage = 'The Resource Group Name of the new virtual network')]
+        [string] $ResourceGroupName
     )
 
     begin {
@@ -56,10 +58,11 @@ function New-PsAvdVirtualNetwork {
         $Role = "avd"
 
         $VirtualNetworkName = '{0}-{1}-{2}-{3}-{4:D3}' -f $VirtualNetworkPrefix, $Project, $Role, $LocationShortName, $Instance                       
-        #$ResourceGroupName = '{0}-{1}-{2}-{3}-{4:D3}' -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
-        $ResourceGroupName = '{0}-{1}-ad-{2}-{3:D3}' -f $ResourceGroupPrefix, $Project, $LocationShortName, $Instance                       
         $VirtualNetworkName = $VirtualNetworkName.ToLower()
-        $ResourceGroupName = $ResourceGroupName.ToLower()
+        if ([string]::IsNullOrEmpty($ResourceGroupName)) {
+            $ResourceGroupName = '{0}-{1}-{2}-{3}-{4:D3}' -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
+            $ResourceGroupName = $ResourceGroupName.ToLower()
+        }
 
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VirtualNetworkName: $VirtualNetworkName"
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ResourceGroupName: $ResourceGroupName"

@@ -18,6 +18,298 @@ of the Sample Code.
 #requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.Network, Az.Resources, Az.Security, Az.Storage
 
 #region Function definition
+function New-PsAvdVirtualNetwork {
+    [CmdletBinding(PositionalBinding = $false)]
+    Param( 
+        [Parameter(Mandatory = $false, HelpMessage = 'The Azure location for your Virtual Network.')]
+        [ValidateScript({ $_ -in $((Get-AzLocation).Location) })] 
+        [string] $Location = "CentralUS",
+        [parameter(Mandatory = $false, HelpMessage = 'The instance number for your deployment.')]
+        [ValidateScript({ $_ -in 0..999 })] 
+        [int] $Instance = $(Get-Random -Minimum 0 -Maximum 1000),
+        [parameter(Mandatory = $false, HelpMessage = 'The address range of the new virtual network in CIDR format')]
+        [ValidatePattern("\d{1,3}\.\d{1,3}.\d{1,3}.\d{1,3}/\d{2}")] 
+        [string] $AddressRange = '10.5.0.0/16',
+        [parameter(Mandatory = $false, HelpMessage = 'The Resource Group Name of the new virtual network')]
+        [string] $ResourceGroupName
+    )
+
+    begin {
+    }
+    process {
+        #region Defining variables 
+        #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
+        $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
+        $ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/main/src/repository/resourcelocations.json
+        $shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @{Name = 'Location'; Expression = { $AzLocation[$_.name].Location } } | Where-Object -FilterScript { $_.Location } | Group-Object -Property Location -AsHashTable -AsString
+        #endregion
+
+        #region Building an Hashtable to get the shortname of every Azure resource based on a JSON file on the Github repository of the Azure Naming Tool
+        $Result = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/refs/heads/main/src/repository/resourcetypes.json 
+        $ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -in @('', 'Windows') } | Select-Object -Property resource, shortName, lengthMax | Group-Object -Property resource -AsHashTable -AsString
+        #endregion
+
+        $LocationShortName = $shortNameHT[$Location].shortName
+        $ResourceGroupPrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
+        $VirtualNetworkPrefix = $ResourceTypeShortNameHT["Network/virtualNetworks"].ShortName
+        $SubnetPrefix = $ResourceTypeShortNameHT["Network/virtualnetworks/subnets"].ShortName
+        $NetworkSecurityGroupPrefix = $ResourceTypeShortNameHT["Network/networkSecurityGroups"].ShortName
+        $Project = "avd"
+        $Role = "avd"
+
+        $VirtualNetworkName = '{0}-{1}-{2}-{3}-{4:D3}' -f $VirtualNetworkPrefix, $Project, $Role, $LocationShortName, $Instance                       
+        $VirtualNetworkName = $VirtualNetworkName.ToLower()
+        if ([string]::IsNullOrEmpty($ResourceGroupName)) {
+            $ResourceGroupName = '{0}-{1}-{2}-{3}-{4:D3}' -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
+            $ResourceGroupName = $ResourceGroupName.ToLower()
+        }
+
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VirtualNetworkName: $VirtualNetworkName"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ResourceGroupName: $ResourceGroupName"
+
+        $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
+        if ($ResourceGroup) {
+            Write-Warning -Message "The '$ResourceGroupName' ResourceGroup already exists. We won't recreate or modify it ..."
+        }
+        else {
+            $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
+        }
+
+        $VirtualNetwork = Get-AzVirtualNetwork -Name $VirtualNetworkName -ResourceGroupName $ResourceGroupName -ErrorAction Ignore 
+        if ($VirtualNetwork) {
+            Write-Warning -Message "The '$VirtualNetworkPrefix' VirtualNetwork already exists. Exiting ..."
+            return
+        }
+        else {
+            #region AVD Subnet
+            #region AVD Subnet Name
+            $SubnetName = '{0}-{1}-{2}-{3}-{4:D3}' -f $SubnetPrefix, $Project, $Role, $LocationShortName, $Instance                       
+            $SubnetName = $SubnetName.ToLower()
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SubnetName: $SubnetName"
+            #endregion
+
+            #region AVD Subnet Address Prefix Calculation by taking the Subnet with the Highest Address Prefix incrementing the third octect to 1 (10.0.0.0 ==> 10.0.1.0)
+            $RegExpPattern = "(\d+)\.(\d+).(\d+).(\d+)/(\d{2})"
+            [int]$Octet3 = ([regex]::match($AddressRange, $RegExpPattern).Groups[3].Value)
+            $Octet3++
+            $SubnetAddressPrefix = $AddressRange -replace $RegExpPattern, "`$1.`$2.$Octet3.`$4/24"
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SubnetAddressPrefix: $SubnetAddressPrefix"
+            #endregion
+
+            $NSGRuleAVDServiceTraffic = New-AzNetworkSecurityRuleConfig -Name "AVDServiceTraffic" -Description "Session host traffic to AVD control plane" -Access Allow -Protocol Tcp -Direction Outbound -Priority 100 -SourceAddressPrefix "VirtualNetwork" -SourcePortRange "*" -DestinationAddressPrefix "WindowsVirtualDesktop" -DestinationPortRange "443"
+            $NSGRuleAzureCloud = New-AzNetworkSecurityRuleConfig -Name "AzureCloud" -Description "Session host traffic to Azure cloud services" -Access Allow -Protocol Tcp -Direction Outbound -Priority 110 -SourceAddressPrefix "VirtualNetwork" -SourcePortRange "*" -DestinationAddressPrefix "AzureCloud" -DestinationPortRange "8443"
+            $NSGRuleAzureMonitor = New-AzNetworkSecurityRuleConfig -Name "AzureMonitor" -Description "Session host traffic to Azure Monitor" -Access Allow -Protocol Tcp -Direction Outbound -Priority 120 -SourceAddressPrefix "VirtualNetwork" -SourcePortRange "*" -DestinationAddressPrefix "AzureMonitor" -DestinationPortRange "443"
+            $NSGRuleAzureMarketPlace = New-AzNetworkSecurityRuleConfig -Name "AzureMarketPlace" -Description "Session host traffic to Azure Monitor" -Access Allow -Protocol Tcp -Direction Outbound -Priority 130 -SourceAddressPrefix "VirtualNetwork" -SourcePortRange "*" -DestinationAddressPrefix "AzureFrontDoor.Frontend" -DestinationPortRange "443"
+            $NSGRuleWindowsActivationKMS = New-AzNetworkSecurityRuleConfig -Name "WindowsActivationKMS" -Description "Session host traffic to Windows license activation services" -Access Allow -Protocol Tcp -Direction Outbound -Priority 140 -SourceAddressPrefix "VirtualNetwork" -SourcePortRange "*" -DestinationAddressPrefix @("20.118.99.224","40.83.235.53","23.102.135.246") -DestinationPortRange "1688"
+            $NSGRuleAzureInstanceMetadata = New-AzNetworkSecurityRuleConfig -Name "AzureInstanceMetadata" -Description "Session host traffic to Azure instance metadata" -Access Allow -Protocol Tcp -Direction Outbound -Priority 150 -SourceAddressPrefix "VirtualNetwork" -SourcePortRange "*" -DestinationAddressPrefix "169.254.169.254" -DestinationPortRange "80"
+            $NSGRuleRDPShortpath = New-AzNetworkSecurityRuleConfig -Name "RDPShortpath" -Description "Session host traffic to Azure instance metadata" -Access Allow -Protocol Udp -Direction Inbound -Priority 150 -SourceAddressPrefix "VirtualNetwork" -SourcePortRange "*" -DestinationAddressPrefix "VirtualNetwork" -DestinationPortRange "3390"
+            $NSGRuleRDPShortpathTurnStun = New-AzNetworkSecurityRuleConfig -Name "RDPShortpathTurnStun" -Description "Session host traffic to RDP shortpath STUN/TURN" -Access Allow -Protocol Udp -Direction Outbound -Priority 160 -SourceAddressPrefix "VirtualNetwork" -SourcePortRange "*" -DestinationAddressPrefix "20.202.0.0/16" -DestinationPortRange "3478"
+            $NSGRuleRDPShortpathTurnRelay = New-AzNetworkSecurityRuleConfig -Name "RDPShortpathTurnRelay" -Description "Session host traffic to RDP shortpath STUN/TURN" -Access Allow -Protocol Udp -Direction Outbound -Priority 170 -SourceAddressPrefix "VirtualNetwork" -SourcePortRange "*" -DestinationAddressPrefix "51.5.0.0/16" -DestinationPortRange "3478"
+
+            $NSGRules = @(
+                $NSGRuleAVDServiceTraffic,
+                $NSGRuleAzureCloud,
+                $NSGRuleAzureMonitor,
+                $NSGRuleAzureMarketPlace,
+                $NSGRuleWindowsActivationKMS,
+                $NSGRuleAzureInstanceMetadata,
+                $NSGRuleRDPShortpath,
+                $NSGRuleRDPShortpathTurnStun,
+                $NSGRuleRDPShortpathTurnRelay
+            )
+
+            # --- Create NSG with all rules ---
+            $NetworkSecurityGroupName = '{0}-{1}-{2}-{3}-{4:D3}' -f $NetworkSecurityGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
+            $NetworkSecurityGroup = New-AzNetworkSecurityGroup -Name $NetworkSecurityGroupName -ResourceGroupName $ResourceGroupName -Location $Location -SecurityRules $NSGRules
+            $Subnet = New-AzVirtualNetworkSubnetConfig -Name $SubnetName -AddressPrefix $SubnetAddressPrefix -NetworkSecurityGroup $NetworkSecurityGroup -DefaultOutboundAccess $true
+            $VirtualNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName -AddressPrefix $AddressRange -Location $Location -Subnet $Subnet
+            #endregion
+
+            #region PE Subnet
+            #region PE Subnet Name
+            $Role = "pe"
+            $SubnetName = '{0}-{1}-{2}-{3}-{4:D3}' -f $SubnetPrefix, $Project, $Role, $LocationShortName, $Instance                       
+            $SubnetName = $SubnetName.ToLower()
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SubnetName: $SubnetName"
+            #endregion
+
+            #region PE Subnet Address Prefix Calculation by taking the Subnet with the Highest Address Prefix incrementing the third octect to 1 (10.0.0.0 ==> 10.0.1.0)
+            $Octet3++
+            $SubnetAddressPrefix = $AddressRange -replace $RegExpPattern, "`$1.`$2.$Octet3.`$4/27"
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SubnetAddressPrefix: $SubnetAddressPrefix"
+            #endregion
+
+            # --- Create NSG ---
+            $NetworkSecurityGroupName = '{0}-{1}-{2}-{3}-{4:D3}' -f $NetworkSecurityGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
+            $NetworkSecurityGroup = New-AzNetworkSecurityGroup -Name $NetworkSecurityGroupName -ResourceGroupName $ResourceGroupName -Location $Location
+            $Subnet = New-AzVirtualNetworkSubnetConfig -Name $SubnetName -AddressPrefix $SubnetAddressPrefix -NetworkSecurityGroup $NetworkSecurityGroup -DefaultOutboundAccess $true
+
+            #region Add the PE subnet to vnet
+            $VirtualNetwork.Subnets += $Subnet
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Updating vNet: $($VirtualNetwork.Name)"
+            #$null = $VirtualNetwork | Set-AzVirtualNetwork
+            $VirtualNetwork | Set-AzVirtualNetwork
+            #endregion
+
+            #endregion
+        }
+        #endregion
+    }
+    end {}
+}
+
+function Add-PsAvdVirtualNetworkPeering {
+    [CmdletBinding(PositionalBinding = $false)]
+    Param(
+        [Parameter(Mandatory = $true)]
+        [Microsoft.Azure.Commands.Network.Models.PSVirtualNetwork] $VirtualNetwork,
+
+        [Parameter(Mandatory = $true)]
+        [Microsoft.Azure.Commands.Network.Models.PSVirtualNetwork] $RemoteVirtualNetwork
+    )
+    #$VirtualNetworkPeeringName = "$($VirtualNetwork.Name)-$($RemoteVirtualNetwork.Name)"
+    $VirtualNetworkPeeringName = "peer-{0}-{1}" -f $VirtualNetwork.Name, $RemoteVirtualNetwork.Name
+    if (-not(Get-AzVirtualNetworkPeering -Name $VirtualNetworkPeeringName -VirtualNetworkName $VirtualNetwork.Name -ResourceGroupName $VirtualNetwork.ResourceGroupName -ErrorAction Ignore)) {
+        $vNetPeeringStatus = Add-AzVirtualNetworkPeering -Name $VirtualNetworkPeeringName -VirtualNetwork $VirtualNetwork -RemoteVirtualNetworkId $RemoteVirtualNetwork.Id -AllowForwardedTraffic
+        Write-Verbose -Message "Creating '$VirtualNetworkPeeringName': '$($VirtualNetwork.Name)' <==> '$($RemoteVirtualNetwork.Name)'"
+        Write-Verbose -Message "`$vNetPeeringStatus: $($vNetPeeringStatus.PeeringState)"
+        if ($vNetPeeringStatus.PeeringState -notin 'Initiated' , 'Connected') {
+            Write-Error "The '$VirtualNetworkPeeringName' peering state is '$($vNetPeeringStatus.PeeringState)'" #-ErrorAction Stop
+        }
+    }
+    else {
+        Write-Warning "The '$VirtualNetworkPeeringName' peering already exists"
+    }
+}
+
+function New-PsAvdNatGatewaySetup {
+    [CmdletBinding(PositionalBinding = $false)]
+    Param( 
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ParameterSetName= 'VirtualNetwork')]
+        [Microsoft.Azure.Commands.Network.Models.PSVirtualNetwork] $VirtualNetwork,
+
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ParameterSetName= 'Subnet')]
+        [Alias('Subnet')]
+        [Microsoft.Azure.Commands.Network.Models.PSSubnet] $SubnetConfig,
+
+        [Switch] $Force
+    )
+
+    begin {
+        #region Defining variables 
+        #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
+        $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
+        $ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/main/src/repository/resourcelocations.json
+        $shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @{Name = 'Location'; Expression = { $AzLocation[$_.name].Location } } | Where-Object -FilterScript { $_.Location } | Group-Object -Property Location -AsHashTable -AsString
+        #endregion
+
+        #region Building an Hashtable to get the shortname of every Azure resource based on a JSON file on the Github repository of the Azure Naming Tool
+        $Result = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/refs/heads/main/src/repository/resourcetypes.json 
+        $ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -in @('', 'Windows') } | Select-Object -Property resource, shortName, lengthMax | Group-Object -Property resource -AsHashTable -AsString
+        #endregion
+
+        $PublicIPAddressPrefix = $ResourceTypeShortNameHT["Network/publicIPAddresses"].ShortName
+        $VirtualNetworkPrefix = $ResourceTypeShortNameHT["Network/virtualNetworks"].ShortName
+        $NetworkSecurityGroupPrefix = $ResourceTypeShortNameHT["Network/networkSecurityGroups"].ShortName
+        $SubnetPrefix = $ResourceTypeShortNameHT["Network/virtualnetworks/subnets"].ShortName
+        #endregion
+    }
+    process {
+        #region Defining variables 
+        $ResourceGroupName = $VirtualNetwork.ResourceGroupName
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ResourceGroupName: $ResourceGroupName"
+        $Location = $VirtualNetwork.Location
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Location: $Location"
+        $LocationShortName = $shortNameHT[$Location].shortName
+
+        if ($SubnetConfig) {
+            $VirtualNetworkId = $SubnetConfig.Id -replace "/subnets/.*"
+            $VirtualNetwork = Get-AzResource -ResourceId $VirtualNetworkId | Get-AzVirtualNetwork
+        }
+        else {
+            #If we create a dedicated subnet we also create a dedicated NSG.
+            $NetworkSecurityGroupName = $VirtualNetwork.Name -replace $VirtualNetworkPrefix, $NetworkSecurityGroupPrefix -replace "(\w+)-(\w+)-(\w+)-(\w+)-(\d+)", '$1-$2-natgw-$4-$5'
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$NetworkSecurityGroupName: $NetworkSecurityGroupName"
+            $NetworkSecurityGroup = New-AzNetworkSecurityGroup -Name $NetworkSecurityGroupName -ResourceGroupName $ResourceGroupName -Location $Location -Force
+        }
+        $NatGatewayPrefix = "natgw"
+        $NatGatewayName = $VirtualNetwork.Name -replace $VirtualNetworkPrefix, $NatGatewayPrefix
+        $SubnetName = $VirtualNetwork.Name -replace $VirtualNetworkPrefix, $SubnetPrefix -replace "(\w+)-(\w+)-(\w+)-(\w+)-(\d+)", '$1-$2-natgw-$4-$5'
+        $NatGatewayPublicIpName = "{0}-{1}" -f $PublicIPAddressPrefix, $NatGatewayName
+
+        #region NatGateway Subnet Address Prefix Calculation by taking the Subnet with the Highest Address Prefix incrementing the third octect to 1 (10.0.0.0 ==> 10.0.1.0)
+        $RegExpPattern = "(\d+)\.(\d+).(\d+).(\d+)/(\d{1,2})"
+        $HighestAddressPrefix = ((Get-AzVirtualNetwork -Name $VirtualNetwork.Name).Subnets.AddressPrefix) | Sort-Object -Descending | Select-Object -First 1
+        [int]$Octet3 = ([regex]::match($HighestAddressPrefix, $RegExpPattern).Groups[3].Value)
+        $Octet3++
+        $NatGatewaySubnetAddressPrefix = $HighestAddressPrefix -replace $RegExpPattern, "`$1.`$2.$Octet3.`$4/24"
+
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$NatGatewayName: $NatGatewayName"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SubnetName: $SubnetName"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$NatGatewayPublicIpName: $NatGatewayPublicIpName"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$NatGatewaySubnetAddressPrefix: $NatGatewaySubnetAddressPrefix"
+        #endregion
+
+        #endregion
+ 
+        #region Create the NAT gateway
+        #From https://learn.microsoft.com/en-us/azure/nat-gateway/quickstart-create-nat-gateway?tabs=powershell
+        #region Create public IP address for NAT gateway 
+        $IP = @{
+            Name              = $NatGatewayPublicIpName
+            ResourceGroupName = $ResourceGroupName
+            Location          = $Location
+            Sku               = 'Standard'
+            AllocationMethod  = 'Static'
+            Force             = $Force.IsPresent
+            #Zone = 1,2,3
+        }
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Public IP: $NatGatewayPublicIpName"
+        $PublicIp = New-AzPublicIpAddress @IP
+        #endregion 
+
+        #region Create NAT gateway resource 
+        $Nat = @{
+            ResourceGroupName    = $ResourceGroupName
+            Name                 = $NatGatewayName
+            IdleTimeoutInMinutes = '10'
+            Sku                  = 'Standard'
+            Location             = $Location
+            PublicIpAddress      = $PublicIp
+            Force                = $Force.IsPresent
+        }
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating NatGateway: $NatGatewayName"
+        $NatGateway = New-AzNatGateway @Nat
+        #endregion 
+
+        if ($SubnetConfig) {
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Updating SubNet: $($SubnetConfig.Name)"
+            ($VirtualNetwork.Subnets | Where-Object -FilterScript {$_.Id -eq $SubnetConfig.Id}).NatGateway = $NatGateway
+        }
+        else
+        {
+            #region Create subnet config and associate NAT gateway to subnet
+            $Parameters = @{
+                Name                 = $SubnetName
+                AddressPrefix        = $NatGatewaySubnetAddressPrefix
+                NatGateway           = $NatGateway
+                NetworkSecurityGroup = $NetworkSecurityGroup
+            }
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating SubNet: $SubnetName"
+            $SubnetConfig = New-AzVirtualNetworkSubnetConfig @Parameters 
+            #endregion 
+        
+            #region Add the NatGateway subnet to vnet
+            $VirtualNetwork.Subnets += $SubnetConfig
+            #endregion
+        }
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Updating vNet: $($VirtualNetwork.Name)"
+        $null = $VirtualNetwork | Set-AzVirtualNetwork
+        #endregion
+    }
+    end {}
+}
+
 function New-AAD-Hybrid-Lab {
     [CmdletBinding(PositionalBinding= $false)]
     param
@@ -57,7 +349,7 @@ function New-AAD-Hybrid-Lab {
         [int] $Instance = $(Get-Random -Minimum 0 -Maximum 1000),
         [parameter(Mandatory = $false, HelpMessage = 'The Azure location where you want to deploy your ressources.')]
         [ValidateScript({ $_ -in $((Get-AzLocation).Location) })] 
-        [string] $Location = "eastus2",
+        [string] $Location = "CentralUS",
         [switch] $Spot,
         [switch] $Bastion
     )
@@ -124,7 +416,7 @@ function New-AAD-Hybrid-Lab {
 
     $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
     if ($ResourceGroup) {
-        #Step 0: Remove previously existing Azure Resource Group with the same name
+        #Remove previously existing Azure Resource Group with the same name
         $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
     }
     $MyPublicIp = Invoke-RestMethod -Uri "https://ipv4.seeip.org"
@@ -139,8 +431,7 @@ function New-AAD-Hybrid-Lab {
     #$DataDiskName          = "$VMName-DataDisk01"
     $OSDiskSize = "127"
     $StorageAccountSkuName = "Standard_LRS"
-    #$OSDiskType = "StandardSSD_LRS"
-    $DSCZipFileUri = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab/DSC/adDSC.zip"
+    $DSCZipFileUri = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell/DSC/adDSC.zip"
     $DSCConfigurationName = "DomainController"
 
     $DSCConfigurationArguments = @{ 
@@ -180,14 +471,14 @@ function New-AAD-Hybrid-Lab {
         Write-Error "The '$VMSize' is not available in the '$Location' location ..." -ErrorAction Stop
     }
 
-    #Step 1: Create Azure Resource Group
+    #Create Azure Resource Group
     # Create Resource Groups
     $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
 
-    #Step 2: Create Azure Storage Account
+    #Create Azure Storage Account
     $StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $true -Tag @{ SecurityControl = "Ignore" }
 
-    #Step 3: Create Azure Network Security Group
+    #Create Azure Network Security Group
     #RDP only for my public IP address
     $CommonParameters = @{
         'SourceAddressPrefix'      = 'VirtualNetwork'
@@ -241,9 +532,21 @@ function New-AAD-Hybrid-Lab {
 
     $NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NetworkSecurityGroupName -SecurityRules $SecurityRules -Force
 
-    #Steps 4 + 5: Create Azure Virtual network using the virtual network subnet configuration
+    #Create Azure Virtual network using the virtual network subnet configuration
     $subnet = New-AzVirtualNetworkSubnetConfig -Name $subnetName -AddressPrefix $ADSubnetAddressRange -NetworkSecurityGroup $NetworkSecurityGroup -DefaultOutboundAccess $true
     $vNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName  -AddressPrefix $VNetAddressRange -Location $Location -Subnet $Subnet
+    #Adding a NAT Gateway
+    $vNetwork | New-PsAvdNatGatewaySetup -Force -Verbose
+
+    #Adding an AVD Vnet
+    $vAVDNetwork = New-PsAvdVirtualNetwork -ResourceGroupName $ResourceGroupName -Location $Location -Instance $Instance -Verbose
+    #Adding a NAT Gateway
+    $vAVDNetwork | New-PsAvdNatGatewaySetup -Force -Verbose
+
+    #VNet Peering
+    Add-PsAvdVirtualNetworkPeering -VirtualNetwork $vNetwork -RemoteVirtualNetwork $vAVDNetwork -Verbose
+    Add-PsAvdVirtualNetworkPeering -VirtualNetwork $vAVDNetwork -RemoteVirtualNetwork $vNetwork -Verbose
+
     <#
     $vNetwork = Set-AzVirtualNetwork -VirtualNetwork $vNetwork
     $Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $vNetwork
@@ -280,7 +583,7 @@ function New-AAD-Hybrid-Lab {
         $BastionNetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $BastionNetworkSecurityGroupName -SecurityRules $BastionSecurityRules -Force
 
         Add-AzVirtualNetworkSubnetConfig -Name "AzureBastionSubnet" -VirtualNetwork $vNetwork -AddressPrefix $BastionSubnetAddressRange -NetworkSecurityGroupId $BastionNetworkSecurityGroup.Id | Set-AzVirtualNetwork
-        $publicip = New-AzPublicIpAddress -ResourceGroupName $ResourceGroupName -Name "$VirtualNetworkName-ip" -Location "EastUS" -AllocationMethod Static -Sku Standard
+        $publicip = New-AzPublicIpAddress -ResourceGroupName $ResourceGroupName -Name "$VirtualNetworkName-ip" -Location $Location -AllocationMethod Static -Sku Standard
         $BastionVirtualNetworkName = '{0}-bastion-{1}-{2}-{3}-{4:D3}' -f $VirtualNetworkPrefix, $Project, $Role, $LocationShortName, $Instance                       
         $BastionVirtualNetworkName = $BastionVirtualNetworkName.ToLower()
         $BastionJob = New-AzBastion -ResourceGroupName $ResourceGroupName -Name $BastionVirtualNetworkName -PublicIpAddressRgName $ResourceGroupName -PublicIpAddressName "$VirtualNetworkName-ip" -VirtualNetworkRgName $ResourceGroupName -VirtualNetworkName $VirtualNetworkName -Sku "Basic" -AsJob
@@ -296,23 +599,23 @@ function New-AAD-Hybrid-Lab {
         Set-AzNetworkSecurityGroup
     }
 
-    #Step 6: Create Azure Public Address
+    #Create Azure Public Address
     $PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $ResourceGroupName -Location $Location -AllocationMethod Static -DomainNameLabel $VMName.ToLower()
     #Setting up the DNS Name
     #$PublicIP.DnsSettings.Fqdn = $FQDN
 
-    #Step 7: Create Network Interface Card 
+    #Create Network Interface Card 
     $subnet = Get-AzVirtualNetworkSubnetConfig -Name $subnetName -VirtualNetwork $vNetwork
     $NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -PublicIpAddressId $PublicIP.Id -PrivateIpAddress $DomainControllerIP
 
-    <# Optional : Step 8: Get Virtual Machine publisher, Image Offer, Sku and Image
+    <# Optional : Get Virtual Machine publisher, Image Offer, Sku and Image
     $ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq "MicrosoftWindowsDesktop"}
     $ImageOffer = Get-AzVMImageOffer -Location $Location -publisher $ImagePublisherName.PublisherName | Where-Object -FilterScript { $_.Offer  -eq "Windows-11"}
     $ImageSku = Get-AzVMImageSku -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer | Where-Object -FilterScript { $_.Skus  -eq "win11-21h2-pro"}
     $image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer -sku $ImageSku.Skus | Sort-Object -Property Version -Descending | Select-Object -First 1
     #>
 
-    # Step 9: Create a virtual machine configuration file (As a Spot Intance)
+    # Create a virtual machine configuration file (As a Spot Intance)
     if ($Spot) {
         $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1
     }
@@ -322,18 +625,18 @@ function New-AAD-Hybrid-Lab {
 
     Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 
-    # Set VM operating system parameters
+    #Set VM operating system parameters
     Set-AzVMOperatingSystem -VM $VMConfig -Windows -ComputerName $VMName -Credential $AdminCredential -ProvisionVMAgent -EnableAutoUpdate -PatchMode "AutomaticByPlatform"
 
-    # Set boot diagnostic storage account
+    #Set boot diagnostic storage account
     #Set-AzVMBootDiagnostic -Enable -ResourceGroupName $ResourceGroupName -VM $VMConfig -StorageAccountName $StorageAccountName    
-    # Set boot diagnostic to managed storage account
+    #Set boot diagnostic to managed storage account
     Set-AzVMBootDiagnostic -VM $VMConfig -Enable 
 
-    # The line below replaces Step #8 : Set virtual machine source image
+    #Set virtual machine source image
     Set-AzVMSourceImage -VM $VMConfig -PublisherName $ImagePublisherName -Offer $ImageOffer -Skus $ImageSku -Version 'latest'
 
-    # Set OsDisk configuration
+    #Set OsDisk configuration
     Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -CreateOption fromImage
 
     #region Adding Data Disk
@@ -344,13 +647,14 @@ function New-AAD-Hybrid-Lab {
     #>
     #endregion
 
-    #Step 10: Create Azure Virtual Machine
+    #Create Azure Virtual Machine
     New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig #-DisableBginfoExtension
 
-    #Step 11: Updating the DNS Servers of the VNet to point to the DC.
+    #Updating the DNS Servers of the VNet to point to the DC.
     $vNetwork.DhcpOptions = [PSCustomObject]@{"DnsServers" = $DomainControllerIP }
     $vNetwork | Set-AzVirtualNetwork
-
+    $vAVDNetwork.DhcpOptions = [PSCustomObject]@{"DnsServers" = $DomainControllerIP }
+    $vAVDNetwork | Set-AzVirtualNetwork
 
     $VM = Get-AzVM -ResourceGroup $ResourceGroupName -Name $VMName
     #region JIT Access Management
@@ -403,7 +707,7 @@ function New-AAD-Hybrid-Lab {
     $Properties.Add('targetResourceId', $VM.Id)
     New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Properties $Properties -Force -ErrorAction Ignore
     #endregion
-    #Step 12: Start Azure Virtual Machine
+    #Start Azure Virtual Machine
     Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 
     #region Setting up the DSC extension
@@ -449,7 +753,7 @@ function New-AAD-Hybrid-Lab {
 
     Start-Sleep -Seconds 15
 
-    #Step 13: Start RDP Session
+    #Start RDP Session
     #mstsc /v $PublicIP.IpAddress
     mstsc /v $FQDN
     Write-Host -Object "Your RDP credentials (login/password) are $($AdminCredential.UserName)/$($AdminCredential.GetNetworkCredential().Password)" -ForegroundColor Green
@@ -495,7 +799,7 @@ $AdminCredential = Get-Credential -Credential $env:USERNAME
 $UserCredential = Get-Credential -Credential "Only password is required"
 
 #$Instance = Get-Random -Minimum 1 -Maximum 1000
-$Instance = 2
+$Instance = 1
 
 $Parameters = @{
     "AdminCredential"      = $AdminCredential
@@ -510,7 +814,7 @@ $Parameters = @{
     "ADSubnetAddressRange" = '10.0.1.0/24'
     "DomainControllerIP"   = '10.0.1.4'
     "Instance"             = $Instance
-    "Location"             = "centralus"
+    "Location"             = "CentralUS"
     "Spot"                 = $false
     "Bastion"              = $false
     "Verbose"              = $true
