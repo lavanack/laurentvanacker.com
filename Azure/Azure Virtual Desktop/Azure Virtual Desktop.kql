@@ -1,4 +1,4 @@
-// Return the a list of the connections made by your users.
+﻿// Return the a list of the connections made by your users.
 WVDConnections 
 | project-away TenantId,SourceSystem 
 | summarize arg_max(TimeGenerated, *), StartTime =  min(iff(State== 'Started', TimeGenerated , datetime(null) )), ConnectTime = min(iff(State== 'Connected', TimeGenerated , datetime(null) ))   by CorrelationId 
@@ -127,6 +127,45 @@ WVDErrors
 | extend HostPool=toupper(strcat(split(Hostpool, "/")[4], ".", split(Hostpool, "/")[8]))
 | summarize Count=count() by CodeSymbolic, HostPool
 
+//FSLogix Profile Size per User
+WVDCheckpoints
+| where TimeGenerated > ago(30d)
+| where Name in ("ProfileLoggedOff","ODFCLoggedOff")
+| extend UserBrut = tostring(Parameters.Username)
+| where isnotempty(UserBrut) and UserBrut !has "adminlocal"
+| summarize arg_max(TimeGenerated, *) by UserBrut, Name
+// 1. Extraction et nettoyage des données textuelles
+| extend 
+    SizeClean = replace_string(tostring(Parameters.VHDSizeOnDisk), ",", "."),
+    FreeClean = replace_string(tostring(Parameters.VHDFreeSpace), ",", "."),
+    MaxClean  = replace_string(tostring(Parameters.MaxVHDSize), ",", ".")
+// 2. Conversion en valeurs numériques de base (Mo)
+| extend 
+    SizeMB = todouble(replace_regex(SizeClean, @"[^0-9.]", "")),
+    FreeMB = todouble(replace_regex(FreeClean, @"[^0-9.]", "")),
+    MaxMB  = todouble(replace_regex(MaxClean,  @"[^0-9.]", ""))
+| where MaxMB > 0
+// 3. Conversion finale en Go (Division par 1024 puisque la source est en Mo)
+| extend 
+    SizeMaxGB       = round(MaxMB / 1024, 1),
+    UsedGB = round((MaxMB - FreeMB) / 1024, 1),
+    UsagePct          = round(100.0 * (MaxMB - FreeMB) / MaxMB, 1)
+// 4. Statut de criticité
+| extend Status = case(
+    UsagePct >= 90, "🔴 Critical",
+    UsagePct >= 75, "🟠 Warning",
+    "🟢 OK"
+)
+// 5. Affichage final du rapport AVD
+| project 
+    UserName = UserBrut,
+    ProfileType = Name,
+    TimeGenerated,
+    SizeMaxGB,
+    UsedGB,
+    UsagePct,
+    Status
+| order by UsedGB desc
 
 // Additional query examples are available at 
 // - https://docs.microsoft.com/en-us/azure/virtual-desktop/diagnostics-log-analytics

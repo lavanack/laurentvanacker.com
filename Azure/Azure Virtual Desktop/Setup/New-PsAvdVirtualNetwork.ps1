@@ -23,7 +23,7 @@ function New-PsAvdVirtualNetwork {
     Param( 
         [Parameter(Mandatory = $false, HelpMessage = 'The Azure location for your Virtual Network.')]
         [ValidateScript({ $_ -in $((Get-AzLocation).Location) })] 
-        [string] $Location = "eastus2",
+        [string] $Location = "centralus",
         [parameter(Mandatory = $false, HelpMessage = 'The instance number for your deployment.')]
         [ValidateScript({ $_ -in 0..999 })] 
         [int] $Instance = $(Get-Random -Minimum 0 -Maximum 1000),
@@ -141,10 +141,11 @@ function New-PsAvdVirtualNetwork {
             $NetworkSecurityGroup = New-AzNetworkSecurityGroup -Name $NetworkSecurityGroupName -ResourceGroupName $ResourceGroupName -Location $Location
             $Subnet = New-AzVirtualNetworkSubnetConfig -Name $SubnetName -AddressPrefix $SubnetAddressPrefix -NetworkSecurityGroup $NetworkSecurityGroup -DefaultOutboundAccess $true
 
-            #region Add the NatGateway subnet to vnet
+            #region Add the PE subnet to vnet
             $VirtualNetwork.Subnets += $Subnet
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Updating vNet: $($VirtualNetwork.Name)"
-            $null = $VirtualNetwork | Set-AzVirtualNetwork
+            #$null = $VirtualNetwork | Set-AzVirtualNetwork
+            $VirtualNetwork | Set-AzVirtualNetwork
             #endregion
 
             #endregion
