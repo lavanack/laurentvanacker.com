@@ -80,15 +80,15 @@ $ThisDomainControllerVirtualNetwork = Get-AzVMVirtualNetwork
 
 #region AVD Dedicated VNets and Subnets
 #region Primary Region
-$PrimaryRegionResourceGroupName = "rg-avd-ad-use2-002"
-$PrimaryRegionVNetName = "vnet-avd-avd-use2-002"
-#$PrimaryRegionSubnetName = "snet-avd-pe-use2-002"
-#$PrimaryRegionSubnetName = "snet-avd-natgw-use2-002"
-$PrimaryRegionSubnetName = "snet-avd-avd-use2-002"
+$PrimaryRegionResourceGroupName = "rg-avd-ad-usc-002"
+$PrimaryRegionVNetName = "vnet-avd-avd-usc-002"
+#$PrimaryRegionSubnetName = "snet-avd-pe-usc-002"
+#$PrimaryRegionSubnetName = "snet-avd-natgw-usc-002"
+$PrimaryRegionSubnetName = "snet-avd-avd-usc-002"
 $PrimaryRegionVNet = Get-AzVirtualNetwork -Name $PrimaryRegionVNetName -ResourceGroupName $PrimaryRegionResourceGroupName
 $PrimaryRegionSubnet = $PrimaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $PrimaryRegionSubnetName
 $PrimaryRegion = $PrimaryRegionVNet.Location
-$PrimaryRegionPESubnetName = "snet-avd-pe-use2-002"
+$PrimaryRegionPESubnetName = "snet-avd-pe-usc-002"
 $PrimaryRegionPESubnet = $PrimaryRegionVNet  | Get-AzVirtualNetworkSubnetConfig -Name $PrimaryRegionPESubnetName
 
 #$PrimaryRegion                  = (Get-AzVMCompute).Location
@@ -149,8 +149,8 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 [PersonalHostPool]::SetIndex($RandomNumber, $PrimaryRegion)
 
 #Uncomment the best scenario for your usage or create your own
-$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_CloudOnly_FSLogix.ps1"
-#$HostPools = & "..\1 Azure Region\1_Pooled_Hybrid_FSLogix_AzureAppAttach_SSO.ps1"
+#$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_CloudOnly_FSLogix.ps1"
+$HostPools = & "..\1 Azure Region\1_Pooled_Hybrid_FSLogix_AzureAppAttach_SSO.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_Intune_FSLogix_ScalingPlan_Watermarking.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_1_Personal_AD_SpotInstance.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_1_Personal_SSO.ps1"
