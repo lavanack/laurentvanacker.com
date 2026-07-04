@@ -591,12 +591,10 @@ function New-AAD-Hybrid-Lab {
         #Adding Security Rules for allowing connection from Bastion
         #RDP
         Get-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Name $NetworkSecurityGroupName | `
-        Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_RDP -Description "Allow RDP Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange $RDPPort -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 101 -Direction Inbound | `
-        Set-AzNetworkSecurityGroup
+        Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_RDP -Description "Allow RDP Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange $RDPPort -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 101 -Direction Inbound | Set-AzNetworkSecurityGroup
         #SSH
         Get-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Name $NetworkSecurityGroupName | `
-        Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_SSH -Description "Allow SSH Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange 22 -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 102 -Direction Inbound | `
-        Set-AzNetworkSecurityGroup
+        Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_SSH -Description "Allow SSH Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange 22 -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 102 -Direction Inbound | Set-AzNetworkSecurityGroup
     }
 
     #Create Azure Public Address
@@ -623,21 +621,21 @@ function New-AAD-Hybrid-Lab {
         $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize
     }
 
-    Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
+    $null = Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 
     #Set VM operating system parameters
-    Set-AzVMOperatingSystem -VM $VMConfig -Windows -ComputerName $VMName -Credential $AdminCredential -ProvisionVMAgent -EnableAutoUpdate -PatchMode "AutomaticByPlatform"
+    $null = Set-AzVMOperatingSystem -VM $VMConfig -Windows -ComputerName $VMName -Credential $AdminCredential -ProvisionVMAgent -EnableAutoUpdate -PatchMode "AutomaticByPlatform"
 
     #Set boot diagnostic storage account
     #Set-AzVMBootDiagnostic -Enable -ResourceGroupName $ResourceGroupName -VM $VMConfig -StorageAccountName $StorageAccountName    
     #Set boot diagnostic to managed storage account
-    Set-AzVMBootDiagnostic -VM $VMConfig -Enable 
+    $null = Set-AzVMBootDiagnostic -VM $VMConfig -Enable 
 
     #Set virtual machine source image
-    Set-AzVMSourceImage -VM $VMConfig -PublisherName $ImagePublisherName -Offer $ImageOffer -Skus $ImageSku -Version 'latest'
+    $null = Set-AzVMSourceImage -VM $VMConfig -PublisherName $ImagePublisherName -Offer $ImageOffer -Skus $ImageSku -Version 'latest'
 
     #Set OsDisk configuration
-    Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -CreateOption fromImage
+    $null = Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -CreateOption fromImage
 
     #region Adding Data Disk
     <#
@@ -648,13 +646,13 @@ function New-AAD-Hybrid-Lab {
     #endregion
 
     #Create Azure Virtual Machine
-    New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig #-DisableBginfoExtension
+    $null = New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig #-DisableBginfoExtension
 
     #Updating the DNS Servers of the VNet to point to the DC.
     $vNetwork.DhcpOptions = [PSCustomObject]@{"DnsServers" = $DomainControllerIP }
-    $vNetwork | Set-AzVirtualNetwork
+    $null = $vNetwork | Set-AzVirtualNetwork
     $vAVDNetwork.DhcpOptions = [PSCustomObject]@{"DnsServers" = $DomainControllerIP }
-    $vAVDNetwork | Set-AzVirtualNetwork
+    $null = $vAVDNetwork | Set-AzVirtualNetwork
 
     $VM = Get-AzVM -ResourceGroup $ResourceGroupName -Name $VMName
     #region JIT Access Management
@@ -705,10 +703,10 @@ function New-AAD-Hybrid-Lab {
     $Properties.Add('dailyRecurrence', @{'time' = "2300" })
     $Properties.Add('timeZoneId', (Get-TimeZone).Id)
     $Properties.Add('targetResourceId', $VM.Id)
-    New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Properties $Properties -Force -ErrorAction Ignore
+    $null = New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Properties $Properties -Force -ErrorAction Ignore
     #endregion
     #Start Azure Virtual Machine
-    Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
+    $null = Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
 
     #region Setting up the DSC extension
     # Publishing DSC Configuration 
@@ -727,14 +725,14 @@ function New-AAD-Hybrid-Lab {
         #Copying the module folders locally to avoid an error when using the Publish-AzVMDscConfiguration cmdlet
         #Copy-Item -Path $ModuleFolders -Destination $env:ProgramFiles\WindowsPowerShell\Modules -Recurse -Force -Verbose
         #Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $true -Tag @{ SecurityControl="Ignore" }
-        $StorageAccount | Set-AzStorageAccount -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $true -Tag @{ SecurityControl = "Ignore" }
+        $null = $StorageAccount | Set-AzStorageAccount -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $true -Tag @{ SecurityControl = "Ignore" }
         $DSCConfigurationZipFileURI = Publish-AzVMDscConfiguration $DSCConfigurationFile -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Force -Verbose
         try {
-            Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$(Split-Path -Path $DSCConfigurationZipFileURI -Leaf)" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $DSCConfigurationName -ConfigurationArgument $DSCConfigurationArguments -Version "2.80" -Location $Location -AutoUpdate -Verbose #-ErrorAction Ignore
+            $null = Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$(Split-Path -Path $DSCConfigurationZipFileURI -Leaf)" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $DSCConfigurationName -ConfigurationArgument $DSCConfigurationArguments -Version "2.80" -Location $Location -AutoUpdate -Verbose #-ErrorAction Ignore
         }
         catch {
         }
-        $VM | Update-AzVM -Verbose
+        $null = $VM | Update-AzVM -Verbose
         Remove-Item -Path $DSCZipLocalFilePath -Force
         Remove-Item -Path $DestinationFolder -Recurse -Force
     }
