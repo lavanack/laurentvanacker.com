@@ -18,6 +18,12 @@ of the Sample Code.
 #requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.Network, Az.Resources, Az.Security, Az.Storage
 
 #region Function definition
+<#
+.SYNOPSIS
+    Creates an Azure Virtual Network dedicated to Azure Virtual Desktop (AVD) with two subnets (AVD and Private Endpoint) and their associated Network Security Groups.
+.DESCRIPTION
+    Builds resource names using the Azure Naming Tool convention, provisions a resource group if needed, and creates an AVD subnet (with the AVD-specific NSG outbound rules) plus a Private Endpoint subnet. Subnet address prefixes are derived automatically from the supplied virtual network address range.
+#>
 function New-PsAvdVirtualNetwork {
     [CmdletBinding(PositionalBinding = $false)]
     Param( 
@@ -49,11 +55,13 @@ function New-PsAvdVirtualNetwork {
         $ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -in @('', 'Windows') } | Select-Object -Property resource, shortName, lengthMax | Group-Object -Property resource -AsHashTable -AsString
         #endregion
 
+        #Resolving the short name for the target Azure location and the standardized prefixes for each resource type
         $LocationShortName = $shortNameHT[$Location].shortName
         $ResourceGroupPrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
         $VirtualNetworkPrefix = $ResourceTypeShortNameHT["Network/virtualNetworks"].ShortName
         $SubnetPrefix = $ResourceTypeShortNameHT["Network/virtualnetworks/subnets"].ShortName
         $NetworkSecurityGroupPrefix = $ResourceTypeShortNameHT["Network/networkSecurityGroups"].ShortName
+        #Project and role tokens used to build the resource names
         $Project = "avd"
         $Role = "avd"
 
@@ -67,6 +75,7 @@ function New-PsAvdVirtualNetwork {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VirtualNetworkName: $VirtualNetworkName"
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ResourceGroupName: $ResourceGroupName"
 
+        #Reusing the resource group if it already exists, otherwise creating it
         $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
         if ($ResourceGroup) {
             Write-Warning -Message "The '$ResourceGroupName' ResourceGroup already exists. We won't recreate or modify it ..."
@@ -75,6 +84,7 @@ function New-PsAvdVirtualNetwork {
             $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
         }
 
+        #Bailing out early if the virtual network already exists to avoid overwriting it
         $VirtualNetwork = Get-AzVirtualNetwork -Name $VirtualNetworkName -ResourceGroupName $ResourceGroupName -ErrorAction Ignore 
         if ($VirtualNetwork) {
             Write-Warning -Message "The '$VirtualNetworkPrefix' VirtualNetwork already exists. Exiting ..."
@@ -96,6 +106,7 @@ function New-PsAvdVirtualNetwork {
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SubnetAddressPrefix: $SubnetAddressPrefix"
             #endregion
 
+            #Building the AVD-recommended outbound/inbound NSG rules (control plane, Azure services, monitoring, KMS activation, RDP Shortpath, etc.)
             $NSGRuleAVDServiceTraffic = New-AzNetworkSecurityRuleConfig -Name "AVDServiceTraffic" -Description "Session host traffic to AVD control plane" -Access Allow -Protocol Tcp -Direction Outbound -Priority 100 -SourceAddressPrefix "VirtualNetwork" -SourcePortRange "*" -DestinationAddressPrefix "WindowsVirtualDesktop" -DestinationPortRange "443"
             $NSGRuleAzureCloud = New-AzNetworkSecurityRuleConfig -Name "AzureCloud" -Description "Session host traffic to Azure cloud services" -Access Allow -Protocol Tcp -Direction Outbound -Priority 110 -SourceAddressPrefix "VirtualNetwork" -SourcePortRange "*" -DestinationAddressPrefix "AzureCloud" -DestinationPortRange "8443"
             $NSGRuleAzureMonitor = New-AzNetworkSecurityRuleConfig -Name "AzureMonitor" -Description "Session host traffic to Azure Monitor" -Access Allow -Protocol Tcp -Direction Outbound -Priority 120 -SourceAddressPrefix "VirtualNetwork" -SourcePortRange "*" -DestinationAddressPrefix "AzureMonitor" -DestinationPortRange "443"
@@ -106,6 +117,7 @@ function New-PsAvdVirtualNetwork {
             $NSGRuleRDPShortpathTurnStun = New-AzNetworkSecurityRuleConfig -Name "RDPShortpathTurnStun" -Description "Session host traffic to RDP shortpath STUN/TURN" -Access Allow -Protocol Udp -Direction Outbound -Priority 160 -SourceAddressPrefix "VirtualNetwork" -SourcePortRange "*" -DestinationAddressPrefix "20.202.0.0/16" -DestinationPortRange "3478"
             $NSGRuleRDPShortpathTurnRelay = New-AzNetworkSecurityRuleConfig -Name "RDPShortpathTurnRelay" -Description "Session host traffic to RDP shortpath STUN/TURN" -Access Allow -Protocol Udp -Direction Outbound -Priority 170 -SourceAddressPrefix "VirtualNetwork" -SourcePortRange "*" -DestinationAddressPrefix "51.5.0.0/16" -DestinationPortRange "3478"
 
+            #Aggregating all the AVD NSG rules into a single collection
             $NSGRules = @(
                 $NSGRuleAVDServiceTraffic,
                 $NSGRuleAzureCloud,
@@ -119,6 +131,7 @@ function New-PsAvdVirtualNetwork {
             )
 
             # --- Create NSG with all rules ---
+            #Creating the AVD NSG, the AVD subnet (attaching the NSG) and finally the virtual network hosting that subnet
             $NetworkSecurityGroupName = '{0}-{1}-{2}-{3}-{4:D3}' -f $NetworkSecurityGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
             $NetworkSecurityGroup = New-AzNetworkSecurityGroup -Name $NetworkSecurityGroupName -ResourceGroupName $ResourceGroupName -Location $Location -SecurityRules $NSGRules
             $Subnet = New-AzVirtualNetworkSubnetConfig -Name $SubnetName -AddressPrefix $SubnetAddressPrefix -NetworkSecurityGroup $NetworkSecurityGroup -DefaultOutboundAccess $true
@@ -126,6 +139,7 @@ function New-PsAvdVirtualNetwork {
             #endregion
 
             #region PE Subnet
+            #Creating a dedicated subnet (with its own empty NSG) for Private Endpoints
             #region PE Subnet Name
             $Role = "pe"
             $SubnetName = '{0}-{1}-{2}-{3}-{4:D3}' -f $SubnetPrefix, $Project, $Role, $LocationShortName, $Instance                       
@@ -158,6 +172,12 @@ function New-PsAvdVirtualNetwork {
     end {}
 }
 
+<#
+.SYNOPSIS
+    Establishes a one-way virtual network peering between two Azure virtual networks.
+.DESCRIPTION
+    Creates the peering (allowing forwarded traffic) only when it does not already exist, and verifies the resulting peering state is either Initiated or Connected. Call it twice (swapping the arguments) to obtain a bidirectional peering.
+#>
 function Add-PsAvdVirtualNetworkPeering {
     [CmdletBinding(PositionalBinding = $false)]
     Param(
@@ -168,6 +188,7 @@ function Add-PsAvdVirtualNetworkPeering {
         [Microsoft.Azure.Commands.Network.Models.PSVirtualNetwork] $RemoteVirtualNetwork
     )
     #$VirtualNetworkPeeringName = "$($VirtualNetwork.Name)-$($RemoteVirtualNetwork.Name)"
+    #Building the peering name from both virtual network names
     $VirtualNetworkPeeringName = "peer-{0}-{1}" -f $VirtualNetwork.Name, $RemoteVirtualNetwork.Name
     if (-not(Get-AzVirtualNetworkPeering -Name $VirtualNetworkPeeringName -VirtualNetworkName $VirtualNetwork.Name -ResourceGroupName $VirtualNetwork.ResourceGroupName -ErrorAction Ignore)) {
         $vNetPeeringStatus = Add-AzVirtualNetworkPeering -Name $VirtualNetworkPeeringName -VirtualNetwork $VirtualNetwork -RemoteVirtualNetworkId $RemoteVirtualNetwork.Id -AllowForwardedTraffic
@@ -182,6 +203,12 @@ function Add-PsAvdVirtualNetworkPeering {
     }
 }
 
+<#
+.SYNOPSIS
+    Provisions an Azure NAT Gateway and associates it with a subnet to provide outbound internet connectivity.
+.DESCRIPTION
+    Depending on the parameter set, the NAT Gateway is either attached to an existing subnet (Subnet parameter set) or a brand new dedicated subnet is created and attached (VirtualNetwork parameter set). A Standard static public IP address is created for the gateway and the virtual network is updated accordingly.
+#>
 function New-PsAvdNatGatewaySetup {
     [CmdletBinding(PositionalBinding = $false)]
     Param( 
@@ -223,6 +250,7 @@ function New-PsAvdNatGatewaySetup {
         $LocationShortName = $shortNameHT[$Location].shortName
 
         if ($SubnetConfig) {
+            #A subnet was supplied: resolve its parent virtual network so we can update it later
             $VirtualNetworkId = $SubnetConfig.Id -replace "/subnets/.*"
             $VirtualNetwork = Get-AzResource -ResourceId $VirtualNetworkId | Get-AzVirtualNetwork
         }
@@ -283,6 +311,7 @@ function New-PsAvdNatGatewaySetup {
         #endregion 
 
         if ($SubnetConfig) {
+            #Attaching the NAT Gateway to the existing subnet passed in
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Updating SubNet: $($SubnetConfig.Name)"
             ($VirtualNetwork.Subnets | Where-Object -FilterScript {$_.Id -eq $SubnetConfig.Id}).NatGateway = $NatGateway
         }
@@ -310,6 +339,12 @@ function New-PsAvdNatGatewaySetup {
     end {}
 }
 
+<#
+.SYNOPSIS
+    Deploys a self-contained Active Directory Domain Services lab in Azure used as the identity backbone for an Azure Virtual Desktop (AVD) hybrid environment.
+.DESCRIPTION
+    Creates the resource group, storage account, networking (AD VNet + AVD VNet with NAT Gateways and peering, optional Azure Bastion), and a domain controller VM. The VM is promoted to a domain controller (and seeded with sample users) through a DSC extension downloaded from GitHub. The function also configures Just-In-Time (JIT) access, an auto-shutdown schedule, and finally opens an RDP session to the new domain controller.
+#>
 function New-AAD-Hybrid-Lab {
     [CmdletBinding(PositionalBinding= $false)]
     param
@@ -376,6 +411,7 @@ function New-AAD-Hybrid-Lab {
 
     $AzureVMNameMaxLength = 15
     $RDPPort = 3389
+    #JIT (Just-In-Time) access settings: how long temporary RDP access is granted and the policy name
     $JitPolicyTimeInHours = 3
     $JitPolicyName = "Default"
     $LocationShortName = $shortNameHT[$Location].shortName
@@ -387,6 +423,7 @@ function New-AAD-Hybrid-Lab {
     $VirtualNetworkPrefix = "vnet"
     $SubnetPrefix = "snet"
 
+    #Building the standardized resource names from the prefixes, project, role, location short name and instance number
     $StorageAccountName = '{0}{1}{2}{3}{4:D3}' -f $StorageAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
     $VMName = '{0}{1}{2}{3}{4:D3}' -f $VirtualMachinePrefix, $Project, $Role, $LocationShortName, $Instance                       
     $NetworkSecurityGroupName = '{0}-{1}-{2}-{3}-{4:D3}' -f $NetworkSecurityGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
@@ -403,6 +440,7 @@ function New-AAD-Hybrid-Lab {
     $ResourceGroupName = $ResourceGroupName.ToLower()
 
     $UserArray = @(
+        #Sample AD user accounts created in the lab domain by the DSC configuration
         @{"FName" = "Bob"; "LName" = "Jones"; "SAM" = "bjones" }
         @{"FName" = "Bill"; "LName" = "Smith"; "SAM" = "bsmith" }
         @{"FName" = "Mary"; "LName" = "Phillips"; "SAM" = "mphillips" }
@@ -414,11 +452,13 @@ function New-AAD-Hybrid-Lab {
 
     $FQDN = "$VMName.$Location.cloudapp.azure.com".ToLower()
 
+    #Deleting any pre-existing resource group with the same name so we start from a clean slate
     $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
     if ($ResourceGroup) {
         #Remove previously existing Azure Resource Group with the same name
         $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
     }
+    #Retrieving the caller's public IP address to scope inbound RDP firewall rules
     $MyPublicIp = Invoke-RestMethod -Uri "https://ipv4.seeip.org"
 
     #region Define Variables needed for Virtual Machine
@@ -434,6 +474,7 @@ function New-AAD-Hybrid-Lab {
     $DSCZipFileUri = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20Virtual%20Desktop/AAD-Hybrid-Lab%20-%20PowerShell/DSC/adDSC.zip"
     $DSCConfigurationName = "DomainController"
 
+    #Arguments passed to the DSC configuration to promote the VM as a domain controller and seed users
     $DSCConfigurationArguments = @{ 
         ADDomainName    = $ADDomainName
         customupnsuffix = $CustomUPNSuffix
@@ -456,6 +497,7 @@ function New-AAD-Hybrid-Lab {
 
 
     if ($VMName.Length -gt $AzureVMNameMaxLength) {
+        #Pre-flight validation: name length, location short name, storage account name availability, DNS label availability and VM size availability
         Write-Error "'$VMName' exceeds $AzureVMNameMaxLength characters" -ErrorAction Stop
     }
     elseif (-not($LocationShortName)) {
@@ -480,6 +522,7 @@ function New-AAD-Hybrid-Lab {
 
     #Create Azure Network Security Group
     #RDP only for my public IP address
+    #Shared parameters reused across all the AD-related inbound rules
     $CommonParameters = @{
         'SourceAddressPrefix'      = 'VirtualNetwork'
         'SourcePortRange'          = '*'
@@ -533,17 +576,20 @@ function New-AAD-Hybrid-Lab {
     $NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NetworkSecurityGroupName -SecurityRules $SecurityRules -Force
 
     #Create Azure Virtual network using the virtual network subnet configuration
+    #Creating the AD subnet, then the AD virtual network hosting it
     $subnet = New-AzVirtualNetworkSubnetConfig -Name $subnetName -AddressPrefix $ADSubnetAddressRange -NetworkSecurityGroup $NetworkSecurityGroup -DefaultOutboundAccess $true
     $vNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName  -AddressPrefix $VNetAddressRange -Location $Location -Subnet $Subnet
     #Adding a NAT Gateway
     $vNetwork | New-PsAvdNatGatewaySetup -Force -Verbose
 
     #Adding an AVD Vnet
+    #Creating the separate AVD virtual network and giving it its own NAT Gateway
     $vAVDNetwork = New-PsAvdVirtualNetwork -ResourceGroupName $ResourceGroupName -Location $Location -Instance $Instance -Verbose
     #Adding a NAT Gateway
     $vAVDNetwork | New-PsAvdNatGatewaySetup -Force -Verbose
 
     #VNet Peering
+    #Peering the AD and AVD virtual networks in both directions
     Add-PsAvdVirtualNetworkPeering -VirtualNetwork $vNetwork -RemoteVirtualNetwork $vAVDNetwork -Verbose
     Add-PsAvdVirtualNetworkPeering -VirtualNetwork $vAVDNetwork -RemoteVirtualNetwork $vNetwork -Verbose
 
@@ -552,6 +598,7 @@ function New-AAD-Hybrid-Lab {
     $Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $vNetwork
     #>
     if ($Bastion) {
+        #Optionally deploying Azure Bastion (dedicated subnet, NSG, public IP and Bastion host) for secure RDP/SSH access without exposing public IPs
         
         #Generation Bastion Subnet Address Range by getting the subnets and finding the third token available in the IP.
         $ThirdToken = (Get-AzVirtualNetwork -Name $VirtualNetworkName).Subnets.AddressPrefix -replace "\d+\.\d+\.(\d+)\.\d\/.*", '$1' | Sort-Object
@@ -598,11 +645,13 @@ function New-AAD-Hybrid-Lab {
     }
 
     #Create Azure Public Address
+    #Public IP (with DNS label) attached to the domain controller VM
     $PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $ResourceGroupName -Location $Location -AllocationMethod Static -DomainNameLabel $VMName.ToLower()
     #Setting up the DNS Name
     #$PublicIP.DnsSettings.Fqdn = $FQDN
 
     #Create Network Interface Card 
+    #NIC pinned to the static domain controller IP address on the AD subnet
     $subnet = Get-AzVirtualNetworkSubnetConfig -Name $subnetName -VirtualNetwork $vNetwork
     $NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -PublicIpAddressId $PublicIP.Id -PrivateIpAddress $DomainControllerIP
 
@@ -614,6 +663,7 @@ function New-AAD-Hybrid-Lab {
     #>
 
     # Create a virtual machine configuration file (As a Spot Intance)
+    #Using a Spot instance (cheaper, evictable) when -Spot is specified, otherwise a regular VM
     if ($Spot) {
         $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -Priority "Spot" -MaxPrice -1
     }
@@ -646,9 +696,11 @@ function New-AAD-Hybrid-Lab {
     #endregion
 
     #Create Azure Virtual Machine
+    #Provisioning the domain controller VM from the assembled configuration
     $null = New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig #-DisableBginfoExtension
 
     #Updating the DNS Servers of the VNet to point to the DC.
+    #Pointing both virtual networks DNS to the new domain controller so joined machines can resolve the domain
     $vNetwork.DhcpOptions = [PSCustomObject]@{"DnsServers" = $DomainControllerIP }
     $null = $vNetwork | Set-AzVirtualNetwork
     $vAVDNetwork.DhcpOptions = [PSCustomObject]@{"DnsServers" = $DomainControllerIP }
@@ -679,6 +731,7 @@ function New-AAD-Hybrid-Lab {
     #endregion
 
     #region Requesting Temporary Access : 3 hours
+    #Immediately requesting temporary JIT RDP access (3 hours) from the caller's public IP
     $JitPolicy = (@{
             id    = $VM.Id
             ports = (@{
@@ -710,6 +763,7 @@ function New-AAD-Hybrid-Lab {
 
     #region Setting up the DSC extension
     # Publishing DSC Configuration 
+    #Downloading, extracting and publishing the DSC package, then applying it via the DSC VM extension to promote the domain controller
     $DSCZipFileName = Split-Path -Path $DSCZipFileUri -Leaf
     $DSCZipLocalFilePath = Join-Path -Path $env:TEMP -ChildPath $DSCZipFileName
     #Downloading the zip file from the Gitbub repository (We use the same Zip file that the one use for the ARM template deployment to avoid content duplication)
@@ -742,22 +796,26 @@ function New-AAD-Hybrid-Lab {
     #endregion
 
     if ($null -ne $BastionJob) {
+        #Waiting for the asynchronous Bastion deployment (if any) to finish before returning
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Waiting the creation of the Bastion completes ..."
         $BastionJob | Wait-Job | Out-Null
     }
 
     # Adding Credentials to the Credential Manager (and escaping the password)
+    #Pre-populating Windows Credential Manager so the RDP session connects without prompting
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDN /user:$($AdminCredential.UserName) /pass:$($AdminCredential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
 
     Start-Sleep -Seconds 15
 
     #Start RDP Session
+    #Opening an RDP session to the freshly created domain controller
     #mstsc /v $PublicIP.IpAddress
     mstsc /v $FQDN
     Write-Host -Object "Your RDP credentials (login/password) are $($AdminCredential.UserName)/$($AdminCredential.GetNetworkCredential().Password)" -ForegroundColor Green
 }
 #endregion
 
+#Main script execution starts here
 Clear-Host
 $Error.Clear()
 
@@ -776,9 +834,11 @@ if (-not(Get-AzContext)) {
 #endregion
 
 $scriptBlock = { (Get-AzLocation).Location }
+#Enabling tab-completion of the -Location parameter with the list of available Azure locations
 Register-ArgumentCompleter -CommandName New-AAD-Hybrid-Lab -ParameterName Location -ScriptBlock $scriptBlock
 
 #region Example #1
+#Ensuring the NuGet package provider and the DSC modules required by the domain controller configuration are installed
 #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Verbose
 $null = Get-PackageProvider -Name NuGet -Force -Verbose
 $RequiredModules = 'ActiveDirectoryDSC', 'NetworkingDSC', 'ComputerManagementDSC'
@@ -796,9 +856,11 @@ if (-not([String]::IsNullOrEmpty($MissingModules))) {
 $AdminCredential = Get-Credential -Credential $env:USERNAME
 $UserCredential = Get-Credential -Credential "Only password is required"
 
+#Fixed instance number so resource names are deterministic across runs
 #$Instance = Get-Random -Minimum 1 -Maximum 1000
 $Instance = 1
 
+#Splatted parameters passed to the lab deployment function
 $Parameters = @{
     "AdminCredential"      = $AdminCredential
     "UserCredential"       = $UserCredential
