@@ -81,7 +81,9 @@ function New-PsAvdVirtualNetwork {
             Write-Warning -Message "The '$ResourceGroupName' ResourceGroup already exists. We won't recreate or modify it ..."
         }
         else {
+            Write-Host -Object "[AVD vNet] Creating the resource group '$ResourceGroupName' in the '$Location' location ..." -ForegroundColor Cyan
             $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
+            Write-Host -Object "[AVD vNet] The resource group '$ResourceGroupName' has been created." -ForegroundColor Green
         }
 
         #Bailing out early if the virtual network already exists to avoid overwriting it
@@ -111,7 +113,7 @@ function New-PsAvdVirtualNetwork {
             $NSGRuleAzureCloud = New-AzNetworkSecurityRuleConfig -Name "AzureCloud" -Description "Session host traffic to Azure cloud services" -Access Allow -Protocol Tcp -Direction Outbound -Priority 110 -SourceAddressPrefix "VirtualNetwork" -SourcePortRange "*" -DestinationAddressPrefix "AzureCloud" -DestinationPortRange "8443"
             $NSGRuleAzureMonitor = New-AzNetworkSecurityRuleConfig -Name "AzureMonitor" -Description "Session host traffic to Azure Monitor" -Access Allow -Protocol Tcp -Direction Outbound -Priority 120 -SourceAddressPrefix "VirtualNetwork" -SourcePortRange "*" -DestinationAddressPrefix "AzureMonitor" -DestinationPortRange "443"
             $NSGRuleAzureMarketPlace = New-AzNetworkSecurityRuleConfig -Name "AzureMarketPlace" -Description "Session host traffic to Azure Monitor" -Access Allow -Protocol Tcp -Direction Outbound -Priority 130 -SourceAddressPrefix "VirtualNetwork" -SourcePortRange "*" -DestinationAddressPrefix "AzureFrontDoor.Frontend" -DestinationPortRange "443"
-            $NSGRuleWindowsActivationKMS = New-AzNetworkSecurityRuleConfig -Name "WindowsActivationKMS" -Description "Session host traffic to Windows license activation services" -Access Allow -Protocol Tcp -Direction Outbound -Priority 140 -SourceAddressPrefix "VirtualNetwork" -SourcePortRange "*" -DestinationAddressPrefix @("20.118.99.224","40.83.235.53","23.102.135.246") -DestinationPortRange "1688"
+            $NSGRuleWindowsActivationKMS = New-AzNetworkSecurityRuleConfig -Name "WindowsActivationKMS" -Description "Session host traffic to Windows license activation services" -Access Allow -Protocol Tcp -Direction Outbound -Priority 140 -SourceAddressPrefix "VirtualNetwork" -SourcePortRange "*" -DestinationAddressPrefix @("20.118.99.224", "40.83.235.53", "23.102.135.246") -DestinationPortRange "1688"
             $NSGRuleAzureInstanceMetadata = New-AzNetworkSecurityRuleConfig -Name "AzureInstanceMetadata" -Description "Session host traffic to Azure instance metadata" -Access Allow -Protocol Tcp -Direction Outbound -Priority 150 -SourceAddressPrefix "VirtualNetwork" -SourcePortRange "*" -DestinationAddressPrefix "169.254.169.254" -DestinationPortRange "80"
             $NSGRuleRDPShortpath = New-AzNetworkSecurityRuleConfig -Name "RDPShortpath" -Description "Session host traffic to Azure instance metadata" -Access Allow -Protocol Udp -Direction Inbound -Priority 150 -SourceAddressPrefix "VirtualNetwork" -SourcePortRange "*" -DestinationAddressPrefix "VirtualNetwork" -DestinationPortRange "3390"
             $NSGRuleRDPShortpathTurnStun = New-AzNetworkSecurityRuleConfig -Name "RDPShortpathTurnStun" -Description "Session host traffic to RDP shortpath STUN/TURN" -Access Allow -Protocol Udp -Direction Outbound -Priority 160 -SourceAddressPrefix "VirtualNetwork" -SourcePortRange "*" -DestinationAddressPrefix "20.202.0.0/16" -DestinationPortRange "3478"
@@ -133,9 +135,13 @@ function New-PsAvdVirtualNetwork {
             # --- Create NSG with all rules ---
             #Creating the AVD NSG, the AVD subnet (attaching the NSG) and finally the virtual network hosting that subnet
             $NetworkSecurityGroupName = '{0}-{1}-{2}-{3}-{4:D3}' -f $NetworkSecurityGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
+            Write-Host -Object "[AVD vNet] Creating the Network Security Group '$NetworkSecurityGroupName' with the AVD security rules ..." -ForegroundColor Cyan
             $NetworkSecurityGroup = New-AzNetworkSecurityGroup -Name $NetworkSecurityGroupName -ResourceGroupName $ResourceGroupName -Location $Location -SecurityRules $NSGRules
+            Write-Host -Object "[AVD vNet] The Network Security Group '$NetworkSecurityGroupName' has been created." -ForegroundColor Green
+            Write-Host -Object "[AVD vNet] Creating the virtual network '$VirtualNetworkName' with the AVD subnet '$SubnetName' ('$SubnetAddressPrefix') ..." -ForegroundColor Cyan
             $Subnet = New-AzVirtualNetworkSubnetConfig -Name $SubnetName -AddressPrefix $SubnetAddressPrefix -NetworkSecurityGroup $NetworkSecurityGroup -DefaultOutboundAccess $true
             $VirtualNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName -AddressPrefix $AddressRange -Location $Location -Subnet $Subnet
+            Write-Host -Object "[AVD vNet] The virtual network '$VirtualNetworkName' has been created." -ForegroundColor Green
             #endregion
 
             #region PE Subnet
@@ -155,14 +161,18 @@ function New-PsAvdVirtualNetwork {
 
             # --- Create NSG ---
             $NetworkSecurityGroupName = '{0}-{1}-{2}-{3}-{4:D3}' -f $NetworkSecurityGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
+            Write-Host -Object "[AVD vNet] Creating the Private Endpoint Network Security Group '$NetworkSecurityGroupName' ..." -ForegroundColor Cyan
             $NetworkSecurityGroup = New-AzNetworkSecurityGroup -Name $NetworkSecurityGroupName -ResourceGroupName $ResourceGroupName -Location $Location
+            Write-Host -Object "[AVD vNet] The Private Endpoint Network Security Group '$NetworkSecurityGroupName' has been created." -ForegroundColor Green
             $Subnet = New-AzVirtualNetworkSubnetConfig -Name $SubnetName -AddressPrefix $SubnetAddressPrefix -NetworkSecurityGroup $NetworkSecurityGroup -DefaultOutboundAccess $true
 
             #region Add the PE subnet to vnet
             $VirtualNetwork.Subnets += $Subnet
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Updating vNet: $($VirtualNetwork.Name)"
             #$null = $VirtualNetwork | Set-AzVirtualNetwork
+            Write-Host -Object "[AVD vNet] Adding the Private Endpoint subnet '$SubnetName' ('$SubnetAddressPrefix') to the virtual network '$($VirtualNetwork.Name)' ..." -ForegroundColor Cyan
             $VirtualNetwork | Set-AzVirtualNetwork
+            Write-Host -Object "[AVD vNet] The Private Endpoint subnet '$SubnetName' has been added to '$($VirtualNetwork.Name)'." -ForegroundColor Green
             #endregion
 
             #endregion
@@ -191,7 +201,9 @@ function Add-PsAvdVirtualNetworkPeering {
     #Building the peering name from both virtual network names
     $VirtualNetworkPeeringName = "peer-{0}-{1}" -f $VirtualNetwork.Name, $RemoteVirtualNetwork.Name
     if (-not(Get-AzVirtualNetworkPeering -Name $VirtualNetworkPeeringName -VirtualNetworkName $VirtualNetwork.Name -ResourceGroupName $VirtualNetwork.ResourceGroupName -ErrorAction Ignore)) {
+        Write-Host -Object "[Peering] Creating the virtual network peering '$VirtualNetworkPeeringName' from '$($VirtualNetwork.Name)' to '$($RemoteVirtualNetwork.Name)' ..." -ForegroundColor Cyan
         $vNetPeeringStatus = Add-AzVirtualNetworkPeering -Name $VirtualNetworkPeeringName -VirtualNetwork $VirtualNetwork -RemoteVirtualNetworkId $RemoteVirtualNetwork.Id -AllowForwardedTraffic
+        Write-Host -Object "[Peering] The virtual network peering '$VirtualNetworkPeeringName' has been created (state: $($vNetPeeringStatus.PeeringState))." -ForegroundColor Green
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating '$VirtualNetworkPeeringName': '$($VirtualNetwork.Name)' <==> '$($RemoteVirtualNetwork.Name)'"
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$vNetPeeringStatus: $($vNetPeeringStatus.PeeringState)"
         if ($vNetPeeringStatus.PeeringState -notin 'Initiated' , 'Connected') {
@@ -212,10 +224,10 @@ function Add-PsAvdVirtualNetworkPeering {
 function New-PsAvdNatGatewaySetup {
     [CmdletBinding(PositionalBinding = $false)]
     Param( 
-        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ParameterSetName= 'VirtualNetwork')]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ParameterSetName = 'VirtualNetwork')]
         [Microsoft.Azure.Commands.Network.Models.PSVirtualNetwork] $VirtualNetwork,
 
-        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ParameterSetName= 'Subnet')]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ParameterSetName = 'Subnet')]
         [Alias('Subnet')]
         [Microsoft.Azure.Commands.Network.Models.PSSubnet] $SubnetConfig,
 
@@ -258,7 +270,9 @@ function New-PsAvdNatGatewaySetup {
             #If we create a dedicated subnet we also create a dedicated NSG.
             $NetworkSecurityGroupName = $VirtualNetwork.Name -replace $VirtualNetworkPrefix, $NetworkSecurityGroupPrefix -replace "(\w+)-(\w+)-(\w+)-(\w+)-(\d+)", '$1-$2-natgw-$4-$5'
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$NetworkSecurityGroupName: $NetworkSecurityGroupName"
+            Write-Host -Object "[NAT Gateway] Creating the Network Security Group '$NetworkSecurityGroupName' for the NAT Gateway subnet ..." -ForegroundColor Cyan
             $NetworkSecurityGroup = New-AzNetworkSecurityGroup -Name $NetworkSecurityGroupName -ResourceGroupName $ResourceGroupName -Location $Location -Force
+            Write-Host -Object "[NAT Gateway] The Network Security Group '$NetworkSecurityGroupName' has been created." -ForegroundColor Green
         }
         $NatGatewayPrefix = "natgw"
         $NatGatewayName = $VirtualNetwork.Name -replace $VirtualNetworkPrefix, $NatGatewayPrefix
@@ -293,7 +307,9 @@ function New-PsAvdNatGatewaySetup {
             #Zone = 1,2,3
         }
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Public IP: $NatGatewayPublicIpName"
+        Write-Host -Object "[NAT Gateway] Creating the Standard static public IP address '$NatGatewayPublicIpName' ..." -ForegroundColor Cyan
         $PublicIp = New-AzPublicIpAddress @IP
+        Write-Host -Object "[NAT Gateway] The public IP address '$NatGatewayPublicIpName' has been created." -ForegroundColor Green
         #endregion 
 
         #region Create NAT gateway resource 
@@ -307,16 +323,17 @@ function New-PsAvdNatGatewaySetup {
             Force                = $Force.IsPresent
         }
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating NatGateway: $NatGatewayName"
+        Write-Host -Object "[NAT Gateway] Creating the NAT Gateway '$NatGatewayName' ..." -ForegroundColor Cyan
         $NatGateway = New-AzNatGateway @Nat
+        Write-Host -Object "[NAT Gateway] The NAT Gateway '$NatGatewayName' has been created." -ForegroundColor Green
         #endregion 
 
         if ($SubnetConfig) {
             #Attaching the NAT Gateway to the existing subnet passed in
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Updating SubNet: $($SubnetConfig.Name)"
-            ($VirtualNetwork.Subnets | Where-Object -FilterScript {$_.Id -eq $SubnetConfig.Id}).NatGateway = $NatGateway
+            ($VirtualNetwork.Subnets | Where-Object -FilterScript { $_.Id -eq $SubnetConfig.Id }).NatGateway = $NatGateway
         }
-        else
-        {
+        else {
             #region Create subnet config and associate NAT gateway to subnet
             $Parameters = @{
                 Name                 = $SubnetName
@@ -333,7 +350,9 @@ function New-PsAvdNatGatewaySetup {
             #endregion
         }
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Updating vNet: $($VirtualNetwork.Name)"
+        Write-Host -Object "[NAT Gateway] Associating the NAT Gateway '$NatGatewayName' with the virtual network '$($VirtualNetwork.Name)' ..." -ForegroundColor Cyan
         $null = $VirtualNetwork | Set-AzVirtualNetwork
+        Write-Host -Object "[NAT Gateway] The NAT Gateway '$NatGatewayName' has been associated with '$($VirtualNetwork.Name)'." -ForegroundColor Green
         #endregion
     }
     end {}
@@ -346,7 +365,7 @@ function New-PsAvdNatGatewaySetup {
     Creates the resource group, storage account, networking (AD VNet + AVD VNet with NAT Gateways and peering, optional Azure Bastion), and a domain controller VM. The VM is promoted to a domain controller (and seeded with sample users) through a DSC extension downloaded from GitHub. The function also configures Just-In-Time (JIT) access, an auto-shutdown schedule, and finally opens an RDP session to the new domain controller.
 #>
 function New-AAD-Hybrid-Lab {
-    [CmdletBinding(PositionalBinding= $false)]
+    [CmdletBinding(PositionalBinding = $false)]
     param
     (
         [parameter(Mandatory = $true, HelpMessage = 'Please specify the administrator credential. The Username cannot be "Administrator", "root" and possibly other such common account names.')]
@@ -389,18 +408,18 @@ function New-AAD-Hybrid-Lab {
         [switch] $Bastion
     )
 
-    Write-Verbose "`$VMSize: $VMSize"
-    Write-Verbose "`$Project: $Project"         
-    Write-Verbose "`$Role: $Role"         
-    Write-Verbose "`$ADDomainName: $ADDomainName"       
-    Write-Verbose "`$CustomUPNSuffix: $CustomUPNSuffix"
-    Write-Verbose "`$VNetAddressRange: $VNetAddressRange"
-    Write-Verbose "`$ADSubnetAddressRange: $ADSubnetAddressRange"
-    Write-Verbose "`$DomainControllerIP: $DomainControllerIP"
-    Write-Verbose "`$Instance: $Instance"
-    Write-Verbose "`$Location: $Location"
-    Write-Verbose "`$Spot: $Spot"
-    Write-Verbose "`$Bastion: $Bastion"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VMSize: $VMSize"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Project: $Project"         
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Role: $Role"         
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ADDomainName: $ADDomainName"       
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CustomUPNSuffix: $CustomUPNSuffix"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VNetAddressRange: $VNetAddressRange"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ADSubnetAddressRange: $ADSubnetAddressRange"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DomainControllerIP: $DomainControllerIP"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Instance: $Instance"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Location: $Location"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Spot: $Spot"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Bastion: $Bastion"
 
     #region Defining variables 
     #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
@@ -456,15 +475,21 @@ function New-AAD-Hybrid-Lab {
     $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
     if ($ResourceGroup) {
         #Remove previously existing Azure Resource Group with the same name
+        Write-Host -Object "[Cleanup] Removing the pre-existing resource group '$ResourceGroupName' (and all its resources) ..." -ForegroundColor Yellow
         $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
+        Write-Host -Object "[Cleanup] The pre-existing resource group '$ResourceGroupName' has been removed." -ForegroundColor Green
     }
     #Retrieving the caller's public IP address to scope inbound RDP firewall rules
     $MyPublicIp = Invoke-RestMethod -Uri "https://ipv4.seeip.org"
 
     #region Define Variables needed for Virtual Machine
-    $ImagePublisherName = "MicrosoftWindowsServer"
-    $ImageOffer = "WindowsServer"
-    $ImageSku = "2025-datacenter-azure-edition"
+    $Image = @{
+        Publisher = 'MicrosoftWindowsServer'
+        Offer     = 'WindowsServer'    
+        Sku       = '2025-datacenter-azure-edition'  
+        Version   = 'latest'
+    }
+
     $PublicIPName = "pip-$VMName" 
     $NICName = "nic-$VMName"
     $OSDiskName = '{0}_OSDisk' -f $VMName
@@ -483,15 +508,15 @@ function New-AAD-Hybrid-Lab {
         UserCreds       = $UserCredential
     }
 
-    Write-Verbose "`$VMName: $VMName"
-    Write-Verbose "`$NetworkSecurityGroupName: $NetworkSecurityGroupName"         
-    Write-Verbose "`$VirtualNetworkName: $VirtualNetworkName"         
-    Write-Verbose "`$SubnetName: $SubnetName"       
-    Write-Verbose "`$ResourceGroupName: $ResourceGroupName"
-    Write-Verbose "`$PublicIPName: $PublicIPName"
-    Write-Verbose "`$NICName: $NICName"
-    Write-Verbose "`$OSDiskName: $OSDiskName"
-    Write-Verbose "`$FQDN: $FQDN"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VMName: $VMName"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$NetworkSecurityGroupName: $NetworkSecurityGroupName"         
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VirtualNetworkName: $VirtualNetworkName"         
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SubnetName: $SubnetName"       
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ResourceGroupName: $ResourceGroupName"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$PublicIPName: $PublicIPName"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$NICName: $NICName"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$OSDiskName: $OSDiskName"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$FQDN: $FQDN"
     #endregion
     #endregion
 
@@ -515,10 +540,14 @@ function New-AAD-Hybrid-Lab {
 
     #Create Azure Resource Group
     # Create Resource Groups
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the resource group '$ResourceGroupName' in the '$Location' location ..." -ForegroundColor Cyan
     $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The resource group '$ResourceGroupName' has been created." -ForegroundColor Green
 
     #Create Azure Storage Account
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the storage account '$StorageAccountName' (used to publish the DSC configuration) ..." -ForegroundColor Cyan
     $StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $true -Tag @{ SecurityControl = "Ignore" }
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The storage account '$StorageAccountName' has been created." -ForegroundColor Green
 
     #Create Azure Network Security Group
     #RDP only for my public IP address
@@ -573,25 +602,37 @@ function New-AAD-Hybrid-Lab {
         #>
     )
 
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the Network Security Group '$NetworkSecurityGroupName' with the Active Directory security rules ..." -ForegroundColor Cyan
     $NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NetworkSecurityGroupName -SecurityRules $SecurityRules -Force
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The Network Security Group '$NetworkSecurityGroupName' has been created." -ForegroundColor Green
 
     #Create Azure Virtual network using the virtual network subnet configuration
     #Creating the AD subnet, then the AD virtual network hosting it
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the AD virtual network '$VirtualNetworkName' with the subnet '$SubnetName' ('$ADSubnetAddressRange') ..." -ForegroundColor Cyan
     $subnet = New-AzVirtualNetworkSubnetConfig -Name $subnetName -AddressPrefix $ADSubnetAddressRange -NetworkSecurityGroup $NetworkSecurityGroup -DefaultOutboundAccess $true
     $vNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName  -AddressPrefix $VNetAddressRange -Location $Location -Subnet $Subnet
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The AD virtual network '$VirtualNetworkName' has been created." -ForegroundColor Green
     #Adding a NAT Gateway
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Adding a NAT Gateway to the AD virtual network '$VirtualNetworkName' ..." -ForegroundColor Cyan
     $vNetwork | New-PsAvdNatGatewaySetup -Force -Verbose
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The NAT Gateway has been added to the AD virtual network '$VirtualNetworkName'." -ForegroundColor Green
 
     #Adding an AVD Vnet
     #Creating the separate AVD virtual network and giving it its own NAT Gateway
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the dedicated AVD virtual network ..." -ForegroundColor Cyan
     $vAVDNetwork = New-PsAvdVirtualNetwork -ResourceGroupName $ResourceGroupName -Location $Location -Instance $Instance -Verbose
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The dedicated AVD virtual network '$($vAVDNetwork.Name)' has been created." -ForegroundColor Green
     #Adding a NAT Gateway
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Adding a NAT Gateway to the AVD virtual network '$($vAVDNetwork.Name)' ..." -ForegroundColor Cyan
     $vAVDNetwork | New-PsAvdNatGatewaySetup -Force -Verbose
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The NAT Gateway has been added to the AVD virtual network '$($vAVDNetwork.Name)'." -ForegroundColor Green
 
     #VNet Peering
     #Peering the AD and AVD virtual networks in both directions
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the bidirectional peering between the AD and AVD virtual networks ..." -ForegroundColor Cyan
     Add-PsAvdVirtualNetworkPeering -VirtualNetwork $vNetwork -RemoteVirtualNetwork $vAVDNetwork -Verbose
     Add-PsAvdVirtualNetworkPeering -VirtualNetwork $vAVDNetwork -RemoteVirtualNetwork $vNetwork -Verbose
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The bidirectional peering between the AD and AVD virtual networks has been created." -ForegroundColor Green
 
     <#
     $vNetwork = Set-AzVirtualNetwork -VirtualNetwork $vNetwork
@@ -625,42 +666,49 @@ function New-AAD-Hybrid-Lab {
             #>
         )
         $BastionNetworkSecurityGroupName = '{0}-bastion-{1}-{2}-{3}-{4:D3}' -f $NetworkSecurityGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
-        Write-Verbose "`$BastionNetworkSecurityGroupName: $BastionNetworkSecurityGroupName"         
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$BastionNetworkSecurityGroupName: $BastionNetworkSecurityGroupName"         
 
+        Write-Host -Object "[Bastion] Creating the Bastion Network Security Group '$BastionNetworkSecurityGroupName' ..." -ForegroundColor Cyan
         $BastionNetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $BastionNetworkSecurityGroupName -SecurityRules $BastionSecurityRules -Force
+        Write-Host -Object "[Bastion] The Bastion Network Security Group '$BastionNetworkSecurityGroupName' has been created." -ForegroundColor Green
 
+        Write-Host -Object "[Bastion] Adding the 'AzureBastionSubnet' ('$BastionSubnetAddressRange') to the virtual network '$VirtualNetworkName' ..." -ForegroundColor Cyan
         Add-AzVirtualNetworkSubnetConfig -Name "AzureBastionSubnet" -VirtualNetwork $vNetwork -AddressPrefix $BastionSubnetAddressRange -NetworkSecurityGroupId $BastionNetworkSecurityGroup.Id | Set-AzVirtualNetwork
+        Write-Host -Object "[Bastion] The 'AzureBastionSubnet' has been added." -ForegroundColor Green
+        Write-Host -Object "[Bastion] Creating the Bastion public IP address '$VirtualNetworkName-ip' ..." -ForegroundColor Cyan
         $publicip = New-AzPublicIpAddress -ResourceGroupName $ResourceGroupName -Name "$VirtualNetworkName-ip" -Location $Location -AllocationMethod Static -Sku Standard
+        Write-Host -Object "[Bastion] The Bastion public IP address '$VirtualNetworkName-ip' has been created." -ForegroundColor Green
         $BastionVirtualNetworkName = '{0}-bastion-{1}-{2}-{3}-{4:D3}' -f $VirtualNetworkPrefix, $Project, $Role, $LocationShortName, $Instance                       
         $BastionVirtualNetworkName = $BastionVirtualNetworkName.ToLower()
+        Write-Host -Object "[Bastion] Starting the (asynchronous) deployment of the Bastion host '$BastionVirtualNetworkName' ..." -ForegroundColor Cyan
         $BastionJob = New-AzBastion -ResourceGroupName $ResourceGroupName -Name $BastionVirtualNetworkName -PublicIpAddressRgName $ResourceGroupName -PublicIpAddressName "$VirtualNetworkName-ip" -VirtualNetworkRgName $ResourceGroupName -VirtualNetworkName $VirtualNetworkName -Sku "Basic" -AsJob
+        Write-Host -Object "[Bastion] The Bastion host '$BastionVirtualNetworkName' deployment has been started (running in the background)." -ForegroundColor Green
 
         #Adding Security Rules for allowing connection from Bastion
         #RDP
+        Write-Host -Object "[Bastion] Adding the RDP and SSH inbound rules from the Bastion subnet to the AD Network Security Group '$NetworkSecurityGroupName' ..." -ForegroundColor Cyan
         Get-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Name $NetworkSecurityGroupName | `
-        Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_RDP -Description "Allow RDP Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange $RDPPort -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 101 -Direction Inbound | Set-AzNetworkSecurityGroup
+            Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_RDP -Description "Allow RDP Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange $RDPPort -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 101 -Direction Inbound | Set-AzNetworkSecurityGroup
         #SSH
         Get-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Name $NetworkSecurityGroupName | `
-        Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_SSH -Description "Allow SSH Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange 22 -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 102 -Direction Inbound | Set-AzNetworkSecurityGroup
+            Add-AzNetworkSecurityRuleConfig -Name allow_Bastion_SSH -Description "Allow SSH Communication from Bastion" -Protocol Tcp -SourcePortRange * -DestinationPortRange 22 -SourceAddressPrefix $BastionSubnetAddressRange -DestinationAddressPrefix 'VirtualNetwork' -Access Allow  -Priority 102 -Direction Inbound | Set-AzNetworkSecurityGroup
+        Write-Host -Object "[Bastion] The RDP and SSH inbound rules from the Bastion subnet have been added." -ForegroundColor Green
     }
 
     #Create Azure Public Address
     #Public IP (with DNS label) attached to the domain controller VM
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the public IP address '$PublicIPName' for the domain controller VM ..." -ForegroundColor Cyan
     $PublicIP = New-AzPublicIpAddress -Name $PublicIPName -ResourceGroupName $ResourceGroupName -Location $Location -AllocationMethod Static -DomainNameLabel $VMName.ToLower()
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The public IP address '$PublicIPName' has been created." -ForegroundColor Green
     #Setting up the DNS Name
     #$PublicIP.DnsSettings.Fqdn = $FQDN
 
     #Create Network Interface Card 
     #NIC pinned to the static domain controller IP address on the AD subnet
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the network interface card '$NICName' (static private IP '$DomainControllerIP') ..." -ForegroundColor Cyan
     $subnet = Get-AzVirtualNetworkSubnetConfig -Name $subnetName -VirtualNetwork $vNetwork
     $NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $ResourceGroupName -Location $Location -SubnetId $Subnet.Id -PublicIpAddressId $PublicIP.Id -PrivateIpAddress $DomainControllerIP
-
-    <# Optional : Get Virtual Machine publisher, Image Offer, Sku and Image
-    $ImagePublisherName = Get-AzVMImagePublisher -Location $Location | Where-Object -FilterScript { $_.PublisherName -eq "MicrosoftWindowsDesktop"}
-    $ImageOffer = Get-AzVMImageOffer -Location $Location -publisher $ImagePublisherName.PublisherName | Where-Object -FilterScript { $_.Offer  -eq "Windows-11"}
-    $ImageSku = Get-AzVMImageSku -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer | Where-Object -FilterScript { $_.Skus  -eq "win11-21h2-pro"}
-    $image = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer -sku $ImageSku.Skus | Sort-Object -Property Version -Descending | Select-Object -First 1
-    #>
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The network interface card '$NICName' has been created." -ForegroundColor Green
 
     # Create a virtual machine configuration file (As a Spot Intance)
     #Using a Spot instance (cheaper, evictable) when -Spot is specified, otherwise a regular VM
@@ -682,7 +730,7 @@ function New-AAD-Hybrid-Lab {
     $null = Set-AzVMBootDiagnostic -VM $VMConfig -Enable 
 
     #Set virtual machine source image
-    $null = Set-AzVMSourceImage -VM $VMConfig -PublisherName $ImagePublisherName -Offer $ImageOffer -Skus $ImageSku -Version 'latest'
+    Set-AzVMSourceImage -VM $VMConfig -PublisherName $Image.Publisher -Offer $Image.Offer -Skus $Image.Sku -Version $Image.Version
 
     #Set OsDisk configuration
     $null = Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -CreateOption fromImage
@@ -697,14 +745,18 @@ function New-AAD-Hybrid-Lab {
 
     #Create Azure Virtual Machine
     #Provisioning the domain controller VM from the assembled configuration
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the domain controller virtual machine '$VMName' (size '$VMSize') ..." -ForegroundColor Cyan
     $null = New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig #-DisableBginfoExtension
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The domain controller virtual machine '$VMName' has been created." -ForegroundColor Green
 
     #Updating the DNS Servers of the VNet to point to the DC.
     #Pointing both virtual networks DNS to the new domain controller so joined machines can resolve the domain
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Updating the DNS servers of both virtual networks to point to the domain controller ('$DomainControllerIP') ..." -ForegroundColor Cyan
     $vNetwork.DhcpOptions = [PSCustomObject]@{"DnsServers" = $DomainControllerIP }
     $null = $vNetwork | Set-AzVirtualNetwork
     $vAVDNetwork.DhcpOptions = [PSCustomObject]@{"DnsServers" = $DomainControllerIP }
     $null = $vAVDNetwork | Set-AzVirtualNetwork
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The DNS servers of both virtual networks now point to '$DomainControllerIP'." -ForegroundColor Green
 
     $VM = Get-AzVM -ResourceGroup $ResourceGroupName -Name $VMName
     #region JIT Access Management
@@ -742,12 +794,13 @@ function New-AAD-Hybrid-Lab {
         })
     $ActivationVM = @($JitPolicy)
     Write-Host "Requesting Temporary Acces via Just in Time for ($VMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
-    Start-AzJitNetworkAccessPolicy -ResourceGroupName $($VM.ResourceGroupName) -Location $VM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM
+    $null = Start-AzJitNetworkAccessPolicy -ResourceGroupName $($VM.ResourceGroupName) -Location $VM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM
     #endregion
 
     #endregion
 
     #region Enabling auto-shutdown at 11:00 PM in the user time zome
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Enabling the daily auto-shutdown schedule (23:00 $((Get-TimeZone).Id)) for the VM '$VMName' ..." -ForegroundColor Cyan
     $SubscriptionId = (Get-AzContext).Subscription.Id
     $ScheduledShutdownResourceId = "/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroupName/providers/microsoft.devtestlab/schedules/shutdown-computevm-$VMName"
     $Properties = @{}
@@ -757,9 +810,12 @@ function New-AAD-Hybrid-Lab {
     $Properties.Add('timeZoneId', (Get-TimeZone).Id)
     $Properties.Add('targetResourceId', $VM.Id)
     $null = New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Properties $Properties -Force -ErrorAction Ignore
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The daily auto-shutdown schedule for '$VMName' has been enabled." -ForegroundColor Green
     #endregion
     #Start Azure Virtual Machine
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Starting the virtual machine '$VMName' ..." -ForegroundColor Cyan
     $null = Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
+    Write-Host -Object "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The virtual machine '$VMName' has been started." -ForegroundColor Green
 
     #region Setting up the DSC extension
     # Publishing DSC Configuration 
@@ -780,11 +836,16 @@ function New-AAD-Hybrid-Lab {
         #Copy-Item -Path $ModuleFolders -Destination $env:ProgramFiles\WindowsPowerShell\Modules -Recurse -Force -Verbose
         #Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $true -Tag @{ SecurityControl="Ignore" }
         $null = $StorageAccount | Set-AzStorageAccount -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $true -Tag @{ SecurityControl = "Ignore" }
+        Write-Host -Object "[DSC] Publishing the DSC configuration to the storage account '$StorageAccountName' ..." -ForegroundColor Cyan
         $DSCConfigurationZipFileURI = Publish-AzVMDscConfiguration $DSCConfigurationFile -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Force -Verbose
+        Write-Host -Object "[DSC] The DSC configuration has been published." -ForegroundColor Green
+        Write-Host -Object "[DSC] Applying the DSC extension to '$VMName' to promote it as a domain controller (this can take a while) ..." -ForegroundColor Cyan
         try {
             $null = Set-AzVMDscExtension -ResourceGroupName $ResourceGroupName -VMName $VMName -ArchiveBlobName "$(Split-Path -Path $DSCConfigurationZipFileURI -Leaf)" -ArchiveStorageAccountName $StorageAccountName -ConfigurationName $DSCConfigurationName -ConfigurationArgument $DSCConfigurationArguments -Version "2.80" -Location $Location -AutoUpdate -Verbose #-ErrorAction Ignore
+            Write-Host -Object "[DSC] The DSC extension has been applied to '$VMName'." -ForegroundColor Green
         }
         catch {
+            Write-Warning -Message "[DSC] The DSC extension application on '$VMName' reported an error:`r`n$($_.Exception.Message)"
         }
         $null = $VM | Update-AzVM -Verbose
         Remove-Item -Path $DSCZipLocalFilePath -Force
@@ -858,7 +919,7 @@ $UserCredential = Get-Credential -Credential "Only password is required"
 
 #Fixed instance number so resource names are deterministic across runs
 #$Instance = Get-Random -Minimum 1 -Maximum 1000
-$Instance = 1
+$Instance = 11
 
 #Splatted parameters passed to the lab deployment function
 $Parameters = @{
