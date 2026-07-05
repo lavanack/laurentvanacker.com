@@ -932,7 +932,7 @@ $UserCredential = Get-Credential -Credential "Only password is required"
 
 #Fixed instance number so resource names are deterministic across runs
 #$Instance = Get-Random -Minimum 1 -Maximum 1000
-$Instance = 11
+$Instance = 1
 
 #Splatted parameters passed to the lab deployment function
 $Parameters = @{
