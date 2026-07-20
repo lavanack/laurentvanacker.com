@@ -92,7 +92,7 @@ Get-AzKeyVault -InRemovedState | Remove-AzKeyVault -InRemovedState -AsJob -Force
 #Set-PSDebug -Trace 2
 $PSBreakpoints = @() 
 $LatestPSAzureVirtualDesktopModule = Get-Module -Name PSAzureVirtualDesktop -ListAvailable | Sort-Object -Property Version -Descending | Select-Object -First 1
-#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Line 4110, 7441
+#$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Line 10814
 #$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Command Add-PsAvdAzureAppAttach
 #$PSBreakpoints += Set-PSBreakpoint -Script $(Join-Path -Path $LatestPSAzureVirtualDesktopModule.ModuleBase -ChildPath $LatestPSAzureVirtualDesktopModule.RootModule) -Variable PerformanceCounters -Mode ReadWrite
 if ($PSBreakpoints.Count -le 0) {

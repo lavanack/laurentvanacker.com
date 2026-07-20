@@ -150,7 +150,8 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 
 #Uncomment the best scenario for your usage or create your own
 #$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_CloudOnly_FSLogix.ps1"
-$HostPools = & "..\1 Azure Region\1_Pooled_Hybrid_FSLogix_AzureAppAttach_SSO.ps1"
+#$HostPools = & "..\1 Azure Region\1_Pooled_Hybrid_FSLogix_AzureAppAttach_SSO.ps1"
+$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_Intune_FSLogix_ScalingPlan_Watermarking.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_1_Personal_AD_SpotInstance.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_1_Personal_SSO.ps1"
