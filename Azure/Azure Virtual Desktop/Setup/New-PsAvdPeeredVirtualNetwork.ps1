@@ -46,8 +46,8 @@ function Add-PsAvdVirtualNetworkPeering {
     $VirtualNetworkPeeringName = "peer-{0}-{1}" -f $VirtualNetwork.Name, $RemoteVirtualNetwork.Name
     if (-not(Get-AzVirtualNetworkPeering -Name $VirtualNetworkPeeringName -VirtualNetworkName $VirtualNetwork.Name -ResourceGroupName $VirtualNetwork.ResourceGroupName -ErrorAction Ignore)) {
         $vNetPeeringStatus = Add-AzVirtualNetworkPeering -Name $VirtualNetworkPeeringName -VirtualNetwork $VirtualNetwork -RemoteVirtualNetworkId $RemoteVirtualNetwork.Id -AllowForwardedTraffic
-        Write-Verbose -Message "Creating '$VirtualNetworkPeeringName': '$($VirtualNetwork.Name)' <==> '$($RemoteVirtualNetwork.Name)'"
-        Write-Verbose -Message "`$vNetPeeringStatus: $($vNetPeeringStatus.PeeringState)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating '$VirtualNetworkPeeringName': '$($VirtualNetwork.Name)' <==> '$($RemoteVirtualNetwork.Name)'"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$vNetPeeringStatus: $($vNetPeeringStatus.PeeringState)"
         if ($vNetPeeringStatus.PeeringState -notin 'Initiated' , 'Connected') {
             Write-Error "The '$VirtualNetworkPeeringName' peering state is '$($vNetPeeringStatus.PeeringState)'" #-ErrorAction Stop
         }
