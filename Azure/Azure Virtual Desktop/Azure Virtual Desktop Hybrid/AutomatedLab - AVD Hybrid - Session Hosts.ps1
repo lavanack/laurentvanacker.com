@@ -17,7 +17,8 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules AutomatedLab -RunAsAdministrator 
+#requires -Version 5 -Modules AutomatedLab, Az.DesktopVirtualization, Az.ConnectedMachine -RunAsAdministrator 
+#Requires -Modules @{ ModuleName='Microsoft.Graph.Beta.Identity.DirectoryManagement'; MaximumVersion="2.25.0" }
 
 trap {
     Write-Host "Stopping Transcript ..."
@@ -32,6 +33,10 @@ trap {
 Import-Module -Name AutomatedLab -Verbose
 try { while (Stop-Transcript) {} } catch {}
 Clear-Host
+$CurrentScript = $MyInvocation.MyCommand.Path
+#Getting the current directory (where this script file resides)
+$CurrentDir = Split-Path -Path $CurrentScript -Parent
+Set-Location -Path $CurrentDir
 
 $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
@@ -102,7 +107,7 @@ Add-LabMachineDefinition -Name AvdHybrid-02 -NetworkAdapter $AVDHybrid02NetAdapt
 
 #Installing servers
 Install-Lab -Verbose
-#Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
+Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 
 #region Installing Required Windows Features
 $Machines = Get-LabVM
@@ -125,9 +130,10 @@ Invoke-LabCommand -ActivityName 'Windows Virtual Desktop Optimization Tool (VDOT
     #>
     $ScriptFile = Join-Path -Path $GitHubRepoDir -ChildPath "Windows_VDOT.ps1"
     & $ScriptFile -Optimizations All -AdvancedOptimizations All -AcceptEULA -Verbose
-    Restart-Computer -Force
+    #Restart-Computer -Force
 }
 
+Restart-LabVM -ComputerName $Machines -Wait
 
 Get-Job -Name 'Installation of*' | Wait-Job | Out-Null
 
@@ -141,14 +147,103 @@ $ErrorActionPreference = $PreviousErrorActionPreference
 
 Stop-Transcript
 
+#region RDCMan Setup
+$Servers = foreach ($Machine in $Machines) {
+@"
+        <server>
+            <properties>
+            <name>{0}</name>
+            </properties>
+        </server>
+"@ -f $Machine
+}
+
+
+$PasswordBytes = [System.Text.Encoding]::Unicode.GetBytes($ClearTextPassword)
+$SecurePassword = [Security.Cryptography.ProtectedData]::Protect($PasswordBytes, $null, [Security.Cryptography.DataProtectionScope]::LocalMachine)
+$SecurePasswordStr = [System.Convert]::ToBase64String($SecurePassword)
+$RDCManFileContent = @"
+<?xml version="1.0" encoding="utf-8"?>
+<RDCMan programVersion="3.12" schemaVersion="3">
+  <file>
+    <credentialsProfiles />
+    <properties>
+      <expanded>True</expanded>
+      <name>AVDHybrid</name>
+    </properties>
+    <logonCredentials inherit="None">
+    </logonCredentials>
+    <remoteDesktop inherit="None">
+      <sameSizeAsClientArea>True</sameSizeAsClientArea>
+      <fullScreen>False</fullScreen>
+      <colorDepth>24</colorDepth>
+    </remoteDesktop>
+    <group>
+      <properties>
+        <expanded>True</expanded>
+        <name>AVD</name>
+      </properties>
+      <group>
+        <properties>
+          <expanded>True</expanded>
+          <name>Hybrid</name>
+        </properties>
+        <logonCredentials inherit="None">
+          <profileName scope="Local">Custom</profileName>
+          <userName>{0}</userName>
+          <password>{1}</password>
+          <domain />
+        </logonCredentials>
+{2}
+      </group>
+    </group>
+  </file>
+  <favorites />
+  <recentlyUsed />
+</RDCMan>
+"@ -f $Logon, $SecurePasswordStr, $($Servers | Out-String)
+$RDCManFilePath = Join-Path -Path $([Environment]::GetFolderPath("MyDocuments")) -ChildPath "AVDHybrid.rdg"
+$RDCManFileContent | Out-File -FilePath $RDCManFilePath -Encoding utf8
+#endregion
+
 #region Azure
+#Install-Module -Name 'Az.DesktopVirtualization', 'Az.ConnectedMachine' -Scope AllUsers -AllowClobber -Force -Verbose 
+#Install-Module -Name 'Microsoft.Graph.Beta.Identity.DirectoryManagement' -MaximumVersion 2.25.0 -Scope AllUsers -AllowClobber -Force -Verbose 
+
+#region Microsoft Graph
+#region Microsoft Graph Connection
+try {
+    $null = Get-MgBetaDevice -All -ErrorAction Stop
+}
+catch {
+    Connect-MgGraph -Scopes "Device.ReadWrite.All" -NoWelcome -UseDeviceCode
+}
+#endregion
+
+#region Cleaning up the previously existing VMs (if any)
+foreach($Machine in $Machines) {
+    $Device = Get-MgBetaDevice -Filter "displayName eq '$($Machine.Name)'" -ErrorAction Ignore
+    if ($Device) {
+        Remove-MgBetaDevice -DeviceId $Device.Id
+    }
+}
+#endregion
+#Disconnect-MgGraph
+#Get-Module Microsoft.Graph.* | Remove-Module -Force
+#endregion
+
+
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount -UseDeviceAuthentication
 }
 #endregion
 
-Install-Module -Name Az.DesktopVirtualization, Az.ConnectedMachine -AllowClobber -Force -Verbose 
+#region Storing VM Credentials
+foreach ($Machine in $Machines) {
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$Machine /user:$Logon /pass:$($ClearTextPassword -replace "(\W)", '^$1')" -Wait
+}
+#endregion
 
 #region Host Pool Management
 $ResourceGroup = Get-AzResourceGroup -Name rg-hp-pd-ei-hyb-mp-*
@@ -161,7 +256,7 @@ if ($ResourceGroup) {
         if ($PersonalHostPool.count -gt 1) {
             $PersonalHostPool = $PersonalHostPool | Out-GridView -OutputMode Single
         }
-        $PersonalHostPool = Get-AzWvdHostPool -ResourceGroupName $ResourceGroup.ResourceGroupName | Select-Object -First 1
+        #$PersonalHostPool = Get-AzWvdHostPool -ResourceGroupName $ResourceGroup.ResourceGroupName | Select-Object -First 1
         $Location = $ResourceGroup.Location
         $Context = Get-AzContext
         $SubscriptionId = $Context.Subscription.Id
@@ -175,15 +270,24 @@ Install-Module -Name Az.DesktopVirtualization, Az.ConnectedMachine -AllowClobber
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 Connect-AzAccount -UseDeviceAuthentication
 }
+#removing any existing Azure Arc Hybrid Machine with the same name
+Remove-AzConnectedMachine -ResourceGroupName $($ResourceGroup.ResourceGroupName) -Name `$env:COMPUTERNAME -ErrorAction Ignore
 Connect-AzConnectedMachine -ResourceGroupName $($ResourceGroup.ResourceGroupName) -Name `$env:COMPUTERNAME -Location $Location
 Write-Host -Object "Done ..." -ForegroundColor Green
 "@
 
         $FilePath = Join-Path -Path $env:SystemDrive -ChildPath "AzureArcOnboarding.ps1"
-        Invoke-LabCommand -ActivityName 'Azure Arc Onboarding' -ComputerName $Machines -ScriptBlock {
+        Invoke-LabCommand -ActivityName 'copying Azure Arc Onboarding Script Locally' -ComputerName $Machines -ScriptBlock {
             $using:ScriptBlockContent | Out-File -FilePath $using:FilePath
         } #-AsJob
 
+        <#
+        foreach ($Machine in $Machines) {
+            Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "mstsc /v:$Machine" #-Wait
+        }
+        #>
+		& $RDCManFilePath
+		
         Do {
             $Input = Read-Host -Prompt "Connect via RDP to $($Machines.Name -join ', ') and run the '$FilePath' script before continuing ...`r`nPress Y to continue"
         } While ($Input -ne 'Y')
@@ -236,7 +340,12 @@ Write-Host -Object "Done ..." -ForegroundColor Green
                 Scope              = $ConnectedMachine.Id
                 #Verbose            = $true
             }
-            New-AzRoleAssignment @Parameters
+            if (-not(Get-AzRoleAssignment @Parameters)) {
+                New-AzRoleAssignment @Parameters
+            }
+            else {
+                Write-Warning -Message "The RBAC Assignment '$($Parameters.RoleDefinitionName)' for '$($Parameters.ObjectId)' on '$($Parameters.Scope)' already exists"
+            }
         }
         #endregion
 
@@ -253,10 +362,22 @@ Write-Host -Object "Done ..." -ForegroundColor Green
             ResourceType       = 'Microsoft.DesktopVirtualization/applicationGroups'
             #Verbose            = $true
         }
-        New-AzRoleAssignment @Parameters
+        if (-not(Get-AzRoleAssignment @Parameters)) {
+            New-AzRoleAssignment @Parameters
+        }
+        else {
+            Write-Warning -Message "The RBAC Assignment '$($Parameters.RoleDefinitionName)' for '$($Parameters.ObjectId)' on '$($Parameters.ResourceName)' already exists"
+        }
         #endregion
         #endregion
     }
 }
 
+#endregion
+
+#region removing VM Credentials
+foreach ($Machine in $Machines) {
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /delete:$Machine" -Wait
+}
+#endregion
 #endregion
