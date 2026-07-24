@@ -54,7 +54,6 @@ $ClearTextPassword = 'P@ssw0rd'
 $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
 
 $NetworkID = '10.0.0.0/16' 
-$DCIPv4Address = '10.0.0.1'
 $AVDHybrid01IPv4Address = '10.0.0.101'
 $AVDHybrid02IPv4Address = '10.0.0.102'
 
@@ -122,7 +121,7 @@ Invoke-LabCommand -ActivityName 'Windows Virtual Desktop Optimization Tool (VDOT
     $GitHubRepoName = Split-Path -Path $GitHubRepoURI -Leaf
     $GitHubRepoDir = Join-Path -Path $GitHubRootDir -ChildPath $GitHubRepoName
 
-    $Directory = New-Item -Path $GitHubRootDir -ItemType Directory -Force
+    $null = New-Item -Path $GitHubRootDir -ItemType Directory -Force
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git clone $GitHubRepoURI ""$GitHubRepoDir""" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
     <#
     Set-Location -Path $GitHubRepoDir
@@ -303,8 +302,8 @@ Write-Host -Object "Done ..." -ForegroundColor Green
 
 		#Write-Host -Object "Run the '$FilePath' PowerShell script from $($Machines -join ', ') ..."
         Do {
-            $Input = Read-Host -Prompt "Connect via RDP to $($Machines.Name -join ', ') and run the '$FilePath' script before continuing ...`r`nPress Y to continue"
-        } While ($Input -ne 'Y')
+            $Continue = Read-Host -Prompt "Connect via RDP to $($Machines.Name -join ', ') and run the '$FilePath' script before continuing ...`r`nPress Y to continue"
+        } While ($Continue -ne 'Y')
 
         #region Check
         Start-Process "https://portal.azure.com/#servicemenu/Microsoft_Azure_ArcCenterUX/AzureArcCenterHub/servers"
