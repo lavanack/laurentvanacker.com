@@ -99,9 +99,9 @@ $AVDHybrid02NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Defaul
 
 
 #region server definitions
-#AVDHybrid-01 
+#AvdHybrid-01 
 Add-LabMachineDefinition -Name AvdHybrid-01 -NetworkAdapter $AVDHybrid01NetAdapter
-#AVDHybrid-02
+#AvdHybrid-02
 Add-LabMachineDefinition -Name AvdHybrid-02 -NetworkAdapter $AVDHybrid02NetAdapter
 #endregion
 
@@ -268,8 +268,16 @@ Get-PackageProvider -Name Nuget -ForceBootstrap -Force
 Install-Module -Name Az.DesktopVirtualization, Az.ConnectedMachine -AllowClobber -Force -Verbose 
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
-Connect-AzAccount -UseDeviceAuthentication
+    Connect-AzAccount -UseDeviceAuthentication
 }
+#Copying the Azure Logged Account into the clipboard for EntraID join 
+(Get-AzContext).Account.Id | Set-Clipboard
+#Set-WinUserLanguageList -LanguageList fr-fr -Force
+start ms-settings:workplace
+Do {
+    `$Input = Read-Host -Prompt "Register this machine as an EntraID Device and press Y to continue"
+    dsregcmd /status
+} While (`$Input -ne 'Y')
 #removing any existing Azure Arc Hybrid Machine with the same name
 Remove-AzConnectedMachine -ResourceGroupName $($ResourceGroup.ResourceGroupName) -Name `$env:COMPUTERNAME -ErrorAction Ignore
 Connect-AzConnectedMachine -ResourceGroupName $($ResourceGroup.ResourceGroupName) -Name `$env:COMPUTERNAME -Location $Location
@@ -277,7 +285,7 @@ Write-Host -Object "Done ..." -ForegroundColor Green
 "@
 
         $FilePath = Join-Path -Path $env:SystemDrive -ChildPath "AzureArcOnboarding.ps1"
-        Invoke-LabCommand -ActivityName 'copying Azure Arc Onboarding Script Locally' -ComputerName $Machines -ScriptBlock {
+        Invoke-LabCommand -ActivityName 'Copying Azure Arc Onboarding Script Locally' -ComputerName $Machines -ScriptBlock {
             $using:ScriptBlockContent | Out-File -FilePath $using:FilePath
         } #-AsJob
 
@@ -287,7 +295,8 @@ Write-Host -Object "Done ..." -ForegroundColor Green
         }
         #>
 		& $RDCManFilePath
-		
+
+		#Write-Host -Object "Run the '$FilePath' PowerShell script from $($Machines -join ', ') ..."
         Do {
             $Input = Read-Host -Prompt "Connect via RDP to $($Machines.Name -join ', ') and run the '$FilePath' script before continuing ...`r`nPress Y to continue"
         } While ($Input -ne 'Y')
@@ -298,6 +307,7 @@ Write-Host -Object "Done ..." -ForegroundColor Green
         #endregion 
         #endregion 
 
+        <#
         #region EntraID join
         $settings = @{
             # IMPORTANT: must be present even empty
@@ -307,6 +317,7 @@ Write-Host -Object "Done ..." -ForegroundColor Green
             New-AzConnectedMachineExtension -Name "aadlogin" -ResourceGroupName $ResourceGroup.ResourceGroupName -MachineName $Machine.Name -Location $Location -Publisher "Microsoft.Azure.ActiveDirectory" -ExtensionType "AADLoginForWindows" -Settings $settings
         }
         #endregion
+        #>
 
         #region Generate a host pool registration key
         $ExpiresUtc = (Get-Date).ToUniversalTime().AddDays(1).ToString("yyyy-MM-ddTHH:mm:ss.fffffffZ")
@@ -323,7 +334,7 @@ Write-Host -Object "Done ..." -ForegroundColor Green
         foreach($Machine in $Machines) {
             Write-Host "Install the Arc Extension on '$($Machine.Name)' ..."
             New-AzConnectedMachineExtension -Name 'Microsoft.AzureVirtualDesktop.CloudDeviceExtension' -ResourceGroupName $ResourceGroup.ResourceGroupName -MachineName $Machine.Name -Location $Location -Publisher 'Microsoft.AzureVirtualDesktop' -ExtensionType 'CloudDeviceExtension' -Setting $settings -ProtectedSetting $protectedSettings -verbose
-            Get-AzConnectedMachineExtension -ResourceGroupName $ResourceGroup.ResourceGroupName -MachineName $Machine.Name -Name ‘Microsoft.AzureVirtualDesktop.CloudDeviceExtension’
+            Get-AzConnectedMachineExtension -ResourceGroupName $ResourceGroup.ResourceGroupName -MachineName $Machine.Name -Name 'Microsoft.AzureVirtualDesktop.CloudDeviceExtension'
         }
         #endregion
 
