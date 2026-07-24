@@ -273,7 +273,11 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 #Copying the Azure Logged Account into the clipboard for EntraID join 
 (Get-AzContext).Account.Id | Set-Clipboard
 #Set-WinUserLanguageList -LanguageList fr-fr -Force
-start ms-settings:workplace
+While (-not($(dsregcmd /status | Out-String) -match  "AzureAdJoined\s+:\s+YES"))
+{
+    start ms-settings:workplace
+}
+Write-Host -Object "Click on 'Connect' on the newly opened Windows and then on the 'Join this device to Microsoft Entra ID' link at the bottom to proceed .." -ForeGroundColor Green
 Do {
     `$Input = Read-Host -Prompt "Register this machine as an EntraID Device and press Y to continue"
     dsregcmd /status
@@ -294,6 +298,7 @@ Write-Host -Object "Done ..." -ForegroundColor Green
             Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "mstsc /v:$Machine" #-Wait
         }
         #>
+        $using:FilePath | Set-ClipBoard
 		& $RDCManFilePath
 
 		#Write-Host -Object "Run the '$FilePath' PowerShell script from $($Machines -join ', ') ..."
