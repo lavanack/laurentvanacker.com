@@ -251,8 +251,8 @@ function New-AzAvdADPooledHostPoolSessionHostConfigurationSetup {
         MarketplaceInfoSku                          = $CurrentHostPool.ImageSku
         MarketplaceInfoExactVersion                 = $LatestImage.Version
         DomainInfoJoinType                          = 'ActiveDirectory'
-        ActiveDirectoryInfoOuPath                   = $CurrentHostPoolOU.DistinguishedName
-        ActiveDirectoryInfoDomainName               = $CurrentHostPoolOU.DomainName
+        ActiveDirectoryInfoOuPath                   = $CurrentHostPool.DistinguishedName
+        ActiveDirectoryInfoDomainName               = $CurrentHostPool.DomainName
         DomainCredentialsUsernameKeyVaultSecretUri  = ($CurrentHostPool.KeyVault | Get-AzKeyVaultSecret -Name "AdJoinUserName").Id
         DomainCredentialsPasswordKeyVaultSecretUri  = ($CurrentHostPool.KeyVault | Get-AzKeyVaultSecret -Name "AdJoinPassword").Id
         #CustomConfigurationScriptUrl                = $CurrentHostPool.CustomConfigurationScriptUrl

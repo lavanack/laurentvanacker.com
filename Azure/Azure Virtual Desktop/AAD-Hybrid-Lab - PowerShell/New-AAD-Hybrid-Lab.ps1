@@ -924,7 +924,7 @@ else {
     $MissingModules = $RequiredModules
 }
 if (-not([String]::IsNullOrEmpty($MissingModules))) {
-    Install-Module -Name $MissingModules -Force -Verbose
+    Install-Module -Name $MissingModules -AllowClobber -Force -Verbose 
 }
 
 $AdminCredential = Get-Credential -Credential $env:USERNAME
