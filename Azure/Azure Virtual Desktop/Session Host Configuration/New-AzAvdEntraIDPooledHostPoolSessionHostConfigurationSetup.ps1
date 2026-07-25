@@ -16,7 +16,7 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 
-#requires -Modules Az.Accounts, Az.Compute, Az.DesktopVirtualization, Az.KeyVault, Az.Network, Az.Resources
+#requires -Modules Az.Accounts, Az.Compute, Az.DesktopVirtualization, Az.KeyVault, Az.Network, Az.Resources, @{ ModuleName='Microsoft.Graph.Beta.Identity.DirectoryManagement'; MaximumVersion="2.25.0" }
 #From https://learn.microsoft.com/en-us/azure/virtual-desktop/deploy-azure-virtual-desktop?pivots=host-pool-session-host-configuration&tabs=portal-standard%2Cpowershell-session-host-configuration%2Cportal#create-a-host-pool-with-a-session-host-configuration
 #region Function Definitions
 function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
@@ -29,7 +29,7 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
         [string] $Location = "centralus",
         [Parameter(Mandatory = $true)]
         [ValidatePattern("/subscriptions/\w{8}-\w{4}-\w{4}-\w{4}-\w{12}/resourceGroups/.+/providers/Microsoft\.Network/virtualNetworks/.+/subnets/.+")] 
-        [string]$SubNetId = "/subscriptions/30c8d9eb-366e-4d2c-a723-95bc688f7c97/resourceGroups/rg-avd-ad-usc-002/providers/Microsoft.Network/virtualNetworks/vnet-avd-avd-usc-002/subnets/snet-avd-avd-usc-002"
+        [string]$SubNetId
     )
 
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
@@ -126,7 +126,7 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
         ImageOffer                      = "office-365"
         ImageSku                        = "win11-24h2-avd-m365"
         KeyVault                        = $KeyVault
-        VMNumberOfInstances             = 1
+        VMNumberOfInstances             = 3
         ResourceGroupName               = $ResourceGroupName
         WorkSpaceName                   = $ResourceGroupName -replace "^rg", "ws"
         ScalingPlan                     = $true
@@ -134,6 +134,7 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
         #CustomConfigurationScriptUrl    = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1"
     }
 
+    $CustomRdpProperty = "enablerdsaadauth:i:1;redirectcomports:i:0;redirectlocation:i:0;redirectprinters:i:0;drivestoredirect:s:;usbdevicestoredirect:s:;"
     $Parameters = @{
         Name                  = $CurrentHostPool.Name
         FriendlyName          = "{0} (HostPool Friendly Name)" -f $CurrentHostPool.Name
@@ -210,7 +211,7 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
     $LatestImage = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer -sku $ImageSku.Skus | Sort-Object -Property Version -Descending | Select-Object -First 1
 
     $Parameters = @{
-        FriendlyName                                = "{0} (SessionHostConfiguration Friendly Name)" -f $CurrentHostPool.GetSessionHostConfigurationName
+        FriendlyName                                = "{0} -f (SessionHostConfiguration Friendly Name)" -f $CurrentHostPool.GetSessionHostConfigurationName
         HostPoolName                                = $CurrentHostPool.Name
         ResourceGroupName                           = $CurrentHostPool.ResourceGroupName
         VMNamePrefix                                = $CurrentHostPool.NamePrefix
@@ -242,7 +243,7 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
         ScheduledDateTimeZone     = $(Get-TimeZone)
         UpdateLogOffDelayMinute   = 5
         UpdateMaxVmsRemoved       = 1
-        ProvisioningInstanceCount = $CurrentHostPool.VMNumberOfInstances
+        ProvisioningInstanceCount = 1
         UpdateDeleteOriginalVM    = $False
         UpdateLogOffMessage       = 'Update LogOff Message: You will be logged off in 5 minutes'
     }
@@ -272,9 +273,38 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
         ApplicationGroupName = $CurrentAzDesktopApplicationGroup.Name
         ResourceGroupName    = $CurrentHostPool.ResourceGroupName
     }
-    $FriendlyName = "{0} (Desktop Friendly Name)" -f $Parameters["Name"]
+    $FriendlyName = "{0} (Desktop Friendly Name)" -f $Parameters["ApplicationGroupName"]
     $null = Get-AzWvdDesktop @parameters | Update-AzWvdDesktop -FriendlyName $FriendlyName
     #endregion
+
+
+    #region Assign 'Desktop Virtualization User' RBAC role to application groups
+    # Get the object ID of the user group you want to assign to the application group
+    $EntraIDGroup = Get-MgBetaGroup -Filter "DisplayName eq 'AVD Users'"
+
+    if ($EntraIDGroup) {
+        # Assign users to the application group
+        #region 'Desktop Virtualization User' RBAC Assignment
+        $RoleDefinition = Get-AzRoleDefinition -Name "Desktop Virtualization User"
+
+        $Parameters = @{
+            ObjectId           = $EntraIDGroup.Id
+            ResourceName       = $CurrentAzDesktopApplicationGroup.Name
+            ResourceGroupName  = $CurrentHostPool.ResourceGroupName
+            RoleDefinitionName = $RoleDefinition.Name
+            ResourceType       = 'Microsoft.DesktopVirtualization/applicationGroups'
+        }
+
+        while (-not(Get-AzRoleAssignment @Parameters)) {
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.ObjectId)' ObjectId"
+            $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+            Start-Sleep -Seconds 30
+        }
+    }
+    #endregion
+    #endregion 
 
     #region Workspace Setup
     $ApplicationGroupReference = $CurrentAzDesktopApplicationGroup.Id
@@ -313,21 +343,24 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
         ResourceGroupName                       = $CurrentHostPool.ResourceGroupName
         ScalingPlanName                         = $ScalingPlanName
         ScalingPlanScheduleName                 = 'PooledWeekDayDynamicSchedule'
-        DaysOfWeek                              = [System.DayOfWeek]::Monday..[System.DayOfWeek]::Sunday
+        #WeekDay
+        #DaysOfWeek                              = [System.DayOfWeek]::Monday..[System.DayOfWeek]::Friday
+        #Every Day
+        DaysOfWeek                              = [System.DayOfWeek]::Sunday..[System.DayOfWeek]::Saturday
         ScalingMethod                           = 'CreateDeletePowerManage'
         RampUpStartTimeHour                     = '8'
         RampUpStartTimeMinute                   = '0'
         RampUpLoadBalancingAlgorithm            = 'BreadthFirst'
         RampUpMinimumHostsPct                   = '100'
         RampUpCapacityThresholdPct              = '50'
-        PeakStartTimeHour                       = '8'
-        PeakStartTimeMinute                     = '30'
+        PeakStartTimeHour                       = '9'
+        PeakStartTimeMinute                     = '0'
         PeakLoadBalancingAlgorithm              = 'DepthFirst'
-        RampDownStartTimeHour                   = '16'
+        RampDownStartTimeHour                   = '18'
         RampDownStartTimeMinute                 = '0'
         RampDownLoadBalancingAlgorithm          = 'BreadthFirst'
-        RampDownMinimumHostsPct                 = '100'
-        RampDownCapacityThresholdPct            = '20'
+        RampDownMinimumHostsPct                 = '0'
+        RampDownCapacityThresholdPct            = '1'
         RampDownForceLogoffUser                 = $true
         RampDownWaitTimeMinute                  = '30'
         RampDownNotificationMessage             = 'Please log out of your session.'
@@ -335,10 +368,10 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
         OffPeakStartTimeHour                    = '19'
         OffPeakStartTimeMinute                  = '0'
         OffPeakLoadBalancingAlgorithm           = 'DepthFirst'
-        CreateDeleteRampUpMaximumHostPoolSize   = $CurrentHostPool.VMNumberOfInstances+4
-        CreateDeleteRampUpMinimumHostPoolSize   = $CurrentHostPool.VMNumberOfInstances
-        CreateDeleteRampDownMaximumHostPoolSize = $CurrentHostPool.VMNumberOfInstances+4
-        CreateDeleteRampDownMinimumHostPoolSize = $CurrentHostPool.VMNumberOfInstances
+        CreateDeleteRampUpMaximumHostPoolSize   = $CurrentHostPool.VMNumberOfInstances
+        CreateDeleteRampUpMinimumHostPoolSize   = 1
+        CreateDeleteRampDownMaximumHostPoolSize = $CurrentHostPool.VMNumberOfInstances
+        CreateDeleteRampDownMinimumHostPoolSize = 0
     }
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Pooled ScalingPlan Schedule:`r`n$($scalingPlanPooledScheduleParams | Out-String)"
     $scalingPlanPooledSchedule = New-AzWvdScalingPlanPooledSchedule @scalingPlanPooledScheduleParams
@@ -356,7 +389,16 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
- 
+
+#region Microsoft Graph Connection
+try {
+    $null = Get-MgBetaGroup -Top 1 -ErrorAction Stop
+}
+catch {
+    Connect-MgGraph -Scopes "Group.Read.All" -NoWelcome -UseDeviceCode
+}
+#endregion
+
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount
