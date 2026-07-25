@@ -147,7 +147,7 @@ function New-AzAvdADPooledHostPoolSessionHostConfigurationSetup {
         DistinguishedName               = $OUPath
         DomainName                      = $DomainName
         KeyVault                        = $KeyVault
-        VMNumberOfInstances             = 1
+        VMNumberOfInstances             = 3
         ResourceGroupName               = $ResourceGroupName
         WorkSpaceName                   = $ResourceGroupName -replace "^rg", "ws"
         ScalingPlan                     = $true
@@ -308,25 +308,29 @@ function New-AzAvdADPooledHostPoolSessionHostConfigurationSetup {
     $EntraIDGroup = Get-MgBetaGroup -Filter "DisplayName eq 'AVD Users'"
 
     if ($EntraIDGroup) {
-        # Assign users to the application group
-        #region 'Desktop Virtualization User' RBAC Assignment
-        $RoleDefinition = Get-AzRoleDefinition -Name "Desktop Virtualization User"
+        $ObjectId = $EntraIDGroup.Id
+    }
+    else {
+        $ObjectId = (Get-MgBetaUser -UserId $((Get-AzContext).Account.Id)).Id
+    }
+    # Assign users to the application group
+    #region 'Desktop Virtualization User' RBAC Assignment
+    $RoleDefinition = Get-AzRoleDefinition -Name "Desktop Virtualization User"
 
-        $Parameters = @{
-            ObjectId           = $EntraIDGroup.Id
-            ResourceName       = $CurrentAzDesktopApplicationGroup.Name
-            ResourceGroupName  = $CurrentHostPool.ResourceGroupName
-            RoleDefinitionName = $RoleDefinition.Name
-            ResourceType       = 'Microsoft.DesktopVirtualization/applicationGroups'
-        }
+    $Parameters = @{
+        ObjectId           = $ObjectId
+        ResourceName       = $CurrentAzDesktopApplicationGroup.Name
+        ResourceGroupName  = $CurrentHostPool.ResourceGroupName
+        RoleDefinitionName = $RoleDefinition.Name
+        ResourceType       = 'Microsoft.DesktopVirtualization/applicationGroups'
+    }
 
-        while (-not(Get-AzRoleAssignment @Parameters)) {
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.ObjectId)' ObjectId"
-            $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
-            Start-Sleep -Seconds 30
-        }
+    while (-not(Get-AzRoleAssignment @Parameters)) {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.ObjectId)' ObjectId"
+        $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+        Start-Sleep -Seconds 30
     }
     #endregion
     #endregion 
