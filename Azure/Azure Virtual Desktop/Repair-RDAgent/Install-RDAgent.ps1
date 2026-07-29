@@ -40,18 +40,11 @@ function Install-RDAgent {
     $WVDAgentInstaller = Join-Path -Path $env:TEMP -ChildPath "WVD-Agent.msi"
     $WVDBootLoaderInstaller = Join-Path -Path $env:TEMP -ChildPath "WVD-BootLoader.msi"
 
-    $Files = @(
-        @{URL = "https://query.prod.cms.rt.microsoft.com/cms/api/am/binary/RWrmXv"; Path = $WVDAgentInstaller}
-        @{URL = "https://query.prod.cms.rt.microsoft.com/cms/api/am/binary/RWrxrH"; Path = $WVDBootLoaderInstaller}
-    )
-
-<#
-    #Alternate URIs
+    #From https://github.com/Azure/avdaccelerator/pull/873
     $Files = @(
         @{URL = "https://go.microsoft.com/fwlink/?linkid=2310011"; Path = $WVDAgentInstaller}
         @{URL = "https://go.microsoft.com/fwlink/?linkid=2311028"; Path = $WVDBootLoaderInstaller}
     )
-#>
 
 
     Start-BitsTransfer -Source $Files.URL -Destination $Files.Path
