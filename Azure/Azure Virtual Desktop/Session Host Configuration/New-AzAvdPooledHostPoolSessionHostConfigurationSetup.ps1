@@ -584,10 +584,10 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
         RampUpCapacityThresholdPct              = '50'
         PeakStartTimeHour                       = '9'
         PeakStartTimeMinute                     = '0'
-        PeakLoadBalancingAlgorithm              = 'DepthFirst'
+        PeakLoadBalancingAlgorithm              = 'BreadthFirst'
         RampDownStartTimeHour                   = '18'
         RampDownStartTimeMinute                 = '0'
-        RampDownLoadBalancingAlgorithm          = 'BreadthFirst'
+        RampDownLoadBalancingAlgorithm          = 'DepthFirst'
         RampDownMinimumHostsPct                 = '0'
         RampDownCapacityThresholdPct            = '1'
         RampDownForceLogoffUser                 = $true
