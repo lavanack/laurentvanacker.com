@@ -381,27 +381,6 @@ Write-Host -Object "Done ..." -ForegroundColor Green
             }
         }
         #endregion
-
-        #region "Desktop Virtualization User" to Desktop Application Group
-        $ConnectedMachines = Get-AzConnectedMachine -ResourceGroupName $ResourceGroup.ResourceGroupName | Where-Object -FilterScript { $_.Name -in $Machines.Name}
-        $RoleDefinition = Get-AzRoleDefinition -Name "Desktop Virtualization User"
-        $AzADGroup = Get-AzADGroup -DisplayName "AVD Users"
-        $ApplicationGroup = Get-AzWvdApplicationGroup -ResourceGroupName $ResourceGroup.ResourceGroupName
-        $Parameters = @{
-            ObjectId           = $AzADGroup.Id
-            ResourceName       = $ApplicationGroup.Name
-            ResourceGroupName  = $ResourceGroup.ResourceGroupName
-            RoleDefinitionName = $RoleDefinition.Name
-            ResourceType       = 'Microsoft.DesktopVirtualization/applicationGroups'
-            #Verbose            = $true
-        }
-        if (-not(Get-AzRoleAssignment @Parameters)) {
-            New-AzRoleAssignment @Parameters
-        }
-        else {
-            Write-Warning -Message "The RBAC Assignment '$($Parameters.RoleDefinitionName)' for '$($Parameters.ObjectId)' on '$($Parameters.ResourceName)' already exists"
-        }
-        #endregion
         #endregion
     }
 }
