@@ -287,6 +287,10 @@ While (-not(`$(dsregcmd /status | Out-String) -match  "AzureAdJoined\s+:\s+YES")
 {
     Write-Host -Object "Click on 'Connect' on the newly opened Windows and then on the 'Join this device to Microsoft Entra ID' link at the bottom to proceed .." -ForeGroundColor Green
     start ms-settings:workplace
+    While (Get-Process -ProcessName SystemSettings -ErrorAction Ignore)
+    {
+        start-Sleep -Seconds 3
+    }
 }
 #removing any existing Azure Arc Hybrid Machine with the same name
 `$Parameters = @{
