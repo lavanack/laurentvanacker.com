@@ -128,7 +128,7 @@ Invoke-LabCommand -ActivityName 'Windows Virtual Desktop Optimization Tool (VDOT
     .\Windows_VDOT.ps1 -Optimizations All -AdvancedOptimizations All -AcceptEULA -Verbose
     #>
     $ScriptFile = Join-Path -Path $GitHubRepoDir -ChildPath "Windows_VDOT.ps1"
-    & $ScriptFile -Optimizations All -AdvancedOptimizations All -AcceptEULA -Verbose
+    & $ScriptFile -Optimizations All -AdvancedOptimizations All -AcceptEULA -Verbose -ErrorAction Ignore
     #Restart-Computer -Force
 }
 
@@ -263,8 +263,19 @@ if ($ResourceGroup) {
 
         #region Azure Arc Onboarding
         $ScriptBlockContent = @"
-Get-PackageProvider -Name Nuget -ForceBootstrap -Force
-Install-Module -Name Az.DesktopVirtualization, Az.ConnectedMachine -AllowClobber -Force -Verbose 
+`$null = Get-PackageProvider -Name Nuget -ForceBootstrap -Force
+`$RequiredModules = 'Az.DesktopVirtualization', 'Az.ConnectedMachine'
+`$InstalledModule = Get-InstalledModule -Name `$RequiredModules -ErrorAction Ignore
+if (-not([String]::IsNullOrEmpty(`$InstalledModule))) {
+    `$MissingModules = (Compare-Object -ReferenceObject `$RequiredModules -DifferenceObject (Get-InstalledModule -Name `$RequiredModules -ErrorAction Ignore).Name).InputObject
+}
+else {
+    `$MissingModules = `$RequiredModules
+}
+if (-not([String]::IsNullOrEmpty(`$MissingModules))) {
+    Install-Module -Name `$MissingModules -AllowClobber -Force -Verbose 
+}
+
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount -UseDeviceAuthentication
@@ -272,18 +283,21 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 #Copying the Azure Logged Account into the clipboard for EntraID join 
 (Get-AzContext).Account.Id | Set-Clipboard
 #Set-WinUserLanguageList -LanguageList fr-fr -Force
-While (-not($(dsregcmd /status | Out-String) -match  "AzureAdJoined\s+:\s+YES"))
+While (-not(`$(dsregcmd /status | Out-String) -match  "AzureAdJoined\s+:\s+YES"))
 {
+    Write-Host -Object "Click on 'Connect' on the newly opened Windows and then on the 'Join this device to Microsoft Entra ID' link at the bottom to proceed .." -ForeGroundColor Green
     start ms-settings:workplace
 }
-Write-Host -Object "Click on 'Connect' on the newly opened Windows and then on the 'Join this device to Microsoft Entra ID' link at the bottom to proceed .." -ForeGroundColor Green
-Do {
-    `$Input = Read-Host -Prompt "Register this machine as an EntraID Device and press Y to continue"
-    dsregcmd /status
-} While (`$Input -ne 'Y')
 #removing any existing Azure Arc Hybrid Machine with the same name
-Remove-AzConnectedMachine -ResourceGroupName $($ResourceGroup.ResourceGroupName) -Name `$env:COMPUTERNAME -ErrorAction Ignore
-Connect-AzConnectedMachine -ResourceGroupName $($ResourceGroup.ResourceGroupName) -Name `$env:COMPUTERNAME -Location $Location
+`$Parameters = @{
+    ResourceGroupName = "$($ResourceGroup.ResourceGroupName)"
+    Name = `$env:COMPUTERNAME
+}
+if (Get-AzConnectedMachine @Parameters -ErrorAction Ignore) {
+    Remove-AzConnectedMachine @Parameters -ErrorAction Ignore
+    start-Sleep -Seconds 30
+}
+Connect-AzConnectedMachine @Parameters -Location $Location
 Write-Host -Object "Done ..." -ForegroundColor Green
 "@
 
@@ -297,7 +311,7 @@ Write-Host -Object "Done ..." -ForegroundColor Green
             Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "mstsc /v:$Machine" #-Wait
         }
         #>
-        $using:FilePath | Set-ClipBoard
+        $FilePath | Set-ClipBoard
 		& $RDCManFilePath
 
 		#Write-Host -Object "Run the '$FilePath' PowerShell script from $($Machines -join ', ') ..."
