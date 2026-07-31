@@ -84,7 +84,7 @@ $JitPolicyTimeInHours = 3
 $JitPolicyName = "Default"
 $PrimaryLocation = "westus"
 $RecoveryLocation = "westus2"
-$VMSize = "Standard_D4s_v4"
+$VMSize = "Standard_D4s_v6"
 $PrimaryLocationShortName = $shortNameHT[$PrimaryLocation].shortName
 $RecoveryLocationShortName = $shortNameHT[$RecoveryLocation].shortName
 

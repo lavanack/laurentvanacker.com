@@ -181,6 +181,39 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
     $null = Get-AzWvdDesktop @parameters | Update-AzWvdDesktop -FriendlyName $CurrentHostPool.Name
     #endregion
 
+    #region Assign 'Desktop Virtualization User' RBAC role to application groups
+    # Get the object ID of the user group you want to assign to the application group
+    $EntraIDGroup = Get-MgBetaGroup -Filter "DisplayName eq 'AVD Users'"
+
+    if ($EntraIDGroup) {
+        $ObjectId = $EntraIDGroup.Id
+    }
+    else {
+        $ObjectId = (Get-MgBetaUser -UserId $((Get-AzContext).Account.Id)).Id
+    }
+    # Assign users to the application group
+    #region 'Desktop Virtualization User' RBAC Assignment
+    $RoleDefinition = Get-AzRoleDefinition -Name "Desktop Virtualization User"
+
+    $Parameters = @{
+        ObjectId           = $ObjectId
+        ResourceName       = $CurrentAzDesktopApplicationGroup.Name
+        ResourceGroupName  = $CurrentHostPool.ResourceGroupName
+        RoleDefinitionName = $RoleDefinition.Name
+        ResourceType       = 'Microsoft.DesktopVirtualization/applicationGroups'
+    }
+
+    while (-not(Get-AzRoleAssignment @Parameters)) {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.ObjectId)' ObjectId"
+        $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+        $Seconds = 30
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds Seconds"
+        Start-Sleep -Seconds $Seconds
+    }
+    #endregion
+    #endregion 
+
     #region Enabling Diagnostics Setting for the Desktop Application Group
     $Log = New-AzDiagnosticSettingLogSettingsObject -Enabled $true -CategoryGroup allLogs 
     $DesktopApplicationGroupDiagnosticSetting = New-AzDiagnosticSetting -Name $CurrentAzDesktopApplicationGroup.Name -ResourceId $CurrentAzDesktopApplicationGroup.Id -WorkspaceId $LogAnalyticsWorkSpace.ResourceId -Log $Log
@@ -224,6 +257,15 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
+
+#region Microsoft Graph Connection
+try {
+    $null = Get-MgBetaDevice -All -ErrorAction Stop
+}
+catch {
+    Connect-MgGraph -NoWelcome -UseDeviceCode
+}
+#endregion
  
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
