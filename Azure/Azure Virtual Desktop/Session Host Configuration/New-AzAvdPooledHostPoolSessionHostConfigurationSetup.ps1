@@ -16,20 +16,202 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 
-#requires -Modules Az.Accounts, Az.Compute, Az.DesktopVirtualization, Az.KeyVault, Az.Network, Az.Resources
+#requires -Modules Az.Accounts, Az.Compute, Az.DesktopVirtualization, Az.KeyVault, Az.Network, Az.Resources, @{ ModuleName='Microsoft.Graph.Beta.Identity.DirectoryManagement'; MaximumVersion="2.25.0" }
+
 #From https://learn.microsoft.com/en-us/azure/virtual-desktop/deploy-azure-virtual-desktop?pivots=host-pool-session-host-configuration&tabs=portal-standard%2Cpowershell-session-host-configuration%2Cportal#create-a-host-pool-with-a-session-host-configuration
+#From https://portal.azure.com/#view/Microsoft_Azure_Resources/DeploymentDetails.MenuView/~/overview/id/%2Fsubscriptions%2F30c8d9eb-366e-4d2c-a723-95bc688f7c97%2Fproviders%2FMicrosoft.Resources%2Fdeployments%2FAVDAcceleratorDeployment_ARM_20260728070232
+
 #region Function Definitions
-function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
+#Based from https://adamtheautomator.com/powershell-random-password/
+function New-RandomPassword {
+    [CmdletBinding(PositionalBinding = $false, DefaultParameterSetName = 'GeneratePassword')]
+    param
+    (
+        [ValidateRange(12,122)]
+        [int] $minLength = 12, ## characters
+        [ValidateRange(13,123)]
+        [ValidateScript({$_ -gt $minLength})]
+        [int] $maxLength = 15, ## characters
+        [switch] $AsSecureString,
+        [switch] $ClipBoard,
+        [Parameter(ParameterSetName = 'GeneratePassword')]
+        [int] $nonAlphaChars = 3,
+        [Parameter(ParameterSetName = 'DinoPass')]
+        [switch] $Online
+    )
+
+    function Test-PwnedPassword {
+    [CmdletBinding(PositionalBinding = $false)]
+        param(
+            [Parameter(Mandatory)]
+            [string]$Password
+        )
+
+        #SHA1 Calculation
+        $sha1 = [System.BitConverter]::ToString([System.Security.Cryptography.SHA1]::Create().ComputeHash([System.Text.Encoding]::UTF8.GetBytes($Password))).Replace('-', '').ToUpper()
+
+        $prefix = $sha1.Substring(0, 5)
+        $suffix = $sha1.Substring(5)
+
+        try {
+            $response = Invoke-RestMethod -Uri "https://api.pwnedpasswords.com/range/$prefix" -Method Get -Headers @{ "User-Agent" = "PowerShell" }
+
+            foreach ($line in $response -split "`n") {
+                $parts = $line.Trim() -split ':'
+
+                if ($parts[0] -eq $suffix) {
+                    return [PSCustomObject]@{
+                        PasswordCompromised = $true
+                        Occurrences         = [int64]$parts[1]
+                    }
+                }
+            }
+
+            return [PSCustomObject]@{
+                PasswordCompromised = $false
+                Occurrences         = 0
+            }
+        }
+        catch {
+            throw "Erreur lors de l'appel à l'API : $_"
+        }
+    }
+
+    #From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/faq#what-are-the-password-requirements-when-creating-a-vm-
+    $ProhibitedPasswords = @('abc@123', 'iloveyou!', 'P@$$w0rd', 'P@ssw0rd', 'P@ssword123', 'Pa$$word', 'pass@word1', 'Password!', 'Password1', 'Password22')
+    $length = Get-Random -Minimum $minLength -Maximum $maxLength
+    Do {
+        if ($Online) {
+            $URI = "https://www.dinopass.com/password/custom?length={0}&useSymbols=true&useNumbers=true&useCapitals=true" -f $length
+            $RandomPassword = Invoke-RestMethod -Uri $URI
+        }
+        else {
+            Add-Type -AssemblyName 'System.Web'
+            $RandomPassword = [System.Web.Security.Membership]::GeneratePassword($length, $nonAlphaChars)
+        }
+    } Until (($RandomPassword  -notin $ProhibitedPasswords) -and (($RandomPassword -match '[A-Z]') -and ($RandomPassword -match '[a-z]') -and ($RandomPassword -match '\d') -and ($RandomPassword -match '\W') -and (-not((Test-PwnedPassword -Password $RandomPassword).PasswordCompromised))))
+
+    #Write-Host -Object "The password is : $RandomPassword"
+    if ($ClipBoard) {
+        #Write-Verbose -Message "The password has beeen copied into the clipboard (Use Win+V) ..."
+        $RandomPassword | Set-Clipboard
+    }
+    if ($AsSecureString) {
+        ConvertTo-SecureString -String $RandomPassword -AsPlainText -Force
+    }
+    else {
+        $RandomPassword
+    }
+}
+
+function Invoke-AzAvdPooledHostPoolInitiateSessionHostUpdate {
     [CmdletBinding(PositionalBinding = $false)]
     param
     (
         [Parameter(Mandatory = $true)]
+        [Microsoft.Azure.PowerShell.Cmdlets.DesktopVirtualization.Models.HostPool] $HostPool,
+        [Parameter(Mandatory = $false)]
+        [ValidateScript({$_ -gt $(Get-Date)})]
+        [datetime] $ScheduledDateTime = $((Get-Date).AddHours(12)),
+        [Parameter(Mandatory = $false)]
+        [ValidateScript({$_ -in $((Get-TimeZone -ListAvailable).Id)})]
+        [System.TimeZoneInfo] $ScheduledDateTimeZone = $(Get-TimeZone)
+    )
+
+    #From https://learn.microsoft.com/en-us/azure/virtual-desktop/session-host-update-configure?tabs=powershell
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ScheduledDateTime: $ScheduledDateTime"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ScheduledDateTime.Kind: $($ScheduledDateTime.Kind)"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ScheduledDateTime.ToUniversalTime(): $($ScheduledDateTime.ToUniversalTime())"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ScheduledDateTimeZone: $ScheduledDateTimeZone"
+
+    #region Cancelling Any Previously Existing Session Host Update
+    $Parameters = @{
+        HostPoolName      = $HostPool.Name
+        ResourceGroupName = $HostPool.ResourceGroupName
+        Action            = "Cancel"
+        CancelMessage     = "Cancelled by $((Get-AzContext).Account.Id)"
+        ErrorAction       = "Ignore"
+    }
+
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Cancelling Any Previously Existing Session Host Update"
+    $null = Invoke-AzWvdControlSessionHostUpdate @Parameters
+    #endregion
+
+    #region Updating the Session Host Configuration
+    $Parameters = @{
+        HostPoolName             = $HostPool.Name
+        ResourceGroupName        = $HostPool.ResourceGroupName
+        ImageInfoImageType       = "Marketplace"
+        MarketplaceInfoPublisher = "MicrosoftWindowsDesktop"
+        MarketplaceInfoOffer     = "office-365"
+        MarketplaceInfoSku       = "win11-25h2-avd-m365"
+    }
+
+    $Latest = (Get-AzVMImage -Location $HostPool.Location -PublisherName $Parameters['MarketplaceInfoPublisher'] -Offer $Parameters['MarketplaceInfoOffer'] -Skus $Parameters['MarketplaceInfoSku'] | Sort-Object Version | Select-Object -Last 1).Version
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Latest: $Latest"
+    $Parameters['MarketplaceInfoExactVersion'] = $Latest
+
+    $SessionHostConfiguration = Update-AzWvdSessionHostConfiguration @Parameters
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SessionHostConfiguration: $($SessionHostConfiguration)"
+    $SessionHostConfiguration = Get-AzWvdSessionHostConfiguration -HostPoolName $HostPool.Name -ResourceGroupName $HostPool.ResourceGroupName
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SessionHostConfiguration: $($SessionHostConfiguration)"
+    #endregion
+
+    #region Scheduling The Session Host Update
+    $Parameters = @{
+        HostPoolName          = $HostPool.Name
+        ResourceGroupName     = $HostPool.ResourceGroupName
+        ScheduledDateTime     = $ScheduledDateTime
+        ScheduledDateTimeZone = $ScheduledDateTimeZone
+    }
+
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Initiating A Session Host Update"
+    $null = Invoke-AzWvdInitiateSessionHostUpdate @Parameters
+    $UpdateStatus = Get-AzWvdSessionHostManagementsUpdateStatus -HostPoolName $HostPool.Name -ResourceGroupName $HostPool.ResourceGroupName
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$UpdateStatus: $($UpdateStatus | Out-String)"
+    #endregion
+
+    #region Starting Now The Session Host Update
+    $Seconds = 300
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds Seconds"
+    Start-Sleep -Seconds $Seconds
+
+    $Parameters = @{
+        HostPoolName      = $HostPool.Name
+        ResourceGroupName = $HostPool.ResourceGroupName
+        Action            = "Start"
+    }
+
+    $null = Invoke-AzWvdControlSessionHostUpdate @Parameters
+    $UpdateStatus = Get-AzWvdSessionHostManagementsUpdateStatus -HostPoolName $HostPool.Name -ResourceGroupName $HostPool.ResourceGroupName
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$UpdateStatus: $($UpdateStatus | Out-String)"
+    #endregion
+}
+
+function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
+    [CmdletBinding(PositionalBinding = $false, DefaultParameterSetName = 'EntraID')]
+    param
+    (
+        [Parameter(Mandatory = $true,ParameterSetName = 'ActiveDirectory')]
+        [Parameter(Mandatory = $true,ParameterSetName = 'EntraID')]
         [System.Management.Automation.PSCredential] $LocalAdminCredential,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'ActiveDirectory')]
+        [System.Management.Automation.PSCredential] $ADJoinCredential,
         [ValidateScript({ $_ -in (Get-AzLocation).Location })]
         [string] $Location = "centralus",
-        [Parameter(Mandatory = $true)]
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'ActiveDirectory')]
+        [string]$DomainName,
+
+        [Parameter(Mandatory = $true,ParameterSetName = 'ActiveDirectory')]
+        [Parameter(Mandatory = $true,ParameterSetName = 'EntraID')]
         [ValidatePattern("/subscriptions/\w{8}-\w{4}-\w{4}-\w{4}-\w{12}/resourceGroups/.+/providers/Microsoft\.Network/virtualNetworks/.+/subnets/.+")] 
-        [string]$SubNetId = "/subscriptions/30c8d9eb-366e-4d2c-a723-95bc688f7c97/resourceGroups/rg-avd-ad-usc-002/providers/Microsoft.Network/virtualNetworks/vnet-avd-avd-usc-002/subnets/snet-avd-avd-usc-002"
+        [string]$SubNetId,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'ActiveDirectory')]
+        [ValidatePattern("OU=.+")] 
+        [string]$OUPath
     )
 
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
@@ -54,7 +236,13 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
     $DigitNumber = 3
     Do {
         $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
-        $HostPoolName = "hp-np-ei-shc-mp-{0}-{1:D3}" -f $LocationShortName, $Instance
+        if ($PSCmdlet.ParameterSetName -eq 'ActiveDirectory') {
+            $HostPoolName = "hp-np-ad-shc-mp-{0}-{1:D3}" -f $LocationShortName, $Instance
+        } 
+        else {
+            $HostPoolName = "hp-np-ei-shc-mp-{0}-{1:D3}" -f $LocationShortName, $Instance
+        }
+
         $KeyVaultName = "{0}{1}" -f $KeyVaultPrefix, $($HostPoolName -replace "\W")
         $ResourceGroupName = "{0}-{1}" -f $ResourceGroupNamePrefix, $HostPoolName
     } while (-not(Test-AzKeyVaultNameAvailability -Name $KeyVaultName).NameAvailable)
@@ -89,8 +277,9 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
         $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
         Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
-        Start-Sleep -Seconds 30
+        $Seconds = 30
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds Seconds"
+        Start-Sleep -Seconds $Seconds
     }
     #endregion 
     #endregion 
@@ -108,30 +297,53 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
     $secret = Set-AzKeyVaultSecret -VaultName $KeyVaultName -Name $SecretPassword -SecretValue $SecurePassword
     #endregion
 
+    if ($PSCmdlet.ParameterSetName -eq 'ActiveDirectory') {
+        #region Defining AD join credential(s)
+        $SecureUserName = $(ConvertTo-SecureString -String $ADJoinCredential.UserName -AsPlainText -Force) 
+        $SecurePassword = $ADJoinCredential.Password
+
+        $SecretUserName = "ADJoinUserName"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating a secret in $KeyVaultName called '$SecretUserName'"
+        $secret = Set-AzKeyVaultSecret -VaultName $KeyVaultName -Name $SecretUserName -SecretValue $SecureUserName
+
+        $SecretPassword = "ADJoinPassword"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating a secret in $KeyVaultName called '$SecretPassword'"
+        $secret = Set-AzKeyVaultSecret -VaultName $KeyVaultName -Name $SecretPassword -SecretValue $SecurePassword
+        #endregion
+    }
     #endregion 
 
     #region HostPool Setup
     #region Create a HostPool
-    $CurrentHostPool = [PSCustomObject] @{
+    $CurrentHostPool = @{
         Name                            = $HostPoolName
         GetSessionHostConfigurationName = $ResourceGroupName -replace "^rg", "shc"
         LoadBalancerType                = "BreadthFirst"
         PreferredAppGroupType           = "Desktop"
         MaxSessionLimit                 = 5
         Location                        = $Location
-        NamePrefix                      = "nem{0}{1:D3}" -f $LocationShortName, $Instance
         VMSize                          = "Standard_D2s_v5"
         SubnetId                        = $SubNetId
         ImagePublisherName              = "microsoftwindowsdesktop"
         ImageOffer                      = "office-365"
         ImageSku                        = "win11-24h2-avd-m365"
+        DistinguishedName               = $OUPath
+        DomainName                      = $DomainName
         KeyVault                        = $KeyVault
-        VMNumberOfInstances             = 1
+        VMNumberOfInstances             = 3
         ResourceGroupName               = $ResourceGroupName
         WorkSpaceName                   = $ResourceGroupName -replace "^rg", "ws"
         ScalingPlan                     = $true
         #Installing VS Code on All AVD Session Hosts
         #CustomConfigurationScriptUrl    = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1"
+    }
+    if ($PSCmdlet.ParameterSetName -eq 'ActiveDirectory') {
+        $CurrentHostPool['NamePrefix'] = "nam{0}{1:D3}" -f $LocationShortName, $Instance
+        $CustomRdpProperty = "redirectcomports:i:0;redirectlocation:i:0;redirectprinters:i:0;drivestoredirect:s:;usbdevicestoredirect:s:;"
+    }
+    else {
+        $CurrentHostPool['NamePrefix'] = "nem{0}{1:D3}" -f $LocationShortName, $Instance
+        $CustomRdpProperty = "enablerdsaadauth:i:1;redirectcomports:i:0;redirectlocation:i:0;redirectprinters:i:0;drivestoredirect:s:;usbdevicestoredirect:s:;"
     }
 
     $Parameters = @{
@@ -180,8 +392,9 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
             $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
             Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
-            Start-Sleep -Seconds 30
+            $Seconds = 30
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds Seconds"
+            Start-Sleep -Seconds $Seconds
         }
     }
     #endregion 
@@ -197,8 +410,9 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
         $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
         Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
-        Start-Sleep -Seconds 30
+        $Seconds = 30
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds Seconds"
+        Start-Sleep -Seconds $Seconds
     }
     #endregion 
     #endregion
@@ -210,7 +424,7 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
     $LatestImage = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer -sku $ImageSku.Skus | Sort-Object -Property Version -Descending | Select-Object -First 1
 
     $Parameters = @{
-        FriendlyName                                = "{0} (SessionHostConfiguration Friendly Name)" -f $CurrentHostPool.GetSessionHostConfigurationName
+        FriendlyName                                = "{0} -f (SessionHostConfiguration Friendly Name)" -f $CurrentHostPool.GetSessionHostConfigurationName
         HostPoolName                                = $CurrentHostPool.Name
         ResourceGroupName                           = $CurrentHostPool.ResourceGroupName
         VMNamePrefix                                = $CurrentHostPool.NamePrefix
@@ -228,10 +442,21 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
         MarketplaceInfoOffer                        = $CurrentHostPool.ImageOffer 
         MarketplaceInfoSku                          = $CurrentHostPool.ImageSku
         MarketplaceInfoExactVersion                 = $LatestImage.Version
-        DomainInfoJoinType                          = 'AzureActiveDirectory'
         #CustomConfigurationScriptUrl                = $CurrentHostPool.CustomConfigurationScriptUrl
         #Debug = $true
     }
+
+    if ($PSCmdlet.ParameterSetName -eq 'ActiveDirectory') {
+        $Parameters['DomainInfoJoinType']                         = 'ActiveDirectory'
+        $Parameters['ActiveDirectoryInfoOuPath']                  = $CurrentHostPool.DistinguishedName
+        $Parameters['ActiveDirectoryInfoDomainName']              = $CurrentHostPool.DomainName
+        $Parameters['DomainCredentialsUsernameKeyVaultSecretUri'] = ($CurrentHostPool.KeyVault | Get-AzKeyVaultSecret -Name "AdJoinUserName").Id
+        $Parameters['DomainCredentialsPasswordKeyVaultSecretUri'] = ($CurrentHostPool.KeyVault | Get-AzKeyVaultSecret -Name "AdJoinPassword").Id
+    }
+    else {
+        $Parameters['DomainInfoJoinType']                         = 'AzureActiveDirectory'
+    }
+
     $SessionHostConfiguration = New-AzWvdSessionHostConfiguration @Parameters
     #endregion
 
@@ -242,12 +467,12 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
         ScheduledDateTimeZone     = $(Get-TimeZone)
         UpdateLogOffDelayMinute   = 5
         UpdateMaxVmsRemoved       = 1
-        ProvisioningInstanceCount = $CurrentHostPool.VMNumberOfInstances
+        ProvisioningInstanceCount = 1
         UpdateDeleteOriginalVM    = $False
         UpdateLogOffMessage       = 'Update LogOff Message: You will be logged off in 5 minutes'
     }
 
-    New-AzWvdSessionHostManagement @Parameters
+    $SessionHostManagement = New-AzWvdSessionHostManagement @Parameters
     #endregion
     #endregion
 
@@ -272,9 +497,43 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
         ApplicationGroupName = $CurrentAzDesktopApplicationGroup.Name
         ResourceGroupName    = $CurrentHostPool.ResourceGroupName
     }
-    $FriendlyName = "{0} (Desktop Friendly Name)" -f $Parameters["Name"]
+    $FriendlyName = "{0} (Desktop Friendly Name)" -f $Parameters["ApplicationGroupName"]
     $null = Get-AzWvdDesktop @parameters | Update-AzWvdDesktop -FriendlyName $FriendlyName
     #endregion
+
+
+    #region Assign 'Desktop Virtualization User' RBAC role to application groups
+    # Get the object ID of the user group you want to assign to the application group
+    $EntraIDGroup = Get-MgBetaGroup -Filter "DisplayName eq 'AVD Users'"
+
+    if ($EntraIDGroup) {
+        $ObjectId = $EntraIDGroup.Id
+    }
+    else {
+        $ObjectId = (Get-MgBetaUser -UserId $((Get-AzContext).Account.Id)).Id
+    }
+    # Assign users to the application group
+    #region 'Desktop Virtualization User' RBAC Assignment
+    $RoleDefinition = Get-AzRoleDefinition -Name "Desktop Virtualization User"
+
+    $Parameters = @{
+        ObjectId           = $ObjectId
+        ResourceName       = $CurrentAzDesktopApplicationGroup.Name
+        ResourceGroupName  = $CurrentHostPool.ResourceGroupName
+        RoleDefinitionName = $RoleDefinition.Name
+        ResourceType       = 'Microsoft.DesktopVirtualization/applicationGroups'
+    }
+
+    while (-not(Get-AzRoleAssignment @Parameters)) {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.ObjectId)' ObjectId"
+        $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+        $Seconds = 30
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds Seconds"
+        Start-Sleep -Seconds $Seconds
+    }
+    #endregion
+    #endregion 
 
     #region Workspace Setup
     $ApplicationGroupReference = $CurrentAzDesktopApplicationGroup.Id
@@ -313,21 +572,24 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
         ResourceGroupName                       = $CurrentHostPool.ResourceGroupName
         ScalingPlanName                         = $ScalingPlanName
         ScalingPlanScheduleName                 = 'PooledWeekDayDynamicSchedule'
-        DaysOfWeek                              = [System.DayOfWeek]::Monday..[System.DayOfWeek]::Sunday
+        #WeekDay
+        #DaysOfWeek                              = [System.DayOfWeek]::Monday..[System.DayOfWeek]::Friday
+        #Every Day
+        DaysOfWeek                              = [System.DayOfWeek]::Sunday..[System.DayOfWeek]::Saturday
         ScalingMethod                           = 'CreateDeletePowerManage'
         RampUpStartTimeHour                     = '8'
         RampUpStartTimeMinute                   = '0'
         RampUpLoadBalancingAlgorithm            = 'BreadthFirst'
         RampUpMinimumHostsPct                   = '100'
         RampUpCapacityThresholdPct              = '50'
-        PeakStartTimeHour                       = '8'
-        PeakStartTimeMinute                     = '30'
-        PeakLoadBalancingAlgorithm              = 'DepthFirst'
-        RampDownStartTimeHour                   = '16'
+        PeakStartTimeHour                       = '9'
+        PeakStartTimeMinute                     = '0'
+        PeakLoadBalancingAlgorithm              = 'BreadthFirst'
+        RampDownStartTimeHour                   = '18'
         RampDownStartTimeMinute                 = '0'
-        RampDownLoadBalancingAlgorithm          = 'BreadthFirst'
-        RampDownMinimumHostsPct                 = '100'
-        RampDownCapacityThresholdPct            = '20'
+        RampDownLoadBalancingAlgorithm          = 'DepthFirst'
+        RampDownMinimumHostsPct                 = '0'
+        RampDownCapacityThresholdPct            = '1'
         RampDownForceLogoffUser                 = $true
         RampDownWaitTimeMinute                  = '30'
         RampDownNotificationMessage             = 'Please log out of your session.'
@@ -335,10 +597,10 @@ function New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup {
         OffPeakStartTimeHour                    = '19'
         OffPeakStartTimeMinute                  = '0'
         OffPeakLoadBalancingAlgorithm           = 'DepthFirst'
-        CreateDeleteRampUpMaximumHostPoolSize   = $CurrentHostPool.VMNumberOfInstances+4
-        CreateDeleteRampUpMinimumHostPoolSize   = $CurrentHostPool.VMNumberOfInstances
-        CreateDeleteRampDownMaximumHostPoolSize = $CurrentHostPool.VMNumberOfInstances+4
-        CreateDeleteRampDownMinimumHostPoolSize = $CurrentHostPool.VMNumberOfInstances
+        CreateDeleteRampUpMaximumHostPoolSize   = $CurrentHostPool.VMNumberOfInstances
+        CreateDeleteRampUpMinimumHostPoolSize   = 1
+        CreateDeleteRampDownMaximumHostPoolSize = $CurrentHostPool.VMNumberOfInstances
+        CreateDeleteRampDownMinimumHostPoolSize = 0
     }
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Pooled ScalingPlan Schedule:`r`n$($scalingPlanPooledScheduleParams | Out-String)"
     $scalingPlanPooledSchedule = New-AzWvdScalingPlanPooledSchedule @scalingPlanPooledScheduleParams
@@ -356,22 +618,68 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
- 
+
+#region Microsoft Graph Connection
+try {
+    $null = Get-MgBetaGroup -Top 1 -ErrorAction Stop
+}
+catch {
+    Connect-MgGraph -Scopes "Group.Read.All" -NoWelcome -UseDeviceCode
+}
+#endregion
+
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount
 }
 #endregion
 
+Get-AzResourceGroup -Name rg-hp-np-*-shc-mp-* | Remove-AzResourceGroup -AsJob -Force
+
 $SubscriptionId = (Get-AzContext).Subscription.Id
 $Location = "centralus"
-$LocalAdminCredential = Get-Credential -Message "Local Admin Credential" -UserName "localadmin"
+$Username = "localadmin"
+#$LocalAdminCredential = Get-Credential -Message "Local Admin Credential" -UserName $Username
+$SecurePassword = New-RandomPassword -Online -ClipBoard -AsSecureString -Verbose
+$LocalAdminCredential = New-Object System.Management.Automation.PSCredential -ArgumentList ($Username, $SecurePassword)
 
+#region AD Join vs EntraID Join (Choose One)
+#region AD
+$DomainName = "csa.fr"
+$ADJoinUserName = "{0}@{1}" -f $env:USERNAME, $DomainName
+Do {
+    $ADJoinCredential = Get-Credential -Message "AD Join Credential (UPN Form : samaccountname@domain.com)" -UserName $ADJoinUserName
+} While ($ADJoinCredential.UserName -notmatch "^(.+)@(.+)(\.)(.+)$")
+
+
+$Parameters = @{
+    LocalAdminCredential = $LocalAdminCredential 
+    ADJoinCredential     = $ADJoinCredential 
+    Location             = $Location 
+    DomainName           = $DomainName
+    SubNetId             = "/subscriptions/{0}/resourceGroups/rg-avd-ad-usc-002/providers/Microsoft.Network/virtualNetworks/vnet-avd-avd-usc-002/subnets/snet-avd-avd-usc-002" -f $SubscriptionId
+    OUPath               = "OU=PooledDesktops,OU={0},OU=AVD,DC={1}" -f $Location, $($DomainName -replace "\.", ",DC=")
+    Verbose              = $true
+}
+#endregion
+
+<#
+#region EntraID
 $Parameters = @{
     LocalAdminCredential = $LocalAdminCredential 
     Location             = $Location 
     SubNetId             = "/subscriptions/{0}/resourceGroups/rg-avd-ad-usc-002/providers/Microsoft.Network/virtualNetworks/vnet-avd-avd-usc-002/subnets/snet-avd-avd-usc-002" -f $SubscriptionId
     Verbose              = $true
 }
-$PooledHostPool = New-AzAvdEntraIDPooledHostPoolSessionHostConfigurationSetup @Parameters
+#endregion
+#>
+#endregion
+
+$HostPool = New-AzAvdPooledHostPoolSessionHostConfigurationSetup @Parameters
+
+$Parameters = @{
+    HostPool = $HostPool
+    Verbose  = $true
+}
+$Update = Invoke-AzAvdPooledHostPoolInitiateSessionHostUpdate @Parameters
 #endregion

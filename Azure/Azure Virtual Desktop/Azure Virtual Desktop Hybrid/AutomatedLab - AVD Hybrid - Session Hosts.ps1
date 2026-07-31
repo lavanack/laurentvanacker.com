@@ -54,7 +54,6 @@ $ClearTextPassword = 'P@ssw0rd'
 $SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
 
 $NetworkID = '10.0.0.0/16' 
-$DCIPv4Address = '10.0.0.1'
 $AVDHybrid01IPv4Address = '10.0.0.101'
 $AVDHybrid02IPv4Address = '10.0.0.102'
 
@@ -122,14 +121,14 @@ Invoke-LabCommand -ActivityName 'Windows Virtual Desktop Optimization Tool (VDOT
     $GitHubRepoName = Split-Path -Path $GitHubRepoURI -Leaf
     $GitHubRepoDir = Join-Path -Path $GitHubRootDir -ChildPath $GitHubRepoName
 
-    $Directory = New-Item -Path $GitHubRootDir -ItemType Directory -Force
+    $null = New-Item -Path $GitHubRootDir -ItemType Directory -Force
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git clone $GitHubRepoURI ""$GitHubRepoDir""" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
     <#
     Set-Location -Path $GitHubRepoDir
     .\Windows_VDOT.ps1 -Optimizations All -AdvancedOptimizations All -AcceptEULA -Verbose
     #>
     $ScriptFile = Join-Path -Path $GitHubRepoDir -ChildPath "Windows_VDOT.ps1"
-    & $ScriptFile -Optimizations All -AdvancedOptimizations All -AcceptEULA -Verbose
+    & $ScriptFile -Optimizations All -AdvancedOptimizations All -AcceptEULA -Verbose -ErrorAction Ignore
     #Restart-Computer -Force
 }
 
@@ -264,8 +263,19 @@ if ($ResourceGroup) {
 
         #region Azure Arc Onboarding
         $ScriptBlockContent = @"
-Get-PackageProvider -Name Nuget -ForceBootstrap -Force
-Install-Module -Name Az.DesktopVirtualization, Az.ConnectedMachine -AllowClobber -Force -Verbose 
+`$null = Get-PackageProvider -Name Nuget -ForceBootstrap -Force
+`$RequiredModules = 'Az.DesktopVirtualization', 'Az.ConnectedMachine'
+`$InstalledModule = Get-InstalledModule -Name `$RequiredModules -ErrorAction Ignore
+if (-not([String]::IsNullOrEmpty(`$InstalledModule))) {
+    `$MissingModules = (Compare-Object -ReferenceObject `$RequiredModules -DifferenceObject (Get-InstalledModule -Name `$RequiredModules -ErrorAction Ignore).Name).InputObject
+}
+else {
+    `$MissingModules = `$RequiredModules
+}
+if (-not([String]::IsNullOrEmpty(`$MissingModules))) {
+    Install-Module -Name `$MissingModules -AllowClobber -Force -Verbose 
+}
+
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount -UseDeviceAuthentication
@@ -273,14 +283,25 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 #Copying the Azure Logged Account into the clipboard for EntraID join 
 (Get-AzContext).Account.Id | Set-Clipboard
 #Set-WinUserLanguageList -LanguageList fr-fr -Force
-start ms-settings:workplace
-Do {
-    `$Input = Read-Host -Prompt "Register this machine as an EntraID Device and press Y to continue"
-    dsregcmd /status
-} While (`$Input -ne 'Y')
+While (-not(`$(dsregcmd /status | Out-String) -match  "AzureAdJoined\s+:\s+YES"))
+{
+    Write-Host -Object "Click on 'Connect' on the newly opened Windows and then on the 'Join this device to Microsoft Entra ID' link at the bottom to proceed .." -ForeGroundColor Green
+    start ms-settings:workplace
+    While (Get-Process -ProcessName SystemSettings -ErrorAction Ignore)
+    {
+        start-Sleep -Seconds 3
+    }
+}
 #removing any existing Azure Arc Hybrid Machine with the same name
-Remove-AzConnectedMachine -ResourceGroupName $($ResourceGroup.ResourceGroupName) -Name `$env:COMPUTERNAME -ErrorAction Ignore
-Connect-AzConnectedMachine -ResourceGroupName $($ResourceGroup.ResourceGroupName) -Name `$env:COMPUTERNAME -Location $Location
+`$Parameters = @{
+    ResourceGroupName = "$($ResourceGroup.ResourceGroupName)"
+    Name = `$env:COMPUTERNAME
+}
+if (Get-AzConnectedMachine @Parameters -ErrorAction Ignore) {
+    Remove-AzConnectedMachine @Parameters -ErrorAction Ignore
+    start-Sleep -Seconds 30
+}
+Connect-AzConnectedMachine @Parameters -Location $Location
 Write-Host -Object "Done ..." -ForegroundColor Green
 "@
 
@@ -294,12 +315,13 @@ Write-Host -Object "Done ..." -ForegroundColor Green
             Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "mstsc /v:$Machine" #-Wait
         }
         #>
+        $FilePath | Set-ClipBoard
 		& $RDCManFilePath
 
 		#Write-Host -Object "Run the '$FilePath' PowerShell script from $($Machines -join ', ') ..."
         Do {
-            $Input = Read-Host -Prompt "Connect via RDP to $($Machines.Name -join ', ') and run the '$FilePath' script before continuing ...`r`nPress Y to continue"
-        } While ($Input -ne 'Y')
+            $Continue = Read-Host -Prompt "Connect via RDP to $($Machines.Name -join ', ') and run the '$FilePath' script before continuing ...`r`nPress Y to continue"
+        } While ($Continue -ne 'Y')
 
         #region Check
         Start-Process "https://portal.azure.com/#servicemenu/Microsoft_Azure_ArcCenterUX/AzureArcCenterHub/servers"
@@ -357,27 +379,6 @@ Write-Host -Object "Done ..." -ForegroundColor Green
             else {
                 Write-Warning -Message "The RBAC Assignment '$($Parameters.RoleDefinitionName)' for '$($Parameters.ObjectId)' on '$($Parameters.Scope)' already exists"
             }
-        }
-        #endregion
-
-        #region "Desktop Virtualization User" to Desktop Application Group
-        $ConnectedMachines = Get-AzConnectedMachine -ResourceGroupName $ResourceGroup.ResourceGroupName | Where-Object -FilterScript { $_.Name -in $Machines.Name}
-        $RoleDefinition = Get-AzRoleDefinition -Name "Desktop Virtualization User"
-        $AzADGroup = Get-AzADGroup -DisplayName "AVD Users"
-        $ApplicationGroup = Get-AzWvdApplicationGroup -ResourceGroupName $ResourceGroup.ResourceGroupName
-        $Parameters = @{
-            ObjectId           = $AzADGroup.Id
-            ResourceName       = $ApplicationGroup.Name
-            ResourceGroupName  = $ResourceGroup.ResourceGroupName
-            RoleDefinitionName = $RoleDefinition.Name
-            ResourceType       = 'Microsoft.DesktopVirtualization/applicationGroups'
-            #Verbose            = $true
-        }
-        if (-not(Get-AzRoleAssignment @Parameters)) {
-            New-AzRoleAssignment @Parameters
-        }
-        else {
-            Write-Warning -Message "The RBAC Assignment '$($Parameters.RoleDefinitionName)' for '$($Parameters.ObjectId)' on '$($Parameters.ResourceName)' already exists"
         }
         #endregion
         #endregion

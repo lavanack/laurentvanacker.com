@@ -924,7 +924,7 @@ else {
     $MissingModules = $RequiredModules
 }
 if (-not([String]::IsNullOrEmpty($MissingModules))) {
-    Install-Module -Name $MissingModules -Force -Verbose
+    Install-Module -Name $MissingModules -AllowClobber -Force -Verbose 
 }
 
 $AdminCredential = Get-Credential -Credential $env:USERNAME
@@ -933,6 +933,7 @@ $UserCredential = Get-Credential -Credential "Only password is required"
 #Fixed instance number so resource names are deterministic across runs
 #$Instance = Get-Random -Minimum 1 -Maximum 1000
 $Instance = 1
+$CustomUPNSuffix = $(Get-AzTenant).Domains[-1]
 
 #Splatted parameters passed to the lab deployment function
 $Parameters = @{
@@ -943,6 +944,7 @@ $Parameters = @{
     "Project"              = "avd"
     "Role"                 = "ad"
     "ADDomainName"         = "csa.fr"
+    #"CustomUPNSuffix"      = $CustomUPNSuffix
     "CustomUPNSuffix"      = "cloudsolutionarchitect.fr"
     "VNetAddressRange"     = '10.0.0.0/16'
     "ADSubnetAddressRange" = '10.0.1.0/24'

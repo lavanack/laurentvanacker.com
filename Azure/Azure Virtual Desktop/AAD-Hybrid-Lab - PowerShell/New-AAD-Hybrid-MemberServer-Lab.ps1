@@ -218,7 +218,7 @@ function New-AAD-Hybrid-MemberServer-Lab {
     New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig #-DisableBginfoExtension
 
     #Step 11: Updating the DNS Servers of the VNet to point to the DC.
-    $vNetwork.DhcpOptions = [PSCustomObject]@{"DnsServers" = @($MemberServerIP, $DCIP) }
+    $vNetwork.DhcpOptions = [PSCustomObject]@{"DnsServers" = @($DCIP) }
     $vNetwork | Set-AzVirtualNetwork
 
     #region vNet Peering
@@ -359,7 +359,7 @@ if (-not([String]::IsNullOrEmpty($MissingModules))) {
 $AdminCredential = Get-Credential -Credential $env:USERNAME
 
 #$Instance = Get-Random -Minimum 1 -Maximum 1000
-$Instance = 2
+$Instance = 3
 
 #region for Adding an additional Server Member in a region
 $Parameters = @{
@@ -373,8 +373,8 @@ $Parameters = @{
     "ResourceGroupName"  = "rg-avd-ad-usc-002"
     "Subnet"             = Get-AzVirtualNetwork -Name "vnet-avd-ad-usc-002" -ResourceGroupName "rg-avd-ad-usc-002" | Get-AzVirtualNetworkSubnetConfig -Name "snet-avd-ad-usc-002"
 
-    "DCIP"               = '10.1.1.4'
-    "MemberServerIP"     = '10.1.1.101'
+    "DCIP"               = '10.0.1.4'
+    "MemberServerIP"     = '10.0.1.101'
     "Instance"           = $Instance
     "Spot"               = $false
     "Verbose"            = $true
