@@ -45,7 +45,8 @@ $ErrorActionPreference = 'SilentlyContinue'
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
-$TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}" -f (Get-Date)).txt"
+$Now = Get-Date
+$TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}.txt" -f $Now)"
 Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 
 #region Global variables definition
@@ -98,10 +99,12 @@ $AVDHybrid02NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Defaul
 
 
 #region server definitions
+$AvdHybrid01Name = "AH01-{0:yyMMddHHmm}" -f $Now
+$AvdHybrid02Name = "AH02-{0:yyMMddHHmm}" -f $Now
 #AvdHybrid-01 
-Add-LabMachineDefinition -Name AvdHybrid-01 -NetworkAdapter $AVDHybrid01NetAdapter
+Add-LabMachineDefinition -Name $AvdHybrid01Name -NetworkAdapter $AVDHybrid01NetAdapter
 #AvdHybrid-02
-Add-LabMachineDefinition -Name AvdHybrid-02 -NetworkAdapter $AVDHybrid02NetAdapter
+Add-LabMachineDefinition -Name $AvdHybrid02Name -NetworkAdapter $AVDHybrid02NetAdapter
 #endregion
 
 #Installing servers
@@ -221,9 +224,9 @@ catch {
 
 #region Cleaning up the previously existing VMs (if any)
 foreach($Machine in $Machines) {
-    $Device = Get-MgBetaDevice -Filter "displayName eq '$($Machine.Name)'" -ErrorAction Ignore
-    if ($Device) {
-        Remove-MgBetaDevice -DeviceId $Device.Id
+    $Devices = Get-MgBetaDevice -Filter "displayName eq '$($Machine.Name)'" -ErrorAction Ignore
+    foreach($Device in $Devices) {
+        Remove-MgBetaDevice -DeviceId $Device.Id -ErrorAction Ignore
     }
 }
 #endregion
@@ -285,7 +288,7 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 #Set-WinUserLanguageList -LanguageList fr-fr -Force
 While (-not(`$(dsregcmd /status | Out-String) -match  "AzureAdJoined\s+:\s+YES"))
 {
-    Write-Host -Object "Click on 'Connect' on the newly opened Windows and then on the 'Join this device to Microsoft Entra ID' link at the bottom to proceed .." -ForeGroundColor Green
+    Write-Host -Object "Click on 'Connect' on the newly opened Windows and then on the 'Join this device to Microsoft Entra ID' link at the bottom to proceed. Close the newly opened Windows after ... " -ForeGroundColor Green
     start ms-settings:workplace
     While (Get-Process -ProcessName SystemSettings -ErrorAction Ignore)
     {

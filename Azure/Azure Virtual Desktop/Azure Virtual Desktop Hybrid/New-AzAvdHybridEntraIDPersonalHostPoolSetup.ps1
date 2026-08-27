@@ -100,6 +100,7 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
     $CustomRdpProperty = "enablerdsaadauth:i:1;redirectcomports:i:0;redirectlocation:i:0;redirectprinters:i:0;drivestoredirect:s:;usbdevicestoredirect:s:;"
     $Parameters = @{
         Name                  = $CurrentHostPool.Name
+        FriendlyName          = "{0} (HostPool Friendly Name)" -f $CurrentHostPool.Name
         ResourceGroupName     = $ResourceGroupName
         HostPoolType          = 'Personal'
         LoadBalancerType      = $CurrentHostPool.LoadBalancerType
@@ -160,7 +161,7 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
     #region Create a Desktop Application Group
     $Parameters = @{
         Name                 = "{0}-DAG" -f $CurrentHostPool.Name
-        #FriendlyName         = $CurrentHostPool.Name
+        FriendlyName         = "{0}(DAG Friendly Name)" -f $CurrentHostPool.Name
         ResourceGroupName    = $CurrentHostPool.ResourceGroupName
         Location             = $CurrentHostPool.Location
         HostPoolArmPath      = $CurrentAzWvdHostPool.Id
@@ -178,6 +179,7 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
         ApplicationGroupName = $CurrentAzDesktopApplicationGroup.Name
         ResourceGroupName    = $CurrentHostPool.ResourceGroupName
     }
+    $FriendlyName = "{0} (Desktop Friendly Name)" -f $Parameters["ApplicationGroupName"]
     $null = Get-AzWvdDesktop @parameters | Update-AzWvdDesktop -FriendlyName $CurrentHostPool.Name
     #endregion
 
@@ -227,7 +229,7 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
 
     $Parameters = @{
         Name                      = $CurrentHostPool.WorkSpaceName
-        FriendlyName              = $FriendlyName
+        FriendlyName              = "{0} (Workspace Friendly Name)" -f $CurrentHostPool.WorkSpaceName
         ResourceGroupName         = $CurrentHostPool.ResourceGroupName
         ApplicationGroupReference = $ApplicationGroupReference
         Location                  = $CurrentHostPool.Location
