@@ -17,8 +17,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules AutomatedLab, Az.DesktopVirtualization, Az.ConnectedMachine -RunAsAdministrator 
-#Requires -Modules @{ ModuleName='Microsoft.Graph.Beta.Identity.DirectoryManagement'; MaximumVersion="2.25.0" }
+#requires -Version 5 -Modules AutomatedLab, @{ ModuleName='Az.DesktopVirtualization'; RequiredVersion="5.4.6" }, Az.ConnectedMachine, @{ ModuleName='Microsoft.Graph.Beta.Identity.DirectoryManagement'; MaximumVersion="2.25.0" } -RunAsAdministrator 
 
 trap {
     Write-Host "Stopping Transcript ..."
@@ -99,8 +98,12 @@ $AVDHybrid02NetAdapter += New-LabNetworkAdapterDefinition -VirtualSwitch 'Defaul
 
 
 #region server definitions
+<#
 $AvdHybrid01Name = "AH01-{0:yyMMddHHmm}" -f $Now
 $AvdHybrid02Name = "AH02-{0:yyMMddHHmm}" -f $Now
+#>
+$AvdHybrid01Name = "AvdHybrid-01"
+$AvdHybrid02Name = "AvdHybrid-02"
 #AvdHybrid-01 
 Add-LabMachineDefinition -Name $AvdHybrid01Name -NetworkAdapter $AVDHybrid01NetAdapter
 #AvdHybrid-02
