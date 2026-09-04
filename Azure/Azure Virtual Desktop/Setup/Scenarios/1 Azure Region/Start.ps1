@@ -149,10 +149,10 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 [PersonalHostPool]::SetIndex($RandomNumber, $PrimaryRegion)
 
 #Uncomment the best scenario for your usage or create your own
-#$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_CloudOnly_FSLogix.ps1"
+$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_CloudOnly_FSLogix.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_Hybrid_FSLogix_AzureAppAttach_SSO.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_ScalingPlan.ps1"
-$HostPools = & "..\1 Azure Region\1_Pooled_1_AD_SpotInstance_RemoteApp.ps1"
+#$HostPools = & "..\1 Azure Region\1_Pooled_1_AD_SpotInstance_RemoteApp.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_Intune_FSLogix_ScalingPlan_Watermarking.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_1_Personal_AD_SpotInstance.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_1_Personal_SSO.ps1"
@@ -284,7 +284,7 @@ foreach ($CurrentSkuPartNumber in $SkuPartNumber) {
 foreach ($CurrentHostPool in $HostPools) {
     if ($CurrentHostPool.IdentityModel -eq [IdentityModel]::CloudOnly) {
         $Path = Join-Path -Path $env:Temp -ChildPath $("pwsh_AzFileAce_{0}.ps1" -f $CurrentHostPool.Name)                            
-        if (Test-Path -Path $Path -PathType Leaf) {
+        if ((Test-Path -Path $Path -PathType Leaf) -and (-not(pwsh -v))) {
             Write-Host "You have to run the following command line (Powershell 7+ is required) to set the Azure File ACE:`r`npwsh -NoProfile -ExecutionPolicy Bypass -File $Path" -ForegroundColor Red
         }
     }
