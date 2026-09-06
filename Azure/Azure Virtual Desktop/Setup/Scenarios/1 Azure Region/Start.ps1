@@ -280,7 +280,7 @@ foreach ($CurrentSkuPartNumber in $SkuPartNumber) {
 }
 #endregion
 
-#region CloudOnly Identiti Azure File ACE Setup
+#region CloudOnly Identity Azure File ACE Setup
 foreach ($CurrentHostPool in $HostPools) {
     if ($CurrentHostPool.IdentityModel -eq [IdentityModel]::CloudOnly) {
         $Path = Join-Path -Path $env:Temp -ChildPath $("pwsh_AzFileAce_{0}.ps1" -f $CurrentHostPool.Name)                            
