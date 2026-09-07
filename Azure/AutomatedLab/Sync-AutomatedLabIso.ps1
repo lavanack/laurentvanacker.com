@@ -49,6 +49,7 @@ $StorageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Na
 $NetworkRuleSet = $StorageAccount.NetworkRuleSet
 $NetworkRuleSet.defaultAction = "deny"
 $NetworkRuleSet.ipRules += @{IPAddressOrRange = $MyPublicIp; Action = "allow" }
+$NetworkRuleSet.ipRules = $NetworkRuleSet.ipRules  | Select-Object -Property * -Unique
 $null = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Enabled -AllowSharedKeyAccess $true -NetworkRuleSet $NetworkRuleSet -Tag @{ SecurityControl = "Ignore" }
 Start-Sleep -Seconds 10
 #endregion
