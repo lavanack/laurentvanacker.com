@@ -73,7 +73,7 @@ function New-RandomPassword {
             }
         }
         catch {
-            throw "Erreur lors de l'appel à l'API : $_"
+            throw "Error when calling the API : $_"
         }
     }
 
