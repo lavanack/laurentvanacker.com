@@ -16,7 +16,7 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 
-#requires -Modules Az.Accounts, Az.Compute, Az.DesktopVirtualization, Az.KeyVault, Az.Network, Az.Resources, @{ ModuleName='Microsoft.Graph.Beta.Identity.DirectoryManagement'; MaximumVersion="2.25.0" }
+#requires -Modules Az.Accounts, Az.Compute, Az.DesktopVirtualization, Az.KeyVault, Az.Network, Az.Resources
 
 #From https://learn.microsoft.com/en-us/azure/virtual-desktop/deploy-azure-virtual-desktop?pivots=host-pool-session-host-configuration&tabs=portal-standard%2Cpowershell-session-host-configuration%2Cportal#create-a-host-pool-with-a-session-host-configuration
 #From https://portal.azure.com/#view/Microsoft_Azure_Resources/DeploymentDetails.MenuView/~/overview/id/%2Fsubscriptions%2F30c8d9eb-366e-4d2c-a723-95bc688f7c97%2Fproviders%2FMicrosoft.Resources%2Fdeployments%2FAVDAcceleratorDeployment_ARM_20260728070232
@@ -504,13 +504,13 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
 
     #region Assign 'Desktop Virtualization User' RBAC role to application groups
     # Get the object ID of the user group you want to assign to the application group
-    $EntraIDGroup = Get-MgBetaGroup -Filter "DisplayName eq 'AVD Users'"
+    $EntraIDGroup = Get-AzADGroup -Filter "DisplayName eq 'AVD Users'"
 
     if ($EntraIDGroup) {
         $ObjectId = $EntraIDGroup.Id
     }
     else {
-        $ObjectId = (Get-MgBetaUser -UserId $((Get-AzContext).Account.Id)).Id
+        $ObjectId = (Get-AzADUser -ObjectId  $((Get-AzContext).Account.Id)).Id
     }
     # Assign users to the application group
     #region 'Desktop Virtualization User' RBAC Assignment
@@ -618,15 +618,6 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
-
-#region Microsoft Graph Connection
-try {
-    $null = Get-MgBetaGroup -Top 1 -ErrorAction Stop
-}
-catch {
-    Connect-MgGraph -Scopes "Group.Read.All" -NoWelcome -UseDeviceCode
-}
-#endregion
 
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
