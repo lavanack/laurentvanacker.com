@@ -146,10 +146,14 @@ function Invoke-AzAvdPooledHostPoolInitiateSessionHostUpdate {
         MarketplaceInfoOffer     = "office-365"
         MarketplaceInfoSku       = "win11-25h2-avd-m365"
     }
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ImagePublisherName: $($Parameters['MarketplaceInfoPublisher'])"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ImageOffer: $($Parameters['MarketplaceInfoOffer'])"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ImageSku: $($Parameters['MarketplaceInfoSku'])"
 
-    $Latest = (Get-AzVMImage -Location $HostPool.Location -PublisherName $Parameters['MarketplaceInfoPublisher'] -Offer $Parameters['MarketplaceInfoOffer'] -Skus $Parameters['MarketplaceInfoSku'] | Sort-Object Version | Select-Object -Last 1).Version
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Latest: $Latest"
-    $Parameters['MarketplaceInfoExactVersion'] = $Latest
+    $LatestImage = (Get-AzVMImage -Location $HostPool.Location -PublisherName $Parameters['MarketplaceInfoPublisher'] -Offer $Parameters['MarketplaceInfoOffer'] -Skus $Parameters['MarketplaceInfoSku'] | Sort-Object Version | Select-Object -Last 1).Version
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$LatestImage: $LatestImage"
+
+    $Parameters['MarketplaceInfoExactVersion'] = $LatestImage
 
     $SessionHostConfiguration = Update-AzWvdSessionHostConfiguration @Parameters
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SessionHostConfiguration: $($SessionHostConfiguration)"
@@ -172,7 +176,7 @@ function Invoke-AzAvdPooledHostPoolInitiateSessionHostUpdate {
     #endregion
 
     #region Starting Now The Session Host Update
-    $Seconds = 300
+    $Seconds = 600
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds Seconds"
     Start-Sleep -Seconds $Seconds
 
@@ -422,6 +426,10 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
     $ImageOffer = Get-AzVMImageOffer -Location $Location -publisher $ImagePublisherName.PublisherName | Where-Object -FilterScript { $_.Offer -eq $CurrentHostPool.ImageOffer }
     $ImageSku = Get-AzVMImageSku -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer | Where-Object -FilterScript { $_.Skus -eq $CurrentHostPool.ImageSku }
     $LatestImage = Get-AzVMImage -Location  $Location -publisher $ImagePublisherName.PublisherName -offer $ImageOffer.Offer -sku $ImageSku.Skus | Sort-Object -Property Version -Descending | Select-Object -First 1
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ImagePublisherName: $($ImagePublisherName | Out-String)"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ImageOffer: $($ImageOffer | Out-String)"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ImageSku: $($ImageSku | Out-String)"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$LatestImage: $($LatestImage | Out-String)"
 
     $Parameters = @{
         FriendlyName                                = "{0} -f (SessionHostConfiguration Friendly Name)" -f $CurrentHostPool.GetSessionHostConfigurationName
