@@ -16,7 +16,7 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 
-#requires -Modules Az.Accounts, Az.Compute, @{ ModuleName='Az.DesktopVirtualization'; RequiredVersion="5.4.6" }, Az.KeyVault, Az.Network, Az.Resources, @{ ModuleName='Microsoft.Graph.Beta.Identity.DirectoryManagement'; MaximumVersion="2.25.0" } 
+#requires -Modules Az.Accounts, Az.Compute, @{ ModuleName='Az.DesktopVirtualization'; RequiredVersion="5.4.6" }, Az.KeyVault, Az.Network, Az.Resources
 #From https://learn.microsoft.com/en-us/azure/virtual-desktop/deploy-azure-virtual-desktop?pivots=host-pool-session-host-configuration&tabs=portal-standard%2Cpowershell-session-host-configuration%2Cportal#create-a-host-pool-with-a-session-host-configuration
 
 #region function definitions 
@@ -185,13 +185,13 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
 
     #region Assign 'Desktop Virtualization User' RBAC role to application groups
     # Get the object ID of the user group you want to assign to the application group
-    $EntraIDGroup = Get-MgBetaGroup -Filter "DisplayName eq 'AVD Users'"
+    $EntraIDGroup = Get-AzADGroup -Filter "DisplayName eq 'AVD Users'"
 
     if ($EntraIDGroup) {
         $ObjectId = $EntraIDGroup.Id
     }
     else {
-        $ObjectId = (Get-MgBetaUser -UserId $((Get-AzContext).Account.Id)).Id
+        $ObjectId = (Get-AzADUser -ObjectId  $((Get-AzContext).Account.Id)).Id
     }
     # Assign users to the application group
     #region 'Desktop Virtualization User' RBAC Assignment
@@ -260,15 +260,6 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
 
-#region Microsoft Graph Connection
-try {
-    $null = Get-MgBetaDevice -All -ErrorAction Stop
-}
-catch {
-    Connect-MgGraph -NoWelcome -UseDeviceCode
-}
-#endregion
- 
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount
