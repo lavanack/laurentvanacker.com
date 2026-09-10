@@ -84,7 +84,7 @@ $null = New-Item -Path $GitSetupFilePath -ItemType File -Value $GitSetup -Force
 #region Version 2
 #From https://support.atlassian.com/bamboo/cb/git-checkouts-fail-on-windows-with-filename-too-long-error-unable-to-create-file-errors/
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git config --system core.longpaths true" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
-Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git config --global user.name ""Laurent VAN ACKER""" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
+Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git config --global user.name 'Laurent VAN ACKER'" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git config --global user.email laurent.vanacker@free.fr" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git lfs install" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
 Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git clone https://github.com/lavanack/$GitHubRepoName.git ""$GitHubRepoDir""" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
@@ -127,11 +127,24 @@ Pop-Location
 #$null = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Disabled -AllowSharedKeyAccess $false
 #endregion
 
-#region Addition Software setup/upgrade
-if (winget) { 
-    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "winget upgrade --all --silent --accept-package-agreements --accept-source-agreements" -Wait
-    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "winget install --exact --id=Notepad++.Notepad++" -Wait
+#region Notepad++
+#region Getting the lastest release of Notepad++ 
+$NotepadPlusPlusVersion = (Invoke-RestMethod  -Uri "https://api.github.com/repos/notepad-plus-plus/notepad-plus-plus/releases/latest").tag_name -replace "v"
+#endregion 
+
+#region Downloading Notepad++ 
+$NotepadPlusPlusUri = $(((Invoke-RestMethod  -Uri "https://api.github.com/repos/notepad-plus-plus/notepad-plus-plus/releases/latest").assets | Where-Object -FilterScript { $_.name.EndsWith("x64.exe") }).browser_download_url)
+$Outfile = Join-Path -Path $env:TEMP -ChildPath $(Split-Path -Path $NotepadPlusPlusUri -Leaf)
+If (-not(Test-Path -Path $Outfile)) {
+    Write-Verbose -Message "Downloading Notepad++ v$NotepadPlusPlusVersion ..."
+    Invoke-WebRequest -Uri $NotepadPlusPlusUri -UseBasicParsing -OutFile $Outfile -Verbose
 }
+#endregion 
+
+#region Installing Notepad++ 
+Start-Process -FilePath $Outfile -ArgumentList '/S' -Verb runas -Wait
+#endregion 
+
 #endregion
 
 Stop-Transcript

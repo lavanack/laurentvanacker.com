@@ -38,22 +38,76 @@ Param (
 #region function definitions
 #Based from https://adamtheautomator.com/powershell-random-password/
 function New-RandomPassword {
-    [CmdletBinding(PositionalBinding = $false)]
+    [CmdletBinding(PositionalBinding = $false, DefaultParameterSetName = 'GeneratePassword')]
     param
     (
+        [ValidateRange(12,122)]
         [int] $minLength = 12, ## characters
+        [ValidateRange(13,123)]
+        [ValidateScript({$_ -gt $minLength})]
         [int] $maxLength = 15, ## characters
-        [int] $nonAlphaChars = 3,
         [switch] $AsSecureString,
-        [switch] $ClipBoard
+        [switch] $ClipBoard,
+        [Parameter(ParameterSetName = 'GeneratePassword')]
+        [int] $nonAlphaChars = 3,
+        [Parameter(ParameterSetName = 'DinoPass')]
+        [switch] $Online
     )
 
-    Add-Type -AssemblyName 'System.Web'
+    function Test-PwnedPassword {
+    [CmdletBinding(PositionalBinding = $false)]
+        param(
+            [Parameter(Mandatory)]
+            [string]$Password
+        )
+
+        #SHA1 Calculation
+        $sha1 = [System.BitConverter]::ToString([System.Security.Cryptography.SHA1]::Create().ComputeHash([System.Text.Encoding]::UTF8.GetBytes($Password))).Replace('-', '').ToUpper()
+
+        $prefix = $sha1.Substring(0, 5)
+        $suffix = $sha1.Substring(5)
+
+        try {
+            $response = Invoke-RestMethod -Uri "https://api.pwnedpasswords.com/range/$prefix" -Method Get -Headers @{ "User-Agent" = "PowerShell" }
+
+            foreach ($line in $response -split "`n") {
+                $parts = $line.Trim() -split ':'
+
+                if ($parts[0] -eq $suffix) {
+                    return [PSCustomObject]@{
+                        PasswordCompromised = $true
+                        Occurrences         = [int64]$parts[1]
+                    }
+                }
+            }
+
+            return [PSCustomObject]@{
+                PasswordCompromised = $false
+                Occurrences         = 0
+            }
+        }
+        catch {
+            throw "Error when calling the API : $_"
+        }
+    }
+
+    #From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/faq#what-are-the-password-requirements-when-creating-a-vm-
+    $ProhibitedPasswords = @('abc@123', 'iloveyou!', 'P@$$w0rd', 'P@ssw0rd', 'P@ssword123', 'Pa$$word', 'pass@word1', 'Password!', 'Password1', 'Password22')
     $length = Get-Random -Minimum $minLength -Maximum $maxLength
-    $RandomPassword = [System.Web.Security.Membership]::GeneratePassword($length, $nonAlphaChars)
-    Write-Host "The password is : $RandomPassword"
+    Do {
+        if ($Online) {
+            $URI = "https://www.dinopass.com/password/custom?length={0}&useSymbols=true&useNumbers=true&useCapitals=true" -f $length
+            $RandomPassword = Invoke-RestMethod -Uri $URI
+        }
+        else {
+            Add-Type -AssemblyName 'System.Web'
+            $RandomPassword = [System.Web.Security.Membership]::GeneratePassword($length, $nonAlphaChars)
+        }
+    } Until (($RandomPassword  -notin $ProhibitedPasswords) -and (($RandomPassword -match '[A-Z]') -and ($RandomPassword -match '[a-z]') -and ($RandomPassword -match '\d') -and ($RandomPassword -match '\W') -and (-not((Test-PwnedPassword -Password $RandomPassword).PasswordCompromised))))
+
+    #Write-Host -Object "The password is : $RandomPassword"
     if ($ClipBoard) {
-        Write-Verbose "The password has beeen copied into the clipboard (Use Win+V) ..."
+        #Write-Verbose -Message "The password has beeen copied into the clipboard (Use Win+V) ..."
         $RandomPassword | Set-Clipboard
     }
     if ($AsSecureString) {
