@@ -28,7 +28,7 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
         [string] $Location = "centralus",
         [Parameter(Mandatory = $true)]
         [ValidatePattern("/subscriptions/\w{8}-\w{4}-\w{4}-\w{4}-\w{12}/resourceGroups/.+/providers/Microsoft\.Network/virtualNetworks/.+/subnets/.+")] 
-        [string]$SubNetId = "/subscriptions/30c8d9eb-366e-4d2c-a723-95bc688f7c97/resourceGroups/rg-avd-ad-usc-002/providers/Microsoft.Network/virtualNetworks/vnet-avd-avd-usc-002/subnets/snet-avd-avd-usc-002"
+        [string]$SubNetId = "/subscriptions/$((Get-AzContext).Subscription.Id)/resourceGroups/rg-avd-ad-usc-002/providers/Microsoft.Network/virtualNetworks/vnet-avd-avd-usc-002/subnets/snet-avd-avd-usc-002"
     )
 
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
@@ -79,22 +79,11 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
     #region Create a HostPool
     $CurrentHostPool = [PSCustomObject] @{
         Name                            = $HostPoolName
-        GetSessionHostConfigurationName = $ResourceGroupName -replace "^rg", "shc"
         LoadBalancerType                = "Persistent"
         PreferredAppGroupType           = "Desktop"
         Location                        = $Location
-        NamePrefix                      = "nem{0}{1:D3}" -f $LocationShortName, $Instance
-        VMSize                          = "Standard_D2s_v5"
-        SubnetId                        = $SubNetId
-        ImagePublisherName              = "microsoftwindowsdesktop"
-        ImageOffer                      = "office-365"
-        ImageSku                        = "win11-24h2-avd-m365"
-        VMNumberOfInstances             = 1
         ResourceGroupName               = $ResourceGroupName
         WorkSpaceName                   = $ResourceGroupName -replace "^rg", "ws"
-        ScalingPlan                     = $true
-        #Installing VS Code on All AVD Session Hosts
-        CustomConfigurationScriptUrl    = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1"
     }
 
     $CustomRdpProperty = "enablerdsaadauth:i:1;redirectcomports:i:0;redirectlocation:i:0;redirectprinters:i:0;drivestoredirect:s:;usbdevicestoredirect:s:;"
@@ -128,11 +117,6 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
     $vNetId = $SubNetId -replace "/subnets/.*"
     $Scopes = (Get-AzResourceGroup -ResourceGroupName $CurrentHostPool.ResourceGroupName).ResourceId, $vNetId, $NsgId
     #/subscriptions/30c8d9eb-366e-4d2c-a723-95bc688f7c97/resourceGroups/rg-avd-aib-usc-1750417854/providers/Microsoft.Compute/galleries/acg_avd_usc_1750417854/images/win11-24h2-avd-json-vscode/versions/2025.06.20
-    if ($CurrentHostPool.VMSourceImageId) {
-        #$ACGResourceGroupId = $(Get-AzresourceGroup  -ResourceGroupName $((Get-AzResource -ResourceId $CurrentHostPool.VMSourceImageId).ResourceGroupName)).ResourceId
-        $ACGResourceGroupId = $CurrentHostPool.VMSourceImageId -replace "/providers/.+"
-        $Scopes += $ACGResourceGroupId
-    }
     $RoleDefinition = Get-AzRoleDefinition -Name "Desktop Virtualization Virtual Machine Contributor"
     foreach ($Scope in $Scopes) {
         $Parameters = @{
