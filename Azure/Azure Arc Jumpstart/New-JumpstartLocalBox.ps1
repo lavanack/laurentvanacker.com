@@ -545,6 +545,7 @@ foreach ($Location in $LAWSupportedRegions) {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AvailableComputeResourceSku: $($AvailableComputeResourceSku | Out-String)"
     if ($AvailableComputeResourceSku.Available -gt 0) {
         # Retry the deployment across supported Azure Local instance regions until one succeeds.
+        $Succeeded = $false
         foreach ($AzureLocalInstanceLocation in $AzureLocalInstanceLocations) {
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzureLocalInstanceLocation: $AzureLocalInstanceLocation)"
             $Succeeded = New-JumpstartLocalBox -azureLocalInstanceLocation $AzureLocalInstanceLocation -Location $Location -BicepFileDir $BicepFileDir -enableAzureSpotPricing $true -Verbose
@@ -556,10 +557,14 @@ foreach ($Location in $LAWSupportedRegions) {
                 Write-Host -Object "The Jumpstart LocalBox Deployment Failed !!!. We will automatically try other locations ..." -ForegroundColor Red
             }
         }
+        if ($Succeeded)
+        {
+            break
+        }
     }
     else {
         Write-Warning -Message "No available Quota for '$VMSize' in the '$Location' Azure location. We will automatically try other locations ..."
     }
 }
 
-Write-Host -Object "Done ..."
+Write-Host -Object "Done ..." -ForegroundColor Green
