@@ -270,7 +270,7 @@ if ($ResourceGroup) {
         #region Azure Arc Onboarding
         $ScriptBlockContent = @"
 `$null = Get-PackageProvider -Name Nuget -ForceBootstrap -Force
-`$RequiredModules = 'Az.DesktopVirtualization', 'Az.ConnectedMachine'
+`$RequiredModules = 'Az.Accounts', 'Az.ConnectedMachine'
 `$InstalledModule = Get-InstalledModule -Name `$RequiredModules -ErrorAction Ignore
 if (-not([String]::IsNullOrEmpty(`$InstalledModule))) {
     `$MissingModules = (Compare-Object -ReferenceObject `$RequiredModules -DifferenceObject (Get-InstalledModule -Name `$RequiredModules -ErrorAction Ignore).Name).InputObject
@@ -286,18 +286,8 @@ if (-not([String]::IsNullOrEmpty(`$MissingModules))) {
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount -UseDeviceAuthentication
 }
-#Copying the Azure Logged Account into the clipboard for EntraID join 
-(Get-AzContext).Account.Id | Set-Clipboard
-#Set-WinUserLanguageList -LanguageList fr-fr -Force
-While (-not(`$(dsregcmd /status | Out-String) -match  "AzureAdJoined\s+:\s+YES"))
-{
-    Write-Host -Object "Click on 'Connect' on the newly opened Windows and then on the 'Join this device to Microsoft Entra ID' link at the bottom to proceed. Close the newly opened Windows after ... " -ForeGroundColor Green
-    start ms-settings:workplace
-    While (Get-Process -ProcessName SystemSettings -ErrorAction Ignore)
-    {
-        start-Sleep -Seconds 3
-    }
-}
+
+#region Azure Arc Join
 #removing any existing Azure Arc Hybrid Machine with the same name
 `$Parameters = @{
     ResourceGroupName = "$($ResourceGroup.ResourceGroupName)"
@@ -308,6 +298,27 @@ if (Get-AzConnectedMachine @Parameters -ErrorAction Ignore) {
     start-Sleep -Seconds 30
 }
 Connect-AzConnectedMachine @Parameters -Location $Location
+#endregion
+
+#region EntraID Join
+`$settings = @{
+    # IMPORTANT: must be present even empty
+    mdmId = ""   
+}
+`$Parameters = @{
+    Name = "aadlogin"
+    ResourceGroupName = "$($ResourceGroup.ResourceGroupName)"
+    MachineName = `$env:COMPUTERNAME
+    Location = "$Location"
+    Publisher = "Microsoft.Azure.ActiveDirectory" 
+    ExtensionType = "AADLoginForWindows" 
+    Settings = `$settings
+}
+
+New-AzConnectedMachineExtension @Parameters
+dsregcmd /status
+#endregion
+
 Write-Host -Object "Done ..." -ForegroundColor Green
 "@
 
@@ -334,18 +345,6 @@ Write-Host -Object "Done ..." -ForegroundColor Green
         Get-AzConnectedMachine -ResourceGroupName $($ResourceGroup.ResourceGroupName)
         #endregion 
         #endregion 
-
-        <#
-        #region EntraID join
-        $settings = @{
-            # IMPORTANT: must be present even empty
-            mdmId = ""   
-        }
-        foreach($Machine in $Machines) {
-            New-AzConnectedMachineExtension -Name "aadlogin" -ResourceGroupName $ResourceGroup.ResourceGroupName -MachineName $Machine.Name -Location $Location -Publisher "Microsoft.Azure.ActiveDirectory" -ExtensionType "AADLoginForWindows" -Settings $settings
-        }
-        #endregion
-        #>
 
         #region Generate a host pool registration key
         $ExpiresUtc = (Get-Date).ToUniversalTime().AddDays(1).ToString("yyyy-MM-ddTHH:mm:ss.fffffffZ")
@@ -395,7 +394,7 @@ Write-Host -Object "Done ..." -ForegroundColor Green
 
 #region removing VM Credentials
 foreach ($Machine in $Machines) {
-    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /delete:$Machine" -Wait
+    #Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /delete:$Machine" -Wait
 }
 #endregion
 #endregion
