@@ -17,7 +17,7 @@ of the Sample Code.
 #>
 
 #requires -Modules Az.Accounts, Az.Compute, @{ ModuleName='Az.DesktopVirtualization'; RequiredVersion="5.4.6" }, Az.KeyVault, Az.Network, Az.Resources
-#From https://learn.microsoft.com/en-us/azure/virtual-desktop/deploy-azure-virtual-desktop?pivots=host-pool-session-host-configuration&tabs=portal-standard%2Cpowershell-session-host-configuration%2Cportal#create-a-host-pool-with-a-session-host-configuration
+#From https://learn.microsoft.com/en-us/azure/virtual-desktop/deploy-azure-virtual-desktop-hybrid?tabs=arcaccess-portal%2Cdeployavd-portal%2Cvalidateavd-portal
 
 #region function definitions 
 function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
@@ -28,7 +28,7 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
         [string] $Location = "centralus",
         [Parameter(Mandatory = $true)]
         [ValidatePattern("/subscriptions/\w{8}-\w{4}-\w{4}-\w{4}-\w{12}/resourceGroups/.+/providers/Microsoft\.Network/virtualNetworks/.+/subnets/.+")] 
-        [string]$SubNetId = "/subscriptions/$((Get-AzContext).Subscription.Id)/resourceGroups/rg-avd-ad-usc-002/providers/Microsoft.Network/virtualNetworks/vnet-avd-avd-usc-002/subnets/snet-avd-avd-usc-002"
+        [string]$SubNetId
     )
 
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
@@ -101,9 +101,8 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
         ExpirationTime        = (Get-Date).ToUniversalTime().AddDays(1).ToString('yyyy-MM-ddTHH:mm:ss.fffffffZ')
         CustomRdpProperty     = $CustomRdpProperty
         IdentityType          = "SystemAssigned"
-        Tag                   = $Tag
         ManagementType        = 'Standard'
-        ValidationEnvironment = $true
+        #ValidationEnvironment = $true
         #Verbose               = $true
     }
     $CurrentAzWvdHostPool = New-AzWvdHostPool @Parameters
@@ -252,6 +251,11 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 
 $SubscriptionId = (Get-AzContext).Subscription.Id
 $Location = "centralus"
+
+#region Registering required Providers
+$null = Register-AzResourceProvider -ProviderNamespace Microsoft.CognitiveServices
+$null = Register-AzResourceProvider -ProviderNamespace Microsoft.HybridCompute
+#endregion
 
 
 $Parameters = @{
