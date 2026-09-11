@@ -4,8 +4,6 @@ and is not intended to be used in a production environment.  THIS
 SAMPLE CODE AND ANY RELATED INFORMATION ARE PROVIDED "AS IS" WITHOUT
 WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT
 LIMITED TO THE IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS
-
-
 FOR A PARTICULAR PURPOSE.  We grant You a nonexclusive, royalty-free
 right to use and modify the Sample Code and to reproduce and distribute
 the object code form of the Sample Code, provided that You agree:
@@ -353,12 +351,12 @@ Write-Host -Object "Done ..." -ForegroundColor Green
         $RegistrationToken = $RegistrationInfo.Token
         #endregion
 
-        #region Installing the Arc Extension
+        #region Installing the CloudDevice Extension
         # Settings
         $settings          = @{ isCloudDevice = $false }
         $protectedSettings = @{ registrationToken = $RegistrationToken }
 
-        #Installing the Arc Extension
+        #Installing the CloudDevice Extension
         foreach($Machine in $Machines) {
             Write-Host "Install the Arc Extension on '$($Machine.Name)' ..."
             New-AzConnectedMachineExtension -Name 'Microsoft.AzureVirtualDesktop.CloudDeviceExtension' -ResourceGroupName $ResourceGroup.ResourceGroupName -MachineName $Machine.Name -Location $Location -Publisher 'Microsoft.AzureVirtualDesktop' -ExtensionType 'CloudDeviceExtension' -Setting $settings -ProtectedSetting $protectedSettings -verbose
