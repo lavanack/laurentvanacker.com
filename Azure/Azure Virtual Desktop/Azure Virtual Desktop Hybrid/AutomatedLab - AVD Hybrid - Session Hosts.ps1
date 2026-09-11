@@ -244,11 +244,13 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 
 #region Storing VM Credentials
 foreach ($Machine in $Machines) {
+    #Escaping non-word characters in the password
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$Machine /user:$Logon /pass:$($ClearTextPassword -replace "(\W)", '^$1')" -Wait
 }
 #endregion
 
 #region Host Pool Management
+#Getting dedicated ResourceGroup
 $ResourceGroup = Get-AzResourceGroup -Name rg-hp-pd-ei-hyb-mp-*
 if ($ResourceGroup) {
     if ($ResourceGroup.count -gt 1) {
@@ -327,7 +329,7 @@ Write-Host -Object "Done ..." -ForegroundColor Green
             $Continue = Read-Host -Prompt "Connect via RDP to $($Machines.Name -join ', ') and run the '$FilePath' script before continuing ...`r`nPress Y to continue"
         } While ($Continue -ne 'Y')
 
-        #region Check
+        #region Checking the registration of the Azure Arc Machines
         Start-Process "https://portal.azure.com/#servicemenu/Microsoft_Azure_ArcCenterUX/AzureArcCenterHub/servers"
         Get-AzConnectedMachine -ResourceGroupName $($ResourceGroup.ResourceGroupName)
         #endregion 
