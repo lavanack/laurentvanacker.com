@@ -282,15 +282,18 @@ if (-not([String]::IsNullOrEmpty(`$MissingModules))) {
     Install-Module -Name `$MissingModules -AllowClobber -Force -Verbose 
 }
 
+`$ResourceGroupName = "$($ResourceGroup.ResourceGroupName)"
+`$SubscriptionId = "$((Get-AzContext).Subscription.Id)"
+
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
-    Connect-AzAccount -UseDeviceAuthentication
+    Connect-AzAccount -Subscription `$SubscriptionId -UseDeviceAuthentication
 }
 
 #region Azure Arc Join
 #removing any existing Azure Arc Hybrid Machine with the same name
 `$Parameters = @{
-    ResourceGroupName = "$($ResourceGroup.ResourceGroupName)"
+    ResourceGroupName = `$ResourceGroupName
     Name = `$env:COMPUTERNAME
 }
 if (Get-AzConnectedMachine @Parameters -ErrorAction Ignore) {
@@ -307,7 +310,7 @@ Connect-AzConnectedMachine @Parameters -Location $Location
 }
 `$Parameters = @{
     Name = "aadlogin"
-    ResourceGroupName = "$($ResourceGroup.ResourceGroupName)"
+    ResourceGroupName = `$ResourceGroupName
     MachineName = `$env:COMPUTERNAME
     Location = "$Location"
     Publisher = "Microsoft.Azure.ActiveDirectory" 
@@ -319,7 +322,7 @@ New-AzConnectedMachineExtension @Parameters
 dsregcmd /status
 #endregion
 
-Write-Host -Object "Done ..." -ForegroundColor Green
+Write-Host -Object "`r`nDone ..." -ForegroundColor Green
 "@
 
         $FilePath = Join-Path -Path $env:SystemDrive -ChildPath "AzureArcOnboarding.ps1"
@@ -340,6 +343,11 @@ Write-Host -Object "Done ..." -ForegroundColor Green
             $Continue = Read-Host -Prompt "Connect via RDP to $($Machines.Name -join ', ') and run the '$FilePath' script before continuing ...`r`nPress Y to continue"
         } While ($Continue -ne 'Y')
 
+
+        #region Checking the registration of Devices in EntraID
+        Start-Process "https://portal.azure.com/#view/Microsoft_AAD_Devices/DevicesList.ReactView/mezzoEnabled~/true"
+        #endregion 
+
         #region Checking the registration of the Azure Arc Machines
         Start-Process "https://portal.azure.com/#servicemenu/Microsoft_Azure_ArcCenterUX/AzureArcCenterHub/servers"
         Get-AzConnectedMachine -ResourceGroupName $($ResourceGroup.ResourceGroupName)
@@ -359,7 +367,7 @@ Write-Host -Object "Done ..." -ForegroundColor Green
 
         #Installing the CloudDevice Extension
         foreach($Machine in $Machines) {
-            Write-Host "Install the Arc Extension on '$($Machine.Name)' ..."
+            Write-Host "Install the CloudDevice Extension on '$($Machine.Name)' ..."
             New-AzConnectedMachineExtension -Name 'Microsoft.AzureVirtualDesktop.CloudDeviceExtension' -ResourceGroupName $ResourceGroup.ResourceGroupName -MachineName $Machine.Name -Location $Location -Publisher 'Microsoft.AzureVirtualDesktop' -ExtensionType 'CloudDeviceExtension' -Setting $settings -ProtectedSetting $protectedSettings -verbose
             Get-AzConnectedMachineExtension -ResourceGroupName $ResourceGroup.ResourceGroupName -MachineName $Machine.Name -Name 'Microsoft.AzureVirtualDesktop.CloudDeviceExtension'
         }
@@ -392,9 +400,15 @@ Write-Host -Object "Done ..." -ForegroundColor Green
 
 #endregion
 
-#region removing VM Credentials
+#region Removing VM Credentials
 foreach ($Machine in $Machines) {
     #Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /delete:$Machine" -Wait
 }
 #endregion
+
+
+#region Testing AVD with the Web Client
+Start-Process "https://windows.cloud.microsoft"
+#endregion
+
 #endregion
