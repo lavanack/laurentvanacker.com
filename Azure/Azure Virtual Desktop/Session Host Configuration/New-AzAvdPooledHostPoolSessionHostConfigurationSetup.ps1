@@ -365,7 +365,6 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
         ExpirationTime        = (Get-Date).ToUniversalTime().AddDays(1).ToString('yyyy-MM-ddTHH:mm:ss.fffffffZ')
         CustomRdpProperty     = $CustomRdpProperty
         IdentityType          = "SystemAssigned"
-        Tag                   = $Tag
         ManagementType        = 'Automated'
         #Verbose               = $true
     }
