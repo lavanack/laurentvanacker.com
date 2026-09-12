@@ -53,7 +53,7 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
         $HostPoolName = "hp-pd-ei-hyb-mp-{0}-{1:D3}" -f $LocationShortName, $Instance
         $LogAnalyticsWorkSpaceName = "log{0}" -f $($HostPoolName -replace "\W")
         $ResourceGroupName = "{0}-{1}" -f $ResourceGroupNamePrefix, $HostPoolName
-    } while (Get-AzResourceGroup -ResourceGroupName $ResourceGroupName)
+    } while (Get-AzResourceGroup -ResourceGroupName $ResourceGroupName -ErrorAction Ignore)
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$HostPoolName: $HostPoolName"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ResourceGroupName: $ResourceGroupName"
     #endregion 
