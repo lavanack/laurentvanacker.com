@@ -110,7 +110,7 @@ Add-LabMachineDefinition -Name $AvdHybrid02Name -NetworkAdapter $AVDHybrid02NetA
 
 #Installing servers
 Install-Lab -Verbose
-Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
+#Checkpoint-LabVM -SnapshotName FreshInstall -All -Verbose
 
 #region Installing Required Windows Features
 $Machines = Get-LabVM
@@ -270,7 +270,7 @@ if ($ResourceGroup) {
         #region Azure Arc Onboarding
         $ScriptBlockContent = @"
 `$null = Get-PackageProvider -Name Nuget -ForceBootstrap -Force
-`$RequiredModules = 'Az.Accounts', 'Az.ConnectedMachine'
+`$RequiredModules = 'Az.Accounts', 'Az.Resources', 'Az.ConnectedMachine'
 `$InstalledModule = Get-InstalledModule -Name `$RequiredModules -ErrorAction Ignore
 if (-not([String]::IsNullOrEmpty(`$InstalledModule))) {
     `$MissingModules = (Compare-Object -ReferenceObject `$RequiredModules -DifferenceObject (Get-InstalledModule -Name `$RequiredModules -ErrorAction Ignore).Name).InputObject
@@ -290,6 +290,8 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount -Subscription `$SubscriptionId -UseDeviceAuthentication
 }
 
+`$Location = (Get-AzResourceGroup -ResourceGroupName `$ResourceGroupName).Location
+
 #region Azure Arc Join
 #removing any existing Azure Arc Hybrid Machine with the same name
 `$Parameters = @{
@@ -300,7 +302,11 @@ if (Get-AzConnectedMachine @Parameters -ErrorAction Ignore) {
     Remove-AzConnectedMachine @Parameters -ErrorAction Ignore
     start-Sleep -Seconds 30
 }
-Connect-AzConnectedMachine @Parameters -Location $Location
+#Connecting
+Connect-AzConnectedMachine @Parameters -Location `$Location
+
+#Checking
+Get-AzConnectedMachine @Parameters 
 #endregion
 
 #region EntraID Join
@@ -308,17 +314,26 @@ Connect-AzConnectedMachine @Parameters -Location $Location
     # IMPORTANT: must be present even empty
     mdmId = ""   
 }
+#Connecting
 `$Parameters = @{
     Name = "aadlogin"
     ResourceGroupName = `$ResourceGroupName
     MachineName = `$env:COMPUTERNAME
-    Location = "$Location"
+    Location = `$Location
     Publisher = "Microsoft.Azure.ActiveDirectory" 
     ExtensionType = "AADLoginForWindows" 
     Settings = `$settings
 }
-
 New-AzConnectedMachineExtension @Parameters
+
+#Checking
+`$Parameters = @{
+    Name = "aadlogin"
+    ResourceGroupName = `$ResourceGroupName
+    MachineName = `$env:COMPUTERNAME
+}
+Get-AzConnectedMachineExtension @Parameters
+
 dsregcmd /status
 #endregion
 
@@ -344,13 +359,14 @@ Write-Host -Object "`r`nDone ..." -ForegroundColor Green
         } While ($Continue -ne 'Y')
 
 
+        #region Azure Portal Checking
         #region Checking the registration of Devices in EntraID
         Start-Process "https://portal.azure.com/#view/Microsoft_AAD_Devices/DevicesList.ReactView/mezzoEnabled~/true"
         #endregion 
 
         #region Checking the registration of the Azure Arc Machines
         Start-Process "https://portal.azure.com/#servicemenu/Microsoft_Azure_ArcCenterUX/AzureArcCenterHub/servers"
-        Get-AzConnectedMachine -ResourceGroupName $($ResourceGroup.ResourceGroupName)
+        #endregion 
         #endregion 
         #endregion 
 
@@ -371,6 +387,9 @@ Write-Host -Object "`r`nDone ..." -ForegroundColor Green
             New-AzConnectedMachineExtension -Name 'Microsoft.AzureVirtualDesktop.CloudDeviceExtension' -ResourceGroupName $ResourceGroup.ResourceGroupName -MachineName $Machine.Name -Location $Location -Publisher 'Microsoft.AzureVirtualDesktop' -ExtensionType 'CloudDeviceExtension' -Setting $settings -ProtectedSetting $protectedSettings -verbose
             Get-AzConnectedMachineExtension -ResourceGroupName $ResourceGroup.ResourceGroupName -MachineName $Machine.Name -Name 'Microsoft.AzureVirtualDesktop.CloudDeviceExtension'
         }
+        #region Checking status of the Session Hosts
+        Start-Process $("https://portal.azure.com/#@{0}/resource/subscriptions/{1}/resourceGroups/{2}/providers/Microsoft.DesktopVirtualization/hostpools/{3}" -f $((Get-AzTenant).Domains[-1]), $SubscriptionId, $PersonalHostPool.ResourceGroupName, $PersonalHostPool.Name)
+        #endregion 
         #endregion
 
         #region RBAC Assignments
