@@ -29,7 +29,8 @@ param
 )
 
 $null = Get-PackageProvider -Name Nuget -ForceBootstrap -Force
-$RequiredModules = 'Az.Accounts', 'Az.ConnectedMachine'
+#Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+$RequiredModules = 'Az.Accounts', 'Az.Resources', 'Az.ConnectedMachine'
 $InstalledModule = Get-InstalledModule -Name $RequiredModules -ErrorAction Ignore
 if (-not([String]::IsNullOrEmpty($InstalledModule))) {
     $MissingModules = (Compare-Object -ReferenceObject $RequiredModules -DifferenceObject (Get-InstalledModule -Name $RequiredModules -ErrorAction Ignore).Name).InputObject
@@ -58,9 +59,11 @@ if (Get-AzConnectedMachine @Parameters -ErrorAction Ignore) {
     Remove-AzConnectedMachine @Parameters -ErrorAction Ignore
     start-Sleep -Seconds 30
 }
+#Connecting
 Connect-AzConnectedMachine @Parameters -Location $Location
+#~Checking
+Get-AzConnectedMachine @Parameters
 #endregion
-
 
 #region EntraID Join
 if ($EntraIDJoin) {
@@ -68,6 +71,7 @@ if ($EntraIDJoin) {
         # IMPORTANT: must be present even empty
         mdmId = ""   
     }
+    #Connecting
     $Parameters = @{
         Name = "aadlogin"
         ResourceGroupName = $ResourceGroupName
@@ -77,10 +81,18 @@ if ($EntraIDJoin) {
         ExtensionType = "AADLoginForWindows" 
         Settings = $settings
     }
-
     New-AzConnectedMachineExtension @Parameters
+
+    #Checking
+    $Parameters = @{
+        Name = "aadlogin"
+        ResourceGroupName = $ResourceGroupName
+        MachineName = $env:COMPUTERNAME
+    }
+    Get-AzConnectedMachineExtension @Parameters    
+    
     dsregcmd /status
 }
 #endregion
 
-Write-Host -Object "rnDone ..." -ForegroundColor Green
+Write-Host -Object "`r`nDone ..." -ForegroundColor Green
