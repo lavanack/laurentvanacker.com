@@ -61,7 +61,7 @@ if (Get-AzConnectedMachine @Parameters -ErrorAction Ignore) {
 }
 #Connecting
 Connect-AzConnectedMachine @Parameters -Location $Location
-#~Checking
+#Checking
 Get-AzConnectedMachine @Parameters
 #endregion
 
