@@ -136,6 +136,49 @@ function New-RandomPassword {
     }
 }
 
+function Add-RDPCredential {
+    [CmdletBinding()]
+    Param
+    (
+        [Parameter(Mandatory = $true)]
+        [string] $ComputerName,
+        [Parameter(Mandatory = $true)]
+        [PSCredential] $Credential,
+        [switch] $Connect
+    )
+    # Adding Credentials to the Credential Manager (and escaping the password)
+    Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$ComputerName /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
+    Write-Host -Object "Your RDP credentials (login/password) are $($Credential.UserName)/$($Credential.GetNetworkCredential().Password)" -ForegroundColor Green
+    if ($Connect) {
+        $MSTSCProcess = Start-Process -FilePath "mstsc" -ArgumentList "/v:$ComputerName /f" -PassThru -WindowStyle Normal
+        Do {
+            Start-Sleep -Seconds 1
+            $MSTSCProcess = Get-Process -Id $MSTSCProcess.Id -ErrorAction Stop
+        } While ([string]::IsNullOrEmpty($MSTSCProcess.MainWindowtitle)) 
+        #Start-Sleep -Seconds 3
+        #Region Bringing Process windows in the foreground
+        $signature = '
+        [DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
+        [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+        [DllImport("user32.dll")] public static extern int SetForegroundWindow(IntPtr hwnd);
+        '
+        $type = Add-Type -MemberDefinition $signature -Name xShowWindow -PassThru
+        $hwnd = $MSTSCProcess.MainWindowHandle
+        $null = $type::ShowWindow($hwnd, 5)
+        $null = $type::SetForegroundWindow($hwnd) 
+        Start-Sleep -Seconds 3
+        #endregion
+        #region Sending Keystrokes for 'Don't ...' and 'yes'
+        $wshell = New-Object -ComObject wscript.shell;
+        #$null = $wshell.AppActivate((Get-Process -Id $MSTSCProcess.Id -ErrorAction Stop).MainWindowtitle, $true)
+        Start-Sleep -Milliseconds 100
+        $wshell.SendKeys('d')
+        Start-Sleep -Milliseconds 100
+        $wshell.SendKeys('y')
+        #endregion
+    }
+}
+
 #region Azure Quota Function
 #From https://github.com/lavanack/laurentvanacker.com/blob/master/Azure/Azure%20Virtual%20Machine/Get-AzQuotaData.ps1
 <#
@@ -481,7 +524,7 @@ param tags = $(($tags | ConvertTo-Json).Replace('"', "'"))
     $null = New-Item -Path $TemplateParameterFile -ItemType File -Value $TemplateParameterFileContent -Force
     $SubscriptionId = (Get-AzContext).Subscription.Id
     # Open and copy the deployment blade URL so progress can be monitored interactively.
-    $ResourceGroupDeploymentURI = "https://portal.azure.com/#@cloudsolutionarchitect.fr/resource/subscriptions/{0}/resourceGroups/{1}/deployments" -f $SubscriptionId, $ResourceGroupName
+    $ResourceGroupDeploymentURI = "https://portal.azure.com/#@{0}/resource/subscriptions/{1}/resourceGroups/{2}/deployments" -f $((Get-AzTenant).Domains[-1]), $SubscriptionId, $ResourceGroupName
     Start-Process $ResourceGroupDeploymentURI 
     $ResourceGroupDeploymentURI | Set-ClipBoard
     $ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $TemplateFile -TemplateParameterFile $TemplateParameterFile
@@ -496,6 +539,74 @@ param tags = $(($tags | ConvertTo-Json).Replace('"', "'"))
         return $false
     }
     else {
+        #region DN Name Setup
+        $VMName = "LocalBox-Client"
+        $VM = Get-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
+        $NIC = Get-AzNetworkInterface -ResourceId $VM.NetworkProfile.NetworkInterfaces[0].Id
+        $PublicIpId = $NIC.IpConfigurations[0].PublicIpAddress.Id
+        $PublicIp = Get-AzPublicIpAddress -ResourceGroupName ($PublicIpId -split '/')[4] -Name ($PublicIpId -split '/')[-1]
+        $FQDN = "$VMName.$Location.cloudapp.azure.com".ToLower()
+        $PublicIP.DnsSettings = @{
+            Fqdn = $FQDN
+            DomainNameLabel = $VMName.ToLower()
+        }
+        $PublicIP | Set-AzPublicIpAddress
+        #endregion
+
+        #region Adding Credentials to the Credential Manager (and escaping the password)
+        Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDN /user:$windowsAdminUsername /pass:$($windowsAdminPassword -replace "(\W)", '^$1')" -Wait
+        #endregion
+
+        #region JIT Access Management
+        $JitPolicyTimeInHours = 3
+        $JitPolicyName = "Default"
+        #region Enabling JIT Access
+        $NewJitPolicy = (@{
+                id    = $VM.Id
+                ports = (@{
+                        number                     = $rdpPort;
+                        protocol                   = "*";
+                        allowedSourceAddressPrefix = "*";
+                        maxRequestAccessDuration   = "PT$($JitPolicyTimeInHours)H"
+                    })   
+            })
+
+
+        Write-Host "Get Existing JIT Policy. You can Ignore the error if not found."
+        $ExistingJITPolicy = (Get-AzJitNetworkAccessPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -ErrorAction Ignore).VirtualMachines
+        $UpdatedJITPolicy = $ExistingJITPolicy.Where{ $_.id -ne "$($VM.Id)" } # Exclude existing policy for $VMName
+        $UpdatedJITPolicy.Add($NewJitPolicy)
+	
+        # Enable Access to the VM including management Port, and Time Range in Hours
+        Write-Host "Enabling Just in Time VM Access Policy for ($VMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
+        $null = Set-AzJitNetworkAccessPolicy -VirtualMachine $UpdatedJITPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -Kind "Basic"
+        #endregion
+
+        #region Requesting Temporary Access : 3 hours
+        $MyPublicIp = Invoke-RestMethod -Uri "https://ipv4.seeip.org"
+        $JitPolicy = (@{
+                id    = $VM.Id
+                ports = (@{
+                        number                     = $RDPPort;
+                        endTimeUtc                 = (Get-Date).AddHours(3).ToUniversalTime()
+                        allowedSourceAddressPrefix = @($MyPublicIP) 
+                    })
+            })
+        $ActivationVM = @($JitPolicy)
+        Write-Host "Requesting Temporary Acces via Just in Time for ($VMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
+        Start-AzJitNetworkAccessPolicy -ResourceGroupName $($VM.ResourceGroupName) -Location $VM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM
+        #endregion
+        #endregion
+
+        <#
+        mstsc /v $FQDN
+        Write-Host -Object "Your RDP credentials (login/password) are $windowsAdminUsername/$windowsAdminPassword" -ForegroundColor Green
+        #>
+
+        $SecurePassword = ConvertTo-SecureString -String $windowsAdminPassword -AsPlainText -Force
+        $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList ($windowsAdminUsername, $SecurePassword)
+        Add-RDPCredential -ComputerName $FQDN -Credential $Credential -Connect
+
         return $true
     }
 }
