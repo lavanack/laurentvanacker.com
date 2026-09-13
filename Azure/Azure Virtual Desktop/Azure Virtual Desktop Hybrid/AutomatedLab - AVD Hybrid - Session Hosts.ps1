@@ -270,6 +270,7 @@ if ($ResourceGroup) {
         #region Azure Arc Onboarding
         $ScriptBlockContent = @"
 `$null = Get-PackageProvider -Name Nuget -ForceBootstrap -Force
+#Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 `$RequiredModules = 'Az.Accounts', 'Az.Resources', 'Az.ConnectedMachine'
 `$InstalledModule = Get-InstalledModule -Name `$RequiredModules -ErrorAction Ignore
 if (-not([String]::IsNullOrEmpty(`$InstalledModule))) {
@@ -306,7 +307,7 @@ if (Get-AzConnectedMachine @Parameters -ErrorAction Ignore) {
 Connect-AzConnectedMachine @Parameters -Location `$Location
 
 #Checking
-Get-AzConnectedMachine @Parameters 
+Get-AzConnectedMachine @Parameters
 #endregion
 
 #region EntraID Join
@@ -337,7 +338,7 @@ Get-AzConnectedMachineExtension @Parameters
 dsregcmd /status
 #endregion
 
-Write-Host -Object "`r`nDone ..." -ForegroundColor Green
+Write-Host -Object "``r``nDone ..." -ForegroundColor Green
 "@
 
         $FilePath = Join-Path -Path $env:SystemDrive -ChildPath "AzureArcOnboarding.ps1"
