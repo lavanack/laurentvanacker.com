@@ -156,7 +156,7 @@ function Add-RDPCredential {
             $MSTSCProcess = Get-Process -Id $MSTSCProcess.Id -ErrorAction Stop
         } While ([string]::IsNullOrEmpty($MSTSCProcess.MainWindowtitle)) 
         #Start-Sleep -Seconds 3
-        #Region Bringing Process windows in the foreground
+        #region Bringing Process windows in the foreground
         $signature = '
         [DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
         [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
@@ -659,7 +659,7 @@ foreach ($Location in $LAWSupportedRegions) {
         $Succeeded = $false
         foreach ($AzureLocalInstanceLocation in $AzureLocalInstanceLocations) {
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzureLocalInstanceLocation: $AzureLocalInstanceLocation)"
-            $Succeeded = New-JumpstartLocalBox -azureLocalInstanceLocation $AzureLocalInstanceLocation -Location $Location -BicepFileDir $BicepFileDir -enableAzureSpotPricing $true -Verbose
+            $Succeeded = New-JumpstartLocalBox -azureLocalInstanceLocation $AzureLocalInstanceLocation -Location $Location -BicepFileDir $BicepFileDir -enableAzureSpotPricing $true -autoUpgradeClusterResource $true -Verbose
             if ($Succeeded) {
                 Write-Host -Object "The Jumpstart LocalBox Deployment Succeeded !!!" -ForegroundColor Green
                 break
