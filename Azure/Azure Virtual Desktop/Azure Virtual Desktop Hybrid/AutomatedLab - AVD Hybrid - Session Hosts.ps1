@@ -46,6 +46,7 @@ $Now = Get-Date
 $TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}.txt" -f $Now)"
 Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 
+#region AutomatedLab
 #region Global variables definition
 $Logon = 'Administrator'
 $ClearTextPassword = 'P@ssw0rd'
@@ -149,6 +150,7 @@ $ErrorActionPreference = $PreviousErrorActionPreference
 #Restore-LabVMSnapshot -SnapshotName 'FullInstall' -All -Verbose
 
 Stop-Transcript
+#endregion
 
 #region RDCMan Setup
 $Servers = foreach ($Machine in $Machines) {
@@ -209,7 +211,7 @@ $RDCManFilePath = Join-Path -Path $([Environment]::GetFolderPath("MyDocuments"))
 $RDCManFileContent | Out-File -FilePath $RDCManFilePath -Encoding utf8
 #endregion
 
-#region Azure
+#region Azure & AVD Hybrid
 #Install-Module -Name 'Az.DesktopVirtualization', 'Az.ConnectedMachine' -Scope AllUsers -AllowClobber -Force -Verbose 
 #Install-Module -Name 'Microsoft.Graph.Beta.Identity.DirectoryManagement' -MaximumVersion 2.25.0 -Scope AllUsers -AllowClobber -Force -Verbose 
 
@@ -235,14 +237,13 @@ foreach($Machine in $Machines) {
 #Get-Module Microsoft.Graph.* | Remove-Module -Force
 #endregion
 
-
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount -UseDeviceAuthentication
 }
 #endregion
 
-#region Storing VM Credentials
+#region Storing VM Credentials in the Windows Credential Manager (or automatic connection via RDCMan or RDP)
 foreach ($Machine in $Machines) {
     #Escaping non-word characters in the password
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$Machine /user:$Logon /pass:$($ClearTextPassword -replace "(\W)", '^$1')" -Wait
@@ -425,7 +426,6 @@ foreach ($Machine in $Machines) {
     #Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /delete:$Machine" -Wait
 }
 #endregion
-
 
 #region Testing AVD with the Web Client
 Start-Process "https://windows.cloud.microsoft"
