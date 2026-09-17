@@ -1,0 +1,62 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RDCMan programVersion="3.12" schemaVersion="3">
+  <file>
+    <credentialsProfiles />
+    <properties>
+      <expanded>True</expanded>
+      <name>LocalBox</name>
+    </properties>
+    <group>
+      <properties>
+        <expanded>True</expanded>
+        <name>Domain Joined</name>
+      </properties>
+      <logonCredentials inherit="None">
+        <profileName scope="Local">Custom</profileName>
+        <userName>administrator@jumpstart.local</userName>
+        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAzqkjURCGh0iXINgV83D7pwAAAAACAAAAAAAQZgAAAAEAACAAAADEqr/pQw1dIhj6+nxscw92Z8y+QNzmzWmmjjb7655AvgAAAAAOgAAAAAIAACAAAABf3pK+8FfAs5BZH79f0sCyptZvMmbWlo9fWDHQsanx0SAAAADdhDsRI3iYhNs9pWBa2EuTrAxDceJ4Z/Ak/nkDzxGBckAAAAC8mZP7FIhWDi1XWNwPDD0g7iNkmoKnSymaGKJXgihSbUnJ1GfgrI7qNTZdP+ekOFDfE6JMg+cWRCB+RKA77yyc</password>
+        <domain />
+      </logonCredentials>
+      <server>
+        <properties>
+          <name>AzLHOST1</name>
+        </properties>
+      </server>
+      <server>
+        <properties>
+          <name>AzLHOST2</name>
+        </properties>
+      </server>
+      <server>
+        <properties>
+          <name>JumpstartDC</name>
+        </properties>
+      </server>
+    </group>
+    <group>
+      <properties>
+        <expanded>True</expanded>
+        <name>Workgroup</name>
+      </properties>
+      <logonCredentials inherit="None">
+        <profileName scope="Local">Custom</profileName>
+        <userName>lavanack</userName>
+        <password>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAzqkjURCGh0iXINgV83D7pwAAAAACAAAAAAAQZgAAAAEAACAAAAATvzqXQz6ZnEgDilURWdSGcN/epLw/VdumdTzRVbChOwAAAAAOgAAAAAIAACAAAAATeWNgNuX/4We2X29CLEs9ktPcbuABpefi7+gkST01jiAAAAA43R6Jh/DcUKOg2ATwkh3rHNMMwqpzxMhP4DkT7sujj0AAAABeVl9CsK6v2LZDGOx0A+Z8qZqzNPv919CE2teIGDyv3Y9yplHKdud38yu0lbXxHFYcBddKZn8i2NuuO8rQLmJG</password>
+        <domain />
+      </logonCredentials>
+      <server>
+        <properties>
+          <name>AzLMGMT</name>
+        </properties>
+      </server>
+      <server>
+        <properties>
+          <name>Vm-Router</name>
+        </properties>
+      </server>
+    </group>
+  </file>
+  <connected />
+  <favorites />
+  <recentlyUsed />
+</RDCMan>

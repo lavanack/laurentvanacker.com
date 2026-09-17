@@ -45,7 +45,7 @@ $ResourceGroup = Get-AzResourceGroup -ResourceGroupName rg-az-local-*
 
 #Selecting only one ResourceGroup
 if ($ResourceGroup.Count -gt 1) {
-    $ResourceGroup = $ResourceGroup | Out-GridView -OutputMode Single -PassThru
+    $ResourceGroup = $ResourceGroup | Out-GridView -OutputMode Single
 }
 #endregion
 
@@ -73,7 +73,7 @@ $ClusterResourceId = @(
 ) -join "/"
 
 Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ClusterResourceId: $ClusterResourceId)"
-$Cluster = Get-AzResource -ResourceId $ClusterResourceId
+$Cluster = Get-AzResource -ResourceId $ClusterResourceId -ExpandProperties
 Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Cluster: $($Cluster | Out-String))"
 #endregion
 
@@ -141,26 +141,23 @@ $Parameters = @{
 }
 $Association = Get-AzDataCollectionRuleAssociation @Parameters -ErrorAction Ignore
 
-if (-not($Association)) {
-    #Current Target Resources of the DCR Association 
-    $TargetResources = $Association.Id -replace ".*/machines/" -replace "/providers/.*"
-    #AzureArcMachines in the ResourceGroup
-    $AzureArcMachines = $(Get-AzConnectedMachine -ResourceGroupName $ResourceGroup.ResourceGroupName)
-    #If not the same one(s)
-    $Compare = Compare-Object -ReferenceObject $AzureArcMachines.Name -DifferenceObject $TargetResources
-    if ($null -ne $Compare) {
-        $NonAssociatedMachines = ($Compare | Where-Object -FilterScript { $_.SideIndicator -eq "<="}).InputObject
-        $ToAssociate = $AzureArcMachines | Where-Object -FilterScript {$_.Name -in $NonAssociatedMachines}
-        foreach ($TargetResourceId in $ToAssociate) {
-            $AssociationName = "dra_{0}" -f $((New-Guid).Guid)
-            $Parameters = @{
-                TargetResourceId = $TargetResource.Id
-                AssociationName = $AssociationName
-                RuleId = $DataCollectionRule.Id
-            }
-            $DataCollectionRuleAssociation = New-AzDataCollectionRuleAssociation @Parameters
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DataCollectionRuleAssociation: $($DataCollectionRuleAssociation | Out-String))"
+#Current Target Resources of the DCR Association 
+$TargetResources = $Association.Id -replace ".*/machines/" -replace "/providers/.*"
+#AzureArcMachines in the ResourceGroup
+$AzureArcMachines = Get-AzConnectedMachine -ResourceGroupName $ResourceGroup.ResourceGroupName
+#If not the same one(s)
+$Compare = Compare-Object -ReferenceObject $AzureArcMachines.Name -DifferenceObject $TargetResources
+if ($null -ne $Compare) {
+    $NonAssociatedMachines = ($Compare | Where-Object -FilterScript { $_.SideIndicator -eq "<="}).InputObject
+    foreach ($TargetResourceId in $NonAssociatedMachines) {
+        $AssociationName = "dra_{0}" -f $((New-Guid).Guid)
+        $Parameters = @{
+            TargetResourceId = $TargetResource.Id
+            AssociationName = $AssociationName
+            RuleId = $DataCollectionRule.Id
         }
+        $DataCollectionRuleAssociation = New-AzDataCollectionRuleAssociation @Parameters
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DataCollectionRuleAssociation: $($DataCollectionRuleAssociation | Out-String))"
     }
 }
 

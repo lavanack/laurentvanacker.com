@@ -425,13 +425,17 @@ Specifies the directory containing main.bicep.
 System.Boolean. Returns true for a successful deployment and false after a failure.
 #>
 function New-JumpstartLocalBox {
-    [CmdletBinding(PositionalBinding = $false)]
+    [CmdletBinding(PositionalBinding = $false, DefaultParameterSetName = 'WindowsAdmin')]
     param
     (
         [string] $tenantId = $((Get-AzTenant).Id),
         [string] $spnProviderId = $(Get-AzADServicePrincipal -DisplayName "Microsoft.AzureStackHCI Resource Provider").Id,
+        [Parameter(ParameterSetName = 'WindowsAdmin')]
         [string] $windowsAdminUsername = $env:USERNAME,
-        [string] $windowsAdminPassword = $(New-RandomPassword -ClipBoard),
+        [Parameter(ParameterSetName = 'WindowsAdmin')]
+        [string] $windowsAdminPassword = $(New-RandomPassword -Online -ClipBoard),
+        [Parameter(ParameterSetName = 'Credential')]
+        [PSCredential] $Credential = $(New-RandomPassword -Online -ClipBoard),
         [string] $logAnalyticsWorkspaceName = 'LocalBox-Workspace',
         [string] $natDNS = '8.8.8.8',
         [string] $githubAccount = 'microsoft',
@@ -459,6 +463,13 @@ function New-JumpstartLocalBox {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$azureLocalInstanceLocation: $azureLocalInstanceLocation"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$location: $location"
 
+    #region Credential Ma,agement
+    if ($Credential) {
+        $windowsAdminUsername = $Credential.UserName
+        $windowsAdminPassword = $Credential.GetNetworkCredential().Password
+    }
+    #endregion
+
     #region Defining variables 
     #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
     $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
@@ -472,12 +483,14 @@ function New-JumpstartLocalBox {
     #endregion
 
     # Add a zero-padded random suffix to reduce resource-group naming collisions.
-    $DigitNumber = 3
-    $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
-    $LocationShortName = $ANTResourceLocationShortNameHT[$Location].shortName
-    $ResourceGroupPrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
-    $ResourceGroupName = "{0}-az-local-{1}-{2:D$DigitNumber}" -f $ResourceGroupPrefix, $LocationShortName, $Instance                       
-    $ResourceGroupName = $ResourceGroupName.ToLower()
+    Do {
+        $DigitNumber = 3
+        $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
+        $LocationShortName = $ANTResourceLocationShortNameHT[$Location].shortName
+        $ResourceGroupPrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
+        $ResourceGroupName = "{0}-az-local-{1}-{2:D$DigitNumber}" -f $ResourceGroupPrefix, $LocationShortName, $Instance                       
+        $ResourceGroupName = $ResourceGroupName.ToLower()
+    } While (Get-AzResourceGroup -ResourceGroupName $ResourceGroupName -Location $Location -ErrorAction Ignore)
     #endregion
     
     #region ResourceGroup Management
@@ -536,7 +549,7 @@ param tags = $(($tags | ConvertTo-Json).Replace('"', "'"))
     if ($ResourceGroupDeployment.ProvisioningState -ne 'Succeeded') {
         Write-Warning -Message "The deployment failed :`r`n$($ResourceGroupDeploymentURI | Out-string)`r`n`r`nRemoving the '$ResourceGroupName' dedicated created ResourceGroup ..."
         $ResourceGroup | Remove-AzResourceGroup -Force -AsJob
-        return $false
+        return [PSCustomObject]@{Succeeded = $false; ResourceGroupName = $null; Location = $location}
     }
     else {
         #region DN Name Setup
@@ -544,13 +557,14 @@ param tags = $(($tags | ConvertTo-Json).Replace('"', "'"))
         $VM = Get-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
         $NIC = Get-AzNetworkInterface -ResourceId $VM.NetworkProfile.NetworkInterfaces[0].Id
         $PublicIpId = $NIC.IpConfigurations[0].PublicIpAddress.Id
+        $DomainNameLabel = $("{0}-{1}" -f $VMName, $Instance).ToLower()
         $PublicIp = Get-AzPublicIpAddress -ResourceGroupName ($PublicIpId -split '/')[4] -Name ($PublicIpId -split '/')[-1]
-        $FQDN = "$VMName.$Location.cloudapp.azure.com".ToLower()
+        $FQDN = $("{0}.{1}.cloudapp.azure.com" -f $DomainNameLabel, $Location).ToLower()
         $PublicIP.DnsSettings = @{
-            Fqdn = $FQDN
-            DomainNameLabel = $VMName.ToLower()
+            #Fqdn = $FQDN
+            DomainNameLabel = $DomainNameLabel
         }
-        $PublicIP | Set-AzPublicIpAddress
+        $null = $PublicIP | Set-AzPublicIpAddress
         #endregion
 
         #region Adding Credentials to the Credential Manager (and escaping the password)
@@ -594,7 +608,7 @@ param tags = $(($tags | ConvertTo-Json).Replace('"', "'"))
             })
         $ActivationVM = @($JitPolicy)
         Write-Host "Requesting Temporary Acces via Just in Time for ($VMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
-        Start-AzJitNetworkAccessPolicy -ResourceGroupName $($VM.ResourceGroupName) -Location $VM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM
+        $null = Start-AzJitNetworkAccessPolicy -ResourceGroupName $($VM.ResourceGroupName) -Location $VM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM
         #endregion
         #endregion
 
@@ -607,13 +621,14 @@ param tags = $(($tags | ConvertTo-Json).Replace('"', "'"))
         $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList ($windowsAdminUsername, $SecurePassword)
         Add-RDPCredential -ComputerName $FQDN -Credential $Credential -Connect
 
-        return $true
+        return [PSCustomObject]@{Succeeded = $true; ResourceGroupName = $ResourceGroupName; Location = $location}
     }
 }
 #endregion
 
 #region Main Code
 Clear-Host
+$VerbosePreference = "continue"
 $Error.Clear()
 
 $CurrentScript = $MyInvocation.MyCommand.Path
@@ -648,19 +663,27 @@ $VMSize = "Standard_E32s_v6"
 #Customize with your own path
 $BicepFileDir = "C:\Source Control\GitHub\Cloned repositories\azure_arc\azure_jumpstart_localbox\bicep"
 
+<#
+#Simple Deployment
+$LAWSupportedRegions = "centralus"
+$AzureLocalInstanceLocations = "southcentralus"
+#>
+$LAWSupportedRegions = "centralindia"
+$AzureLocalInstanceLocations = "centralindia"
+
+$Credential = Get-Credential -Message "Enter the required credentials" -UserName $env:USERNAME
 # Try each Log Analytics-compatible region that has enough capacity for the requested VM SKU.
 foreach ($Location in $LAWSupportedRegions) {
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Location: $Location)"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Location: $Location"
     #Checking Azure Quota
     $AvailableComputeResourceSku = Get-AzAvailableComputeResourceSku -Location $Location -ComputeResourceSku $VMSize -SubscriptionId $SubscriptionId
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AvailableComputeResourceSku: $($AvailableComputeResourceSku | Out-String)"
     if ($AvailableComputeResourceSku.Available -gt 0) {
         # Retry the deployment across supported Azure Local instance regions until one succeeds.
-        $Succeeded = $false
         foreach ($AzureLocalInstanceLocation in $AzureLocalInstanceLocations) {
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzureLocalInstanceLocation: $AzureLocalInstanceLocation)"
-            $Succeeded = New-JumpstartLocalBox -azureLocalInstanceLocation $AzureLocalInstanceLocation -Location $Location -BicepFileDir $BicepFileDir -enableAzureSpotPricing $true -autoUpgradeClusterResource $true -Verbose
-            if ($Succeeded) {
+            $Result = New-JumpstartLocalBox -Credential $Credential -azureLocalInstanceLocation $AzureLocalInstanceLocation -Location $Location -BicepFileDir $BicepFileDir -enableAzureSpotPricing $true -autoUpgradeClusterResource $true -Verbose
+            if ($Result.Succeeded) {
                 Write-Host -Object "The Jumpstart LocalBox Deployment Succeeded !!!" -ForegroundColor Green
                 break
             }
@@ -668,8 +691,64 @@ foreach ($Location in $LAWSupportedRegions) {
                 Write-Host -Object "The Jumpstart LocalBox Deployment Failed !!!. We will automatically try other locations ..." -ForegroundColor Red
             }
         }
-        if ($Succeeded)
-        {
+
+        if ($Result.Succeeded) {
+            #region From https://jumpstart.azure.com/azure_jumpstart_localbox/cloud_deployment#azure-local-instance-validation-and-deployment-from-the-azure-portal
+            #region Waiting AzLHOST1 and AzLHOST2 have been created as Arc-enabled servers.
+            $ReferenceObject = "AzLHOST1", "AzLHOST2"
+            Do {
+                $Seconds = 300
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds seconds ..."
+                Start-Sleep -Seconds $Seconds
+                $AzureArcMachines = Get-AzConnectedMachine -ResourceGroupName $Result.ResourceGroupName
+                #If not the same one(s)
+                if ($AzureArcMachines) {
+                    $Compare = Compare-Object -ReferenceObject $ReferenceObject -DifferenceObject $AzureArcMachines
+                }
+                else {
+                    $Compare = $null
+                }
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Compare: $($Compare | Out-String)"
+            } While (-not($Compare))
+            Write-Host -Object "$($ReferenceObject -join ',') Azure Arc Machines Created ..." -ForegroundColor Green
+            #endregion 
+
+            <#
+            #region Waiting localcluster deployments end - v1
+            Do {
+                $Seconds = 600
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds seconds ..."
+                Start-Sleep -Seconds $Seconds
+                $RunningDeployments = Get-AzResourceGroupDeployment -ResourceGroupName $Result.ResourceGroupName | Where-Object -FilterScript {$_.ProvisioningState -match "ing$"}
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Compare: $($RunningDeployments | Out-String)"
+            } While ($RunningDeployments)
+            Write-Host -Object "No more running Azure ResourceGroup Deployment(s) ..." -ForegroundColor Green
+            #endregion 
+            #>
+
+            #region Waiting localcluster deployments end - v2
+            $ClusterName = "localboxcluster"
+            $ResourceGroup = Get-AzResourceGroup -ResourceGroupName $Result.ResourceGroupName -Location  $Result.Location
+            Do {
+                $Seconds = 300
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds seconds ..."
+                Start-Sleep -Seconds $Seconds
+                #region Azure Local resource
+                $ClusterResourceId = @(
+                    $ResourceGroup.ResourceId
+                    "providers/Microsoft.AzureStackHCI/clusters/$ClusterName"
+                ) -join "/"
+
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ClusterResourceId: $ClusterResourceId)"
+                $Cluster = Get-AzResource -ResourceId $ClusterResourceId -ExpandProperties -ErrorAction Ignore
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Cluster: $($Cluster | Out-String)"
+                #endregion
+            } While (($null -eq $Cluster) -or ($Cluster.Properties.provisioningState -ne "Succeeded") -or ($Cluster.Properties.connectivityStatus -ne "Connected"))
+            Write-Host -Object "'$ClusterResourceId' Connectivity Status: $($Cluster.Properties.connectivityStatus) ..."
+            #endregion 
+            
+            #endregion
+
             break
         }
     }
@@ -679,3 +758,4 @@ foreach ($Location in $LAWSupportedRegions) {
 }
 
 Write-Host -Object "Done ..." -ForegroundColor Green
+#winget install --exact --id=Microsoft.Sysinternals.Suite --location "C:\Tools" --accept-package-agreements --accept-source-agreements
