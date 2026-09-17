@@ -16,7 +16,7 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 
-#requires -Modules Az.Accounts, Az.Compute, @{ ModuleName='Az.DesktopVirtualization'; RequiredVersion="5.4.6" }, Az.KeyVault, Az.Network, Az.Resources
+#requires -Modules Az.Accounts, Az.Compute, Az.DesktopVirtualization, Az.Monitor, Az.Network, Az.OperationalInsights, Az.Resources
 #From https://learn.microsoft.com/en-us/azure/virtual-desktop/deploy-azure-virtual-desktop-hybrid?tabs=arcaccess-portal%2Cdeployavd-portal%2Cvalidateavd-portal
 
 #region function definitions 
@@ -46,7 +46,6 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
     $LocationShortName = $shortNameHT[$Location].shortName
     #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
     $ResourceGroupNamePrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
-    $KeyVaultPrefix = $ResourceTypeShortNameHT["KeyVault/vaults"].ShortName
     $DigitNumber = 3
     Do {
         $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
@@ -134,7 +133,6 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
         ExpirationTime        = (Get-Date).ToUniversalTime().AddDays(1).ToString('yyyy-MM-ddTHH:mm:ss.fffffffZ')
         CustomRdpProperty     = $CustomRdpProperty
         IdentityType          = "SystemAssigned"
-        ManagementType        = 'Standard'
         #ValidationEnvironment = $true
         #Verbose               = $true
     }
@@ -263,6 +261,7 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
 
 #region Main code
 Clear-Host
+$Error.Clear()
 $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
@@ -278,7 +277,7 @@ $SubscriptionId = (Get-AzContext).Subscription.Id
 $Location = "centralus"
 
 #region Registering required Providers
-$null = Register-AzResourceProvider -ProviderNamespace Microsoft.CognitiveServices
+$null = Register-AzResourceProvider -ProviderNamespace Microsoft.DesktopVirtualization
 $null = Register-AzResourceProvider -ProviderNamespace Microsoft.HybridCompute
 #endregion
 
