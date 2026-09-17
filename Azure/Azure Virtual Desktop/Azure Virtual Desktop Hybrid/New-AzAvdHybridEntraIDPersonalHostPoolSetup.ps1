@@ -16,7 +16,7 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 
-#requires -Modules Az.Accounts, Az.Compute, Az.DesktopVirtualization, Az.Monitor, Az.Network, Az.OperationalInsights, Az.Resources
+#requires -Modules Az.Accounts, Az.DesktopVirtualization, Az.Monitor, Az.OperationalInsights, Az.Resources
 #From https://learn.microsoft.com/en-us/azure/virtual-desktop/deploy-azure-virtual-desktop-hybrid?tabs=arcaccess-portal%2Cdeployavd-portal%2Cvalidateavd-portal
 
 #region function definitions 
