@@ -270,6 +270,7 @@ if ($ResourceGroup) {
 
         #region Azure Arc Onboarding
         $ScriptBlockContent = @"
+#Set-WinUserLanguageList -LanguageList fr-fr -Force
 `$null = Get-PackageProvider -Name Nuget -ForceBootstrap -Force
 #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 `$RequiredModules = 'Az.Accounts', 'Az.Resources', 'Az.ConnectedMachine'
