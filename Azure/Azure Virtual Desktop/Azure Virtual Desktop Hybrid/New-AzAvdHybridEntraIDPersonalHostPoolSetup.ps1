@@ -191,7 +191,7 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
 
     #region Assign 'Desktop Virtualization User' RBAC role to application groups
     # Get the object ID of the user group you want to assign to the application group
-    $EntraIDGroup = Get-AzADGroup -Filter "DisplayName eq 'AVD Users'"
+    $EntraIDGroup = Get-AzADGroup -DisplayName "AVD Users"
 
     if ($EntraIDGroup) {
         $ObjectId = $EntraIDGroup.Id
