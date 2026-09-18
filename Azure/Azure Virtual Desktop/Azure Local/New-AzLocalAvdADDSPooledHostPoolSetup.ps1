@@ -20,7 +20,7 @@ of the Sample Code.
 #From https://learn.microsoft.com/en-us/azure/virtual-desktop/deploy-azure-virtual-desktop-hybrid?tabs=arcaccess-portal%2Cdeployavd-portal%2Cvalidateavd-portal
 
 #region function definitions 
-function New-AzLocalAvdEntraIDPooledHostPoolSetup {
+function New-AzLocalAvdADDSPooledHostPoolSetup {
     [CmdletBinding(PositionalBinding = $false)]
     param
     (
@@ -49,7 +49,7 @@ function New-AzLocalAvdEntraIDPooledHostPoolSetup {
     $DigitNumber = 3
     Do {
         $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
-        $HostPoolName = "hp-np-ei-local-cg-{0}-{1:D3}" -f $LocationShortName, $Instance
+        $HostPoolName = "hp-np-ad-local-cg-{0}-{1:D3}" -f $LocationShortName, $Instance
         $LogAnalyticsWorkSpaceName = "log{0}" -f $($HostPoolName -replace "\W")
         $ResourceGroupName = "{0}-{1}" -f $ResourceGroupNamePrefix, $HostPoolName
     } while (Get-AzResourceGroup -ResourceGroupName $ResourceGroupName -ErrorAction Ignore)
@@ -100,7 +100,7 @@ function New-AzLocalAvdEntraIDPooledHostPoolSetup {
         WorkSpaceName                   = $ResourceGroupName -replace "^rg", "ws"
     }
 
-    $CustomRdpProperty = "enablerdsaadauth:i:1;redirectcomports:i:0;redirectlocation:i:0;redirectprinters:i:0;drivestoredirect:s:;usbdevicestoredirect:s:;"
+    $CustomRdpProperty = "redirectcomports:i:0;redirectlocation:i:0;redirectprinters:i:0;drivestoredirect:s:;usbdevicestoredirect:s:;"
     $Parameters = @{
         Name                  = $CurrentHostPool.Name
         FriendlyName          = "{0} (HostPool Friendly Name)" -f $CurrentHostPool.Name
@@ -173,7 +173,7 @@ function New-AzLocalAvdEntraIDPooledHostPoolSetup {
 
     #region Assign 'Desktop Virtualization User' RBAC role to application groups
     # Get the object ID of the user group you want to assign to the application group
-    $EntraIDGroup = Get-AzADGroup -Filter "DisplayName eq 'AVD Users'"
+    $EntraIDGroup = Get-AzADGroup -DisplayName "AVD Users"
 
     if ($EntraIDGroup) {
         $ObjectId = $EntraIDGroup.Id
@@ -268,5 +268,5 @@ $Parameters = @{
     Location             = $Location 
     Verbose              = $true
 }
-$PersonalHostPool = New-AzLocalAvdEntraIDPooledHostPoolSetup @Parameters
+$PersonalHostPool = New-AzLocalAvdADDSPooledHostPoolSetup @Parameters
 #endregion
