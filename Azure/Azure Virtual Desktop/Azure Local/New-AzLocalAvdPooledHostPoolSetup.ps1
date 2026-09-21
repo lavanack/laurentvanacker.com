@@ -20,15 +20,19 @@ of the Sample Code.
 #From https://learn.microsoft.com/en-us/azure/virtual-desktop/deploy-azure-virtual-desktop-hybrid?tabs=arcaccess-portal%2Cdeployavd-portal%2Cvalidateavd-portal
 
 #region function definitions 
-function New-AzLocalAvdADDSPooledHostPoolSetup {
+function New-AzLocalAvdPooledHostPoolSetup {
     [CmdletBinding(PositionalBinding = $false)]
     param
     (
         [ValidateScript({ $_ -in (Get-AzLocation).Location })]
-        [string] $Location = "centralus"
+        [string] $Location = "centralus",
+        [ValidateSet("ActiveDirectory", "EntraID")]
+        [string] $JoinMode = "EntraID"
     )
 
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Location: $Location"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$JoinMode: $JoinMode"
 
     #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
     $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
@@ -47,9 +51,18 @@ function New-AzLocalAvdADDSPooledHostPoolSetup {
     #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
     $ResourceGroupNamePrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
     $DigitNumber = 3
+    if ("ActiveDirectory" -eq $JoinMode) {
+        $JoinModeShortName = "ad"
+        $CustomRdpProperty = "redirectcomports:i:0;redirectlocation:i:0;redirectprinters:i:0;drivestoredirect:s:;usbdevicestoredirect:s:;"
+    } 
+    else {
+        $JoinModeShortName = "ei"
+        $CustomRdpProperty = "enablerdsaadauth:i:1;redirectcomports:i:0;redirectlocation:i:0;redirectprinters:i:0;drivestoredirect:s:;usbdevicestoredirect:s:;"
+    }
+    
     Do {
         $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
-        $HostPoolName = "hp-np-ad-local-cg-{0}-{1:D3}" -f $LocationShortName, $Instance
+        $HostPoolName = "hp-np-{0}-local-cg-{1}-{2:D3}" -f $JoinModeShortName, $LocationShortName, $Instance
         $LogAnalyticsWorkSpaceName = "log{0}" -f $($HostPoolName -replace "\W")
         $ResourceGroupName = "{0}-{1}" -f $ResourceGroupNamePrefix, $HostPoolName
     } while (Get-AzResourceGroup -ResourceGroupName $ResourceGroupName -ErrorAction Ignore)
@@ -100,7 +113,6 @@ function New-AzLocalAvdADDSPooledHostPoolSetup {
         WorkSpaceName                   = $ResourceGroupName -replace "^rg", "ws"
     }
 
-    $CustomRdpProperty = "redirectcomports:i:0;redirectlocation:i:0;redirectprinters:i:0;drivestoredirect:s:;usbdevicestoredirect:s:;"
     $Parameters = @{
         Name                  = $CurrentHostPool.Name
         FriendlyName          = "{0} (HostPool Friendly Name)" -f $CurrentHostPool.Name
@@ -255,8 +267,11 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 }
 #endregion
 
+#region Variable definitions
 $SubscriptionId = (Get-AzContext).Subscription.Id
 $Location = "centralus"
+$JoinMode = "EntraID"
+#endregion
 
 #region Registering required Providers
 $null = Register-AzResourceProvider -ProviderNamespace Microsoft.DesktopVirtualization
@@ -265,8 +280,35 @@ $null = Register-AzResourceProvider -ProviderNamespace Microsoft.HybridCompute
 
 
 $Parameters = @{
-    Location             = $Location 
-    Verbose              = $true
+    Location = $Location 
+    JoinMode = $JoinMode
+    Verbose  = $true
 }
-$PersonalHostPool = New-AzLocalAvdADDSPooledHostPoolSetup @Parameters
+$PersonalHostPool = New-AzLocalAvdPooledHostPoolSetup @Parameters
+
+break
+
+#Continue after onboarding the Azure Arc / Azure Local VM with the AVD hybrid Extension / CloudDeviceExtension
+#region RBAC Assignments
+#region "Virtual Machine User Login"
+$SessionHosts = Get-AzWvdSessionHost -HostPoolName $PersonalHostPool.Name -ResourceGroupName $PersonalHostPool.ResourceGroupName
+$ConnectedMachines = Get-AzConnectedMachine | Where-Object -FilterScript { $_.Name -in $($SessionHosts.Name -replace ".*/")}
+$RoleDefinition = Get-AzRoleDefinition -Name "Virtual Machine User Login"
+$AzADGroup = Get-AzADGroup -DisplayName "AVD Users"
+
+foreach($ConnectedMachine in $ConnectedMachines) {
+    $Parameters = @{
+        ObjectId           = $AzADGroup.Id
+        RoleDefinitionName = $RoleDefinition.Name
+        Scope              = $ConnectedMachine.Id
+        #Verbose            = $true
+    }
+    if (-not(Get-AzRoleAssignment @Parameters)) {
+        New-AzRoleAssignment @Parameters
+    }
+    else {
+        Write-Warning -Message "The RBAC Assignment '$($Parameters.RoleDefinitionName)' for '$($Parameters.ObjectId)' on '$($Parameters.Scope)' already exists"
+    }
+}
+#endregion
 #endregion
