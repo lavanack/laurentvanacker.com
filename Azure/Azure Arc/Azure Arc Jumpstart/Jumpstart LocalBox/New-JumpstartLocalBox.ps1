@@ -18,7 +18,17 @@ of the Sample Code.
 
 #Prerequisite: https://jumpstart.azure.com/azure_jumpstart_localbox/deployment_az
 
-#requires -Version 5 #-Modules Az.Accounts, Az.Compute, Az.Quota, Az.Resources
+#requires -Version 5 #-Modules Az.Accounts, Az.Compute, Az.Quota, Az.Resources, Az.StackHCI
+[CmdletBinding(PositionalBinding = $false)]
+param
+(
+    #LAW Supported Regions : ((Get-AzResourceProvider -ProviderNamespace 'Microsoft.OperationalInsights').ResourceTypes | Where-Object -FilterScript { $_.ResourceTypeName -eq 'workspaces' }).Locations
+    [ValidateSet('australiacentral', 'australiacentral2', 'australiaeast', 'australiasoutheast', 'austriaeast', 'brazilsouth', 'brazilsoutheast', 'canadacentral', 'canadaeast', 'centralindia', 'centralus', 'chilecentral', 'eastasia', 'eastus', 'eastus2', 'francecentral', 'francesouth', 'germanynorth', 'germanywestcentral', 'indonesiacentral', 'israelcentral', 'italynorth', 'japaneast', 'japanwest', 'jioindiacentral', 'jioindiawest', 'koreacentral', 'koreasouth', 'malaysiawest', 'mexicocentral', 'newzealandnorth', 'northcentralus', 'northeurope', 'norwayeast', 'norwaywest', 'polandcentral', 'qatarcentral', 'southafricanorth', 'southafricawest', 'southcentralus', 'southeastasia', 'southindia', 'spaincentral', 'swedencentral', 'switzerlandnorth', 'switzerlandwest', 'uaecentral', 'uaenorth', 'uksouth', 'ukwest', 'westcentralus', 'westeurope', 'westus', 'westus2', 'westus3')]
+    [string[]] $location,
+    [ValidateSet('australiaeast', 'southcentralus', 'eastus', 'westeurope', 'southeastasia', 'canadacentral', 'japaneast', 'centralindia')]
+    [string[]] $azureLocalInstanceLocation
+)
+
 
 #region function definitions 
 #Based from https://adamtheautomator.com/powershell-random-password/
@@ -557,9 +567,12 @@ param tags = $(($tags | ConvertTo-Json).Replace('"', "'"))
         $VM = Get-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
         $NIC = Get-AzNetworkInterface -ResourceId $VM.NetworkProfile.NetworkInterfaces[0].Id
         $PublicIpId = $NIC.IpConfigurations[0].PublicIpAddress.Id
-        $DomainNameLabel = $("{0}-{1}" -f $VMName, $Instance).ToLower()
         $PublicIp = Get-AzPublicIpAddress -ResourceGroupName ($PublicIpId -split '/')[4] -Name ($PublicIpId -split '/')[-1]
-        $FQDN = $("{0}.{1}.cloudapp.azure.com" -f $DomainNameLabel, $Location).ToLower()
+        Do {
+            $RandomString = ((New-Guid).Guid -replace "\W").Substring(0,8)
+            $DomainNameLabel = $("{0}-{1}-{2}" -f $VMName, $Instance).ToLower(), $RandomString
+            $FQDN = $("{0}.{1}.cloudapp.azure.com" -f $DomainNameLabel, $Location).ToLower()
+        } While ($null -ne $(Resolve-DnsName $FQDN -ErrorAction Ignore))
         $PublicIP.DnsSettings = @{
             #Fqdn = $FQDN
             DomainNameLabel = $DomainNameLabel
@@ -649,27 +662,39 @@ $LAWSupportedRegions = ((Get-AzResourceProvider -ProviderNamespace Microsoft.Ope
 $azureLocalInstanceLocations = "australiaeast", "southcentralus", "eastus", "westeurope", "southeastasia", "canadacentral", "japaneast", "centralindia"
 #>
 
-#LAW Supported Regions
-# Intersect provider-supported display names with canonical Azure location identifiers.
-$LAWSupportedDisplayNameRegions = ((Get-AzResourceProvider -ProviderNamespace Microsoft.OperationalInsights).ResourceTypes | Where-Object -FilterScript { $_.ResourceTypeName -eq 'workspaces' }).Locations
-$LAWSupportedRegions = (Get-AzLocation | Where-Object { $_.Providers -contains "Microsoft.OperationalInsights" -and ($_.DisplayName -in $LAWSupportedDisplayNameRegions) }).Location | Sort-Object
-
-#From https://jumpstart.azure.com/azure_jumpstart_localbox/deployment_az
-$AzureLocalInstanceLocations = 'australiaeast', 'southcentralus', 'eastus', 'westeurope', 'southeastasia', 'canadacentral', 'japaneast', 'centralindia'
-
 $SubscriptionId = (Get-AzContext).Subscription.Id
 
 $VMSize = "Standard_E32s_v6"
 #Customize with your own path
 $BicepFileDir = "C:\Source Control\GitHub\Cloned repositories\azure_arc\azure_jumpstart_localbox\bicep"
 
+if ($null -ne $azureLocalInstanceLocation) {
+    $AzureLocalInstanceLocations = $AzureLocalInstanceLocation
+}
+else {
+    #From https://jumpstart.azure.com/azure_jumpstart_localbox/deployment_az
+    $AzureLocalInstanceLocations = 'australiaeast', 'southcentralus', 'eastus', 'westeurope', 'southeastasia', 'canadacentral', 'japaneast', 'centralindia'
+}
+Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzureLocalInstanceLocations: $($AzureLocalInstanceLocations | Out-String)"
+
+if ($null -ne $location) {
+    $LAWSupportedRegions = $location
+}
+else {
+    #LAW Supported Regions
+    # Intersect provider-supported display names with canonical Azure location identifiers.
+    $LAWSupportedDisplayNameRegions = ((Get-AzResourceProvider -ProviderNamespace Microsoft.OperationalInsights).ResourceTypes | Where-Object -FilterScript { $_.ResourceTypeName -eq 'workspaces' }).Locations
+    $LAWSupportedRegions = (Get-AzLocation | Where-Object { $_.Providers -contains "Microsoft.OperationalInsights" -and ($_.DisplayName -in $LAWSupportedDisplayNameRegions) }).Location | Sort-Object
+}
+Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$LAWSupportedRegions: $($LAWSupportedRegions | Out-String)"
 <#
-#Simple Deployment
+#Simple Deployment by passing the parameters
 $LAWSupportedRegions = "centralus"
 $AzureLocalInstanceLocations = "southcentralus"
 #>
 $LAWSupportedRegions = "centralindia"
 $AzureLocalInstanceLocations = "centralindia"
+
 
 $Credential = Get-Credential -Message "Enter the required credentials" -UserName $env:USERNAME
 # Try each Log Analytics-compatible region that has enough capacity for the requested VM SKU.
@@ -734,6 +759,7 @@ foreach ($Location in $LAWSupportedRegions) {
                 Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds seconds ..."
                 Start-Sleep -Seconds $Seconds
                 #region Azure Local resource
+                <#
                 $ClusterResourceId = @(
                     $ResourceGroup.ResourceId
                     "providers/Microsoft.AzureStackHCI/clusters/$ClusterName"
@@ -741,7 +767,9 @@ foreach ($Location in $LAWSupportedRegions) {
 
                 Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ClusterResourceId: $ClusterResourceId)"
                 $Cluster = Get-AzResource -ResourceId $ClusterResourceId -ExpandProperties -ErrorAction Ignore
+                #>
                 Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Cluster: $($Cluster | Out-String)"
+                $Cluster = Get-AzStackHciCluster -ResourceGroupName $ResourceGroup.ResourceGroupName -ClusterName $ClusterName
                 #endregion
             } While (($null -eq $Cluster) -or ($Cluster.Properties.provisioningState -ne "Succeeded") -or ($Cluster.Properties.connectivityStatus -ne "Connected"))
             Write-Host -Object "'$ClusterResourceId' Connectivity Status: $($Cluster.Properties.connectivityStatus) ..."
