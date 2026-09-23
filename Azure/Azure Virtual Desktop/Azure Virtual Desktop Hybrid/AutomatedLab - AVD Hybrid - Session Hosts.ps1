@@ -356,11 +356,37 @@ Write-Host -Object "``r``nDone ..." -ForegroundColor Green
         $FilePath | Set-ClipBoard
 		& $RDCManFilePath
 
+        #region Waiting the Waiting the EntraID join and the Azure Arc Onboarding complete
+        <#
 		#Write-Host -Object "Run the '$FilePath' PowerShell script from $($Machines -join ', ') ..."
         Do {
             $Continue = Read-Host -Prompt "Connect via RDP to $($Machines.Name -join ', ') and run the '$FilePath' script before continuing ...`r`nPress Y to continue"
         } While ($Continue -ne 'Y')
+        #>
 
+        Write-Host -Object "Waiting the EntraID join and the Azure Arc Onboarding complete ..."
+        Do {
+            $Seconds = 30
+            Start-Sleep -Seconds $Seconds
+            #region EntraID Join
+            $Filter = ($Machines.Name | ForEach-Object -Process { "displayName eq '$_'" }) -join " or "
+            $EntraIDDevices = Get-MgBetaDevice -Filter $Filter -All
+            $CompareEntraIDJoin = Compare-Object -ReferenceObject $Machines.Name -DifferenceObject $EntraIDDevices.DisplayName
+            #endregion
+
+            #Azure Arc Onboarding
+            $ConnectedMachines = foreach ($MachineName in $Machines.Name) {
+                $Parameters = @{
+                    ResourceGroupName = $ResourceGroup.ResourceGroupName
+                    Name = $MachineName
+                }
+                #Connecting
+                Get-AzConnectedMachine @Parameters
+            }
+            $CompareAzureArcOnBoarding = Compare-Object -ReferenceObject $Machines.Name -DifferenceObject $ConnectedMachines.Name
+            #endregion
+        } While (($null -eq $ConnectedMachines) -or ($null -eq $EntraIDDevices) -or ($null -ne $CompareEntraIDJoin) -or ($null -ne $CompareAzureArcOnBoarding))
+        #endregion
 
         #region Azure Portal Checking
         #region Checking the registration of Devices in EntraID
@@ -395,8 +421,11 @@ Write-Host -Object "``r``nDone ..." -ForegroundColor Green
         #endregion 
         #endregion
 
+
         #region RBAC Assignments
         #region "Virtual Machine User Login"
+        <#
+        #region Azure Arc Server Scope
         $ConnectedMachines = Get-AzConnectedMachine -ResourceGroupName $ResourceGroup.ResourceGroupName | Where-Object -FilterScript { $_.Name -in $Machines.Name}
         $RoleDefinition = Get-AzRoleDefinition -Name "Virtual Machine User Login"
         $AzADGroup = Get-AzADGroup -DisplayName "AVD Users"
@@ -415,6 +444,28 @@ Write-Host -Object "``r``nDone ..." -ForegroundColor Green
                 Write-Warning -Message "The RBAC Assignment '$($Parameters.RoleDefinitionName)' for '$($Parameters.ObjectId)' on '$($Parameters.Scope)' already exists"
             }
         }
+        #endregion
+        #>
+        #region Resource Group Scope
+        $RoleDefinition = Get-AzRoleDefinition -Name "Virtual Machine User Login"
+        $AzADGroup = Get-AzADGroup -DisplayName "AVD Users"
+
+        $Parameters = @{
+            ObjectId           = $AzADGroup.Id
+            RoleDefinitionName = $RoleDefinition.Name
+            Scope              = $ResourceGroup.ResourceId
+            #Verbose            = $true
+        }
+
+        while (-not(Get-AzRoleAssignment @Parameters)) {
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' Scope"
+            $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+            $Seconds = 30
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds Seconds"
+            Start-Sleep -Seconds $Seconds
+        }
+        #endregion
         #endregion
         #endregion
     }
