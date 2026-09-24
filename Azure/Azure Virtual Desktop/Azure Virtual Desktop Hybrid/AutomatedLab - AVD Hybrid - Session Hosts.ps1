@@ -371,6 +371,7 @@ Write-Host -Object "``r``nDone ..." -ForegroundColor Green
             #region EntraID Join
             $Filter = ($Machines.Name | ForEach-Object -Process { "displayName eq '$_'" }) -join " or "
             $EntraIDDevices = Get-MgBetaDevice -Filter $Filter -All
+            #Will be null if all the machines are EntraID joined
             $CompareEntraIDJoin = Compare-Object -ReferenceObject $Machines.Name -DifferenceObject $EntraIDDevices.DisplayName
             #endregion
 
@@ -383,6 +384,7 @@ Write-Host -Object "``r``nDone ..." -ForegroundColor Green
                 #Connecting
                 Get-AzConnectedMachine @Parameters
             }
+            #Will be null if all the machines are onboarded on Azure Arc
             $CompareAzureArcOnBoarding = Compare-Object -ReferenceObject $Machines.Name -DifferenceObject $ConnectedMachines.Name
             #endregion
         } While (($null -eq $ConnectedMachines) -or ($null -eq $EntraIDDevices) -or ($null -ne $CompareEntraIDJoin) -or ($null -ne $CompareAzureArcOnBoarding))
