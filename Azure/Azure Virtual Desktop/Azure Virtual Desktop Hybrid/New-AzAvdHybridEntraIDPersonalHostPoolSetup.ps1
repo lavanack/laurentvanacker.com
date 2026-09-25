@@ -49,7 +49,11 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
     $DigitNumber = 3
     Do {
         $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
-        $HostPoolName = "hp-pd-ei-hyb-mp-{0}-{1:D3}" -f $LocationShortName, $Instance
+        $HostPoolName = "hp-pd-ei-hybrid-demo-{0}-{1:D3}" -f $LocationShortName, $Instance
+        <#
+        $Instance = 1
+        $HostPoolName = "hp-avdhybrid-demo-{0}-{1:D3}" -f $LocationShortName, $Instance
+        #>
         $LogAnalyticsWorkSpaceName = "log{0}" -f $($HostPoolName -replace "\W")
         $ResourceGroupName = "{0}-{1}" -f $ResourceGroupNamePrefix, $HostPoolName
     } while (Get-AzResourceGroup -ResourceGroupName $ResourceGroupName -ErrorAction Ignore)
