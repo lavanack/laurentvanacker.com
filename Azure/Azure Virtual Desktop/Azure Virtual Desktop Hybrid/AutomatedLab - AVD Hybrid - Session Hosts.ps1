@@ -252,7 +252,7 @@ foreach ($Machine in $Machines) {
 
 #region Host Pool Management
 #Getting dedicated ResourceGroup
-$ResourceGroup = Get-AzResourceGroup -Name rg-hp-pd-ei-hyb-mp-*
+$ResourceGroup = Get-AzResourceGroup -Name rg-hp-pd-ei-hybrid-demo-*
 if ($ResourceGroup) {
     if ($ResourceGroup.count -gt 1) {
         $ResourceGroup = $ResourceGroup | Out-GridView -OutputMode Single
@@ -372,7 +372,12 @@ Write-Host -Object "``r``nDone ..." -ForegroundColor Green
             $Filter = ($Machines.Name | ForEach-Object -Process { "displayName eq '$_'" }) -join " or "
             $EntraIDDevices = Get-MgBetaDevice -Filter $Filter -All
             #Will be null if all the machines are EntraID joined
-            $CompareEntraIDJoin = Compare-Object -ReferenceObject $Machines.Name -DifferenceObject $EntraIDDevices.DisplayName
+            if ($EntraIDDevices) {
+                $CompareEntraIDJoin = Compare-Object -ReferenceObject $Machines.Name -DifferenceObject $EntraIDDevices.DisplayName
+            }
+            else {
+                $CompareEntraIDJoin = $null
+            }
             #endregion
 
             #Azure Arc Onboarding
@@ -382,10 +387,15 @@ Write-Host -Object "``r``nDone ..." -ForegroundColor Green
                     Name = $MachineName
                 }
                 #Connecting
-                Get-AzConnectedMachine @Parameters
+                Get-AzConnectedMachine @Parameters -ErrorAction Ignore
             }
             #Will be null if all the machines are onboarded on Azure Arc
-            $CompareAzureArcOnBoarding = Compare-Object -ReferenceObject $Machines.Name -DifferenceObject $ConnectedMachines.Name
+            if ($ConnectedMachines) {
+                $CompareAzureArcOnBoarding = Compare-Object -ReferenceObject $Machines.Name -DifferenceObject $ConnectedMachines.Name
+            }
+            else {
+                $CompareAzureArcOnBoarding = $null
+            }
             #endregion
         } While (($null -eq $ConnectedMachines) -or ($null -eq $EntraIDDevices) -or ($null -ne $CompareEntraIDJoin) -or ($null -ne $CompareAzureArcOnBoarding))
         #endregion
@@ -397,7 +407,6 @@ Write-Host -Object "``r``nDone ..." -ForegroundColor Green
 
         #region Checking the registration of the Azure Arc Machines
         Start-Process "https://portal.azure.com/#servicemenu/Microsoft_Azure_ArcCenterUX/AzureArcCenterHub/servers"
-        #endregion 
         #endregion 
         #endregion 
 
