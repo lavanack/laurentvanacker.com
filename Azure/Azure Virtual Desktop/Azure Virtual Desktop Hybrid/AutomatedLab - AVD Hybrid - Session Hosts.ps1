@@ -400,6 +400,7 @@ Write-Host -Object "``r``nDone ..." -ForegroundColor Green
         } While (($null -eq $ConnectedMachines) -or ($null -eq $EntraIDDevices) -or ($null -ne $CompareEntraIDJoin) -or ($null -ne $CompareAzureArcOnBoarding))
         #endregion
 
+     
         #region Azure Portal Checking
         #region Checking the registration of Devices in EntraID
         Start-Process "https://portal.azure.com/#view/Microsoft_AAD_Devices/DevicesList.ReactView/mezzoEnabled~/true"
@@ -423,11 +424,27 @@ Write-Host -Object "``r``nDone ..." -ForegroundColor Green
 
         #Installing the CloudDevice Extension
         foreach($Machine in $Machines) {
-            Write-Host "Install the CloudDevice Extension on '$($Machine.Name)' ..."
+            Write-Host "Installing the CloudDevice Extension on '$($Machine.Name)' ..."
             New-AzConnectedMachineExtension -Name 'Microsoft.AzureVirtualDesktop.CloudDeviceExtension' -ResourceGroupName $ResourceGroup.ResourceGroupName -MachineName $Machine.Name -Location $Location -Publisher 'Microsoft.AzureVirtualDesktop' -ExtensionType 'CloudDeviceExtension' -Setting $settings -ProtectedSetting $protectedSettings -verbose
+            Write-Host "Checking the CloudDevice Extension on '$($Machine.Name)' ..."
             Get-AzConnectedMachineExtension -ResourceGroupName $ResourceGroup.ResourceGroupName -MachineName $Machine.Name -Name 'Microsoft.AzureVirtualDesktop.CloudDeviceExtension'
+            Start-Process $("https://portal.azure.com/#@{0}/resource/subscriptions/{1}/resourceGroups/{2}/providers/Microsoft.HybridCompute/machines/{3}/extensions" -f $((Get-AzTenant).Domains[-1]), $SubscriptionId, $PersonalHostPool.ResourceGroupName, $Machine.Name)
         }
+
         #region Checking status of the Session Hosts
+        Do {
+            $Seconds = 30
+            Start-Sleep -Seconds $Seconds
+            $SessionHosts = Get-AzWvdSessionHost -ResourceGroupName $PersonalHostPool.ResourceGroupName -HostPoolName $PersonalHostPool.Name
+            if ($SessionHosts) {
+                $ConnectedMachines = Get-AzConnectedMachine -ResourceGroupName $ResourceGroup.ResourceGroupName
+                $CompareConnectedMachines = Compare-Object -ReferenceObject $Machines.Name -DifferenceObject $ConnectedMachines.Name
+            }
+            else {
+                $CompareConnectedMachines = $null
+            }
+        } While (($null -eq $SessionHosts) -or ($null -ne $CompareConnectedMachines))
+
         Start-Process $("https://portal.azure.com/#@{0}/resource/subscriptions/{1}/resourceGroups/{2}/providers/Microsoft.DesktopVirtualization/hostpools/{3}" -f $((Get-AzTenant).Domains[-1]), $SubscriptionId, $PersonalHostPool.ResourceGroupName, $PersonalHostPool.Name)
         #endregion 
         #endregion
