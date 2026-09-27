@@ -252,18 +252,23 @@ foreach ($Machine in $Machines) {
 
 #region Host Pool Management
 #Getting dedicated ResourceGroup
-$ResourceGroup = Get-AzResourceGroup -Name rg-hp-pd-ei-hybrid-demo-*
-if ($ResourceGroup) {
-    if ($ResourceGroup.count -gt 1) {
-        $ResourceGroup = $ResourceGroup | Out-GridView -OutputMode Single
+$HostPoolResourceGroup = Get-AzResourceGroup -Name rg-hp-pd-ei-hybrid-demo-*
+if ($HostPoolResourceGroup) {
+    if ($HostPoolResourceGroup.count -gt 1) {
+        $HostPoolResourceGroup = $HostPoolResourceGroup | Out-GridView -OutputMode Single
     }
-    $PersonalHostPool = Get-AzWvdHostPool -ResourceGroupName $ResourceGroup.ResourceGroupName
+    $VMResourceGroupName = $HostPoolResourceGroup.ResourceGroupName -replace "-hp-", "-vm-"
+    $VMResourceGroup = Get-AzResourceGroup -Name $VMResourceGroupName -ErrorAction Ignore
+    if (-not($VMResourceGroup)) {
+        Write-Error -Message "'$VMResourceGroupName' ResourceGroup NOT found !!!" -ErrorAction Stop
+    }
+    $PersonalHostPool = Get-AzWvdHostPool -ResourceGroupName $HostPoolResourceGroup.ResourceGroupName
     if ($PersonalHostPool -and $PersonalHostPool.HostPoolType -eq 'Personal') {
         if ($PersonalHostPool.count -gt 1) {
             $PersonalHostPool = $PersonalHostPool | Out-GridView -OutputMode Single
         }
-        #$PersonalHostPool = Get-AzWvdHostPool -ResourceGroupName $ResourceGroup.ResourceGroupName | Select-Object -First 1
-        $Location = $ResourceGroup.Location
+        #$PersonalHostPool = Get-AzWvdHostPool -ResourceGroupName $HostPoolResourceGroup.ResourceGroupName | Select-Object -First 1
+        $Location = $HostPoolResourceGroup.Location
         $Context = Get-AzContext
         $SubscriptionId = $Context.Subscription.Id
         $TenantId = $Context.Tenant.Id
@@ -285,7 +290,7 @@ if (-not([String]::IsNullOrEmpty(`$MissingModules))) {
     Install-Module -Name `$MissingModules -AllowClobber -Force -Verbose 
 }
 
-`$ResourceGroupName = "$($ResourceGroup.ResourceGroupName)"
+`$VMResourceGroupName = "$($VMResourceGroup.ResourceGroupName)"
 `$SubscriptionId = "$((Get-AzContext).Subscription.Id)"
 
 #region Login to your Azure subscription.
@@ -293,12 +298,12 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount -Subscription `$SubscriptionId -UseDeviceAuthentication
 }
 
-`$Location = (Get-AzResourceGroup -ResourceGroupName `$ResourceGroupName).Location
+`$Location = (Get-AzResourceGroup -ResourceGroupName `$VMResourceGroupName).Location
 
 #region Azure Arc Join
 #removing any existing Azure Arc Hybrid Machine with the same name
 `$Parameters = @{
-    ResourceGroupName = `$ResourceGroupName
+    ResourceGroupName = `$VMResourceGroupName
     Name = `$env:COMPUTERNAME
 }
 if (Get-AzConnectedMachine @Parameters -ErrorAction Ignore) {
@@ -320,7 +325,7 @@ Get-AzConnectedMachine @Parameters
 #Connecting
 `$Parameters = @{
     Name = "aadlogin"
-    ResourceGroupName = `$ResourceGroupName
+    ResourceGroupName = `$VMResourceGroupName
     MachineName = `$env:COMPUTERNAME
     Location = `$Location
     Publisher = "Microsoft.Azure.ActiveDirectory" 
@@ -332,7 +337,7 @@ New-AzConnectedMachineExtension @Parameters
 #Checking
 `$Parameters = @{
     Name = "aadlogin"
-    ResourceGroupName = `$ResourceGroupName
+    ResourceGroupName = `$VMResourceGroupName
     MachineName = `$env:COMPUTERNAME
 }
 Get-AzConnectedMachineExtension @Parameters
@@ -383,7 +388,7 @@ Write-Host -Object "``r``nDone ..." -ForegroundColor Green
             #Azure Arc Onboarding
             $ConnectedMachines = foreach ($MachineName in $Machines.Name) {
                 $Parameters = @{
-                    ResourceGroupName = $ResourceGroup.ResourceGroupName
+                    ResourceGroupName = $VMResourceGroup.ResourceGroupName
                     Name = $MachineName
                 }
                 #Connecting
@@ -400,7 +405,6 @@ Write-Host -Object "``r``nDone ..." -ForegroundColor Green
         } While (($null -eq $ConnectedMachines) -or ($null -eq $EntraIDDevices) -or ($null -ne $CompareEntraIDJoin) -or ($null -ne $CompareAzureArcOnBoarding))
         #endregion
 
-     
         #region Azure Portal Checking
         #region Checking the registration of Devices in EntraID
         Start-Process "https://portal.azure.com/#view/Microsoft_AAD_Devices/DevicesList.ReactView/mezzoEnabled~/true"
@@ -424,77 +428,13 @@ Write-Host -Object "``r``nDone ..." -ForegroundColor Green
 
         #Installing the CloudDevice Extension
         foreach($Machine in $Machines) {
-            Write-Host "Installing the CloudDevice Extension on '$($Machine.Name)' ..."
-            New-AzConnectedMachineExtension -Name 'Microsoft.AzureVirtualDesktop.CloudDeviceExtension' -ResourceGroupName $ResourceGroup.ResourceGroupName -MachineName $Machine.Name -Location $Location -Publisher 'Microsoft.AzureVirtualDesktop' -ExtensionType 'CloudDeviceExtension' -Setting $settings -ProtectedSetting $protectedSettings -verbose
-            Write-Host "Checking the CloudDevice Extension on '$($Machine.Name)' ..."
-            Get-AzConnectedMachineExtension -ResourceGroupName $ResourceGroup.ResourceGroupName -MachineName $Machine.Name -Name 'Microsoft.AzureVirtualDesktop.CloudDeviceExtension'
-            Start-Process $("https://portal.azure.com/#@{0}/resource/subscriptions/{1}/resourceGroups/{2}/providers/Microsoft.HybridCompute/machines/{3}/extensions" -f $((Get-AzTenant).Domains[-1]), $SubscriptionId, $PersonalHostPool.ResourceGroupName, $Machine.Name)
+            Write-Host "Install the CloudDevice Extension on '$($Machine.Name)' ..."
+            New-AzConnectedMachineExtension -Name 'Microsoft.AzureVirtualDesktop.CloudDeviceExtension' -ResourceGroupName $VMResourceGroup.ResourceGroupName -MachineName $Machine.Name -Location $Location -Publisher 'Microsoft.AzureVirtualDesktop' -ExtensionType 'CloudDeviceExtension' -Setting $settings -ProtectedSetting $protectedSettings -verbose
+            Get-AzConnectedMachineExtension -ResourceGroupName $VMResourceGroup.ResourceGroupName -MachineName $Machine.Name -Name 'Microsoft.AzureVirtualDesktop.CloudDeviceExtension'
         }
-
         #region Checking status of the Session Hosts
-        Do {
-            $Seconds = 30
-            Start-Sleep -Seconds $Seconds
-            $SessionHosts = Get-AzWvdSessionHost -ResourceGroupName $PersonalHostPool.ResourceGroupName -HostPoolName $PersonalHostPool.Name
-            if ($SessionHosts) {
-                $ConnectedMachines = Get-AzConnectedMachine -ResourceGroupName $ResourceGroup.ResourceGroupName
-                $CompareConnectedMachines = Compare-Object -ReferenceObject $Machines.Name -DifferenceObject $ConnectedMachines.Name
-            }
-            else {
-                $CompareConnectedMachines = $null
-            }
-        } While (($null -eq $SessionHosts) -or ($null -ne $CompareConnectedMachines))
-
         Start-Process $("https://portal.azure.com/#@{0}/resource/subscriptions/{1}/resourceGroups/{2}/providers/Microsoft.DesktopVirtualization/hostpools/{3}" -f $((Get-AzTenant).Domains[-1]), $SubscriptionId, $PersonalHostPool.ResourceGroupName, $PersonalHostPool.Name)
         #endregion 
-        #endregion
-
-
-        #region RBAC Assignments
-        #region "Virtual Machine User Login"
-        <#
-        #region Azure Arc Server Scope
-        $ConnectedMachines = Get-AzConnectedMachine -ResourceGroupName $ResourceGroup.ResourceGroupName | Where-Object -FilterScript { $_.Name -in $Machines.Name}
-        $RoleDefinition = Get-AzRoleDefinition -Name "Virtual Machine User Login"
-        $AzADGroup = Get-AzADGroup -DisplayName "AVD Users"
-
-        foreach($ConnectedMachine in $ConnectedMachines) {
-            $Parameters = @{
-                ObjectId           = $AzADGroup.Id
-                RoleDefinitionName = $RoleDefinition.Name
-                Scope              = $ConnectedMachine.Id
-                #Verbose            = $true
-            }
-            if (-not(Get-AzRoleAssignment @Parameters)) {
-                New-AzRoleAssignment @Parameters
-            }
-            else {
-                Write-Warning -Message "The RBAC Assignment '$($Parameters.RoleDefinitionName)' for '$($Parameters.ObjectId)' on '$($Parameters.Scope)' already exists"
-            }
-        }
-        #endregion
-        #>
-        #region Resource Group Scope
-        $RoleDefinition = Get-AzRoleDefinition -Name "Virtual Machine User Login"
-        $AzADGroup = Get-AzADGroup -DisplayName "AVD Users"
-
-        $Parameters = @{
-            ObjectId           = $AzADGroup.Id
-            RoleDefinitionName = $RoleDefinition.Name
-            Scope              = $ResourceGroup.ResourceId
-            #Verbose            = $true
-        }
-
-        while (-not(Get-AzRoleAssignment @Parameters)) {
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' Scope"
-            $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-            $Seconds = 30
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds Seconds"
-            Start-Sleep -Seconds $Seconds
-        }
-        #endregion
-        #endregion
         #endregion
     }
 }

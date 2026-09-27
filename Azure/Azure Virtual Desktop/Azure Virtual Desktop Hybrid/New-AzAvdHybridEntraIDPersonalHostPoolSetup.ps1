@@ -25,7 +25,8 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
     param
     (
         [ValidateScript({ $_ -in (Get-AzLocation).Location })]
-        [string] $Location = "centralus"
+        [string] $Location = "centralus",
+        [string] $EntraIDGroupName = "AVD Users"
     )
 
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
@@ -45,7 +46,7 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
     $AzureVMNameMaxLength = $ResourceTypeShortNameHT["Compute/virtualMachines"].lengthMax
     $LocationShortName = $shortNameHT[$Location].shortName
     #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
-    $ResourceGroupNamePrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
+    $HostPoolResourceGroupNamePrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
     $DigitNumber = 3
     Do {
         $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
@@ -55,17 +56,24 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
         $HostPoolName = "hp-avdhybrid-demo-{0}-{1:D3}" -f $LocationShortName, $Instance
         #>
         $LogAnalyticsWorkSpaceName = "log{0}" -f $($HostPoolName -replace "\W")
-        $ResourceGroupName = "{0}-{1}" -f $ResourceGroupNamePrefix, $HostPoolName
-    } while (Get-AzResourceGroup -ResourceGroupName $ResourceGroupName -ErrorAction Ignore)
+        $HostPoolResourceGroupName = "{0}-{1}" -f $HostPoolResourceGroupNamePrefix, $HostPoolName
+        $VMResourceGroupName = $HostPoolResourceGroupName -replace "-hp-", "-vm-"
+    } while ((Get-AzResourceGroup -ResourceGroupName $HostPoolResourceGroupName -ErrorAction Ignore) -or (Get-AzResourceGroup -ResourceGroupName $VMResourceGroupName -ErrorAction Ignore))
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$HostPoolName: $HostPoolName"
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ResourceGroupName: $ResourceGroupName"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$HostPoolResourceGroupName: $HostPoolResourceGroupName"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VMResourceGroupName: $VMResourceGroupName"
     #endregion 
 
     #region ResourceGroup
-    $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
-    if ($null -eq $ResourceGroup) {
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the '$ResourceGroupName' ResourceGroup"
-        $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
+    $HostPoolResourceGroup = Get-AzResourceGroup -Name $HostPoolResourceGroupName -ErrorAction Ignore 
+    if ($null -eq $HostPoolResourceGroup) {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the '$HostPoolResourceGroupName' ResourceGroup"
+        $HostPoolResourceGroup = New-AzResourceGroup -Name $HostPoolResourceGroupName -Location $Location -Force
+    }
+    $VMResourceGroup = Get-AzResourceGroup -Name $VMResourceGroupName -ErrorAction Ignore 
+    if ($null -eq $VMResourceGroup) {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the '$VMResourceGroupName' ResourceGroup"
+        $VMResourceGroup = New-AzResourceGroup -Name $VMResourceGroupName -Location $Location -Force
     }
     #endregion
 
@@ -76,7 +84,7 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
         $Parameters = @{
             SignInName         = (Get-AzContext).Account.Id
             RoleDefinitionName = $RoleDefinition.Name
-            Scope              = $ResourceGroup.ResourceId
+            Scope              = $HostPoolResourceGroup.ResourceId
         }
         while (-not(Get-AzRoleAssignment @Parameters)) {
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
@@ -94,7 +102,7 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
         $Parameters = @{
             SignInName         = (Get-AzContext).Account.Id
             RoleDefinitionName = $RoleDefinition.Name
-            Scope              = $ResourceGroup.ResourceId
+            Scope              = $VMResourceGroup.ResourceId
         }
         while (-not(Get-AzRoleAssignment @Parameters)) {
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' Scope"
@@ -108,7 +116,7 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
     #endregion
 
     #region Log Analytics WorkSpace
-    $LogAnalyticsWorkSpace = New-AzOperationalInsightsWorkspace -Location $Location -Name $LogAnalyticsWorkSpaceName -Sku pergb2018 -ResourceGroupName $ResourceGroup.ResourceGroupName -Force
+    $LogAnalyticsWorkSpace = New-AzOperationalInsightsWorkspace -Location $Location -Name $LogAnalyticsWorkSpaceName -Sku pergb2018 -ResourceGroupName $HostPoolResourceGroup.ResourceGroupName -Force
     #endregion
 
     #region HostPool Setup
@@ -118,15 +126,15 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
         LoadBalancerType                = "Persistent"
         PreferredAppGroupType           = "Desktop"
         Location                        = $Location
-        ResourceGroupName               = $ResourceGroupName
-        WorkSpaceName                   = $ResourceGroupName -replace "^rg", "ws"
+        ResourceGroupName               = $HostPoolResourceGroupName
+        WorkSpaceName                   = $HostPoolResourceGroupName -replace "^rg", "ws"
     }
 
     $CustomRdpProperty = "enablerdsaadauth:i:1;redirectcomports:i:0;redirectlocation:i:0;redirectprinters:i:0;drivestoredirect:s:;usbdevicestoredirect:s:;"
     $Parameters = @{
         Name                  = $CurrentHostPool.Name
         FriendlyName          = "{0} (HostPool Friendly Name)" -f $CurrentHostPool.Name
-        ResourceGroupName     = $ResourceGroupName
+        ResourceGroupName     = $HostPoolResourceGroupName
         HostPoolType          = 'Personal'
         LoadBalancerType      = $CurrentHostPool.LoadBalancerType
         PreferredAppGroupType = $CurrentHostPool.PreferredAppGroupType
@@ -149,7 +157,7 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
     $Parameters = @{
         ObjectId           = $CurrentAzWvdHostPool.IdentityPrincipalId
         RoleDefinitionName = $RoleDefinition.Name
-        Scope              = $ResourceGroup.ResourceId
+        Scope              = $HostPoolResourceGroup.ResourceId
     }
     while (-not(Get-AzRoleAssignment @Parameters)) {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' ObjectId on the '$($Parameters.Scope)' Scope"
@@ -193,9 +201,10 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
     $null = Get-AzWvdDesktop @parameters | Update-AzWvdDesktop -FriendlyName $CurrentHostPool.Name
     #endregion
 
-    #region Assign 'Desktop Virtualization User' RBAC role to application groups
+    #region RBAC Assignments for the end-users
+    #region 'Desktop Virtualization User' RBAC Assignment
     # Get the object ID of the user group you want to assign to the application group
-    $EntraIDGroup = Get-AzADGroup -DisplayName "AVD Users"
+    $EntraIDGroup = Get-AzADGroup -DisplayName $EntraIDGroupName
 
     if ($EntraIDGroup) {
         $ObjectId = $EntraIDGroup.Id
@@ -225,6 +234,7 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
     }
     #endregion
     #endregion 
+    #endregion
 
     #region Enabling Diagnostics Setting for the Desktop Application Group
     $Log = New-AzDiagnosticSettingLogSettingsObject -Enabled $true -CategoryGroup allLogs 
@@ -254,6 +264,29 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
     #region Enabling Diagnostics Setting for the WorkSpace
     $Log = New-AzDiagnosticSettingLogSettingsObject -Enabled $true -CategoryGroup allLogs 
     $WorkSpaceDiagnosticSetting = New-AzDiagnosticSetting -Name $CurrentAzWvdWorkspace.Name -ResourceId $CurrentAzWvdWorkspace.Id -WorkspaceId $LogAnalyticsWorkSpace.ResourceId -Log $Log
+    #endregion
+    #endregion
+
+    #region RBAC Assignments for the end-users
+    #region "Virtual Machine User Login"
+    $RoleDefinition = Get-AzRoleDefinition -Name "Virtual Machine User Login"
+    $EntraIDGroup = Get-AzADGroup -DisplayName $EntraIDGroupName
+
+    $Parameters = @{
+        ObjectId           = $EntraIDGroup.Id
+        RoleDefinitionName = $RoleDefinition.Name
+        Scope              = $VMResourceGroup.ResourceId
+        #Verbose            = $true
+    }
+
+    while (-not(Get-AzRoleAssignment @Parameters)) {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' Scope"
+        $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+        $Seconds = 30
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds Seconds"
+        Start-Sleep -Seconds $Seconds
+    }
     #endregion
     #endregion
 
