@@ -153,7 +153,7 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
     $Parameters = @{
         ObjectId           = $CurrentAzWvdHostPool.IdentityPrincipalId
         RoleDefinitionName = $RoleDefinition.Name
-        Scope              = $HostPoolResourceGroup.ResourceId
+        Scope              = $VMResourceGroup.ResourceId
     }
     while (-not(Get-AzRoleAssignment @Parameters)) {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' ObjectId on the '$($Parameters.Scope)' Scope"
