@@ -80,37 +80,33 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
     #region RBAC Assignments for myself
     #region 'Desktop Virtualization Contributor' RBAC Assignment
     $RoleDefinition = Get-AzRoleDefinition -Name "Desktop Virtualization Contributor"
-    foreach ($Scope in $Scopes) {
-        $Parameters = @{
-            SignInName         = (Get-AzContext).Account.Id
-            RoleDefinitionName = $RoleDefinition.Name
-            Scope              = $HostPoolResourceGroup.ResourceId
-        }
-        while (-not(Get-AzRoleAssignment @Parameters)) {
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
-            $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
-            Start-Sleep -Seconds 30
-        }
+    $Parameters = @{
+        SignInName         = (Get-AzContext).Account.Id
+        RoleDefinitionName = $RoleDefinition.Name
+        Scope              = $HostPoolResourceGroup.ResourceId
+    }
+    while (-not(Get-AzRoleAssignment @Parameters)) {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
+        $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+        Start-Sleep -Seconds 30
     }
     #endregion 
 
     #region 'Azure Connected Machine Onboarding' RBAC Assignment
     $RoleDefinition = Get-AzRoleDefinition -Name "Azure Connected Machine Onboarding"
-    foreach ($Scope in $Scopes) {
-        $Parameters = @{
-            SignInName         = (Get-AzContext).Account.Id
-            RoleDefinitionName = $RoleDefinition.Name
-            Scope              = $VMResourceGroup.ResourceId
-        }
-        while (-not(Get-AzRoleAssignment @Parameters)) {
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' Scope"
-            $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
-            Start-Sleep -Seconds 30
-        }
+    $Parameters = @{
+        SignInName         = (Get-AzContext).Account.Id
+        RoleDefinitionName = $RoleDefinition.Name
+        Scope              = $VMResourceGroup.ResourceId
+    }
+    while (-not(Get-AzRoleAssignment @Parameters)) {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' Scope"
+        $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+        Start-Sleep -Seconds 30
     }
     #endregion 
     #endregion
