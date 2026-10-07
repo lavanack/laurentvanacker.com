@@ -195,7 +195,7 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
-$ResourceGroupName = "rg-az-local-*"
+$ResourceGroupName = "hp-np-ei-azlocal-demo-*"
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName
 if ($ResourceGroup) {
     if ($ResourceGroup.count -gt 1) {
