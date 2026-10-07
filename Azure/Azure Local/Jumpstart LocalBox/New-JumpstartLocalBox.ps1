@@ -18,7 +18,7 @@ of the Sample Code.
 
 #Prerequisite: https://jumpstart.azure.com/azure_jumpstart_localbox/deployment_az
 
-#requires -Version 5 #-Modules Az.Accounts, Az.Compute, Az.Quota, Az.Resources, Az.StackHCI
+#requires -Version 5 #-Modules Az.Accounts, Az.Compute, Az.Quota, Az.Resources, Az.StackHCI, Az.StackHCIVM
 [CmdletBinding(PositionalBinding = $false)]
 param
 (
@@ -444,8 +444,8 @@ function New-JumpstartLocalBox {
         [string] $windowsAdminUsername = $env:USERNAME,
         [Parameter(ParameterSetName = 'WindowsAdmin')]
         [string] $windowsAdminPassword = $(New-RandomPassword -Online -ClipBoard),
-        [Parameter(ParameterSetName = 'Credential')]
-        [PSCredential] $Credential = $(New-RandomPassword -Online -ClipBoard),
+        [Parameter(Mandatory=$True, ParameterSetName = 'Credential')]
+        [PSCredential] $Credential,
         [string] $logAnalyticsWorkspaceName = 'LocalBox-Workspace',
         [string] $natDNS = '8.8.8.8',
         [string] $githubAccount = 'microsoft',
@@ -473,7 +473,7 @@ function New-JumpstartLocalBox {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$azureLocalInstanceLocation: $azureLocalInstanceLocation"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$location: $location"
 
-    #region Credential Ma,agement
+    #region Credential Management
     if ($Credential) {
         $windowsAdminUsername = $Credential.UserName
         $windowsAdminPassword = $Credential.GetNetworkCredential().Password
@@ -562,7 +562,7 @@ param tags = $(($tags | ConvertTo-Json).Replace('"', "'"))
         return [PSCustomObject]@{Succeeded = $false; ResourceGroupName = $null; Location = $location}
     }
     else {
-        #region DN Name Setup
+        #region DNS Name Setup
         $VMName = "LocalBox-Client"
         $VM = Get-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
         $NIC = Get-AzNetworkInterface -ResourceId $VM.NetworkProfile.NetworkInterfaces[0].Id
@@ -570,7 +570,7 @@ param tags = $(($tags | ConvertTo-Json).Replace('"', "'"))
         $PublicIp = Get-AzPublicIpAddress -ResourceGroupName ($PublicIpId -split '/')[4] -Name ($PublicIpId -split '/')[-1]
         Do {
             $RandomString = ((New-Guid).Guid -replace "\W").Substring(0,8)
-            $DomainNameLabel = $("{0}-{1}-{2}" -f $VMName, $Instance).ToLower(), $RandomString
+            $DomainNameLabel = $("{0}-{1}-{2}" -f $VMName, $Instance, $RandomString).ToLower()
             $FQDN = $("{0}.{1}.cloudapp.azure.com" -f $DomainNameLabel, $Location).ToLower()
         } While ($null -ne $(Resolve-DnsName $FQDN -ErrorAction Ignore))
         $PublicIP.DnsSettings = @{
@@ -637,6 +637,440 @@ param tags = $(($tags | ConvertTo-Json).Replace('"', "'"))
         return [PSCustomObject]@{Succeeded = $true; ResourceGroupName = $ResourceGroupName; Location = $location}
     }
 }
+
+function Wait-AzConnectedMachine {
+    [CmdletBinding(PositionalBinding = $false)]
+    param
+    (
+        [Parameter(Mandatory = $True)]
+        [ValidateNotNull()]
+        [string] $ResourceGroupName
+    )
+
+    $ResourceGroup = Get-AzResourceGroup -ResourceGroupName $ResourceGroupName -ErrorAction Ignore
+    if (-not($ResourceGroup)) {
+        Write-Error -Message "the '$ResourceGroupName' ResourceGroup doesn't exist !!!" -ErrorAction Stop
+    }
+
+    #region From https://jumpstart.azure.com/azure_jumpstart_localbox/cloud_deployment#azure-local-instance-validation-and-deployment-from-the-azure-portal
+    #region Waiting AzLHOST1 and AzLHOST2 have been created as Arc-enabled servers.
+    $ReferenceObject = "AzLHOST1", "AzLHOST2"
+    Do {
+        $Seconds = 300
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds seconds ..."
+        Start-Sleep -Seconds $Seconds
+        $AzureArcMachines = Get-AzConnectedMachine -ResourceGroupName $ResourceGroupName
+        #If not the same one(s)
+        if ($AzureArcMachines) {
+            $Compare = Compare-Object -ReferenceObject $ReferenceObject -DifferenceObject $AzureArcMachines
+        }
+        else {
+            $Compare = $null
+        }
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Compare: $($Compare | Out-String)"
+    } While (-not($Compare))
+    Write-Host -Object "$($ReferenceObject -join ',') Azure Arc Machines Created ..." -ForegroundColor Green
+    #endregion 
+
+    <#
+    #region Waiting localcluster deployments end - v1
+    Do {
+        $Seconds = 600
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds seconds ..."
+        Start-Sleep -Seconds $Seconds
+        $RunningDeployments = Get-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName | Where-Object -FilterScript {$_.ProvisioningState -match "ing$"}
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Compare: $($RunningDeployments | Out-String)"
+    } While ($RunningDeployments)
+    Write-Host -Object "No more running Azure ResourceGroup Deployment(s) ..." -ForegroundColor Green
+    #endregion 
+    #>
+
+    #region Waiting localcluster deployments end - v2
+    $ClusterName = "localboxcluster"
+    $ResourceGroup = Get-AzResourceGroup -ResourceGroupName $Result.ResourceGroupName -Location  $Result.Location
+    Do {
+        $Seconds = 300
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds seconds ..."
+        Start-Sleep -Seconds $Seconds
+        #region Azure Local resource
+        <#
+        $ClusterResourceId = @(
+            $ResourceGroup.ResourceId
+            "providers/Microsoft.AzureStackHCI/clusters/$ClusterName"
+        ) -join "/"
+
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ClusterResourceId: $ClusterResourceId)"
+        $Cluster = Get-AzResource -ResourceId $ClusterResourceId -ExpandProperties -ErrorAction Ignore
+        #>
+        $Cluster = Get-AzStackHciCluster -ResourceGroupName $ResourceGroup.ResourceGroupName -ClusterName $ClusterName
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Cluster: $($Cluster | Out-String)"
+        #endregion
+    } While (($null -eq $Cluster) -or ($Cluster.Properties.provisioningState -ne "Succeeded") -or ($Cluster.Properties.connectivityStatus -ne "Connected"))
+    Write-Host -Object "'$ClusterResourceId' Connectivity Status: $($Cluster.Properties.connectivityStatus) ..."
+    #endregion 
+    #endregion
+}
+
+function Set-LocalClusterInsightSetup {
+    [CmdletBinding(PositionalBinding = $false)]
+    param
+    (
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string] $ResourceGroupName,
+
+        [ValidateNotNullOrEmpty()]
+        [string] $ClusterName = "localboxcluster",
+
+        [ValidateNotNullOrEmpty()]
+        [string] $LogAnalyticsWorkSpaceName = "LocalBox-Workspace",
+
+        [ValidateNotNullOrEmpty()]
+        [string[]] $NodeName = @("AzLHOST1", "AzLHOST2")
+    )
+
+    $ResourceGroup = Get-AzResourceGroup -ResourceGroupName $ResourceGroupName -ErrorAction Ignore
+    if (-not($ResourceGroup)) {
+        Write-Error -Message "The '$ResourceGroupName' ResourceGroup doesn't exist !!!" -ErrorAction Stop
+    }
+
+    #region Building an Hashtable to get the shortname of every Azure resource based on a JSON file on the Github repository of the Azure Naming Tool
+    $Result = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/refs/heads/main/src/repository/resourcetypes.json 
+    $ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -in @('', 'Windows') } | Select-Object -Property resource, shortName, lengthMax | Group-Object -Property resource -AsHashTable -AsString
+    #endregion
+
+    #region Variables
+    $SubscriptionId = (Get-AzContext).Subscription.Id
+    $ClusterName = "localboxcluster"
+    $LogAnalyticsWorkSpaceName = "LocalBox-Workspace"
+    $LADestinationDestinationName = "LogAnalyticsWorkspace"
+    $Location = $ResourceGroup.Location
+    $ResourceGroupNamePrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
+
+    $DataCollectionRuleName = $ResourceGroup.ResourceGroupName -replace $ResourceGroupNamePrefix, "AzureStackHCI-dcr"
+    $DataCollectionEndpointName = $ResourceGroup.ResourceGroupName -replace $ResourceGroupNamePrefix, "dce"
+
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SubscriptionId: $SubscriptionId"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Location: $Location"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DataCollectionRuleName: $DataCollectionRuleName"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DataCollectionEndpointName: $DataCollectionEndpointName"
+    #endregion
+
+    #region Azure Local resource
+    $Cluster = Get-AzStackHciCluster -ResourceGroupName $ResourceGroup.ResourceGroupName -ClusterName $ClusterName -ErrorAction Ignore
+    if (-not($Cluster)) {
+        Write-Error -Message "The '$ClusterName' Azure Local cluster doesn't exist in the '$($ResourceGroup.ResourceGroupName)' ResourceGroup !!!" -ErrorAction Stop
+    }
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Cluster: $($Cluster | Out-String)"
+    #endregion
+
+    #region Log Analytics Workspace
+    $Parameters = @{
+        ResourceGroupName = $ResourceGroup.ResourceGroupName
+        Name              = $LogAnalyticsWorkSpaceName
+    }
+    $LogAnalyticsWorkSpace = Get-AzOperationalInsightsWorkspace @Parameters -ErrorAction Ignore
+    if (-not($LogAnalyticsWorkSpace)) {
+        Write-Error -Message "The '$LogAnalyticsWorkSpaceName' Log Analytics Workspace doesn't exist in the '$($ResourceGroup.ResourceGroupName)' ResourceGroup !!!" -ErrorAction Stop
+    }
+    $LADestinationName = $LogAnalyticsWorkSpace.Name
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$LogAnalyticsWorkSpace: $($LogAnalyticsWorkSpace | Out-String)"
+    #endregion
+
+    #region Azure Local nodes (Azure Arc machines)
+    # Only the Azure Local nodes are targeted: the Resource Group can also contain Azure Local VMs (also Microsoft.HybridCompute/machines).
+    $AzureArcMachines = @(Get-AzConnectedMachine -ResourceGroupName $ResourceGroup.ResourceGroupName | Where-Object -FilterScript { $_.Name -in $NodeName })
+    $MissingNodes = @($NodeName | Where-Object -FilterScript { $_ -notin $AzureArcMachines.Name })
+    if ($MissingNodes.Count -gt 0) {
+        Write-Error -Message "The following Azure Arc machine(s) were not found in the '$($ResourceGroup.ResourceGroupName)' ResourceGroup: $($MissingNodes -join ', ') !!!" -ErrorAction Stop
+    }
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Azure Local nodes: $($AzureArcMachines.Name -join ', ')"
+    #endregion
+
+    #region Installing Azure Monitor Windows Agent on the Azure Local nodes
+    $Jobs = foreach ($AzureArcMachine in $AzureArcMachines) {
+        $InstalledExtension = Get-AzConnectedMachineExtension -ResourceGroupName $ResourceGroup.ResourceGroupName -MachineName $AzureArcMachine.Name | Where-Object -FilterScript { $_.Name -match "AzureMonitorWindowsAgent" } | Select-Object -First 1
+        if (-not($InstalledExtension)) {
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Installing 'AzureMonitorWindowsAgent' extension on the '$($AzureArcMachine.Name)' Azure Arc Machine (in the '$($ResourceGroup.ResourceGroupName)' Resource Group) (As A Job)"
+            $ExtensionName = "AzureMonitorWindowsAgent_{0:yyyyMMddHHmmss}" -f (Get-Date)
+            $Parameters = @{
+                Name                   = $ExtensionName
+                ExtensionType          = 'AzureMonitorWindowsAgent'
+                Publisher              = 'Microsoft.Azure.Monitor'
+                MachineName            = $AzureArcMachine.Name
+                ResourceGroupName      = $ResourceGroup.ResourceGroupName
+                Location               = $AzureArcMachine.Location
+                TypeHandlerVersion     = '1.0'
+                EnableAutomaticUpgrade = $true
+                AsJob                  = $true
+            }
+            Set-AzConnectedMachineExtension @Parameters
+        }
+        else {
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The '$($InstalledExtension.Name)' extension is already installed on the '$($AzureArcMachine.Name)' Azure Arc Machine (in the '$($ResourceGroup.ResourceGroupName)' Resource Group)"
+        }
+    }
+
+    if ($Jobs) {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Waiting all jobs completes"
+        $null = $Jobs | Wait-Job
+        $FailedJobs = @($Jobs | Where-Object -FilterScript { $_.State -ne "Completed" })
+        $null = $Jobs | Receive-Job -Wait -AutoRemoveJob
+        if ($FailedJobs.Count -gt 0) {
+            Write-Error -Message "$($FailedJobs.Count) 'AzureMonitorWindowsAgent' installation job(s) failed !!!" -ErrorAction Stop
+        }
+    }
+    #endregion
+
+    #region Data Collection Endpoint
+    $Parameters = @{
+        ResourceGroupName = $ResourceGroup.ResourceGroupName
+        Name              = $DataCollectionEndpointName
+    }
+    $DataCollectionEndpoint = Get-AzDataCollectionEndpoint @Parameters -ErrorAction Ignore
+
+    if (-not($DataCollectionEndpoint)) {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the '$DataCollectionEndpointName' Data Collection Endpoint"
+        $Parameters['Location'] = $Location
+        $Parameters['NetworkAclsPublicNetworkAccess'] = "Enabled"
+        $DataCollectionEndpoint = New-AzDataCollectionEndpoint @Parameters
+    }
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DataCollectionEndpoint: $($DataCollectionEndpoint | Out-String)"
+    #endregion
+
+    #region Data Collection Rule
+    #region Performance Counters
+    $Parameters = @{
+        Name                      = "perfCounterDataSource"
+        Stream                    = @("Microsoft-Perf")
+        SamplingFrequencyInSecond = 10
+        CounterSpecifier          = @(
+            "\Memory\Available Bytes"
+            "\Network Interface(*)\Bytes Total/sec"
+            "\Processor(_Total)\% Processor Time"
+            "\RDMA Activity(*)\RDMA Inbound Bytes/sec"
+            "\RDMA Activity(*)\RDMA Outbound Bytes/sec"
+        )
+    }
+    $PerformanceCounter = New-AzPerfCounterDataSourceObject @Parameters
+    #endregion
+
+    #region Windows Event Logs
+    $Parameters = @{
+        Name       = "eventLogsDataSource"
+        Stream     = @("Microsoft-Event")
+        XPathQuery = @(
+            "Microsoft-Windows-SDDC-Management/Operational!*[System[(EventID=3000 or EventID=3001 or EventID=3002 or EventID=3003 or EventID=3004)]]"
+            "Microsoft-Windows-Health/Operational!*"
+        )
+    }
+    $WindowsEventLog = New-AzWindowsEventLogDataSourceObject @Parameters
+    #endregion
+
+    #region LogAnalyticsWorkSpace destination
+    $Parameters = @{
+        Name                = $LADestinationName
+        WorkspaceResourceId = $LogAnalyticsWorkSpace.ResourceId
+    }
+    $DestinationLogAnalytic = New-AzLogAnalyticsDestinationObject @Parameters
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DestinationLogAnalytic: $($DestinationLogAnalytic | Out-String)"
+    #endregion
+
+    #region DataFlows (the destination name MUST match the destination object name)
+    $Parameters = @{
+        Stream      = @("Microsoft-Perf")
+        Destination = @($LADestinationName)
+    }
+    $PerfDataFlow = New-AzDataFlowObject @Parameters
+
+    $Parameters = @{
+        Stream      = @("Microsoft-Event")
+        Destination = @($LADestinationName)
+    }
+    $EventDataFlow = New-AzDataFlowObject @Parameters
+    #endregion
+
+    #region Data Collection Rule creation (only if missing)
+    $Parameters = @{
+        ResourceGroupName = $ResourceGroup.ResourceGroupName
+        Name              = $DataCollectionRuleName
+    }
+    $DataCollectionRule = Get-AzDataCollectionRule @Parameters -ErrorAction Ignore
+
+    if (-not($DataCollectionRule)) {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the '$DataCollectionRuleName' Data Collection Rule"
+        $DataCollectionRuleParameters = @{
+            Name                         = $DataCollectionRuleName
+            ResourceGroupName            = $ResourceGroup.ResourceGroupName
+            Location                     = $Location
+            SubscriptionId               = $SubscriptionId
+            DataCollectionEndpointId     = $DataCollectionEndpoint.Id
+            DataSourcePerformanceCounter = @($PerformanceCounter)
+            DataSourceWindowsEventLog    = @($WindowsEventLog)
+            DestinationLogAnalytic       = @($DestinationLogAnalytic)
+            DataFlow                     = @(
+                $PerfDataFlow
+                $EventDataFlow
+            )
+        }
+        $DataCollectionRule = New-AzDataCollectionRule @DataCollectionRuleParameters
+    }
+    elseif ($DataCollectionRule.DataCollectionEndpointId -ne $DataCollectionEndpoint.Id) {
+        Write-Warning -Message "The existing '$DataCollectionRuleName' Data Collection Rule is not linked to the '$DataCollectionEndpointName' Data Collection Endpoint (current: '$($DataCollectionRule.DataCollectionEndpointId)')."
+    }
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DataCollectionRule: $($DataCollectionRule | Out-String)"
+    #endregion
+    #endregion
+
+    #region Associate DCR with every Azure Local node
+    foreach ($AzureArcMachine in $AzureArcMachines) {
+        # Associations are listed per node (works even when no association exists yet)
+        # PowerShell -eq is case-insensitive on strings, which is what we need for Azure Resource IDs
+        $ExistingAssociation = Get-AzDataCollectionRuleAssociation -ResourceUri $AzureArcMachine.Id -ErrorAction Ignore | Where-Object -FilterScript { $_.DataCollectionRuleId -eq $DataCollectionRule.Id } | Select-Object -First 1
+
+        if ($ExistingAssociation) {
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The '$($AzureArcMachine.Name)' Azure Arc Machine is already associated with the '$($DataCollectionRule.Name)' DCR ('$($ExistingAssociation.Name)')"
+            continue
+        }
+
+        $AssociationName = "dra_{0}" -f $((New-Guid).Guid)
+        $Parameters = @{
+            ResourceUri          = $AzureArcMachine.Id
+            AssociationName      = $AssociationName
+            DataCollectionRuleId = $DataCollectionRule.Id
+        }
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Associating the '$($DataCollectionRule.Name)' DCR with the '$($AzureArcMachine.Name)' Azure Arc Machine"
+        $DataCollectionRuleAssociation = New-AzDataCollectionRuleAssociation @Parameters
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DataCollectionRuleAssociation: $($DataCollectionRuleAssociation | Out-String)"
+    }
+    #endregion
+
+    #region Final verification
+    $NonAssociatedMachines = @(
+        foreach ($AzureArcMachine in $AzureArcMachines) {
+            $Association = Get-AzDataCollectionRuleAssociation -ResourceUri $AzureArcMachine.Id -ErrorAction Ignore | Where-Object -FilterScript { $_.DataCollectionRuleId -eq $DataCollectionRule.Id }
+            if (-not($Association)) {
+                $AzureArcMachine.Name
+            }
+        }
+    )
+    if ($NonAssociatedMachines.Count -gt 0) {
+        Write-Error -Message "The '$($DataCollectionRule.Name)' DCR is not associated with: $($NonAssociatedMachines -join ', ') !!!" -ErrorAction Stop
+    }
+
+    [PSCustomObject]@{
+        Cluster                = $Cluster.Name
+        LogAnalyticsWorkSpace  = $LogAnalyticsWorkSpace.ResourceId
+        DataCollectionEndpoint = $DataCollectionEndpoint.Id
+        DataCollectionRule     = $DataCollectionRule.Id
+        Nodes                  = $AzureArcMachines.Name
+    }
+    #endregion
+}
+
+function New-VMLogicalNetwork {
+    [CmdletBinding(PositionalBinding = $false)]
+    param (
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string] $ResourceGroupName
+    )
+
+    $ScriptPath = "C:\LocalBox\Configure-VMLogicalNetwork.ps1"
+    $AzVMRunCommand = Invoke-AzVMRunCommand  -CommandId 'RunPowerShellScript' -ResourceGroupName $ResourceGroupName -VMName LocalBox-Client -ScriptString "pwsh -File '$ScriptPath'"
+    $LogicalNetworkName = "localbox-vm-lnet-vlan200"
+    $LogicalNetwork = Get-AzStackHCIVMLogicalNetwork -ResourceGroupName $ResourceGroupName -Name $LogicalNetworkName
+    if (-not($LogicalNetwork)) {
+        Write-Error -Message "The '$LogicalNetworkName' Azure Local Logical Network doesn't exist ..." -ErrorAction Stop
+    }
+    return $LogicalNetwork
+}
+
+function New-AzLocalAVDVMImage {
+    [CmdletBinding(PositionalBinding = $false)]
+    param (
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string] $ResourceGroupName
+    )
+    #From https://jumpstart.azure.com/azure_jumpstart_localbox/RB#create-virtual-machine-images-from-azure-marketplace
+    #$URN = "MicrosoftWindowsDesktop:office-365:win11-25h2-avd-m365:latest"
+    #$ImageName ="{0}-{1}" -f ($URN -split ":")[-2], $Instance
+    $CustomLocation = Get-AzResource -ResourceType "Microsoft.ExtendedLocation/customLocations" -ResourceGroupName $ResourceGroupName
+    $Location = $CustomLocation.Location
+    $PublisherName = "MicrosoftWindowsDesktop" 
+    $Offer = "office-365" 
+    $Sku = "win11-25h2-avd-m365" 
+    #Getting the latest version because 'latest' is not accepted
+    $Version = (Get-AzVMImage -Location  $Location -PublisherName $PublisherName -Offer $Offer -sku $Sku | Sort-Object -Property Version -Descending | Select-Object -First 1).Version
+    $Instance = [regex]::Match($ResourceGroupName, "\d+$").Value
+    $ImageName ="{0}-{1}-{2}" -f $Sku, $Instance, $(Get-Date -Format 'yyyyMMddHHmmss')
+    $Parameters = @{
+        Name = $ImageName
+        ResourceGroupName = $ResourceGroupName
+        Location = $Location
+        CustomLocationId = $CustomLocation.Id
+        #URN  = $URN
+        Publisher = $PublisherName
+        Offer = $Offer
+        Sku = $Sku
+        Version = $Version
+        OSType = "Windows"
+    }
+    $Image = New-AzStackHCIVMImage @Parameters
+    return $Image
+}
+
+function New-AzLocalAVDVM {
+    [CmdletBinding(PositionalBinding = $false)]
+    param (
+        [Parameter(Mandatory=$True)]
+        [ValidateNotNullOrEmpty()]
+        [PSCredential] $Credential,
+        [Parameter(Mandatory=$True)]
+        [ValidateNotNullOrEmpty()]
+        [Microsoft.Azure.PowerShell.Cmdlets.StackHCIVM.Models.MarketplaceGalleryImages] $Image,
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [Microsoft.Azure.PowerShell.Cmdlets.StackHCIVM.Models.LogicalNetworks] $LogicalNetwork
+    )
+
+    #region Building an Hashtable to get the shortname of every Azure resource based on a JSON file on the Github repository of the Azure Naming Tool
+    $Result = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/refs/heads/main/src/repository/resourcetypes.json 
+    $ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -in @('', 'Windows') } | Select-Object -Property resource, shortName, lengthMax | Group-Object -Property resource -AsHashTable -AsString
+    #endregion
+
+    #region Creating NIC
+    $NICNamePrefix = $ResourceTypeShortNameHT["Network/networkInterfaces"].ShortName
+    $VMNamePrefix = $ResourceTypeShortNameHT["Compute/virtualMachines"].ShortName
+    $Instance = [regex]::Match($LogicalNetwork.ResourceGroupName, "\d+$").Value
+    $VMName = "{0}win11avd{1}" -f $VMNamePrefix, $Instance
+    $NICName = "{0}-{1}" -f $NICNamePrefix, $VMName
+
+    $Parameters = @{
+        Name = $NICName
+        ResourceGroupName = $LogicalNetwork.ResourceGroupName
+        Location = $LogicalNetwork.Location
+        CustomLocationId = $LogicalNetwork.ExtendedLocationName
+        LogicalNetworkId = $LogicalNetwork.Id
+    }
+    $NIC = New-AzStackHCIVMNetworkInterface @Parameters
+    #endregion
+    #region Creating VM
+    $Parameters = @{
+        Name = $VMName
+        ResourceGroupName = $LogicalNetwork.ResourceGroupName
+        Location = $Image.Location
+        CustomLocationId = $Image.ExtendedLocationName
+        ImageReferenceId = $Image.Id
+        NetworkInterfaceId = $NIC.Id
+        VMSize = "Standard_D2s_v5"
+        AdminUsername = $Credential.UserName
+        AdminPassword = $Credential.Password
+    }
+    $VM = New-AzStackHCIVMVirtualMachine @Parameters
+    #endregion
+}
 #endregion
 
 #region Main Code
@@ -655,6 +1089,33 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount
 }
 #endregion
+
+#region Prerequisites
+#region Registering required Providers
+$null = Register-AzResourceProvider -ProviderNamespace "Microsoft.Attestation"
+$null = Register-AzResourceProvider -ProviderNamespace "Microsoft.AzureStackHCI"
+$null = Register-AzResourceProvider -ProviderNamespace "Microsoft.EdgeMarketPlace"
+$null = Register-AzResourceProvider -ProviderNamespace "Microsoft.ExtendedLocation"
+$null = Register-AzResourceProvider -ProviderNamespace "Microsoft.GuestConfiguration"
+$null = Register-AzResourceProvider -ProviderNamespace "Microsoft.HybridCompute"
+$null = Register-AzResourceProvider -ProviderNamespace "Microsoft.HybridConnectivity"
+$null = Register-AzResourceProvider -ProviderNamespace "Microsoft.HybridContainerService"
+$null = Register-AzResourceProvider -ProviderNamespace "Microsoft.Insights"
+$null = Register-AzResourceProvider -ProviderNamespace "Microsoft.KeyVault"
+$null = Register-AzResourceProvider -ProviderNamespace "Microsoft.Kubernetes"
+$null = Register-AzResourceProvider -ProviderNamespace "Microsoft.KubernetesConfiguration"
+$null = Register-AzResourceProvider -ProviderNamespace "Microsoft.ResourceConnector"
+$null = Register-AzResourceProvider -ProviderNamespace "Microsoft.Storage"
+$null = Register-AzResourceProvider -ProviderNamespace "Microsoft.Quota"
+#endregion
+
+#region Bicep
+try {
+    start-process bicep -ArgumentList "--version" -PassThru -NoNewWindow -ErrorAction Stop
+} catch {
+    Write-Error -Message "Bicep is mandatory. Please install it (winget install -e --id Microsoft.Bicep) ..." -ErrorAction Stop
+}
+#endregion
 #endregion
 
 <#
@@ -666,7 +1127,14 @@ $SubscriptionId = (Get-AzContext).Subscription.Id
 
 $VMSize = "Standard_E32s_v6"
 #Customize with your own path
-$BicepFileDir = "C:\Source Control\GitHub\Cloned repositories\azure_arc\azure_jumpstart_localbox\bicep"
+$GitDir = "C:\Source Control\GitHub\Cloned repositories"
+$BicepFileDir = Join-Path -Path $GitDir -ChildPath "azure_arc\azure_jumpstart_localbox\bicep"
+if (-not(Test-Path -Path $BicepFileDir -PathType Container)) {
+    $null = New-Item -Path $GitDir -ItemType Directory -Force
+    Push-Location -Path $GitDir
+    git clone https://github.com/microsoft/azure_arc.git
+    Pop-Location
+}
 
 if ($null -ne $azureLocalInstanceLocation) {
     $AzureLocalInstanceLocations = $AzureLocalInstanceLocation
@@ -682,7 +1150,7 @@ if ($null -ne $location) {
 }
 else {
     #LAW Supported Regions
-    # Intersect provider-supported display names with canonical Azure location identifiers.
+    # Intersect provider-supported display names with canoNICal Azure location identifiers.
     $LAWSupportedDisplayNameRegions = ((Get-AzResourceProvider -ProviderNamespace Microsoft.OperationalInsights).ResourceTypes | Where-Object -FilterScript { $_.ResourceTypeName -eq 'workspaces' }).Locations
     $LAWSupportedRegions = (Get-AzLocation | Where-Object { $_.Providers -contains "Microsoft.OperationalInsights" -and ($_.DisplayName -in $LAWSupportedDisplayNameRegions) }).Location | Sort-Object
 }
@@ -718,66 +1186,121 @@ foreach ($Location in $LAWSupportedRegions) {
         }
 
         if ($Result.Succeeded) {
-            #region From https://jumpstart.azure.com/azure_jumpstart_localbox/cloud_deployment#azure-local-instance-validation-and-deployment-from-the-azure-portal
-            #region Waiting AzLHOST1 and AzLHOST2 have been created as Arc-enabled servers.
-            $ReferenceObject = "AzLHOST1", "AzLHOST2"
-            Do {
-                $Seconds = 300
-                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds seconds ..."
-                Start-Sleep -Seconds $Seconds
-                $AzureArcMachines = Get-AzConnectedMachine -ResourceGroupName $Result.ResourceGroupName
-                #If not the same one(s)
-                if ($AzureArcMachines) {
-                    $Compare = Compare-Object -ReferenceObject $ReferenceObject -DifferenceObject $AzureArcMachines
-                }
-                else {
-                    $Compare = $null
-                }
-                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Compare: $($Compare | Out-String)"
-            } While (-not($Compare))
-            Write-Host -Object "$($ReferenceObject -join ',') Azure Arc Machines Created ..." -ForegroundColor Green
-            #endregion 
+            #From https://jumpstart.azure.com/azure_jumpstart_localbox/cloud_deployment
+            Wait-AzConnectedMachine -ResourceGroupName $Result.ResourceGroupName
+            
+            #From https://jumpstart.azure.com/azure_jumpstart_localbox/using_localbox
+            Set-LocalClusterInsightSetup -ResourceGroupName $Result.ResourceGroupName
+            
+            #From https://jumpstart.azure.com/azure_jumpstart_localbox/RB
+            $Image = New-AzLocalAVDVMImage -ResourceGroupName $Result.ResourceGroupName
+            $LogicalNetwork = New-VMLogicalNetwork -ResourceGroupName $Result.ResourceGroupName
+            $VM = New-AzLocalAVDVM -Credential $Credential -Image $Image -LogicalNetwork $LogicalNetwork 
 
             <#
-            #region Waiting localcluster deployments end - v1
-            Do {
-                $Seconds = 600
-                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds seconds ..."
-                Start-Sleep -Seconds $Seconds
-                $RunningDeployments = Get-AzResourceGroupDeployment -ResourceGroupName $Result.ResourceGroupName | Where-Object -FilterScript {$_.ProvisioningState -match "ing$"}
-                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Compare: $($RunningDeployments | Out-String)"
-            } While ($RunningDeployments)
-            Write-Host -Object "No more running Azure ResourceGroup Deployment(s) ..." -ForegroundColor Green
-            #endregion 
+            #region Create a logical network on your Azure Local instance
+            #From https://jumpstart.azure.com/azure_jumpstart_localbox/RB#create-a-logical-network-on-your-azure-local-instance
+            $ScriptPath = "C:\LocalBox\Configure-VMLogicalNetwork.ps1"
+            $AzVMRunCommand = Invoke-AzVMRunCommand  -CommandId 'RunPowerShellScript' -ResourceGroupName $Result.ResourceGroupName -VMName LocalBox-Client -ScriptString "pwsh -File '$ScriptPath'"
+            $LogicalNetworkName = "localbox-vm-lnet-vlan200"
+            $LogicalNetwork = Get-AzStackHCIVMLogicalNetwork -ResourceGroupName $Result.ResourceGroupName -Name $LogicalNetworkName
+            if (-not($LogicalNetwork)) {
+                Write-Error -Message "The '$LogicalNetworkName' Azure Local Logical Network doesn't exist ..." -ErrorAction Stop
+            }
+            #endregion
             #>
 
-            #region Waiting localcluster deployments end - v2
-            $ClusterName = "localboxcluster"
-            $ResourceGroup = Get-AzResourceGroup -ResourceGroupName $Result.ResourceGroupName -Location  $Result.Location
-            Do {
-                $Seconds = 300
-                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds seconds ..."
-                Start-Sleep -Seconds $Seconds
-                #region Azure Local resource
-                <#
-                $ClusterResourceId = @(
-                    $ResourceGroup.ResourceId
-                    "providers/Microsoft.AzureStackHCI/clusters/$ClusterName"
-                ) -join "/"
+            <#
+            #region Creating Virtual Machine Image(s) from Azure MarketPlace
+            #From https://jumpstart.azure.com/azure_jumpstart_localbox/RB#create-virtual-machine-images-from-azure-marketplace
+            #$URN = "MicrosoftWindowsDesktop:office-365:win11-25h2-avd-m365:latest"
+            #$ImageName ="{0}-{1}" -f ($URN -split ":")[-2], $Instance
+            $PublisherName = "MicrosoftWindowsDesktop" 
+            $Offer = "office-365" 
+            $Sku = "win11-25h2-avd-m365" 
+            #Getting the latest version because 'latest' is not accepted
+            $Version = (Get-AzVMImage -Location  $Result.Location -PublisherName $PublisherName -Offer $Offer -sku $Sku | Sort-Object -Property Version -Descending | Select-Object -First 1).Version
+            $Instance = [regex]::Match($Result.ResourceGroupName, "\d+$").Value
+            $ImageName ="{0}-{1}-{2}" -f $Sku, $Instance, $(Get-Date -Format 'yyyyMMddHHmmss')
+            $Parameters = @{
+                Name = $ImageName
+                ResourceGroupName = $Result.ResourceGroupName
+                Location = $Result.Location
+                CustomLocationId = $LogicalNetwork.ExtendedLocationName
+                #URN  = $URN
+                Publisher = $PublisherName
+                Offer = $Offer
+                Sku = $Sku
+                Version = $Version
+                OSType = "Windows"
+            }
+            $Image = New-AzStackHCIVMImage @Parameters
+            #endregion
+            #>
 
-                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ClusterResourceId: $ClusterResourceId)"
-                $Cluster = Get-AzResource -ResourceId $ClusterResourceId -ExpandProperties -ErrorAction Ignore
-                #>
-                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Cluster: $($Cluster | Out-String)"
-                $Cluster = Get-AzStackHciCluster -ResourceGroupName $ResourceGroup.ResourceGroupName -ClusterName $ClusterName
-                #endregion
-            } While (($null -eq $Cluster) -or ($Cluster.Properties.provisioningState -ne "Succeeded") -or ($Cluster.Properties.connectivityStatus -ne "Connected"))
-            Write-Host -Object "'$ClusterResourceId' Connectivity Status: $($Cluster.Properties.connectivityStatus) ..."
-            #endregion 
-            
+            <#
+            #region Creating Virtual Machine
+            #From https://jumpstart.azure.com/azure_jumpstart_localbox/RB#create-a-virtual-machine
+            #Getting the Image
+            $Parameters = @{
+                Name = $ImageName
+                ResourceGroupName = $Result.ResourceGroupName
+            }
+            $Image = Get-AzStackHCIVMImage @Parameters
+
+            #Getting the Logical Network
+            $Parameters = @{
+                Name = $LogicalNetworkName
+                ResourceGroupName = $Result.ResourceGroupName
+            }
+            $LogicalNetwork = Get-AzStackHCIVMLogicalNetwork @Parameters
+
+            #region Building an Hashtable to get the shortname of every Azure resource based on a JSON file on the Github repository of the Azure Naming Tool
+            $Result = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/refs/heads/main/src/repository/resourcetypes.json 
+            $ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -in @('', 'Windows') } | Select-Object -Property resource, shortName, lengthMax | Group-Object -Property resource -AsHashTable -AsString
             #endregion
 
+            #region Creating NIC
+            $NICNamePrefix = $ResourceTypeShortNameHT["Network/networkInterfaces"].ShortName
+            $VMNamePrefix = $ResourceTypeShortNameHT["Compute/virtualMachines"].ShortName
+            $VMName = "{0}win11avd{1}" -f $VMNamePrefix, $Instance
+            $NICName = "{0}-{1}" -f $NICNamePrefix, $VMName
+
+            $Parameters = @{
+                Name = $NICName
+                ResourceGroupName = $Result.ResourceGroupName
+                Location = $LogicalNetwork.Location
+                CustomLocationId = $LogicalNetwork.ExtendedLocationName
+                LogicalNetworkId = $LogicalNetwork.Id
+            }
+            $NIC = New-AzStackHCIVMNetworkInterface @Parameters
+            #endregion
+            #region Creating VM
+            $Parameters = @{
+                Name = $VMName
+                ResourceGroupName = $Result.ResourceGroupName
+                Location = $Image.Location
+                CustomLocationId = $Image.ExtendedLocationName
+                ImageReferenceId = $Image.Id
+                NetworkInterfaceId = $NIC.Id
+                VMSize = "Standard_D2s_v5"
+                AdminUsername = $Credential.UserName
+                AdminPassword = $Credential.Password
+            }
+            $VM = New-AzStackHCIVMVirtualMachine @Parameters
+            #endregion
+            #endregion
+            #>
+
+            #region Azure Lock on the ResourceGroup to prevent from accidental deletion
+            $null = New-AzResourceLock -LockName CanNotDelete -LockLevel CanNotDelete -ResourceGroupName $Result.ResourceGroupName -Force
+            #endregion
             break
+
+        }
+        else {
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Removing: $($Result.ResourceGroupName) ResourceGroup (As Job)..."
+            $null = Remove-AzResourceGroup -ResourceGroupName $Result.ResourceGroupName -AsJob -Force
         }
     }
     else {
@@ -787,3 +1310,4 @@ foreach ($Location in $LAWSupportedRegions) {
 
 Write-Host -Object "Done ..." -ForegroundColor Green
 #winget install --exact --id=Microsoft.Sysinternals.Suite --location "C:\Tools" --accept-package-agreements --accept-source-agreements
+#endregion
