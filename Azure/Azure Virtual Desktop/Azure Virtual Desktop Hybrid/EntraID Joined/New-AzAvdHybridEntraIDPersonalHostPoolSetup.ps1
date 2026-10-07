@@ -312,7 +312,7 @@ $Location = "centralus"
 #region Registering required Providers
 $null = Register-AzResourceProvider -ProviderNamespace Microsoft.DesktopVirtualization
 $null = Register-AzResourceProvider -ProviderNamespace Microsoft.HybridCompute
-#endregion
+$null = Register-AzResourceProvider -ProviderNamespace Microsoft.HybridConnectivity
 
 
 $Parameters = @{
