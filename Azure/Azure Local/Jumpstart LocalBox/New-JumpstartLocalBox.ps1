@@ -1017,7 +1017,12 @@ function New-AzLocalAVDVMImage {
         Version = $Version
         OSType = "Windows"
     }
-    $Image = New-AzStackHCIVMImage @Parameters
+    $null = New-AzStackHCIVMImage @Parameters
+    $Parameters = @{
+        Name = $ImageName
+        ResourceGroupName = $ResourceGroupName
+    }
+    $Image = Get-AzStackHCIVMImage @Parameters
     return $Image
 }
 
@@ -1052,21 +1057,23 @@ function New-AzLocalAVDVM {
         ResourceGroupName = $LogicalNetwork.ResourceGroupName
         Location = $LogicalNetwork.Location
         CustomLocationId = $LogicalNetwork.ExtendedLocationName
-        LogicalNetworkId = $LogicalNetwork.Id
+        SubnetName = $LogicalNetwork.Subnet.Name
     }
     $NIC = New-AzStackHCIVMNetworkInterface @Parameters
     #endregion
+
     #region Creating VM
     $Parameters = @{
         Name = $VMName
         ResourceGroupName = $LogicalNetwork.ResourceGroupName
         Location = $Image.Location
         CustomLocationId = $Image.ExtendedLocationName
-        ImageReferenceId = $Image.Id
-        NetworkInterfaceId = $NIC.Id
+        ImageName = $Image.Name
+        NicId = $NIC.Id
         VMSize = "Standard_D2s_v5"
         AdminUsername = $Credential.UserName
         AdminPassword = $Credential.Password
+        OSType = "Windows"
     }
     $VM = New-AzStackHCIVMVirtualMachine @Parameters
     #endregion
@@ -1196,101 +1203,6 @@ foreach ($Location in $LAWSupportedRegions) {
             $Image = New-AzLocalAVDVMImage -ResourceGroupName $Result.ResourceGroupName
             $LogicalNetwork = New-VMLogicalNetwork -ResourceGroupName $Result.ResourceGroupName
             $VM = New-AzLocalAVDVM -Credential $Credential -Image $Image -LogicalNetwork $LogicalNetwork 
-
-            <#
-            #region Create a logical network on your Azure Local instance
-            #From https://jumpstart.azure.com/azure_jumpstart_localbox/RB#create-a-logical-network-on-your-azure-local-instance
-            $ScriptPath = "C:\LocalBox\Configure-VMLogicalNetwork.ps1"
-            $AzVMRunCommand = Invoke-AzVMRunCommand  -CommandId 'RunPowerShellScript' -ResourceGroupName $Result.ResourceGroupName -VMName LocalBox-Client -ScriptString "pwsh -File '$ScriptPath'"
-            $LogicalNetworkName = "localbox-vm-lnet-vlan200"
-            $LogicalNetwork = Get-AzStackHCIVMLogicalNetwork -ResourceGroupName $Result.ResourceGroupName -Name $LogicalNetworkName
-            if (-not($LogicalNetwork)) {
-                Write-Error -Message "The '$LogicalNetworkName' Azure Local Logical Network doesn't exist ..." -ErrorAction Stop
-            }
-            #endregion
-            #>
-
-            <#
-            #region Creating Virtual Machine Image(s) from Azure MarketPlace
-            #From https://jumpstart.azure.com/azure_jumpstart_localbox/RB#create-virtual-machine-images-from-azure-marketplace
-            #$URN = "MicrosoftWindowsDesktop:office-365:win11-25h2-avd-m365:latest"
-            #$ImageName ="{0}-{1}" -f ($URN -split ":")[-2], $Instance
-            $PublisherName = "MicrosoftWindowsDesktop" 
-            $Offer = "office-365" 
-            $Sku = "win11-25h2-avd-m365" 
-            #Getting the latest version because 'latest' is not accepted
-            $Version = (Get-AzVMImage -Location  $Result.Location -PublisherName $PublisherName -Offer $Offer -sku $Sku | Sort-Object -Property Version -Descending | Select-Object -First 1).Version
-            $Instance = [regex]::Match($Result.ResourceGroupName, "\d+$").Value
-            $ImageName ="{0}-{1}-{2}" -f $Sku, $Instance, $(Get-Date -Format 'yyyyMMddHHmmss')
-            $Parameters = @{
-                Name = $ImageName
-                ResourceGroupName = $Result.ResourceGroupName
-                Location = $Result.Location
-                CustomLocationId = $LogicalNetwork.ExtendedLocationName
-                #URN  = $URN
-                Publisher = $PublisherName
-                Offer = $Offer
-                Sku = $Sku
-                Version = $Version
-                OSType = "Windows"
-            }
-            $Image = New-AzStackHCIVMImage @Parameters
-            #endregion
-            #>
-
-            <#
-            #region Creating Virtual Machine
-            #From https://jumpstart.azure.com/azure_jumpstart_localbox/RB#create-a-virtual-machine
-            #Getting the Image
-            $Parameters = @{
-                Name = $ImageName
-                ResourceGroupName = $Result.ResourceGroupName
-            }
-            $Image = Get-AzStackHCIVMImage @Parameters
-
-            #Getting the Logical Network
-            $Parameters = @{
-                Name = $LogicalNetworkName
-                ResourceGroupName = $Result.ResourceGroupName
-            }
-            $LogicalNetwork = Get-AzStackHCIVMLogicalNetwork @Parameters
-
-            #region Building an Hashtable to get the shortname of every Azure resource based on a JSON file on the Github repository of the Azure Naming Tool
-            $Result = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/refs/heads/main/src/repository/resourcetypes.json 
-            $ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -in @('', 'Windows') } | Select-Object -Property resource, shortName, lengthMax | Group-Object -Property resource -AsHashTable -AsString
-            #endregion
-
-            #region Creating NIC
-            $NICNamePrefix = $ResourceTypeShortNameHT["Network/networkInterfaces"].ShortName
-            $VMNamePrefix = $ResourceTypeShortNameHT["Compute/virtualMachines"].ShortName
-            $VMName = "{0}win11avd{1}" -f $VMNamePrefix, $Instance
-            $NICName = "{0}-{1}" -f $NICNamePrefix, $VMName
-
-            $Parameters = @{
-                Name = $NICName
-                ResourceGroupName = $Result.ResourceGroupName
-                Location = $LogicalNetwork.Location
-                CustomLocationId = $LogicalNetwork.ExtendedLocationName
-                LogicalNetworkId = $LogicalNetwork.Id
-            }
-            $NIC = New-AzStackHCIVMNetworkInterface @Parameters
-            #endregion
-            #region Creating VM
-            $Parameters = @{
-                Name = $VMName
-                ResourceGroupName = $Result.ResourceGroupName
-                Location = $Image.Location
-                CustomLocationId = $Image.ExtendedLocationName
-                ImageReferenceId = $Image.Id
-                NetworkInterfaceId = $NIC.Id
-                VMSize = "Standard_D2s_v5"
-                AdminUsername = $Credential.UserName
-                AdminPassword = $Credential.Password
-            }
-            $VM = New-AzStackHCIVMVirtualMachine @Parameters
-            #endregion
-            #endregion
-            #>
 
             #region Azure Lock on the ResourceGroup to prevent from accidental deletion
             $null = New-AzResourceLock -LockName CanNotDelete -LockLevel CanNotDelete -ResourceGroupName $Result.ResourceGroupName -Force
