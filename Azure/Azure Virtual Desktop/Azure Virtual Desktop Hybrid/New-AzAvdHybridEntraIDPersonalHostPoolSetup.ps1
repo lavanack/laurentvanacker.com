@@ -316,8 +316,8 @@ $null = Register-AzResourceProvider -ProviderNamespace Microsoft.HybridCompute
 
 
 $Parameters = @{
-    Location             = $Location 
-    Verbose              = $true
+    Location = $Location 
+    Verbose  = $true
 }
 $PersonalHostPool = New-AzAvdHybridEntraIDPersonalHostPoolSetup @Parameters
 #endregion

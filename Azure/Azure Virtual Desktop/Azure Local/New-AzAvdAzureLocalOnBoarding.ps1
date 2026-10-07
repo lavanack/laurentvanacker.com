@@ -37,23 +37,23 @@ param
     # All the Arc machines of the RG
     $response = Invoke-AzRestMethod -Method GET -Path "/subscriptions/$subscriptionId/resourceGroups/$ResourceGroupName/providers/Microsoft.HybridCompute/machines?api-version=2026-07-15"
 
-    $machines = ($response.Content | ConvertFrom-Json).value
-    $vms = foreach ($machine in $machines) {
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$machine : $machine'"
-        $path = "$($machine.id)/providers/Microsoft.AzureStackHCI/virtualMachineInstances?api-version=2024-01-01"
+    $CurrentVMs = ($response.Content | ConvertFrom-Json).value
+    $vms = foreach ($CurrentVM in $CurrentVMs) {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentVM : $CurrentVM'"
+        $path = "$($CurrentVM.id)/providers/Microsoft.AzureStackHCI/virtualMachineInstances?api-version=2024-01-01"
 
         try {
             $response = Invoke-AzRestMethod -Method GET -Path $path
             $instances = ($response.Content | ConvertFrom-Json).value
             foreach ($instance in $instances) {
                 [PSCustomObject]@{
-                    Name               = $machine.name
+                    Name               = $CurrentVM.name
                     LocalVMName        = $instance.properties.localVmName
-                    ResourceGroupName  = ($machine.id -split '/')[4]
-                    Location           = $machine.location
+                    ResourceGroupName  = ($CurrentVM.id -split '/')[4]
+                    Location           = $CurrentVM.location
                     CustomLocation     = $instance.extendedLocation.name
                     ProvisioningState  = $instance.properties.provisioningState
-                    MachineId          = $machine.id
+                    MachineId          = $CurrentVM.id
                     VMInstanceId       = $instance.id
                 }
             }
@@ -67,7 +67,7 @@ param
     return $vms
 }
 
-function Set-AzVMEntraIDJoin {
+function Register-AzVMEntraIDJoin {
 [CmdletBinding(PositionalBinding = $false)]
     param
     (
@@ -77,7 +77,7 @@ function Set-AzVMEntraIDJoin {
 
     begin {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
-        $settings = @{
+        $Settings = @{
             # IMPORTANT: must be present even empty
             mdmId = ""   
         }
@@ -104,7 +104,7 @@ function Set-AzVMEntraIDJoin {
                 Location = $VM.Location
                 Publisher = "Microsoft.Azure.ActiveDirectory" 
                 ExtensionType = "AADLoginForWindows" 
-                Settings = $settings
+                Settings = $Settings
             }
             New-AzConnectedMachineExtension @Parameters
 
@@ -125,6 +125,67 @@ function Set-AzVMEntraIDJoin {
     }
 
 }
+
+function Add-AzVMAVDHybridExtension {
+[CmdletBinding(PositionalBinding = $false)]
+    param
+    (
+		[Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $false)]
+        [ValidateScript({
+            $DifferenceObject = ($_.Psobject.Members | Where-Object -FilterScript { $_.MemberType -eq "NoteProperty"}).Name
+            $ReferenceObject = "Name", "Location", "ResourceGroupName"
+            #Testing if the passed VM object has a Name, Location, ResourceGroupName members
+            $Succeeded = ((Compare-Object -ReferenceObject $ReferenceObject -DifferenceObject $DifferenceObject).SideIndicator | Select-Object -Unique) -eq "=>"
+            return $Succeeded
+        })]
+        [PSCustomObject[]] $VM,
+		[Parameter(Mandatory = $True)]
+        [Microsoft.Azure.PowerShell.Cmdlets.DesktopVirtualization.Models.HostPool] $PooledHostPool
+    )
+
+    begin {
+    }
+    process {
+        foreach ($CurrentVM in $VM) {
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Processing '$($CurrentVM.Name)' ..."
+            #region checking we have at least the "Name", "Location", "ResourceGroupName" members
+            $DifferenceObject = ($CurrentVM.Psobject.Members | Where-Object -FilterScript { $_.MemberType -eq "NoteProperty"}).Name
+            $ReferenceObject = "Name", "Location", "ResourceGroupName"
+            $Succeeded = ((Compare-Object -ReferenceObject $ReferenceObject -DifferenceObject $DifferenceObject).SideIndicator | Select-Object -Unique) -eq "=>"
+            if (-not($Succeeded)) {
+                Write-Warning -Message "The following object doesn't have the Name, Location, ResourceGroupName members (We skip it):`r`n$($DifferenceObject | Out-String)"
+                continue
+            }
+            #endregion
+
+            #region Generate a host pool registration key
+            $ExpiresUtc = (Get-Date).ToUniversalTime().AddDays(1).ToString("yyyy-MM-ddTHH:mm:ss.fffffffZ")
+            $RegistrationInfo = New-AzWvdRegistrationInfo -ResourceGroupName $PooledHostPool.ResourceGroupName -HostPoolName $PooledHostPool.Name -ExpirationTime $ExpiresUtc
+            $RegistrationToken = $RegistrationInfo.Token
+            #endregion
+
+            #region Installing the CloudDevice Extension
+            # Settings
+            $settings          = @{ isCloudDevice = $false }
+            $protectedSettings = @{ registrationToken = $RegistrationToken }
+
+            #Installing the CloudDevice Extension
+            foreach($CurrentVM in $VM) {
+                Write-Host "Install the CloudDevice Extension on '$($CurrentVM.Name)' ..."
+                New-AzConnectedMachineExtension -Name 'Microsoft.AzureVirtualDesktop.CloudDeviceExtension' -ResourceGroupName $VMResourceGroup.ResourceGroupName -MachineName $CurrentVM.Name -Location $Location -Publisher 'Microsoft.AzureVirtualDesktop' -ExtensionType 'CloudDeviceExtension' -Setting $settings -ProtectedSetting $protectedSettings -verbose
+                Get-AzConnectedMachineExtension -ResourceGroupName $VMResourceGroup.ResourceGroupName -MachineName $CurrentVM.Name -Name 'Microsoft.AzureVirtualDesktop.CloudDeviceExtension'
+            }
+            #region Checking status of the Session Hosts
+            $subscriptionId = (Get-AzContext).Subscription.Id
+            Start-Process $("https://portal.azure.com/#@{0}/resource/subscriptions/{1}/resourceGroups/{2}/providers/Microsoft.DesktopVirtualization/hostpools/{3}" -f $((Get-AzTenant).Domains[-1]), $SubscriptionId, $PooledHostPool.ResourceGroupName, $PooledHostPool.Name)
+            #endregion 
+            #endregion
+        }
+    }
+    end {
+    }
+}
+
 #endregion
 
 #region Main code
@@ -153,4 +214,4 @@ if ($Cluster.count -gt 1) {
 
 
 $StackHciClusterVMs = Get-AzStackHciClusterVM -ResourceGroupName $ResourceGroup.ResourceGroupName -Verbose
-$StackHciClusterVMs | Set-AzVMEntraIDJoin -Verbose
+$StackHciClusterVMs | Register-AzVMEntraIDJoin -Verbose
