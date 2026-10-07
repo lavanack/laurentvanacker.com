@@ -20,7 +20,7 @@ of the Sample Code.
 #From https://learn.microsoft.com/en-us/azure/virtual-desktop/deploy-azure-virtual-desktop-hybrid?tabs=arcaccess-portal%2Cdeployavd-portal%2Cvalidateavd-portal
 
 #region function definitions 
-functionNew-AzLocalEntraIDAvdPooledHostPoolSetup {
+function New-AzAvdLocalEntraIDPooledHostPoolSetup {
     [CmdletBinding(PositionalBinding = $false)]
     param
     (
@@ -304,5 +304,5 @@ $Parameters = @{
     Location = $Location 
     Verbose  = $true
 }
-$PersonalHostPool =New-AzLocalEntraIDAvdPooledHostPoolSetup @Parameters
+$PersonalHostPool =New-AzAvdLocalEntraIDPooledHostPoolSetup @Parameters
 #endregion
