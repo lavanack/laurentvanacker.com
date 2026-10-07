@@ -46,7 +46,7 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
     $AzureVMNameMaxLength = $ResourceTypeShortNameHT["Compute/virtualMachines"].lengthMax
     $LocationShortName = $shortNameHT[$Location].shortName
     #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
-    $HostPoolResourceGroupNamePrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
+    $ResourceGroupNamePrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
     $DigitNumber = 3
     Do {
         $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
@@ -56,7 +56,7 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
         $HostPoolName = "hp-avdhybrid-demo-{0}-{1:D3}" -f $LocationShortName, $Instance
         #>
         $LogAnalyticsWorkSpaceName = "log{0}" -f $($HostPoolName -replace "\W")
-        $HostPoolResourceGroupName = "{0}-{1}" -f $HostPoolResourceGroupNamePrefix, $HostPoolName
+        $HostPoolResourceGroupName = "{0}-{1}" -f $ResourceGroupNamePrefix, $HostPoolName
         $VMResourceGroupName = $HostPoolResourceGroupName -replace "-hp-", "-vm-"
     } while ((Get-AzResourceGroup -ResourceGroupName $HostPoolResourceGroupName -ErrorAction Ignore) -or (Get-AzResourceGroup -ResourceGroupName $VMResourceGroupName -ErrorAction Ignore))
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$HostPoolName: $HostPoolName"
