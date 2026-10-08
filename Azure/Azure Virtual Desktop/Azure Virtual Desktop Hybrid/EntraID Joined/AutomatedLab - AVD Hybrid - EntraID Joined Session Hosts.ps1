@@ -17,6 +17,7 @@ of the Sample Code.
 #>
 #requires -Version 5 -Modules AutomatedLab, @{ ModuleName='Az.DesktopVirtualization'; RequiredVersion="5.4.6" }, Az.ConnectedMachine, @{ ModuleName='Microsoft.Graph.Beta.Identity.DirectoryManagement'; MaximumVersion="2.25.0" } -RunAsAdministrator 
 
+<#
 trap {
     Write-Host "Stopping Transcript ..."
     Stop-Transcript
@@ -26,6 +27,7 @@ trap {
     Send-ALNotification -Activity 'Lab started' -Message ('Lab deployment failed !') -Provider (Get-LabConfigurationItem -Name Notifications.SubscribedProviders)
     break
 }
+#>
 
 Import-Module -Name AutomatedLab -Verbose
 try { while (Stop-Transcript) {} } catch {}
@@ -39,9 +41,6 @@ $PreviousVerbosePreference = $VerbosePreference
 $VerbosePreference = 'SilentlyContinue'
 $PreviousErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
-$CurrentScript = $MyInvocation.MyCommand.Path
-#Getting the current directory (where this script file resides)
-$CurrentDir = Split-Path -Path $CurrentScript -Parent
 $Now = Get-Date
 $TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}.txt" -f $Now)"
 Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
@@ -252,7 +251,7 @@ foreach ($Machine in $Machines) {
 
 #region Host Pool Management
 #Getting dedicated ResourceGroup
-$HostPoolResourceGroup = Get-AzResourceGroup -Name rg-hp-pd-ei-hybrid-demo-*
+$HostPoolResourceGroup = Get-AzResourceGroup -Name rg-*-pd-ei-hybrid-demo-*
 if ($HostPoolResourceGroup) {
     if ($HostPoolResourceGroup.count -gt 1) {
         $HostPoolResourceGroup = $HostPoolResourceGroup | Out-GridView -OutputMode Single
@@ -348,7 +347,7 @@ dsregcmd /status
 Write-Host -Object "``r``nDone ..." -ForegroundColor Green
 "@
 
-        $FilePath = Join-Path -Path $env:SystemDrive -ChildPath "AzureArcOnboarding.ps1"
+        $FilePath = Join-Path -Path $env:SystemDrive -ChildPath "AzureArcOnboardingEntraIDJoin.ps1"
         Invoke-LabCommand -ActivityName 'Copying Azure Arc Onboarding Script Locally' -ComputerName $Machines -ScriptBlock {
             $using:ScriptBlockContent | Out-File -FilePath $using:FilePath
         } #-AsJob

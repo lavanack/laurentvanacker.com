@@ -47,14 +47,11 @@ function New-AzAvdLocalEntraIDPooledHostPoolSetup {
     $LocationShortName = $shortNameHT[$Location].shortName
     #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
     $ResourceGroupNamePrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
+    $HostPoolNamePrefix = $ResourceTypeShortNameHT["DesktopVirtualization/hostPools"].ShortName
     $DigitNumber = 3
     Do {
         $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
-        $HostPoolName = "hp-np-ei-azlocal-demo-{0}-{1:D3}" -f $LocationShortName, $Instance
-        <#
-        $Instance = 1
-        $HostPoolName = "hp-avdazlocal-demo-{0}-{1:D3}" -f $LocationShortName, $Instance
-        #>
+        $HostPoolName = "{0}-np-ei-azlocal-demo-{1}-{2:D3}" -f $HostPoolNamePrefix, $LocationShortName, $Instance
         $LogAnalyticsWorkSpaceName = "log{0}" -f $($HostPoolName -replace "\W")
         $HostPoolResourceGroupName = "{0}-{1}" -f $ResourceGroupNamePrefix, $HostPoolName
         $VMResourceGroupName = $HostPoolResourceGroupName -replace "-hp-", "-vm-"

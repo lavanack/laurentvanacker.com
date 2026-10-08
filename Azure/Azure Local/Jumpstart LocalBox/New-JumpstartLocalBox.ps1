@@ -19,6 +19,7 @@ of the Sample Code.
 #Prerequisite: https://jumpstart.azure.com/azure_jumpstart_localbox/deployment_az
 
 #requires -Version 5 #-Modules Az.Accounts, Az.Compute, Az.Quota, Az.Resources, Az.StackHCI, Az.StackHCIVM
+
 [CmdletBinding(PositionalBinding = $false)]
 param
 (
@@ -28,6 +29,12 @@ param
     [ValidateSet('australiaeast', 'southcentralus', 'eastus', 'westeurope', 'southeastasia', 'canadacentral', 'japaneast', 'centralindia')]
     [string[]] $azureLocalInstanceLocation
 )
+
+trap {
+    Write-Host "Stopping Transcript ..."
+    Stop-Transcript
+    break
+}
 
 
 #region function definitions 
@@ -702,7 +709,7 @@ function Wait-AzConnectedMachine {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ClusterResourceId: $ClusterResourceId)"
         $Cluster = Get-AzResource -ResourceId $ClusterResourceId -ExpandProperties -ErrorAction Ignore
         #>
-        $Cluster = Get-AzStackHciCluster -ResourceGroupName $ResourceGroup.ResourceGroupName -ClusterName $ClusterName
+        $Cluster = Get-AzStackHciCluster -ResourceGroupName $ResourceGroup.ResourceGroupName -ClusterName $ClusterName -ErrorAction Ignore
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Cluster: $($Cluster | Out-String)"
         #endregion
     } While (($null -eq $Cluster) -or ($Cluster.Properties.provisioningState -ne "Succeeded") -or ($Cluster.Properties.connectivityStatus -ne "Connected"))
@@ -1081,6 +1088,7 @@ function New-AzLocalAVDVM {
 #endregion
 
 #region Main Code
+try { while (Stop-Transcript) {} } catch {}
 Clear-Host
 $VerbosePreference = "continue"
 $Error.Clear()
@@ -1090,6 +1098,11 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
+#region Transcript
+$Now = Get-Date
+$TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}.txt" -f $Now)"
+Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
+#endregion
 #region Login to your Azure subscription.
 # Keep prompting until the Az context can issue an access token.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {

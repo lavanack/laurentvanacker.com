@@ -47,17 +47,14 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
     $LocationShortName = $shortNameHT[$Location].shortName
     #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
     $ResourceGroupNamePrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
+    $HostPoolNamePrefix = $ResourceTypeShortNameHT["DesktopVirtualization/hostPools"].ShortName
     $DigitNumber = 3
     Do {
         $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
-        $HostPoolName = "hp-pd-ei-hybrid-demo-{0}-{1:D3}" -f $LocationShortName, $Instance
-        <#
-        $Instance = 1
-        $HostPoolName = "hp-avdhybrid-demo-{0}-{1:D3}" -f $LocationShortName, $Instance
-        #>
+        $HostPoolName = "{0}-pd-ei-hybrid-demo-{1}-{2:D3}" -f $HostPoolNamePrefix, $LocationShortName, $Instance
         $LogAnalyticsWorkSpaceName = "log{0}" -f $($HostPoolName -replace "\W")
         $HostPoolResourceGroupName = "{0}-{1}" -f $ResourceGroupNamePrefix, $HostPoolName
-        $VMResourceGroupName = $HostPoolResourceGroupName -replace "-hp-", "-vm-"
+        $VMResourceGroupName = $HostPoolResourceGroupName -replace "-$($HostPoolNamePrefix)-", "-vm-"
     } while ((Get-AzResourceGroup -ResourceGroupName $HostPoolResourceGroupName -ErrorAction Ignore) -or (Get-AzResourceGroup -ResourceGroupName $VMResourceGroupName -ErrorAction Ignore))
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$HostPoolName: $HostPoolName"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$HostPoolResourceGroupName: $HostPoolResourceGroupName"
