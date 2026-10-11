@@ -16,16 +16,17 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 
-#Prerequisite: https://jumpstart.azure.com/azure_jumpstart_localbox/deployment_az
+# Prerequisites: https://jumpstart.azure.com/azure_jumpstart_localbox/deployment_az
 
 #requires -Version 5 #-Modules Az.Accounts, Az.Compute, Az.Quota, Az.Resources, Az.StackHCI, Az.StackHCIVM
 
 [CmdletBinding(PositionalBinding = $false)]
 param
 (
-    #LAW Supported Regions : ((Get-AzResourceProvider -ProviderNamespace 'Microsoft.OperationalInsights').ResourceTypes | Where-Object -FilterScript { $_.ResourceTypeName -eq 'workspaces' }).Locations
+    # Log Analytics workspace regions:
+    # ((Get-AzResourceProvider -ProviderNamespace 'Microsoft.OperationalInsights').ResourceTypes | Where-Object -FilterScript { $_.ResourceTypeName -eq 'workspaces' }).Locations
     [ValidateSet('australiacentral', 'australiacentral2', 'australiaeast', 'australiasoutheast', 'austriaeast', 'brazilsouth', 'brazilsoutheast', 'canadacentral', 'canadaeast', 'centralindia', 'centralus', 'chilecentral', 'eastasia', 'eastus', 'eastus2', 'francecentral', 'francesouth', 'germanynorth', 'germanywestcentral', 'indonesiacentral', 'israelcentral', 'italynorth', 'japaneast', 'japanwest', 'jioindiacentral', 'jioindiawest', 'koreacentral', 'koreasouth', 'malaysiawest', 'mexicocentral', 'newzealandnorth', 'northcentralus', 'northeurope', 'norwayeast', 'norwaywest', 'polandcentral', 'qatarcentral', 'southafricanorth', 'southafricawest', 'southcentralus', 'southeastasia', 'southindia', 'spaincentral', 'swedencentral', 'switzerlandnorth', 'switzerlandwest', 'uaecentral', 'uaenorth', 'uksouth', 'ukwest', 'westcentralus', 'westeurope', 'westus', 'westus2', 'westus3')]
-    [string[]] $location,
+    [string[]] $Location,
     [ValidateSet('australiaeast', 'southcentralus', 'eastus', 'westeurope', 'southeastasia', 'canadacentral', 'japaneast', 'centralindia')]
     [string[]] $azureLocalInstanceLocation
 )
@@ -36,8 +37,8 @@ trap {
     break
 }
 
-#region function definitions 
-#Based from https://adamtheautomator.com/powershell-random-password/
+#region Function definitions
+# Adapted from https://adamtheautomator.com/powershell-random-password/
 <#
 .SYNOPSIS
 Generates a password that meets Azure virtual machine complexity requirements.
@@ -93,7 +94,7 @@ function New-RandomPassword {
         )
 
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
-        #SHA1 Calculation
+        # Calculate the SHA-1 hash required by the Pwned Passwords range API.
         $sha1 = [System.BitConverter]::ToString([System.Security.Cryptography.SHA1]::Create().ComputeHash([System.Text.Encoding]::UTF8.GetBytes($Password))).Replace('-', '').ToUpper()
 
         # Split the hash so the API can return possible suffix matches for the prefix.
@@ -127,7 +128,8 @@ function New-RandomPassword {
         }
     }
 
-    #From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/faq#what-are-the-password-requirements-when-creating-a-vm-
+    # Azure password requirements:
+    # https://learn.microsoft.com/azure/virtual-machines/windows/faq#what-are-the-password-requirements-when-creating-a-vm-
     # Azure rejects these commonly used passwords even when they satisfy complexity rules.
     $ProhibitedPasswords = @('abc@123', 'iloveyou!', 'P@$$w0rd', 'P@ssw0rd', 'P@ssword123', 'Pa$$word', 'pass@word1', 'Password!', 'Password1', 'Password22')
     $length = Get-Random -Minimum $minLength -Maximum $maxLength
@@ -169,7 +171,7 @@ function Add-RDPCredential {
         [switch] $Connect
     )
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
-    # Adding Credentials to the Credential Manager (and escaping the password)
+    # Escape the password for cmd.exe before storing the RDP credentials.
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$ComputerName /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
     Write-Host -Object "Your RDP credentials (login/password) are $($Credential.UserName)/$($Credential.GetNetworkCredential().Password) for '$ComputerName'" -ForegroundColor Green
     if ($Connect) {
@@ -178,8 +180,7 @@ function Add-RDPCredential {
             Start-Sleep -Seconds 1
             $MSTSCProcess = Get-Process -Id $MSTSCProcess.Id -ErrorAction Stop
         } While ([string]::IsNullOrEmpty($MSTSCProcess.MainWindowtitle)) 
-        #Start-Sleep -Seconds 3
-        #region Bringing Process windows in the foreground
+        #region Bring the RDP window to the foreground
         $signature = '
         [DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
         [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
@@ -191,9 +192,9 @@ function Add-RDPCredential {
         $null = $type::SetForegroundWindow($hwnd) 
         Start-Sleep -Seconds 3
         #endregion
-        #region Sending Keystrokes for 'Don't ...' and 'yes'
+        #region Confirm the RDP connection prompts
         $wshell = New-Object -ComObject wscript.shell;
-        #$null = $wshell.AppActivate((Get-Process -Id $MSTSCProcess.Id -ErrorAction Stop).MainWindowtitle, $true)
+                # $null = $wshell.AppActivate((Get-Process -Id $MSTSCProcess.Id -ErrorAction Stop).MainWindowtitle, $true)
         Start-Sleep -Milliseconds 100
         $wshell.SendKeys('d')
         Start-Sleep -Milliseconds 100
@@ -204,7 +205,8 @@ function Add-RDPCredential {
 }
 
 #region Azure Quota Function
-#From https://github.com/lavanack/laurentvanacker.com/blob/master/Azure/Azure%20Virtual%20Machine/Get-AzQuotaData.ps1
+# Adapted from:
+# https://github.com/lavanack/laurentvanacker.com/blob/master/Azure/Azure%20Virtual%20Machine/Get-AzQuotaData.ps1
 <#
 .SYNOPSIS
 Returns regional Azure Compute quota for one or more resource families.
@@ -464,16 +466,17 @@ function New-JumpstartLocalBox {
         [string] $windowsAdminUsername = $env:USERNAME,
         [Parameter(ParameterSetName = 'WindowsAdmin')]
         [string] $windowsAdminPassword = $(New-RandomPassword -Online -ClipBoard),
-        [Parameter(Mandatory=$True, ParameterSetName = 'Credential')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'Credential')]
         [PSCredential] $Credential,
         [string] $logAnalyticsWorkspaceName = 'LocalBox-Workspace',
         [string] $natDNS = '8.8.8.8',
         [string] $githubAccount = 'microsoft',
         [string] $githubBranch = 'main',
         [string] $deployBastion = $false,
-        #LAW Supported Regions : ((Get-AzResourceProvider -ProviderNamespace 'Microsoft.OperationalInsights').ResourceTypes | Where-Object -FilterScript { $_.ResourceTypeName -eq 'workspaces' }).Locations
+        # Log Analytics workspace regions:
+        # ((Get-AzResourceProvider -ProviderNamespace 'Microsoft.OperationalInsights').ResourceTypes | Where-Object -FilterScript { $_.ResourceTypeName -eq 'workspaces' }).Locations
         [ValidateSet('australiacentral', 'australiacentral2', 'australiaeast', 'australiasoutheast', 'austriaeast', 'brazilsouth', 'brazilsoutheast', 'canadacentral', 'canadaeast', 'centralindia', 'centralus', 'chilecentral', 'eastasia', 'eastus', 'eastus2', 'francecentral', 'francesouth', 'germanynorth', 'germanywestcentral', 'indonesiacentral', 'israelcentral', 'italynorth', 'japaneast', 'japanwest', 'jioindiacentral', 'jioindiawest', 'koreacentral', 'koreasouth', 'malaysiawest', 'mexicocentral', 'newzealandnorth', 'northcentralus', 'northeurope', 'norwayeast', 'norwaywest', 'polandcentral', 'qatarcentral', 'southafricanorth', 'southafricawest', 'southcentralus', 'southeastasia', 'southindia', 'spaincentral', 'swedencentral', 'switzerlandnorth', 'switzerlandwest', 'uaecentral', 'uaenorth', 'uksouth', 'ukwest', 'westcentralus', 'westeurope', 'westus', 'westus2', 'westus3')]
-        [string] $location = 'australiasoutheast',
+        [string] $Location = 'australiasoutheast',
         [ValidateSet('australiaeast', 'southcentralus', 'eastus', 'westeurope', 'southeastasia', 'canadacentral', 'japaneast', 'centralindia')]
         [string] $azureLocalInstanceLocation = 'australiaeast',
         [string] $rdpPort = '3389',
@@ -492,7 +495,7 @@ function New-JumpstartLocalBox {
 
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$azureLocalInstanceLocation: $azureLocalInstanceLocation"
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$location: $location"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Location: $Location"
 
     #region Credential Management
     if ($Credential) {
@@ -501,14 +504,14 @@ function New-JumpstartLocalBox {
     }
     #endregion
 
-    #region Defining variables 
-    #region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
+    #region Define variables
+    #region Build the Azure location abbreviation lookup from Azure Naming Tool data
     $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
     $ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/main/src/repository/resourcelocations.json
     $ANTResourceLocationShortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @{Name = 'Location'; Expression = { $AzLocation[$_.name].Location } } | Where-Object -FilterScript { $_.Location } | Group-Object -Property Location -AsHashTable -AsString
     #endregion
 
-    #region Building an Hashtable to get the shortname of every Azure resource based on a JSON file on the Github repository of the Azure Naming Tool
+    #region Build the Azure resource abbreviation lookup from Azure Naming Tool data
     $Result = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/refs/heads/main/src/repository/resourcetypes.json 
     $ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -in @('', 'Windows') } | Select-Object -Property resource, shortName, lengthMax | Group-Object -Property resource -AsHashTable -AsString
     #endregion
@@ -524,19 +527,19 @@ function New-JumpstartLocalBox {
     } While (Get-AzResourceGroup -ResourceGroupName $ResourceGroupName -Location $Location -ErrorAction Ignore)
     #endregion
     
-    #region ResourceGroup Management
-    #region ResourceGroup Setup
+    #region Resource group management
+    #region Resource group setup
     <#    
     $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
     if ($ResourceGroup) {
-        #Step 0: Remove previously existing Azure Resource Group with the same name
+        # Remove an existing resource group with the generated name before redeploying.
         $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
     }
     #>
     $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
     #endregion
 
-    #region ResourceGroup Deployment
+    #region Resource group deployment
     Push-Location -Path $BicepFileDir
     $TemplateFile = "main.bicep"
     $TemplateParameterFile = "main.bicepparam"
@@ -553,7 +556,7 @@ param natDNS = '$natDNS'
 param githubAccount = '$githubAccount'
 param githubBranch = '$githubBranch'
 param deployBastion = $(($deployBastion).ToString().ToLower())
-param location = '$location'
+param location = '$Location'
 param azureLocalInstanceLocation = '$azureLocalInstanceLocation'
 param rdpPort = '$rdpPort'
 param autoDeployClusterResource = $(($autoDeployClusterResource).ToString().ToLower())
@@ -580,7 +583,7 @@ param tags = $(($tags | ConvertTo-Json).Replace('"', "'"))
     if ($ResourceGroupDeployment.ProvisioningState -ne 'Succeeded') {
         Write-Warning -Message "The deployment failed :`r`n$($ResourceGroupDeploymentURI | Out-string)`r`n`r`nRemoving the '$ResourceGroupName' dedicated created ResourceGroup ..."
         $ResourceGroup | Remove-AzResourceGroup -Force -AsJob
-        return [PSCustomObject]@{Succeeded = $false; ResourceGroupName = $null; Location = $location}
+        return [PSCustomObject]@{Succeeded = $false; ResourceGroupName = $null; Location = $Location }
     }
     else {
         #region DNS Name Setup
@@ -590,7 +593,7 @@ param tags = $(($tags | ConvertTo-Json).Replace('"', "'"))
         $PublicIpId = $NIC.IpConfigurations[0].PublicIpAddress.Id
         $PublicIp = Get-AzPublicIpAddress -ResourceGroupName ($PublicIpId -split '/')[4] -Name ($PublicIpId -split '/')[-1]
         Do {
-            $RandomString = ((New-Guid).Guid -replace "\W").Substring(0,8)
+            $RandomString = ((New-Guid).Guid -replace "\W").Substring(0, 8)
             $DomainNameLabel = $("{0}-{1}-{2}" -f $VMName, $Instance, $RandomString).ToLower()
             $FQDN = $("{0}.{1}.cloudapp.azure.com" -f $DomainNameLabel, $Location).ToLower()
         } While ($null -ne $(Resolve-DnsName $FQDN -ErrorAction Ignore))
@@ -601,14 +604,14 @@ param tags = $(($tags | ConvertTo-Json).Replace('"', "'"))
         $null = $PublicIP | Set-AzPublicIpAddress
         #endregion
 
-        #region Adding Credentials to the Credential Manager (and escaping the password)
+        #region Store credentials in Windows Credential Manager
         Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDN /user:$windowsAdminUsername /pass:$($windowsAdminPassword -replace "(\W)", '^$1')" -Wait
         #endregion
 
-        #region JIT Access Management
+        #region Just-in-time access management
         $JitPolicyTimeInHours = 3
         $JitPolicyName = "Default"
-        #region Enabling JIT Access
+        #region Enable just-in-time access
         $NewJitPolicy = (@{
                 id    = $VM.Id
                 ports = (@{
@@ -622,15 +625,15 @@ param tags = $(($tags | ConvertTo-Json).Replace('"', "'"))
 
         Write-Host "Get Existing JIT Policy. You can Ignore the error if not found."
         $ExistingJITPolicy = (Get-AzJitNetworkAccessPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -ErrorAction Ignore).VirtualMachines
-        $UpdatedJITPolicy = $ExistingJITPolicy.Where{ $_.id -ne "$($VM.Id)" } # Exclude existing policy for $VMName
+        $UpdatedJITPolicy = $ExistingJITPolicy.Where{ $_.id -ne "$($VM.Id)" } # Replace any existing policy entry for this VM.
         $UpdatedJITPolicy.Add($NewJitPolicy)
 	
-        # Enable Access to the VM including management Port, and Time Range in Hours
+        # Apply the management port and maximum access duration to the VM policy.
         Write-Host "Enabling Just in Time VM Access Policy for ($VMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
         $null = Set-AzJitNetworkAccessPolicy -VirtualMachine $UpdatedJITPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -Kind "Basic"
         #endregion
 
-        #region Requesting Temporary Access : 3 hours
+        #region Request temporary access for three hours
         $MyPublicIp = Invoke-RestMethod -Uri "https://ipv4.seeip.org"
         $JitPolicy = (@{
                 id    = $VM.Id
@@ -656,7 +659,7 @@ param tags = $(($tags | ConvertTo-Json).Replace('"', "'"))
         Add-RDPCredential -ComputerName $FQDN -Credential $Credential -Connect
 
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
-        return [PSCustomObject]@{Succeeded = $true; ResourceGroupName = $ResourceGroupName; Location = $location}
+        return [PSCustomObject]@{Succeeded = $true; ResourceGroupName = $ResourceGroupName; Location = $Location }
     }
 }
 
@@ -676,14 +679,14 @@ function Wait-AzConnectedMachine {
     }
 
     #region From https://jumpstart.azure.com/azure_jumpstart_localbox/cloud_deployment#azure-local-instance-validation-and-deployment-from-the-azure-portal
-    #region Waiting AzLHOST1 and AzLHOST2 have been created as Arc-enabled servers.
+    #region Wait for AzLHOST1 and AzLHOST2 to become Arc-enabled servers
     $ReferenceObject = "AzLHOST1", "AzLHOST2"
     Do {
         $Seconds = 300
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds seconds ..."
         Start-Sleep -Seconds $Seconds
         $AzureArcMachines = Get-AzConnectedMachine -ResourceGroupName $ResourceGroupName
-        #If not the same one(s)
+        # Compare the expected node names with the connected machines returned by Azure.
         if ($AzureArcMachines) {
             $Compare = Compare-Object -ReferenceObject $ReferenceObject -DifferenceObject $AzureArcMachines
         }
@@ -696,7 +699,7 @@ function Wait-AzConnectedMachine {
     #endregion 
 
     <#
-    #region Waiting localcluster deployments end - v1
+    #region Wait for localcluster deployments (legacy approach)
     Do {
         $Seconds = 600
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds seconds ..."
@@ -708,7 +711,7 @@ function Wait-AzConnectedMachine {
     #endregion 
     #>
 
-    #region Waiting localcluster deployments end - v2
+    #region Wait for the localcluster resource to become connected
     $ClusterName = "localboxcluster"
     $ResourceGroup = Get-AzResourceGroup -ResourceGroupName $Result.ResourceGroupName -Location  $Result.Location
     Do {
@@ -759,7 +762,7 @@ function Set-LocalClusterInsightSetup {
         Write-Error -Message "The '$ResourceGroupName' ResourceGroup doesn't exist !!!" -ErrorAction Stop
     }
 
-    #region Building an Hashtable to get the shortname of every Azure resource based on a JSON file on the Github repository of the Azure Naming Tool
+    #region Build the Azure resource abbreviation lookup from Azure Naming Tool data
     $Result = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/refs/heads/main/src/repository/resourcetypes.json 
     $ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -in @('', 'Windows') } | Select-Object -Property resource, shortName, lengthMax | Group-Object -Property resource -AsHashTable -AsString
     #endregion
@@ -800,29 +803,29 @@ function Set-LocalClusterInsightSetup {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$LogAnalyticsWorkSpace: $($LogAnalyticsWorkSpace | Out-String)"
     #endregion
 
-    #region Installing Azure Monitor Windows Agent on the Azure Local Cluster
+    #region Install Azure Monitor Agent on the Azure Local cluster
     $ExtensionName = "AzureMonitorWindowsAgent"
     $ArcSettingName = "default"
     $Parameters = @{
         ResourceGroupName = $ResourceGroup.ResourceGroupName
-        ClusterName = $ClusterName
-        ArcSettingName = $ArcSettingName
+        ClusterName       = $ClusterName
+        ArcSettingName    = $ArcSettingName
     }
     $Extension = Get-AzStackHciExtension @Parameters | Where-Object -FilterScript { $_.Name -eq $ExtensionName }
 
     if (-not($Extension)) {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Installing '$ExtensionName' extension on the '$($ClusterName)' Azure Local ClusterMachine (in the '$($ResourceGroup.ResourceGroupName)' Resource Group)"
         $Parameters = @{
-            ResourceGroupName = $ResourceGroup.ResourceGroupName
-            ClusterName = $ClusterName
-            ArcSettingName = $ArcSettingName
-            ExtensionName = $ExtensionName
-            ExtensionParameterPublisher = "Microsoft.Azure.Monitor"
-            ExtensionParameterType = "AzureMonitorWindowsAgent"
-            ExtensionParameterAutoUpgradeMinorVersion =  $false
-            ExtensionParameterEnableAutomaticUpgrade = $true
+            ResourceGroupName                         = $ResourceGroup.ResourceGroupName
+            ClusterName                               = $ClusterName
+            ArcSettingName                            = $ArcSettingName
+            ExtensionName                             = $ExtensionName
+            ExtensionParameterPublisher               = "Microsoft.Azure.Monitor"
+            ExtensionParameterType                    = "AzureMonitorWindowsAgent"
+            ExtensionParameterAutoUpgradeMinorVersion = $false
+            ExtensionParameterEnableAutomaticUpgrade  = $true
         }
-        $Extension  = New-AzStackHciExtension @Parameters
+        $Extension = New-AzStackHciExtension @Parameters
 
     }
     else {
@@ -840,7 +843,7 @@ function Set-LocalClusterInsightSetup {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Azure Local nodes: $($AzureArcMachines.Name -join ', ')"
     #endregion
 
-    #region Installing Azure Monitor Windows Agent on the Azure Local nodes
+    #region Install Azure Monitor Agent on the Azure Local nodes
     $Jobs = foreach ($AzureArcMachine in $AzureArcMachines) {
         $InstalledExtension = Get-AzConnectedMachineExtension -ResourceGroupName $ResourceGroup.ResourceGroupName -MachineName $AzureArcMachine.Name | Where-Object -FilterScript { $_.Name -match "AzureMonitorWindowsAgent" } | Select-Object -First 1
         if (-not($InstalledExtension)) {
@@ -920,7 +923,7 @@ function Set-LocalClusterInsightSetup {
     $WindowsEventLog = New-AzWindowsEventLogDataSourceObject @Parameters
     #endregion
 
-    #region LogAnalyticsWorkSpace destination
+    #region Log Analytics workspace destinations
     $LADestinationName = $LogAnalyticsWorkSpace.Name
     $Parameters = @{
         Name                = $LADestinationName
@@ -938,7 +941,7 @@ function Set-LocalClusterInsightSetup {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DestinationLogAnalytic2: $($DestinationLogAnalytic2 | Out-String)"
     #endregion
 
-    #region DataFlows (the destination name MUST match the destination object name)
+    #region Data flows (each destination name must match its destination object)
     $Parameters = @{
         Stream      = @("Microsoft-Perf")
         Destination = @($LADestinationName)
@@ -952,7 +955,7 @@ function Set-LocalClusterInsightSetup {
     $EventDataFlow = New-AzDataFlowObject @Parameters
     #endregion
 
-    #region Data Collection Rule creation (only if missing)
+    #region Create the data collection rule when absent
     $Parameters = @{
         ResourceGroupName = $ResourceGroup.ResourceGroupName
         Name              = $DataCollectionRuleName
@@ -986,8 +989,8 @@ function Set-LocalClusterInsightSetup {
 
     #region Associate DCR with every Azure Local node
     foreach ($AzureArcMachine in $AzureArcMachines) {
-        # Associations are listed per node (works even when no association exists yet)
-        # PowerShell -eq is case-insensitive on strings, which is what we need for Azure Resource IDs
+        # Query each node because an unassociated node has no association resource to retrieve directly.
+        # String comparison with -eq is case-insensitive, matching Azure resource ID semantics.
         $ExistingAssociation = Get-AzDataCollectionRuleAssociation -ResourceUri $AzureArcMachine.Id -ErrorAction Ignore | Where-Object -FilterScript { $_.DataCollectionRuleId -eq $DataCollectionRule.Id } | Select-Object -First 1
 
         if ($ExistingAssociation) {
@@ -1063,9 +1066,8 @@ function New-AzLocalAVDVMImage {
         [string[]] $URN = @("MicrosoftWindowsDesktop:office-365:win11-25h2-avd-m365:latest", "MicrosoftWindowsDesktop:Windows-11:win11-25h2-avd:latest")
     )
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
-    #From https://jumpstart.azure.com/azure_jumpstart_localbox/RB#create-virtual-machine-images-from-azure-marketplace
-    #$URN = "MicrosoftWindowsDesktop:office-365:win11-25h2-avd-m365:latest"
-    #$ImageName ="{0}-{1}" -f ($URN -split ":")[-2], $Instance
+    # Marketplace image guidance:
+    # https://jumpstart.azure.com/azure_jumpstart_localbox/RB#create-virtual-machine-images-from-azure-marketplace
     $CustomLocation = Get-AzResource -ResourceType "Microsoft.ExtendedLocation/customLocations" -ResourceGroupName $ResourceGroupName
     $Location = $CustomLocation.Location
     $Instance = [regex]::Match($ResourceGroupName, "\d+$").Value
@@ -1081,26 +1083,27 @@ function New-AzLocalAVDVMImage {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Sku: $Sku"
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Version: $Version"
         if ($version = "latest") {
-            #Getting the latest version because 'latest' is not accepted
+            # Resolve "latest" because New-AzStackHCIVMImage requires a concrete version.
             $Version = (Get-AzVMImage -Location  $Location -PublisherName $PublisherName -Offer $Offer -sku $Sku | Sort-Object -Property Version -Descending | Select-Object -First 1).Version
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Version: $Version"
         }
-        $ImageName ="{0}-{1}-{2}" -f $Sku, $Instance, $(Get-Date -Format 'yyyyMMddHHmmss')
+        $ImageName = "{0}-{1}-{2}" -f $Sku, $Instance, $(Get-Date -Format 'yyyyMMddHHmmss')
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ImageName: $ImageName"
         $Parameters = @{
-            Name = $ImageName
+            Name              = $ImageName
             ResourceGroupName = $ResourceGroupName
-            Location = $Location
-            CustomLocationId = $CustomLocation.Id
-            Publisher = $PublisherName
-            Offer = $Offer
-            Sku = $Sku
-            Version = $Version
-            OSType = "Windows"
-            AsJob = $true
+            Location          = $Location
+            CustomLocationId  = $CustomLocation.Id
+            Publisher         = $PublisherName
+            Offer             = $Offer
+            Sku               = $Sku
+            Version           = $Version
+            OSType            = "Windows"
+            # New-AzStackHCIVMImage does not expose an AsJob parameter, so Start-Job is used below.
         }
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
-        New-AzStackHCIVMImage @Parameters
+        Start-Job -ScriptBlock { $Parameters = $Using:Parameters; New-AzStackHCIVMImage @Parameters }
+
     }
     $Images = $Jobs | Receive-Job -Wait -AutoRemoveJob
     if (-not($Images)) {
@@ -1116,10 +1119,10 @@ function New-AzLocalAVDVMImage {
 function New-AzLocalAVDVM {
     [CmdletBinding(PositionalBinding = $false)]
     param (
-        [Parameter(Mandatory=$True)]
+        [Parameter(Mandatory = $True)]
         [ValidateNotNullOrEmpty()]
         [PSCredential] $Credential,
-        [Parameter(Mandatory=$True)]
+        [Parameter(Mandatory = $True)]
         [ValidateNotNullOrEmpty()]
         [Microsoft.Azure.PowerShell.Cmdlets.StackHCIVM.Models.MarketplaceGalleryImages] $Image,
         [Parameter(Mandatory = $true)]
@@ -1128,12 +1131,12 @@ function New-AzLocalAVDVM {
     )
 
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
-    #region Building an Hashtable to get the shortname of every Azure resource based on a JSON file on the Github repository of the Azure Naming Tool
+    #region Build the Azure resource abbreviation lookup from Azure Naming Tool data
     $Result = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/refs/heads/main/src/repository/resourcetypes.json 
     $ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -in @('', 'Windows') } | Select-Object -Property resource, shortName, lengthMax | Group-Object -Property resource -AsHashTable -AsString
     #endregion
 
-    #region Creating NIC
+    #region Create the network interface
     $NICNamePrefix = $ResourceTypeShortNameHT["Network/networkInterfaces"].ShortName
     $VMNamePrefix = $ResourceTypeShortNameHT["Compute/virtualMachines"].ShortName
     $Instance = [regex]::Match($LogicalNetwork.ResourceGroupName, "\d+$").Value
@@ -1141,27 +1144,27 @@ function New-AzLocalAVDVM {
     $NICName = "{0}-{1}" -f $NICNamePrefix, $VMName
 
     $Parameters = @{
-        Name = $NICName
+        Name              = $NICName
         ResourceGroupName = $LogicalNetwork.ResourceGroupName
-        Location = $LogicalNetwork.Location
-        CustomLocationId = $LogicalNetwork.ExtendedLocationName
-        SubnetName = $LogicalNetwork.Subnet.Name
+        Location          = $LogicalNetwork.Location
+        CustomLocationId  = $LogicalNetwork.ExtendedLocationName
+        SubnetName        = $LogicalNetwork.Subnet.Name
     }
     $NIC = New-AzStackHCIVMNetworkInterface @Parameters
     #endregion
 
-    #region Creating VM
+    #region Create the virtual machine
     $Parameters = @{
-        Name = $VMName
+        Name              = $VMName
         ResourceGroupName = $LogicalNetwork.ResourceGroupName
-        Location = $Image.Location
-        CustomLocationId = $Image.ExtendedLocationName
-        ImageName = $Image.Name
-        NicId = $NIC.Id
-        VMSize = "Standard_D2s_v5"
-        AdminUsername = $Credential.UserName
-        AdminPassword = $Credential.Password
-        OSType = "Windows"
+        Location          = $Image.Location
+        CustomLocationId  = $Image.ExtendedLocationName
+        ImageName         = $Image.Name
+        NicId             = $NIC.Id
+        VMSize            = "Standard_D2s_v5"
+        AdminUsername     = $Credential.UserName
+        AdminPassword     = $Credential.Password
+        OSType            = "Windows"
     }
     $VM = New-AzStackHCIVMVirtualMachine @Parameters
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
@@ -1170,14 +1173,14 @@ function New-AzLocalAVDVM {
 }
 #endregion
 
-#region Main Code
+#region Main
 try { while (Stop-Transcript) {} } catch {}
 Clear-Host
 $VerbosePreference = "continue"
 $Error.Clear()
 
 $CurrentScript = $MyInvocation.MyCommand.Path
-#Getting the current directory (where this script file resides)
+# Resolve paths relative to this script rather than the caller's working directory.
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
 
@@ -1187,7 +1190,7 @@ $TranscriptFile = $CurrentScript -replace ".ps1$", "_$("{0:yyyyMMddHHmmss}.txt" 
 Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 #endregion
 
-#region Login to your Azure subscription.
+#region Sign in to Azure
 # Keep prompting until the Az context can issue an access token.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
     Connect-AzAccount
@@ -1195,7 +1198,7 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 #endregion
 
 #region Prerequisites
-#region Registering required Providers
+#region Register required resource providers
 $AzResourceProviders = "Microsoft.Attestation", "Microsoft.AzureStackHCI", "Microsoft.EdgeMarketPlace", "Microsoft.ExtendedLocation", "Microsoft.GuestConfiguration", "Microsoft.HybridCompute", "Microsoft.HybridConnectivity", "Microsoft.HybridContainerService", "Microsoft.Insights", "Microsoft.KeyVault", "Microsoft.Kubernetes", "Microsoft.KubernetesConfiguration", "Microsoft.ResourceConnector", "Microsoft.Storage", "Microsoft.Quota"
 $Jobs = foreach ($AzResourceProvider in $AzResourceProviders) {
     Register-AzResourceProvider -ProviderNamespace $AzResourceProvider -AsJob
@@ -1206,7 +1209,8 @@ $Jobs | Receive-Job -Wait -AutoRemoveJob | Select-Object -Property ProviderNames
 #region Bicep
 try {
     $null = start-process bicep -ArgumentList "--version" -PassThru -NoNewWindow -ErrorAction Stop
-} catch {
+}
+catch {
     Write-Error -Message "Bicep is mandatory. Please install it (winget install -e --id Microsoft.Bicep) ..." -ErrorAction Stop
 }
 #endregion
@@ -1229,47 +1233,54 @@ if (-not(Test-Path -Path $BicepFileDir -PathType Container)) {
     git clone https://github.com/microsoft/azure_arc.git
     Pop-Location
 }
+else {
+    Push-Location -Path $(Join-Path -Path $GitDir -ChildPath "azure_arc")
+    git pull
+    Pop-Location
+}
 
 if ($null -ne $azureLocalInstanceLocation) {
     $AzureLocalInstanceLocations = $AzureLocalInstanceLocation
 }
 else {
-    #From https://jumpstart.azure.com/azure_jumpstart_localbox/deployment_az
+    # Deployment source:
+    # https://jumpstart.azure.com/azure_jumpstart_localbox/deployment_az
     $AzureLocalInstanceLocations = 'australiaeast', 'southcentralus', 'eastus', 'westeurope', 'southeastasia', 'canadacentral', 'japaneast', 'centralindia'
 }
 Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzureLocalInstanceLocations: $($AzureLocalInstanceLocations | Out-String)"
 
-if ($null -ne $location) {
-    $LAWSupportedRegions = $location
+if ($null -ne $Location) {
+    $LAWSupportedRegions = $Location
 }
 else {
-    #LAW Supported Regions
+    # Query regions that support Log Analytics workspaces.
     # Intersect provider-supported display names with canoNICal Azure location identifiers.
     $LAWSupportedDisplayNameRegions = ((Get-AzResourceProvider -ProviderNamespace Microsoft.OperationalInsights).ResourceTypes | Where-Object -FilterScript { $_.ResourceTypeName -eq 'workspaces' }).Locations
     $LAWSupportedRegions = (Get-AzLocation | Where-Object { $_.Providers -contains "Microsoft.OperationalInsights" -and ($_.DisplayName -in $LAWSupportedDisplayNameRegions) }).Location | Sort-Object
 }
 Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$LAWSupportedRegions: $($LAWSupportedRegions | Out-String)"
 <#
-#Simple Deployment by passing the parameters
+# Example deployment with explicit region parameters.
 $LAWSupportedRegions = "centralus"
 $AzureLocalInstanceLocations = "southcentralus"
 #>
-$LAWSupportedRegions = "centralindia"
-$AzureLocalInstanceLocations = "centralindia"
+$LAWSupportedRegions = @("centralindia")
+$AzureLocalInstanceLocations = @("centralindia")
+
 
 
 $Credential = Get-Credential -Message "Enter the required credentials" -UserName $env:USERNAME
 # Try each Log Analytics-compatible region that has enough capacity for the requested VM SKU.
-foreach ($Location in $LAWSupportedRegions) {
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Location: $Location"
-    #Checking Azure Quota
-    $AvailableComputeResourceSku = Get-AzAvailableComputeResourceSku -Location $Location -ComputeResourceSku $VMSize -SubscriptionId $SubscriptionId
+foreach ($CurrentLAWSupportedRegion in $LAWSupportedRegions) {
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentLAWSupportedRegion: $CurrentLAWSupportedRegion"
+    # Check whether the region has capacity for at least one VM of the requested SKU.
+    $AvailableComputeResourceSku = Get-AzAvailableComputeResourceSku -Location $CurrentLAWSupportedRegion -ComputeResourceSku $VMSize -SubscriptionId $SubscriptionId
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AvailableComputeResourceSku: $($AvailableComputeResourceSku | Out-String)"
     if ($AvailableComputeResourceSku.Available -gt 0) {
         # Retry the deployment across supported Azure Local instance regions until one succeeds.
-        foreach ($AzureLocalInstanceLocation in $AzureLocalInstanceLocations) {
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzureLocalInstanceLocation: $AzureLocalInstanceLocation)"
-            $Result = New-JumpstartLocalBox -Credential $Credential -azureLocalInstanceLocation $AzureLocalInstanceLocation -Location $Location -BicepFileDir $BicepFileDir -enableAzureSpotPricing $true -autoUpgradeClusterResource $true -Verbose
+        foreach ($CurrentAzureLocalInstanceLocation in $AzureLocalInstanceLocations) {
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzureLocalInstanceLocation: $CurrentAzureLocalInstanceLocation"
+            $Result = New-JumpstartLocalBox -Credential $Credential -azureLocalInstanceLocation $CurrentAzureLocalInstanceLocation -Location $CurrentLAWSupportedRegion -BicepFileDir $BicepFileDir -enableAzureSpotPricing $true -autoUpgradeClusterResource $true -Verbose
             if ($Result.Succeeded) {
                 Write-Host -Object "The Jumpstart LocalBox Deployment Succeeded !!!" -ForegroundColor Green
                 break
@@ -1280,20 +1291,23 @@ foreach ($Location in $LAWSupportedRegions) {
         }
 
         if ($Result.Succeeded) {
-            #From https://jumpstart.azure.com/azure_jumpstart_localbox/cloud_deployment
+            # Complete the cloud deployment:
+            # https://jumpstart.azure.com/azure_jumpstart_localbox/cloud_deployment
             Wait-AzConnectedMachine -ResourceGroupName $Result.ResourceGroupName
             
-            #From https://jumpstart.azure.com/azure_jumpstart_localbox/using_localbox
+            # Configure the LocalBox environment:
+            # https://jumpstart.azure.com/azure_jumpstart_localbox/using_localbox
             Set-LocalClusterInsightSetup -ResourceGroupName $Result.ResourceGroupName
             
-            #From https://jumpstart.azure.com/azure_jumpstart_localbox/RB
+            # Create Azure Local VM resources:
+            # https://jumpstart.azure.com/azure_jumpstart_localbox/RB
             $Images = New-AzLocalAVDVMImage -ResourceGroupName $Result.ResourceGroupName
             $LogicalNetwork = New-VMLogicalNetwork -ResourceGroupName $Result.ResourceGroupName
             $VMs = foreach ($Image in $Images) {
                 New-AzLocalAVDVM -Credential $Credential -Image $Image -LogicalNetwork $LogicalNetwork 
             }
 
-            #region Azure Lock on the ResourceGroup to prevent from accidental deletion
+            #region Protect the resource group from accidental deletion
             $null = New-AzResourceLock -LockName CanNotDelete -LockLevel CanNotDelete -ResourceGroupName $Result.ResourceGroupName -Force
             #endregion
             break
@@ -1305,7 +1319,7 @@ foreach ($Location in $LAWSupportedRegions) {
         }
     }
     else {
-        Write-Warning -Message "No available Quota for '$VMSize' in the '$Location' Azure location. We will automatically try other locations ..."
+        Write-Warning -Message "No available Quota for '$VMSize' in the '$LAWSupportedRegion' Azure location. We will automatically try other locations ..."
     }
 }
 
