@@ -109,6 +109,7 @@ If (-not(Test-Path -Path $Outfile)) {
 Expand-Archive -Path .\msixmgr.zip -Force
 #endregion
 
+<#
 #region VHDX: Old Way
 $Label = "NotepadPlusPlus_{0}" -f [system.version]::Parse($NotepadPlusPlusVersion)
 $VHDXFileName = "{0}_{1}.vhdx" -f $Label.ToLower() , $(Get-Date -Format 'yyyyMMddHHmmss')
@@ -132,6 +133,7 @@ Format-Volume -FileSystem NTFS -Confirm:$false -DriveLetter $partition.DriveLett
 Dismount-VHD -Path $MSIXVHD
 Resize-VHD -Path $MSIXVHD -ToMinimumSize
 #endregion
+#>
 
 #region VHDX: New Way
 $Label = "NotepadPlusPlus_{0}" -f [system.version]::Parse($NotepadPlusPlusVersion)
@@ -139,6 +141,11 @@ $VHDXFileName = "{0}_{1}.vhdx" -f $Label.ToLower() , $(Get-Date -Format 'yyyyMMd
 $VHDXFilePath = Join-Path -Path $CurrentDir -ChildPath $VHDXFileName
 Remove-Item -Path $VHDXFilePath -Force -ErrorAction Ignore
 & "$CurrentDir\msixmgr\x64\msixmgr.exe" -Unpack -packagePath $LatestNotepadMSIXFilePath.FullName -destination $VHDXFilePath -applyacls -create -fileType VHDX -rootDirectory $Label -vhdSize 100
+$Output = & "$CurrentDir\msixmgr\x64\msixmgr.exe" -MountImage -imagePath $VHDXFilePath -fileType VHDX
+#TODO : Use a RegExp to catch the drive letter
+$DriveLetter = [regex]::Match($($Output -match "mounted"), "(?<DriveLetter>\w):\\$").Groups['DriveLetter'].Value
+Set-Volume -DriveLetter $DriveLetter -NewFileSystemLabel $Label
+& "$CurrentDir\msixmgr\x64\msixmgr.exe" -UnmountImage -imagePath $VHDXFilePath -filetype VHDX
 Resize-VHD -Path $VHDXFilePath -ToMinimumSize
 #endregion
 

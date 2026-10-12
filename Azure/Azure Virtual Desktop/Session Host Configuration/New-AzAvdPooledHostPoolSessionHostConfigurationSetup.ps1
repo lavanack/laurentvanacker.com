@@ -236,15 +236,16 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
     $LocationShortName = $shortNameHT[$Location].shortName
     #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
     $ResourceGroupNamePrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
+    $HostPoolNamePrefix = $ResourceTypeShortNameHT["DesktopVirtualization/hostPools"].ShortName
     $KeyVaultPrefix = $ResourceTypeShortNameHT["KeyVault/vaults"].ShortName
     $DigitNumber = 3
     Do {
         $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
         if ($PSCmdlet.ParameterSetName -eq 'ActiveDirectory') {
-            $HostPoolName = "hp-np-ad-shc-mp-{0}-{1:D3}" -f $LocationShortName, $Instance
+            $HostPoolName = "{0}-np-ad-shc-mp-{1}-{2:D3}" -f $HostPoolNamePrefix, $LocationShortName, $Instance
         } 
         else {
-            $HostPoolName = "hp-np-ei-shc-mp-{0}-{1:D3}" -f $LocationShortName, $Instance
+            $HostPoolName = "{0}-np-ei-shc-mp-{1}-{2:D3}" -f $HostPoolNamePrefix, $LocationShortName, $Instance
         }
 
         $KeyVaultName = "{0}{1}" -f $KeyVaultPrefix, $($HostPoolName -replace "\W")
@@ -324,7 +325,8 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
         GetSessionHostConfigurationName = $ResourceGroupName -replace "^rg", "shc"
         LoadBalancerType                = "BreadthFirst"
         PreferredAppGroupType           = "Desktop"
-        MaxSessionLimit                 = 5
+        #MaxSessionLimit                 = 5
+        MaxSessionLimit                 = 1
         Location                        = $Location
         VMSize                          = "Standard_D2s_v5"
         SubnetId                        = $SubNetId
@@ -588,7 +590,7 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
         RampUpStartTimeMinute                   = '0'
         RampUpLoadBalancingAlgorithm            = 'BreadthFirst'
         RampUpMinimumHostsPct                   = '100'
-        RampUpCapacityThresholdPct              = '50'
+        RampUpCapacityThresholdPct              = '30'
         PeakStartTimeHour                       = '9'
         PeakStartTimeMinute                     = '0'
         PeakLoadBalancingAlgorithm              = 'BreadthFirst'
@@ -632,7 +634,7 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 }
 #endregion
 
-Get-AzResourceGroup -Name rg-hp-np-*-shc-mp-* | Remove-AzResourceGroup -AsJob -Force
+Get-AzResourceGroup -Name rg-*-np-*-shc-mp-* | Remove-AzResourceGroup -AsJob -Force
 
 $SubscriptionId = (Get-AzContext).Subscription.Id
 $Location = "centralus"

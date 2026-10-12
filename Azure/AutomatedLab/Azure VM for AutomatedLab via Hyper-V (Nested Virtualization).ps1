@@ -207,7 +207,7 @@ $ConfigurationName = "AutomatedLabSetupDSC"
 #region Define Variables needed for Virtual Machine
 $ImagePublisherName = "MicrosoftWindowsDesktop"
 $ImageOffer = "Windows-11"
-$ImageSku = "win11-24h2-ent"
+$ImageSku = "win11-25h2-ent"
 $PublicIPName = "pip-$VMName" 
 $NICName = "nic-$VMName"
 $OSDiskName = '{0}_OSDisk' -f $VMName

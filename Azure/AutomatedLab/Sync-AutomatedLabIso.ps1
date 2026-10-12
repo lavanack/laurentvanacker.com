@@ -95,17 +95,19 @@ $ISOFolder = Join-Path -Path $LabSourcesDir -ChildPath "\ISOs"
 #Go to the latest azcopy folder
 #Get-ChildItem -Path "C:\Tools\azcopy_windows*" | Sort-Object -Property Name -Descending | Select-Object -First 1 | Push-Location
 $env:AZCOPY_CRED_TYPE = "Anonymous"
-$env:AZCOPY_CONCURRENCY_VALUE = "AUTO"
+$env:AZCOPY_CONCURRENCY_VALUE = ""
+#$env:AZCOPY_CONCURRENT_FILES = ""
 Switch ($Mode) {
     {$_ -in "Push","ToStorageAccount"} {
-        & $AzCopy sync $ISOFolder $StorageShareSASToken --delete-destination=true --log-level=INFO --put-md5
+        & $AzCopy sync $ISOFolder $StorageShareSASToken --delete-destination=true --recursive=true --log-level=INFO #--compare-hash=MD5
     }
     {$_ -in "Pull","FromStorageAccount"}  {
-        & $AzCopy sync  $StorageShareSASToken $ISOFolder --delete-destination=true --log-level=INFO --put-md5
+        & $AzCopy sync  $StorageShareSASToken $ISOFolder --delete-destination=true --recursive=true --log-level=INFO #--compare-hash=MD5
     }
 }
 $env:AZCOPY_CRED_TYPE = ""
 $env:AZCOPY_CONCURRENCY_VALUE = ""
+#$env:AZCOPY_CONCURRENT_FILES = ""
 #Pop-Location
 #endregion
 
