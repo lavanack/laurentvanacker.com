@@ -115,12 +115,12 @@ function New-AzAvdHybridEntraIDPersonalHostPoolSetup {
     #region HostPool Setup
     #region Create a HostPool
     $CurrentHostPool = [PSCustomObject] @{
-        Name                            = $HostPoolName
-        LoadBalancerType                = "Persistent"
-        PreferredAppGroupType           = "Desktop"
-        Location                        = $Location
-        ResourceGroupName               = $HostPoolResourceGroupName
-        WorkSpaceName                   = $HostPoolResourceGroupName -replace "^rg", "ws"
+        Name                  = $HostPoolName
+        LoadBalancerType      = "Persistent"
+        PreferredAppGroupType = "Desktop"
+        Location              = $Location
+        ResourceGroupName     = $HostPoolResourceGroupName
+        WorkSpaceName         = $HostPoolResourceGroupName -replace "^rg", "ws"
     }
 
     $CustomRdpProperty = "enablerdsaadauth:i:1;redirectcomports:i:0;redirectlocation:i:0;redirectprinters:i:0;drivestoredirect:s:;usbdevicestoredirect:s:;"
@@ -307,10 +307,11 @@ $SubscriptionId = (Get-AzContext).Subscription.Id
 $Location = "centralus"
 
 #region Registering required Providers
-$null = Register-AzResourceProvider -ProviderNamespace Microsoft.DesktopVirtualization
-$null = Register-AzResourceProvider -ProviderNamespace Microsoft.HybridCompute
-$null = Register-AzResourceProvider -ProviderNamespace Microsoft.HybridConnectivity
-
+$AzResourceProviders = "Microsoft.DesktopVirtualization", "Microsoft.HybridCompute", "Microsoft.HybridConnectivity"
+$Jobs = foreach ($AzResourceProvider in $AzResourceProviders) {
+    Register-AzResourceProvider -ProviderNamespace $AzResourceProvider -AsJob
+}
+$Jobs | Receive-Job -Wait -AutoRemoveJob | Select-Object -Property ProviderNamespace, RegistrationState
 
 $Parameters = @{
     Location = $Location 
