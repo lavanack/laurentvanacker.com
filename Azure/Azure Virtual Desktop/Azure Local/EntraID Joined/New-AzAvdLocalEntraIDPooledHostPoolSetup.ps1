@@ -54,7 +54,7 @@ function New-AzAvdLocalEntraIDPooledHostPoolSetup {
         $HostPoolName = "{0}-np-ei-azlocal-demo-{1}-{2:D3}" -f $HostPoolNamePrefix, $LocationShortName, $Instance
         $LogAnalyticsWorkSpaceName = "log{0}" -f $($HostPoolName -replace "\W")
         $HostPoolResourceGroupName = "{0}-{1}" -f $ResourceGroupNamePrefix, $HostPoolName
-        $VMResourceGroupName = $HostPoolResourceGroupName -replace "-hp-", "-vm-"
+        $VMResourceGroupName = $HostPoolResourceGroupName -replace "-$($HostPoolNamePrefix)-", "-vm-"
     } while ((Get-AzResourceGroup -ResourceGroupName $HostPoolResourceGroupName -ErrorAction Ignore) -or (Get-AzResourceGroup -ResourceGroupName $VMResourceGroupName -ErrorAction Ignore))
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$HostPoolName: $HostPoolName"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$HostPoolResourceGroupName: $HostPoolResourceGroupName"
@@ -135,7 +135,7 @@ function New-AzAvdLocalEntraIDPooledHostPoolSetup {
     $Parameters = @{
         ObjectId           = $CurrentAzWvdHostPool.IdentityPrincipalId
         RoleDefinitionName = $RoleDefinition.Name
-        Scope              = $HostPoolResourceGroup.ResourceId
+        Scope              = $VMResourceGroup.ResourceId
     }
     while (-not(Get-AzRoleAssignment @Parameters)) {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' ObjectId on the '$($Parameters.Scope)' Scope"
@@ -292,10 +292,11 @@ $SubscriptionId = (Get-AzContext).Subscription.Id
 $Location = "centralus"
 
 #region Registering required Providers
-$null = Register-AzResourceProvider -ProviderNamespace Microsoft.DesktopVirtualization
-$null = Register-AzResourceProvider -ProviderNamespace Microsoft.HybridCompute
-#endregion
-
+$AzResourceProviders = "Microsoft.DesktopVirtualization", "Microsoft.HybridCompute", "Microsoft.HybridConnectivity"
+$Jobs = foreach ($AzResourceProvider in $AzResourceProviders) {
+    Register-AzResourceProvider -ProviderNamespace $AzResourceProvider -AsJob
+}
+$Jobs | Receive-Job -Wait -AutoRemoveJob | Select-Object -Property ProviderNamespace, RegistrationState
 
 $Parameters = @{
     Location = $Location 
