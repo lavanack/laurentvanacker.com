@@ -24,8 +24,7 @@ of the Sample Code.
 param
 (
     # Log Analytics workspace regions:
-    # ((Get-AzResourceProvider -ProviderNamespace 'Microsoft.OperationalInsights').ResourceTypes | Where-Object -FilterScript { $_.ResourceTypeName -eq 'workspaces' }).Locations
-    [ValidateSet('australiacentral', 'australiacentral2', 'australiaeast', 'australiasoutheast', 'austriaeast', 'brazilsouth', 'brazilsoutheast', 'canadacentral', 'canadaeast', 'centralindia', 'centralus', 'chilecentral', 'eastasia', 'eastus', 'eastus2', 'francecentral', 'francesouth', 'germanynorth', 'germanywestcentral', 'indonesiacentral', 'israelcentral', 'italynorth', 'japaneast', 'japanwest', 'jioindiacentral', 'jioindiawest', 'koreacentral', 'koreasouth', 'malaysiawest', 'mexicocentral', 'newzealandnorth', 'northcentralus', 'northeurope', 'norwayeast', 'norwaywest', 'polandcentral', 'qatarcentral', 'southafricanorth', 'southafricawest', 'southcentralus', 'southeastasia', 'southindia', 'spaincentral', 'swedencentral', 'switzerlandnorth', 'switzerlandwest', 'uaecentral', 'uaenorth', 'uksouth', 'ukwest', 'westcentralus', 'westeurope', 'westus', 'westus2', 'westus3')]
+    [ValidateScript({$_ -in $($OperationalInsightLocations = ((Get-AzResourceProvider -ProviderNamespace 'Microsoft.OperationalInsights').ResourceTypes | Where-Object -FilterScript { $_.ResourceTypeName -eq 'workspaces' }).Locations; (Get-AzLocation | Where-Object -FilterScript { $_.DisplayName -in $OperationalInsightLocations}).Location)})]
     [string[]] $Location,
     [ValidateSet('australiaeast', 'southcentralus', 'eastus', 'westeurope', 'southeastasia', 'canadacentral', 'japaneast', 'centralindia')]
     [string[]] $azureLocalInstanceLocation
@@ -565,7 +564,7 @@ param vmAutologon = $(($vmAutologon).ToString().ToLower())
 param vmSize = '$vmSize'
 param enableAzureSpotPricing = $(($enableAzureSpotPricing).ToString().ToLower())
 param governResourceTags = $(($governResourceTags).ToString().ToLower())
-param tags = $(($tags | ConvertTo-Json).Replace('"', "'"))
+param tags = $(($tags | ConvertTo-Json).Replace('"', "'") -replace '''(.*)'':', '$1:')
 "@
 
     $null = New-Item -Path $TemplateParameterFile -ItemType File -Value $TemplateParameterFileContent -Force
@@ -677,6 +676,22 @@ function Wait-AzConnectedMachine {
     if (-not($ResourceGroup)) {
         Write-Error -Message "the '$ResourceGroupName' ResourceGroup doesn't exist !!!" -ErrorAction Stop
     }
+
+    #region Testing if VHDX URIs are reachable
+    $URI = "https://raw.githubusercontent.com/microsoft/azure_arc/refs/heads/main/azure_jumpstart_localbox/artifacts/PowerShell/New-LocalBoxCluster.ps1"
+    $FileContent = Invoke-RestMethod -Uri $URI -Method Get -UseBasicParsing
+    $VHXURIs = ([regex]::Matches($FileContent,"(?m)^\s(?<Comment>[^#]).*(?<URI>https?[^$]*vhdx)").Groups | Where-Object -FilterScript { $_.Name -eq "URI"}).Value
+    foreach ($CurrentVHXURI in $VHXURIs) {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentVHXURI: $CurrentVHXURI"
+        try {
+            $Result = Invoke-WebRequest -Uri $CurrentVHXURI -Method HEAD -UseBasicParsing
+        }
+        catch {
+            Write-Error -Message "The '$CurrentVHXURI' is not reachable ($_.Exception.message)" #-ErrorAction Stop
+            throw
+        }
+    }
+    #endregion 
 
     #region From https://jumpstart.azure.com/azure_jumpstart_localbox/cloud_deployment#azure-local-instance-validation-and-deployment-from-the-azure-portal
     #region Wait for AzLHOST1 and AzLHOST2 to become Arc-enabled servers
@@ -1034,26 +1049,6 @@ function Set-LocalClusterInsightSetup {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
 }
 
-function New-VMLogicalNetwork {
-    [CmdletBinding(PositionalBinding = $false)]
-    param (
-        [Parameter(Mandatory = $true)]
-        [ValidateNotNullOrEmpty()]
-        [string] $ResourceGroupName
-    )
-
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
-    $ScriptPath = "C:\LocalBox\Configure-VMLogicalNetwork.ps1"
-    $AzVMRunCommand = Invoke-AzVMRunCommand  -CommandId 'RunPowerShellScript' -ResourceGroupName $ResourceGroupName -VMName LocalBox-Client -ScriptString "pwsh -File '$ScriptPath'"
-    $LogicalNetworkName = "localbox-vm-lnet-vlan200"
-    $LogicalNetwork = Get-AzStackHCIVMLogicalNetwork -ResourceGroupName $ResourceGroupName -Name $LogicalNetworkName
-    if (-not($LogicalNetwork)) {
-        Write-Error -Message "The '$LogicalNetworkName' Azure Local Logical Network doesn't exist ..." -ErrorAction Stop
-    }
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
-    return $LogicalNetwork
-}
-
 function New-AzLocalAVDVMImage {
     [CmdletBinding(PositionalBinding = $false)]
     param (
@@ -1106,14 +1101,20 @@ function New-AzLocalAVDVMImage {
 
     }
     $Images = $Jobs | Receive-Job -Wait -AutoRemoveJob
-    if (-not($Images)) {
-        $Parameters = @{
-            ResourceGroupName = $ResourceGroupName
-        }
-        $Images = Get-AzStackHCIVMImage @Parameters
+    if ($Images.ProvisioningState -contains "Failed") {
+        $FailedImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript {$_.ProvisioningState -ne "Succeeded"}
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$FailedImages:`r`n$($FailedImages | Out-String)"
+        Write-Error -Message "One or more image(s) failed during the build : $($FailedImages.Name -join ', ')"
     }
+
+    $Parameters = @{
+        ResourceGroupName = $ResourceGroupName
+    }
+    $SuccessfulImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript {$_.ProvisioningState -eq "Succeeded"}
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SuccessfulImages:`r`n$($SuccessfulImages | Out-String)"
+    
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
-    return $Images
+    return $SuccessfulImages
 }
 
 function New-AzLocalAVDVM {
@@ -1122,7 +1123,6 @@ function New-AzLocalAVDVM {
         [Parameter(Mandatory = $True)]
         [ValidateNotNullOrEmpty()]
         [PSCredential] $Credential,
-        [Parameter(Mandatory = $True)]
         [ValidateNotNullOrEmpty()]
         [Microsoft.Azure.PowerShell.Cmdlets.StackHCIVM.Models.MarketplaceGalleryImages] $Image,
         [Parameter(Mandatory = $true)]
@@ -1136,12 +1136,21 @@ function New-AzLocalAVDVM {
     $ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -in @('', 'Windows') } | Select-Object -Property resource, shortName, lengthMax | Group-Object -Property resource -AsHashTable -AsString
     #endregion
 
-    #region Create the network interface
     $NICNamePrefix = $ResourceTypeShortNameHT["Network/networkInterfaces"].ShortName
     $VMNamePrefix = $ResourceTypeShortNameHT["Compute/virtualMachines"].ShortName
     $Instance = [regex]::Match($LogicalNetwork.ResourceGroupName, "\d+$").Value
-    $VMName = "{0}win11avd{1}" -f $VMNamePrefix, $Instance
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$NICNamePrefix: $NICNamePrefix"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VMNamePrefix: $VMNamePrefix"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Instance: $Instance"
+
+    #region Create the network interface
+    $FormattedSku = $Image.Name -replace "-\d{3}-\d{14}$" -replace "\W" -replace "win", "w" -replace "avd"
+    $FormattedSku = $FormattedSku.SubString(0, [math]::Min(10, $FormattedSku.Length))
+    $VMName = "e{0}{1}{2}" -f $VMNamePrefix, $FormattedSku, $Instance
     $NICName = "{0}-{1}" -f $NICNamePrefix, $VMName
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$FormattedSku: $FormattedSku"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VMName: $VMName"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$NICName: $NICName"
 
     $Parameters = @{
         Name              = $NICName
@@ -1150,7 +1159,9 @@ function New-AzLocalAVDVM {
         CustomLocationId  = $LogicalNetwork.ExtendedLocationName
         SubnetName        = $LogicalNetwork.Subnet.Name
     }
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
     $NIC = New-AzStackHCIVMNetworkInterface @Parameters
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$NIC:`r`n$($NIC | Out-String)"
     #endregion
 
     #region Create the virtual machine
@@ -1166,17 +1177,43 @@ function New-AzLocalAVDVM {
         AdminPassword     = $Credential.Password
         OSType            = "Windows"
     }
-    $VM = New-AzStackHCIVMVirtualMachine @Parameters
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
+    $VM = New-AzStackHCIVMVirtualMachine @Parameters        
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VM:`r`n$($VM | Out-String)"
+
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
     return $VM
+
     #endregion
+}
+
+function New-VMLogicalNetwork {
+    [CmdletBinding(PositionalBinding = $false)]
+    param (
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string] $ResourceGroupName
+    )
+
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
+    $ScriptPath = "C:\LocalBox\Configure-VMLogicalNetwork.ps1"
+    $AzVMRunCommand = Invoke-AzVMRunCommand  -CommandId 'RunPowerShellScript' -ResourceGroupName $ResourceGroupName -VMName LocalBox-Client -ScriptString "pwsh -File '$ScriptPath'"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzVMRunCommand:`r`n$($AzVMRunCommand | Out-String)"
+    $LogicalNetworkName = "localbox-vm-lnet-vlan200"
+    $LogicalNetwork = Get-AzStackHCIVMLogicalNetwork -ResourceGroupName $ResourceGroupName -Name $LogicalNetworkName -ErrorAction Ignore
+    if (-not($LogicalNetwork)) {
+        Write-Error -Message "The '$LogicalNetworkName' Azure Local Logical Network doesn't exist ..." -ErrorAction Stop
+    }
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
+    return $LogicalNetwork
 }
 #endregion
 
 #region Main
 try { while (Stop-Transcript) {} } catch {}
 Clear-Host
-$VerbosePreference = "continue"
+#$VerbosePreference = "continue"
+$null = Update-AzConfig -DisplayBreakingChangeWarning $false -Scope Process
 $Error.Clear()
 
 $CurrentScript = $MyInvocation.MyCommand.Path
@@ -1280,6 +1317,7 @@ foreach ($CurrentLAWSupportedRegion in $LAWSupportedRegions) {
         # Retry the deployment across supported Azure Local instance regions until one succeeds.
         foreach ($CurrentAzureLocalInstanceLocation in $AzureLocalInstanceLocations) {
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzureLocalInstanceLocation: $CurrentAzureLocalInstanceLocation"
+            #Enabling enableAzureSpotPricing for cost optimization
             $Result = New-JumpstartLocalBox -Credential $Credential -azureLocalInstanceLocation $CurrentAzureLocalInstanceLocation -Location $CurrentLAWSupportedRegion -BicepFileDir $BicepFileDir -enableAzureSpotPricing $true -autoUpgradeClusterResource $true -Verbose
             if ($Result.Succeeded) {
                 Write-Host -Object "The Jumpstart LocalBox Deployment Succeeded !!!" -ForegroundColor Green
@@ -1293,19 +1331,21 @@ foreach ($CurrentLAWSupportedRegion in $LAWSupportedRegions) {
         if ($Result.Succeeded) {
             # Complete the cloud deployment:
             # https://jumpstart.azure.com/azure_jumpstart_localbox/cloud_deployment
-            Wait-AzConnectedMachine -ResourceGroupName $Result.ResourceGroupName
+            Wait-AzConnectedMachine -ResourceGroupName $Result.ResourceGroupName -Verbose
             
             # Configure the LocalBox environment:
             # https://jumpstart.azure.com/azure_jumpstart_localbox/using_localbox
-            Set-LocalClusterInsightSetup -ResourceGroupName $Result.ResourceGroupName
+            Set-LocalClusterInsightSetup -ResourceGroupName $Result.ResourceGroupName -Verbose
             
             # Create Azure Local VM resources:
             # https://jumpstart.azure.com/azure_jumpstart_localbox/RB
-            $Images = New-AzLocalAVDVMImage -ResourceGroupName $Result.ResourceGroupName
-            $LogicalNetwork = New-VMLogicalNetwork -ResourceGroupName $Result.ResourceGroupName
-            $VMs = foreach ($Image in $Images) {
-                New-AzLocalAVDVM -Credential $Credential -Image $Image -LogicalNetwork $LogicalNetwork 
+            $Images = New-AzLocalAVDVMImage -ResourceGroupName $Result.ResourceGroupName -Verbose
+            $LogicalNetwork = New-VMLogicalNetwork -ResourceGroupName $Result.ResourceGroupName -Verbose
+            $Jobs = foreach ($Image in $Images) {
+                #Start-Job -ScriptBlock { New-AzLocalAVDVM -Credential $using:Credential -Image $using:Image -LogicalNetwork $using:LogicalNetwork }
+                New-AzLocalAVDVM -Credential $Credential -Image $Image -LogicalNetwork $LogicalNetwork -Verbose
             }
+            $VMs = $Jobs | Receive-Job -Wait -AutoRemoveJob
 
             #region Protect the resource group from accidental deletion
             $null = New-AzResourceLock -LockName CanNotDelete -LockLevel CanNotDelete -ResourceGroupName $Result.ResourceGroupName -Force
