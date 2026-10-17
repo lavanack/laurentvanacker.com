@@ -118,6 +118,7 @@ $Machines = Get-LabVM
 Install-LabWindowsFeature -FeatureName Telnet-Client -ComputerName $Machines -IncludeManagementTools -AsJob
 #endregion
 
+<#
 Invoke-LabCommand -ActivityName 'Windows Virtual Desktop Optimization Tool (VDOT)' -ComputerName $Machines -ScriptBlock {
     winget install --id Git.Git -e --source winget
     $GitHubRootDir = Join-Path -Path $env:SystemDrive -ChildPath "Source Control\GitHub"
@@ -127,13 +128,18 @@ Invoke-LabCommand -ActivityName 'Windows Virtual Desktop Optimization Tool (VDOT
 
     $null = New-Item -Path $GitHubRootDir -ItemType Directory -Force
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "git clone $GitHubRepoURI ""$GitHubRepoDir""" -Wait -WorkingDirectory "$env:ProgramFiles\Git\cmd"
-    <#
-    Set-Location -Path $GitHubRepoDir
-    .\Windows_VDOT.ps1 -Optimizations All -AdvancedOptimizations All -AcceptEULA -Verbose
-    #>
+
+    #Set-Location -Path $GitHubRepoDir
+    #.\Windows_VDOT.ps1 -Optimizations All -AdvancedOptimizations All -AcceptEULA -Verbose
+
     $ScriptFile = Join-Path -Path $GitHubRepoDir -ChildPath "Windows_VDOT.ps1"
     & $ScriptFile -Optimizations All -AdvancedOptimizations All -AcceptEULA -Verbose -ErrorAction Ignore
     #Restart-Computer -Force
+}
+#>
+
+Invoke-LabCommand -ActivityName 'Windows Optimization' -ComputerName $Machines -ScriptBlock {
+    Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/Azure/RDS-Templates/refs/heads/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2024-03-27/WindowsOptimization.ps1) } -All" -Verbose
 }
 
 Restart-LabVM -ComputerName $Machines -Wait
@@ -249,14 +255,21 @@ foreach ($Machine in $Machines) {
 }
 #endregion
 
+#region Building an Hashtable to get the prefix of every Azure resource type based on a JSON file on the Github repository of the Azure Naming Tool
+$Result = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/refs/heads/main/src/repository/resourcetypes.json 
+$ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -notin @('Linux') } | Select-Object -Property resource, shortName, property, lengthMax | Group-Object -Property resource -AsHashTable -AsString
+#endregion
+
 #region Host Pool Management
 #Getting dedicated ResourceGroup
-$HostPoolResourceGroup = Get-AzResourceGroup -Name rg-*-pd-ei-hybrid-demo-*
+$HostPoolResourceGroup = Get-AzResourceGroup -Name rg-*hp-pd-ei-hybrid-demo-*
 if ($HostPoolResourceGroup) {
     if ($HostPoolResourceGroup.count -gt 1) {
         $HostPoolResourceGroup = $HostPoolResourceGroup | Out-GridView -OutputMode Single
     }
-    $VMResourceGroupName = $HostPoolResourceGroup.ResourceGroupName -replace "-hp-", "-vm-"
+    $HostPoolNamePrefix = $ResourceTypeShortNameHT["DesktopVirtualization/hostPools"].ShortName
+    $VirtualMachinePrefix = $ResourceTypeShortNameHT["Compute/virtualMachines"].ShortName
+    $VMResourceGroupName = $HostPoolResourceGroup.ResourceGroupName -replace "-$($HostPoolNamePrefix)-", "-$($VirtualMachinePrefix)-"
     $VMResourceGroup = Get-AzResourceGroup -Name $VMResourceGroupName -ErrorAction Ignore
     if (-not($VMResourceGroup)) {
         Write-Error -Message "'$VMResourceGroupName' ResourceGroup NOT found !!!" -ErrorAction Stop
