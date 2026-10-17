@@ -147,7 +147,7 @@ $BastionPublicIpName = $BastionPublicIpName.ToLower()
 $NatGatewayPublicIpName = $NatGatewayPublicIpName.ToLower()
 $VirtualNetworkSubnetAddressPrefix = "10.0.0.0/16" # Format 10.0.0.0/16
 $BastionSubnetAddressPrefix = '10.0.1.0/26'
-$NatGatewaySubnetAddressPrefix = "10.0.0.0/24" # Format 10.0.1.0/24                         
+$NatGatewaySubnetAddressRange = "10.0.0.0/24" # Format 10.0.1.0/24                         
 $FQDN = "$VMName.$Location.cloudapp.azure.com".ToLower()
 
 
@@ -231,11 +231,12 @@ $Nat = @{
 }
 $NatGateway = New-AzNatGateway @Nat
 #endregion 
+#endregion 
 
 #region Create subnet config and associate NAT gateway to subnet
 $Subnet = @{
     Name          = $SubnetName
-    AddressPrefix = $NatGatewaySubnetAddressPrefix
+    AddressPrefix = $NatGatewaySubnetAddressRange
     NatGateway    = $NatGateway
 }
 $SubnetConfig = New-AzVirtualNetworkSubnetConfig @subnet 
@@ -258,7 +259,6 @@ $Net = @{
     Subnet            = $SubnetConfig, $BastionSubnetConfig
 }
 $VirtualNetwork = New-AzVirtualNetwork @Net
-$BastionSubnetConfig = New-AzVirtualNetworkSubnetConfig @BastionSubnet
 #endregion
 
 #region Create public IP address for bastion host ##
@@ -284,7 +284,6 @@ $bastion = @{
     Sku                   = 'Basic'
 }
 New-AzBastion @bastion
-#endregion
 #endregion
 
 #region Create Azure Storage Account
