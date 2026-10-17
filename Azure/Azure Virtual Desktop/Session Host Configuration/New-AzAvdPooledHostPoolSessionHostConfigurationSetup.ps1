@@ -510,7 +510,6 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
     $null = Get-AzWvdDesktop @parameters | Update-AzWvdDesktop -FriendlyName $FriendlyName
     #endregion
 
-
     #region Assign 'Desktop Virtualization User' RBAC role to application groups
     # Get the object ID of the user group you want to assign to the application group
     $EntraIDGroup = Get-AzADGroup -Filter "DisplayName eq 'AVD Users'"
