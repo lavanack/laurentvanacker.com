@@ -22,7 +22,7 @@ function New-AzureSoftwareContainer {
 	[CmdletBinding()]
 	Param(
 		[Parameter(Mandatory = $false)]
-		[string]$Location = "EastUS2"
+		[string]$Location = "CentralUS"
 	)
 
 	#region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
@@ -57,6 +57,8 @@ function New-AzureSoftwareContainer {
 	$NetworkSecurityGroupPrefix = $ResourceTypeShortNameHT["Network/networkSecurityGroups"].ShortName
 	$VirtualNetworkPrefix = $ResourceTypeShortNameHT["Network/virtualNetworks"].ShortName
     $SubnetPrefix = $ResourceTypeShortNameHT["Network/virtualnetworks/subnets"].ShortName
+    $PublicIPAddressPrefix = $ResourceTypeShortNameHT["Network/publicIPAddresses"].ShortName
+    $NatGatewayPrefix = "ng"
 
 	# Location (see possible locations in the main docs)
 	#$Location = "EastUS"
@@ -66,17 +68,21 @@ function New-AzureSoftwareContainer {
 
 	$Project = "avd"
 	$Role = "aib"
+	#Timestamp
+	$timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 	#endregion
 
 	#region Create storage resource group
 	Do {
-		$Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
-		$StorageAccountName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $StorageAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
+		#$Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
+		$StorageAccountName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $StorageAccountPrefix, $Project, $Role, $LocationShortName, $timeInt                       
 		Start-Sleep -Second 1
 	} While (-not(Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable)
  
 
-	$ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance 
+    $NatGatewayName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $NatGatewayPrefix, $Project, $Role, $LocationShortName, $timeInt    
+    $NatGatewayPublicIpName = "{0}-{1}" -f $PublicIPAddressPrefix, $NatGatewayName
+	$ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $timeInt 
 	$ResourceGroupName = $ResourceGroupName.ToLower()
 	Write-Verbose -Message "`$ResourceGroupName: $ResourceGroupName"
 
@@ -121,7 +127,8 @@ function New-AzureSoftwareContainer {
     #endregion
 
 	$SoftwareDir = New-Item -Path $CurrentDir -Name "Software" -ItemType Directory -Force
-	#region Notepad++
+	<#
+    #region Notepad++
 	#region Notepad++ Installer
 	$DownloadURI = $(((Invoke-RestMethod  -Uri "https://api.github.com/repos/notepad-plus-plus/notepad-plus-plus/releases/latest").assets | Where-Object -FilterScript { $_.name.EndsWith("x64.exe") }).browser_download_url)
 
@@ -141,7 +148,8 @@ function New-AzureSoftwareContainer {
 	$null = Set-AzStorageBlobContent -Context $StorageContext -File $InstallPowershellScript -Container $ContainerName -Blob $BlobName -Force
 	#endregion
 	#endregion
-	<#
+    #>
+
     #From https://learn.microsoft.com/en-us/azure/virtual-machines/linux/image-builder-json?tabs=json%2Cazure-powershell#file-customizer (Read the note for the file size)
     #region Storage Explorer 
     #region Storage Explorer Installer
@@ -162,14 +170,15 @@ function New-AzureSoftwareContainer {
     $null = Set-AzStorageBlobContent -Context $StorageContext -File $InstallPowershellScript -Container $ContainerName -Blob $BlobName -BlobType Block -Force
     #endregion
     #endregion
-    #>
+
 	#endregion
 
 	#region Create Virtual Network and Subnet
 	#From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/image-builder-vnet
-	$NetworkSecurityGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $NetworkSecurityGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
-	$VirtualNetworkName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $VirtualNetworkPrefix, $Project, $Role, $LocationShortName, $Instance                       
-	$SubnetName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $SubnetPrefix, $Project, $Role, $LocationShortName, $Instance        
+	$NetworkSecurityGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $NetworkSecurityGroupPrefix, $Project, $Role, $LocationShortName, $timeInt                       
+	$VirtualNetworkName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $VirtualNetworkPrefix, $Project, $Role, $LocationShortName, $timeInt                       
+	$SubnetName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $SubnetPrefix, $Project, $Role, $LocationShortName, $timeInt        
+    $NatGatewaySubnetName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $SubnetPrefix, $Project, $NatGatewayPrefix, $LocationShortName, $timeInt        
 	$VirtualNetworkName = $VirtualNetworkName.ToLower()
 	$SubnetName = $SubnetName.ToLower()
 	$NetworkSecurityGroupName = $NetworkSecurityGroupName.ToLower()
@@ -178,13 +187,51 @@ function New-AzureSoftwareContainer {
 	Write-Verbose "`$SubnetName: $SubnetName"         
 	$VNetAddressRange = '10.0.0.0/16'
 	$SubnetAddressRange = '10.0.1.0/24'
+    $NatGatewaySubnetAddressRange = "10.0.0.0/24" # Format 10.0.1.0/24                         
 
+    #region Create the NAT gateway
+    #From https://learn.microsoft.com/en-us/azure/nat-gateway/quickstart-create-nat-gateway?tabs=powershell
+    #region Create public IP address for NAT gateway 
+    $IP = @{
+        Name              = $NatGatewayPublicIpName
+        ResourceGroupName = $ResourceGroupName
+        Location          = $Location
+        Sku               = 'Standard'
+        AllocationMethod  = 'Static'
+        #Zone = 1,2,3
+    }
+    $PublicIp = New-AzPublicIpAddress @IP
+    #endregion 
+
+    #region Create NAT gateway resource 
+    $Nat = @{
+        ResourceGroupName    = $ResourceGroupName
+        Name                 = $NatGatewayName
+        IdleTimeoutInMinutes = '10'
+        Sku                  = 'Standard'
+        Location             = $Location
+        PublicIpAddress      = $PublicIp
+    }
+    $NatGateway = New-AzNatGateway @Nat
+    #endregion 
+
+    #endregion
+
+    #region Create the virtual network
 	#Add an NSG rule
 	$NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NetworkSecurityGroupName -Force
 	$null = $NetworkSecurityGroup | Add-AzNetworkSecurityRuleConfig -Name AzureImageBuilderAccess -Description "Allow Image Builder Private Link Access to Proxy VM" -Access Allow -Protocol Tcp -Direction Inbound -Priority 400 -SourceAddressPrefix AzureLoadBalancer -SourcePortRange * -DestinationAddressPrefix VirtualNetwork -DestinationPortRange 60000-60001 | Set-AzNetworkSecurityGroup
 	#Disable private service policy on the subnet
-	$subnet = New-AzVirtualNetworkSubnetConfig -Name $subnetName -AddressPrefix $SubnetAddressRange -PrivateLinkServiceNetworkPoliciesFlag "Disabled" -NetworkSecurityGroup $NetworkSecurityGroup
-	$vNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName  -AddressPrefix $VNetAddressRange -Location $Location -Subnet $Subnet
+	$SubnetConfig = New-AzVirtualNetworkSubnetConfig -Name $SubnetName -AddressPrefix $SubnetAddressRange -PrivateLinkServiceNetworkPoliciesFlag "Disabled" -NetworkSecurityGroup $NetworkSecurityGroup -NatGateway $NatGateway
+    $Net = @{
+        ResourceGroupName = $ResourceGroupName
+        Name              = $VirtualNetworkName
+        AddressPrefix     = $VNetAddressRange
+        Location          = $Location
+        Subnet            = $SubnetConfig
+    }
+    $vNetwork = New-AzVirtualNetwork @Net
+    #endregion
 	#endregion
 
 	#region Private endpoint for Storage Setup
@@ -197,8 +244,8 @@ function New-AzureSoftwareContainer {
 	$PrivateEndpointName = "pep{0}" -f $($StorageAccountName -replace "\W")
 	$GroupId = (Get-AzPrivateLinkResource -PrivateLinkResourceId $StorageAccount.Id).GroupId | Where-Object -FilterScript { $_ -match "blob" }
 	$PrivateLinkServiceConnection = New-AzPrivateLinkServiceConnection -Name $PrivateEndpointName -PrivateLinkServiceId $StorageAccount.Id -GroupId $GroupId
-	$Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $vNetwork
-	$PrivateEndpoint = New-AzPrivateEndpoint -Name $PrivateEndpointName -ResourceGroupName $ResourceGroupName -Location $Location -Subnet $Subnet -PrivateLinkServiceConnection $PrivateLinkServiceConnection -CustomNetworkInterfaceName $("{0}-nic" -f $PrivateEndpointName) -Force
+	$SubnetConfig = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $vNetwork
+	$PrivateEndpoint = New-AzPrivateEndpoint -Name $PrivateEndpointName -ResourceGroupName $ResourceGroupName -Location $Location -Subnet $SubnetConfig -PrivateLinkServiceConnection $PrivateLinkServiceConnection -CustomNetworkInterfaceName $("{0}-nic" -f $PrivateEndpointName) -Force
 
 	## Create the private DNS zone. ##
 	#Write-Verbose -Message "Creating the Private DNS Zone for the Storage Account '$StorageAccountName' (in the '$($ResourceGroupName)' Resource Group) ..."
@@ -244,7 +291,7 @@ function New-AzureComputeGallery {
 	[CmdletBinding()]
 	Param(
 		[Parameter(Mandatory = $false)]
-		[string]$Location = "EastUS2",
+		[string]$Location = "CentralUS",
 		[Parameter(Mandatory = $false)]
 		[string[]]$TargetRegions = @($Location),
 		[Parameter(Mandatory = $false)]
@@ -621,6 +668,25 @@ function New-AzureComputeGallery {
 	$GalleryImageDefinitionARM = New-AzGalleryImageDefinition @GalleryParams
 	#endregion
 
+    #region RBAC Assignments for the User Assigned Managed Identity
+    #region 'Reader' RBAC Assignment
+    $RoleDefinition = Get-AzRoleDefinition -Name "Network Contributor"
+    $Parameters = @{
+        ObjectId           = $AssignedIdentity.PrincipalId
+        RoleDefinitionName = $RoleDefinition.Name
+        Scope              = $StorageContainerVirtualNetwork.Id
+    }
+    while (-not(Get-AzRoleAssignment @Parameters)) {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' ObjectId on the '$($Parameters.Scope)' Scope"
+        $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+        Start-Sleep -Seconds 30
+    }
+    #endregion 
+    #endregion
+
+
 	#region Submit the template
 	Write-Verbose -Message "Starting Resource Group Deployment from '$templateFilePath' ..."
 	$ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2022-07-01"; "imageTemplateName" = $imageTemplateNameARM; "svclocation" = $location }  #-Tag $Tags
@@ -802,7 +868,8 @@ function New-AzureComputeGallery {
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
 	#As $StorageBlobPowerShellCustomizers is an array we force the first items in an array so $Customize will be cast as an array
-	$Customize = @($CopyInstallLanguagePacksCustomizer, $InstallLanguagePacksCustomizer, $AZCopyCustomizer, $ContainerCopyCustomizer) + @($StorageBlobPowerShellCustomizers) + @($TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer)
+	#$Customize = @($CopyInstallLanguagePacksCustomizer, $InstallLanguagePacksCustomizer, $AZCopyCustomizer, $ContainerCopyCustomizer) + @($StorageBlobPowerShellCustomizers) + @($TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer)
+	$Customize = @($CopyInstallLanguagePacksCustomizer, $InstallLanguagePacksCustomizer, $AZCopyCustomizer, $ContainerCopyCustomizer) + @($TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer)
 	$ImgTemplateParams = @{
 		ImageTemplateName      = $imageTemplateNamePowerShell
 		ResourceGroupName      = $ResourceGroupName
@@ -898,9 +965,12 @@ function New-AzureComputeGallery {
 	#endregion
   
 	#region Removing Staging ResourceGroups
-	$null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNameARM -Force -AsJob
-	$null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNamePowerShell -Force -AsJob
-
+    if ($getStatusPowerShell.LastRunStatusRunState -ne "Failed") {
+        $null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNameARM -Force -AsJob
+    }
+    if ($getStatusARM.LastRunStatusRunState -ne "Failed") {
+        $null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNamePowerShell -Force -AsJob
+    }
 	#endregion
 
 	return $Gallery
@@ -938,7 +1008,7 @@ $Jobs | Remove-Job -Force
 #endregion
 $SoftwareContainer = New-AzureSoftwareContainer -Verbose
 
-$AzureComputeGallery = New-AzureComputeGallery -StorageContainer $SoftwareContainer -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
+$AzureComputeGallery = New-AzureComputeGallery -StorageContainer $SoftwareContainer -Location CentralUS -TargetRegions CentralUS, CentralUS -Verbose
 $AzureComputeGallery
 
 $EndTime = Get-Date
