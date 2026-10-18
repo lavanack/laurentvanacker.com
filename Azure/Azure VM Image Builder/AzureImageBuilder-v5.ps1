@@ -330,6 +330,7 @@ function New-AzureComputeGallery {
 	if ($Location -notin $TargetRegions) {
 		$TargetRegions += $Location
 	}
+    $TargetRegions = $TargetRegions | Select-Object -Unique
 	Write-Verbose -Message "`$TargetRegions: $($TargetRegions -join ', ')"
 	[array] $TargetRegionSettings = foreach ($CurrentTargetRegion in $TargetRegions) {
 		@{"name" = $CurrentTargetRegion; "replicaCount" = $ReplicaCount; "storageAccountType" = "Premium_LRS" }
@@ -1008,7 +1009,7 @@ $Jobs | Remove-Job -Force
 #endregion
 $SoftwareContainer = New-AzureSoftwareContainer -Verbose
 
-$AzureComputeGallery = New-AzureComputeGallery -StorageContainer $SoftwareContainer -Location CentralUS -TargetRegions CentralUS, CentralUS -Verbose
+$AzureComputeGallery = New-AzureComputeGallery -StorageContainer $SoftwareContainer -Location CentralUS -TargetRegions CentralUS, EastUS2 -Verbose
 $AzureComputeGallery
 
 $EndTime = Get-Date
