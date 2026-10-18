@@ -24,17 +24,18 @@ of the Sample Code.
 param
 (
     # Log Analytics workspace regions:
-    [ValidateScript({$_ -in $($OperationalInsightLocations = ((Get-AzResourceProvider -ProviderNamespace 'Microsoft.OperationalInsights').ResourceTypes | Where-Object -FilterScript { $_.ResourceTypeName -eq 'workspaces' }).Locations; (Get-AzLocation | Where-Object -FilterScript { $_.DisplayName -in $OperationalInsightLocations}).Location)})]
+    [ValidateScript({ $_ -in $($OperationalInsightLocations = ((Get-AzResourceProvider -ProviderNamespace 'Microsoft.OperationalInsights').ResourceTypes | Where-Object -FilterScript { $_.ResourceTypeName -eq 'workspaces' }).Locations; (Get-AzLocation | Where-Object -FilterScript { $_.DisplayName -in $OperationalInsightLocations }).Location) })]
     [string[]] $Location,
     [ValidateSet('australiaeast', 'southcentralus', 'eastus', 'westeurope', 'southeastasia', 'canadacentral', 'japaneast', 'centralindia')]
     [string[]] $azureLocalInstanceLocation
 )
-
+<#
 trap {
     Write-Host "Stopping Transcript ..."
     Stop-Transcript
     break
 }
+#>
 
 #region Function definitions
 # Adapted from https://adamtheautomator.com/powershell-random-password/
@@ -172,6 +173,7 @@ function Add-RDPCredential {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
     # Escape the password for cmd.exe before storing the RDP credentials.
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$ComputerName /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
+    $ComputerName | Set-Clipboard 
     Write-Host -Object "Your RDP credentials (login/password) are $($Credential.UserName)/$($Credential.GetNetworkCredential().Password) for '$ComputerName'" -ForegroundColor Green
     if ($Connect) {
         $MSTSCProcess = Start-Process -FilePath "mstsc" -ArgumentList "/v:$ComputerName /f" -PassThru -WindowStyle Normal
@@ -189,11 +191,11 @@ function Add-RDPCredential {
         $hwnd = $MSTSCProcess.MainWindowHandle
         $null = $type::ShowWindow($hwnd, 5)
         $null = $type::SetForegroundWindow($hwnd) 
-        Start-Sleep -Seconds 3
+        Start-Sleep -Seconds 1
         #endregion
         #region Confirm the RDP connection prompts
         $wshell = New-Object -ComObject wscript.shell;
-                # $null = $wshell.AppActivate((Get-Process -Id $MSTSCProcess.Id -ErrorAction Stop).MainWindowtitle, $true)
+        # $null = $wshell.AppActivate((Get-Process -Id $MSTSCProcess.Id -ErrorAction Stop).MainWindowtitle, $true)
         Start-Sleep -Milliseconds 100
         $wshell.SendKeys('d')
         Start-Sleep -Milliseconds 100
@@ -680,7 +682,7 @@ function Wait-AzConnectedMachine {
     #region Testing if VHDX URIs are reachable
     $URI = "https://raw.githubusercontent.com/microsoft/azure_arc/refs/heads/main/azure_jumpstart_localbox/artifacts/PowerShell/New-LocalBoxCluster.ps1"
     $FileContent = Invoke-RestMethod -Uri $URI -Method Get -UseBasicParsing
-    $VHXURIs = ([regex]::Matches($FileContent,"(?m)^\s(?<Comment>[^#]).*(?<URI>https?[^$]*vhdx)").Groups | Where-Object -FilterScript { $_.Name -eq "URI"}).Value
+    $VHXURIs = ([regex]::Matches($FileContent, "(?m)^\s(?<Comment>[^#]).*(?<URI>https?[^$]*vhdx)").Groups | Where-Object -FilterScript { $_.Name -eq "URI" }).Value
     foreach ($CurrentVHXURI in $VHXURIs) {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentVHXURI: $CurrentVHXURI"
         try {
@@ -1058,7 +1060,7 @@ function New-AzLocalAVDVMImage {
         [Parameter(Mandatory = $false)]
         [ValidateNotNullOrEmpty()]
         [ValidatePattern("^.+:.+:.+:.+$")]
-        [string[]] $URN = @("MicrosoftWindowsDesktop:office-365:win11-25h2-avd-m365:latest", "MicrosoftWindowsDesktop:Windows-11:win11-25h2-avd:latest")
+        [string[]] $URN = @("MicrosoftWindowsDesktop:office-365:win11-25h2-avd-m365:latest", "MicrosoftWindowsDesktop:windows-11:win11-25h2-avd:latest")
     )
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
     # Marketplace image guidance:
@@ -1102,7 +1104,7 @@ function New-AzLocalAVDVMImage {
     }
     $Images = $Jobs | Receive-Job -Wait -AutoRemoveJob
     if ($Images.ProvisioningState -contains "Failed") {
-        $FailedImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript {$_.ProvisioningState -ne "Succeeded"}
+        $FailedImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript { $_.ProvisioningState -ne "Succeeded" }
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$FailedImages:`r`n$($FailedImages | Out-String)"
         Write-Error -Message "One or more image(s) failed during the build : $($FailedImages.Name -join ', ')"
     }
@@ -1110,7 +1112,7 @@ function New-AzLocalAVDVMImage {
     $Parameters = @{
         ResourceGroupName = $ResourceGroupName
     }
-    $SuccessfulImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript {$_.ProvisioningState -eq "Succeeded"}
+    $SuccessfulImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript { $_.ProvisioningState -eq "Succeeded" }
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SuccessfulImages:`r`n$($SuccessfulImages | Out-String)"
     
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
