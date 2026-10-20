@@ -534,7 +534,7 @@ function New-JumpstartLocalBox {
     $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore 
     if ($ResourceGroup) {
         # Remove an existing resource group with the generated name before redeploying.
-        $ResourceGroup | Remove-AzResourceGroup -Force -Verbose
+        $ResourceGroup | Remove-AzResourceGroup -Force
     }
     #>
     $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
@@ -730,7 +730,6 @@ function Wait-AzConnectedMachine {
 
     #region Wait for the localcluster resource to become connected
     $ClusterName = "localboxcluster"
-    $ResourceGroup = Get-AzResourceGroup -ResourceGroupName $Result.ResourceGroupName -Location  $Result.Location
     Do {
         $Seconds = 300
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds seconds ..."
@@ -1060,7 +1059,8 @@ function New-AzLocalAVDVMImage {
         [Parameter(Mandatory = $false)]
         [ValidateNotNullOrEmpty()]
         [ValidatePattern("^.+:.+:.+:.+$")]
-        [string[]] $URN = @("MicrosoftWindowsDesktop:office-365:win11-25h2-avd-m365:latest", "MicrosoftWindowsDesktop:windows-11:win11-25h2-avd:latest")
+        [string[]] $URN = @("MicrosoftWindowsDesktop:office-365:win11-25h2-avd-m365:latest", "MicrosoftWindowsDesktop:windows-11:win11-25h2-avd:latest"),
+        [switch] $AsAJob
     )
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
     # Marketplace image guidance:
@@ -1102,21 +1102,32 @@ function New-AzLocalAVDVMImage {
         Start-Job -ScriptBlock { $Parameters = $Using:Parameters; New-AzStackHCIVMImage @Parameters }
 
     }
-    $Images = $Jobs | Receive-Job -Wait -AutoRemoveJob
-    if ($Images.ProvisioningState -contains "Failed") {
-        $FailedImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript { $_.ProvisioningState -ne "Succeeded" }
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$FailedImages:`r`n$($FailedImages | Out-String)"
-        Write-Error -Message "One or more image(s) failed during the build : $($FailedImages.Name -join ', ')"
+    if ($AsAJob) {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
+        return $Jobs
     }
+    else {
+        $Images = $Jobs | Receive-Job -Wait -AutoRemoveJob
+        if ($Images.ProvisioningState -contains "Failed") {
+            $Parameters = @{
+                ResourceGroupName = $ResourceGroupName
+            }
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
+            $FailedImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript {$_.ProvisioningState -ne "Succeeded"}
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$FailedImages:`r`n$($FailedImages | Out-String)"
+            Write-Error -Message "One or more image(s) failed during the build : $($FailedImages.Name -join ', ')"
+        }
 
-    $Parameters = @{
-        ResourceGroupName = $ResourceGroupName
-    }
-    $SuccessfulImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript { $_.ProvisioningState -eq "Succeeded" }
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SuccessfulImages:`r`n$($SuccessfulImages | Out-String)"
+        $Parameters = @{
+            ResourceGroupName = $ResourceGroupName
+        }
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
+        $SuccessfulImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript {$_.ProvisioningState -eq "Succeeded"}
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SuccessfulImages:`r`n$($SuccessfulImages | Out-String)"
     
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
-    return $SuccessfulImages
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
+        return $SuccessfulImages
+    }
 }
 
 function New-AzLocalAVDVM {
@@ -1133,6 +1144,7 @@ function New-AzLocalAVDVM {
     )
 
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$LogicalNetwork: $($LogicalNetwork | Out-String)"
     #region Build the Azure resource abbreviation lookup from Azure Naming Tool data
     $Result = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/refs/heads/main/src/repository/resourcetypes.json 
     $ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -in @('', 'Windows') } | Select-Object -Property resource, shortName, lengthMax | Group-Object -Property resource -AsHashTable -AsString
@@ -1148,7 +1160,7 @@ function New-AzLocalAVDVM {
     #region Create the network interface
     $FormattedSku = $Image.Name -replace "-\d{3}-\d{14}$" -replace "\W" -replace "win", "w" -replace "avd"
     $FormattedSku = $FormattedSku.SubString(0, [math]::Min(10, $FormattedSku.Length))
-    $VMName = "e{0}{1}{2}" -f $VMNamePrefix, $FormattedSku, $Instance
+    $VMName = "{0}{1}{2}" -f $VMNamePrefix, $FormattedSku, $Instance
     $NICName = "{0}-{1}" -f $NICNamePrefix, $VMName
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$FormattedSku: $FormattedSku"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VMName: $VMName"
@@ -1159,7 +1171,8 @@ function New-AzLocalAVDVM {
         ResourceGroupName = $LogicalNetwork.ResourceGroupName
         Location          = $LogicalNetwork.Location
         CustomLocationId  = $LogicalNetwork.ExtendedLocationName
-        SubnetName        = $LogicalNetwork.Subnet.Name
+        #SubnetName        = $LogicalNetwork.Subnet.Name
+        SubnetName        = $LogicalNetwork.Name
     }
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
     $NIC = New-AzStackHCIVMNetworkInterface @Parameters
@@ -1199,7 +1212,21 @@ function New-VMLogicalNetwork {
 
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
     $ScriptPath = "C:\LocalBox\Configure-VMLogicalNetwork.ps1"
-    $AzVMRunCommand = Invoke-AzVMRunCommand  -CommandId 'RunPowerShellScript' -ResourceGroupName $ResourceGroupName -VMName LocalBox-Client -ScriptString "pwsh -File '$ScriptPath'"
+
+    $ScriptString = @"
+`$env:PATH = "C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin;`$env:PATH"
+
+Write-Host "Identity:"
+whoami
+
+Write-Host "Azure CLI:"
+Get-Command az
+az version
+
+Write-Host "Starting '$ScriptPath' ..."
+pwsh -File '$ScriptPath'
+"@
+    $AzVMRunCommand = Invoke-AzVMRunCommand  -CommandId 'RunPowerShellScript' -ResourceGroupName $ResourceGroupName -VMName LocalBox-Client -ScriptString $ScriptString
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzVMRunCommand:`r`n$($AzVMRunCommand | Out-String)"
     $LogicalNetworkName = "localbox-vm-lnet-vlan200"
     $LogicalNetwork = Get-AzStackHCIVMLogicalNetwork -ResourceGroupName $ResourceGroupName -Name $LogicalNetworkName -ErrorAction Ignore
@@ -1208,6 +1235,141 @@ function New-VMLogicalNetwork {
     }
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
     return $LogicalNetwork
+}
+
+function New-AzureLocalVMImageFromAzureComputeGalleryImage {
+    [CmdletBinding(PositionalBinding = $false)]
+    param (
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string] $ResourceGroupName,
+        [Parameter(Mandatory = $false)]
+        [string] $ClusterName = "localboxcluster",
+        [Parameter(Mandatory = $false)]
+        # Duration in seconds for SAS URL validity
+        [uint32] $SASExpiryDuration = 100000,
+        [switch] $All,
+        [switch] $AsAJob
+    )
+
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ResourceGroupName: $ResourceGroupName"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ClusterName: $ClusterName"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SASExpiryDuration: $SASExpiryDuration"
+    #Getting the latest version of each image
+    if ($All) {
+        $Resources = Get-AzResource -ResourceType Microsoft.Compute/galleries/images/versions | Select-Object Name, ResourceId, ResourceGroupName, Location, ParentResource | Sort-Object ParentResource,@{Expression={$v=$null;$null=[version]::TryParse(($_.Name -split '/')[-1],[ref]$v);$v};Descending=$true} | Group-Object ParentResource | ForEach-Object {$_.Group[0]}
+    }
+    else {
+        $Resources = Get-AzResource -ResourceType Microsoft.Compute/galleries/images/versions | Select-Object Name, ResourceId, ResourceGroupName, Location, ParentResource | Sort-Object Name | Out-GridView -OutputMode Multiple
+    }
+    $DiskToRemove = @() 
+
+    $Jobs = foreach ($Resource in $Resources) {
+        $GalleryName, $ImageDefinition, $ImageVersion = $Resource.Name -split "/"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$GalleryName: $GalleryName"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ImageDefinition: $ImageDefinition"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ImageVersion: $ImageVersion"
+
+        #From https://learn.microsoft.com/en-us/azure/virtual-machines/managed-disk-from-image-version#powershell
+        $Parameters = @{
+            GalleryImageDefinitionName = $ImageDefinition 
+            GalleryName = $GalleryName 
+            ResourceGroupName = $Resource.ResourceGroupName 
+            Name = $ImageVersion
+        }
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters: $($Parameters | Out-String)"
+        $SourceImageVersion = Get-AzGalleryImageVersion @Parameters
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SourceImageVersion: $($SourceImageVersion | Out-String)"
+
+        #Create a disk configuration.
+        $Parameters = @{
+            Location = $Resource.Location 
+            CreateOption = 'FromImage' 
+            GalleryImageReference = @{Id = $SourceImageVersion.Id}
+            Tag = @{"ToBeCleaned" = "true"}
+        }
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters: $($Parameters | Out-String)"
+        $DiskConfig = New-AzDiskConfig @Parameters
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DiskConfig: $($DiskConfig | Out-String)"
+        
+        #Create the disk.
+        $Parameters = @{
+            Disk = $DiskConfig 
+            ResourceGroupName = $ResourceGroupName 
+            DiskName = $ImageDefinition
+        }
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters: $($Parameters | Out-String)"
+        $Disk = New-AzDisk @Parameters
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Disk: $($Disk | Out-String)"
+        $DiskToRemove += $Disk
+
+        #From https://learn.microsoft.com/en-us/azure/azure-local/manage/virtual-machine-image-azure-compute-gallery#export-image-to-managed-disk
+        $Parameters = @{
+            ResourceGroupName = $Disk.ResourceGroupName
+            DiskName = $Disk.Name 
+            DurationInSecond = $SASExpiryDuration
+            Access = 'Read'
+        }
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters: $($Parameters | Out-String)"
+        $SAS = Grant-AzDiskAccess @Parameters
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SAS: $($SAS | Out-String)"
+
+        $Cluster = Get-AzStackHciCluster -ResourceGroupName $ResourceGroupName -ClusterName $ClusterName -ErrorAction Ignore
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Cluster: $($Cluster | Out-String)"
+        $SubscriptionId = (Get-AzContext).Subscription.Id
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Subscription: $Subscription"
+        $CustomLocation = Get-AzResource -ResourceType "Microsoft.ExtendedLocation/customLocations" -ResourceGroupName $ResourceGroupName
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CustomLocation: $CustomLocation"
+
+        #Create an Azure Local VM image
+        #From https://learn.microsoft.com/en-us/azure/azure-local/manage/virtual-machine-image-azure-compute-gallery#create-an-azure-local-vm-image
+        $Parameters = @{
+            SubscriptionId    = $SubscriptionId
+            ResourceGroupName = $ResourceGroupName
+            CustomLocationId  = $CustomLocation.Id
+            Location          = $Cluster.Location
+            Name              = "acg-{0}-{1}" -f $ImageDefinition, $(Get-Date -Format 'yyyyMMddHHmmss')
+            OSType            = "Windows"
+            ImagePath         = ConvertTo-SecureString -String $SAS.AccessSAS -AsPlainText -Force
+            #Version           = $ImageVersion
+        }
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters: $($Parameters | Out-String)"
+        Start-Job -ScriptBlock { $Parameters = $Using:Parameters; New-AzStackHCIVMImage @Parameters }
+    }
+    
+    if ($AsAJob) {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
+        return $Jobs
+    }
+    else {
+        #region Disk cleanup
+        #To avoid costs associated with a disk, make sure to delete the managed disk that was used to create this image using the following command:
+        $null = $DiskToRemove | Remove-AzDisk -AsJob
+        #endregion
+
+        $Images = $Jobs | Receive-Job -Wait -AutoRemoveJob
+        if ($Images.ProvisioningState -contains "Failed") {
+            $Parameters = @{
+                ResourceGroupName = $ResourceGroupName
+            }
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
+            $FailedImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript {$_.ProvisioningState -ne "Succeeded"}
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$FailedImages:`r`n$($FailedImages | Out-String)"
+            Write-Error -Message "One or more image(s) failed during the build : $($FailedImages.Name -join ', ')"
+        }
+
+        $Parameters = @{
+            ResourceGroupName = $ResourceGroupName
+        }
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
+        $SuccessfulImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript {$_.ProvisioningState -eq "Succeeded"}
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SuccessfulImages:`r`n$($SuccessfulImages | Out-String)"
+    
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
+        return $SuccessfulImages
+    }
+
 }
 #endregion
 
@@ -1241,6 +1403,11 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 $AzResourceProviders = "Microsoft.Attestation", "Microsoft.AzureStackHCI", "Microsoft.EdgeMarketPlace", "Microsoft.ExtendedLocation", "Microsoft.GuestConfiguration", "Microsoft.HybridCompute", "Microsoft.HybridConnectivity", "Microsoft.HybridContainerService", "Microsoft.Insights", "Microsoft.KeyVault", "Microsoft.Kubernetes", "Microsoft.KubernetesConfiguration", "Microsoft.ResourceConnector", "Microsoft.Storage", "Microsoft.Quota"
 $Jobs = foreach ($AzResourceProvider in $AzResourceProviders) {
     Register-AzResourceProvider -ProviderNamespace $AzResourceProvider -AsJob
+}
+#Important: Wait until RegistrationState is set to Registered. 
+While (Get-AzResourceProvider -ProviderNamespace $AzResourceProviders | Where-Object -FilterScript { $_.RegistrationState -ne 'Registered' }) {
+	Write-Verbose -Message "Sleeping 10 seconds ..."
+	Start-Sleep -Seconds 10
 }
 $Jobs | Receive-Job -Wait -AutoRemoveJob | Select-Object -Property ProviderNamespace, RegistrationState
 #endregion
@@ -1320,7 +1487,7 @@ foreach ($CurrentLAWSupportedRegion in $LAWSupportedRegions) {
         foreach ($CurrentAzureLocalInstanceLocation in $AzureLocalInstanceLocations) {
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzureLocalInstanceLocation: $CurrentAzureLocalInstanceLocation"
             #Enabling enableAzureSpotPricing for cost optimization
-            $Result = New-JumpstartLocalBox -Credential $Credential -azureLocalInstanceLocation $CurrentAzureLocalInstanceLocation -Location $CurrentLAWSupportedRegion -BicepFileDir $BicepFileDir -enableAzureSpotPricing $true -autoUpgradeClusterResource $true -Verbose
+            $Result = New-JumpstartLocalBox -Credential $Credential -azureLocalInstanceLocation $CurrentAzureLocalInstanceLocation -Location $CurrentLAWSupportedRegion -BicepFileDir $BicepFileDir -enableAzureSpotPricing $true -autoUpgradeClusterResource $true
             if ($Result.Succeeded) {
                 Write-Host -Object "The Jumpstart LocalBox Deployment Succeeded !!!" -ForegroundColor Green
                 break
@@ -1331,23 +1498,67 @@ foreach ($CurrentLAWSupportedRegion in $LAWSupportedRegions) {
         }
 
         if ($Result.Succeeded) {
+            Start-Sleep -Seconds 300
+            $ScriptString = "Get-ChildItem -Path 'C:\LocalBox\Logs' -Filter *.log -File"
+            $AzVMRunCommand = Invoke-AzVMRunCommand  -CommandId 'RunPowerShellScript' -ResourceGroupName $Result.ResourceGroupName -VMName LocalBox-Client -ScriptString $ScriptString
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzVMRunCommand: $($AzVMRunCommand | Out-String)"
+
             # Complete the cloud deployment:
             # https://jumpstart.azure.com/azure_jumpstart_localbox/cloud_deployment
-            Wait-AzConnectedMachine -ResourceGroupName $Result.ResourceGroupName -Verbose
+            Wait-AzConnectedMachine -ResourceGroupName $Result.ResourceGroupName
             
             # Configure the LocalBox environment:
             # https://jumpstart.azure.com/azure_jumpstart_localbox/using_localbox
-            Set-LocalClusterInsightSetup -ResourceGroupName $Result.ResourceGroupName -Verbose
-            
-            # Create Azure Local VM resources:
-            # https://jumpstart.azure.com/azure_jumpstart_localbox/RB
-            $Images = New-AzLocalAVDVMImage -ResourceGroupName $Result.ResourceGroupName -Verbose
-            $LogicalNetwork = New-VMLogicalNetwork -ResourceGroupName $Result.ResourceGroupName -Verbose
-            $Jobs = foreach ($Image in $Images) {
-                #Start-Job -ScriptBlock { New-AzLocalAVDVM -Credential $using:Credential -Image $using:Image -LogicalNetwork $using:LogicalNetwork }
-                New-AzLocalAVDVM -Credential $Credential -Image $Image -LogicalNetwork $LogicalNetwork -Verbose
+            Set-LocalClusterInsightSetup -ResourceGroupName $Result.ResourceGroupName
+
+            $LogicalNetwork = New-VMLogicalNetwork -ResourceGroupName $Result.ResourceGroupName
+            Write-Host -Object "The image and VM builds can take some hours ..." -ForegroundColor Yellow
+
+            #region AVD MarketPlace + ACG Images
+            #Building Windows 11 AVD images (with and without M365)
+            $Jobs = New-AzLocalAVDVMImage -ResourceGroupName $Result.ResourceGroupName -AsAJob
+            #Building one image per Azure Compute Image Version
+            $Jobs += New-AzureLocalVMImageFromAzureComputeGalleryImage -ResourceGroupName $Result.ResourceGroupName -All -AsAJob
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Jobs:`r`n$($Jobs | Out-String)"
+            $ClusterName = "localboxcluster"
+            $ImageStatusURI = "https://portal.azure.com/#@{0}/resource/subscriptions/{1}/resourceGroups/{2}/providers/microsoft.azurestackhci/clusters/{3}/vmimages" -f $((Get-AzTenant).Domains[-1]), $SubscriptionId, $Result.ResourceGroupName, $ClusterName
+            Start-Process $ImageStatusURI 
+
+            $Images = $Jobs | Receive-Job -Wait -AutoRemoveJob
+
+            #region Disk cleanup
+            $null = Get-AzResource -ResourceGroupName $Result.ResourceGroupName -ResourceType Microsoft.Compute/disks -Tag @{"ToBeCleaned" = $true} | Remove-AzResource -AsJob -Force
+            #endregion
+
+            if ($Images.ProvisioningState -contains "Failed") {
+                $Parameters = @{
+                    ResourceGroupName = $Result.ResourceGroupName
+                }
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
+                $FailedImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript { $_.ProvisioningState -ne "Succeeded" }
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$FailedImages:`r`n$($FailedImages | Out-String)"
+                Write-Error -Message "One or more image(s) failed during the build : $($FailedImages.Name -join ', ')"
+            }
+
+            $Parameters = @{
+                ResourceGroupName = $ResourceGroupName
+            }
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
+            $SuccessfulImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript { $_.ProvisioningState -eq "Succeeded" }
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SuccessfulImages:`r`n$($SuccessfulImages | Out-String)"
+            #endregion 
+
+            #region VMs/AVD Session Hosts
+            $ExportedFunctions = [scriptblock]::Create(@"
+                Import-Module -Name Az.StackHCIVM
+                Function New-AzLocalAVDVM { ${Function:New-AzLocalAVDVM} }
+"@)
+            $Jobs = foreach ($Image in $SuccessfulImages) {
+                Start-Job -ScriptBlock { New-AzLocalAVDVM -Credential $using:Credential -Image $using:Image -LogicalNetwork $using:LogicalNetwork } -InitializationScript $ExportedFunctions
+                #New-AzLocalAVDVM -Credential $Credential -Image $Image -LogicalNetwork $LogicalNetwork
             }
             $VMs = $Jobs | Receive-Job -Wait -AutoRemoveJob
+            #endregion
 
             #region Protect the resource group from accidental deletion
             $null = New-AzResourceLock -LockName CanNotDelete -LockLevel CanNotDelete -ResourceGroupName $Result.ResourceGroupName -Force
