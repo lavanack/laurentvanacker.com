@@ -23,7 +23,7 @@ function New-AzureComputeGallery {
 	[CmdletBinding()]
 	Param(
 		[Parameter(Mandatory = $false)]
-		[string]$Location = "EastUS2",
+		[string]$Location = "CentralUS",
 		[Parameter(Mandatory = $false)]
 		[string[]]$TargetRegions = @($Location),
 		[Parameter(Mandatory = $false)]
@@ -60,6 +60,7 @@ function New-AzureComputeGallery {
 	if ($Location -notin $TargetRegions) {
 		$TargetRegions += $Location
 	}
+    $TargetRegions = $TargetRegions | Select-Object -Unique
 	Write-Verbose -Message "`$TargetRegions: $($TargetRegions -join ', ')"
 	[array] $TargetRegionSettings = foreach ($CurrentTargetRegion in $TargetRegions) {
 		@{"name" = $CurrentTargetRegion; "replicaCount" = $ReplicaCount; "storageAccountType" = "Premium_LRS" }
@@ -408,7 +409,7 @@ function New-AzureComputeGallery {
 		Customize              = $Customize
 		Location               = $location
 		UserAssignedIdentityId = $AssignedIdentity.Id
-		VMProfileVmsize        = "Standard_D4s_v5"
+		VMProfileVmsize        = "Standard_D8s_v5"
 		VMProfileOsdiskSizeGb  = 127
 		BuildTimeoutInMinute   = 240
 		StagingResourceGroup   = $StagingResourceGroupPowerShell.ResourceId
@@ -481,9 +482,12 @@ function New-AzureComputeGallery {
 	#endregion
   
 	#region Removing Staging ResourceGroups
-	$null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNameARM -Force -AsJob
-	$null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNamePowerShell -Force -AsJob
-
+    if ($getStatusPowerShell.LastRunStatusRunState -ne "Failed") {
+        $null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNameARM -Force -AsJob
+    }
+    if ($getStatusARM.LastRunStatusRunState -ne "Failed") {
+        $null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNamePowerShell -Force -AsJob
+    }
 	#endregion
 
 	return $Gallery
@@ -517,10 +521,10 @@ While (Get-AzResourceProvider -ProviderNamespace $RequiredResourceProviders | Wh
 	Write-Verbose -Message "Sleeping 10 seconds ..."
 	Start-Sleep -Seconds 10
 }
-$Jobs | Remove-Job -Force
+$Jobs | Receive-Job -Wait -AutoRemoveJob | Select-Object -Property ProviderNamespace, RegistrationState
 #endregion
 
-$AzureComputeGallery = New-AzureComputeGallery -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
+$AzureComputeGallery = New-AzureComputeGallery -Location CentralUS -TargetRegions CentralUS, EastUS2 -Verbose
 $AzureComputeGallery
 
 $EndTime = Get-Date
