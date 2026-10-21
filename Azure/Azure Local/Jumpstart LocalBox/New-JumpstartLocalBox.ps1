@@ -699,6 +699,10 @@ function Wait-AzConnectedMachine {
     #region Wait for AzLHOST1 and AzLHOST2 to become Arc-enabled servers
     $ReferenceObject = "AzLHOST1", "AzLHOST2"
     Do {
+        $ScriptString = "Get-Content -Path 'C:\LocalBox\Logs\New-LocalBoxCluster.log' | Select-String -Pattern 'Step\s+(\d+)/(\d+)'"
+        $AzVMRunCommand = Invoke-AzVMRunCommand  -CommandId 'RunPowerShellScript' -ResourceGroupName $ResourceGroupName -VMName LocalBox-Client -ScriptString $ScriptString
+        Write-Host -Object "$($AzVMRunCommand.Value.Message | Out-String)"
+
         $Seconds = 300
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds seconds ..."
         Start-Sleep -Seconds $Seconds
@@ -1081,7 +1085,10 @@ function New-AzLocalAVDVMImage {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Version: $Version"
         if ($version = "latest") {
             # Resolve "latest" because New-AzStackHCIVMImage requires a concrete version.
-            $Version = (Get-AzVMImage -Location  $Location -PublisherName $PublisherName -Offer $Offer -sku $Sku | Sort-Object -Property Version -Descending | Select-Object -First 1).Version
+            $Versions = (Get-AzVMImage -Location  $Location -PublisherName $PublisherName -Offer $Offer -sku $Sku | Sort-Object -Property Version -Descending).Version
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Versions:`r`n$($Versions | Out-String)"
+            #We take the second to last image to avoid "Failed to generate SAS token for the URN ..." error
+            $Version = $Versions[1]
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Version: $Version"
         }
         $ImageName = "{0}-{1}-{2}" -f $Sku, $Instance, $(Get-Date -Format 'yyyyMMddHHmmss')
@@ -1099,7 +1106,7 @@ function New-AzLocalAVDVMImage {
             # New-AzStackHCIVMImage does not expose an AsJob parameter, so Start-Job is used below.
         }
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
-        Start-Job -ScriptBlock { $Parameters = $Using:Parameters; New-AzStackHCIVMImage @Parameters }
+        Start-Job -ScriptBlock { $null = Update-AzConfig -DisplayBreakingChangeWarning $false -Scope Process; $Parameters = $Using:Parameters; New-AzStackHCIVMImage @Parameters }
 
     }
     if ($AsAJob) {
@@ -1256,8 +1263,8 @@ function New-AzureLocalVMImageFromAzureComputeGalleryImage {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ResourceGroupName: $ResourceGroupName"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ClusterName: $ClusterName"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SASExpiryDuration: $SASExpiryDuration"
-    #Getting the latest version of each image
     if ($All) {
+        #Getting the latest version of each image
         $Resources = Get-AzResource -ResourceType Microsoft.Compute/galleries/images/versions | Select-Object Name, ResourceId, ResourceGroupName, Location, ParentResource | Sort-Object ParentResource,@{Expression={$v=$null;$null=[version]::TryParse(($_.Name -split '/')[-1],[ref]$v);$v};Descending=$true} | Group-Object ParentResource | ForEach-Object {$_.Group[0]}
     }
     else {
@@ -1335,7 +1342,7 @@ function New-AzureLocalVMImageFromAzureComputeGalleryImage {
             #Version           = $ImageVersion
         }
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters: $($Parameters | Out-String)"
-        Start-Job -ScriptBlock { $Parameters = $Using:Parameters; New-AzStackHCIVMImage @Parameters }
+        Start-Job -ScriptBlock { $null = Update-AzConfig -DisplayBreakingChangeWarning $false -Scope Process; $Parameters = $Using:Parameters; New-AzStackHCIVMImage @Parameters }
     }
     
     if ($AsAJob) {
@@ -1496,12 +1503,14 @@ foreach ($CurrentLAWSupportedRegion in $LAWSupportedRegions) {
                 Write-Host -Object "The Jumpstart LocalBox Deployment Failed !!!. We will automatically try other locations ..." -ForegroundColor Red
             }
         }
+        
+        #$Result = Get-AzResourceGroup -ResourceGroupName "rg-az-local-inc-*" | Out-GridView -OutputMode Single | Select-Object -Property ResourceGroupName, Location, @{Name="Succeeded"; Expression = {$true}}
 
         if ($Result.Succeeded) {
             Start-Sleep -Seconds 300
             $ScriptString = "Get-ChildItem -Path 'C:\LocalBox\Logs' -Filter *.log -File"
             $AzVMRunCommand = Invoke-AzVMRunCommand  -CommandId 'RunPowerShellScript' -ResourceGroupName $Result.ResourceGroupName -VMName LocalBox-Client -ScriptString $ScriptString
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzVMRunCommand: $($AzVMRunCommand | Out-String)"
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzVMRunCommand: $($AzVMRunCommand | Out-String)" #-Verbose
 
             # Complete the cloud deployment:
             # https://jumpstart.azure.com/azure_jumpstart_localbox/cloud_deployment
@@ -1527,7 +1536,12 @@ foreach ($CurrentLAWSupportedRegion in $LAWSupportedRegions) {
             $Images = $Jobs | Receive-Job -Wait -AutoRemoveJob
 
             #region Disk cleanup
-            $null = Get-AzResource -ResourceGroupName $Result.ResourceGroupName -ResourceType Microsoft.Compute/disks -Tag @{"ToBeCleaned" = $true} | Remove-AzResource -AsJob -Force
+            $DiskToRemove = Get-AzResource -ResourceGroupName $Result.ResourceGroupName -ResourceType Microsoft.Compute/disks -Tag @{"ToBeCleaned" = $true} | Get-AzDisk
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DiskToRemove:`r`n$($DiskToRemove | Out-String)"
+            $RevokedDiskAccess = $DiskToRemove | Revoke-AzDiskAccess -AsJob | Receive-Job -Wait -AutoRemoveJob
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RevokedDiskAccess:`r`n$($RevokedDiskAccess | Out-String)"
+            $RemovedDisk = $DiskToRemove | Remove-AzDisk -AsJob -Force
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RemovedDisk:`r`n$($RemovedDisk | Out-String)"
             #endregion
 
             if ($Images.ProvisioningState -contains "Failed") {
@@ -1541,7 +1555,7 @@ foreach ($CurrentLAWSupportedRegion in $LAWSupportedRegions) {
             }
 
             $Parameters = @{
-                ResourceGroupName = $ResourceGroupName
+                ResourceGroupName = $Result.ResourceGroupName
             }
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
             $SuccessfulImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript { $_.ProvisioningState -eq "Succeeded" }
@@ -1554,7 +1568,7 @@ foreach ($CurrentLAWSupportedRegion in $LAWSupportedRegions) {
                 Function New-AzLocalAVDVM { ${Function:New-AzLocalAVDVM} }
 "@)
             $Jobs = foreach ($Image in $SuccessfulImages) {
-                Start-Job -ScriptBlock { New-AzLocalAVDVM -Credential $using:Credential -Image $using:Image -LogicalNetwork $using:LogicalNetwork } -InitializationScript $ExportedFunctions
+                Start-Job -ScriptBlock { $null = Update-AzConfig -DisplayBreakingChangeWarning $false -Scope Process; New-AzLocalAVDVM -Credential $using:Credential -Image $using:Image -LogicalNetwork $using:LogicalNetwork } -InitializationScript $ExportedFunctions
                 #New-AzLocalAVDVM -Credential $Credential -Image $Image -LogicalNetwork $LogicalNetwork
             }
             $VMs = $Jobs | Receive-Job -Wait -AutoRemoveJob
