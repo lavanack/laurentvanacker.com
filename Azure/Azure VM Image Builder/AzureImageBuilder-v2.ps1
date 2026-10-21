@@ -15,7 +15,7 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.ImageBuilder, Az.ManagedServiceIdentity, Az.Resources
+#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.ImageBuilder, Az.ManagedServiceIdentity, Az.Network, Az.Resources
 
 #region Function definitions
 #FROM https://github.com/Azure/azvmimagebuilder/tree/main/solutions/14_Building_Images_WVD
@@ -223,7 +223,7 @@ function New-AzureComputeGallery {
 	}
 	#endregion
 
-	#region RBAC Owner Role on both Staging Resource Groups
+	#region RBAC Contributor Role on both Staging Resource Groups
 	foreach ($CurrentStagingResourceGroup in $StagingResourceGroupARM, $StagingResourceGroupPowerShell) {
 		$RoleDefinition = Get-AzRoleDefinition -Name "Contributor"
 		$Parameters = @{
