@@ -85,9 +85,10 @@ and cluster readiness checks poll every five minutes and do not have a timeout.
   Az.StackHCI, Az.StackHCIVM, and the modules that provide the Azure Monitor,
   Connected Machine, networking, and VM commands. The script does not install
   or pin module versions.
-- The **Bicep CLI**, **Git**, and **Azure CLI** available on the machine.
-  Bicep and Git are checked or invoked by the script. Azure CLI is also used by
-  the remote LocalBox configuration.
+- The **Bicep CLI** and **Git** available on the machine running this script.
+  The script checks for Bicep and uses Git to clone or update the template
+  repository. Azure CLI is used by the configuration script running inside the
+  deployed LocalBox client.
 - Internet connectivity to Azure, the upstream Arc Jumpstart and Azure Naming
   Tool GitHub content, the Marketplace, and the external services the script
   calls. The script checks Marketplace disk-image URLs and uses an external
@@ -111,11 +112,10 @@ the defaults or parameters documented by upstream Jumpstart:
   Change it to a writable directory if that path does not exist or is not
   appropriate for your environment.
 - The script's `Location` and `azureLocalInstanceLocation` parameters both
-  default to `centralindia`. Unlike an earlier version, the sample region
-  assignments in the main section are commented out, so the parameter values
-  are now used to select the Log Analytics and Azure Local instance regions.
-  `Location` is validated against regions that support Log Analytics workspaces;
-  `azureLocalInstanceLocation` must be one of the regions in its `ValidateSet`.
+  default to `centralindia`. They are separate settings: `Location` selects the
+  deployment and Log Analytics region, while `azureLocalInstanceLocation`
+  selects the Azure Local instance region. The sample region assignments in the
+  main section are comments and do not override the parameters.
 - The deployment call enables Azure Spot pricing and automatic cluster-resource
   upgrades. Spot capacity may be unavailable or the VM may be evicted.
 - `New-JumpstartLocalBox` defaults `governResourceTags` to `true`. In the
@@ -127,7 +127,54 @@ the defaults or parameters documented by upstream Jumpstart:
 
 To use different supported regions, pass them when launching the script.
 Changing the VM size still requires editing the `$VMSize` assignment in the
-script's main section.
+script's main section. The parameters below are the only top-level inputs to
+the script; the numerous parameters documented for `New-JumpstartLocalBox`
+belong to an internal function and are not individually exposed by the
+standalone script.
+
+### Script input parameters
+
+The script exposes two top-level parameters:
+
+| Parameter | Type | Default | Purpose |
+| --- | --- | --- | --- |
+| `Location` | `string[]` | `centralindia` | Deployment region, including the Log Analytics workspace. Each value must be available for Log Analytics in the current Azure context. |
+| `azureLocalInstanceLocation` | `string[]` | `centralindia` | Azure Local instance registration region. Each value must be one of `australiaeast`, `southcentralus`, `eastus`, `westeurope`, `southeastasia`, `canadacentral`, `japaneast`, or `centralindia`. |
+
+Both parameters accept one or more regions. They can be different because
+`Location` controls where the Azure-hosted deployment resources are created,
+while `azureLocalInstanceLocation` controls the Azure Local instance's
+registration region. The script processes each `Location` in order and, for
+each one, tries each `azureLocalInstanceLocation` in order. Supplying two
+values to each parameter therefore provides up to four deployment combinations:
+
+```powershell
+.\New-JumpstartLocalBox.ps1 `
+  -Location @('centralindia', 'eastus') `
+  -azureLocalInstanceLocation @('centralindia', 'southcentralus')
+```
+
+For each `Location`, the script first checks whether the subscription has
+remaining quota for at least one VM of the fixed `$VMSize`. A location with no
+reported quota is skipped; a positive quota check does not guarantee that Azure
+has capacity to deploy the VM. If deployment fails, the script requests removal
+of that attempt's generated resource group and tries the next
+`azureLocalInstanceLocation`. If those combinations fail, it moves to the next
+`Location` and checks quota there. It stops at the first successful deployment
+and continues with LocalBox configuration; it does not try the remaining
+regions after success.
+
+The script can therefore make multiple deployment attempts before completing.
+Cleanup of a failed attempt is started asynchronously, so verify failed
+resource groups and any remaining resources in the Azure portal before
+re-running the script; leftover resources can continue to incur charges. If no
+configured combination succeeds, the LocalBox configuration and AVD image/VM
+steps do not have a successful deployment to continue with.
+
+These are the only parameters accepted by the script when launched. Other
+deployment choices, including the VM size, Spot pricing, automatic cluster
+resource upgrades, and Git checkout path, are currently set in the script and
+must be changed there.
 
 ## Run the deployment
 
@@ -147,8 +194,9 @@ script's main section.
    copies the deployment blade URL to the clipboard when it starts the Bicep
    deployment.
 
-The command above uses `centralindia` for both regions. To select other supported
-regions, provide the script parameters explicitly. For example:
+The command above uses `centralindia` for both regions. To select another
+deployment region and Azure Local instance region, provide the parameters
+explicitly. For example:
 
 ```powershell
 .\New-JumpstartLocalBox.ps1 -Location 'centralus' -azureLocalInstanceLocation 'southcentralus'
