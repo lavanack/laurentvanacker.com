@@ -25,9 +25,9 @@ param
 (
     # Log Analytics workspace regions:
     [ValidateScript({ $_ -in $($OperationalInsightLocations = ((Get-AzResourceProvider -ProviderNamespace 'Microsoft.OperationalInsights').ResourceTypes | Where-Object -FilterScript { $_.ResourceTypeName -eq 'workspaces' }).Locations; (Get-AzLocation | Where-Object -FilterScript { $_.DisplayName -in $OperationalInsightLocations }).Location) })]
-    [string[]] $Location,
+    [string[]] $Location = "centralindia",
     [ValidateSet('australiaeast', 'southcentralus', 'eastus', 'westeurope', 'southeastasia', 'canadacentral', 'japaneast', 'centralindia')]
-    [string[]] $azureLocalInstanceLocation
+    [string[]] $azureLocalInstanceLocation = "centralindia"
 )
 <#
 trap {
@@ -1770,11 +1770,14 @@ else {
 Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$LAWSupportedRegions:`r`n$($LAWSupportedRegions | Out-String)"
 <#
 # Example deployment with explicit region parameters.
+#Sample 1
 $LAWSupportedRegions = "centralus"
 $AzureLocalInstanceLocations = "southcentralus"
-#>
+
+#Sample 2
 $LAWSupportedRegions = @("centralindia")
 $AzureLocalInstanceLocations = @("centralindia")
+#>
 
 
 
