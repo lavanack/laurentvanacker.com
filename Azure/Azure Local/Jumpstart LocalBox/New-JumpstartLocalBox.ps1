@@ -86,10 +86,33 @@ function New-RandomPassword {
 
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
     # Uses the k-anonymity API: only the first five SHA-1 characters leave this computer.
+    <#
+    .SYNOPSIS
+    Checks a password against the Have I Been Pwned Pwned Passwords service.
+
+    .DESCRIPTION
+    Uses the Pwned Passwords range API: sends only the first five hexadecimal
+    characters of the password's SHA-1 hash, then compares the returned hash
+    suffixes locally. Neither the password nor its complete hash is sent. A match
+    reports the number of known breach occurrences; API failures raise an error.
+
+    .PARAMETER Password
+    Specifies the plain-text password to check.
+
+    .EXAMPLE
+    Test-PwnedPassword -Password $RandomPassword
+
+    Checks a candidate password before New-RandomPassword returns it.
+
+    .OUTPUTS
+    System.Management.Automation.PSCustomObject
+    Returns a PSCustomObject with PasswordCompromised (Boolean) and Occurrences
+    (Int64) properties. Occurrences is zero when the password was not found.
+    #>
     function Test-PwnedPassword {
         [CmdletBinding(PositionalBinding = $false)]
         param(
-            [Parameter(Mandatory)]
+            [Parameter(Mandatory = $true)]
             [string]$Password
         )
 
@@ -143,6 +166,7 @@ function New-RandomPassword {
             Add-Type -AssemblyName 'System.Web'
             $RandomPassword = [System.Web.Security.Membership]::GeneratePassword($length, $nonAlphaChars)
         }
+        # Apply the same complexity, prohibited-value, and breach checks to either password source.
     } Until (($RandomPassword -notin $ProhibitedPasswords) -and (($RandomPassword -match '[A-Z]') -and ($RandomPassword -match '[a-z]') -and ($RandomPassword -match '\d') -and ($RandomPassword -match '\W') -and (-not((Test-PwnedPassword -Password $RandomPassword).PasswordCompromised))))
 
     #Write-Host -Object "The password is : $RandomPassword"
@@ -160,6 +184,38 @@ function New-RandomPassword {
     }
 }
 
+<#
+.SYNOPSIS
+Stores credentials for a target and optionally opens a Remote Desktop session.
+
+.DESCRIPTION
+Runs cmdkey to save the supplied credentials for the target and copies the target
+name to the clipboard. With Connect, launches mstsc in full-screen mode, brings
+its window to the foreground, and sends keystrokes to respond to connection
+prompts. The user name and plain-text password are also written to host output;
+use caution when running this function where console output may be retained or
+visible to others.
+
+.PARAMETER ComputerName
+Specifies the target computer name or fully qualified domain name.
+
+.PARAMETER Credential
+Specifies the credentials to store for the target computer.
+
+.PARAMETER Connect
+Starts mstsc in full-screen mode after storing the credentials and attempts to
+respond to its connection prompts.
+
+.EXAMPLE
+Add-RDPCredential -ComputerName 'localbox.example.com' -Credential (Get-Credential) -Connect
+
+Prompts for credentials, saves them for the target, copies the target name to the
+clipboard, displays the credentials, and opens a full-screen Remote Desktop
+connection.
+
+.OUTPUTS
+None.
+#>
 function Add-RDPCredential {
     [CmdletBinding()]
     Param
@@ -173,6 +229,7 @@ function Add-RDPCredential {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
     # Escape the password for cmd.exe before storing the RDP credentials.
     Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$ComputerName /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
+    # Copy the destination name so it is ready to paste into other connection workflows.
     $ComputerName | Set-Clipboard 
     Write-Host -Object "Your RDP credentials (login/password) are $($Credential.UserName)/$($Credential.GetNetworkCredential().Password) for '$ComputerName'" -ForegroundColor Green
     if ($Connect) {
@@ -664,6 +721,31 @@ param tags = $(($tags | ConvertTo-Json).Replace('"', "'") -replace '''(.*)'':', 
     }
 }
 
+<#
+.SYNOPSIS
+Waits for the LocalBox Azure Arc nodes and cluster to become ready.
+
+.DESCRIPTION
+Validates the resource group and checks reachability of the VHDX URLs extracted
+from the upstream LocalBox cluster script. It then checks every five minutes for
+the AzLHOST1 and AzLHOST2 Azure Arc machines and for the localboxcluster resource
+to report Succeeded provisioning and Connected connectivity. During polling, it
+reads the deployment log on LocalBox-Client through Azure VM Run Command. There is
+no timeout; the function continues waiting until the expected resources are ready
+or a command fails.
+
+.PARAMETER ResourceGroupName
+Specifies the resource group containing the LocalBox deployment.
+
+.EXAMPLE
+Wait-AzConnectedMachine -ResourceGroupName 'rg-localbox-001' -Verbose
+
+Checks VHDX URL reachability and waits for the two Azure Arc nodes and the Azure
+Local cluster, writing progress details to the verbose stream.
+
+.OUTPUTS
+None.
+#>
 function Wait-AzConnectedMachine {
     [CmdletBinding(PositionalBinding = $false)]
     param
@@ -682,10 +764,12 @@ function Wait-AzConnectedMachine {
     #region Testing if VHDX URIs are reachable
     $URI = "https://raw.githubusercontent.com/microsoft/azure_arc/refs/heads/main/azure_jumpstart_localbox/artifacts/PowerShell/New-LocalBoxCluster.ps1"
     $FileContent = Invoke-RestMethod -Uri $URI -Method Get -UseBasicParsing
+    # Extract active VHDX references from the upstream script before waiting on deployment.
     $VHXURIs = ([regex]::Matches($FileContent, "(?m)^\s(?<Comment>[^#]).*(?<URI>https?[^$]*vhdx)").Groups | Where-Object -FilterScript { $_.Name -eq "URI" }).Value
     foreach ($CurrentVHXURI in $VHXURIs) {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentVHXURI: $CurrentVHXURI"
         try {
+            # A HEAD request checks reachability without downloading the disk image.
             $Result = Invoke-WebRequest -Uri $CurrentVHXURI -Method HEAD -UseBasicParsing
         }
         catch {
@@ -698,23 +782,25 @@ function Wait-AzConnectedMachine {
     #region From https://jumpstart.azure.com/azure_jumpstart_localbox/cloud_deployment#azure-local-instance-validation-and-deployment-from-the-azure-portal
     #region Wait for AzLHOST1 and AzLHOST2 to become Arc-enabled servers
     $ReferenceObject = "AzLHOST1", "AzLHOST2"
+    Write-Host -Object "Creating the $($ReferenceObject -join ',') Azure Arc Machines ..."
     Do {
         $ScriptString = "Get-Content -Path 'C:\LocalBox\Logs\New-LocalBoxCluster.log' | Select-String -Pattern 'Step\s+(\d+)/(\d+)'"
         $AzVMRunCommand = Invoke-AzVMRunCommand  -CommandId 'RunPowerShellScript' -ResourceGroupName $ResourceGroupName -VMName LocalBox-Client -ScriptString $ScriptString
-        Write-Host -Object "$($AzVMRunCommand.Value.Message | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Steps:`r`n$($AzVMRunCommand.Value.Message | Out-String)"
 
         $Seconds = 300
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds seconds ..."
         Start-Sleep -Seconds $Seconds
         $AzureArcMachines = Get-AzConnectedMachine -ResourceGroupName $ResourceGroupName
         # Compare the expected node names with the connected machines returned by Azure.
+        # Compare-Object returns no difference only when both expected names are present and no extras remain.
         if ($AzureArcMachines) {
             $Compare = Compare-Object -ReferenceObject $ReferenceObject -DifferenceObject $AzureArcMachines
         }
         else {
             $Compare = $null
         }
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Compare: $($Compare | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Compare:`r`n$($Compare | Out-String)"
     } While (-not($Compare))
     Write-Host -Object "$($ReferenceObject -join ',') Azure Arc Machines Created ..." -ForegroundColor Green
     #endregion 
@@ -726,7 +812,7 @@ function Wait-AzConnectedMachine {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds seconds ..."
         Start-Sleep -Seconds $Seconds
         $RunningDeployments = Get-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName | Where-Object -FilterScript {$_.ProvisioningState -match "ing$"}
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Compare: $($RunningDeployments | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Compare:`r`n$($RunningDeployments | Out-String)"
     } While ($RunningDeployments)
     Write-Host -Object "No more running Azure ResourceGroup Deployment(s) ..." -ForegroundColor Green
     #endregion 
@@ -734,7 +820,12 @@ function Wait-AzConnectedMachine {
 
     #region Wait for the localcluster resource to become connected
     $ClusterName = "localboxcluster"
+    Write-Host -Object "Creating the 'localboxcluster' Azure Local Cluster ..." 
     Do {
+        $ScriptString = "Get-Content -Path 'C:\LocalBox\Logs\New-LocalBoxCluster.log' | Select-String -Pattern 'Step\s+(\d+)/(\d+)'"
+        $AzVMRunCommand = Invoke-AzVMRunCommand  -CommandId 'RunPowerShellScript' -ResourceGroupName $ResourceGroupName -VMName LocalBox-Client -ScriptString $ScriptString
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Steps:`r`n$($AzVMRunCommand.Value.Message | Out-String)"
+
         $Seconds = 300
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds seconds ..."
         Start-Sleep -Seconds $Seconds
@@ -749,7 +840,7 @@ function Wait-AzConnectedMachine {
         $Cluster = Get-AzResource -ResourceId $ClusterResourceId -ExpandProperties -ErrorAction Ignore
         #>
         $Cluster = Get-AzStackHciCluster -ResourceGroupName $ResourceGroup.ResourceGroupName -ClusterName $ClusterName -ErrorAction Ignore
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Cluster: $($Cluster | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Cluster:`r`n$($Cluster | Out-String)"
         #endregion
     } While (($null -eq $Cluster) -or ($Cluster.provisioningState -ne "Succeeded") -or ($Cluster.connectivityStatus -ne "Connected"))
     Write-Host -Object "'$($Cluster.Name)' Connectivity Status: $($Cluster.connectivityStatus) ..."
@@ -758,6 +849,46 @@ function Wait-AzConnectedMachine {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
 }
 
+<#
+.SYNOPSIS
+Sets up Azure Monitor data collection for the LocalBox cluster and nodes.
+
+.DESCRIPTION
+Verifies the cluster and Log Analytics workspace exist, installs missing Azure
+Monitor Agent extensions, and creates the data collection endpoint and rule when
+they do not already exist. The rule collects performance counters and selected
+Windows event logs in the workspace, then is associated with each requested Azure
+Arc node. The function verifies those associations and returns a summary. An
+existing rule is reused, not updated; if it references a different endpoint, the
+function warns and continues with the existing rule.
+
+.PARAMETER ResourceGroupName
+Specifies the resource group containing the cluster, nodes, and workspace.
+
+.PARAMETER ClusterName
+Documents the cluster name, which defaults to localboxcluster. The function
+currently uses that fixed name internally and does not honor a different value.
+
+.PARAMETER LogAnalyticsWorkSpaceName
+Documents the Log Analytics workspace name, which defaults to LocalBox-Workspace.
+The function currently uses that fixed name internally and does not honor a
+different value.
+
+.PARAMETER NodeName
+Specifies the Azure Arc machine names to monitor. Defaults to AzLHOST1 and
+AzLHOST2. Every specified machine must already exist in the resource group.
+
+.EXAMPLE
+Set-LocalClusterInsightSetup -ResourceGroupName 'rg-localbox-001'
+
+Sets up monitoring for the default LocalBox cluster, workspace, and two Azure Arc
+nodes, then returns the resource IDs and node names.
+
+.OUTPUTS
+System.Management.Automation.PSCustomObject
+Returns Cluster, LogAnalyticsWorkSpace, DataCollectionEndpoint,
+DataCollectionRule, and Nodes properties describing the monitoring configuration.
+#>
 function Set-LocalClusterInsightSetup {
     [CmdletBinding(PositionalBinding = $false)]
     param
@@ -808,7 +939,7 @@ function Set-LocalClusterInsightSetup {
     if (-not($Cluster)) {
         Write-Error -Message "The '$ClusterName' Azure Local cluster doesn't exist in the '$($ResourceGroup.ResourceGroupName)' ResourceGroup !!!" -ErrorAction Stop
     }
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Cluster: $($Cluster | Out-String)"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Cluster:`r`n$($Cluster | Out-String)"
     #endregion
 
     #region Log Analytics Workspace
@@ -820,7 +951,7 @@ function Set-LocalClusterInsightSetup {
     if (-not($LogAnalyticsWorkSpace)) {
         Write-Error -Message "The '$LogAnalyticsWorkSpaceName' Log Analytics Workspace doesn't exist in the '$($ResourceGroup.ResourceGroupName)' ResourceGroup !!!" -ErrorAction Stop
     }
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$LogAnalyticsWorkSpace: $($LogAnalyticsWorkSpace | Out-String)"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$LogAnalyticsWorkSpace:`r`n$($LogAnalyticsWorkSpace | Out-String)"
     #endregion
 
     #region Install Azure Monitor Agent on the Azure Local cluster
@@ -833,6 +964,7 @@ function Set-LocalClusterInsightSetup {
     }
     $Extension = Get-AzStackHciExtension @Parameters | Where-Object -FilterScript { $_.Name -eq $ExtensionName }
 
+    # Install the cluster extension only when it is not already present.
     if (-not($Extension)) {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Installing '$ExtensionName' extension on the '$($ClusterName)' Azure Local ClusterMachine (in the '$($ResourceGroup.ResourceGroupName)' Resource Group)"
         $Parameters = @{
@@ -888,6 +1020,7 @@ function Set-LocalClusterInsightSetup {
     }
 
     if ($Jobs) {
+        # Wait for all node extension installations and surface any unsuccessful job.
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Waiting all jobs completes"
         $null = $Jobs | Wait-Job
         $FailedJobs = @($Jobs | Where-Object -FilterScript { $_.State -ne "Completed" })
@@ -905,17 +1038,19 @@ function Set-LocalClusterInsightSetup {
     }
     $DataCollectionEndpoint = Get-AzDataCollectionEndpoint @Parameters -ErrorAction Ignore
 
+    # Reuse the endpoint if present; otherwise create one in the resource group's location.
     if (-not($DataCollectionEndpoint)) {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the '$DataCollectionEndpointName' Data Collection Endpoint"
         $Parameters['Location'] = $Location
         $Parameters['NetworkAclsPublicNetworkAccess'] = "Enabled"
         $DataCollectionEndpoint = New-AzDataCollectionEndpoint @Parameters
     }
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DataCollectionEndpoint: $($DataCollectionEndpoint | Out-String)"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DataCollectionEndpoint:`r`n$($DataCollectionEndpoint | Out-String)"
     #endregion
 
     #region Data Collection Rule
     #region Performance Counters
+    # Collect host memory, network throughput, CPU utilization, and RDMA traffic every 10 seconds.
     $Parameters = @{
         Name                      = "perfCounterDataSource"
         Stream                    = @("Microsoft-Perf")
@@ -932,6 +1067,7 @@ function Set-LocalClusterInsightSetup {
     #endregion
 
     #region Windows Event Logs
+    # Forward Azure Local health and SDDC management events to the workspace.
     $Parameters = @{
         Name       = "eventLogsDataSource"
         Stream     = @("Microsoft-Event")
@@ -950,7 +1086,7 @@ function Set-LocalClusterInsightSetup {
         WorkspaceResourceId = $LogAnalyticsWorkSpace.ResourceId
     }
     $DestinationLogAnalytic = New-AzLogAnalyticsDestinationObject @Parameters
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DestinationLogAnalytic: $($DestinationLogAnalytic | Out-String)"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DestinationLogAnalytic:`r`n$($DestinationLogAnalytic | Out-String)"
 
     $LADestinationName2 = [Guid]::NewGuid().Guid
     $Parameters = @{
@@ -958,7 +1094,7 @@ function Set-LocalClusterInsightSetup {
         WorkspaceResourceId = $LogAnalyticsWorkSpace.ResourceId
     }
     $DestinationLogAnalytic2 = New-AzLogAnalyticsDestinationObject @Parameters
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DestinationLogAnalytic2: $($DestinationLogAnalytic2 | Out-String)"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DestinationLogAnalytic2:`r`n$($DestinationLogAnalytic2 | Out-String)"
     #endregion
 
     #region Data flows (each destination name must match its destination object)
@@ -982,6 +1118,7 @@ function Set-LocalClusterInsightSetup {
     }
     $DataCollectionRule = Get-AzDataCollectionRule @Parameters -ErrorAction Ignore
 
+    # Create the rule only when absent; existing rules are intentionally left unchanged.
     if (-not($DataCollectionRule)) {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the '$DataCollectionRuleName' Data Collection Rule"
         $DataCollectionRuleParameters = @{
@@ -1003,7 +1140,7 @@ function Set-LocalClusterInsightSetup {
     elseif ($DataCollectionRule.DataCollectionEndpointId -ne $DataCollectionEndpoint.Id) {
         Write-Warning -Message "The existing '$DataCollectionRuleName' Data Collection Rule is not linked to the '$DataCollectionEndpointName' Data Collection Endpoint (current: '$($DataCollectionRule.DataCollectionEndpointId)')."
     }
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DataCollectionRule: $($DataCollectionRule | Out-String)"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DataCollectionRule:`r`n$($DataCollectionRule | Out-String)"
     #endregion
     #endregion
 
@@ -1018,6 +1155,7 @@ function Set-LocalClusterInsightSetup {
             continue
         }
 
+        # Association names are unique per node/DCR link.
         $AssociationName = "dra_{0}" -f $((New-Guid).Guid)
         $Parameters = @{
             ResourceUri          = $AzureArcMachine.Id
@@ -1026,7 +1164,7 @@ function Set-LocalClusterInsightSetup {
         }
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Associating the '$($DataCollectionRule.Name)' DCR with the '$($AzureArcMachine.Name)' Azure Arc Machine"
         $DataCollectionRuleAssociation = New-AzDataCollectionRuleAssociation @Parameters
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DataCollectionRuleAssociation: $($DataCollectionRuleAssociation | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DataCollectionRuleAssociation:`r`n$($DataCollectionRuleAssociation | Out-String)"
     }
     #endregion
 
@@ -1054,6 +1192,49 @@ function Set-LocalClusterInsightSetup {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
 }
 
+<#
+.SYNOPSIS
+Imports Azure Marketplace Windows images into Azure Local.
+
+.DESCRIPTION
+Finds the custom location in the resource group and starts one background import
+job for each Marketplace URN. The function currently resolves every URN to the
+second entry in the descending version list, regardless of the version supplied,
+to avoid a known SAS token generation error. Without AsAJob, it waits for the
+imports and returns the successfully provisioned images found in the resource
+group.
+
+.PARAMETER ResourceGroupName
+Specifies the resource group containing the Azure Local custom location and
+receiving the imported images.
+
+.PARAMETER URN
+Specifies one or more Marketplace image identifiers in Publisher:Offer:Sku:Version
+format. Defaults to the Windows 11 25H2 Azure Virtual Desktop images with and
+without Microsoft 365 Apps. The function currently resolves each identifier to
+the second entry in the available versions sorted in descending order; the
+version component supplied here does not select the imported version.
+
+.PARAMETER AsAJob
+Returns the image import jobs immediately instead of waiting for their results.
+
+.EXAMPLE
+New-AzLocalAVDVMImage -ResourceGroupName 'rg-localbox-001'
+
+Starts imports for the default Windows 11 25H2 Azure Virtual Desktop images and
+waits for the background jobs to complete.
+
+.EXAMPLE
+$Jobs = New-AzLocalAVDVMImage -ResourceGroupName 'rg-localbox-001' -AsAJob
+$Jobs | Receive-Job -Wait -AutoRemoveJob
+
+Starts both image imports asynchronously, then waits for and displays their job
+results.
+
+.OUTPUTS
+Azure Local image objects, or System.Management.Automation.Job objects when
+AsAJob is specified.
+#>
 function New-AzLocalAVDVMImage {
     [CmdletBinding(PositionalBinding = $false)]
     param (
@@ -1087,7 +1268,7 @@ function New-AzLocalAVDVMImage {
             # Resolve "latest" because New-AzStackHCIVMImage requires a concrete version.
             $Versions = (Get-AzVMImage -Location  $Location -PublisherName $PublisherName -Offer $Offer -sku $Sku | Sort-Object -Property Version -Descending).Version
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Versions:`r`n$($Versions | Out-String)"
-            #We take the second to last image to avoid "Failed to generate SAS token for the URN ..." error
+            # Use the second newest version because the newest has triggered SAS token generation errors.
             $Version = $Versions[1]
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Version: $Version"
         }
@@ -1103,9 +1284,10 @@ function New-AzLocalAVDVMImage {
             Sku               = $Sku
             Version           = $Version
             OSType            = "Windows"
-            # New-AzStackHCIVMImage does not expose an AsJob parameter, so Start-Job is used below.
+            # New-AzStackHCIVMImage has no AsJob parameter; run it in a job to import multiple images concurrently.
         }
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
+        # Pass the image settings into the job and suppress per-process breaking-change warnings.
         Start-Job -ScriptBlock { $null = Update-AzConfig -DisplayBreakingChangeWarning $false -Scope Process; $Parameters = $Using:Parameters; New-AzStackHCIVMImage @Parameters }
 
     }
@@ -1120,7 +1302,7 @@ function New-AzLocalAVDVMImage {
                 ResourceGroupName = $ResourceGroupName
             }
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
-            $FailedImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript {$_.ProvisioningState -ne "Succeeded"}
+            $FailedImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript { $_.ProvisioningState -ne "Succeeded" }
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$FailedImages:`r`n$($FailedImages | Out-String)"
             Write-Error -Message "One or more image(s) failed during the build : $($FailedImages.Name -join ', ')"
         }
@@ -1129,7 +1311,7 @@ function New-AzLocalAVDVMImage {
             ResourceGroupName = $ResourceGroupName
         }
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
-        $SuccessfulImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript {$_.ProvisioningState -eq "Succeeded"}
+        $SuccessfulImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript { $_.ProvisioningState -eq "Succeeded" }
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SuccessfulImages:`r`n$($SuccessfulImages | Out-String)"
     
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
@@ -1137,6 +1319,41 @@ function New-AzLocalAVDVMImage {
     }
 }
 
+<#
+.SYNOPSIS
+Creates a Windows VM on an Azure Local logical network.
+
+.DESCRIPTION
+Looks up resource abbreviations from Azure Naming Tool data, creates a network
+interface on the supplied logical network, then creates a Windows VM using the
+image, administrator credentials, and fixed Standard_D2s_v5 size. Names are
+derived from the image, naming abbreviations, and trailing digits in the resource
+group name. Supply an image object: although the Image parameter is not marked
+mandatory, the function uses it to build the VM. This function does not register
+the VM with Azure Virtual Desktop.
+
+.PARAMETER Credential
+Specifies the local administrator credentials for the new virtual machine.
+
+.PARAMETER Image
+Specifies the Azure Local image to use for the VM. Supply an image object returned
+by Get-AzStackHCIVMImage or New-AzLocalAVDVMImage; the function uses its name,
+location, and extended location.
+
+.PARAMETER LogicalNetwork
+Specifies the Azure Local logical network for the VM's network interface and
+resource group.
+
+.EXAMPLE
+New-AzLocalAVDVM -Credential (Get-Credential) -Image $Image -LogicalNetwork $LogicalNetwork
+
+Creates a Standard_D2s_v5 Windows VM using the supplied image, credentials, and
+logical network, then returns the VM object.
+
+.OUTPUTS
+Returns the Azure Local virtual machine object created by
+New-AzStackHCIVMVirtualMachine.
+#>
 function New-AzLocalAVDVM {
     [CmdletBinding(PositionalBinding = $false)]
     param (
@@ -1151,7 +1368,7 @@ function New-AzLocalAVDVM {
     )
 
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$LogicalNetwork: $($LogicalNetwork | Out-String)"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$LogicalNetwork:`r`n$($LogicalNetwork | Out-String)"
     #region Build the Azure resource abbreviation lookup from Azure Naming Tool data
     $Result = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/refs/heads/main/src/repository/resourcetypes.json 
     $ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -in @('', 'Windows') } | Select-Object -Property resource, shortName, lengthMax | Group-Object -Property resource -AsHashTable -AsString
@@ -1159,12 +1376,14 @@ function New-AzLocalAVDVM {
 
     $NICNamePrefix = $ResourceTypeShortNameHT["Network/networkInterfaces"].ShortName
     $VMNamePrefix = $ResourceTypeShortNameHT["Compute/virtualMachines"].ShortName
+    # Use the resource group's trailing instance number to keep related VM names aligned.
     $Instance = [regex]::Match($LogicalNetwork.ResourceGroupName, "\d+$").Value
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$NICNamePrefix: $NICNamePrefix"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VMNamePrefix: $VMNamePrefix"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Instance: $Instance"
 
     #region Create the network interface
+    # Shorten the image identifier so it can be incorporated into the generated VM name.
     $FormattedSku = $Image.Name -replace "-\d{3}-\d{14}$" -replace "\W" -replace "win", "w" -replace "avd"
     $FormattedSku = $FormattedSku.SubString(0, [math]::Min(10, $FormattedSku.Length))
     $VMName = "{0}{1}{2}" -f $VMNamePrefix, $FormattedSku, $Instance
@@ -1209,6 +1428,29 @@ function New-AzLocalAVDVM {
     #endregion
 }
 
+<#
+.SYNOPSIS
+Runs the LocalBox network configuration script and returns its logical network.
+
+.DESCRIPTION
+Uses Azure VM Run Command to run
+C:\LocalBox\Configure-VMLogicalNetwork.ps1 on LocalBox-Client with the Azure CLI
+directory added to PATH. It then looks up localbox-vm-lnet-vlan200 in the supplied
+resource group. Raises a terminating error if the logical network is not found.
+
+.PARAMETER ResourceGroupName
+Specifies the resource group containing LocalBox-Client and the
+localbox-vm-lnet-vlan200 logical network.
+
+.EXAMPLE
+$LogicalNetwork = New-VMLogicalNetwork -ResourceGroupName 'rg-localbox-001'
+
+Runs the remote configuration script and stores the resulting logical network
+object in $LogicalNetwork.
+
+.OUTPUTS
+Returns the Azure Local logical network object named localbox-vm-lnet-vlan200.
+#>
 function New-VMLogicalNetwork {
     [CmdletBinding(PositionalBinding = $false)]
     param (
@@ -1220,6 +1462,7 @@ function New-VMLogicalNetwork {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
     $ScriptPath = "C:\LocalBox\Configure-VMLogicalNetwork.ps1"
 
+    # Run the guest-side network setup through Azure VM Run Command, where az must be on PATH.
     $ScriptString = @"
 `$env:PATH = "C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin;`$env:PATH"
 
@@ -1244,6 +1487,56 @@ pwsh -File '$ScriptPath'
     return $LogicalNetwork
 }
 
+<#
+.SYNOPSIS
+Imports Azure Compute Gallery images as Azure Local Windows VM images.
+
+.DESCRIPTION
+Lists gallery image versions in the current subscription. By default, Out-GridView
+prompts for versions to import; with All, the function selects the latest version
+of each image definition. For each selection, it creates a temporary managed disk
+in the target resource group, grants read access through a time-limited SAS URL,
+and starts an Azure Local image import job. Without AsAJob, it starts cleanup jobs
+for the temporary disks, waits for the imports, and returns successfully
+provisioned images found in the resource group.
+
+.PARAMETER ResourceGroupName
+Specifies the target resource group for temporary managed disks and Azure Local
+images. It must also contain the specified Azure Local cluster and its custom
+location.
+
+.PARAMETER ClusterName
+Specifies the Azure Local cluster name. Defaults to localboxcluster.
+
+.PARAMETER SASExpiryDuration
+Specifies how long, in seconds, the managed disk SAS URL remains valid. Defaults
+to 100000 seconds.
+
+.PARAMETER All
+Selects the latest version of each gallery image definition instead of displaying
+the interactive Out-GridView picker.
+
+.PARAMETER AsAJob
+Returns the import jobs without waiting. In this mode, the function does not start
+temporary-disk cleanup; remove the managed disks tagged ToBeCleaned after the
+imports complete.
+
+.EXAMPLE
+New-AzureLocalVMImageFromAzureComputeGalleryImage -ResourceGroupName 'rg-localbox-001'
+
+Displays the Out-GridView picker, imports the selected gallery image versions, and
+waits for the imports to finish.
+
+.EXAMPLE
+New-AzureLocalVMImageFromAzureComputeGalleryImage -ResourceGroupName 'rg-localbox-001' -All
+
+Imports the latest version of each gallery image definition in the current
+subscription and waits for the imports to finish.
+
+.OUTPUTS
+Returns successfully provisioned Azure Local image objects when waiting for
+completion, or System.Management.Automation.Job objects when AsAJob is specified.
+#>
 function New-AzureLocalVMImageFromAzureComputeGalleryImage {
     [CmdletBinding(PositionalBinding = $false)]
     param (
@@ -1264,8 +1557,8 @@ function New-AzureLocalVMImageFromAzureComputeGalleryImage {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ClusterName: $ClusterName"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SASExpiryDuration: $SASExpiryDuration"
     if ($All) {
-        #Getting the latest version of each image
-        $Resources = Get-AzResource -ResourceType Microsoft.Compute/galleries/images/versions | Select-Object Name, ResourceId, ResourceGroupName, Location, ParentResource | Sort-Object ParentResource,@{Expression={$v=$null;$null=[version]::TryParse(($_.Name -split '/')[-1],[ref]$v);$v};Descending=$true} | Group-Object ParentResource | ForEach-Object {$_.Group[0]}
+        # Sort versions numerically within each image definition, then keep its newest version.
+        $Resources = Get-AzResource -ResourceType Microsoft.Compute/galleries/images/versions | Select-Object Name, ResourceId, ResourceGroupName, Location, ParentResource | Sort-Object ParentResource, @{Expression = { $v = $null; $null = [version]::TryParse(($_.Name -split '/')[-1], [ref]$v); $v }; Descending = $true } | Group-Object ParentResource | ForEach-Object { $_.Group[0] }
     }
     else {
         $Resources = Get-AzResource -ResourceType Microsoft.Compute/galleries/images/versions | Select-Object Name, ResourceId, ResourceGroupName, Location, ParentResource | Sort-Object Name | Out-GridView -OutputMode Multiple
@@ -1281,49 +1574,51 @@ function New-AzureLocalVMImageFromAzureComputeGalleryImage {
         #From https://learn.microsoft.com/en-us/azure/virtual-machines/managed-disk-from-image-version#powershell
         $Parameters = @{
             GalleryImageDefinitionName = $ImageDefinition 
-            GalleryName = $GalleryName 
-            ResourceGroupName = $Resource.ResourceGroupName 
-            Name = $ImageVersion
+            GalleryName                = $GalleryName 
+            ResourceGroupName          = $Resource.ResourceGroupName 
+            Name                       = $ImageVersion
         }
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters: $($Parameters | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
         $SourceImageVersion = Get-AzGalleryImageVersion @Parameters
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SourceImageVersion: $($SourceImageVersion | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SourceImageVersion:`r`n$($SourceImageVersion | Out-String)"
 
         #Create a disk configuration.
         $Parameters = @{
-            Location = $Resource.Location 
-            CreateOption = 'FromImage' 
-            GalleryImageReference = @{Id = $SourceImageVersion.Id}
-            Tag = @{"ToBeCleaned" = "true"}
+            Location              = $Resource.Location 
+            CreateOption          = 'FromImage' 
+            GalleryImageReference = @{Id = $SourceImageVersion.Id }
+            # Mark the temporary export disk so it can be identified for cleanup.
+            Tag                   = @{"ToBeCleaned" = "true" }
         }
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters: $($Parameters | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
         $DiskConfig = New-AzDiskConfig @Parameters
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DiskConfig: $($DiskConfig | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DiskConfig:`r`n$($DiskConfig | Out-String)"
         
         #Create the disk.
         $Parameters = @{
-            Disk = $DiskConfig 
+            Disk              = $DiskConfig 
             ResourceGroupName = $ResourceGroupName 
-            DiskName = $ImageDefinition
+            DiskName          = $ImageDefinition
         }
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters: $($Parameters | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
         $Disk = New-AzDisk @Parameters
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Disk: $($Disk | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Disk:`r`n$($Disk | Out-String)"
         $DiskToRemove += $Disk
 
         #From https://learn.microsoft.com/en-us/azure/azure-local/manage/virtual-machine-image-azure-compute-gallery#export-image-to-managed-disk
+        # Grant temporary read access so the Azure Local image import can read the managed disk.
         $Parameters = @{
             ResourceGroupName = $Disk.ResourceGroupName
-            DiskName = $Disk.Name 
-            DurationInSecond = $SASExpiryDuration
-            Access = 'Read'
+            DiskName          = $Disk.Name 
+            DurationInSecond  = $SASExpiryDuration
+            Access            = 'Read'
         }
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters: $($Parameters | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
         $SAS = Grant-AzDiskAccess @Parameters
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SAS: $($SAS | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SAS:`r`n$($SAS | Out-String)"
 
         $Cluster = Get-AzStackHciCluster -ResourceGroupName $ResourceGroupName -ClusterName $ClusterName -ErrorAction Ignore
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Cluster: $($Cluster | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Cluster:`r`n$($Cluster | Out-String)"
         $SubscriptionId = (Get-AzContext).Subscription.Id
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Subscription: $Subscription"
         $CustomLocation = Get-AzResource -ResourceType "Microsoft.ExtendedLocation/customLocations" -ResourceGroupName $ResourceGroupName
@@ -1341,17 +1636,18 @@ function New-AzureLocalVMImageFromAzureComputeGalleryImage {
             ImagePath         = ConvertTo-SecureString -String $SAS.AccessSAS -AsPlainText -Force
             #Version           = $ImageVersion
         }
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters: $($Parameters | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
         Start-Job -ScriptBlock { $null = Update-AzConfig -DisplayBreakingChangeWarning $false -Scope Process; $Parameters = $Using:Parameters; New-AzStackHCIVMImage @Parameters }
     }
     
     if ($AsAJob) {
+        # The early return skips the managed-disk cleanup below; retain the disks until the imports finish.
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
         return $Jobs
     }
     else {
         #region Disk cleanup
-        #To avoid costs associated with a disk, make sure to delete the managed disk that was used to create this image using the following command:
+        # Start disk deletion asynchronously to avoid ongoing storage charges after export.
         $null = $DiskToRemove | Remove-AzDisk -AsJob
         #endregion
 
@@ -1361,7 +1657,7 @@ function New-AzureLocalVMImageFromAzureComputeGalleryImage {
                 ResourceGroupName = $ResourceGroupName
             }
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
-            $FailedImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript {$_.ProvisioningState -ne "Succeeded"}
+            $FailedImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript { $_.ProvisioningState -ne "Succeeded" }
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$FailedImages:`r`n$($FailedImages | Out-String)"
             Write-Error -Message "One or more image(s) failed during the build : $($FailedImages.Name -join ', ')"
         }
@@ -1370,7 +1666,7 @@ function New-AzureLocalVMImageFromAzureComputeGalleryImage {
             ResourceGroupName = $ResourceGroupName
         }
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
-        $SuccessfulImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript {$_.ProvisioningState -eq "Succeeded"}
+        $SuccessfulImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript { $_.ProvisioningState -eq "Succeeded" }
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SuccessfulImages:`r`n$($SuccessfulImages | Out-String)"
     
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
@@ -1413,8 +1709,8 @@ $Jobs = foreach ($AzResourceProvider in $AzResourceProviders) {
 }
 #Important: Wait until RegistrationState is set to Registered. 
 While (Get-AzResourceProvider -ProviderNamespace $AzResourceProviders | Where-Object -FilterScript { $_.RegistrationState -ne 'Registered' }) {
-	Write-Verbose -Message "Sleeping 10 seconds ..."
-	Start-Sleep -Seconds 10
+    Write-Verbose -Message "Sleeping 10 seconds ..."
+    Start-Sleep -Seconds 10
 }
 $Jobs | Receive-Job -Wait -AutoRemoveJob | Select-Object -Property ProviderNamespace, RegistrationState
 #endregion
@@ -1460,7 +1756,7 @@ else {
     # https://jumpstart.azure.com/azure_jumpstart_localbox/deployment_az
     $AzureLocalInstanceLocations = 'australiaeast', 'southcentralus', 'eastus', 'westeurope', 'southeastasia', 'canadacentral', 'japaneast', 'centralindia'
 }
-Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzureLocalInstanceLocations: $($AzureLocalInstanceLocations | Out-String)"
+Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzureLocalInstanceLocations:`r`n$($AzureLocalInstanceLocations | Out-String)"
 
 if ($null -ne $Location) {
     $LAWSupportedRegions = $Location
@@ -1471,7 +1767,7 @@ else {
     $LAWSupportedDisplayNameRegions = ((Get-AzResourceProvider -ProviderNamespace Microsoft.OperationalInsights).ResourceTypes | Where-Object -FilterScript { $_.ResourceTypeName -eq 'workspaces' }).Locations
     $LAWSupportedRegions = (Get-AzLocation | Where-Object { $_.Providers -contains "Microsoft.OperationalInsights" -and ($_.DisplayName -in $LAWSupportedDisplayNameRegions) }).Location | Sort-Object
 }
-Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$LAWSupportedRegions: $($LAWSupportedRegions | Out-String)"
+Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$LAWSupportedRegions:`r`n$($LAWSupportedRegions | Out-String)"
 <#
 # Example deployment with explicit region parameters.
 $LAWSupportedRegions = "centralus"
@@ -1488,7 +1784,7 @@ foreach ($CurrentLAWSupportedRegion in $LAWSupportedRegions) {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentLAWSupportedRegion: $CurrentLAWSupportedRegion"
     # Check whether the region has capacity for at least one VM of the requested SKU.
     $AvailableComputeResourceSku = Get-AzAvailableComputeResourceSku -Location $CurrentLAWSupportedRegion -ComputeResourceSku $VMSize -SubscriptionId $SubscriptionId
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AvailableComputeResourceSku: $($AvailableComputeResourceSku | Out-String)"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AvailableComputeResourceSku:`r`n$($AvailableComputeResourceSku | Out-String)"
     if ($AvailableComputeResourceSku.Available -gt 0) {
         # Retry the deployment across supported Azure Local instance regions until one succeeds.
         foreach ($CurrentAzureLocalInstanceLocation in $AzureLocalInstanceLocations) {
@@ -1510,7 +1806,7 @@ foreach ($CurrentLAWSupportedRegion in $LAWSupportedRegions) {
             Start-Sleep -Seconds 300
             $ScriptString = "Get-ChildItem -Path 'C:\LocalBox\Logs' -Filter *.log -File"
             $AzVMRunCommand = Invoke-AzVMRunCommand  -CommandId 'RunPowerShellScript' -ResourceGroupName $Result.ResourceGroupName -VMName LocalBox-Client -ScriptString $ScriptString
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzVMRunCommand: $($AzVMRunCommand | Out-String)" #-Verbose
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzVMRunCommand:`r`n$($AzVMRunCommand | Out-String)" #-Verbose
 
             # Complete the cloud deployment:
             # https://jumpstart.azure.com/azure_jumpstart_localbox/cloud_deployment
@@ -1536,11 +1832,11 @@ foreach ($CurrentLAWSupportedRegion in $LAWSupportedRegions) {
             $Images = $Jobs | Receive-Job -Wait -AutoRemoveJob
 
             #region Disk cleanup
-            $DiskToRemove = Get-AzResource -ResourceGroupName $Result.ResourceGroupName -ResourceType Microsoft.Compute/disks -Tag @{"ToBeCleaned" = $true} | Get-AzDisk
+            $DiskToRemove = Get-AzResource -ResourceGroupName $Result.ResourceGroupName -ResourceType Microsoft.Compute/disks -Tag @{"ToBeCleaned" = $true } | Get-AzDisk
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DiskToRemove:`r`n$($DiskToRemove | Out-String)"
             $RevokedDiskAccess = $DiskToRemove | Revoke-AzDiskAccess -AsJob | Receive-Job -Wait -AutoRemoveJob
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RevokedDiskAccess:`r`n$($RevokedDiskAccess | Out-String)"
-            $RemovedDisk = $DiskToRemove | Remove-AzDisk -AsJob -Force
+            $RemovedDisk = $DiskToRemove | Remove-AzDisk -AsJob -Force | Receive-Job -Wait -AutoRemoveJob
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RemovedDisk:`r`n$($RemovedDisk | Out-String)"
             #endregion
 
