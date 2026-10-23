@@ -1,8 +1,11 @@
-# Azure Local Jumpstart LocalBox deployment script
+# Automated deployment for Azure Arc Jumpstart LocalBox
 
-[`New-JumpstartLocalBox.ps1`](./New-JumpstartLocalBox.ps1) automates deployment
-and initial configuration of an Azure Local Jumpstart LocalBox environment. It
-uses the upstream Arc Jumpstart Bicep templates to build a nested Azure Local
+[`New-JumpstartLocalBox.ps1`](./New-JumpstartLocalBox.ps1) provides an automated
+deployment and initial configuration workflow for
+[Azure Arc Jumpstart LocalBox](https://jumpstart.azure.com/azure_jumpstart_localbox/using_localbox),
+as described in the official
+[`Azure/arc_jumpstart_docs` LocalBox documentation](https://github.com/Azure/arc_jumpstart_docs/tree/main/docs/azure_jumpstart_localbox).
+It uses the upstream Arc Jumpstart Bicep templates to build a nested Azure Local
 lab in an Azure subscription, then configures monitoring and creates Azure Local
 VM images and VMs for Azure Virtual Desktop (AVD) scenarios.
 
@@ -77,9 +80,12 @@ and cluster readiness checks poll every five minutes and do not have a timeout.
   including the clipboard, Credential Manager, `mstsc`, and window automation.
 - An Azure subscription and tenant in which you are authorized to create the
   LocalBox resources, assign the required permissions, register resource
-  providers, and create a resource lock. Subscription Owner or Contributor
-  access is typically needed for the deployment and provider registration;
-  confirm role requirements with your administrator.
+  providers, and create a resource lock. The required Azure role-based access
+  control (RBAC) roles and assignment scopes are those described in the official
+  [Azure Arc Jumpstart LocalBox deployment
+  documentation](https://jumpstart.azure.com/azure_jumpstart_localbox/deployment_az).
+  Follow that documentation when assigning permissions for this automated
+  deployment.
 - Azure PowerShell modules compatible with the Azure services and commands used
   in the script. These include Az.Accounts, Az.Resources, Az.Compute, Az.Quota,
   Az.StackHCI, Az.StackHCIVM, and the modules that provide the Azure Monitor,
