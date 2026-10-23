@@ -1388,6 +1388,12 @@ function New-AzLocalAVDVM {
     $FormattedSku = $Image.Name -replace "(-\d{3})?-\d{14}$" -replace "win\d*", "w" -replace "acg", "a" -replace "avd" -replace "\W"
     $FormattedSku = $FormattedSku.SubString(0, [math]::Min(10, $FormattedSku.Length))
     $VMName = "{0}{1}{2}" -f $VMNamePrefix, $FormattedSku, $Instance
+    if (Get-AzStackHCIVMVirtualMachine -Name VMName -ResourceGroupName $LogicalNetwork.ResourceGroupName -ErrorAction Ignore) {
+        $NewVMName = "{0}{1}" -f $VMNamePrefix, $(Get-Date -Format "yyMMddHHmmss")
+        Write-Warning -Message "The '$VMName' is already taken. We will use a timestamped name: $NewVMName"
+        $VMName = $NewVMName
+    }
+
     $NICName = "{0}-{1}" -f $NICNamePrefix, $VMName
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$FormattedSku: $FormattedSku"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VMName: $VMName"
@@ -1422,6 +1428,14 @@ function New-AzLocalAVDVM {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
     $VM = New-AzStackHCIVMVirtualMachine @Parameters        
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VM:`r`n$($VM | Out-String)"
+
+    $Parameters = @{
+        ResourceId = $VM.Id
+        Tag        = = @{ "Image" = $Image.Name }
+        Operation  = "Merge"
+    }
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
+    $null = Update-AzTag @Parameters
 
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
     return $VM
@@ -1717,8 +1731,7 @@ $Jobs | Receive-Job -Wait -AutoRemoveJob | Select-Object -Property ProviderNames
 #endregion
 
 #region Bicep
-if (-not(Get-Command -Name bicep))
-{
+if (-not(Get-Command -Name bicep)) {
     Write-Error -Message "Bicep is mandatory. Please install it (winget install -e --id Microsoft.Bicep) ..." -ErrorAction Stop
 }
 else {
@@ -1727,8 +1740,7 @@ else {
 #endregion
 
 #region Git
-if (-not(Get-Command -Name git))
-{
+if (-not(Get-Command -Name git)) {
     Write-Error -Message "Git is mandatory. Please install it (winget install -e --id Git.Git) ..." -ErrorAction Stop
 }
 else {
