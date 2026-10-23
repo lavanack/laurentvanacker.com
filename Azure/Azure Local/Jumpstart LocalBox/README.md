@@ -73,6 +73,13 @@ and the resource group's trailing instance number. The identifier removes the
 trailing timestamp and optional three-digit suffix, abbreviates `win` followed
 by any digits to `w` and `acg` to `a`, and removes `avd` and non-word characters.
 
+The VM helper checks whether the generated VM name already exists in the
+resource group. If it does, the helper warns and switches to the VM prefix
+followed by a `yyMMddHHmmss` timestamp. The NIC name is derived from the resulting
+VM name. After creating a VM,
+the helper uses `Update-AzTag -Operation Merge` to add an `Image` tag containing
+the source image's name while preserving unrelated existing tags.
+
 Creating these images and VMs does **not** by itself deploy or configure Azure
 Virtual Desktop: the script does not create a host pool, workspace, or
 application group, and it does not register the VMs as AVD session hosts. Use
