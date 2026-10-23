@@ -1709,18 +1709,29 @@ $Jobs = foreach ($AzResourceProvider in $AzResourceProviders) {
 }
 #Important: Wait until RegistrationState is set to Registered. 
 While (Get-AzResourceProvider -ProviderNamespace $AzResourceProviders | Where-Object -FilterScript { $_.RegistrationState -ne 'Registered' }) {
-    Write-Verbose -Message "Sleeping 10 seconds ..."
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 10 seconds ..."
     Start-Sleep -Seconds 10
 }
 $Jobs | Receive-Job -Wait -AutoRemoveJob | Select-Object -Property ProviderNamespace, RegistrationState
 #endregion
 
 #region Bicep
-try {
-    $null = start-process bicep -ArgumentList "--version" -PassThru -NoNewWindow -ErrorAction Stop
-}
-catch {
+if (-not(Get-Command -Name bicep))
+{
     Write-Error -Message "Bicep is mandatory. Please install it (winget install -e --id Microsoft.Bicep) ..." -ErrorAction Stop
+}
+else {
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Bicep is installed:`r`n$(Get-Command -Name bicep | Out-String)..."
+}
+#endregion
+
+#region Git
+if (-not(Get-Command -Name git))
+{
+    Write-Error -Message "Git is mandatory. Please install it (winget install -e --id Git.Git) ..." -ErrorAction Stop
+}
+else {
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Git is installed:`r`n$(Get-Command -Name git | Out-String)..."
 }
 #endregion
 #endregion
@@ -1779,8 +1790,6 @@ $LAWSupportedRegions = @("centralindia")
 $AzureLocalInstanceLocations = @("centralindia")
 #>
 
-
-
 $Credential = Get-Credential -Message "Enter the required credentials" -UserName $env:USERNAME
 # Try each Log Analytics-compatible region that has enough capacity for the requested VM SKU.
 foreach ($CurrentLAWSupportedRegion in $LAWSupportedRegions) {
@@ -1793,7 +1802,7 @@ foreach ($CurrentLAWSupportedRegion in $LAWSupportedRegions) {
         foreach ($CurrentAzureLocalInstanceLocation in $AzureLocalInstanceLocations) {
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzureLocalInstanceLocation: $CurrentAzureLocalInstanceLocation"
             #Enabling enableAzureSpotPricing for cost optimization
-            $Result = New-JumpstartLocalBox -Credential $Credential -azureLocalInstanceLocation $CurrentAzureLocalInstanceLocation -Location $CurrentLAWSupportedRegion -BicepFileDir $BicepFileDir -enableAzureSpotPricing $true -autoUpgradeClusterResource $true
+            $Result = New-JumpstartLocalBox -Credential $Credential -azureLocalInstanceLocation $CurrentAzureLocalInstanceLocation -Location $CurrentLAWSupportedRegion -BicepFileDir $BicepFileDir -enableAzureSpotPricing $true -autoUpgradeClusterResource $true -vmSize $VMSize
             if ($Result.Succeeded) {
                 Write-Host -Object "The Jumpstart LocalBox Deployment Succeeded !!!" -ForegroundColor Green
                 break
