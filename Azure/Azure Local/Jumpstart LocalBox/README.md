@@ -32,7 +32,7 @@ At a high level, the script:
 2. Signs in to Azure if the current Az PowerShell context cannot obtain an
    access token, registers the resource providers it needs, and waits for
    registration to finish.
-3. Checks that the Bicep CLI is installed, then clones or updates the
+3. Checks that both the Bicep CLI and Git are available, then clones or updates the
    [Microsoft `azure_arc` repository](https://github.com/microsoft/azure_arc)
    containing the LocalBox Bicep templates.
 4. Checks regional VM quota for the configured VM size and prompts for the
@@ -92,15 +92,24 @@ and cluster readiness checks poll every five minutes and do not have a timeout.
   Connected Machine, networking, and VM commands. The script does not install
   or pin module versions.
 - The **Bicep CLI** and **Git** available on the machine running this script.
-  The script checks for Bicep and uses Git to clone or update the template
-  repository. Azure CLI is used by the configuration script running inside the
-  deployed LocalBox client.
+  The script checks both commands with `Get-Command` and stops with an
+  installation message if either is missing. It uses Git to clone or update
+  the template repository. Azure CLI is used by the configuration script
+  running inside the deployed LocalBox client.
 - Internet connectivity to Azure, the upstream Arc Jumpstart and Azure Naming
   Tool GitHub content, the Marketplace, and the external services the script
   calls. The script checks Marketplace disk-image URLs and uses an external
   service to discover the caller's public IPv4 address for JIT access.
 - Sufficient regional quota and capacity for the configured VM size. The
   current script sets `Standard_E32s_v6` and checks quota before deploying.
+
+If Bicep or Git is missing, the script suggests these installation commands.
+Install the missing tools before running the deployment:
+
+```powershell
+winget install -e --id Microsoft.Bicep
+winget install -e --id Git.Git
+```
 
 Follow the official [Azure Bicep deployment
 guide](https://jumpstart.azure.com/azure_jumpstart_localbox/deployment_az) to
@@ -113,7 +122,10 @@ templates and Azure services evolve.
 Several values in the script's main section are fixed in code and may not match
 the defaults or parameters documented by upstream Jumpstart:
 
-- `$VMSize` is set to `Standard_E32s_v6`.
+- `$VMSize` is set to `Standard_E32s_v6` and is used for both the regional
+  quota check and the `New-JumpstartLocalBox -vmSize` deployment argument.
+  The function accepts `Standard_E32s_v5` or `Standard_E32s_v6`; changing the
+  assignment therefore changes both the checked and deployed VM SKU.
 - `$GitDir` is set to `C:\Source Control\GitHub\Cloned repositories`.
   Change it to a writable directory if that path does not exist or is not
   appropriate for your environment.
@@ -180,7 +192,9 @@ steps do not have a successful deployment to continue with.
 These are the only parameters accepted by the script when launched. Other
 deployment choices, including the VM size, Spot pricing, automatic cluster
 resource upgrades, and Git checkout path, are currently set in the script and
-must be changed there.
+must be changed there. The script also accepts common PowerShell parameters
+such as `-Verbose`; `-vmSize` is an internal function parameter, not a
+top-level script parameter.
 
 ## Run the deployment
 
@@ -199,6 +213,16 @@ must be changed there.
    the deployment in the Azure portal and the PowerShell transcript. The script
    copies the deployment blade URL to the clipboard when it starts the Bicep
    deployment.
+
+To enable timestamped diagnostics, run with the common `-Verbose` parameter:
+
+```powershell
+.\New-JumpstartLocalBox.ps1 -Verbose
+```
+
+Verbose output includes Bicep and Git command discovery details, resource-provider
+registration wait messages, the selected region lists, and quota-check results.
+It can also be enabled when supplying explicit region parameters.
 
 The command above uses `centralindia` for both regions. To select another
 deployment region and Azure Local instance region, provide the parameters
