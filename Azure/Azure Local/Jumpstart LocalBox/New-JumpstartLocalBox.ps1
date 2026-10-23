@@ -27,7 +27,8 @@ param
     [ValidateScript({ $_ -in $($OperationalInsightLocations = ((Get-AzResourceProvider -ProviderNamespace 'Microsoft.OperationalInsights').ResourceTypes | Where-Object -FilterScript { $_.ResourceTypeName -eq 'workspaces' }).Locations; (Get-AzLocation | Where-Object -FilterScript { $_.DisplayName -in $OperationalInsightLocations }).Location) })]
     [string[]] $Location,
     [ValidateSet('australiaeast', 'southcentralus', 'eastus', 'westeurope', 'southeastasia', 'canadacentral', 'japaneast', 'centralindia')]
-    [string[]] $azureLocalInstanceLocation
+    [string[]] $azureLocalInstanceLocation,
+    [switch] $AVD
 )
 <#
 trap {
@@ -1384,7 +1385,7 @@ function New-AzLocalAVDVM {
 
     #region Create the network interface
     # Shorten the image identifier so it can be incorporated into the generated VM name.
-    $FormattedSku = $Image.Name -replace "-\d{3}-\d{14}$" -replace "\W" -replace "win", "w" -replace "avd"
+    $FormattedSku = $Image.Name -replace "(-\d{3})?-\d{14}$" -replace "win\d*", "w" -replace "acg", "a" -replace "avd" -replace "\W"
     $FormattedSku = $FormattedSku.SubString(0, [math]::Min(10, $FormattedSku.Length))
     $VMName = "{0}{1}{2}" -f $VMNamePrefix, $FormattedSku, $Instance
     $NICName = "{0}-{1}" -f $NICNamePrefix, $VMName
@@ -1831,55 +1832,59 @@ foreach ($CurrentLAWSupportedRegion in $LAWSupportedRegions) {
             $LogicalNetwork = New-VMLogicalNetwork -ResourceGroupName $Result.ResourceGroupName
             Write-Host -Object "The image and VM builds can take some hours ..." -ForegroundColor Yellow
 
-            #region AVD MarketPlace + ACG Images
-            #Building Windows 11 AVD images (with and without M365)
-            $Jobs = New-AzLocalAVDVMImage -ResourceGroupName $Result.ResourceGroupName -AsAJob
-            #Building one image per Azure Compute Image Version
-            $Jobs += New-AzureLocalVMImageFromAzureComputeGalleryImage -ResourceGroupName $Result.ResourceGroupName -All -AsAJob
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Jobs:`r`n$($Jobs | Out-String)"
-            $ClusterName = "localboxcluster"
-            $ImageStatusURI = "https://portal.azure.com/#@{0}/resource/subscriptions/{1}/resourceGroups/{2}/providers/microsoft.azurestackhci/clusters/{3}/vmimages" -f $((Get-AzTenant).Domains[-1]), $SubscriptionId, $Result.ResourceGroupName, $ClusterName
-            Start-Process $ImageStatusURI 
+            #region AVD
+            if ($AVD) {
+                #region AVD MarketPlace + ACG Images
+                #Building Windows 11 AVD images (with and without M365)
+                $Jobs = New-AzLocalAVDVMImage -ResourceGroupName $Result.ResourceGroupName -AsAJob
+                #Building one image per Azure Compute Image Version
+                $Jobs += New-AzureLocalVMImageFromAzureComputeGalleryImage -ResourceGroupName $Result.ResourceGroupName -All -AsAJob
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Jobs:`r`n$($Jobs | Out-String)"
+                $ClusterName = "localboxcluster"
+                $ImageStatusURI = "https://portal.azure.com/#@{0}/resource/subscriptions/{1}/resourceGroups/{2}/providers/microsoft.azurestackhci/clusters/{3}/vmimages" -f $((Get-AzTenant).Domains[-1]), $SubscriptionId, $Result.ResourceGroupName, $ClusterName
+                Start-Process $ImageStatusURI 
 
-            $Images = $Jobs | Receive-Job -Wait -AutoRemoveJob
+                $Images = $Jobs | Receive-Job -Wait -AutoRemoveJob
 
-            #region Disk cleanup
-            $DiskToRemove = Get-AzResource -ResourceGroupName $Result.ResourceGroupName -ResourceType Microsoft.Compute/disks -Tag @{"ToBeCleaned" = $true } | Get-AzDisk
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DiskToRemove:`r`n$($DiskToRemove | Out-String)"
-            $RevokedDiskAccess = $DiskToRemove | Revoke-AzDiskAccess -AsJob | Receive-Job -Wait -AutoRemoveJob
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RevokedDiskAccess:`r`n$($RevokedDiskAccess | Out-String)"
-            $RemovedDisk = $DiskToRemove | Remove-AzDisk -AsJob -Force | Receive-Job -Wait -AutoRemoveJob
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RemovedDisk:`r`n$($RemovedDisk | Out-String)"
-            #endregion
+                #region Disk cleanup
+                $DiskToRemove = Get-AzResource -ResourceGroupName $Result.ResourceGroupName -ResourceType Microsoft.Compute/disks -Tag @{"ToBeCleaned" = $true } | Get-AzDisk
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$DiskToRemove:`r`n$($DiskToRemove | Out-String)"
+                $RevokedDiskAccess = $DiskToRemove | Revoke-AzDiskAccess -AsJob | Receive-Job -Wait -AutoRemoveJob
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RevokedDiskAccess:`r`n$($RevokedDiskAccess | Out-String)"
+                $RemovedDisk = $DiskToRemove | Remove-AzDisk -AsJob -Force | Receive-Job -Wait -AutoRemoveJob
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RemovedDisk:`r`n$($RemovedDisk | Out-String)"
+                #endregion
 
-            if ($Images.ProvisioningState -contains "Failed") {
+                if ($Images.ProvisioningState -contains "Failed") {
+                    $Parameters = @{
+                        ResourceGroupName = $Result.ResourceGroupName
+                    }
+                    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
+                    $FailedImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript { $_.ProvisioningState -ne "Succeeded" }
+                    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$FailedImages:`r`n$($FailedImages | Out-String)"
+                    Write-Error -Message "One or more image(s) failed during the build : $($FailedImages.Name -join ', ')"
+                }
+
                 $Parameters = @{
                     ResourceGroupName = $Result.ResourceGroupName
                 }
                 Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
-                $FailedImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript { $_.ProvisioningState -ne "Succeeded" }
-                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$FailedImages:`r`n$($FailedImages | Out-String)"
-                Write-Error -Message "One or more image(s) failed during the build : $($FailedImages.Name -join ', ')"
-            }
+                $SuccessfulImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript { $_.ProvisioningState -eq "Succeeded" }
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SuccessfulImages:`r`n$($SuccessfulImages | Out-String)"
+                #endregion 
 
-            $Parameters = @{
-                ResourceGroupName = $Result.ResourceGroupName
-            }
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
-            $SuccessfulImages = Get-AzStackHCIVMImage @Parameters | Where-Object -FilterScript { $_.ProvisioningState -eq "Succeeded" }
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SuccessfulImages:`r`n$($SuccessfulImages | Out-String)"
-            #endregion 
-
-            #region VMs/AVD Session Hosts
-            $ExportedFunctions = [scriptblock]::Create(@"
-                Import-Module -Name Az.StackHCIVM
-                Function New-AzLocalAVDVM { ${Function:New-AzLocalAVDVM} }
+                #region VMs/AVD Session Hosts
+                $ExportedFunctions = [scriptblock]::Create(@"
+                    Import-Module -Name Az.StackHCIVM
+                    Function New-AzLocalAVDVM { ${Function:New-AzLocalAVDVM} }
 "@)
-            $Jobs = foreach ($Image in $SuccessfulImages) {
-                Start-Job -ScriptBlock { $null = Update-AzConfig -DisplayBreakingChangeWarning $false -Scope Process; New-AzLocalAVDVM -Credential $using:Credential -Image $using:Image -LogicalNetwork $using:LogicalNetwork } -InitializationScript $ExportedFunctions
-                #New-AzLocalAVDVM -Credential $Credential -Image $Image -LogicalNetwork $LogicalNetwork
+                $Jobs = foreach ($Image in $SuccessfulImages) {
+                    Start-Job -ScriptBlock { $null = Update-AzConfig -DisplayBreakingChangeWarning $false -Scope Process; New-AzLocalAVDVM -Credential $using:Credential -Image $using:Image -LogicalNetwork $using:LogicalNetwork } -InitializationScript $ExportedFunctions
+                    #New-AzLocalAVDVM -Credential $Credential -Image $Image -LogicalNetwork $LogicalNetwork
+                }
+                $VMs = $Jobs | Receive-Job -Wait -AutoRemoveJob
+                #endregion
             }
-            $VMs = $Jobs | Receive-Job -Wait -AutoRemoveJob
             #endregion
 
             #region Protect the resource group from accidental deletion
