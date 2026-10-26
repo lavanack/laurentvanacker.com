@@ -434,8 +434,9 @@ function New-AzureComputeGallery {
 	$DisableAutoUpdatesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgDisableAutoUpdatesPowerShellCustomizerParams 
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
-	$Customize = $CopyInstallLanguagePacksCustomizer, $InstallLanguagePacksCustomizer, $TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
-	$ImgTemplateParams = @{
+	$Customize = $CopyInstallLanguagePacksCustomizer, $InstallLanguagePacksCustomizer, $LanguagePacksWindowsUpdateCustomizer, $LanguagePacksWindowsRestartCustomizer, $TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
+    #$Customize = $CopyInstallLanguagePacksCustomizer, $InstallLanguagePacksCustomizer, $TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
+		$ImgTemplateParams = @{
 		ImageTemplateName      = $imageTemplateNamePowerShell
 		ResourceGroupName      = $ResourceGroupName
 		Source                 = $srcPlatform
@@ -445,7 +446,7 @@ function New-AzureComputeGallery {
 		UserAssignedIdentityId = $AssignedIdentity.Id
 		VMProfileVmsize        = "Standard_D8s_v5"
 		VMProfileOsdiskSizeGb  = 127
-		BuildTimeoutInMinute   = 300
+		BuildTimeoutInMinute   = 360
 		StagingResourceGroup   = $StagingResourceGroupPowerShell.ResourceId
 		#Tag                    = @{"SecurityControl"="Ignore"}
 	}
@@ -462,7 +463,8 @@ function New-AzureComputeGallery {
 	#region Waiting for jobs to complete
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Waiting for jobs to complete ..."
 	#$Jobs | Wait-Job | Out-Null
-	$null = $Jobs | Receive-Job -Wait -AutoRemoveJob
+	$Results = $Jobs | Receive-Job -Wait -AutoRemoveJob
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Results':`r`n$($Results | Out-String) "
 	#endregion
 
 	#region imageTemplateNameARM status 
