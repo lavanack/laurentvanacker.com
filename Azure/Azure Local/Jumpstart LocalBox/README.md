@@ -6,8 +6,9 @@ deployment and initial configuration workflow for
 as described in the official
 [`Azure/arc_jumpstart_docs` LocalBox documentation](https://github.com/Azure/arc_jumpstart_docs/tree/main/docs/azure_jumpstart_localbox).
 It uses the upstream Arc Jumpstart Bicep templates to build a nested Azure Local
-lab in an Azure subscription, then configures monitoring and creates Azure Local
-VM images and VMs for Azure Virtual Desktop (AVD) scenarios.
+lab in an Azure subscription, then configures monitoring. With the optional
+`-AVD` switch, it also creates Azure Local VM images and VMs for Azure Virtual
+Desktop (AVD) scenarios.
 
 LocalBox is intended as a self-contained sandbox for learning, demonstrations,
 proofs of concept, and integration testing. It is not a production deployment
@@ -32,7 +33,7 @@ At a high level, the script:
 2. Signs in to Azure if the current Az PowerShell context cannot obtain an
    access token, registers the resource providers it needs, and waits for
    registration to finish.
-3. Checks that the Bicep CLI is installed, then clones or updates the
+3. Checks that both the Bicep CLI and Git are available, then clones or updates the
    [Microsoft `azure_arc` repository](https://github.com/microsoft/azure_arc)
    containing the LocalBox Bicep templates.
 4. Checks regional VM quota for the configured VM size and prompts for the
@@ -46,19 +47,38 @@ At a high level, the script:
 7. Waits for the two Azure Arc machines and the Azure Local cluster to become
    ready, configures Azure Monitor data collection, and sets up the LocalBox
    VM logical network.
-8. Starts imports for Windows 11 Azure Virtual Desktop Marketplace images and
-   the latest Azure Compute Gallery image versions. These images are used to
-   create sample Azure Local VMs for exploring AVD-related image and VM
-   workflows. After the imports finish, the script removes temporary export
-   disks, creates a VM for each successfully imported image, and applies a
-   `CanNotDelete` lock to the resource group.
+8. Only when `-AVD` is supplied, starts imports for Windows 11 Azure Virtual
+   Desktop Marketplace images and the latest Azure Compute Gallery image
+   versions (if any). These images are used to create sample Azure Local VMs for
+   exploring AVD-related image and VM workflows. After the imports finish, the
+   script removes temporary export disks and creates VMs in background jobs
+   for images in the resource group whose provisioning state is `Succeeded`.
+9. Applies a `CanNotDelete` lock to the successful deployment's resource group,
+   whether or not `-AVD` was supplied.
 
 ## AVD scenario scope
 
-The image and VM portion of this script is intended for exploring Azure Virtual
-Desktop scenarios on Azure Local. It imports Windows 11 multi-session AVD
-Marketplace images and Azure Compute Gallery images, then creates Azure Local
-VMs from the successfully imported images.
+The image and VM portion of this script is optional and intended for exploring
+Azure Virtual Desktop scenarios on Azure Local. Supply `-AVD` to import Windows
+11 multi-session AVD Marketplace images (with and without Microsoft 365) and the
+latest version of each discovered Azure Compute Gallery image definition, then
+create Azure Local VMs from images whose provisioning state is `Succeeded`.
+
+Without `-AVD`, the script still deploys LocalBox, configures monitoring and the
+VM logical network, and applies the resource-group lock. It skips the additional
+image imports, temporary export-disk cleanup, and sample VM creation.
+
+Generated sample VM names use a shortened image identifier (up to 10 characters)
+and the resource group's trailing instance number. The identifier removes the
+trailing timestamp and optional three-digit suffix, abbreviates `win` followed
+by any digits to `w` and `acg` to `a`, and removes `avd` and non-word characters.
+
+The VM helper checks whether the generated VM name already exists in the
+resource group. If it does, the helper warns and switches to the VM prefix
+followed by a `yyMMddHHmmss` timestamp. The NIC name is derived from the resulting
+VM name. After creating a VM,
+the helper uses `Update-AzTag -Operation Merge` to add an `Image` tag containing
+the source image's name while preserving unrelated existing tags.
 
 Creating these images and VMs does **not** by itself deploy or configure Azure
 Virtual Desktop: the script does not create a host pool, workspace, or
@@ -92,15 +112,24 @@ and cluster readiness checks poll every five minutes and do not have a timeout.
   Connected Machine, networking, and VM commands. The script does not install
   or pin module versions.
 - The **Bicep CLI** and **Git** available on the machine running this script.
-  The script checks for Bicep and uses Git to clone or update the template
-  repository. Azure CLI is used by the configuration script running inside the
-  deployed LocalBox client.
+  The script checks both commands with `Get-Command` and stops with an
+  installation message if either is missing. It uses Git to clone or update
+  the template repository. Azure CLI is used by the configuration script
+  running inside the deployed LocalBox client.
 - Internet connectivity to Azure, the upstream Arc Jumpstart and Azure Naming
   Tool GitHub content, the Marketplace, and the external services the script
   calls. The script checks Marketplace disk-image URLs and uses an external
   service to discover the caller's public IPv4 address for JIT access.
 - Sufficient regional quota and capacity for the configured VM size. The
   current script sets `Standard_E32s_v6` and checks quota before deploying.
+
+If Bicep or Git is missing, the script suggests these installation commands.
+Install the missing tools before running the deployment:
+
+```powershell
+winget install -e --id Microsoft.Bicep
+winget install -e --id Git.Git
+```
 
 Follow the official [Azure Bicep deployment
 guide](https://jumpstart.azure.com/azure_jumpstart_localbox/deployment_az) to
@@ -113,15 +142,21 @@ templates and Azure services evolve.
 Several values in the script's main section are fixed in code and may not match
 the defaults or parameters documented by upstream Jumpstart:
 
-- `$VMSize` is set to `Standard_E32s_v6`.
+- `$VMSize` is set to `Standard_E32s_v6` and is used for both the regional
+  quota check and the `New-JumpstartLocalBox -vmSize` deployment argument.
+  The function accepts `Standard_E32s_v5` or `Standard_E32s_v6`; changing the
+  assignment therefore changes both the checked and deployed VM SKU.
 - `$GitDir` is set to `C:\Source Control\GitHub\Cloned repositories`.
   Change it to a writable directory if that path does not exist or is not
   appropriate for your environment.
-- The script's `Location` and `azureLocalInstanceLocation` parameters both
-  default to `centralindia`. They are separate settings: `Location` selects the
-  deployment and Log Analytics region, while `azureLocalInstanceLocation`
-  selects the Azure Local instance region. The sample region assignments in the
-  main section are comments and do not override the parameters.
+- The script's `Location` and `azureLocalInstanceLocation` parameters are
+  optional and have no fixed defaults. When omitted, the script discovers
+  Log Analytics-compatible deployment regions and uses its built-in list of
+  eight Azure Local instance regions. They are separate settings: `Location`
+  selects the deployment and Log Analytics region, while
+  `azureLocalInstanceLocation` selects the Azure Local instance region. The
+  sample region assignments in the main section are comments and do not
+  override the parameters or automatic region selection.
 - The deployment call enables Azure Spot pricing and automatic cluster-resource
   upgrades. Spot capacity may be unavailable or the VM may be evicted.
 - `New-JumpstartLocalBox` defaults `governResourceTags` to `true`. In the
@@ -131,7 +166,8 @@ the defaults or parameters documented by upstream Jumpstart:
 - The script defaults to creating resources without Azure Bastion and uses
   RDP/JIT access for the LocalBox client.
 
-To use different supported regions, pass them when launching the script.
+To restrict deployment attempts to specific supported regions, pass them when
+launching the script.
 Changing the VM size still requires editing the `$VMSize` assignment in the
 script's main section. The parameters below are the only top-level inputs to
 the script; the numerous parameters documented for `New-JumpstartLocalBox`
@@ -140,14 +176,20 @@ standalone script.
 
 ### Script input parameters
 
-The script exposes two top-level parameters:
+The script exposes three optional top-level parameters:
 
-| Parameter | Type | Default | Purpose |
-| --- | --- | --- | --- |
-| `Location` | `string[]` | `centralindia` | Deployment region, including the Log Analytics workspace. Each value must be available for Log Analytics in the current Azure context. |
-| `azureLocalInstanceLocation` | `string[]` | `centralindia` | Azure Local instance registration region. Each value must be one of `australiaeast`, `southcentralus`, `eastus`, `westeurope`, `southeastasia`, `canadacentral`, `japaneast`, or `centralindia`. |
+| Parameter                    | Type       | Behavior when omitted                                                                                                                                 | Purpose                                                                                                                                                                                                   |
+| ---------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Location`                   | `string[]` | Discovers and sorts regions that list `Microsoft.OperationalInsights` as a provider and whose display names match the provider's workspace locations. | Deployment region, including the Log Analytics workspace. Each supplied value must be available for Log Analytics in the current Azure context.                                                           |
+| `azureLocalInstanceLocation` | `string[]` | Tries the eight supported regions in the order listed here.                                                                                           | Azure Local instance registration region. Each supplied value must be one of `australiaeast`, `southcentralus`, `eastus`, `westeurope`, `southeastasia`, `canadacentral`, `japaneast`, or `centralindia`. |
+| `AVD`                        | `switch`   | Disabled; skips the additional AVD image and VM workflow.                                                                                             | Enables Marketplace and Azure Compute Gallery image imports, temporary export-disk cleanup, and sample Azure Local VM creation after LocalBox configuration.                                              |
 
-Both parameters accept one or more regions. They can be different because
+You can omit either region parameter independently: the omitted parameter uses its
+automatic region list, while the supplied parameter restricts that side of the
+deployment combinations. Omitting both parameters enables the broadest search;
+it does not select `centralindia` by default.
+
+Both region parameters accept one or more regions. They can be different because
 `Location` controls where the Azure-hosted deployment resources are created,
 while `azureLocalInstanceLocation` controls the Azure Local instance's
 registration region. The script processes each `Location` in order and, for
@@ -174,13 +216,15 @@ The script can therefore make multiple deployment attempts before completing.
 Cleanup of a failed attempt is started asynchronously, so verify failed
 resource groups and any remaining resources in the Azure portal before
 re-running the script; leftover resources can continue to incur charges. If no
-configured combination succeeds, the LocalBox configuration and AVD image/VM
-steps do not have a successful deployment to continue with.
+configured combination succeeds, the LocalBox configuration and any requested
+AVD image/VM steps do not have a successful deployment to continue with.
 
 These are the only parameters accepted by the script when launched. Other
 deployment choices, including the VM size, Spot pricing, automatic cluster
 resource upgrades, and Git checkout path, are currently set in the script and
-must be changed there.
+must be changed there. The script also accepts common PowerShell parameters
+such as `-Verbose`; `-vmSize` is an internal function parameter, not a
+top-level script parameter.
 
 ## Run the deployment
 
@@ -195,18 +239,52 @@ must be changed there.
    .\New-JumpstartLocalBox.ps1
    ```
 
+   This runs the LocalBox workflow without the additional AVD image imports
+   and sample VMs.
+
 4. Complete the credential prompt and any Azure sign-in or RDP prompts. Monitor
    the deployment in the Azure portal and the PowerShell transcript. The script
    copies the deployment blade URL to the clipboard when it starts the Bicep
    deployment.
 
-The command above uses `centralindia` for both regions. To select another
-deployment region and Azure Local instance region, provide the parameters
-explicitly. For example:
+To enable timestamped diagnostics, run with the common `-Verbose` parameter:
+
+```powershell
+.\New-JumpstartLocalBox.ps1 -Verbose
+```
+
+Verbose output includes Bicep and Git command discovery details, resource-provider
+registration wait messages, the selected region lists, and quota-check results.
+It can also be enabled when supplying explicit region parameters.
+
+The commands above use automatic region selection for both region lists and
+can attempt deployments across multiple combinations. To limit attempts to
+one deployment region and one Azure Local instance region, provide both
+parameters explicitly. For example:
 
 ```powershell
 .\New-JumpstartLocalBox.ps1 -Location 'centralus' -azureLocalInstanceLocation 'southcentralus'
 ```
+
+To use `centralindia` for both regions, specify it explicitly:
+
+```powershell
+.\New-JumpstartLocalBox.ps1 -Location 'centralindia' -azureLocalInstanceLocation 'centralindia'
+```
+
+To include the optional AVD image and VM workflow, add `-AVD`. For example,
+with explicit regions and verbose diagnostics:
+
+```powershell
+.\New-JumpstartLocalBox.ps1 `
+  -Location 'centralindia' `
+  -azureLocalInstanceLocation 'centralindia' `
+  -AVD -Verbose
+```
+
+The switch adds image and VM provisioning to the deployment; it does not
+register the VMs with Azure Virtual Desktop. Image imports and VM builds can
+take hours and incur additional compute and storage charges.
 
 The Log Analytics region must pass the script's runtime validation, and the
 Azure Local instance region must be in the parameter's supported-region
@@ -217,8 +295,9 @@ availability before deploying.
 
 - **Azure resources:** A uniquely named resource group, the Azure-hosted
   LocalBox client and supporting infrastructure, Azure Local and Arc resources,
-  monitoring resources, images and VMs intended for AVD scenarios, and other
-  resources required by the deployment.
+  monitoring resources, and other resources required by the deployment.
+  Additional images and sample VMs intended for AVD scenarios are created only
+  when `-AVD` is supplied.
 - **PowerShell transcript:** A timestamped `.txt` file beside the script.
 - **Bicep parameters:** A generated `main.bicepparam` file in the cloned
   `azure_arc\azure_jumpstart_localbox\bicep` directory.
