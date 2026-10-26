@@ -64,7 +64,7 @@ if (-not(Test-DomainAdmin)) {
 }
 
 #From https://aka.ms/azps-changewarnings: Disabling breaking change warning messages in Azure PowerShell
-#$null = Update-AzConfig -DisplayBreakingChangeWarning $false
+$null = Update-AzConfig -DisplayBreakingChangeWarning $false -Scope Process
 
 Connect-PsAvdAzure
 #region Only needed once
@@ -149,7 +149,7 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 [PersonalHostPool]::SetIndex($RandomNumber, $PrimaryRegion)
 
 #Uncomment the best scenario for your usage or create your own
-$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_CloudOnly_FSLogix.ps1"
+#$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_CloudOnly_FSLogix.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_Hybrid_FSLogix_AzureAppAttach_SSO.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_ScalingPlan.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_1_AD_SpotInstance_RemoteApp.ps1"
@@ -163,6 +163,8 @@ $HostPools = & "..\1 Azure Region\1_Pooled_EntraID_CloudOnly_FSLogix.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_AzureAppAttach_SessionHostConfiguration.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_FSLogix_AzureAppAttach.ps1"
+#$HostPools = & "..\1 Azure Region\1_Pooled_FSLogix_AzureAppAttach_SSO.ps1"
+$HostPools = & "..\1 Azure Region\1_Pooled_FSLogix_AzureAppAttach_ExternalIdentities.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_2_Personal_AD_Misc.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_AD_AzureAppAttach.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_EntraID_Intune_AD_FSLogix_Watermarking_SpotInstance.ps1"
@@ -211,21 +213,21 @@ $HostPools | ConvertTo-AzWvdHostPool | Get-PsAvdHostPoolDirectLaunchUrl -Browse
 
 #region Adding Test Users (under the OrgUsers OU) as HostPool Users (for all HostPools)
 $AVDUsersGroupName = 'AVD Users'
-Get-ADGroup -Filter "Name -like 'hp*-*Application Group Users'" | Add-ADGroupMember -Members $AVDUsersGroupName
+Get-ADGroup -Filter "Name -like 'avdhp*-*Application Group Users'" | Add-ADGroupMember -Members $AVDUsersGroupName
 Start-MicrosoftEntraIDConnectSync
 #endregion
 
 #region Adding Test Users (CloudOnly) as HostPool Users (for all HostPools)
 $CloudOnlyUsersGroupName = 'Cloud Only Users'
 $CloudOnlyUsersGroupId = (Get-MgBetaGroup -Filter "displayName eq '$CloudOnlyUsersGroupName'").Id
-Get-MgBetaGroup -All | Where-Object -FilterScript { ($_.displayName -like 'hp*-*Application Group Users') -and (-not($_.OnPremisesSyncEnabled)) } | ForEach-Object -Process {
+Get-MgBetaGroup -All | Where-Object -FilterScript { ($_.displayName -like 'avdhp*-*Application Group Users') -and (-not($_.OnPremisesSyncEnabled)) } | ForEach-Object -Process {
     New-MGBetaGroupMember -GroupId $_.Id -DirectoryObjectId $CloudOnlyUsersGroupId -ErrorAction Ignore
 }
 #endregion
 
-#region Adding Test Users (CloudOnly) as members of "the hp-np-ei-poc-* - FSLogix Contributor" groups because No nested group support in Azure AD tokens for file access for the moment
+#region Adding Test Users (CloudOnly) as members of "the avdhp-np-ei-poc-* - FSLogix Contributor" groups because No nested group support in Azure AD tokens for file access for the moment
 $CloudOnlyUsersGroupMembers = Get-MgBetaGroupMember -GroupId $CloudOnlyUsersGroupId 
-Get-MgBetaGroup -All | Where-Object -FilterScript { ($_.displayName -like 'hp*-*FSLogix Contributor') -and (-not($_.OnPremisesSyncEnabled)) } | ForEach-Object -Process {
+Get-MgBetaGroup -All | Where-Object -FilterScript { ($_.displayName -like 'avdhp*-*FSLogix Contributor') -and (-not($_.OnPremisesSyncEnabled)) } | ForEach-Object -Process {
     $Group = $_
     $CloudOnlyUsersGroupMembers| ForEach-Object -Process {
         New-MGBetaGroupMember -GroupId $Group.Id -DirectoryObjectId $_.Id -ErrorAction Ignore
@@ -275,7 +277,7 @@ foreach ($CurrentSkuPartNumber in $SkuPartNumber) {
         $AssignedLicenses = Get-MgBetaUser -Filter "assignedLicenses/any(x:x/skuId eq $($SubscribedSku.SkuId) )" -ConsistencyLevel eventual -CountVariable e5licensedUserCount -All
         Write-Verbose -Message "Assigned Licenses for '$CurrentSkuPartNumber': $($AssignedLicenses.DisplayName -join ', ')"
         $AVDUserGroupMembersWithoutAssignedLicenses = Get-MgBetaUser -Filter "not(assignedLicenses/any(x:x/skuId eq $($SubscribedSku.SkuId))) and UserType eq 'Member'" -ConsistencyLevel eventual -CountVariable e5licensedUserCount -All | Where-Object -FilterScript { $_.Id -in $((Get-MgBetaGroupMember -GroupId $(Get-MgBetaGroup -Filter "DisplayName eq '$AVDUsersGroupName'").Id).Id) }
-        Write-Verbose -Message "AVD User Group Members Without Assigned Licenses for '$CurrentSkuPartNumber': $($AVDUserGroupMembersWithoutAssignedLicenses.DisplayName -join ', ')"
+        Write-Verbose -Message "'$AVDUsersGroupName' Group Members Without Assigned Licenses for '$CurrentSkuPartNumber': $($AVDUserGroupMembersWithoutAssignedLicenses.DisplayName -join ', ')"
     }
 }
 #endregion

@@ -37,7 +37,7 @@
             },
 
             "properties": {
-                "buildTimeoutInMinutes": 240,
+                "buildTimeoutInMinutes": 360,
 
                 "vmProfile": {
                     "vmSize": "Standard_D4s_v5",

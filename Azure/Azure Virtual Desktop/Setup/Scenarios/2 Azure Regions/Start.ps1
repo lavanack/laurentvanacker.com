@@ -274,7 +274,7 @@ else {
     $AssignedLicenses = Get-MgBetaUser -Filter "assignedLicenses/any(x:x/skuId eq $($SubscribedSku.SkuId) )" -ConsistencyLevel eventual -CountVariable e5licensedUserCount -All
     Write-Verbose -Message "Assigned Licenses for '$SkuPartNumber': $($AssignedLicenses.DisplayName -join ', ')"
     $AVDUserGroupMembersWithoutAssignedLicenses = Get-MgBetaUser -Filter "not(assignedLicenses/any(x:x/skuId eq $($SubscribedSku.SkuId))) and UserType eq 'Member'" -ConsistencyLevel eventual -CountVariable e5licensedUserCount -All | Where-Object -FilterScript { $_.Id -in $((Get-MgBetaGroupMember -GroupId $(Get-MgBetaGroup -Filter "DisplayName eq '$AVDUserGroupName'").Id).Id) }
-    Write-Verbose -Message "AVD User Group Members Without Assigned Licenses for '$SkuPartNumber': $($AVDUserGroupMembersWithoutAssignedLicenses.DisplayName -join ', ')"
+    Write-Verbose -Message "'$AVDUsersGroupName' Group Members Without Assigned Licenses for '$SkuPartNumber': $($AVDUserGroupMembersWithoutAssignedLicenses.DisplayName -join ', ')"
 }
 #endregion
 

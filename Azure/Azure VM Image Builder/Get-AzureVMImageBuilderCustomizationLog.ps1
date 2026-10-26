@@ -167,7 +167,7 @@ function Get-AzureVMImageBuilderCustomizationLog {
             Write-Verbose -Message "Attempting to download customization logs from storage account..."
             $AzStorageBlobContent = $CurrentAzImageBuilderTemplateResourceGroup | 
             Get-AzStorageAccount | 
-            Get-AzStorageContainer -Name packerlogs | 
+            Get-AzStorageContainer -Name packerlogs -ErrorAction Ignore | 
             Get-AzStorageBlob | 
             Get-AzStorageBlobContent -Destination $CurrentDestination -Force -Verbose 
             

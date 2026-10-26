@@ -15,14 +15,14 @@ Our suppliers from and against any claims or lawsuits, including
 attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
-#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.ImageBuilder, Az.ManagedServiceIdentity, Az.Resources
+#requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.ImageBuilder, Az.ManagedServiceIdentity, Az.Network, Az.PrivateDns, Az.Resources, Az.Storage
 
 #region Function definitions
 function New-AzureSoftwareContainer {
 	[CmdletBinding()]
 	Param(
 		[Parameter(Mandatory = $false)]
-		[string]$Location = "EastUS2"
+		[string]$Location = "CentralUS"
 	)
 
 	#region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
@@ -60,27 +60,29 @@ function New-AzureSoftwareContainer {
 
 	# Location (see possible locations in the main docs)
 	#$Location = "EastUS"
-	Write-Verbose -Message "`$Location: $Location"
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Location: $Location"
 	$LocationShortName = $shortNameHT[$Location].shortName
-	Write-Verbose -Message "`$LocationShortName: $LocationShortName"
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$LocationShortName: $LocationShortName"
 
 	$Project = "avd"
 	$Role = "aib"
+	#Timestamp
+	$timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 	#endregion
 
 	#region Create storage resource group
 	Do {
-		$Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
-		$StorageAccountName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $StorageAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
+		#$Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
+		$StorageAccountName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $StorageAccountPrefix, $Project, $Role, $LocationShortName, $timeInt                       
 		Start-Sleep -Second 1
 	} While (-not(Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable)
  
 
 	$ResourceGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $Instance 
 	$ResourceGroupName = $ResourceGroupName.ToLower()
-	Write-Verbose -Message "`$ResourceGroupName: $ResourceGroupName"
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ResourceGroupName: $ResourceGroupName"
 
-	Write-Verbose -Message "Creating '$ResourceGroupName' Resource Group Name ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating '$ResourceGroupName' Resource Group Name ..."
     $Tags =  @{
         "SecurityControl" = "Ignore"
         "Script" = $(Split-Path -Path $MyInvocation.ScriptName -Leaf)
@@ -103,10 +105,10 @@ function New-AzureSoftwareContainer {
         Scope              = $StorageAccount.Id
     }
     while (-not(Get-AzRoleAssignment @Parameters)) {
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
         $RoleAssignment = New-AzRoleAssignment @Parameters
-        Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
         Start-Sleep -Seconds 30
     }
     #endregion 
@@ -115,7 +117,7 @@ function New-AzureSoftwareContainer {
     #region Public Network Access and Shared Key Access Enabled on the Storage Account
     Do {
         $null = $storageAccount | Set-AzStorageAccount -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $false
-        Write-Verbose -Message "Sleeping 30 seconds"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
         Start-Sleep -Seconds 30
     } Until (($storageAccount | Get-AzStorageAccount).PublicNetworkAccess)
     #endregion
@@ -131,6 +133,7 @@ function New-AzureSoftwareContainer {
 	$BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
 	$DestinationFullName = Join-Path $DestinationDir -ChildPath $DestinationFileName
 	Start-BitsTransfer -Source $DownloadURI -Destination $DestinationFullName -DisplayName $DownloadURI
+    Start-Sleep -Seconds 30
 	$null = Set-AzStorageBlobContent -Context $StorageContext -File $DestinationFullName -Container $ContainerName -Blob $BlobName -Force
 	#endregion
 	
@@ -167,9 +170,10 @@ function New-AzureSoftwareContainer {
 
 	#region Create Virtual Network and Subnet
 	#From https://learn.microsoft.com/en-us/azure/virtual-machines/windows/image-builder-vnet
-	$NetworkSecurityGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $NetworkSecurityGroupPrefix, $Project, $Role, $LocationShortName, $Instance                       
-	$VirtualNetworkName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $VirtualNetworkPrefix, $Project, $Role, $LocationShortName, $Instance                       
-	$SubnetName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $SubnetPrefix, $Project, $Role, $LocationShortName, $Instance        
+	$NetworkSecurityGroupName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $NetworkSecurityGroupPrefix, $Project, $Role, $LocationShortName, $timeInt                       
+	$VirtualNetworkName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $VirtualNetworkPrefix, $Project, $Role, $LocationShortName, $timeInt                       
+	$SubnetName = "{0}-{1}-{2}-{3}-{4:D$DigitNumber}" -f $SubnetPrefix, $Project, $Role, $LocationShortName, $timeInt        
+
 	$VirtualNetworkName = $VirtualNetworkName.ToLower()
 	$SubnetName = $SubnetName.ToLower()
 	$NetworkSecurityGroupName = $NetworkSecurityGroupName.ToLower()
@@ -183,8 +187,16 @@ function New-AzureSoftwareContainer {
 	$NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NetworkSecurityGroupName -Force
 	$null = $NetworkSecurityGroup | Add-AzNetworkSecurityRuleConfig -Name AzureImageBuilderAccess -Description "Allow Image Builder Private Link Access to Proxy VM" -Access Allow -Protocol Tcp -Direction Inbound -Priority 400 -SourceAddressPrefix AzureLoadBalancer -SourcePortRange * -DestinationAddressPrefix VirtualNetwork -DestinationPortRange 60000-60001 | Set-AzNetworkSecurityGroup
 	#Disable private service policy on the subnet
-	$subnet = New-AzVirtualNetworkSubnetConfig -Name $subnetName -AddressPrefix $SubnetAddressRange -PrivateLinkServiceNetworkPoliciesFlag "Disabled" -NetworkSecurityGroup $NetworkSecurityGroup
-	$vNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName  -AddressPrefix $VNetAddressRange -Location $Location -Subnet $Subnet
+	$SubnetConfig = New-AzVirtualNetworkSubnetConfig -Name $SubnetName -AddressPrefix $SubnetAddressRange -PrivateLinkServiceNetworkPoliciesFlag "Disabled" -NetworkSecurityGroup $NetworkSecurityGroup
+    $Net = @{
+        ResourceGroupName = $ResourceGroupName
+        Name              = $VirtualNetworkName
+        AddressPrefix     = $VNetAddressRange
+        Location          = $Location
+        Subnet            = $SubnetConfig
+    }
+    $vNetwork = New-AzVirtualNetwork @Net
+    #endregion
 	#endregion
 
 	#region Private endpoint for Storage Setup
@@ -193,21 +205,21 @@ function New-AzureSoftwareContainer {
 	#From https://ystatit.medium.com/azure-key-vault-with-azure-service-endpoints-and-private-link-part-1-bcc84b4c5fbc
 	## Create the private endpoint connection. ## 
 
-	Write-Verbose -Message "Creating the Private Endpoint for the Storage Account '$StorageAccountName' (in the '$($ResourceGroupName)' Resource Group) ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the Private Endpoint for the Storage Account '$StorageAccountName' (in the '$($ResourceGroupName)' Resource Group) ..."
 	$PrivateEndpointName = "pep{0}" -f $($StorageAccountName -replace "\W")
 	$GroupId = (Get-AzPrivateLinkResource -PrivateLinkResourceId $StorageAccount.Id).GroupId | Where-Object -FilterScript { $_ -match "blob" }
 	$PrivateLinkServiceConnection = New-AzPrivateLinkServiceConnection -Name $PrivateEndpointName -PrivateLinkServiceId $StorageAccount.Id -GroupId $GroupId
-	$Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $vNetwork
-	$PrivateEndpoint = New-AzPrivateEndpoint -Name $PrivateEndpointName -ResourceGroupName $ResourceGroupName -Location $Location -Subnet $Subnet -PrivateLinkServiceConnection $PrivateLinkServiceConnection -CustomNetworkInterfaceName $("{0}-nic" -f $PrivateEndpointName) -Force
+	$SubnetConfig = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $vNetwork
+	$PrivateEndpoint = New-AzPrivateEndpoint -Name $PrivateEndpointName -ResourceGroupName $ResourceGroupName -Location $Location -Subnet $SubnetConfig -PrivateLinkServiceConnection $PrivateLinkServiceConnection -CustomNetworkInterfaceName $("{0}-nic" -f $PrivateEndpointName) -Force
 
 	## Create the private DNS zone. ##
-	#Write-Verbose -Message "Creating the Private DNS Zone for the Storage Account '$StorageAccountName' (in the '$($ResourceGroupName)' Resource Group) ..."
+	#Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the Private DNS Zone for the Storage Account '$StorageAccountName' (in the '$($ResourceGroupName)' Resource Group) ..."
 	$AzContext = Get-AzContext
 	$StorageEndpointSuffix = $AzContext | Select-Object -ExpandProperty Environment | Select-Object -ExpandProperty StorageEndpointSuffix
 	$PrivateDnsZoneName = "privatelink.$GroupId.$StorageEndpointSuffix"
 	$PrivateDnsZone = Get-AzPrivateDnsZone -ResourceGroupName $ResourceGroupName -Name $PrivateDnsZoneName -ErrorAction Ignore
 	if ($null -eq $PrivateDnsZone) {
-		Write-Verbose -Message "Creating the Private DNS Zone for the Storage Account '$StorageAccountName' (in the '$($ResourceGroupName)' Resource Group) ..."
+		Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the Private DNS Zone for the Storage Account '$StorageAccountName' (in the '$($ResourceGroupName)' Resource Group) ..."
 		$PrivateDnsZone = New-AzPrivateDnsZone -ResourceGroupName $ResourceGroupName -Name $PrivateDnsZoneName
 	}
 
@@ -215,23 +227,23 @@ function New-AzureSoftwareContainer {
 	$PrivateDnsVirtualNetworkLink = Get-AzPrivateDnsVirtualNetworkLink -ResourceGroupName $ResourceGroupName -Name $PrivateDnsVirtualNetworkLinkName -ZoneName $PrivateDnsZone.Name -ErrorAction Ignore
 	if ($null -eq $PrivateDnsVirtualNetworkLink) {
 		## Create a DNS network link. ##
-		Write-Verbose -Message "Creating the Private DNS VNet Link for the Storage Account '$StorageAccountName' (in the '$($ResourceGroupName)' Resource Group) ..."
+		Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the Private DNS VNet Link for the Storage Account '$StorageAccountName' (in the '$($ResourceGroupName)' Resource Group) ..."
 		$PrivateDnsVirtualNetworkLink = New-AzPrivateDnsVirtualNetworkLink -ResourceGroupName $ResourceGroupName -Name $PrivateDnsVirtualNetworkLinkName -ZoneName $PrivateDnsZone.Name -VirtualNetworkId $vNetwork.Id
 	}
 
 	## Configure the DNS zone. ##
-	Write-Verbose -Message "Creating the DNS Zone Configuration of the Private Dns Zone Group for the Storage Account '$StorageAccountName' ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the DNS Zone Configuration of the Private Dns Zone Group for the Storage Account '$StorageAccountName' ..."
 	$PrivateDnsZoneConfig = New-AzPrivateDnsZoneConfig -Name $PrivateDnsZone.Name -PrivateDnsZoneId $PrivateDnsZone.ResourceId
 
 	## Create the DNS zone group. ##
-	Write-Verbose -Message "Creating the Private DNS Zone Group in the Specified Private Endpoint '$PrivateEndpointName' (in the '$ResourceGroupName' Resource Group) ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating the Private DNS Zone Group in the Specified Private Endpoint '$PrivateEndpointName' (in the '$ResourceGroupName' Resource Group) ..."
 	$PrivateDnsZoneGroup = New-AzPrivateDnsZoneGroup -ResourceGroupName $ResourceGroupName -PrivateEndpointName $PrivateEndpointName -Name 'default' -PrivateDnsZoneConfig $PrivateDnsZoneConfig -Force
 
 	#Storage Account - Disabling Public Access
 	#From https://www.jorgebernhardt.com/azure-storage-public-access/
 	#From https://learn.microsoft.com/en-us/azure/storage/common/storage-network-security?tabs=azure-powershell#change-the-default-network-access-rule
 	#From https://github.com/adstuart/azure-privatelink-dns-microhack
-	#Write-Verbose -Message "Disabling the Public Access for the Storage Account '$StorageAccountName' (in the '$ResourceGroupName' Resource Group) ..."
+	#Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Disabling the Public Access for the Storage Account '$StorageAccountName' (in the '$ResourceGroupName' Resource Group) ..."
 	#$null = Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -PublicNetworkAccess Disabled
 	#(Get-AzStorageAccount -Name $ResourceGroupName -ResourceGroupName $StorageAccountName ).AllowBlobPublicAccess
 	#endregion
@@ -244,7 +256,7 @@ function New-AzureComputeGallery {
 	[CmdletBinding()]
 	Param(
 		[Parameter(Mandatory = $false)]
-		[string]$Location = "EastUS2",
+		[string]$Location = "CentralUS",
 		[Parameter(Mandatory = $false)]
 		[string[]]$TargetRegions = @($Location),
 		[Parameter(Mandatory = $false)]
@@ -277,13 +289,14 @@ function New-AzureComputeGallery {
 	$AzureComputeGalleryPrefix = $ResourceTypeShortNameHT["Compute/galleries"].ShortName
 
 	# Location (see possible locations in the main docs)
-	Write-Verbose -Message "`$Location: $Location"
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Location: $Location"
 	$LocationShortName = $shortNameHT[$Location].shortName
-	Write-Verbose -Message "`$LocationShortName: $LocationShortName"
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$LocationShortName: $LocationShortName"
 	if ($Location -notin $TargetRegions) {
 		$TargetRegions += $Location
 	}
-	Write-Verbose -Message "`$TargetRegions: $($TargetRegions -join ', ')"
+    $TargetRegions = $TargetRegions | Select-Object -Unique
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$TargetRegions: $($TargetRegions -join ', ')"
 	[array] $TargetRegionSettings = foreach ($CurrentTargetRegion in $TargetRegions) {
 		@{"name" = $CurrentTargetRegion; "replicaCount" = $ReplicaCount; "storageAccountType" = "Premium_LRS" }
 	}
@@ -294,7 +307,7 @@ function New-AzureComputeGallery {
 	$timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 	$ResourceGroupName = "{0}-{1}-{2}-{3}-{4}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $TimeInt 
 	$ResourceGroupName = $ResourceGroupName.ToLower()
-	Write-Verbose -Message "`$ResourceGroupName: $ResourceGroupName"
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ResourceGroupName: $ResourceGroupName"
 
 	#region Source Image 
 	$SrcObjParamsARM = @{
@@ -316,16 +329,16 @@ function New-AzureComputeGallery {
 	#Image Market Place Image + customizations: VSCode
 	$imageDefinitionNameARM = "{0}-arm-vscode" -f $SrcObjParamsARM.Sku
 	$imageTemplateNameARM = "{0}-template-{1}" -f $imageDefinitionNameARM, $timeInt
-	Write-Verbose -Message "`$imageDefinitionNameARM: $imageDefinitionNameARM"
-	Write-Verbose -Message "`$imageTemplateNameARM: $imageTemplateNameARM"
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$imageDefinitionNameARM: $imageDefinitionNameARM"
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$imageTemplateNameARM: $imageTemplateNameARM"
 	$StagingResourceGroupNameARM = "IT_{0}_{1}_{2}" -f $ResourceGroupName, $imageTemplateNameARM.Substring(0, 13), (New-Guid).Guid
 
 
 	#Image Market Place Image + customizations: VSCode
 	$imageDefinitionNamePowerShell = "{0}-posh-vscode" -f $SrcObjParamsPowerShell.Sku
 	$imageTemplateNamePowerShell = "{0}-template-{1}" -f $imageDefinitionNamePowerShell, $timeInt
-	Write-Verbose -Message "`$imageDefinitionNamePowerShell: $imageDefinitionNamePowerShell"
-	Write-Verbose -Message "`$imageTemplateNamePowerShell: $imageTemplateNamePowerShell"
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$imageDefinitionNamePowerShell: $imageDefinitionNamePowerShell"
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$imageTemplateNamePowerShell: $imageTemplateNamePowerShell"
 	$StagingResourceGroupNamePowerShell = "IT_{0}_{1}_{2}" -f $ResourceGroupName, $imageTemplateNamePowerShell.Substring(0, 13), (New-Guid).Guid
 	#endregion
 
@@ -360,24 +373,24 @@ function New-AzureComputeGallery {
 
 	#region Create resource group
 	if (Get-AzResourceGroup -Name $ResourceGroupName -Location $location -ErrorAction Ignore) {
-		Write-Verbose -Message "Removing '$ResourceGroupName' Resource Group Name ..."
+		Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Removing '$ResourceGroupName' Resource Group Name ..."
 		Remove-AzResourceGroup -Name $ResourceGroupName -Force
 	}
-	Write-Verbose -Message "Creating '$ResourceGroupName' Resource Group Name ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating '$ResourceGroupName' Resource Group Name ..."
 	$ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $location -Tag $Tags -Force
 
 	if (Get-AzResourceGroup -Name $StagingResourceGroupNameARM -Location $location -ErrorAction Ignore) {
-		Write-Verbose -Message "Removing '$StagingResourceGroupNameARM' Resource Group Name ..."
+		Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Removing '$StagingResourceGroupNameARM' Resource Group Name ..."
 		Remove-AzResource -Name $StagingResourceGroupNameARM -Force
 	}
-	Write-Verbose -Message "Creating '$StagingResourceGroupNameARM' Resource Group Name ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating '$StagingResourceGroupNameARM' Resource Group Name ..."
 	$StagingResourceGroupARM = New-AzResourceGroup -Name $StagingResourceGroupNameARM -Tag $Tags -Location $location -Force
 
 	if (Get-AzResourceGroup -Name $StagingResourceGroupNamePowerShell -Location $location -ErrorAction Ignore) {
-		Write-Verbose -Message "Removing '$StagingResourceGroupNamePowerShell' Resource Group Name ..."
+		Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Removing '$StagingResourceGroupNamePowerShell' Resource Group Name ..."
 		Remove-AzResource -Name $StagingResourceGroupNamePowerShell -Force
 	}
-	Write-Verbose -Message "Creating '$StagingResourceGroupNamePowerShell' Resource Group Name ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating '$StagingResourceGroupNamePowerShell' Resource Group Name ..."
 	$StagingResourceGroupPowerShell = New-AzResourceGroup -Name $StagingResourceGroupNamePowerShell -Location $location -Tag $Tags -Force
 	#endregion
     
@@ -386,13 +399,13 @@ function New-AzureComputeGallery {
 	$imageRoleDefName = "Azure Image Builder Image Def - $timeInt"
 	$networkRoleDefName = "Azure Image Builder Network Def - $timeInt"
 	$identityName = "aibIdentity-$timeInt"
-	Write-Verbose -Message "`$imageRoleDefName: $imageRoleDefName"
-	Write-Verbose -Message "`$networkRoleDefName: $networkRoleDefName"
-	Write-Verbose -Message "`$identityName: $identityName"
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$imageRoleDefName: $imageRoleDefName"
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$networkRoleDefName: $networkRoleDefName"
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$identityName: $identityName"
 	#endregion
 
 	#region Create the identity
-	Write-Verbose -Message "Creating User Assigned Identity '$identityName' ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating User Assigned Identity '$identityName' ..."
 	$AssignedIdentity = New-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name $identityName -Location $location
 	#endregion
 
@@ -406,7 +419,7 @@ function New-AzureComputeGallery {
 	$aibRoleImageCreationPath = Join-Path -Path $env:TEMP -ChildPath $(Split-Path $aibRoleImageCreationUrl -Leaf)
 	#Generate a unique file name 
 	$aibRoleImageCreationPath = $aibRoleImageCreationPath -replace ".json$", "_$timeInt.json"
-	Write-Verbose -Message "`$aibRoleImageCreationPath: $aibRoleImageCreationPath"
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$aibRoleImageCreationPath: $aibRoleImageCreationPath"
 
 	# Download the config
 	Invoke-WebRequest -Uri $aibRoleImageCreationUrl -OutFile $aibRoleImageCreationPath -UseBasicParsing
@@ -416,7 +429,7 @@ function New-AzureComputeGallery {
 	((Get-Content -Path $aibRoleImageCreationPath -Raw) -replace 'Azure Image Builder Service Image Creation Role', $imageRoleDefName) | Set-Content -Path $aibRoleImageCreationPath
 
 	#region Create a role definition
-	Write-Verbose -Message "Creating '$imageRoleDefName' Role Definition ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating '$imageRoleDefName' Role Definition ..."
 	$RoleDefinition = New-AzRoleDefinition -InputFile $aibRoleImageCreationPath
 	#endregion
 
@@ -424,11 +437,11 @@ function New-AzureComputeGallery {
 	$Scope = $ResourceGroup.ResourceId
 	<#
     if (-not(Get-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $Scope)) {
-        Write-Verbose -Message "Assigning the '$($RoleDefinition.Name)' RBAC role to the '$($AssignedIdentity.PrincipalId)' System Assigned Managed Identity"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($RoleDefinition.Name)' RBAC role to the '$($AssignedIdentity.PrincipalId)' System Assigned Managed Identity"
         $RoleAssignment = New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $Scope
-        Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
     } else {
-        Write-Verbose -Message "The '$($RoleDefinition.Name)' RBAC role is already assigned to the '$($AssignedIdentity.PrincipalId)' System Assigned Managed Identity"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The '$($RoleDefinition.Name)' RBAC role is already assigned to the '$($AssignedIdentity.PrincipalId)' System Assigned Managed Identity"
     } 
     #> 
 	$Parameters = @{
@@ -438,16 +451,16 @@ function New-AzureComputeGallery {
 	}
 
 	While (-not(Get-AzRoleAssignment @Parameters)) {
-		Write-Verbose -Message "Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
+		Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
 		try {
 			$RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
 		} 
 		catch {
 			$RoleAssignment = $null
 		}
-		Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+		Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
 		if ($null -eq $RoleAssignment) {
-			Write-Verbose -Message "Sleeping 30 seconds"
+			Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
 			Start-Sleep -Seconds 30
 		}
 	}
@@ -462,15 +475,15 @@ function New-AzureComputeGallery {
 			Scope              = $CurrentStagingResourceGroup.ResourceId
 		}
 		while (-not(Get-AzRoleAssignment @Parameters)) {
-			Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' scope"
+			Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' scope"
 			try {
 				$RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Stop
 			} 
 			catch {
 				$RoleAssignment = $null
 			}
-			Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-			Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
+			Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+			Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] [$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
 			Start-Sleep -Seconds 30
 		}
 	}
@@ -483,7 +496,7 @@ function New-AzureComputeGallery {
 	$aibRoleNetworkPath = Join-Path -Path $env:TEMP -ChildPath $(Split-Path $aibRoleNetworkUrl -Leaf)
 	#Generate a unique file name 
 	$aibRoleNetworkPath = $aibRoleNetworkPath -replace ".json$", "_$timeInt.json"
-	Write-Verbose -Message "`$aibRoleNetworkPath: $aibRoleNetworkPath"
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$aibRoleNetworkPath: $aibRoleNetworkPath"
 
 	# Download the config
 	Invoke-WebRequest -Uri $aibRoleNetworkUrl -OutFile $aibRoleNetworkPath -UseBasicParsing
@@ -493,20 +506,20 @@ function New-AzureComputeGallery {
     ((Get-Content -Path $aibRoleNetworkPath -Raw) -replace 'Azure Image Builder Service Networking Role', $networkRoleDefName) | Set-Content -Path $aibRoleNetworkPath
 
 	#region Create a role definition
-	Write-Verbose -Message "Creating '$imageRoleDefName' Role Definition ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating '$imageRoleDefName' Role Definition ..."
 	$RoleDefinition = New-AzRoleDefinition -InputFile $aibRoleNetworkPath
 	#endregion
 
 	# Grant the role definition to the VM Image Builder service principal
-	Write-Verbose -Message "Assigning '$($RoleDefinition.Name)' Role to '$($AssignedIdentity.Name)' ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning '$($RoleDefinition.Name)' Role to '$($AssignedIdentity.Name)' ..."
 	$Scope = $StorageContainerStorageAccount.Id -split "/providers.*" | Select-Object -First 1
 	<#
     if (-not(Get-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $Scope)) {
-        Write-Verbose -Message "Assigning the '$($RoleDefinition.Name)' RBAC role to the '$($AssignedIdentity.PrincipalId)' System Assigned Managed Identity"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($RoleDefinition.Name)' RBAC role to the '$($AssignedIdentity.PrincipalId)' System Assigned Managed Identity"
         $RoleAssignment = New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $Scope
-        Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
     } else {
-        Write-Verbose -Message "The '$($RoleDefinition.Name)' RBAC role is already assigned to the '$($AssignedIdentity.PrincipalId)' System Assigned Managed Identity"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The '$($RoleDefinition.Name)' RBAC role is already assigned to the '$($AssignedIdentity.PrincipalId)' System Assigned Managed Identity"
     } 
     #> 
 	$Parameters = @{
@@ -516,11 +529,11 @@ function New-AzureComputeGallery {
 	}
 
 	While (-not(Get-AzRoleAssignment @Parameters)) {
-		Write-Verbose -Message "Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
-		$RoleAssignment = New-AzRoleAssignment @Parameters
-		Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+		Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
+		$RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
+		Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
 		if ($null -eq $RoleAssignment) {
-			Write-Verbose -Message "Sleeping 30 seconds"
+			Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
 			Start-Sleep -Seconds 30
 		}
 	}
@@ -530,16 +543,16 @@ function New-AzureComputeGallery {
 	$RoleDefinition = Get-AzRoleDefinition -Name 'Storage Blob Data Reader'
 
 	# Grant the role definition to the VM Image Builder service principal
-	Write-Verbose -Message "Assigning '$($RoleDefinition.Name)' Role to '$($AssignedIdentity.Name)' ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning '$($RoleDefinition.Name)' Role to '$($AssignedIdentity.Name)' ..."
 	$StorageContainerStorageAccount = Get-AzStorageAccount | Where-Object -FilterScript { $_.StorageAccountName -eq $StorageContainer.Context.StorageAccountName }
 	$Scope = "$($StorageContainerStorageAccount.Id)/blobServices/default/containers/$($StorageContainer.Name)"
 	<#
     if (-not(Get-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $Scope)) {
-        Write-Verbose -Message "Assigning the '$($RoleDefinition.Name)' RBAC role to the '$($AssignedIdentity.PrincipalId)' System Assigned Managed Identity"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($RoleDefinition.Name)' RBAC role to the '$($AssignedIdentity.PrincipalId)' System Assigned Managed Identity"
         $RoleAssignment = New-AzRoleAssignment -ObjectId $AssignedIdentity.PrincipalId -RoleDefinitionName $RoleDefinition.Name -Scope $Scope
-        Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
     } else {
-        Write-Verbose -Message "The '$($RoleDefinition.Name)' RBAC role is already assigned to the '$($AssignedIdentity.PrincipalId)' System Assigned Managed Identity"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The '$($RoleDefinition.Name)' RBAC role is already assigned to the '$($AssignedIdentity.PrincipalId)' System Assigned Managed Identity"
     } 
     #> 
 	$Parameters = @{
@@ -549,11 +562,11 @@ function New-AzureComputeGallery {
 	}
 
 	While (-not(Get-AzRoleAssignment @Parameters)) {
-		Write-Verbose -Message "Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
+		Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' System Assigned Managed Identity on the '$($Parameters.Scope)' scope"
 		$RoleAssignment = New-AzRoleAssignment @Parameters
-		Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
+		Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
 		if ($null -eq $RoleAssignment) {
-			Write-Verbose -Message "Sleeping 30 seconds"
+			Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
 			Start-Sleep -Seconds 30
 		}
 	}
@@ -563,10 +576,10 @@ function New-AzureComputeGallery {
 
 	#region Create an Azure Compute Gallery
 	$GalleryName = "{0}_{1}_{2}_{3}" -f $AzureComputeGalleryPrefix, $Project, $LocationShortName, $timeInt
-	Write-Verbose -Message "`$GalleryName: $GalleryName"
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$GalleryName: $GalleryName"
 
 	# Create the gallery
-	Write-Verbose -Message "Creating Azure Compute Gallery '$GalleryName' ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Compute Gallery '$GalleryName' ..."
 	$Gallery = New-AzGallery -GalleryName $GalleryName -ResourceGroupName $ResourceGroupName -Location $location
 	#endregion
 
@@ -580,7 +593,7 @@ function New-AzureComputeGallery {
 	$templateFilePath = Join-Path -Path $env:TEMP -ChildPath $(Split-Path $templateUrl -Leaf)
 	#Generate a unique file name 
 	$templateFilePath = $templateFilePath -replace ".json$", "_$timeInt.json"
-	Write-Verbose -Message "`$templateFilePath: $templateFilePath  ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$templateFilePath: $templateFilePath  ..."
 
 	Invoke-WebRequest -Uri $templateUrl -OutFile $templateFilePath -UseBasicParsing
 
@@ -617,16 +630,16 @@ function New-AzureComputeGallery {
 		Sku               = "{0}-arm" -f $SrcObjParamsARM.Sku
 		HyperVGeneration  = 'V2'
 	}
-	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefinitionNameARM' (From ARM)..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Compute Gallery Image Definition '$imageDefinitionNameARM' (From ARM)..."
 	$GalleryImageDefinitionARM = New-AzGalleryImageDefinition @GalleryParams
 	#endregion
 
 	#region Submit the template
-	Write-Verbose -Message "Starting Resource Group Deployment from '$templateFilePath' ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Starting Resource Group Deployment from '$templateFilePath' ..."
 	$ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFilePath -TemplateParameterObject @{"api-Version" = "2022-07-01"; "imageTemplateName" = $imageTemplateNameARM; "svclocation" = $location }  #-Tag $Tags
 	
 	#region Build the image
-	Write-Verbose -Message "Starting Image Builder Template from '$imageTemplateNameARM' (As Job) ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Starting Image Builder Template from '$imageTemplateNameARM' (As Job) ..."
 	$Jobs += Start-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateNameARM -AsJob
 	#endregion
 	#endregion
@@ -646,10 +659,10 @@ function New-AzureComputeGallery {
 		Sku               = "{0}-posh" -f $SrcObjParamsPowerShell.Sku
 		HyperVGeneration  = 'V2'
 	}
-	Write-Verbose -Message "Creating Azure Compute Gallery Image Definition '$imageDefinitionNamePowerShell' (From Powershell)..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Compute Gallery Image Definition '$imageDefinitionNamePowerShell' (From Powershell)..."
 	$GalleryImageDefinitionPowerShell = New-AzGalleryImageDefinition @GalleryParams
 
-	Write-Verbose -Message "Creating Azure Image Builder Template Source Object  ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template Source Object  ..."
 	$srcPlatform = New-AzImageBuilderTemplateSourceObject @SrcObjParamsPowerShell -PlatformImageSource
 
 	<# 
@@ -676,7 +689,7 @@ function New-AzureComputeGallery {
 		RunOutputName          = $runOutputNamePowerShell
 		ExcludeFromLatest      = $false
 	}
-	Write-Verbose -Message "Creating Azure Image Builder Template Distributor Object  ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template Distributor Object  ..."
 	$disSharedImg = New-AzImageBuilderTemplateDistributorObject @disObjParams
     
 	#region Customizer
@@ -688,6 +701,7 @@ function New-AzureComputeGallery {
     #region Public Network Access Enabled on the Storage Account
     $storageAccount = Get-AzStorageAccount | Where-Object -FilterScript {$_.StorageAccountName -eq $StorageContainer.Context.StorageAccountName}
     $null = $storageAccount | Set-AzStorageAccount -PublicNetworkAccess Enabled
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
     Start-Sleep -Seconds 30
     #endregion
 
@@ -704,7 +718,7 @@ function New-AzureComputeGallery {
 			sourceUri      = $CurrentStorageBlobSASToken
 			destination    = $Destination
 		}
-		Write-Verbose -Message "Creating Azure Image Builder Template File Customizer Object for copying '$($CurrentStorageBlob.Name)' from a Storage Account Container ..."
+		Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template File Customizer Object for copying '$($CurrentStorageBlob.Name)' from a Storage Account Container ..."
 		New-AzImageBuilderTemplateCustomizerObject @CurrentStorageBlobFileCustomizerParams 
         
 		if ($CurrentStorageBlob.Name -match "\.ps1$") {
@@ -715,7 +729,7 @@ function New-AzureComputeGallery {
 				runAsSystem          = $true
 				inline               = $Destination
 			}
-			Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for running '$($CurrentStorageBlob.Name)' ..."
+			Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for running '$($CurrentStorageBlob.Name)' ..."
 			New-AzImageBuilderTemplateCustomizerObject @CurrentStorageBlobPowerShellCustomizerParams 
 		}
 	}
@@ -727,18 +741,32 @@ function New-AzureComputeGallery {
 		destination    = "C:\AVDImage\installLanguagePacks.ps1"
 	}
 
-	Write-Verbose -Message "Creating Azure Image Builder Template Customizer Object for copying 'InstallLanguagePacks.ps1' from the RDS-Templates Github repository ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template Customizer Object for copying 'InstallLanguagePacks.ps1' from the RDS-Templates Github repository ..."
 	$CopyInstallLanguagePacksCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgCopyInstallLanguagePacksFileCustomizerParams 
 
-	$ImgInstallLanguagePacksFileCustomizerParams = @{  
+	$ImgInstallLanguagePacksPowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
 		Name                 = 'InstallLanguagePacks'  
 		RunElevated          = $true  
 		runAsSystem          = $true
 		inline               = "C:\AVDImage\installLanguagePacks.ps1 -LanguageList 'German (Germany)','French (France)'"
 	}
-	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for running 'InstallLanguagePacks.ps1' ..."
-	$InstallLanguagePacksCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgInstallLanguagePacksFileCustomizerParams 
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for running 'InstallLanguagePacks.ps1' ..."
+	$InstallLanguagePacksCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgInstallLanguagePacksPowerShellCustomizerParams 
+
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template WindowsUpdate Customizer Object ..."
+	$LanguagePacksWindowsUpdateCustomizer = New-AzImageBuilderTemplateCustomizerObject -WindowsUpdateCustomizer -Name 'LanguagePacksWindowsUpdate'
+
+	$ImgLanguagePacksWindowsRestartCustomizerParams = @{  
+		RestartCustomizer   = $true  
+		Name                = 'WindowsRestart'
+		RestartCommand      = ''
+		RestartCheckCommand = ''
+		RestartTimeout      = '10m'
+	}
+
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgWindowsRestartCustomizerParams.Name)' ..."
+	$LanguagePacksWindowsRestartCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgLanguagePacksWindowsRestartCustomizerParams 
 
 	$ImgTimeZoneRedirectionPowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
@@ -748,7 +776,7 @@ function New-AzureComputeGallery {
 		ScriptUri            = 'https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2024-03-27/TimezoneRedirection.ps1'
 	}
 
-	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgTimeZoneRedirectionPowerShellCustomizerParams.Name)' ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgTimeZoneRedirectionPowerShellCustomizerParams.Name)' ..."
 	$TimeZoneRedirectionCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgTimeZoneRedirectionPowerShellCustomizerParams 
 
 	$ImgVSCodePowerShellCustomizerParams = @{  
@@ -759,10 +787,10 @@ function New-AzureComputeGallery {
 		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-VSCode.ps1'
 	}
 
-	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgVSCodePowerShellCustomizerParams.Name)' ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgVSCodePowerShellCustomizerParams.Name)' ..."
 	$VSCodeCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgVSCodePowerShellCustomizerParams 
 
-	Write-Verbose -Message "Creating Azure Image Builder Template WindowsUpdate Customizer Object ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template WindowsUpdate Customizer Object ..."
 	$WindowsUpdateCustomizer = New-AzImageBuilderTemplateCustomizerObject -WindowsUpdateCustomizer -Name 'WindowsUpdate' -Filter @('exclude:$_.Title -like ''*Preview*''', 'include:$true') -SearchCriterion "IsInstalled=0" -UpdateLimit 40
 
 	$ImgDisableAutoUpdatesPowerShellCustomizerParams = @{  
@@ -773,7 +801,7 @@ function New-AzureComputeGallery {
 		ScriptUri            = 'https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2024-03-27/DisableAutoUpdates.ps1'
 	}
 
-	Write-Verbose -Message "Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgDisableAutoUpdatesPowerShellCustomizerParams.Name)' ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgDisableAutoUpdatesPowerShellCustomizerParams.Name)' ..."
 	$DisableAutoUpdatesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgDisableAutoUpdatesPowerShellCustomizerParams 
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
@@ -790,17 +818,17 @@ function New-AzureComputeGallery {
 		UserAssignedIdentityId = $AssignedIdentity.Id
 		VMProfileVmsize        = "Standard_D8s_v5"
 		VMProfileOsdiskSizeGb  = 127
-		BuildTimeoutInMinute   = 240
+		BuildTimeoutInMinute   = 360
 		StagingResourceGroup   = $StagingResourceGroupPowerShell.ResourceId
 		#Tag                    = @{"SecurityControl"="Ignore"}
 		VnetConfigSubnetId     = $StorageContainerSubnet.Id
 
 	}
-	Write-Verbose -Message "Creating Azure Image Builder Template from '$imageTemplateNamePowerShell' Image Template Name ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template from '$imageTemplateNamePowerShell' Image Template Name ..."
 	$ImageBuilderTemplate = New-AzImageBuilderTemplate @ImgTemplateParams
 
     #region Public Network Access Disabled on the Storage Account
-	#Write-Verbose -Message "Disabling the Public Access for the Storage Account '$StorageAccountName' (in the '$ResourceGroupName' Resource Group) ..."
+	#Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Disabling the Public Access for the Storage Account '$StorageAccountName' (in the '$ResourceGroupName' Resource Group) ..."
     $null = $storageAccount | Set-AzStorageAccount -PublicNetworkAccess Disabled
 	#$null = Set-AzStorageAccount -ResourceGroupName $StorageContainerStorageAccount.ResourceGroupName -Name $StorageContainerStorageAccount.StorageAccountName -PublicNetworkAccess Disabled
 	#(Get-AzStorageAccount -Name $StorageAccount.ResourceGroupName -ResourceGroupName $StorageAccountName ).AllowBlobPublicAccess
@@ -810,7 +838,7 @@ function New-AzureComputeGallery {
 
 	#region Build the image
 	#Start the image building process using Start-AzImageBuilderTemplate cmdlet:
-	Write-Verbose -Message "Starting Image Builder Template from '$imageTemplateNamePowerShell' (As Job) ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Starting Image Builder Template from '$imageTemplateNamePowerShell' (As Job) ..."
 	$Jobs += Start-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateNamePowerShell -AsJob
 	#endregion
 	#endregion
@@ -818,7 +846,7 @@ function New-AzureComputeGallery {
 	#endregion
 
 	#region Waiting for jobs to complete
-	Write-Verbose -Message "Waiting for jobs to complete ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Waiting for jobs to complete ..."
 	#$Jobs | Wait-Job | Out-Null
 	$null = $Jobs | Receive-Job -Wait -AutoRemoveJob
 	#endregion
@@ -827,21 +855,21 @@ function New-AzureComputeGallery {
 	#To determine whenever or not the template upload process was successful, run the following command.
 	$getStatusARM = Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateNameARM
 	# Optional - if you have any errors running the preceding command, run:
-	Write-Verbose -Message "'$imageTemplateNameARM' ProvisioningErrorCode: $($getStatusARM.ProvisioningErrorCode) "
-	Write-Verbose -Message "'$imageTemplateNameARM' ProvisioningErrorMessage: $($getStatusARM.ProvisioningErrorMessage) "
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNameARM' ProvisioningErrorCode: $($getStatusARM.ProvisioningErrorCode) "
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNameARM' ProvisioningErrorMessage: $($getStatusARM.ProvisioningErrorMessage) "
 	# Shows the status of the build
-	Write-Verbose -Message "'$imageTemplateNameARM' LastRunStatusRunState: $($getStatusARM.LastRunStatusRunState) "
-	Write-Verbose -Message "'$imageTemplateNameARM' LastRunStatusMessage: $($getStatusARM.LastRunStatusMessage) "
-	Write-Verbose -Message "'$imageTemplateNameARM' LastRunStatusRunSubState: $($getStatusARM.LastRunStatusRunSubState) "
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNameARM' LastRunStatusRunState: $($getStatusARM.LastRunStatusRunState) "
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNameARM' LastRunStatusMessage: $($getStatusARM.LastRunStatusMessage) "
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNameARM' LastRunStatusRunSubState: $($getStatusARM.LastRunStatusRunSubState) "
 	if ($getStatusARM.LastRunStatusRunState -eq "Failed") {
 		Write-Error -Message "The Image Builder Template for '$imageTemplateNameARM' has failed:\r\n$($getStatusARM.LastRunStatusMessage)"
 	}
-	Write-Verbose -Message "Removing Azure Image Builder Template for '$imageTemplateNameARM' ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Removing Azure Image Builder Template for '$imageTemplateNameARM' ..."
 	#$Jobs += $getStatusARM | Remove-AzImageBuilderTemplate -AsJob
 	$getStatusARM | Remove-AzImageBuilderTemplate #-NoWait
-	Write-Verbose -Message "Removing '$aibRoleImageCreationPath' ..."
-	Write-Verbose -Message "Removing '$aibRoleNetworkPath' ..."
-	Write-Verbose -Message "Removing '$templateFilePath' ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Removing '$aibRoleImageCreationPath' ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Removing '$aibRoleNetworkPath' ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Removing '$templateFilePath' ..."
 	Remove-Item -Path $aibRoleImageCreationPath, $aibRoleNetworkPath, $templateFilePath -Force
 	#endregion
 
@@ -849,16 +877,16 @@ function New-AzureComputeGallery {
 	#To determine whenever or not the template upload process was successful, run the following command.
 	$getStatusPowerShell = Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateNamePowerShell
 	# Optional - if you have any errors running the preceding command, run:
-	Write-Verbose -Message "'$imageTemplateNamePowerShell' ProvisioningErrorCode: $($getStatusPowerShell.ProvisioningErrorCode) "
-	Write-Verbose -Message "'$imageTemplateNamePowerShell' ProvisioningErrorMessage: $($getStatusPowerShell.ProvisioningErrorMessage) "
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNamePowerShell' ProvisioningErrorCode: $($getStatusPowerShell.ProvisioningErrorCode) "
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNamePowerShell' ProvisioningErrorMessage: $($getStatusPowerShell.ProvisioningErrorMessage) "
 	# Shows the status of the build
-	Write-Verbose -Message "'$imageTemplateNamePowerShell' LastRunStatusRunState: $($getStatusPowerShell.LastRunStatusRunState) "
-	Write-Verbose -Message "'$imageTemplateNamePowerShell' LastRunStatusMessage: $($getStatusPowerShell.LastRunStatusMessage) "
-	Write-Verbose -Message "'$imageTemplateNamePowerShell' LastRunStatusRunSubState: $($getStatusPowerShell.LastRunStatusRunSubState) "
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNamePowerShell' LastRunStatusRunState: $($getStatusPowerShell.LastRunStatusRunState) "
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNamePowerShell' LastRunStatusMessage: $($getStatusPowerShell.LastRunStatusMessage) "
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNamePowerShell' LastRunStatusRunSubState: $($getStatusPowerShell.LastRunStatusRunSubState) "
 	if ($getStatusPowerShell.LastRunStatusRunState -eq "Failed") {
 		Write-Error -Message "The Image Builder Template for '$imageTemplateNamePowerShell' has failed:\r\n$($getStatusPowerShell.LastRunStatusMessage)"
 	}
-	Write-Verbose -Message "Removing Azure Image Builder Template for '$imageTemplateNamePowerShell' ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Removing Azure Image Builder Template for '$imageTemplateNamePowerShell' ..."
 	#$Jobs += $getStatusPowerShell | Remove-AzImageBuilderTemplate -AsJob
 	$getStatusPowerShell | Remove-AzImageBuilderTemplate #-NoWait
 	#endregion
@@ -875,9 +903,12 @@ function New-AzureComputeGallery {
 	#endregion
   
 	#region Removing Staging ResourceGroups
-	$null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNameARM -Force -AsJob
-	$null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNamePowerShell -Force -AsJob
-
+    if ($getStatusPowerShell.LastRunStatusRunState -ne "Failed") {
+        $null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNameARM -Force -AsJob
+    }
+    if ($getStatusARM.LastRunStatusRunState -ne "Failed") {
+        $null = Remove-AzResourceGroup -ResourceGroupName $StagingResourceGroupNamePowerShell -Force -AsJob
+    }
 	#endregion
 
 	return $Gallery
@@ -908,14 +939,14 @@ $Jobs = foreach ($CurrentRequiredResourceProvider in $RequiredResourceProviders)
 }
 #Important: Wait until RegistrationState is set to Registered. 
 While (Get-AzResourceProvider -ProviderNamespace $RequiredResourceProviders | Where-Object -FilterScript { $_.RegistrationState -ne 'Registered' }) {
-	Write-Verbose -Message "Sleeping 10 seconds ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 10 seconds ..."
 	Start-Sleep -Seconds 10
 }
-$Jobs | Remove-Job -Force
+$Jobs | Receive-Job -Wait -AutoRemoveJob | Select-Object -Property ProviderNamespace, RegistrationState
 #endregion
 $SoftwareContainer = New-AzureSoftwareContainer -Verbose
 
-$AzureComputeGallery = New-AzureComputeGallery -StorageContainer $SoftwareContainer -Location EastUS2 -TargetRegions EastUS2, CentralUS -Verbose
+$AzureComputeGallery = New-AzureComputeGallery -StorageContainer $SoftwareContainer -Location CentralUS -TargetRegions CentralUS, EastUS2 -Verbose
 $AzureComputeGallery
 
 $EndTime = Get-Date
