@@ -451,7 +451,7 @@ function New-AzureComputeGallery {
 		Customize              = $Customize
 		Location               = $location
 		UserAssignedIdentityId = $AssignedIdentity.Id
-		VMProfileVmsize        = "Standard_D8s_v5"
+		VMProfileVmsize        = "Standard_D8s_v6"
 		VMProfileOsdiskSizeGb  = 127
 		BuildTimeoutInMinute   = 360
 		StagingResourceGroup   = $StagingResourceGroupPowerShell.ResourceId
