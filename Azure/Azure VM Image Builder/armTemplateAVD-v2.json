@@ -68,6 +68,17 @@
                         "runElevated": true
                     },
                     {
+                        "name": "InstallLanguagePacksWindowsUpdate",
+                        "type": "WindowsUpdate"
+                    },
+                    {
+                        "name": "InstallLanguagePacksWindowsRestart",
+                        "type": "WindowsRestart",
+                        "restartCheckCommand": "",
+                        "restartCommand": "",
+                        "restartTimeout": "10m"
+                    },
+                    {
                         "type": "PowerShell",
                         "name": "Timezone Redirection",
                         "runElevated": true,
@@ -90,6 +101,10 @@
                         ],
                         "updateLimit": 40
                     },
+                      {
+                        "name": "WindowsUpdateWindowsRestart",
+                        "type": "WindowsRestart"
+                      },
                     {
                         "type": "PowerShell",
                         "name": "Disable AutoUpdates",
