@@ -1339,7 +1339,9 @@ function New-AzLocalAVDVMImage {
             $Versions = (Get-AzVMImage -Location  $Location -PublisherName $PublisherName -Offer $Offer -sku $Sku | Sort-Object -Property Version -Descending).Version
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Versions:`r`n$($Versions | Out-String)"
             # Use the second newest version because the newest has triggered SAS token generation errors.
-            $Version = $Versions[1]
+            #$Version = $Versions[1]
+            # Use the latest version
+            $Version = $Versions[0]
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Version: $Version"
         }
         $ImageName = "{0}-{1}-{2}" -f $Sku, $Instance, $(Get-Date -Format 'yyyyMMddHHmmss')
