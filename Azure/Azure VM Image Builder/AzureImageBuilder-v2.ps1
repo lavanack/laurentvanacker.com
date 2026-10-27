@@ -422,6 +422,14 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template WindowsUpdate Customizer Object ..."
 	$WindowsUpdateCustomizer = New-AzImageBuilderTemplateCustomizerObject -WindowsUpdateCustomizer -Name 'WindowsUpdate' -Filter @('exclude:$_.Title -like ''*Preview*''', 'include:$true') -SearchCriterion "IsInstalled=0" -UpdateLimit 40
 
+	$ImgWindowsUpdateWindowsRestartCustomizerParams = @{  
+		RestartCustomizer   = $true  
+		Name                = 'WindowsRestart'
+	}
+
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgWindowsRestartCustomizerParams.Name)' ..."
+	$WindowsUpdateWindowsRestartCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgWindowsUpdateWindowsRestartCustomizerParams 
+
 	$ImgDisableAutoUpdatesPowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
 		Name                 = 'Disable AutoUpdates'  
@@ -434,8 +442,7 @@ function New-AzureComputeGallery {
 	$DisableAutoUpdatesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgDisableAutoUpdatesPowerShellCustomizerParams 
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
-	$Customize = $CopyInstallLanguagePacksCustomizer, $InstallLanguagePacksCustomizer, $LanguagePacksWindowsUpdateCustomizer, $LanguagePacksWindowsRestartCustomizer, $TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
-    #$Customize = $CopyInstallLanguagePacksCustomizer, $InstallLanguagePacksCustomizer, $TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
+	$Customize = $CopyInstallLanguagePacksCustomizer, $InstallLanguagePacksCustomizer, $LanguagePacksWindowsUpdateCustomizer, $LanguagePacksWindowsRestartCustomizer, $WindowsUpdateWindowsRestartCustomizer, $TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer
 		$ImgTemplateParams = @{
 		ImageTemplateName      = $imageTemplateNamePowerShell
 		ResourceGroupName      = $ResourceGroupName
