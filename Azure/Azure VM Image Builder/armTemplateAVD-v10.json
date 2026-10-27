@@ -85,6 +85,10 @@
                         ],
                         "updateLimit": 40
                     },
+					{
+						"name": "WindowsUpdateWindowsRestart",
+						"type": "WindowsRestart"
+					},
                     {
                         "type": "PowerShell",
                         "name": "Disable AutoUpdates",

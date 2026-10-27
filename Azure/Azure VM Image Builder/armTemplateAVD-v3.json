@@ -36,7 +36,7 @@
                 }
             },
             "properties": {
-                "buildTimeoutInMinutes": 240,
+                "buildTimeoutInMinutes": 360,
                 "vmProfile": {
                     "vmSize": "Standard_D8s_v5",
                     "osDiskSizeGB": 127
@@ -66,6 +66,17 @@
                         "runElevated": true
                     },
                     {
+                        "name": "InstallLanguagePacksWindowsUpdate",
+                        "type": "WindowsUpdate"
+                    },
+                    {
+                        "name": "InstallLanguagePacksWindowsRestart",
+                        "type": "WindowsRestart",
+                        "restartCheckCommand": "",
+                        "restartCommand": "",
+                        "restartTimeout": "10m"
+                    },
+                    {
                         "type": "PowerShell",
                         "name": "Timezone Redirection",
                         "runElevated": true,
@@ -88,6 +99,10 @@
                         ],
                         "updateLimit": 40
                     },
+					{
+						"name": "WindowsUpdateWindowsRestart",
+						"type": "WindowsRestart"
+					},
                     {
                         "type": "PowerShell",
                         "name": "Disable AutoUpdates",

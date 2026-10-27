@@ -1915,7 +1915,6 @@ foreach ($CurrentLAWSupportedRegion in $LAWSupportedRegions) {
 
             #region AVD
             if ($AVD) {
-                Write-Host -Object "The image and VM builds can take some hours ..." -ForegroundColor Yellow
                 New-AzLocalAVD -ResourceGroupName $Result.ResourceGroupName -AsAJob
             }
             #endregion
@@ -1924,7 +1923,6 @@ foreach ($CurrentLAWSupportedRegion in $LAWSupportedRegions) {
             $null = New-AzResourceLock -LockName CanNotDelete -LockLevel CanNotDelete -ResourceGroupName $Result.ResourceGroupName -Force
             #endregion
             break
-
         }
         else {
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Removing: $($Result.ResourceGroupName) ResourceGroup (As Job)..."
