@@ -35,10 +35,8 @@
 
                 }
             },
-
             "properties": {
                 "buildTimeoutInMinutes": 360,
-
                 "vmProfile": {
                     "vmSize": "Standard_D8s_v6",
                     "osDiskSizeGB": 127
