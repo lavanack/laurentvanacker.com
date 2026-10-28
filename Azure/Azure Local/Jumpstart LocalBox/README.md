@@ -36,8 +36,9 @@ At a high level, the script:
 3. Checks that both the Bicep CLI and Git are available, then clones or updates the
    [Microsoft `azure_arc` repository](https://github.com/microsoft/azure_arc)
    containing the LocalBox Bicep templates.
-4. Checks regional VM quota for the configured VM size and prompts for the
-   LocalBox Windows administrator credentials.
+4. Prompts for the LocalBox Windows administrator credentials, then checks
+   regional VM quota for the configured VM size before each region's deployment
+   attempts.
 5. Creates a uniquely named resource group and deploys the LocalBox Bicep
    template. The deployment creates the Azure-hosted LocalBox client and the
    supporting infrastructure for its nested Azure Local environment.
@@ -47,12 +48,14 @@ At a high level, the script:
 7. Waits for the two Azure Arc machines and the Azure Local cluster to become
    ready, configures Azure Monitor data collection, and sets up the LocalBox
    VM logical network.
-8. Only when `-AVD` is supplied, starts imports for Windows 11 Azure Virtual
-   Desktop Marketplace images and the latest Azure Compute Gallery image
-   versions (if any). These images are used to create sample Azure Local VMs for
-   exploring AVD-related image and VM workflows. After the imports finish, the
-   script removes temporary export disks and creates VMs in background jobs
-   for images in the resource group whose provisioning state is `Succeeded`.
+8. Only when `-AVD` is supplied, calls `New-AzLocalAVD -AsAJob` to coordinate
+   imports for Windows 11 Azure Virtual Desktop Marketplace images and the latest
+   Azure Compute Gallery image versions (if any). It opens the cluster's VM
+   images blade in the Azure portal, waits for the import jobs, revokes access
+   to and removes temporary export disks, reports failed image builds, and
+   creates sample VMs in background jobs for images in the resource group whose
+   provisioning state is `Succeeded`. It waits for these VM jobs before
+   continuing.
 9. Applies a `CanNotDelete` lock to the successful deployment's resource group,
    whether or not `-AVD` was supplied.
 
@@ -60,13 +63,45 @@ At a high level, the script:
 
 The image and VM portion of this script is optional and intended for exploring
 Azure Virtual Desktop scenarios on Azure Local. Supply `-AVD` to import Windows
-11 multi-session AVD Marketplace images (with and without Microsoft 365) and the
-latest version of each discovered Azure Compute Gallery image definition, then
-create Azure Local VMs from images whose provisioning state is `Succeeded`.
+11 25H2 multi-session AVD Marketplace images (with and without Microsoft 365) and
+the latest version of each discovered Azure Compute Gallery image definition in
+the current subscription, then create Azure Local VMs from images whose
+provisioning state is `Succeeded`.
 
 Without `-AVD`, the script still deploys LocalBox, configures monitoring and the
 VM logical network, and applies the resource-group lock. It skips the additional
 image imports, temporary export-disk cleanup, and sample VM creation.
+
+### Image imports and VM creation
+
+The `New-AzLocalAVD` helper coordinates the optional workflow using the
+credentials and logical network established by the main script:
+
+- **Marketplace images:** The default URNs are
+  `MicrosoftWindowsDesktop:office-365:win11-25h2-avd-m365:latest` and
+  `MicrosoftWindowsDesktop:windows-11:win11-25h2-avd:latest`.
+  The import helper currently uses the second entry in the descending
+  Marketplace version list to work around SAS token generation errors with
+  the newest version. It does this even when a specific version is supplied
+  to the internal `URN` parameter.
+- **Compute Gallery images:** The workflow uses `-All` to select the latest
+  numerically sorted version of each discovered image definition without an
+  interactive picker. Each selected version is exported to a temporary managed
+  disk tagged `ToBeCleaned=true` and imported through a read-only SAS URL, valid
+  for 100000 seconds by default. The import helper sets the OS type to Windows;
+  review the discovered gallery images for suitability before enabling `-AVD`.
+- **Completion and cleanup:** Although the main script supplies `-AsAJob`, the
+  coordinator waits for the image jobs and then revokes access to and deletes
+  the tagged temporary disks in the target resource group. It reports failed
+  image results with `Write-Error` and, with the default error preference,
+  continues to VM creation for successfully provisioned images. That selection
+  includes existing successful images in the resource group, not only images
+  imported by this run.
+- **Sample VMs:** One background job is started per successful image, using
+  `Standard_D2s_v5`, the prompted administrator credentials, and the configured
+  LocalBox logical network. The coordinator waits for all VM jobs and receives
+  their results before returning. `-AVD` therefore does not make the overall
+  script fire-and-forget.
 
 Generated sample VM names use a shortened image identifier (up to 10 characters)
 and the resource group's trailing instance number. The identifier removes the
@@ -255,6 +290,10 @@ To enable timestamped diagnostics, run with the common `-Verbose` parameter:
 
 Verbose output includes Bicep and Git command discovery details, resource-provider
 registration wait messages, the selected region lists, and quota-check results.
+It also lists resource-group deployment names and provisioning states after the
+Bicep deployment, after the initial five-minute post-deployment wait, and during
+the Arc machine and cluster readiness polling. During those readiness checks,
+it includes step progress read from the LocalBox client's deployment log.
 It can also be enabled when supplying explicit region parameters.
 
 The commands above use automatic region selection for both region lists and
@@ -330,6 +369,12 @@ organization's retention requirements.
   password is passed to the Bicep deployment and written to the generated
   parameter file. The helper `Add-RDPCredential` also writes the user name and
   plain-text password to host output. Keep the transcript and console private.
+- **Gallery exports grant temporary disk access.** The AVD workflow revokes
+  disk SAS access and deletes export disks after receiving the image-job
+  results. If the workflow is interrupted, check the target resource group
+  for managed disks tagged `ToBeCleaned=true`, revoke their access, and remove
+  them when no longer needed. Verbose output can include SAS URLs; protect it
+  and the transcript accordingly.
 - **Spot VMs can be interrupted.** This copy enables Spot pricing for the
   LocalBox client VM; confirm that this is suitable for the workload.
 - **Resource providers are registered at subscription scope.** Provider
@@ -349,6 +394,9 @@ The file defines helper functions for:
   (`Wait-AzConnectedMachine`).
 - Configuring Azure Monitor collection (`Set-LocalClusterInsightSetup`).
 - Configuring the LocalBox VM logical network (`New-VMLogicalNetwork`).
+- Coordinating the optional image imports, portal image-status view,
+  temporary-disk access revocation and cleanup, failure reporting, and sample
+  VM jobs (`New-AzLocalAVD`).
 - Importing Windows 11 AVD Marketplace and Compute Gallery images and creating
   Azure Local VMs for AVD scenarios (`New-AzLocalAVDVMImage`,
   `New-AzureLocalVMImageFromAzureComputeGalleryImage`, and `New-AzLocalAVDVM`).

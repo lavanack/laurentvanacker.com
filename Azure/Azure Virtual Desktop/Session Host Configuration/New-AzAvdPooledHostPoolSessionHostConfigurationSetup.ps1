@@ -394,7 +394,7 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
             Scope              = $Scope
         }
         while (-not(Get-AzRoleAssignment @Parameters)) {
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' ObjectId on the '$($Parameters.Scope)' scope"
             $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
             Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
             $Seconds = 30
@@ -412,7 +412,7 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
         Scope              = $KeyVault.ResourceId
     }
     while (-not(Get-AzRoleAssignment @Parameters)) {
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.SignInName)' Identity on the '$($Parameters.Scope)' scope"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' ObjectId on the '$($Parameters.Scope)' scope"
         $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
         Write-Verbose -Message "`$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
         $Seconds = 30
@@ -433,7 +433,7 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$LatestImage: $($LatestImage | Out-String)"
 
     $Parameters = @{
-        FriendlyName                                = "{0} -f (SessionHostConfiguration Friendly Name)" -f $CurrentHostPool.GetSessionHostConfigurationName
+        FriendlyName                                = "{0} - (SessionHostConfiguration Friendly Name)" -f $CurrentHostPool.GetSessionHostConfigurationName
         HostPoolName                                = $CurrentHostPool.Name
         ResourceGroupName                           = $CurrentHostPool.ResourceGroupName
         VMNamePrefix                                = $CurrentHostPool.NamePrefix
@@ -533,7 +533,7 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
     }
 
     while (-not(Get-AzRoleAssignment @Parameters)) {
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.ObjectId)' ObjectId"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' scope"
         $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
         $Seconds = 30
@@ -643,6 +643,7 @@ $SecurePassword = New-RandomPassword -Online -ClipBoard -AsSecureString -Verbose
 $LocalAdminCredential = New-Object System.Management.Automation.PSCredential -ArgumentList ($Username, $SecurePassword)
 
 #region AD Join vs EntraID Join (Choose One)
+<#
 #region AD
 $DomainName = "csa.fr"
 $ADJoinUserName = "{0}@{1}" -f $env:USERNAME, $DomainName
@@ -661,8 +662,8 @@ $Parameters = @{
     Verbose              = $true
 }
 #endregion
+#>
 
-<#
 #region EntraID
 $Parameters = @{
     LocalAdminCredential = $LocalAdminCredential 
@@ -671,7 +672,6 @@ $Parameters = @{
     Verbose              = $true
 }
 #endregion
-#>
 #endregion
 
 $HostPool = New-AzAvdPooledHostPoolSessionHostConfigurationSetup @Parameters
