@@ -321,14 +321,20 @@ function New-AzureComputeGallery {
 	$BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
 	$DestinationFullName = Join-Path $DestinationDir -ChildPath $DestinationFileName
 	Start-BitsTransfer -Source $DownloadURI -Destination $DestinationFullName -DisplayName $DownloadURI
-	$null = Set-AzStorageBlobContent -Context $StorageContext -File $DestinationFullName -Container $ContainerName -Blob $BlobName -BlobType Block -Force
+	Do {
+        $Result = Set-AzStorageBlobContent -Context $StorageContext -File $DestinationFullName -Container $ContainerName -Blob $BlobName -BlobType Block -Force -ErrorAction Ignore
+    	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Result: $Result"
+    } While ($null -eq $Result)
 	#endregion
 	
 	#region Notepad++ Setup PowerShell Script
 	$InstallNotepadPlusPlusPowershellScript = New-Item -Path $DestinationDir -Name "Install-NotepadPlusPlus.ps1" -Value "Start-Process -FilePath `"`$env:comspec`" -ArgumentList '/c', `"`"`"`$PSScriptRoot\$DestinationFileName`"`" /S`" -Wait" -Force
 	$DestinationFileName = Split-Path -Path $InstallNotepadPlusPlusPowershellScript -Leaf
 	$BlobName = Join-Path -Path $DestinationDirName -ChildPath $DestinationFileName
-	$null = Set-AzStorageBlobContent -Context $StorageContext -File $InstallNotepadPlusPlusPowershellScript -Container $ContainerName -Blob $BlobName -BlobType Block -Force
+	Do {
+    	$Result = Set-AzStorageBlobContent -Context $StorageContext -File $InstallNotepadPlusPlusPowershellScript -Container $ContainerName -Blob $BlobName -BlobType Block -Force -ErrorAction Ignore
+    	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Result: $Result"
+    } While ($null -eq $Result)
 	#endregion
 	#endregion
 	#endregion
@@ -539,6 +545,14 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template WindowsUpdate Customizer Object ..."
 	$WindowsUpdateCustomizer = New-AzImageBuilderTemplateCustomizerObject -WindowsUpdateCustomizer -Name 'WindowsUpdate' -Filter @('exclude:$_.Title -like ''*Preview*''', 'include:$true') -SearchCriterion "IsInstalled=0" -UpdateLimit 40
 
+	$ImgWindowsUpdateWindowsRestartCustomizerParams = @{  
+		RestartCustomizer   = $true  
+		Name                = 'WindowsRestart'
+	}
+
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgWindowsRestartCustomizerParams.Name)' ..."
+	$WindowsUpdateWindowsRestartCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgWindowsUpdateWindowsRestartCustomizerParams 
+
 	$ImgDisableAutoUpdatesPowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
 		Name                 = 'Disable AutoUpdates'  
@@ -552,8 +566,8 @@ function New-AzureComputeGallery {
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
 	#As $StorageBlobCustomizers is an array we force the two first items in an array so $Customize will be cast as an array
-	#$Customize = @($StorageBlobCustomizers) + @($TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer)
-	$Customize = @($CopyInstallLanguagePacksCustomizer, $InstallLanguagePacksCustomizer) + @($StorageBlobCustomizers) + @($TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer)
+	$Customize = @($CopyInstallLanguagePacksCustomizer, $InstallLanguagePacksCustomizer, $LanguagePacksWindowsUpdateCustomizer, $LanguagePacksWindowsRestartCustomizer) + @($StorageBlobCustomizers) + @($TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $WindowsUpdateWindowsRestartCustomizer, $DisableAutoUpdatesCustomizer)
+
 	$ImgTemplateParams = @{
 		ImageTemplateName      = $imageTemplateNamePowerShell
 		ResourceGroupName      = $ResourceGroupName
@@ -562,9 +576,9 @@ function New-AzureComputeGallery {
 		Customize              = $Customize
 		Location               = $location
 		UserAssignedIdentityId = $AssignedIdentity.Id
-		VMProfileVmsize        = "Standard_D8s_v5"
+		VMProfileVmsize        = "Standard_D8s_v6"
 		VMProfileOsdiskSizeGb  = 127
-		BuildTimeoutInMinute   = 300
+		BuildTimeoutInMinute   = 360
 		StagingResourceGroup   = $StagingResourceGroupPowerShell.ResourceId
 		#Tag                    = @{"SecurityControl"="Ignore"}
 	}
@@ -581,7 +595,8 @@ function New-AzureComputeGallery {
 	#region Waiting for jobs to complete
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Waiting for jobs to complete ..."
 	#$Jobs | Wait-Job | Out-Null
-	$null = $Jobs | Receive-Job -Wait -AutoRemoveJob
+	$Results = $Jobs | Receive-Job -Wait -AutoRemoveJob
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Results':`r`n$($Results | Out-String) "
 	#endregion
 
 	#region imageTemplateNameARM status 
