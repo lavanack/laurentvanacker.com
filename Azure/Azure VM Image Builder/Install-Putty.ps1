@@ -21,9 +21,13 @@ of the Sample Code.
 $DestinationFolderPath = "C:\Tools"
 $DestinationFolder = New-Item -Path $DestinationFolderPath -ItemType Directory -Force
 $PuttyUri = "https://the.earth.li/~sgtatham/putty/latest/w64/putty.exe"
-$Outfile = Join-Path -Path $DestinationFolder -ChildPath $(Split-Path -Path $PuttyUri -Leaf)
-If (-not(Test-Path -Path $Outfile)) {
+$OutFile = Join-Path -Path $DestinationFolder -ChildPath $(Split-Path -Path $PuttyUri -Leaf)
+If (-not(Test-Path -Path $OutFile)) {
     Write-Verbose -Message "Downloading Putty ..."
-    Invoke-WebRequest -Uri $PuttyUri -UseBasicParsing -OutFile $Outfile -Verbose
+    Invoke-WebRequest -Uri $PuttyUri -UseBasicParsing -OutFile $OutFile -Verbose
 }
+
+#region Cleanup
+Remove-Item -Path $OutFile -Force
+#endregion 
 #endregion 

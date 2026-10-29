@@ -25,13 +25,18 @@ $WinSCPUri = ((Invoke-WebRequest -Uri $WinSCPUri -UseBasicParsing).Links | Where
 
 #region Downloading WinSCP
 $FileName = $(Split-Path -Path $WinSCPUri -Leaf) -replace "\?.+"
-$Outfile = Join-Path -Path $env:TEMP -ChildPath $FileName
-If (-not(Test-Path -Path $Outfile)) {
+$OutFile = Join-Path -Path $env:TEMP -ChildPath $FileName
+If (-not(Test-Path -Path $OutFile)) {
     Write-Verbose -Message "Downloading winSCP ..."
-    Invoke-WebRequest -Uri $WinSCPUri -UseBasicParsing -OutFile $Outfile -Verbose
+    Invoke-WebRequest -Uri $WinSCPUri -UseBasicParsing -OutFile $OutFile -Verbose
 }
 #endregion 
 
 #region Installing WinSCP 
-Start-Process -FilePath $Outfile -ArgumentList '/SILENT /ALLUSERS' -Verb runas -Wait
+Start-Process -FilePath $OutFile -ArgumentList '/SILENT /ALLUSERS' -Verb runas -Wait
+#endregion 
+
+
+#region Cleanup
+Remove-Item -Path $OutFile -Force
 #endregion 
