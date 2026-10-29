@@ -1,0 +1,185 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "imageTemplateName": {
+            "type": "string"
+        },
+        "api-version": {
+            "type": "string"
+        },
+        "svclocation": {
+            "type": "string"
+        }
+    },
+
+    "variables": {
+    },
+
+
+    "resources": [
+        {
+            "name": "[parameters('imageTemplateName')]",
+            "type": "Microsoft.VirtualMachineImages/imageTemplates",
+            "apiVersion": "[parameters('api-version')]",
+            "location": "[parameters('svclocation')]",
+            "dependsOn": [],
+            "tags": {
+                "imagebuilderTemplate": "AzureImageBuilderSIG",
+                "userIdentity": "enabled"
+            },
+            "identity": {
+                "type": "UserAssigned",
+                "userAssignedIdentities": {
+                    "<imgBuilderId>": {}
+
+                }
+            },
+
+            "properties": {
+                "buildTimeoutInMinutes": 360,
+
+                "vmProfile": {
+                    "vmSize": "Standard_D8s_v6",
+                    "osDiskSizeGB": 127
+                },
+                "stagingResourceGroup": "/subscriptions/<subscriptionID>/resourceGroups/<stagingResourceGroupName>",
+                "source": {
+                    "type": "PlatformImage",
+                    "publisher": "<publisher>",
+                    "offer": "<offer>",
+                    "sku": "<sku>",
+                    "version": "latest"
+                },
+                "customize": [
+                    {
+                        "type": "PowerShell",
+                        "name": "Timezone Redirection",
+                        "runElevated": true,
+                        "runAsSystem": true,
+                        "scriptUri": "https://raw.githubusercontent.com/Azure/RDS-Templates/refs/heads/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2024-03-27/TimezoneRedirection.ps1"
+                    },
+                    {
+                        "type": "PowerShell",
+                        "name": "Install Visual Studio Code",
+                        "runElevated": true,
+                        "runAsSystem": true,
+                        "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-CustomVSCode.ps1"
+                    },
+                    {
+                        "type": "PowerShell",
+                        "name": "Install Python",
+                        "runElevated": true,
+                        "runAsSystem": true,
+                        "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-Python.ps1"
+                    },
+                    {
+                        "type": "PowerShell",
+                        "name": "Install Visual C++Redistributable",
+                        "runElevated": true,
+                        "runAsSystem": true,
+                        "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-VisualCPlusPlusRedistributable.ps1"
+                    },
+					{
+						"name": "VisualCPlusPlusRedistributableWindowsRestart",
+                        "type": "WindowsRestart",
+                        "restartCheckCommand": "",
+                        "restartCommand": "",
+                        "restartTimeout": "10m"
+					},
+                    {
+                        "type": "PowerShell",
+                        "name": "Install JupyterLab",
+                        "runElevated": true,
+                        "runAsSystem": true,
+                        "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-JupyterLab.ps1"
+                    },
+                    {
+                        "type": "PowerShell",
+                        "name": "Install Git",
+                        "runElevated": true,
+                        "runAsSystem": true,
+                        "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-Git.ps1"
+                    },
+                    {
+                        "type": "PowerShell",
+                        "name": "Install Azure CLI",
+                        "runElevated": true,
+                        "runAsSystem": true,
+                        "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-AzureCLI.ps1"
+                    },
+                    {
+                        "type": "PowerShell",
+                        "name": "Install AzCopy",
+                        "runElevated": true,
+                        "runAsSystem": true,
+                        "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-AzCopy.ps1"
+                    },
+                    {
+                        "type": "PowerShell",
+                        "name": "Install DockerCLI",
+                        "runElevated": true,
+                        "runAsSystem": true,
+                        "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-DockerCLI.ps1"
+                    },
+                    {
+                        "type": "PowerShell",
+                        "name": "Install DockerBuildX",
+                        "runElevated": true,
+                        "runAsSystem": true,
+                        "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-DockerBuildX.ps1"
+                    },
+                    {
+                        "type": "PowerShell",
+                        "name": "Install Azure Storage Explorer",
+                        "runElevated": true,
+                        "runAsSystem": true,
+                        "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-AzureStorageExplorer.ps1"
+                    },
+                    {
+                        "type": "PowerShell",
+                        "name": "Install Postman",
+                        "runElevated": true,
+                        "runAsSystem": true,
+                        "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-Postman.ps1"
+                    },
+                    {
+                        "type": "WindowsUpdate",
+                        "searchCriteria": "IsInstalled=0",
+                        "filters": [
+                            "exclude:$_.Title -like '*Preview*'",
+                            "include:$true"
+                        ],
+                        "updateLimit": 40
+                    },
+					{
+						"name": "WindowsUpdateWindowsRestart",
+						"type": "WindowsRestart"
+					},
+                    {
+                        "type": "PowerShell",
+                        "name": "Disable AutoUpdates",
+                        "runElevated": true,
+                        "runAsSystem": true,
+                        "scriptUri": "https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-07-31/DisableAutoUpdates.ps1"
+                    }
+
+                ],
+                "distribute": [
+                    {
+                        "type": "SharedImage",
+                        "excludeFromLatest": <excludeFromLatest>,
+                        "galleryImageId": "/subscriptions/<subscriptionID>/resourceGroups/<rgName>/providers/Microsoft.Compute/galleries/<sharedImageGalName>/images/<imageDefName>/versions/<version>",
+                        "runOutputName": "<runOutputName>",
+                        "artifactTags": {
+                            "publisher": "<publisher>",
+                            "offer": "<offer>",
+                            "sku": "<sku>"
+                        },
+                        "targetRegions": <targetRegions>
+                    }
+                ]
+            }
+        }
+    ]
+}
