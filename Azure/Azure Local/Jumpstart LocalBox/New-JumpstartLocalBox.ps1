@@ -235,30 +235,35 @@ function Add-RDPCredential {
     Write-Host -Object "Your RDP credentials (login/password) are $($Credential.UserName)/$($Credential.GetNetworkCredential().Password) for '$ComputerName'" -ForegroundColor Green
     if ($Connect) {
         $MSTSCProcess = Start-Process -FilePath "mstsc" -ArgumentList "/v:$ComputerName /f" -PassThru -WindowStyle Normal
-        Do {
+        try {
+            Do {
+                Start-Sleep -Seconds 1
+                $MSTSCProcess = Get-Process -Id $MSTSCProcess.Id -ErrorAction Ignore
+            } While ([string]::IsNullOrEmpty($MSTSCProcess.MainWindowtitle)) 
+            #region Bring the RDP window to the foreground
+            $signature = '
+            [DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
+            [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+            [DllImport("user32.dll")] public static extern int SetForegroundWindow(IntPtr hwnd);
+            '
+            $type = Add-Type -MemberDefinition $signature -Name xShowWindow -PassThru
+            $hwnd = $MSTSCProcess.MainWindowHandle
+            $null = $type::ShowWindow($hwnd, 5)
+            $null = $type::SetForegroundWindow($hwnd) 
             Start-Sleep -Seconds 1
-            $MSTSCProcess = Get-Process -Id $MSTSCProcess.Id -ErrorAction Stop
-        } While ([string]::IsNullOrEmpty($MSTSCProcess.MainWindowtitle)) 
-        #region Bring the RDP window to the foreground
-        $signature = '
-        [DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
-        [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-        [DllImport("user32.dll")] public static extern int SetForegroundWindow(IntPtr hwnd);
-        '
-        $type = Add-Type -MemberDefinition $signature -Name xShowWindow -PassThru
-        $hwnd = $MSTSCProcess.MainWindowHandle
-        $null = $type::ShowWindow($hwnd, 5)
-        $null = $type::SetForegroundWindow($hwnd) 
-        Start-Sleep -Seconds 1
-        #endregion
-        #region Confirm the RDP connection prompts
-        $wshell = New-Object -ComObject wscript.shell;
-        # $null = $wshell.AppActivate((Get-Process -Id $MSTSCProcess.Id -ErrorAction Stop).MainWindowtitle, $true)
-        Start-Sleep -Milliseconds 100
-        $wshell.SendKeys('d')
-        Start-Sleep -Milliseconds 100
-        $wshell.SendKeys('y')
-        #endregion
+            #endregion
+            #region Confirm the RDP connection prompts
+            $wshell = New-Object -ComObject wscript.shell;
+            # $null = $wshell.AppActivate((Get-Process -Id $MSTSCProcess.Id -ErrorAction Stop).MainWindowtitle, $true)
+            Start-Sleep -Milliseconds 100
+            $wshell.SendKeys('d')
+            Start-Sleep -Milliseconds 100
+            $wshell.SendKeys('y')
+            #endregion
+        }
+        catch {
+            Write-Warning "$($_.Exception.Message)"
+        }
     }
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
 }
@@ -653,7 +658,7 @@ param tags = $(($tags | ConvertTo-Json).Replace('"', "'") -replace '''(.*)'':', 
         $PublicIpId = $NIC.IpConfigurations[0].PublicIpAddress.Id
         $PublicIp = Get-AzPublicIpAddress -ResourceGroupName ($PublicIpId -split '/')[4] -Name ($PublicIpId -split '/')[-1]
         Do {
-            $RandomString = ((New-Guid).Guid -replace "\W").Substring(0, 8)
+            $RandomString = [Guid]::NewGuid().ToString('N').Substring(0, 8)
             $DomainNameLabel = $("{0}-{1}-{2}" -f $VMName, $Instance, $RandomString).ToLower()
             $FQDN = $("{0}.{1}.cloudapp.azure.com" -f $DomainNameLabel, $Location).ToLower()
         } While ($null -ne $(Resolve-DnsName $FQDN -ErrorAction Ignore))
@@ -1339,9 +1344,9 @@ function New-AzLocalAVDVMImage {
             $Versions = (Get-AzVMImage -Location  $Location -PublisherName $PublisherName -Offer $Offer -sku $Sku | Sort-Object -Property Version -Descending).Version
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Versions:`r`n$($Versions | Out-String)"
             # Use the second newest version because the newest has triggered SAS token generation errors.
-            #$Version = $Versions[1]
+            $Version = $Versions[1]
             # Use the latest version
-            $Version = $Versions[0]
+            #$Version = $Versions[0]
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Version: $Version"
         }
         $ImageName = "{0}-{1}-{2}" -f $Sku, $Instance, $(Get-Date -Format 'yyyyMMddHHmmss')
@@ -1938,4 +1943,5 @@ foreach ($CurrentLAWSupportedRegion in $LAWSupportedRegions) {
 
 Write-Host -Object "Done ..." -ForegroundColor Green
 #winget install --exact --id=Microsoft.Sysinternals.Suite --location "C:\Tools" --accept-package-agreements --accept-source-agreements
+Stop-Transcript
 #endregion
