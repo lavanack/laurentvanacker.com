@@ -12,11 +12,7 @@
             "type": "string"
         }
     },
-
-    "variables": {
-    },
-
-
+    "variables": {},
     "resources": [
         {
             "name": "[parameters('imageTemplateName')]",
@@ -32,13 +28,10 @@
                 "type": "UserAssigned",
                 "userAssignedIdentities": {
                     "<imgBuilderId>": {}
-
                 }
             },
-
             "properties": {
                 "buildTimeoutInMinutes": 360,
-
                 "vmProfile": {
                     "vmSize": "Standard_D8s_v6",
                     "osDiskSizeGB": 127
@@ -80,13 +73,13 @@
                         "runAsSystem": true,
                         "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-VisualCPlusPlusRedistributable.ps1"
                     },
-					{
-						"name": "VisualCPlusPlusRedistributableWindowsRestart",
+                    {
+                        "name": "VisualCPlusPlusRedistributableWindowsRestart",
                         "type": "WindowsRestart",
                         "restartCheckCommand": "",
                         "restartCommand": "",
                         "restartTimeout": "10m"
-					},
+                    },
                     {
                         "type": "PowerShell",
                         "name": "Install JupyterLab",
@@ -141,7 +134,7 @@
                         "name": "Install Postman",
                         "runElevated": true,
                         "runAsSystem": true,
-                        "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-Postman.ps1"
+                        "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20VM%20Image%20Builder/Install-PostMan.ps1"
                     },
                     {
                         "type": "WindowsUpdate",
@@ -152,10 +145,10 @@
                         ],
                         "updateLimit": 40
                     },
-					{
-						"name": "WindowsUpdateWindowsRestart",
-						"type": "WindowsRestart"
-					},
+                    {
+                        "name": "WindowsUpdateWindowsRestart",
+                        "type": "WindowsRestart"
+                    },
                     {
                         "type": "PowerShell",
                         "name": "Disable AutoUpdates",
@@ -163,7 +156,6 @@
                         "runAsSystem": true,
                         "scriptUri": "https://raw.githubusercontent.com/Azure/RDS-Templates/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2023-07-31/DisableAutoUpdates.ps1"
                     }
-
                 ],
                 "distribute": [
                     {
