@@ -112,10 +112,10 @@ function Invoke-AzAvdPooledHostPoolInitiateSessionHostUpdate {
         [Microsoft.Azure.PowerShell.Cmdlets.DesktopVirtualization.Models.HostPool] $HostPool,
         [Parameter(Mandatory = $false)]
         [ValidateScript({$_ -gt $(Get-Date)})]
-        [datetime] $ScheduledDateTime = $((Get-Date).AddHours(12).ToString('yyyy-MM-dd HH:mm')),
+        [datetime] $ScheduledDateTime = $((Get-Date).AddMinutes(30)),
         [Parameter(Mandatory = $false)]
         [ValidateScript({$_ -in $((Get-TimeZone -ListAvailable).Id)})]
-        [System.TimeZoneInfo] $ScheduledDateTimeZone = $(Get-TimeZone)
+        [System.TimeZoneInfo] $ScheduledDateTimeZone = [System.TimeZoneInfo]::Utc #$(Get-TimeZone)
     )
 
     #From https://learn.microsoft.com/en-us/azure/virtual-desktop/session-host-update-configure?tabs=powershell
@@ -132,6 +132,7 @@ function Invoke-AzAvdPooledHostPoolInitiateSessionHostUpdate {
         CancelMessage     = "Cancelled by $((Get-AzContext).Account.Id)"
         ErrorAction       = "Ignore"
     }
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters: $($Parameters | Out-String)"
 
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Cancelling Any Previously Existing Session Host Update"
     $null = Invoke-AzWvdControlSessionHostUpdate @Parameters
@@ -154,6 +155,7 @@ function Invoke-AzAvdPooledHostPoolInitiateSessionHostUpdate {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$LatestImage: $LatestImage"
 
     $Parameters['MarketplaceInfoExactVersion'] = $LatestImage
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters: $($Parameters | Out-String)"
 
     $SessionHostConfiguration = Update-AzWvdSessionHostConfiguration @Parameters
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SessionHostConfiguration: $($SessionHostConfiguration)"
@@ -168,6 +170,7 @@ function Invoke-AzAvdPooledHostPoolInitiateSessionHostUpdate {
         ScheduledDateTime     = $ScheduledDateTime
         ScheduledDateTimeZone = $ScheduledDateTimeZone
     }
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters: $($Parameters | Out-String)"
 
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Initiating A Session Host Update"
     $null = Invoke-AzWvdInitiateSessionHostUpdate @Parameters
@@ -185,6 +188,7 @@ function Invoke-AzAvdPooledHostPoolInitiateSessionHostUpdate {
         ResourceGroupName = $HostPool.ResourceGroupName
         Action            = "Start"
     }
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters: $($Parameters | Out-String)"
 
     $null = Invoke-AzWvdControlSessionHostUpdate @Parameters
     $UpdateStatus = Get-AzWvdSessionHostManagementsUpdateStatus -HostPoolName $HostPool.Name -ResourceGroupName $HostPool.ResourceGroupName
@@ -633,7 +637,7 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 }
 #endregion
 
-Get-AzResourceGroup -Name rg-*-np-*-shc-mp-* | Remove-AzResourceGroup -AsJob -Force
+#Get-AzResourceGroup -Name rg-*-np-*-shc-mp-* | Remove-AzResourceGroup -AsJob -Force
 
 $SubscriptionId = (Get-AzContext).Subscription.Id
 $Location = "centralus"
@@ -674,7 +678,7 @@ $Parameters = @{
 #endregion
 #endregion
 
-$HostPool = New-AzAvdPooledHostPoolSessionHostConfigurationSetup @Parameters
+#$HostPool = New-AzAvdPooledHostPoolSessionHostConfigurationSetup @Parameters
 
 $Parameters = @{
     HostPool = $HostPool
