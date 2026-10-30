@@ -217,11 +217,22 @@ Get-ADGroup -Filter "Name -like 'avdhp*-*Application Group Users'" | Add-ADGroup
 Start-MicrosoftEntraIDConnectSync
 #endregion
 
-#region Adding Test Users (CloudOnly) as HostPool Users (for all HostPools)
+#region Adding Test Users (CloudOnly) as HostPool Users (for all HostPools with Cloud-only identities)
 $CloudOnlyUsersGroupName = 'Cloud Only Users'
 $CloudOnlyUsersGroupId = (Get-MgBetaGroup -Filter "displayName eq '$CloudOnlyUsersGroupName'").Id
 Get-MgBetaGroup -All | Where-Object -FilterScript { ($_.displayName -like 'avdhp*-*Application Group Users') -and (-not($_.OnPremisesSyncEnabled)) } | ForEach-Object -Process {
     New-MGBetaGroupMember -GroupId $_.Id -DirectoryObjectId $CloudOnlyUsersGroupId -ErrorAction Ignore
+}
+#endregion
+
+
+#region External Identities
+$ExternalIdentitiesHostPools = $HostPools | Where-Object -FilterScript { $_.ExternalIdentities } 
+foreach ($ExternalIdentitiesHostPool in $ExternalIdentitiesHostPools) {
+    $ExternalIdentitiesEntraIDGroupId = (Get-MgBetaGroup -Filter "displayName eq '$($ExternalIdentitiesHostPool.GetExternalIdentitiesEntraIDGroupName())'").Id
+    Get-MgBetaGroup -All | Where-Object -FilterScript { ($_.displayName -like "$($ExternalIdentitiesHostPool.Name)*-*Application Group Users") -and (-not($_.OnPremisesSyncEnabled)) } | ForEach-Object -Process {
+        New-MGBetaGroupMember -GroupId $_.Id -DirectoryObjectId $ExternalIdentitiesEntraIDGroupId -ErrorAction Ignore
+    }
 }
 #endregion
 
