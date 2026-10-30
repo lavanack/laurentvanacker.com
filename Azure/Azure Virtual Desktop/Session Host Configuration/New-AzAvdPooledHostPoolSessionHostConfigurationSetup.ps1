@@ -16,7 +16,7 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 
-#requires -Modules Az.Accounts, Az.Compute, @{ ModuleName='Az.DesktopVirtualization'; RequiredVersion="5.4.6" }, Az.KeyVault, Az.Network, Az.Resources
+#requires -Modules Az.Accounts, Az.Compute, @{ ModuleName='Az.DesktopVirtualization'; RequiredVersion="6.0.1" }, Az.KeyVault, Az.Network, Az.Resources
 
 #From https://learn.microsoft.com/en-us/azure/virtual-desktop/deploy-azure-virtual-desktop?pivots=host-pool-session-host-configuration&tabs=portal-standard%2Cpowershell-session-host-configuration%2Cportal#create-a-host-pool-with-a-session-host-configuration
 #From https://portal.azure.com/#view/Microsoft_Azure_Resources/DeploymentDetails.MenuView/~/overview/id/%2Fsubscriptions%2F30c8d9eb-366e-4d2c-a723-95bc688f7c97%2Fproviders%2FMicrosoft.Resources%2Fdeployments%2FAVDAcceleratorDeployment_ARM_20260728070232
@@ -112,7 +112,7 @@ function Invoke-AzAvdPooledHostPoolInitiateSessionHostUpdate {
         [Microsoft.Azure.PowerShell.Cmdlets.DesktopVirtualization.Models.HostPool] $HostPool,
         [Parameter(Mandatory = $false)]
         [ValidateScript({$_ -gt $(Get-Date)})]
-        [datetime] $ScheduledDateTime = $((Get-Date).AddHours(12)),
+        [datetime] $ScheduledDateTime = $((Get-Date).AddHours(12).ToString('yyyy-MM-dd HH:mm')),
         [Parameter(Mandatory = $false)]
         [ValidateScript({$_ -in $((Get-TimeZone -ListAvailable).Id)})]
         [System.TimeZoneInfo] $ScheduledDateTimeZone = $(Get-TimeZone)
@@ -533,7 +533,7 @@ function New-AzAvdPooledHostPoolSessionHostConfigurationSetup {
     }
 
     while (-not(Get-AzRoleAssignment @Parameters)) {
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.Scope)' scope"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' Identity on the '$($Parameters.ResourceName)' Resource (ResourceGroupName: $($CurrentHostPool.ResourceGroupName) / ResourceType : $($Parameters.ResourceType))"
         $RoleAssignment = New-AzRoleAssignment @Parameters -ErrorAction Ignore
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
         $Seconds = 30

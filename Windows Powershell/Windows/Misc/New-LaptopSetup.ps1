@@ -66,51 +66,52 @@ $SchemeId = $Result.Matches.Captures[0].Groups["guid"].Value.Trim()
 
 #region Software Setup
 #region WinGet
-winget upgrade --all --silent --accept-package-agreements --accept-source-agreements --force
+winget upgrade --all --silent --accept-package-agreements --accept-source-agreements --scope machine --force
 
 winget install --exact --id=Intel.IntelDriverAndSupportAssistant
-winget install "Lenovo Vantage" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "NVIDIA Control Panel" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "Portail d'entreprise" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "Power BI Desktop" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "Microsoft Whiteboard" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "Microsoft 365 Copilot" --accept-package-agreements --accept-source-agreements --source msstore
+winget install "Lenovo Vantage" --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install "NVIDIA Control Panel" --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install "Portail d'entreprise" --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install "Power BI Desktop" --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install "Microsoft Whiteboard" --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install "Microsoft 365 Copilot" --accept-package-agreements --accept-source-agreements --source msstore --scope machine
 winget install --exact --id=Microsoft.WindowsTerminal
 
-winget install --exact --id=Microsoft.Sysinternals.Suite --location "C:\LabSources\Tools\SysInternals"
-winget install --exact --id=Microsoft.Office
-winget install --exact --id=Microsoft.Teams
-winget install --exact --id=Mozilla.Firefox
-winget install --exact --id=Mozilla.Thunderbird
-winget install --exact --id=Notepad++.Notepad++
-winget install --exact --id=Microsoft.PowerToys
-winget install --exact --id=VideoLAN.VLC
-winget install --exact --id=RARLab.WinRAR
-winget install --exact --id=Bitwarden.Bitwarden
-winget install --exact --id=Foxit.FoxitReader
-winget install --exact --id=WiresharkFoundation.Wireshark
-#winget install --exact --id=Microsoft.VisualStudioCode.Insiders
-#winget install --exact --id=Synology.SurveillanceStationClient
-winget install --exact --id=Synology.CloudStationDrive 
-winget install --exact --id=WinMerge.WinMerge
+winget install --exact --id=Microsoft.Sysinternals.Suite --location "C:\LabSources\Tools\SysInternals" --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id=Microsoft.Office --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id=Microsoft.Teams --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id=Mozilla.Firefox --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id=Mozilla.Thunderbird --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id=Notepad++.Notepad++ --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id=Microsoft.PowerToys --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id=VideoLAN.VLC --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id=RARLab.WinRAR --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id=Bitwarden.Bitwarden --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id=Foxit.FoxitReader --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id=WiresharkFoundation.Wireshark --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+#winget install --exact --id=Microsoft.VisualStudioCode.Insiders --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+#winget install --exact --id=Synology.SurveillanceStationClient --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id=Synology.CloudStationDrive --accept-package-agreements --accept-source-agreements --source msstore --scope machine 
+winget install --exact --id=WinMerge.WinMerge --accept-package-agreements --accept-source-agreements --source msstore --scope machine
 #winget install --exact --id=NordSecurity.NordVPN
-winget install --exact --id=Brother.iPrintScan
-winget install --exact --id=Microsoft.PowerShell
-winget install --exact --id=Microsoft.Azure.StorageExplorer
-winget install --exact --id=GitHub.cli
-winget install --exact --id GitHub.CopilotApp
-winget install --exact --id=Microsoft.WindowsApp
-winget install --exact --id=Logitech.GHUB
-winget install --exact --id=WinDirStat.WinDirStat
-winget install --exact --id=Microsoft.Azure.AZCopy.10
-winget install --exact --id=Microsoft.Bicep
-winget install --exact --id=Microsoft.AzureCLI
-winget install --exact --id=Hashicorp.Terraform
+winget install --exact --id=Brother.iPrintScan --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id=Microsoft.PowerShell --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id=Microsoft.Azure.StorageExplorer --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id=GitHub.cli --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id GitHub.CopilotApp --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id=Microsoft.WindowsApp --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id=Logitech.GHUB --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id=WinDirStat.WinDirStat --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id=Microsoft.Azure.AZCopy.10 --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id=Microsoft.Bicep --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id=Microsoft.AzureCLI --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id=Hashicorp.Terraform --accept-package-agreements --accept-source-agreements --source msstore --scope machine
 #winget install --exact --id=Microsoft.Azure.FunctionsCoreTools
 #winget install --exact --id=Microsoft.VisualStudioCode
 
 #region Git
-winget install --exact --id=Git.Git
+winget install --exact --id=Git.Git --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id=GitHub.GitLFS --accept-package-agreements --accept-source-agreements --source msstore --scope machine
 git config --global user.name "Laurent VAN ACKER"
 git config --global user.email laurent.vanacker@free.fr
 git lfs install
@@ -131,18 +132,18 @@ Pop-Location
 #endregion
 
 #region Entertainment
-winget install "WhatsApp" --accept-package-agreements --accept-source-agreements --source msstore
-#winget install "Snapchat" --accept-package-agreements --accept-source-agreements --source msstoremsstore
-winget install "Disney+" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "Netflix" --accept-package-agreements --accept-source-agreements --source msstore
-winget install "Prime Video for Windows" --accept-package-agreements --accept-source-agreements --source msstore
+winget install "WhatsApp" --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+#winget install "Snapchat" --accept-package-agreements --accept-source-agreements --source msstore --scope machinemsstore
+winget install "Disney+" --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install "Netflix" --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install "Prime Video for Windows" --accept-package-agreements --accept-source-agreements --source msstore --scope machine
 #endregion
 #endregion
 
 
 #region Terraform Tools
-winget install --exact --id=AquaSecurity.Trivy
-winget install --exact --id=TerraformLinters.tflint
+winget install --exact --id=AquaSecurity.Trivy --accept-package-agreements --accept-source-agreements --source msstore --scope machine
+winget install --exact --id=TerraformLinters.tflint --accept-package-agreements --accept-source-agreements --source msstore --scope machine
 #endregion
 
 #region Other Ways

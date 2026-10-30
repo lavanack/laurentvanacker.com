@@ -20,6 +20,7 @@ of the Sample Code.
 #region Downloading Putty 
 $DestinationFolderPath = "C:\Tools"
 $DestinationFolder = New-Item -Path $DestinationFolderPath -ItemType Directory -Force
+#region Getting the URI of lastest release of Putty
 $PuttyUri = "https://the.earth.li/~sgtatham/putty/latest/w64/putty.exe"
 $OutFile = Join-Path -Path $DestinationFolder -ChildPath $(Split-Path -Path $PuttyUri -Leaf)
 If (-not(Test-Path -Path $OutFile)) {

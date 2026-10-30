@@ -17,7 +17,7 @@ of the Sample Code.
 #>
 #Installing WinSCP
 
-#region Getting the URI of lastest release of WinSCP
+#region Getting the URI of latest release of WinSCP
 $WinSCPUri = ((Invoke-WebRequest -Uri "https://winscp.net/eng/download.php" -UseBasicParsing).Links | Where-Object -FilterScript { $_.href -match "/download/WinSCP-\d.*-Setup.exe/download"}).href
 $WinSCPUri = "https://winscp.net{0}" -f $WinSCPUri
 $WinSCPUri = ((Invoke-WebRequest -Uri $WinSCPUri -UseBasicParsing).Links | Where-Object -FilterScript { $_.href -match "\.exe"}).href | Select-Object -First 1

@@ -17,7 +17,7 @@ of the Sample Code.
 #>
 #Installing Notepad++
 
-#region Getting the lastest release of Notepad++ 
+#region Getting the latest release of Notepad++ 
 $NotepadPlusPlusVersion = (Invoke-RestMethod  -Uri "https://api.github.com/repos/notepad-plus-plus/notepad-plus-plus/releases/latest").tag_name -replace "v"
 #endregion 
 
