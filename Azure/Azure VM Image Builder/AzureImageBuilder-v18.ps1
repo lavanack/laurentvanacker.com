@@ -577,7 +577,7 @@ function New-AzureComputeGallery {
 		Name                 = 'Install Azure Storage Explorer'  
 		RunElevated          = $true  
 		runAsSystem          = $true  
-		ScriptUri            = 'https://raw.AzureStorageExplorerhubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-AzureStorageExplorer.ps1'
+		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-AzureStorageExplorer.ps1'
 	}
 
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgAzureStorageExplorerPowerShellCustomizerParams.Name)' ..."
@@ -588,7 +588,7 @@ function New-AzureComputeGallery {
 		Name                 = 'Install Azure Storage Explorer'  
 		RunElevated          = $true  
 		runAsSystem          = $true  
-		ScriptUri            = 'https://raw.Postmanhubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-Postman.ps1'
+		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-Postman.ps1'
 	}
 
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgPostmanPowerShellCustomizerParams.Name)' ..."
