@@ -32,7 +32,7 @@ If (-not(Test-Path -Path $OutFile)) {
 #endregion 
 
 #region Installing/Unzipping DockerCLI
-$DestinationPath = "C:\Tools"
+$DestinationPath = "C:\Tools\docker"
 $null = New-Item -Path $DestinationPath -ItemType Directory -Force
 Expand-Archive -Path $OutFile -DestinationPath $DestinationPath -Force
 #endregion
