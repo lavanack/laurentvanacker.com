@@ -1505,8 +1505,10 @@ function New-AzLocalAVDVM {
     $VM = New-AzStackHCIVMVirtualMachine @Parameters        
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VM:`r`n$($VM | Out-String)"
 
+    #We have to put the tag on the Azure Arc machine not on the AzureStackHCI reource itself
+    $ResourceId = $VM.Id -replace "/providers/Microsoft.AzureStackHCI/.*"
     $Parameters = @{
-        ResourceId = $VM.Id
+        ResourceId =  $ResourceId
         Tag        = @{ "Image" = $Image.Name }
         Operation  = "Merge"
     }
