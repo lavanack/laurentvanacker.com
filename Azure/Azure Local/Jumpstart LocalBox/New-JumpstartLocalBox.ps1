@@ -40,6 +40,7 @@ trap {
 
 #region Function definitions
 # Adapted from https://adamtheautomator.com/powershell-random-password/
+
 <#
 .SYNOPSIS
 Generates a password that meets Azure virtual machine complexity requirements.
@@ -67,6 +68,16 @@ Specifies how many non-alphanumeric characters the local generator should includ
 
 .PARAMETER Online
 Uses the DinoPass service instead of the local System.Web password generator.
+
+.EXAMPLE
+New-RandomPassword -Online -AsSecureString
+
+Retrieves and checks a password, then returns it as a SecureString.
+
+.OUTPUTS
+System.String
+System.Security.SecureString
+Returns plain text by default, or a SecureString when AsSecureString is specified.
 #>
 function New-RandomPassword {
     [CmdletBinding(PositionalBinding = $false, DefaultParameterSetName = 'GeneratePassword')]
@@ -87,6 +98,7 @@ function New-RandomPassword {
 
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
     # Uses the k-anonymity API: only the first five SHA-1 characters leave this computer.
+
     <#
     .SYNOPSIS
     Checks a password against the Have I Been Pwned Pwned Passwords service.
@@ -271,6 +283,7 @@ function Add-RDPCredential {
 #region Azure Quota Function
 # Adapted from:
 # https://github.com/lavanack/laurentvanacker.com/blob/master/Azure/Azure%20Virtual%20Machine/Get-AzQuotaData.ps1
+
 <#
 .SYNOPSIS
 Returns regional Azure Compute quota for one or more resource families.
@@ -287,6 +300,15 @@ Specifies Compute quota resource names, such as virtualMachines or a VM family.
 
 .PARAMETER SubscriptionId
 Specifies the Azure subscriptions to query.
+
+.EXAMPLE
+Get-AzVMQuota -Location 'australiaeast' -ResourceName 'virtualMachines'
+
+Retrieves virtual machine quota and usage for Australia East in the available subscriptions.
+
+.OUTPUTS
+System.Management.Automation.PSCustomObject
+Returns subscription, location, resource name, limit, usage, available capacity, and percentage free.
 #>
 function Get-AzVMQuota {
     [CmdletBinding(PositionalBinding = $false)]
@@ -343,6 +365,15 @@ Specifies the Azure regions to query.
 
 .PARAMETER SubscriptionId
 Specifies the Azure subscriptions to query.
+
+.EXAMPLE
+Get-AzCoreQuota -Location 'australiaeast'
+
+Retrieves regional vCPU quota and usage in the available subscriptions.
+
+.OUTPUTS
+System.Management.Automation.PSCustomObject
+Returns subscription, location, resource name, limit, usage, available capacity, and percentage free.
 #>
 function Get-AzCoreQuota {
     [CmdletBinding(PositionalBinding = $false)]
@@ -399,6 +430,11 @@ Specifies the Azure subscriptions to evaluate.
 
 .PARAMETER ComputeResourceSku
 Specifies one or more Azure virtual machine SKU names.
+
+.EXAMPLE
+Get-AzAvailableComputeResourceSku -Location 'australiaeast' -ComputeResourceSku 'Standard_E32s_v6'
+
+Calculates deployment capacity for the specified VM size in Australia East.
 #>
 function Get-AzAvailableComputeResourceSku {
     [CmdletBinding(PositionalBinding = $false)]
@@ -469,6 +505,9 @@ Specifies the administrator username for the deployed Windows virtual machine.
 .PARAMETER windowsAdminPassword
 Specifies the administrator password passed to the Bicep deployment.
 
+.PARAMETER Credential
+Specifies the administrator credentials instead of windowsAdminUsername and windowsAdminPassword.
+
 .PARAMETER logAnalyticsWorkspaceName
 Specifies the Log Analytics workspace name.
 
@@ -516,6 +555,11 @@ Specifies tags assigned to deployed Azure resources.
 
 .PARAMETER BicepFileDir
 Specifies the directory containing main.bicep.
+
+.EXAMPLE
+New-JumpstartLocalBox -Credential (Get-Credential) -BicepFileDir 'C:\Jumpstart\LocalBox'
+
+Deploys LocalBox using the supplied administrator credentials and Bicep directory.
 
 .OUTPUTS
 System.Boolean. Returns true for a successful deployment and false after a failure.
@@ -639,7 +683,7 @@ param tags = $(($tags | ConvertTo-Json).Replace('"', "'") -replace '''(.*)'':', 
     Start-Process $ResourceGroupDeploymentURI 
     $ResourceGroupDeploymentURI | Set-ClipBoard
     $ResourceGroupDeployment = New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $TemplateFile -TemplateParameterFile $TemplateParameterFile
-	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$ResourceGroupName' ResourceGroup Deployment:`r`n$(Get-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName | Select-Object  -Property DeploymentName, ProvisioningState | Out-String)"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$ResourceGroupName' ResourceGroup Deployment:`r`n$(Get-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName | Select-Object  -Property DeploymentName, ProvisioningState | Out-String)"
     Pop-Location
     #endregion
     #endregion
@@ -794,7 +838,7 @@ function Wait-AzConnectedMachine {
         $ScriptString = "Get-Content -Path 'C:\LocalBox\Logs\New-LocalBoxCluster.log' | Select-String -Pattern 'Step\s+(\d+)/(\d+)'"
         $AzVMRunCommand = Invoke-AzVMRunCommand  -CommandId 'RunPowerShellScript' -ResourceGroupName $ResourceGroupName -VMName LocalBox-Client -ScriptString $ScriptString
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Steps:`r`n$($AzVMRunCommand.Value.Message | Out-String)"
-		Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$ResourceGroupName' ResourceGroup Deployment:`r`n$(Get-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName | Select-Object  -Property DeploymentName, ProvisioningState | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$ResourceGroupName' ResourceGroup Deployment:`r`n$(Get-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName | Select-Object  -Property DeploymentName, ProvisioningState | Out-String)"
 
         $Seconds = 300
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds seconds ..."
@@ -833,7 +877,7 @@ function Wait-AzConnectedMachine {
         $ScriptString = "Get-Content -Path 'C:\LocalBox\Logs\New-LocalBoxCluster.log' | Select-String -Pattern 'Step\s+(\d+)/(\d+)'"
         $AzVMRunCommand = Invoke-AzVMRunCommand  -CommandId 'RunPowerShellScript' -ResourceGroupName $ResourceGroupName -VMName LocalBox-Client -ScriptString $ScriptString
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Steps:`r`n$($AzVMRunCommand.Value.Message | Out-String)"
-		Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$ResourceGroupName' ResourceGroup Deployment:`r`n$(Get-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName | Select-Object  -Property DeploymentName, ProvisioningState | Out-String)"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$ResourceGroupName' ResourceGroup Deployment:`r`n$(Get-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName | Select-Object  -Property DeploymentName, ProvisioningState | Out-String)"
 
         $Seconds = 300
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping $Seconds seconds ..."
@@ -1201,6 +1245,32 @@ function Set-LocalClusterInsightSetup {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
 }
 
+<#
+.SYNOPSIS
+Builds Azure Local images and virtual machines for Azure Virtual Desktop.
+
+.DESCRIPTION
+Builds Marketplace and Azure Compute Gallery images, waits for image jobs, removes
+temporary Azure managed disks tagged ToBeCleaned, and starts VM creation jobs for
+successfully provisioned images. Opens the cluster image status page in the Azure portal.
+Uses Credential, LogicalNetwork, and SubscriptionId from the calling scope.
+
+.PARAMETER ResourceGroupName
+Specifies the resource group containing the LocalBox cluster and image resources.
+
+.PARAMETER AsAJob
+Requests background jobs from the image-building functions. This function still
+waits for image and VM jobs before completing.
+
+.EXAMPLE
+New-AzLocalAVD -ResourceGroupName 'rg-localbox' -AsAJob
+
+Builds images and VMs after Credential, LogicalNetwork, and SubscriptionId are set in the calling scope.
+
+.OUTPUTS
+None
+Stores VM job results internally without returning them.
+#>
 function New-AzLocalAVD {
     [CmdletBinding(PositionalBinding = $false)]
     param (
@@ -1269,6 +1339,229 @@ function New-AzLocalAVD {
 
 <#
 .SYNOPSIS
+Lists Marketplace image versions available to Azure Local clusters.
+
+.DESCRIPTION
+Queries Microsoft.EdgeMarketplace offers through the Azure Resource Manager batch
+API using the current Azure context. Lists all image versions or filters by URN.
+Resolves latest to the newest listed version and warns before substituting the
+newest version when a requested version is unavailable.
+
+.PARAMETER ResourceGroupName
+Specifies the resource group containing the cluster in the current subscription.
+
+.PARAMETER ClusterName
+Specifies the cluster name when using ResourceGroupName. Defaults to localboxcluster.
+
+.PARAMETER Cluster
+Specifies one or more Azure Stack HCI cluster objects, including objects received through the pipeline.
+
+.PARAMETER URN
+Filters images by publisher:offer:sku:version. Use latest for the newest listed version.
+
+.PARAMETER AsObject
+Returns objects containing ClusterId, PublisherName, Offer, Sku, and Version instead of URN strings.
+
+.EXAMPLE
+Get-MicrosoftEdgeMarketPlaceImage -ResourceGroupName 'rg-localbox'
+
+Lists all available image URNs for the default cluster.
+
+.EXAMPLE
+Get-AzStackHCICluster -ResourceGroupName 'rg-localbox' | Get-MicrosoftEdgeMarketPlaceImage -AsObject
+
+Lists available image versions as objects for clusters received through the pipeline.
+
+.OUTPUTS
+System.String
+System.Management.Automation.PSCustomObject
+System.Boolean
+Returns URN strings by default or image objects with AsObject. Returns false when a handled web request fails.
+#>
+function Get-MicrosoftEdgeMarketPlaceImage {
+    [CmdletBinding(PositionalBinding = $false)]
+    Param(
+        [Parameter(Mandatory = $true, ParameterSetName = 'ResourceGroupName')]
+        [ValidateNotNullOrEmpty()]
+        [string]$ResourceGroupName,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceGroupName')]
+        [ValidateNotNullOrEmpty()]
+        [string] $ClusterName = "localboxcluster",
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'Cluster', ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $false)]
+        [ValidateNotNullOrEmpty()]
+        [Microsoft.Azure.PowerShell.Cmdlets.StackHCI.Models.Cluster[]] $Cluster,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        [ValidatePattern("^.+:.+:.+:.+$")]
+        [string[]] $URN,
+
+        [switch] $AsObject
+    )
+
+    begin {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ResourceGroupName: $ResourceGroupName"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ClusterName: $ClusterName"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$URN:`r`n$($URN | Out-String)"
+        #region Azure Context
+        # Log in first with Connect-AzAccount if not using Cloud Shell
+        $azContext = Get-AzContext
+        $SubcriptionID = $azContext.Subscription.Id
+        $azProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile
+        $profileClient = New-Object -TypeName Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient -ArgumentList ($azProfile)
+        $token = $profileClient.AcquireAccessToken($azContext.Subscription.TenantId)
+        $authHeader = @{
+            'Content-Type'  = 'application/json'
+            'Authorization' = 'Bearer ' + $token.AccessToken
+        }
+        #endregion
+        $MicrosoftEdgeMarketPlaceImage = @()
+    }
+
+    process {
+        if ($Cluster) {
+            $ClusterId = foreach ($CurrentCluster in $Cluster) {
+                $CurrentClusterId = $($CurrentCluster.Id)
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentClusterId: $CurrentClusterId"
+                $ClusterSubcriptionID = ([regex]::Match($CurrentClusterId, "\w{8}-\w{4}-\w{4}-\w{4}-\w{12}")).Value
+                if ($ClusterSubcriptionID -ne $SubcriptionID) {
+                    Write-Warning -Message "'$CurrentClusterId' is not in the '$SubcriptionID' Subcription. Skipping it ..."
+                }
+                $CurrentClusterId
+            }
+        }
+        else {
+            $ClusterId = @("/subscriptions/$SubcriptionID/resourcegroups/$ResourceGroupName/providers/microsoft.azurestackhci/clusters/$ClusterName")
+        }
+
+        foreach ($CurrentClusterId in $ClusterId) {
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentClusterId: $CurrentClusterId"
+            $URL = "https://management.azure.com$($CurrentClusterId)/providers/Microsoft.EdgeMarketplace/offers?api-version=2023-08-01-preview"        
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$URL: $URL"
+
+            $Body = [ordered]@{ 
+                "requests" = @(
+                    [ordered]@{
+                        "httpMethod"           = "GET"
+                        "name"                 = $([Guid]::NewGuid().Guid)
+                        "requestHeaderDetails" = @{
+                            "commandName" = "Microsoft_AzureStackHCI_PortalExtension.GetMarketPlaceOffers"
+                        }
+                        "url"                  = $URL
+                    }
+                )
+            }
+
+            $URI = "https://management.azure.com/batch?api-version=2020-06-01"
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$URI: $URI"
+            try {
+                # Invoke the REST API
+                $Payload = $($Body | ConvertTo-Json -Depth 100)
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Payload:`r`n$($Payload | Out-String)"
+                $Response = Invoke-AzRestMethod -Method POST -Payload $Payload -Uri $URI -ErrorVariable ResponseError
+            }
+            catch [System.Net.WebException] {   
+                # Dig into the exception to get the Response details.
+                # Note that value__ is not a typo.
+                Write-Warning -Message "StatusCode: $($_.Exception.Response.StatusCode.value__ )"
+                Write-Warning -Message "StatusDescription: $($_.Exception.Response.StatusDescription)"
+                $respStream = $_.Exception.Response.GetResponseStream()
+                $reader = New-Object System.IO.StreamReader($respStream)
+                $Response = $reader.ReadToEnd() | ConvertFrom-Json
+                if (-not([string]::IsNullOrEmpty($Response.message))) {
+                    Write-Warning -Message $Response.message
+                }
+                return $false
+            }
+            finally {
+            }
+            #endregion
+
+            #region Getting URN
+            if ($null -ne $URN) {
+                $MicrosoftEdgeMarketPlaceImage += foreach ($CurrentURN in $URN) {
+                    $PublisherName, $Offer, $Sku, $Version = $CurrentURN -split ":"
+                    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$PublisherName: $PublisherName"
+                    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Offer: $Offer"
+                    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Sku: $Sku"
+                    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Version: $Version"
+
+                    $MicrosoftEdgeMarketPlaceOffer = ($Response.Content | ConvertFrom-Json).responses.content.value | Where-Object -FilterScript { $_.name -eq $("{0}:{1}" -f $PublisherName, $Offer) }
+                    $MicrosoftEdgeMarketPlaceSku = $MicrosoftEdgeMarketPlaceOffer.properties.marketplaceSkus | Where-Object -FilterScript { $_.marketplaceSkuId -eq $Sku }
+                    $MicrosoftEdgeMarketPlaceSkuVersions = $MicrosoftEdgeMarketPlaceSku.marketplaceSkuVersions
+                    $MicrosoftEdgeMarketPlaceSkuLatestVersion = ($MicrosoftEdgeMarketPlaceSkuVersions | Sort-Object -Property Name -Descending | Select-Object -First 1).Name
+                    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$MicrosoftEdgeMarketPlaceOffer: $MicrosoftEdgeMarketPlaceOffer"
+                    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$MicrosoftEdgeMarketPlaceSku: $MicrosoftEdgeMarketPlaceSku"
+                    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$MicrosoftEdgeMarketPlaceSkuVersions:`r`n$($MicrosoftEdgeMarketPlaceSkuVersions | Out-String)"
+                    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$MicrosoftEdgeMarketPlaceSkuLatestVersion: $MicrosoftEdgeMarketPlaceSkuLatestVersion"
+
+                    if ($version -eq "latest") {
+                        $Version = $MicrosoftEdgeMarketPlaceSkuLatestVersion
+                        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Version: $Version"
+                    }
+                    else {
+                        if ($Version -notin $MicrosoftEdgeMarketPlaceSkuVersions.Name) {
+                            Write-Warning -Message "Specified '$Version' Version is not part of the avalaible versions : '$($MicrosoftEdgeMarketPlaceSkuVersions.Name -join ',')'. We take the latest one : 'MicrosoftEdgeMarketPlaceSkuLatestVersion'"
+                            $Version = ($MicrosoftEdgeMarketPlaceSkuVersions | Sort-Object -Property Name -Descending | Select-Object -First 1).Name
+                            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Version: $Version"
+                        }
+                    }
+                    if (-not([string]::IsNullOrEmpty($MicrosoftEdgeMarketPlaceOffer.Name)) -and -not([string]::IsNullOrEmpty($MicrosoftEdgeMarketPlaceSku.marketplaceSkuId)) -and -not([string]::IsNullOrEmpty($Version))) {
+                        if ($AsObject) {
+                            $PublisherName, $Offer = $MicrosoftEdgeMarketPlaceOffer.Name -split ":"
+                            $CurrentMicrosoftEdgeMarketPlaceImage = [PScustomObject]@{ClusterId = $CurrentClusterId; PublisherName = $PublisherName; Offer = $Offer; Sku = $MicrosoftEdgeMarketPlaceSku.marketplaceSkuId; Version = $Version }
+                            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentMicrosoftEdgeMarketPlaceImage: $($CurrentMicrosoftEdgeMarketPlaceImage | Out-String)"
+                            $CurrentMicrosoftEdgeMarketPlaceImage
+                        }
+                        else {
+                            $CurrentMicrosoftEdgeMarketPlaceImage = "{0}:{1}:{2}" -f $MicrosoftEdgeMarketPlaceOffer.Name, $MicrosoftEdgeMarketPlaceSku.marketplaceSkuId, $Version
+                            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentMicrosoftEdgeMarketPlaceImage: $CurrentMicrosoftEdgeMarketPlaceImage"
+                            $CurrentMicrosoftEdgeMarketPlaceImage
+                        }
+
+                    }
+                }
+            }
+            else {
+                $MicrosoftEdgeMarketPlaceOffers = ($Response.Content | ConvertFrom-Json).responses.content.value
+                $MicrosoftEdgeMarketPlaceImage += foreach ($MicrosoftEdgeMarketPlaceOffer in $MicrosoftEdgeMarketPlaceOffers) {
+                    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$MicrosoftEdgeMarketPlaceOffer: $MicrosoftEdgeMarketPlaceOffer"
+                    $MicrosoftEdgeMarketPlaceSkus = $MicrosoftEdgeMarketPlaceOffer.properties.marketplaceSkus
+                    foreach ($MicrosoftEdgeMarketPlaceSku in $MicrosoftEdgeMarketPlaceSkus) {
+                        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$MicrosoftEdgeMarketPlaceSku: $MicrosoftEdgeMarketPlaceSku"
+                        $MicrosoftEdgeMarketPlaceSkuVersions = $MicrosoftEdgeMarketPlaceSku.marketplaceSkuVersions.Name
+                        foreach ($MicrosoftEdgeMarketPlaceSkuVersion in $MicrosoftEdgeMarketPlaceSkuVersions) {
+                            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$MicrosoftEdgeMarketPlaceSkuVersion: $MicrosoftEdgeMarketPlaceSkuVersion"
+                            if ($AsObject) {
+                                $PublisherName, $Offer = $MicrosoftEdgeMarketPlaceOffer.Name -split ":"
+                                $CurrentMicrosoftEdgeMarketPlaceImage = [PScustomObject]@{ClusterId = $CurrentClusterId; PublisherName = $PublisherName; Offer = $Offer; Sku = $MicrosoftEdgeMarketPlaceSku.marketplaceSkuId; Version = $MicrosoftEdgeMarketPlaceSkuVersion }
+                                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentMicrosoftEdgeMarketPlaceImage: $($CurrentMicrosoftEdgeMarketPlaceImage | Out-String)"
+                                $CurrentMicrosoftEdgeMarketPlaceImage
+                            }
+                            else {
+                                $CurrentMicrosoftEdgeMarketPlaceImage = "{0}:{1}:{2}" -f $MicrosoftEdgeMarketPlaceOffer.Name, $MicrosoftEdgeMarketPlaceSku.marketplaceSkuId, $MicrosoftEdgeMarketPlaceSkuVersion
+                                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentMicrosoftEdgeMarketPlaceImage: $CurrentMicrosoftEdgeMarketPlaceImage"
+                                $CurrentMicrosoftEdgeMarketPlaceImage
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        #endregion
+    }
+
+    end {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
+        $MicrosoftEdgeMarketPlaceImage
+    }
+}
+
+<#
+.SYNOPSIS
 Imports Azure Marketplace Windows images into Azure Local.
 
 .DESCRIPTION
@@ -1332,23 +1625,20 @@ function New-AzLocalAVDVMImage {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Location: $Location"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Instance: $Instance"
 
-    $Jobs = foreach ($CurrentURN in $URN) {
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentURN: $CurrentURN"
-        $PublisherName, $Offer, $Sku, $Version = $CurrentURN -split ":"
+    #$MicrosoftEdgeMarketPlaceURNs = Get-MicrosoftEdgeMarketPlaceImage -ResourceGroupName $ResourceGroupName -URN $URN
+    $MicrosoftEdgeMarketPlaceURNs = Get-MicrosoftEdgeMarketPlaceImage -ResourceGroupName $ResourceGroupName -URN $URN -AsObject
+
+    $Jobs = foreach ($CurrentMicrosoftEdgeMarketPlaceURN in $MicrosoftEdgeMarketPlaceURNs) {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentMicrosoftEdgeMarketPlaceURN: $CurrentMicrosoftEdgeMarketPlaceURN"
+        #$PublisherName, $Offer, $Sku, $Version = $CurrentMicrosoftEdgeMarketPlaceURN -split ":"
+        $PublisherName = $CurrentMicrosoftEdgeMarketPlaceURN.PublisherName
+        $Offer = $CurrentMicrosoftEdgeMarketPlaceURN.Offer
+        $Sku = $CurrentMicrosoftEdgeMarketPlaceURN.Sku
+        $Version = $CurrentMicrosoftEdgeMarketPlaceURN.Version
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$PublisherName: $PublisherName"
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Offer: $Offer"
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Sku: $Sku"
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Version: $Version"
-        if ($version = "latest") {
-            # Resolve "latest" because New-AzStackHCIVMImage requires a concrete version.
-            $Versions = (Get-AzVMImage -Location  $Location -PublisherName $PublisherName -Offer $Offer -sku $Sku | Sort-Object -Property Version -Descending).Version
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Versions:`r`n$($Versions | Out-String)"
-            # Use the second newest version because the newest has triggered SAS token generation errors.
-            $Version = $Versions[1]
-            # Use the latest version
-            #$Version = $Versions[0]
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Version: $Version"
-        }
         $ImageName = "{0}-{1}-{2}" -f $Sku, $Instance, $(Get-Date -Format 'yyyyMMddHHmmss')
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ImageName: $ImageName"
         $Parameters = @{
@@ -1508,7 +1798,7 @@ function New-AzLocalAVDVM {
     #We have to put the tag on the Azure Arc machine not on the AzureStackHCI reource itself
     $ResourceId = $VM.Id -replace "/providers/Microsoft.AzureStackHCI/.*"
     $Parameters = @{
-        ResourceId =  $ResourceId
+        ResourceId = $ResourceId
         Tag        = @{ "Image" = $Image.Name }
         Operation  = "Merge"
     }
@@ -1910,7 +2200,7 @@ foreach ($CurrentLAWSupportedRegion in $LAWSupportedRegions) {
             $ScriptString = "Get-ChildItem -Path 'C:\LocalBox\Logs' -Filter *.log -File"
             $AzVMRunCommand = Invoke-AzVMRunCommand  -CommandId 'RunPowerShellScript' -ResourceGroupName $Result.ResourceGroupName -VMName LocalBox-Client -ScriptString $ScriptString
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzVMRunCommand:`r`n$($AzVMRunCommand | Out-String)" #-Verbose
-    		Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$ResourceGroupName' ResourceGroup Deployment:`r`n$(Get-AzResourceGroupDeployment -ResourceGroupName $Result.ResourceGroupName | Select-Object  -Property DeploymentName, ProvisioningState | Out-String)"
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$ResourceGroupName' ResourceGroup Deployment:`r`n$(Get-AzResourceGroupDeployment -ResourceGroupName $Result.ResourceGroupName | Select-Object  -Property DeploymentName, ProvisioningState | Out-String)"
 
             # Complete the cloud deployment:
             # https://jumpstart.azure.com/azure_jumpstart_localbox/cloud_deployment
