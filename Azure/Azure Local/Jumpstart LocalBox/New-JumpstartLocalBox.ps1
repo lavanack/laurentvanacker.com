@@ -18,7 +18,7 @@ of the Sample Code.
 
 # Prerequisites: https://jumpstart.azure.com/azure_jumpstart_localbox/deployment_az
 
-#requires -Version 5 #-Modules Az.Accounts, Az.Compute, Az.Quota, Az.Resources, Az.StackHCI, Az.StackHCIVM
+#requires -Version 5 -Modules 'Az.Accounts', 'Az.Resources', 'Az.Compute', 'Az.Network', 'Az.Quota', 'Az.Security', 'Az.ConnectedMachine', 'Az.Monitor', 'Az.OperationalInsights', 'Az.StackHCI', 'Az.StackHCIVM'
 
 [CmdletBinding(PositionalBinding = $false)]
 param
