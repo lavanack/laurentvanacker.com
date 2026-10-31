@@ -1430,7 +1430,9 @@ function Get-MicrosoftEdgeMarketPlaceImage {
                 if ($ClusterSubcriptionID -ne $SubcriptionID) {
                     Write-Warning -Message "'$CurrentClusterId' is not in the '$SubcriptionID' Subcription. Skipping it ..."
                 }
-                $CurrentClusterId
+                else {
+                    $CurrentClusterId
+                }
             }
         }
         else {
@@ -1626,6 +1628,7 @@ function New-AzLocalAVDVMImage {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Instance: $Instance"
 
     #$MicrosoftEdgeMarketPlaceURNs = Get-MicrosoftEdgeMarketPlaceImage -ResourceGroupName $ResourceGroupName -URN $URN
+    #To list all available images : Get-MicrosoftEdgeMarketPlaceImage -ResourceGroupName $ResourceGroupName -AsObject
     $MicrosoftEdgeMarketPlaceURNs = Get-MicrosoftEdgeMarketPlaceImage -ResourceGroupName $ResourceGroupName -URN $URN -AsObject
 
     $Jobs = foreach ($CurrentMicrosoftEdgeMarketPlaceURN in $MicrosoftEdgeMarketPlaceURNs) {
