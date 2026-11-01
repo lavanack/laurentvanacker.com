@@ -1506,7 +1506,7 @@ function Get-MicrosoftEdgeMarketPlaceImage {
                     }
                     else {
                         if ($Version -notin $MicrosoftEdgeMarketPlaceSkuVersions.Name) {
-                            Write-Warning -Message "Specified '$Version' Version is not part of the avalaible versions : '$($MicrosoftEdgeMarketPlaceSkuVersions.Name -join ',')'. We take the latest one : 'MicrosoftEdgeMarketPlaceSkuLatestVersion'"
+                            Write-Warning -Message "Specified '$Version' Version is not part of the available versions : '$($MicrosoftEdgeMarketPlaceSkuVersions.Name -join ',')'. We take the latest one : 'MicrosoftEdgeMarketPlaceSkuLatestVersion'"
                             $Version = ($MicrosoftEdgeMarketPlaceSkuVersions | Sort-Object -Property Name -Descending | Select-Object -First 1).Name
                             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Version: $Version"
                         }
@@ -1557,6 +1557,7 @@ function Get-MicrosoftEdgeMarketPlaceImage {
     }
 
     end {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$MicrosoftEdgeMarketPlaceImage:`r`n$($MicrosoftEdgeMarketPlaceImage | Out-String)"
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
         $MicrosoftEdgeMarketPlaceImage
     }
