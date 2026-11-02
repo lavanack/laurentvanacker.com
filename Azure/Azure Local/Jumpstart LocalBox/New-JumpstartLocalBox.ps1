@@ -1439,6 +1439,7 @@ function Get-MicrosoftEdgeMarketPlaceImage {
             $ClusterId = @("/subscriptions/$SubcriptionID/resourcegroups/$ResourceGroupName/providers/microsoft.azurestackhci/clusters/$ClusterName")
         }
 
+        #region Azure API request
         foreach ($CurrentClusterId in $ClusterId) {
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentClusterId: $CurrentClusterId"
             $URL = "https://management.azure.com$($CurrentClusterId)/providers/Microsoft.EdgeMarketplace/offers?api-version=2023-08-01-preview"        
