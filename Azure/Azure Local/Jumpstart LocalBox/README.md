@@ -58,6 +58,7 @@ At a high level, the script:
    continuing.
 9. Applies a `CanNotDelete` lock to the successful deployment's resource group,
    whether or not `-AVD` was supplied.
+10. Stops the PowerShell transcript when the workflow reaches its normal end.
 
 ## AVD scenario scope
 
@@ -80,10 +81,13 @@ credentials and logical network established by the main script:
 - **Marketplace images:** The default URNs are
   `MicrosoftWindowsDesktop:office-365:win11-25h2-avd-m365:latest` and
   `MicrosoftWindowsDesktop:windows-11:win11-25h2-avd:latest`.
-  The import helper currently uses the second entry in the descending
-  Marketplace version list to work around SAS token generation errors with
-  the newest version. It does this even when a specific version is supplied
-  to the internal `URN` parameter.
+  The import helper now uses `Get-MicrosoftEdgeMarketPlaceImage` to query
+  offers available to the Azure Local cluster through the
+  `Microsoft.EdgeMarketplace` API, rather than the regional `Get-AzVMImage`
+  catalog. `latest` resolves to the first version in the descending version
+  name list; an explicitly supplied version is retained if available.
+  If that version is unavailable, the helper warns and substitutes the newest
+  listed version. The previous second-newest-version workaround is no longer used.
 - **Compute Gallery images:** The workflow uses `-All` to select the latest
   numerically sorted version of each discovered image definition without an
   interactive picker. Each selected version is exported to a temporary managed
@@ -113,7 +117,10 @@ resource group. If it does, the helper warns and switches to the VM prefix
 followed by a `yyMMddHHmmss` timestamp. The NIC name is derived from the resulting
 VM name. After creating a VM,
 the helper uses `Update-AzTag -Operation Merge` to add an `Image` tag containing
-the source image's name while preserving unrelated existing tags.
+the source image's name to the associated **Azure Arc machine**, not the nested
+Azure Stack HCI resource. It derives the Arc machine resource ID by removing the
+`/providers/Microsoft.AzureStackHCI/...` suffix from the returned VM ID and
+preserves unrelated existing tags.
 
 Creating these images and VMs does **not** by itself deploy or configure Azure
 Virtual Desktop: the script does not create a host pool, workspace, or
@@ -153,8 +160,9 @@ and cluster readiness checks poll every five minutes and do not have a timeout.
   running inside the deployed LocalBox client.
 - Internet connectivity to Azure, the upstream Arc Jumpstart and Azure Naming
   Tool GitHub content, the Marketplace, and the external services the script
-  calls. The script checks Marketplace disk-image URLs and uses an external
-  service to discover the caller's public IPv4 address for JIT access.
+  calls. The script queries cluster-specific Marketplace offers through Azure
+  Resource Manager and uses an external service to discover the caller's public
+  IPv4 address for JIT access.
 - Sufficient regional quota and capacity for the configured VM size. The
   current script sets `Standard_E32s_v6` and checks quota before deploying.
 
@@ -364,7 +372,10 @@ organization's retention requirements.
   port, discovers the caller's public IP through an external service, requests
   temporary access, stores credentials in Credential Manager, and opens RDP.
   Verify the port, access policy, and network exposure meet your organization's
-  requirements.
+  requirements. The RDP helper waits for the client's window title before
+  attempting foreground activation and connection-prompt automation; exceptions
+  in that automation are reported as warnings. Verify the connection manually
+  if the prompts are not completed.
 - **Credentials are handled in multiple places.** The Windows administrator
   password is passed to the Bicep deployment and written to the generated
   parameter file. The helper `Add-RDPCredential` also writes the user name and
@@ -385,7 +396,12 @@ organization's retention requirements.
 
 The file defines helper functions for:
 
-- Generating and checking VM passwords (`New-RandomPassword`).
+- Generating VM passwords (`New-RandomPassword`) and checking them through its
+  nested `Test-PwnedPassword` helper. The breach check uses the Have I Been Pwned
+  range API, sending only the first five hexadecimal characters of the password's
+  SHA-1 hash and comparing the returned suffixes locally.
+- Storing Windows RDP credentials and optionally opening a connection
+  (`Add-RDPCredential`).
 - Querying regional VM and vCPU quota (`Get-AzVMQuota`, `Get-AzCoreQuota`) and
   estimating capacity for a VM SKU (`Get-AzAvailableComputeResourceSku`).
 - Creating the LocalBox resource group and deploying the Bicep template
@@ -397,6 +413,8 @@ The file defines helper functions for:
 - Coordinating the optional image imports, portal image-status view,
   temporary-disk access revocation and cleanup, failure reporting, and sample
   VM jobs (`New-AzLocalAVD`).
+- Discovering cluster-specific Marketplace image versions as URN strings or
+  structured objects (`Get-MicrosoftEdgeMarketPlaceImage`).
 - Importing Windows 11 AVD Marketplace and Compute Gallery images and creating
   Azure Local VMs for AVD scenarios (`New-AzLocalAVDVMImage`,
   `New-AzureLocalVMImageFromAzureComputeGalleryImage`, and `New-AzLocalAVDVM`).
@@ -404,6 +422,42 @@ The file defines helper functions for:
 These functions are defined in a script that also runs the full workflow at the
 end of the file. It is therefore **not a function-only module**: dot-sourcing
 the file to import functions also executes its deployment workflow.
+
+### Function help
+
+All 15 functions, including the nested `Test-PwnedPassword` helper, have
+comment-based help with a synopsis, description, documentation for every declared
+parameter, and at least one example. The deployment helper also documents its
+`Credential` parameter set as an alternative to separate administrator username
+and password parameters.
+
+Read the help blocks in [`New-JumpstartLocalBox.ps1`](./New-JumpstartLocalBox.ps1)
+without running the deployment. In a session where the relevant helper definitions
+are already loaded, use PowerShell's help commands:
+
+```powershell
+Get-Help New-JumpstartLocalBox -Full
+Get-Help Get-MicrosoftEdgeMarketPlaceImage -Examples
+Get-Help New-AzLocalAVD -Parameter AsAJob
+```
+
+Do not dot-source the script solely to load help: doing so starts the deployment.
+The nested password-check helper is local to `New-RandomPassword`, not a
+standalone command available after loading the outer function.
+
+### Marketplace discovery helper
+
+`Get-MicrosoftEdgeMarketPlaceImage` accepts either `ResourceGroupName` with an
+optional `ClusterName` (default: `localboxcluster`), or one or more Azure Stack HCI
+cluster objects through `-Cluster` or the pipeline. It uses the current Azure
+context and queries offers through the Azure Resource Manager batch endpoint.
+Use clusters in the active subscription.
+
+Without `-URN`, it lists every available SKU version. `-URN` accepts one or more
+`publisher:offer:sku:version` identifiers and applies the version-resolution rules
+described above. The default output is URN strings; `-AsObject` returns objects
+with `ClusterId`, `PublisherName`, `Offer`, `Sku`, and `Version`, which the import
+helper uses directly.
 
 ## Troubleshooting and further reading
 

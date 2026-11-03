@@ -166,6 +166,7 @@ function New-AzureSoftwareContainer {
 	$VNetAddressRange = '10.0.0.0/16'
 	$SubnetAddressRange = '10.0.1.0/24'
 
+    #region Create the virtual network
 	#Add an NSG rule
 	$NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NetworkSecurityGroupName -Force
 	$null = $NetworkSecurityGroup | Add-AzNetworkSecurityRuleConfig -Name AzureImageBuilderAccess -Description "Allow Image Builder Private Link Access to Proxy VM" -Access Allow -Protocol Tcp -Direction Inbound -Priority 400 -SourceAddressPrefix AzureLoadBalancer -SourcePortRange * -DestinationAddressPrefix VirtualNetwork -DestinationPortRange 60000-60001 | Set-AzNetworkSecurityGroup
@@ -689,9 +690,6 @@ function New-AzureComputeGallery {
     #endregion
 
 	$StorageBlob = Get-AzStorageBlob -Container $StorageContainer.Name -Context $StorageContainer.Context
-	$NonPowerShellScriptStorageBlob = $StorageBlob | Where-Object -FilterScript { $_.Name -notmatch "\.ps1$" } | Sort-Object -Property Name
-	$PowerShellScriptStorageBlob = $StorageBlob | Where-Object -FilterScript { $_.Name -match "\.ps1$" } | Sort-Object -Property Name
-	$StorageBlob = @($NonPowerShellScriptStorageBlob) + @($PowerShellScriptStorageBlob)
 	$StorageBlobCustomizers = foreach ($CurrentStorageBlob in $StorageBlob) {
         $CurrentStorageBlobSASToken = New-AzStorageBlobSASToken -Container $StorageContainer.Name -Blob $CurrentStorageBlob.Name -Permission rl -Context $StorageContainer.Context -FullUri -StartTime $StartTime -ExpiryTime $ExpiryTime
 		$Destination = Join-Path "C:\AVDImage" -ChildPath $CurrentStorageBlob.Name
@@ -716,6 +714,7 @@ function New-AzureComputeGallery {
 			New-AzImageBuilderTemplateCustomizerObject @CurrentStorageBlobPowerShellCustomizerParams 
 		}
 	}
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$StorageBlobCustomizers:`r`n$($StorageBlobCustomizers | Out-string)"
 
 	$ImgCopyInstallLanguagePacksFileCustomizerParams = @{  
 		FileCustomizer = $true  
@@ -796,9 +795,9 @@ function New-AzureComputeGallery {
 	$DisableAutoUpdatesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgDisableAutoUpdatesPowerShellCustomizerParams 
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
-	#As $StorageBlobCustomizers is an array we force the two first items in an array so $Customize will be cast as an array
-	#$Customize = @($StorageBlobCustomizers) + @($TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $DisableAutoUpdatesCustomizer)
+	#As $StorageBlobCustomizers is an array we force the first items in an array so $Customize will be cast as an array
 	$Customize = @($CopyInstallLanguagePacksCustomizer, $InstallLanguagePacksCustomizer, $LanguagePacksWindowsUpdateCustomizer, $LanguagePacksWindowsRestartCustomizer) + @($StorageBlobCustomizers) + @($TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $WindowsUpdateCustomizer, $WindowsUpdateWindowsRestartCustomizer, $DisableAutoUpdatesCustomizer)
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Customize:`r`n$($Customize | Out-string)"
 	$ImgTemplateParams = @{
 		ImageTemplateName      = $imageTemplateNamePowerShell
 		ResourceGroupName      = $ResourceGroupName
