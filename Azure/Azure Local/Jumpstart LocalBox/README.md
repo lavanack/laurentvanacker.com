@@ -33,15 +33,18 @@ At a high level, the script:
 2. Signs in to Azure if the current Az PowerShell context cannot obtain an
    access token, registers the resource providers it needs, and waits for
    registration to finish.
-3. Checks that both the Bicep CLI and Git are available, then clones or updates the
+3. Checks that both the Bicep CLI and Git are available, then calls the
+   `New-JumpstartLocalBox` coordinator with the explicitly supplied script
+   parameters. The coordinator clones or updates the
    [Microsoft `azure_arc` repository](https://github.com/microsoft/azure_arc)
    containing the LocalBox Bicep templates.
 4. Prompts for the LocalBox Windows administrator credentials, then checks
    regional VM quota for the configured VM size before each region's deployment
    attempts.
-5. Creates a uniquely named resource group and deploys the LocalBox Bicep
-   template. The deployment creates the Azure-hosted LocalBox client and the
-   supporting infrastructure for its nested Azure Local environment.
+5. Calls `New-JumpstartLocalBoxDeployment` for each deployment attempt to create
+   a uniquely named resource group and deploy the LocalBox Bicep template. The
+   deployment creates the Azure-hosted LocalBox client and the supporting
+   infrastructure for its nested Azure Local environment.
 6. Configures the client VM's DNS name, stores its RDP credentials in Windows
    Credential Manager, configures Just-in-Time (JIT) VM access, and opens an
    RDP session.
@@ -148,11 +151,12 @@ and cluster readiness checks poll every five minutes and do not have a timeout.
   documentation](https://jumpstart.azure.com/azure_jumpstart_localbox/deployment_az).
   Follow that documentation when assigning permissions for this automated
   deployment.
-- Azure PowerShell modules compatible with the Azure services and commands used
-  in the script. These include Az.Accounts, Az.Resources, Az.Compute, Az.Quota,
-  Az.StackHCI, Az.StackHCIVM, and the modules that provide the Azure Monitor,
-  Connected Machine, networking, and VM commands. The script does not install
-  or pin module versions.
+- The Azure PowerShell modules declared in the script's `#requires` directive:
+  Az.Accounts, Az.Resources, Az.Compute, Az.Network, Az.Quota, Az.Security,
+  Az.ConnectedMachine, Az.Monitor, Az.OperationalInsights, Az.StackHCI, and
+  Az.StackHCIVM. PowerShell checks these requirements before running the script,
+  including its Azure sign-in loop. The script does not install or pin module
+  versions.
 - The **Bicep CLI** and **Git** available on the machine running this script.
   The script checks both commands with `Get-Command` and stops with an
   installation message if either is missing. It uses Git to clone or update
@@ -164,7 +168,8 @@ and cluster readiness checks poll every five minutes and do not have a timeout.
   Resource Manager and uses an external service to discover the caller's public
   IPv4 address for JIT access.
 - Sufficient regional quota and capacity for the configured VM size. The
-  current script sets `Standard_E32s_v6` and checks quota before deploying.
+  script defaults to `Standard_E32s_v6`, accepts `Standard_E32s_v5` through
+  `-vmSize`, and checks quota before deploying.
 
 If Bicep or Git is missing, the script suggests these installation commands.
 Install the missing tools before running the deployment:
@@ -182,27 +187,32 @@ templates and Azure services evolve.
 
 ### Review the configuration in this copy
 
-Several values in the script's main section are fixed in code and may not match
-the defaults or parameters documented by upstream Jumpstart:
+The script exposes deployment-selection settings as parameters, while other
+choices remain fixed in its helper functions and may not match the defaults
+documented by upstream Jumpstart:
 
-- `$VMSize` is set to `Standard_E32s_v6` and is used for both the regional
-  quota check and the `New-JumpstartLocalBox -vmSize` deployment argument.
-  The function accepts `Standard_E32s_v5` or `Standard_E32s_v6`; changing the
-  assignment therefore changes both the checked and deployed VM SKU.
-- `$GitDir` is set to `C:\Source Control\GitHub\Cloned repositories`.
-  Change it to a writable directory if that path does not exist or is not
-  appropriate for your environment.
+- `-vmSize` defaults to `Standard_E32s_v6` and accepts `Standard_E32s_v5`
+  or `Standard_E32s_v6`. The selected value is used for both the regional
+  quota check and the actual deployment.
+- `-GitDir` defaults to `C:\Source Control\GitHub\Cloned repositories`.
+  Supply a writable directory appropriate for your environment. The coordinator
+  clones `azure_arc` there if its Bicep directory is missing, or runs `git pull`
+  on an existing checkout.
+- `-SubscriptionId` defaults to the active Az context's subscription ID and
+  selects the subscription used for quota checks. It does **not** switch the
+  active Azure context; deployment and provider registration use that context.
+  Sign in and select the intended subscription before launching the script.
 - The script's `Location` and `azureLocalInstanceLocation` parameters are
   optional and have no fixed defaults. When omitted, the script discovers
   Log Analytics-compatible deployment regions and uses its built-in list of
   eight Azure Local instance regions. They are separate settings: `Location`
   selects the deployment and Log Analytics region, while
   `azureLocalInstanceLocation` selects the Azure Local instance region. The
-  sample region assignments in the main section are comments and do not
+  sample region assignments in the coordinator are comments and do not
   override the parameters or automatic region selection.
 - The deployment call enables Azure Spot pricing and automatic cluster-resource
   upgrades. Spot capacity may be unavailable or the VM may be evicted.
-- `New-JumpstartLocalBox` defaults `governResourceTags` to `true`. In the
+- `New-JumpstartLocalBoxDeployment` defaults `governResourceTags` to `true`. In the
   upstream template, the related governance tags are intended for Microsoft
   internal lab tenants. Review this setting and the `tags` parameter before
   deploying to any other tenant.
@@ -211,26 +221,35 @@ the defaults or parameters documented by upstream Jumpstart:
 
 To restrict deployment attempts to specific supported regions, pass them when
 launching the script.
-Changing the VM size still requires editing the `$VMSize` assignment in the
-script's main section. The parameters below are the only top-level inputs to
-the script; the numerous parameters documented for `New-JumpstartLocalBox`
-belong to an internal function and are not individually exposed by the
-standalone script.
+Use `-vmSize`, `-GitDir`, and `-SubscriptionId` to customize the other exposed
+settings without editing the script. The additional Bicep settings accepted by
+`New-JumpstartLocalBoxDeployment` are not individually exposed by the standalone
+script.
 
 ### Script input parameters
 
-The script exposes three optional top-level parameters:
+The script exposes six optional top-level parameters:
 
 | Parameter                    | Type       | Behavior when omitted                                                                                                                                 | Purpose                                                                                                                                                                                                   |
 | ---------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Location`                   | `string[]` | Discovers and sorts regions that list `Microsoft.OperationalInsights` as a provider and whose display names match the provider's workspace locations. | Deployment region, including the Log Analytics workspace. Each supplied value must be available for Log Analytics in the current Azure context.                                                           |
 | `azureLocalInstanceLocation` | `string[]` | Tries the eight supported regions in the order listed here.                                                                                           | Azure Local instance registration region. Each supplied value must be one of `australiaeast`, `southcentralus`, `eastus`, `westeurope`, `southeastasia`, `canadacentral`, `japaneast`, or `centralindia`. |
+| `vmSize` | `string` | Uses `Standard_E32s_v6`. | LocalBox host VM SKU for both quota checks and deployment. Accepts `Standard_E32s_v5` or `Standard_E32s_v6`. |
+| `SubscriptionId` | `string` | Uses `(Get-AzContext).Subscription.Id`. | Subscription used for quota checks; does not change the active deployment context. Keep it aligned with the active subscription. |
+| `GitDir` | `string` | Uses `C:\Source Control\GitHub\Cloned repositories`. | Parent directory for the `azure_arc` Git checkout containing the LocalBox Bicep templates. |
 | `AVD`                        | `switch`   | Disabled; skips the additional AVD image and VM workflow.                                                                                             | Enables Marketplace and Azure Compute Gallery image imports, temporary export-disk cleanup, and sample Azure Local VM creation after LocalBox configuration.                                              |
 
 You can omit either region parameter independently: the omitted parameter uses its
 automatic region list, while the supplied parameter restricts that side of the
 deployment combinations. Omitting both parameters enables the broadest search;
 it does not select `centralindia` by default.
+Only explicitly supplied parameters are forwarded to the coordinator;
+omitted parameters use the coordinator's defaults, omitted regions are not
+passed as null values, and the two region inputs are forwarded independently.
+The main section calls `New-JumpstartLocalBox @PSBoundParameters`, also forwarding
+explicit common parameters such as `-Verbose`. The coordinator handles template
+checkout, region selection, quota checks, deployment retries, and post-deployment
+configuration; `New-JumpstartLocalBoxDeployment` performs each Bicep deployment.
 
 Both region parameters accept one or more regions. They can be different because
 `Location` controls where the Azure-hosted deployment resources are created,
@@ -246,7 +265,7 @@ values to each parameter therefore provides up to four deployment combinations:
 ```
 
 For each `Location`, the script first checks whether the subscription has
-remaining quota for at least one VM of the fixed `$VMSize`. A location with no
+remaining quota for at least one VM of the selected `-vmSize`. A location with no
 reported quota is skipped; a positive quota check does not guarantee that Azure
 has capacity to deploy the VM. If deployment fails, the script requests removal
 of that attempt's generated resource group and tries the next
@@ -262,12 +281,11 @@ re-running the script; leftover resources can continue to incur charges. If no
 configured combination succeeds, the LocalBox configuration and any requested
 AVD image/VM steps do not have a successful deployment to continue with.
 
-These are the only parameters accepted by the script when launched. Other
-deployment choices, including the VM size, Spot pricing, automatic cluster
-resource upgrades, and Git checkout path, are currently set in the script and
-must be changed there. The script also accepts common PowerShell parameters
-such as `-Verbose`; `-vmSize` is an internal function parameter, not a
-top-level script parameter.
+These are the only application-specific parameters accepted by the script when
+launched. Other deployment choices, including Spot pricing, automatic cluster
+resource upgrades, Bastion, and governance tags, remain set inside the helper
+functions and must be changed there. The script also accepts common PowerShell
+parameters such as `-Verbose`.
 
 ## Run the deployment
 
@@ -276,6 +294,14 @@ top-level script parameter.
    guides.
 2. Review the configuration and security/cost notes in this README and in the
    script. Confirm the active Azure tenant and subscription before proceeding.
+   Sign in and select the intended subscription first, particularly when using
+   explicit regions or `-SubscriptionId`: region validation and subscription
+   defaults are evaluated before the main section's sign-in loop.
+
+   ```powershell
+   Connect-AzAccount
+   Set-AzContext -Subscription '<subscription-id>'
+   ```
 3. Open a PowerShell session in this folder and run:
 
    ```powershell
@@ -317,6 +343,18 @@ To use `centralindia` for both regions, specify it explicitly:
 
 ```powershell
 .\New-JumpstartLocalBox.ps1 -Location 'centralindia' -azureLocalInstanceLocation 'centralindia'
+```
+
+To choose the v5 host VM SKU and a different template checkout directory:
+
+```powershell
+.\New-JumpstartLocalBox.ps1 `
+  -Location 'centralus' `
+  -azureLocalInstanceLocation 'southcentralus' `
+  -vmSize 'Standard_E32s_v5' `
+  -GitDir 'C:\Jumpstart' `
+  -SubscriptionId (Get-AzContext).Subscription.Id `
+  -Verbose
 ```
 
 To include the optional AVD image and VM workflow, add `-AVD`. For example,
@@ -404,8 +442,10 @@ The file defines helper functions for:
   (`Add-RDPCredential`).
 - Querying regional VM and vCPU quota (`Get-AzVMQuota`, `Get-AzCoreQuota`) and
   estimating capacity for a VM SKU (`Get-AzAvailableComputeResourceSku`).
-- Creating the LocalBox resource group and deploying the Bicep template
-  (`New-JumpstartLocalBox`).
+- Coordinating template checkout, region selection, quota checks, deployment
+  retries, and post-deployment configuration (`New-JumpstartLocalBox`).
+- Creating the LocalBox resource group and deploying the Bicep template for
+  each attempt (`New-JumpstartLocalBoxDeployment`).
 - Waiting for Azure Arc machines and the Azure Local cluster
   (`Wait-AzConnectedMachine`).
 - Configuring Azure Monitor collection (`Set-LocalClusterInsightSetup`).
@@ -425,7 +465,8 @@ the file to import functions also executes its deployment workflow.
 
 ### Function help
 
-All 15 functions, including the nested `Test-PwnedPassword` helper, have
+All 16 helpers, including the `New-JumpstartLocalBox` coordinator and the nested
+`Test-PwnedPassword` helper, have
 comment-based help with a synopsis, description, documentation for every declared
 parameter, and at least one example. The deployment helper also documents its
 `Credential` parameter set as an alternative to separate administrator username
@@ -437,6 +478,7 @@ are already loaded, use PowerShell's help commands:
 
 ```powershell
 Get-Help New-JumpstartLocalBox -Full
+Get-Help New-JumpstartLocalBoxDeployment -Full
 Get-Help Get-MicrosoftEdgeMarketPlaceImage -Examples
 Get-Help New-AzLocalAVD -Parameter AsAJob
 ```

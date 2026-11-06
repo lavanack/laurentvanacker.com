@@ -24,10 +24,15 @@ of the Sample Code.
 param
 (
     # Log Analytics workspace regions:
-    [ValidateScript({ $_ -in $($OperationalInsightLocations = ((Get-AzResourceProvider -ProviderNamespace 'Microsoft.OperationalInsights').ResourceTypes | Where-Object -FilterScript { $_.ResourceTypeName -eq 'workspaces' }).Locations; (Get-AzLocation | Where-Object -FilterScript { $_.DisplayName -in $OperationalInsightLocations }).Location) })]
+    [ValidateScript({ ($_ -in $($OperationalInsightLocations = ((Get-AzResourceProvider -ProviderNamespace 'Microsoft.OperationalInsights').ResourceTypes | Where-Object -FilterScript { $_.ResourceTypeName -eq 'workspaces' }).Locations; (Get-AzLocation | Where-Object -FilterScript { $_.DisplayName -in $OperationalInsightLocations }).Location)) })]
     [string[]] $Location,
     [ValidateSet('australiaeast', 'southcentralus', 'eastus', 'westeurope', 'southeastasia', 'canadacentral', 'japaneast', 'centralindia')]
     [string[]] $azureLocalInstanceLocation,
+    [ValidateSet('Standard_E32s_v5', 'Standard_E32s_v6')]
+    [string] $vmSize = 'Standard_E32s_v6',
+    [string] $SubscriptionId = (Get-AzContext).Subscription.Id,
+    #Customize with your own path
+    [string] $GitDir = "C:\Source Control\GitHub\Cloned repositories",
     [switch] $AVD
 )
 <#
@@ -557,14 +562,14 @@ Specifies tags assigned to deployed Azure resources.
 Specifies the directory containing main.bicep.
 
 .EXAMPLE
-New-JumpstartLocalBox -Credential (Get-Credential) -BicepFileDir 'C:\Jumpstart\LocalBox'
+New-JumpstartLocalBoxDeployment -Credential (Get-Credential) -BicepFileDir 'C:\Jumpstart\LocalBox'
 
 Deploys LocalBox using the supplied administrator credentials and Bicep directory.
 
 .OUTPUTS
 System.Boolean. Returns true for a successful deployment and false after a failure.
 #>
-function New-JumpstartLocalBox {
+function New-JumpstartLocalBoxDeployment {
     [CmdletBinding(PositionalBinding = $false, DefaultParameterSetName = 'WindowsAdmin')]
     param
     (
@@ -769,6 +774,171 @@ param tags = $(($tags | ConvertTo-Json).Replace('"', "'") -replace '''(.*)'':', 
 
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
         return [PSCustomObject]@{Succeeded = $true; ResourceGroupName = $ResourceGroupName; Location = $Location }
+    }
+}
+
+<#
+.SYNOPSIS
+Deploys and configures an Azure Arc Jumpstart LocalBox environment.
+
+.DESCRIPTION
+Clones or updates the Azure Arc Jumpstart repository and prompts for administrator
+credentials. Checks regional VM quota and retries deployment across candidate
+hosting and Azure Local instance regions until a deployment succeeds. Waits for
+the Arc-connected nodes and cluster, configures monitoring and the logical network,
+optionally starts Azure Virtual Desktop provisioning, and applies a CanNotDelete
+resource group lock.
+
+.PARAMETER Location
+Specifies candidate Azure hosting regions that support Log Analytics workspaces.
+When omitted, queries supported regions and tries them in sorted order.
+
+.PARAMETER azureLocalInstanceLocation
+Specifies candidate Azure Local instance regions. When omitted, tries all regions
+listed in this parameter's validation set.
+
+.PARAMETER vmSize
+Specifies the LocalBox host VM size. Defaults to Standard_E32s_v6.
+
+.PARAMETER SubscriptionId
+Specifies the subscription used for regional quota checks. Defaults to the current
+Azure context's subscription. Deployment uses the active Azure context.
+
+.PARAMETER GitDir
+Specifies the parent directory for the azure_arc repository clone. Defaults to
+C:\Source Control\GitHub\Cloned repositories. An existing clone is updated with git pull.
+
+.PARAMETER AVD
+Starts Azure Local image and VM provisioning for Azure Virtual Desktop as jobs
+after the LocalBox deployment is ready.
+
+.EXAMPLE
+New-JumpstartLocalBox -Location 'centralus' -azureLocalInstanceLocation 'southcentralus' -AVD
+
+Deploys LocalBox using the specified regions and starts Azure Virtual Desktop
+provisioning after configuring the cluster.
+#>
+function New-JumpstartLocalBox {
+    [CmdletBinding(PositionalBinding = $false)]
+    param
+    (
+        # Log Analytics workspace regions:
+        [ValidateScript({ ($_ -in $($OperationalInsightLocations = ((Get-AzResourceProvider -ProviderNamespace 'Microsoft.OperationalInsights').ResourceTypes | Where-Object -FilterScript { $_.ResourceTypeName -eq 'workspaces' }).Locations; (Get-AzLocation | Where-Object -FilterScript { $_.DisplayName -in $OperationalInsightLocations }).Location)) })]
+        [string[]] $Location,
+        [ValidateSet('australiaeast', 'southcentralus', 'eastus', 'westeurope', 'southeastasia', 'canadacentral', 'japaneast', 'centralindia')]
+        [string[]] $azureLocalInstanceLocation,
+        [ValidateSet('Standard_E32s_v5', 'Standard_E32s_v6')]
+        [string] $vmSize = 'Standard_E32s_v6',
+        [string] $SubscriptionId = (Get-AzContext).Subscription.Id,
+        #Customize with your own path
+        [string] $GitDir = "C:\Source Control\GitHub\Cloned repositories",
+        [switch] $AVD
+    )
+
+    $BicepFileDir = Join-Path -Path $GitDir -ChildPath "azure_arc\azure_jumpstart_localbox\bicep"
+    if (-not(Test-Path -Path $BicepFileDir -PathType Container)) {
+        $null = New-Item -Path $GitDir -ItemType Directory -Force
+        Push-Location -Path $GitDir
+        git clone https://github.com/microsoft/azure_arc.git
+        Pop-Location
+    }
+    else {
+        Push-Location -Path $(Join-Path -Path $GitDir -ChildPath "azure_arc")
+        git pull
+        Pop-Location
+    }
+
+    if ($null -ne $azureLocalInstanceLocation) {
+        $AzureLocalInstanceLocations = $AzureLocalInstanceLocation
+    }
+    else {
+        # Deployment source:
+        # https://jumpstart.azure.com/azure_jumpstart_localbox/deployment_az
+        $AzureLocalInstanceLocations = 'australiaeast', 'southcentralus', 'eastus', 'westeurope', 'southeastasia', 'canadacentral', 'japaneast', 'centralindia'
+    }
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzureLocalInstanceLocations:`r`n$($AzureLocalInstanceLocations | Out-String)"
+
+    if ($null -ne $Location) {
+        $LAWSupportedRegions = $Location
+    }
+    else {
+        # Query regions that support Log Analytics workspaces.
+        # Intersect provider-supported display names with canoNICal Azure location identifiers.
+        $LAWSupportedDisplayNameRegions = ((Get-AzResourceProvider -ProviderNamespace Microsoft.OperationalInsights).ResourceTypes | Where-Object -FilterScript { $_.ResourceTypeName -eq 'workspaces' }).Locations
+        $LAWSupportedRegions = (Get-AzLocation | Where-Object { $_.Providers -contains "Microsoft.OperationalInsights" -and ($_.DisplayName -in $LAWSupportedDisplayNameRegions) }).Location | Sort-Object
+    }
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$LAWSupportedRegions:`r`n$($LAWSupportedRegions | Out-String)"
+    <#
+    # Example deployment with explicit region parameters.
+    #Sample 1
+    $LAWSupportedRegions = "centralus"
+    $AzureLocalInstanceLocations = "southcentralus"
+
+    #Sample 2
+    $LAWSupportedRegions = @("centralindia")
+    $AzureLocalInstanceLocations = @("centralindia")
+    #>
+
+    $Credential = Get-Credential -Message "Enter the required credentials" -UserName $env:USERNAME
+    # Try each Log Analytics-compatible region that has enough capacity for the requested VM SKU.
+    foreach ($CurrentLAWSupportedRegion in $LAWSupportedRegions) {
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentLAWSupportedRegion: $CurrentLAWSupportedRegion"
+        # Check whether the region has capacity for at least one VM of the requested SKU.
+        $AvailableComputeResourceSku = Get-AzAvailableComputeResourceSku -Location $CurrentLAWSupportedRegion -ComputeResourceSku $VMSize -SubscriptionId $SubscriptionId
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AvailableComputeResourceSku:`r`n$($AvailableComputeResourceSku | Out-String)"
+        if ($AvailableComputeResourceSku.Available -gt 0) {
+            # Retry the deployment across supported Azure Local instance regions until one succeeds.
+            foreach ($CurrentAzureLocalInstanceLocation in $AzureLocalInstanceLocations) {
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzureLocalInstanceLocation: $CurrentAzureLocalInstanceLocation"
+                #Enabling enableAzureSpotPricing for cost optimization
+                $Result = New-JumpstartLocalBoxDeployment -Credential $Credential -azureLocalInstanceLocation $CurrentAzureLocalInstanceLocation -Location $CurrentLAWSupportedRegion -BicepFileDir $BicepFileDir -enableAzureSpotPricing $true -autoUpgradeClusterResource $true -vmSize $VMSize
+                if ($Result.Succeeded) {
+                    Write-Host -Object "The Jumpstart LocalBox Deployment Succeeded !!!" -ForegroundColor Green
+                    break
+                }
+                else {
+                    Write-Host -Object "The Jumpstart LocalBox Deployment Failed !!!. We will automatically try other locations ..." -ForegroundColor Red
+                }
+            }
+        
+            #$Result = Get-AzResourceGroup -ResourceGroupName "rg-az-local-inc-*" | Out-GridView -OutputMode Single | Select-Object -Property ResourceGroupName, Location, @{Name="Succeeded"; Expression = {$true}}
+
+            if ($Result.Succeeded) {
+                Start-Sleep -Seconds 300
+                $ScriptString = "Get-ChildItem -Path 'C:\LocalBox\Logs' -Filter *.log -File"
+                $AzVMRunCommand = Invoke-AzVMRunCommand  -CommandId 'RunPowerShellScript' -ResourceGroupName $Result.ResourceGroupName -VMName LocalBox-Client -ScriptString $ScriptString
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzVMRunCommand:`r`n$($AzVMRunCommand | Out-String)" #-Verbose
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$ResourceGroupName' ResourceGroup Deployment:`r`n$(Get-AzResourceGroupDeployment -ResourceGroupName $Result.ResourceGroupName | Select-Object  -Property DeploymentName, ProvisioningState | Out-String)"
+
+                # Complete the cloud deployment:
+                # https://jumpstart.azure.com/azure_jumpstart_localbox/cloud_deployment
+                Wait-AzConnectedMachine -ResourceGroupName $Result.ResourceGroupName
+            
+                # Configure the LocalBox environment:
+                # https://jumpstart.azure.com/azure_jumpstart_localbox/using_localbox
+                Set-LocalClusterInsightSetup -ResourceGroupName $Result.ResourceGroupName
+
+                $LogicalNetwork = New-VMLogicalNetwork -ResourceGroupName $Result.ResourceGroupName
+
+                #region AVD
+                if ($AVD) {
+                    New-AzLocalAVD -ResourceGroupName $Result.ResourceGroupName -AsAJob
+                }
+                #endregion
+
+                #region Protect the resource group from accidental deletion
+                $null = New-AzResourceLock -LockName CanNotDelete -LockLevel CanNotDelete -ResourceGroupName $Result.ResourceGroupName -Force
+                #endregion
+                break
+            }
+            else {
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Removing: $($Result.ResourceGroupName) ResourceGroup (As Job)..."
+                $null = Remove-AzResourceGroup -ResourceGroupName $Result.ResourceGroupName -AsJob -Force
+            }
+        }
+        else {
+            Write-Warning -Message "No available Quota for '$VMSize' in the '$LAWSupportedRegion' Azure location. We will automatically try other locations ..."
+        }
     }
 }
 
@@ -2122,121 +2292,7 @@ else {
 #endregion
 #endregion
 
-<#
-$LAWSupportedRegions = ((Get-AzResourceProvider -ProviderNamespace Microsoft.OperationalInsights).ResourceTypes | Where-Object ResourceTypeName -eq 'workspaces' | Select-Object -ExpandProperty Locations | Sort-Object)
-$azureLocalInstanceLocations = "australiaeast", "southcentralus", "eastus", "westeurope", "southeastasia", "canadacentral", "japaneast", "centralindia"
-#>
-
-$SubscriptionId = (Get-AzContext).Subscription.Id
-
-$VMSize = "Standard_E32s_v6"
-#Customize with your own path
-$GitDir = "C:\Source Control\GitHub\Cloned repositories"
-$BicepFileDir = Join-Path -Path $GitDir -ChildPath "azure_arc\azure_jumpstart_localbox\bicep"
-if (-not(Test-Path -Path $BicepFileDir -PathType Container)) {
-    $null = New-Item -Path $GitDir -ItemType Directory -Force
-    Push-Location -Path $GitDir
-    git clone https://github.com/microsoft/azure_arc.git
-    Pop-Location
-}
-else {
-    Push-Location -Path $(Join-Path -Path $GitDir -ChildPath "azure_arc")
-    git pull
-    Pop-Location
-}
-
-if ($null -ne $azureLocalInstanceLocation) {
-    $AzureLocalInstanceLocations = $AzureLocalInstanceLocation
-}
-else {
-    # Deployment source:
-    # https://jumpstart.azure.com/azure_jumpstart_localbox/deployment_az
-    $AzureLocalInstanceLocations = 'australiaeast', 'southcentralus', 'eastus', 'westeurope', 'southeastasia', 'canadacentral', 'japaneast', 'centralindia'
-}
-Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzureLocalInstanceLocations:`r`n$($AzureLocalInstanceLocations | Out-String)"
-
-if ($null -ne $Location) {
-    $LAWSupportedRegions = $Location
-}
-else {
-    # Query regions that support Log Analytics workspaces.
-    # Intersect provider-supported display names with canoNICal Azure location identifiers.
-    $LAWSupportedDisplayNameRegions = ((Get-AzResourceProvider -ProviderNamespace Microsoft.OperationalInsights).ResourceTypes | Where-Object -FilterScript { $_.ResourceTypeName -eq 'workspaces' }).Locations
-    $LAWSupportedRegions = (Get-AzLocation | Where-Object { $_.Providers -contains "Microsoft.OperationalInsights" -and ($_.DisplayName -in $LAWSupportedDisplayNameRegions) }).Location | Sort-Object
-}
-Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$LAWSupportedRegions:`r`n$($LAWSupportedRegions | Out-String)"
-<#
-# Example deployment with explicit region parameters.
-#Sample 1
-$LAWSupportedRegions = "centralus"
-$AzureLocalInstanceLocations = "southcentralus"
-
-#Sample 2
-$LAWSupportedRegions = @("centralindia")
-$AzureLocalInstanceLocations = @("centralindia")
-#>
-
-$Credential = Get-Credential -Message "Enter the required credentials" -UserName $env:USERNAME
-# Try each Log Analytics-compatible region that has enough capacity for the requested VM SKU.
-foreach ($CurrentLAWSupportedRegion in $LAWSupportedRegions) {
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentLAWSupportedRegion: $CurrentLAWSupportedRegion"
-    # Check whether the region has capacity for at least one VM of the requested SKU.
-    $AvailableComputeResourceSku = Get-AzAvailableComputeResourceSku -Location $CurrentLAWSupportedRegion -ComputeResourceSku $VMSize -SubscriptionId $SubscriptionId
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AvailableComputeResourceSku:`r`n$($AvailableComputeResourceSku | Out-String)"
-    if ($AvailableComputeResourceSku.Available -gt 0) {
-        # Retry the deployment across supported Azure Local instance regions until one succeeds.
-        foreach ($CurrentAzureLocalInstanceLocation in $AzureLocalInstanceLocations) {
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzureLocalInstanceLocation: $CurrentAzureLocalInstanceLocation"
-            #Enabling enableAzureSpotPricing for cost optimization
-            $Result = New-JumpstartLocalBox -Credential $Credential -azureLocalInstanceLocation $CurrentAzureLocalInstanceLocation -Location $CurrentLAWSupportedRegion -BicepFileDir $BicepFileDir -enableAzureSpotPricing $true -autoUpgradeClusterResource $true -vmSize $VMSize
-            if ($Result.Succeeded) {
-                Write-Host -Object "The Jumpstart LocalBox Deployment Succeeded !!!" -ForegroundColor Green
-                break
-            }
-            else {
-                Write-Host -Object "The Jumpstart LocalBox Deployment Failed !!!. We will automatically try other locations ..." -ForegroundColor Red
-            }
-        }
-        
-        #$Result = Get-AzResourceGroup -ResourceGroupName "rg-az-local-inc-*" | Out-GridView -OutputMode Single | Select-Object -Property ResourceGroupName, Location, @{Name="Succeeded"; Expression = {$true}}
-
-        if ($Result.Succeeded) {
-            Start-Sleep -Seconds 300
-            $ScriptString = "Get-ChildItem -Path 'C:\LocalBox\Logs' -Filter *.log -File"
-            $AzVMRunCommand = Invoke-AzVMRunCommand  -CommandId 'RunPowerShellScript' -ResourceGroupName $Result.ResourceGroupName -VMName LocalBox-Client -ScriptString $ScriptString
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzVMRunCommand:`r`n$($AzVMRunCommand | Out-String)" #-Verbose
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$ResourceGroupName' ResourceGroup Deployment:`r`n$(Get-AzResourceGroupDeployment -ResourceGroupName $Result.ResourceGroupName | Select-Object  -Property DeploymentName, ProvisioningState | Out-String)"
-
-            # Complete the cloud deployment:
-            # https://jumpstart.azure.com/azure_jumpstart_localbox/cloud_deployment
-            Wait-AzConnectedMachine -ResourceGroupName $Result.ResourceGroupName
-            
-            # Configure the LocalBox environment:
-            # https://jumpstart.azure.com/azure_jumpstart_localbox/using_localbox
-            Set-LocalClusterInsightSetup -ResourceGroupName $Result.ResourceGroupName
-
-            $LogicalNetwork = New-VMLogicalNetwork -ResourceGroupName $Result.ResourceGroupName
-
-            #region AVD
-            if ($AVD) {
-                New-AzLocalAVD -ResourceGroupName $Result.ResourceGroupName -AsAJob
-            }
-            #endregion
-
-            #region Protect the resource group from accidental deletion
-            $null = New-AzResourceLock -LockName CanNotDelete -LockLevel CanNotDelete -ResourceGroupName $Result.ResourceGroupName -Force
-            #endregion
-            break
-        }
-        else {
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Removing: $($Result.ResourceGroupName) ResourceGroup (As Job)..."
-            $null = Remove-AzResourceGroup -ResourceGroupName $Result.ResourceGroupName -AsJob -Force
-        }
-    }
-    else {
-        Write-Warning -Message "No available Quota for '$VMSize' in the '$LAWSupportedRegion' Azure location. We will automatically try other locations ..."
-    }
-}
+New-JumpstartLocalBox @PSBoundParameters
 
 Write-Host -Object "Done ..." -ForegroundColor Green
 #winget install --exact --id=Microsoft.Sysinternals.Suite --location "C:\Tools" --accept-package-agreements --accept-source-agreements
