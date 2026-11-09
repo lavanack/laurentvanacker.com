@@ -1,0 +1,215 @@
+﻿# AVD FSLogix Architecture and Operations
+
+## 1. Purpose and scope
+
+This document describes FSLogix Profile Containers for the fictional Contoso AVD POC. Use it to investigate slow sign-in or sign-out, temporary profiles, attachment or detach failures, locked containers, missing settings, service failures, storage performance and possible profile integrity issues.
+
+- AVD topology and monitoring: `AVD-Architecture.md`
+- Incident ownership and severity: `AVD-Escalation.md`
+- This document states **expected** values. Inspect the effective configuration and telemetry before drawing conclusions.
+
+## 2. Environment
+
+### AVD environment
+
+| Property                    | Synthetic expected value                  |
+| --------------------------- | ----------------------------------------- |
+| Environment                 | Contoso AVD POC                           |
+| Subscription ID             | `$SubscriptionID`                         |
+| AVD resource group          | `$AVDResourceGroupName`                   |
+| Session host resource group | `$SessionHostResourceGroupName`           |
+| Host pool                   | `$HostPoolName`                           |
+| Host pool type              | `$HostPoolType`                           |
+| Session hosts               | `$SessionHostNames`                       |
+| Operating system            | Windows 11 Enterprise multi-session       |
+| Join type                   | `$JoinType` joined                        |
+| AD DS domain                | `$ADDSDomainName`                         |
+| Image                       | `$ImageName`                              |
+| FSLogix version             | `$FSLogixVersion` |
+| Configuration source        | Group Policy; verify effective policy     |
+
+### Profile container configuration
+
+| Property                           | Synthetic expected value                                                                                               |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| FSLogix Profile Containers enabled | Yes                                                                                                                    |
+| Office containers enabled          | No; Office data resides in the profile container in this example                                                       |
+| Cloud Cache enabled                | No                                                                                                                     |
+| Container format                   | VHDX                                                                                                                   |
+| Container type                     | Dynamic                                                                                                                |
+| Profile storage type               | Azure Files `$FSLogixStoragePerformance`                                                                               |
+| Storage account                    | `$StorageAccountName`                                                                                                  |
+| File share                         | `$FileShareName`                                                                                                       |
+| Profile path                       | `$ProfilePath`                                                                                                         |
+| Naming convention                  | %username%_%sid% (FlipFlopProfileDirectoryName is set to 1)                                                            |
+| Maximum profile size               | 30,000 MB (synthetic expected registry value; not a measured container size)                                           |
+| `redirections.xml` enabled         | Yes                                                                                                                    |
+| `redirections.xml` location        | `$ProfilePath`                                                                                                         |
+| Concurrent user sessions supported | No, per this fictional operating policy; verify actual FSLogix design                                                  |
+
+Profile exclusions : $ProfileExclusions
+
+Do not infer that a missing `redirections.xml` is an error when the feature is disabled. Do not add exclusions or change profile behavior based solely on this example.
+
+## 3. Storage, authentication and permissions
+
+### Storage connectivity
+
+| Property                      | Synthetic expected value                                                                              |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Storage resource group        | `$StorageResourceGroupName`                                                                           |
+| Authentication                | `$JoinType authentication for Azure Files`                                                            |
+| Storage account domain joined | Yes, per this fictional design; verify                                                                |
+| Access path                   | Public Access                                                                                         |
+| Public network access         | Yes                                                                                                   |
+| Private DNS zone              | None                                                                                                  |
+| Expected name resolution      | Storage FQDN resolves to the approved private endpoint IP; record the actual IP outside this template |
+| Required SMB connectivity     | TCP 445 from session hosts to storage endpoint                                                        |
+
+Do not store storage keys, SAS tokens, passwords or connection strings in this file.
+
+### Expected authorization principles
+
+- Confirm the effective Azure Files share-level access model and assignments. `Storage File Data SMB Share Contributor` is an **example role to validate against the actual design**, not a universal instruction to grant it.
+- Confirm the approved file-system ACL design: users can create or access only their own profile container; support administrators have explicitly approved access.
+- Do not assume that a session host computer identity needs direct access in every design; verify the authentication and authorization model actually used.
+- Never change share-level roles, ACLs or inheritance automatically.
+
+## 4. Effective configuration and services
+
+Expected registry root: `HKLM\SOFTWARE\FSLogix\Profiles`.
+
+| Setting                                | Synthetic expected value                              | Check                                                                                                                         |
+| -------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `Enabled`                              | `1`                                                   | Profile Containers enabled                                                                                                    |
+| `VHDLocations`                         | `$ProfilePath`                                        | Approved profile path                                                                                                         |
+| `VolumeType`                           | `VHDX`                                                | Container format                                                                                                              |
+| `IsDynamic`                            | `1`                                                   | Dynamic container                                                                                                             |
+| `SizeInMBs`                            | `30000`                                               | Configured maximum size                                                                                                       |
+| `DeleteLocalProfileWhenVHDShouldApply` | `1`                                                   | Potentially disruptive; verify approved policy before any change                                                              |
+| `FlipFlopProfileDirectoryName`         | `1`                                                   | Verify actual naming convention                                                                                               |
+| `PreventLoginWithFailure`              | `1`                                                   | Sign-in behavior on attachment failure                                                                                        |
+| `PreventLoginWithTempProfile`          | `1`                                                   | Sign-in behavior on temporary profile                                                                                         |
+| `LockedRetryCount`                     | `3`                                                   | Specifies the number of retries attempted when a VHD(x) file is locked (open by another process or computer).                 |
+| `LockedRetryInterval`                  | `15`                                                  | Specifies the number of seconds to wait between retries                                                                       |
+| `RedirXMLSourceFolder`                 | `$ProfilePath`                                        | If configured, document source and file contents                                                                              |
+| `ReAttachIntervalSeconds`              | `15`                                                  | number of seconds to wait between retries when attempting to reattach the VHD(x) container if it's disconnected unexpectedly. |
+| `ReAttachRetryCount`                   | `3`                                                   | Specifies the number of times the system should attempt to reattach the VHD(x) container if it disconnects unexpectedly.      |
+
+Read-only checks on an affected session host:
+
+```powershell
+Get-ItemProperty -Path 'HKLM:\SOFTWARE\FSLogix\Profiles' -ErrorAction SilentlyContinue |
+    Select-Object Enabled,VHDLocations,VolumeType,IsDynamic,SizeInMBs,DeleteLocalProfileWhenVHDShouldApply,FlipFlopProfileDirectoryName,PreventLoginWithFailure,PreventLoginWithTempProfile,LockedRetryCount,LockedRetryInterval,RedirXMLSourceFolder
+
+Get-Service -Name frxsvc -ErrorAction SilentlyContinue
+```
+
+`frxsvc` is expected to be running. Cloud Cache is disabled here, so do not flag an inactive Cloud Cache service as an incident. A stopped service is an observation, not by itself a confirmed root cause. Compare effective policy and registry settings across affected and healthy hosts.
+
+## 5. Monitoring and evidence
+
+Use available sources, and state explicitly when a source is missing:
+
+- FSLogix events and Profile logs around the affected sign-in; confirm actual Windows event channels configured in the environment rather than assuming collection.
+- Local FSLogix logs: `C:\ProgramData\FSLogix\Logs` (especially Profile; ODFC and CloudCache only if used).
+- Session host Windows events, Azure Monitor Agent heartbeat, VM availability, CPU, memory and disk metrics.
+- Azure Files availability, transactions, end-to-end and server latency, throttling, used capacity and share quota.
+- AVD connections, errors, checkpoints, host registration and session host health, where available.
+- DNS, private endpoint and network connectivity observations.
+
+**Missing logs are a telemetry gap, not proof that no error occurred.** Use UTC timestamps and identify the source of every observation.
+
+## 6. Standard investigation procedure
+
+### 6.1 Establish scope
+
+Record affected user(s), start/end time in UTC, host pool, session host, AVD correlation ID if available, whether one or many users are affected, and whether the problem follows the user or the host. Check active and disconnected sessions before considering a locked container.
+
+### 6.2 Build a timeline
+
+Correlate AVD connection initiation, host assignment, Windows authentication, FSLogix attachment attempt, attachment result and desktop availability. For sign-out, correlate session termination and container detach. Separate measured timings from inferred timings.
+
+### 6.3 Check the affected host
+
+Check VM and AVD agent health, `frxsvc`, effective FSLogix policy, FSLogix and Windows events, local free disk space and recent image or policy changes. Compare with a healthy host when possible.
+
+### 6.4 Check storage path and access
+
+From an affected host, where execution is authorized:
+
+```powershell
+Resolve-DnsName '$ProfilePath'
+Test-NetConnection -ComputerName '$ProfilePath' -Port 445
+```
+
+Check whether DNS resolves to the approved private IP; test SMB connectivity, then investigate authentication, share permissions, file-system ACLs, container availability, locks, free space and quota separately. A successful TCP 445 test **does not** prove profile attachment succeeds. Do not mount or alter the container during read-only investigation.
+
+### 6.5 Review FSLogix events and storage metrics
+
+Classify evidence as path unavailable, access denied, locked container, attach/detach failure, temporary profile, capacity issue, service/configuration issue or potential corruption. Align storage latency, throttling and availability to the actual sign-in time. Elevated latency alone does not prove causation.
+
+### 6.6 Classify scope, not root cause
+
+| Pattern                        | Investigate first                                              |
+| ------------------------------ | -------------------------------------------------------------- |
+| One user across multiple hosts | User access, container state, lock or profile-specific issue   |
+| Several users on one host      | Host configuration, service, DNS or network                    |
+| Several users across hosts     | Shared storage, authentication, network or platform dependency |
+| One user on one host           | Host-specific state or stale session                           |
+| After image update             | FSLogix version, image, policy or registry regression          |
+| Mainly at peak hours           | Storage performance, throttling or capacity                    |
+
+These are investigation leads, **not confirmed diagnoses**.
+
+## 7. Symptom-specific guidance
+
+### Temporary or local profile
+
+Check service state, storage path, attachment events, effective `PreventLoginWithTempProfile` and `PreventLoginWithFailure`, local profile presence, access rights and container locks. Do not delete a local profile automatically.
+
+### Locked container
+
+Check active and disconnected sessions, mounts on other hosts, SMB handles, previous host failure and detach events. Do not close a handle or force logoff without approval.
+
+### Long sign-in
+
+Separate AVD connection, authentication, host assignment, Windows sign-in, FSLogix attachment, Group Policy and shell initialization. Attribute delay to FSLogix only when the measured timeline supports it.
+
+### Attachment failure
+
+Check storage reachability, DNS, TCP 445, authentication, share-level and file-system access, lock, container integrity, capacity and exact FSLogix errors. Avoid destructive repair until evidence is preserved and an approved recovery plan exists.
+
+### Cloud Cache (only if enabled later)
+
+Record providers and order, provider health, local cache state and synchronization errors. This section is not applicable to the fictional current design. Never clear cache automatically.
+
+### `redirections.xml` (only if enabled later)
+
+Record the effective `RedirXMLSourceFolder`, the deployed file version and its source repository. Compare the effective exclusions with the approved policy. Do not infer that an excluded folder is lost data without checking where it is stored, and do not change exclusions during an incident without approval.
+
+## 8. Action boundaries
+
+### Allowed read-only investigation
+
+Query events and logs, inspect effective registry and service state, test DNS and TCP 445, inspect storage metrics, review AVD sessions and compare healthy versus affected hosts. Only use capabilities and permissions actually available to the agent; do not claim a command ran unless its result is returned.
+
+### Explicit approval required
+
+Restart FSLogix service or a host; log off or disconnect users; close SMB handles; set drain mode; modify registry, Group Policy, share roles or ACLs; mount, expand, compact or repair a container; remove a host from service. Before proposing an action, state user impact, evidence, approver, rollback and validation.
+
+### Never perform automatically
+
+Delete, rename, detach, replace or copy a user's container; force-logoff active users; recursively reset permissions; change storage authentication; disable security controls; clear Cloud Cache; run VHD repair tools; or change `redirections.xml` exclusions.
+
+## 9. Required investigation output
+
+1. Incident scope: affected users, hosts and UTC time window.
+2. Timeline with source and timestamps.
+3. Confirmed facts, separately from hypotheses.
+4. FSLogix errors, storage observations and supporting evidence.
+5. Missing telemetry, permissions or unresolved questions.
+6. Likely cause with confidence (`Confirmed`, `Probable`, `Possible`, or `Insufficient evidence`).
+7. Recommended next read-only check or remediation.
+8. Approval, expected user impact and rollback for any change.
+9. Post-remediation validation and escalation owner per `AVD-Escalation.md`.

@@ -29,7 +29,7 @@ function New-AzAVDSREAgent {
     param
     (
         [Parameter(Mandatory = $true)]
-        [ValidateScript({$_ -in (Get-AzLocation).Location })]
+        [ValidateScript({ $_ -in (Get-AzLocation).Location })]
         [string] $Location,
 
         [Parameter(Mandatory = $true)]
@@ -61,11 +61,9 @@ function New-AzAVDSREAgent {
     #endregion
 
     #region Resource Naming
-    $AzureVMNameMaxLength = $ResourceTypeShortNameHT["Compute/virtualMachines"].lengthMax
     $LocationShortName = $shortNameHT[$Location].shortName
     #Naming convention based on https://github.com/microsoft/CloudAdoptionFramework/tree/master/ready/AzNamingTool
     $ResourceGroupNamePrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
-    $UserAssignedIdentityNamePrefix = $ResourceTypeShortNameHT["ManagedIdentity/userAssignedIdentities"].ShortName
     $LogAnalyticsWorkspaceNamePrefix = $ResourceTypeShortNameHT["OperationalInsights/workspaces"].ShortName
     $ApplicationInsightsNamePrefix = $ResourceTypeShortNameHT["Insights/components"].ShortName
 
@@ -87,7 +85,6 @@ function New-AzAVDSREAgent {
     $AzureSREAgentId = "{0}/providers/Microsoft.App/agents/{1}" -f $ResourceGroupScope, $AzureSREAgentName
     $AzureSREAgentApiVersion = '2025-05-01-preview'
     $AzureSREAgentPath = "${AzureSREAgentId}?api-version=$AzureSREAgentApiVersion"
-    $AzureSREAgentIdentityId = "{0}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/{1}-{2}" -f $ResourceGroupScope, $UserAssignedIdentityNamePrefix, $AzureSREAgentName
     $WorkspaceId = "{0}/providers/Microsoft.OperationalInsights/workspaces/{1}-{2}" -f $ResourceGroupScope, $LogAnalyticsWorkspaceNamePrefix, $AzureSREAgentName
     $AzureSREAgentInsightsId = "{0}/providers/Microsoft.Insights/components/{1}-{2}" -f $ResourceGroupScope, $ApplicationInsightsNamePrefix, $AzureSREAgentName
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SubscriptionScope: $SubscriptionScope"
@@ -107,23 +104,11 @@ function New-AzAVDSREAgent {
     }
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$TargetResourceGroupNameScopes:`r`n$($TargetResourceGroupNameScopes | Out-String)"
 
-    #region SRE Agent User Assigned Managed Identity
-    $Parameters = @{
-        ResourceId = $AzureSREAgentIdentityId
-        Location = $Location
-        Force = $true
-        ApiVersion = '2024-11-30'
-    }
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
-    $AzureSREAgentUserAssignedManagedIdentity = New-AzResource @Parameters
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzureSREAgentUserAssignedManagedIdentity:`r`n$($AzureSREAgentUserAssignedManagedIdentity | Out-String)"
-    #endregion
-
     #region SRE Agent Log Analytics Workspace
     $Parameters = @{
         ResourceId = $WorkspaceId
-        Location = $Location
-        Force = $true
+        Location   = $Location
+        Force      = $true
         ApiVersion = '2023-09-01'
     }
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
@@ -133,17 +118,17 @@ function New-AzAVDSREAgent {
 
     #region SRE Agent Insights
     $Properties = @{ 
-        Application_Type = 'web'
-        Request_Source = 'SreAgent'
+        Application_Type    = 'web'
+        Request_Source      = 'SreAgent'
         WorkspaceResourceId = $WorkspaceId 
     }
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Properties:`r`n$($Properties | Out-String)"
     $Parameters = @{
         ResourceId = $AzureSREAgentInsightsId
-        Location = $Location
-        Force = $true
+        Location   = $Location
+        Force      = $true
         Properties = $Properties
-        Kind = 'web'
+        Kind       = 'web'
         ApiVersion = '2020-02-02'
     }
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
@@ -151,65 +136,32 @@ function New-AzAVDSREAgent {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzureSREAgentInsights:`r`n$($AzureSREAgentInsights | Out-String)"
     #endregion
 
-    #region RBAC Assignments
-    $ReaderRole = Get-AzRoleDefinition -Name "Reader"
-    $MonitoringReaderRole = Get-AzRoleDefinition -Name "Monitoring Reader"
-    $LogAnalyticsReaderRole = Get-AzRoleDefinition -Name "Log Analytics Reader" 
-    $SREAgentAdministratorRole = Get-AzRoleDefinition -Name "SRE Agent Administrator"
-
-    $Parameters = @{
-        ObjectId           = $AzureSREAgentUserAssignedManagedIdentity.Properties.principalId
-        RoleDefinitionName = $MonitoringReaderRole.Name
-        Scope              = $ResourceGroupScope
-    }
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
-    while (-not(Get-AzRoleAssignment @Parameters)) {
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' ObjectId on the '$($Parameters.Scope)' scope"
-        $RoleAssignment = New-AzRoleAssignment @Parameters -ObjectType 'ServicePrincipal'
-
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
-        Start-Sleep -Seconds 30
-    }
-    foreach ($TargetResourceGroupNameScope in $TargetResourceGroupNameScopes) {
-        foreach ($Role in $ReaderRole, $MonitoringReaderRole, $LogAnalyticsReaderRole) {
-            $Parameters = @{
-                ObjectId           = $AzureSREAgentUserAssignedManagedIdentity.Properties.principalId
-                RoleDefinitionName = $Role.Name
-                Scope              = $ResourceGroupScope
-            }
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters:`r`n$($Parameters | Out-String)"
-            while (-not(Get-AzRoleAssignment @Parameters)) {
-                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Assigning the '$($Parameters.RoleDefinitionName)' RBAC role to the '$($Parameters.ObjectId)' ObjectId on the '$($Parameters.Scope)' scope"
-                $RoleAssignment = New-AzRoleAssignment @Parameters -ObjectType 'ServicePrincipal'
-                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RoleAssignment:`r`n$($RoleAssignment | Out-String)"
-                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Sleeping 30 seconds"
-                Start-Sleep -Seconds 30
-            }
-        }
-    }
-    #endregion
-
     #region Azure SRE Agent 
     $Body = @{
-        location = $Location
-        identity = @{
+        location   = $Location
+        identity   = @{
+            <#
             type = 'SystemAssigned, UserAssigned'
             userAssignedIdentities = @{ $AzureSREAgentIdentityId = @{} }
+            #>
+            type = 'SystemAssigned'
         }
         properties = @{
-            knowledgeGraphConfiguration = @{ identity = $AzureSREAgentIdentityId; managedResources = @($TargetResourceGroupNameScopes) }
-            actionConfiguration = @{ accessLevel = 'Low'; identity = $AzureSREAgentIdentityId; mode = 'Review' }
-            logConfiguration = @{
+            knowledgeGraphConfiguration     = @{ identity = "system"; managedResources = @($TargetResourceGroupNameScopes) }
+            actionConfiguration             = @{ identity = "system"; accessLevel = 'Low'; mode = 'Review' }
+            logConfiguration                = @{
                 applicationInsightsConfiguration = @{
-                    appId = $AzureSREAgentInsights.Properties.AppId
-                    connectionString = $AzureSREAgentInsights.Properties.ConnectionString
+                    appId                         = $AzureSREAgentInsights.Properties.AppId
+                    connectionString              = $AzureSREAgentInsights.Properties.ConnectionString
                     applicationInsightsResourceId = $AzureSREAgentInsightsId
                 }
             }
-            upgradeChannel = 'Preview'
-            monthlyAgentUnitLimit = $MonthlyAgentUnitLimit
-            defaultModel = @{ provider = $ModelProvider; name = 'Automatic' }
+            upgradeChannel                  = 'Stable'
+            monthlyAgentUnitLimit           = $MonthlyAgentUnitLimit
+            defaultModel                    = @{ provider = $ModelProvider; name = 'Automatic' }
+            incidentManagementConfiguration = @{
+                type = "AzMonitor"
+            }        
         }
     }
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Body:`r`n$($Body | Out-String)"
@@ -231,7 +183,6 @@ function New-AzAVDSREAgent {
         Start-Sleep -Seconds 10
     } while ($true)
     #endregion
-
 
     #region RBAC Assignments
     $ReaderRole = Get-AzRoleDefinition -Name "Reader"
@@ -274,10 +225,10 @@ function New-AzAVDSREAgent {
 
 
     [PSCustomObject] @{
-        AgentId = $AzureSREAgentId
-        PortalUrl = "https://sre.azure.com/agents/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.App/agents/{2}" -f $SubscriptionId, $ResourceGroupName, $AzureSREAgentName
-        AgentEndpoint = $AzureSREAgent.properties.agentEndpoint
-        ManagedIdentityId = $AzureSREAgentIdentityId
+        AgentId           = $AzureSREAgentId
+        PortalUrl         = "https://sre.azure.com/agents/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.App/agents/{2}" -f $SubscriptionId, $ResourceGroupName, $AzureSREAgentName
+        AgentEndpoint     = $AzureSREAgent.properties.agentEndpoint
+        ManagedIdentityId = $AzureSREAgent.Identity.principalId
         ProvisioningState = $ProvisioningState
     }
 }
@@ -306,10 +257,14 @@ $Jobs | Receive-Job -Wait -AutoRemoveJob | Select-Object -Property ProviderNames
 #endregion
 
 $Location = "CentralUS"
-#Resourcegroup of the HostPool with enabled Diagnostic Settings
-$TargetResourceGroupName = (Get-AzWvdHostPool | ForEach-Object -Process { Get-AzDiagnosticSetting -ResourceId $_.Id | Where-Object -FilterScript { $_.WorkspaceId }}).ResourceGroupName
-if ($TargetResourceGroupName) {
-    $AzAVDSREAgent = New-AzAVDSREAgent -Location $Location -TargetResourceGroupName $TargetResourceGroupName -Verbose
+#Resourcegroup of the HostPools with enabled Diagnostic Settings
+#$TargetResourceGroupName = (Get-AzWvdHostPool | ForEach-Object -Process { Get-AzDiagnosticSetting -ResourceId $_.Id | Where-Object -FilterScript { $_.WorkspaceId }}).ResourceGroupName
+
+$TargetResourceGroupName = "rg-avd-*test-usc*"
+$TargetResourceGroup = Get-AzResourceGroup -ResourceGroupName $TargetResourceGroupName -ErrorAction Ignore
+
+if ($TargetResourceGroup) {
+    $AzAVDSREAgent = New-AzAVDSREAgent -Location $Location -TargetResourceGroupName $TargetResourceGroup.ResourceGroupName -Verbose
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$AzAVDSREAgent:`r`n$($AzAVDSREAgent | Out-String)"
     if ($AzAVDSREAgent.ProvisioningState -eq "Succeeded") {
         Start-Process $AzAVDSREAgent.PortalUrl
@@ -319,7 +274,6 @@ if ($TargetResourceGroupName) {
     }
 }
 else {
-    Write-Warning -Message "No AVD Host Pool found ..."
+    Write-Error -Message "The '$TargetResourceGroupName' ResourceGroup doesn't exist ..."
 }
 #endregion
-

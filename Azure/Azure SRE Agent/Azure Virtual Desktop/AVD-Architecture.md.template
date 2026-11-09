@@ -1,0 +1,212 @@
+﻿# AVD Architecture and Operations
+
+## 1. Purpose and scope
+
+This document describes the expected architecture and operational boundaries of the fictional Contoso AVD POC. The agent must compare these expectations with current Azure configuration and telemetry, report discrepancies, and never treat this file alone as proof of live health.
+
+- FSLogix design and troubleshooting: `AVD-FSLogix.md`
+- Severity, ownership and escalation: `AVD-Escalation.md`
+- Time zone for operational schedules: `$Location`; use UTC timestamps for incident timelines.
+
+## 2. Environment and resource inventory
+
+| Property                         | Synthetic expected value                                                        |
+| -------------------------------- | ------------------------------------------------------------------------------- |
+| Environment                      | Contoso AVD POC                                                                 |
+| Subscription ID                  | `$SubscriptionId`                                                               |
+| Primary Azure region             | `$Location`                                                                     |
+| AVD control-plane resource group | `$AVDResourceGroupName`                                                         |
+| Session host resource group      | `$SessionHostResourceGroupName`                                                 |
+| Monitoring resource group        | `$MonitoringResourceGroupName`                                                  |
+| Profile storage resource group   | `$StorageResourceGroup`                                                         |
+| Network resource group           | `$NetworkResourceGroupName`                                                     |
+| Service owner                    | Virtual Workspace Operations (fictional)                                        |
+| Business hours                   | Monday-Friday, 08:00-18:00 Europe/Paris                                         |
+| Operational maintenance window   | `$MaintenanceWindow` (Local TimeZone of the Session Host : `$Location`)         |
+| Change approval                  | Follow `AVD-Escalation.md`; no autonomous disruptive changes                    |
+
+Resources in other resource groups must be separately included in the SRE Agent's managed scope and granted appropriate read access. Being mapped to `$AVDResourceGroupName` alone does not establish access to VM, monitoring, network or storage resource groups.
+
+## 3. AVD control plane and user access
+
+### Host pool
+
+| Property                         | Synthetic expected value                             |
+| -------------------------------- | ---------------------------------------------------- |
+| Name                             | `$HostPoolName`                                      |
+| Resource group                   | `$AVDResourceGroupName`                              |
+| Type                             | `$HostPoolType`                                      |
+| Preferred application group type | `$PreferredAppGroupType`                             |
+| Load-balancing algorithm         | `$LoadBalancingAlgorithm`                            |
+| Maximum session limit            | `$MaximumSessionLimit` sessions per host             |
+| Start VM on Connect              | `$StartVMOnConnect`                                  |
+| Validation environment           | No                                                   |
+| Scaling plan                     | `$ScalingPlanName`                                   |
+
+### Publication and assignments
+
+| Resource                  | Synthetic expected value                      | Relationship                               |
+| ------------------------- | --------------------------------------------- | ------------------------------------------ |
+| Desktop application group | `$ApplicationGroupName`                       | Associated with `$HostPoolName`            |
+| Workspace                 | `$WorkspaceName`                              | Publishes `dag-avd-poc-frc`                |
+| User assignment           | `$UserAssignment`                             | Do not infer access from publication alone |
+| RemoteApp groups          | None in this POC                              | Verify current inventory                   |
+
+When investigating access, check user entitlement, workspace/application-group association, authentication and connection diagnostics separately.
+
+## 4. Session hosts and image lifecycle
+
+| Host         | Synthetic VM size | Image                   | Expected business-hours state |
+| ------------ | ----------------- | ----------------------- | ----------------------------- |
+$SessionHostData
+
+- Operating system: Windows 11 Enterprise multi-session.
+- Join type: Hybrid Microsoft Entra joined; AD DS domain `$ADDSDomainName`.
+- Image source: Azure Compute Gallery; record the actual gallery, definition and version before production use.
+- Image update approach: Replace session hosts with hosts based on an approved new image version; drain and validate capacity first.
+- Expected minimum available hosts during business hours: 2 (fictional operating target).
+- Azure Monitor Agent and DCR association: expected; verify per VM.
+- Availability zones, encryption, backup and patch baseline: `None`.
+
+**Do not equate VM power state with AVD availability.** Check host registration, AVD agent health, drain mode, active sessions and effective capacity.
+
+## 5. Profile architecture
+
+| Property                              | Synthetic expected value                                       |
+| ------------------------------------- | -------------------------------------------------------------- |
+| Profile solution                      | FSLogix Profile Container                                      |
+| Storage service                       | Azure Files `$FSLogixStoragePerformance`                       |
+| Storage account                       | `$StorageAccountName`                                          |
+| File share                            | `$FileShareName`                                              |
+| UNC path                              | `$ProfilePath`                                                 |
+| Storage authentication                | `$JoinType authentication for Azure Files`                     |
+| Container format                      | VHDX, dynamic                                                  |
+| Cloud Cache                           | Disabled                                                       |
+| `redirections.xml`                    | Enabled                                                        |
+| Configuration source                  | Group Policy; inspect effective settings                       |
+| Detailed configuration and guardrails | `AVD-FSLogix.md`                                               |
+
+Profile storage and identity are shared dependencies. Never delete, rename, detach, repair or alter a user profile container automatically. A successful SMB port test alone does not prove profile attachment works.
+
+## 6. Networking and connectivity
+
+| Component                            | Synthetic expected value                                                                                  |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| Virtual network                      | `$VirtualNetworkName`                                                                                     |
+| Session host subnet                  | `$SubNetName`                                                                                             |
+| Profile storage access               | Public Access                                                                                             |
+| Private DNS zone                     | None                                                                                                      |
+| DNS resolver and forwarders          | None                                                                                                      |
+| RDP Shortpath                        | Enabled where applicable; verify actual transport per connection                                          |
+| Proxy, firewall, NAT Gateway, routes | None                                                                                                      |
+| Outbound connectivity                | Azure default outbound access (no dedicated NAT Gateway, firewall, or proxy).                             |
+| Required external endpoints          | Validate against the approved AVD connectivity design                                                     |
+
+A private subnet requires an explicit outbound method for public endpoints. For an existing non-private subnet, Azure default outbound access may exist, but it is not a stable or dedicated egress IP and must be verified. Do not present either as the deployed state without checking the subnet and routes.
+
+For connectivity investigations, distinguish client-to-service, session-host-to-service, session-host-to-profile-storage, DNS, authentication and transport issues. Verify effective NSGs, routes, proxy and private endpoint resolution where relevant.
+
+## 7. Scaling and capacity
+
+| Property                     | Synthetic expected value                                 |
+| ---------------------------- | -------------------------------------------------------- |
+| Scaling plan                 | `$ScalingPlanName`                                       |
+| Host pool assignment         | `$UserAssignment`                                        |
+| Schedule time zone           | `$Location`                                              |
+| Business-hours goal          | At least 2 available hosts (fictional target)            |
+| Outside-hours goal           | Reduce running capacity when demand permits              |
+| Ramp-up/ramp-down thresholds | `<verify actual schedule and values>`                    |
+| Session logoff behavior      | `<verify actual policy; do not assume automatic logoff>` |
+
+Before attributing an incident to Autoscale, correlate scaling evaluations, VM start/stop outcomes, drain mode, host registration, session count and available capacity. Do not modify a scaling plan without approval.
+
+## 8. Maintenance and change management
+
+- **Operational maintenance window:** `$MaintenanceWindow` (Local TimeZone of the Session Host : `$Location`). 
+- **AVD agent update window:** `$MaintenanceWindow` (Local TimeZone of the Session Host : `$Location`). Do not infer it from the operational maintenance window. If configured separately, document its day, start hour, time zone and whether session-host local time is used.
+- **Windows patching:** `<verify Update Manager or other patch schedule and maintenance configuration>`.
+- **Image rollout:** `<verify deployment pipeline and change window>`.
+- **FSLogix update:** `<verify approved image/policy process>`.
+
+Before any host maintenance: confirm sufficient spare capacity, put the host in drain mode if approved, check active and disconnected sessions, notify impacted users as required, preserve rollback, and validate host registration and user sign-in afterward. Drain mode prevents new sessions but does not end existing sessions.
+
+## 9. Monitoring, diagnostics and alerts
+
+| Component                  | Synthetic expected value                                                     |
+| -------------------------- | ---------------------------------------------------------------------------- |
+| Log Analytics workspace    | `$LogAnalyticsWorkspaceName` in `$MonitoringResourceGroupName`               |
+| Session host DCR           | `$DataCollectionRuleName`                                                   |
+| VM monitoring agent        | Azure Monitor Agent                                                          |
+| AVD diagnostic destination | `$LogAnalyticsWorkspaceName`                                                 |
+| Workbook                   | Azure Virtual Desktop Insights                                               |
+| Alert action group         | None                                                                         |
+| Alert rules and thresholds | `<verify actual rules and service targets>`                                  |
+| Storage metrics            | Availability, capacity, transactions, latency and throttling where collected |
+
+### Expected signals to verify
+
+- AVD connections, errors and checkpoints.
+- Host registration, AVD agent health and management activity.
+- Network and graphics diagnostics where enabled.
+- VM heartbeat, CPU, memory, disk and Windows events.
+- FSLogix events and Profile logs, if forwarded or otherwise accessible.
+- Scaling-plan evaluations and failures, if configured.
+- Azure Files health, latency, capacity and throttling.
+
+The agent should first list the actual tables and data freshness in the workspace; do not assume every table exists. Missing telemetry is a monitoring gap, not proof that no issue occurred. Use UTC for event correlation and include queries or metric names with conclusions.
+
+## 10. Dependencies and operational ownership
+
+| Dependency              | Purpose                                     | Fictional primary owner        |
+| ----------------------- | ------------------------------------------- | ------------------------------ |
+| Microsoft Entra ID      | Identity, access and assignment             | Identity Operations            |
+| AD DS                   | Host join and Azure Files authentication    | Directory Services Engineering |
+| Azure Files             | FSLogix containers                          | Cloud Storage Operations       |
+| Private DNS and network | Profile storage and AVD connectivity        | Cloud Network Operations       |
+| Azure Monitor           | Diagnostics and alerts                      | Azure Platform Engineering     |
+| Azure Compute Gallery   | Session host image                          | Workplace Image Engineering    |
+| AVD control plane       | Host pool, app group, workspace and scaling | Virtual Workspace Operations   |
+
+Use `AVD-Escalation.md` for actual routing, severity, contact channels and approval. These names are fictional and must not be used to contact a real team.
+
+## 11. SRE Agent scope and guardrails
+
+### Initial read-only scope
+
+- Inspect mapped AVD control-plane resources.
+- Add other resource groups only after verifying scope and granting the agent's **actual** managed identity the appropriate read permissions.
+- Read Log Analytics data only where the workspace and identity permit it.
+- State explicitly when a resource, query, VM guest log or dependency is inaccessible.
+
+### Investigation rules
+
+1. Separate confirmed facts, hypotheses and missing evidence.
+2. Identify resource IDs and UTC timestamps for material findings.
+3. Check active sessions, drain mode and remaining capacity before recommending host restart or maintenance.
+4. Do not change the scaling plan, image, identity, network or storage configuration without explicit approval.
+5. Do not alter FSLogix containers or permissions automatically.
+6. Do not claim a PowerShell command, Kusto query or remediation was executed without a returned result.
+7. Validate recovery using both technical telemetry and user impact.
+
+## 12. Suggested read-only health assessment
+
+When asked for an AVD health check:
+
+1. Inventory host pool, application group, workspace, scaling plan and session hosts.
+2. Compare current configuration with the expected values above; mark drift, not presumed failure.
+3. Check host registration, availability, drain mode and sessions.
+4. Check recent connections, errors, checkpoints and network diagnostics.
+5. Check VM health and monitoring freshness.
+6. Check FSLogix attachment evidence and storage health where available.
+7. Review scaling activity and capacity against business hours.
+8. Report impact, timeline, evidence, hypotheses, monitoring gaps and safe next steps.
+
+## 13. Fields to replace before production use
+
+- Subscription and resource IDs; actual host pools, workspaces, application groups and user assignments.
+- VM inventory, image versions, join type, capacity and maintenance policy.
+- FSLogix share path, authentication, permissions and effective policy.
+- VNet/subnet, DNS, private endpoint, egress, firewall and RDP transport design.
+- Scaling-plan schedule, time zone, thresholds and logoff behavior.
+- Log Analytics workspace, DCRs, diagnostic settings, alerts and telemetry retention.
+- Actual owners, approval process and escalation contacts.
