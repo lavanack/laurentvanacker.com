@@ -224,6 +224,7 @@ $SubscriptionDeploymentURI = "https://portal.azure.com/#view/Microsoft_Azure_Res
 start $SubscriptionDeploymentURI 
 $SubscriptionDeployment = New-AzSubscriptionDeployment -Name $DeploymentName -Location $Location -TemplateFile $TemplateFile -TemplateParameterObject $TemplateParameterObject -Verbose #-DeploymentDebugLogLevel All
 $SubscriptionDeployment.ProvisioningState
+$null = Remove-Item -Path $TemplateFile -Force
 
 #region Post Deployment Setup
 $ResourceGroupNamePattern = ("rg-avd-*{0}-{1}*" -f $TemplateParameterObject.deploymentEnvironment, $shortNameHT[$Location].shortNameHT).ToLower()
