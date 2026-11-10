@@ -30,9 +30,9 @@ try {
     #region Initialization and Input Validation
     Write-Output -InputObject "=== Azure VM Start Runbook Initiated ==="
     Write-Output -InputObject "Timestamp: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC')"
-    Write-Output -InputObject "Runbook: $($MyInvocation.MyCommand.Name)"
+    #Write-Output -InputObject "Runbook Name: $($MyInvocation.MyCommand.Name)"
     # Log webhook data for debugging
-    Write-Output -InputObject "Object Type: $($WebhookData.GetType().FullName)"
+    Write-Output -InputObject "Webhook Object Type: $($WebhookData.GetType().FullName)"
     Write-Output -InputObject "Webhook Data received: $($WebhookData | ConvertTo-Json -Depth 3 -Compress)"
     if (-not $WebhookData) {
         throw "No webhook data received. This runbook must be triggered via webhook."
@@ -53,7 +53,7 @@ try {
         try {
             # Parse and validate VM data from request body
             $HostPoolData = ConvertFrom-Json -InputObject $WebhookData.RequestBody -ErrorAction Stop
-            Write-Output -InputObject "HostPoolData: $($HostPoolData | Out-String)"
+            Write-Output -InputObject "HostPoolData: $($HostPoolData | ConvertTo-Json -Compress)"
 
             if (-not $HostPoolData -or $HostPoolData.Count -eq 0) {
                 throw "Request body contains no HostPool data or is empty."
@@ -65,7 +65,6 @@ try {
             if (-not $HostPoolData.VNET -or -not $HostPoolData.VMNumb) {
                 throw "Invalid VM data: Each VM must have 'VNET' and 'VMNumb' properties. Received: $($HostPoolData | ConvertTo-Json -Compress)"
             }
-            Write-Output -InputObject "HostPoolData: $($HostPoolData | ConvertTo-Json -Compress)"
         }
         catch {
             Write-Error "Failed to parse or validate request body: $($_.Exception.Message)"
