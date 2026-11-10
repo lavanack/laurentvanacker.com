@@ -107,38 +107,177 @@ try {
 
     #region AVD Accelerator Deployment
     
-    #region Variables
-    if ($VNET -match '^([A-Za-z]+)(\d{2,})$') {
-        $Letters = $matches[1]
-        Write-Output -InputObject "`$Letters: $Letters"
-        $Numb = $matches[2]
-        Write-Output -InputObject "`$Numb: $Numb"
-        $LastDigit = $Matches[2].Substring($Matches[2].Length-2,2)
-        Write-Output -InputObject "`$LastDigit: $LastDigit"
-        $TRN = ("tr"+$LastDigit).ToLower()
-        Write-Output -InputObject "`$TRN: $TRN"
-    }
-
-    #$TemplateFile = Join-Path -Path $CurrentDir -ChildPath deploy-baseline.json
-    #$TemplateFile = Join-Path -Path $CurrentDir -ChildPath "../avdaccelerator/workload/arm/deploy-baseline.json" -Resolve
-    $TemplateURI = "https://raw.githubusercontent.com/Azure/avdaccelerator/main/workload/arm/deploy-baseline.json"
-    Write-Output -InputObject "`$TemplateURI: $TemplateURI"
-    #$TemplateFile = Join-Path -Path $CurrentDir -ChildPath $(Split-Path -Path $TemplateURI -Leaf)
-    #Invoke-WebRequest -Uri $TemplateURI -UseBasicParsing -OutFile $TemplateFile
-
-     #$TemplateParameterFile = Join-Path -Path $CurrentDir -ChildPath parameters.json
+    $Location = "CentralUs"
+    Write-Output -InputObject "`$Location: $Location"
     $DeploymentName = "AVDAcceleratorDeployment_ARM_{0:yyyyMMddHHmmss}" -f $(Get-Date)
     Write-Output -InputObject "`$DeploymentName: $DeploymentName"
+    $TemplateUri = "https://raw.githubusercontent.com/Azure/avdaccelerator/main/workload/arm/deploy-baseline.json"
+    Write-Output -InputObject "`$TemplateUri: $TemplateUri"
+    $Name = "AVDVmLocalAdminCredential"
+    $avdVmLocalUserCredential = Get-AutomationPSCredential -Name $Name
+    $VNET = $HostPoolData.VNET 
+    $VMNumb = $HostPoolData.VMNumb
 
-    $AVDVmLocalAdminCredential = Get-AutomationPSCredential -Name "AVDVmLocalAdminCredential"
+    if ($VNET -match '^([A-Za-z]+)(\d{2,})$') {
+        $letters = $matches[1]
+        $numb = $matches[2]
+        $LastDigits = $Matches[2].Substring($Matches[2].Length-2,2)
+        $trn= ("tr"+$LastDigits).ToLower()
+    }
+    else {
+        Write-Error -Message "'$VNET' is not well formatted ..." -ErrorAction Stop
+    }
     
-    $AVDUsersEntraIDGroupName = "AVD Users"
-    Write-Output -InputObject "`$AVDUsersEntraIDGroupName: $AVDUsersEntraIDGroupName"
-    $AVDUsersEntraIDGroup = Get-AzADGroup -DisplayName $AccessGroupName
-    $avdSecurityGroups = @(@{"displayName" = $AVDUsersEntraIDGroup.DisplayName; "objectId" = $AVDUsersEntraIDGroup.Id})
-    Write-Output -InputObject "`$AVDUsersEntraIDGroupName: $AVDUsersEntraIDGroupName"
+    $TemplateParameterObject = @{ 
+	    deploymentPrefix                              = "$trn"
+	    deploymentEnvironment                         = "Test"
+	    diskEncryptionKeyExpirationInDays             = 60
+	    avdSessionHostLocation                        = $Location
+	    avdManagementPlaneLocation                    = $Location
+	    avdWorkloadSubsId                             = $SubscriptionId
+	    avdServicePrincipalObjectId                   = $avdServicePrincipalObjectId
+	    avdArmServicePrincipalObjectId                = ""
+	    avdVmLocalUserName                            = $avdVmLocalUserCredential.UserName
+	    avdVmLocalUserPassword                        = $avdVmLocalUserCredential.Password
+	    avdIdentityServiceProvider                    = "ADDS"
+	    createIntuneEnrollment                        = $False
+	    avdSecurityGroups                             = $avdSecurityGroups
+	    identityDomainName                            = "csa.fr"
+	    identityDomainGuid                            = ""
+	    avdDomainJoinUserName                         = $avdDomainJoinUserCredential.UserName
+	    avdDomainJoinUserPassword                     = $avdDomainJoinUserCredential.Password
+	    avdOuPath                                     = "OU=AVDAccelerator,OU=$Location,OU=AVD,DC=csa,DC=fr"
+	    avdHostPoolType                               = "Pooled"
+	    hostPoolPreferredAppGroupType                 = "Desktop"
+	    hostPoolPublicNetworkAccess                   = "Enabled"
+	    workspacePublicNetworkAccess                  = "Enabled"
+	    avdPersonalAssignType                         = "Automatic"
+	    avdHostPoolLoadBalancerType                   = "BreadthFirst"
+	    hostPoolMaxSessions                           = 8
+	    avdStartVmOnConnect                           = $True
+	    avdHostPoolRdpProperties                      = "audiocapturemode:i:1;audiomode:i:0;drivestoredirect:s:;redirectclipboard:i:1;redirectcomports:i:1;redirectprinters:i:1;redirectsmartcards:i:1;screen mode id:i:2"
+	    avdDeployScalingPlan                          = $True
+	    createAvdVnet                                 = $True
+	    existingVnetAvdSubnetResourceId               = ""
+	    existingVnetPrivateEndpointSubnetResourceId   = ""
+	    existingHubVnetResourceId                     = "/subscriptions/$SubscriptionId/resourcegroups/rg-avd-ad-usc-002/providers/microsoft.network/virtualnetworks/vnet-avd-ad-usc-002"
+	    avdVnetworkAddressPrefixes                    = "10.201.0.0/16"
+	    vNetworkAvdSubnetAddressPrefix                = "10.201.1.0/24"
+	    vNetworkPrivateEndpointSubnetAddressPrefix    = "10.201.2.0/27"
+	    customDnsIps                                  = "10.0.1.4"
+	    deployDDoSNetworkProtection                   = $False
+	    deployPrivateEndpointKeyvaultStorage          = $false
+	    deployAvdPrivateLinkService                   = $False
+	    createPrivateDnsZones                         = $false
+	    avdVnetPrivateDnsZoneConnectionResourceId     = ""
+	    avdVnetPrivateDnsZoneDiscoveryResourceId      = ""
+	    avdVnetPrivateDnsZoneFilesId                  = ""
+	    avdVnetPrivateDnsZoneKeyvaultId               = ""
+	    vNetworkGatewayOnHub                          = $False
+	    createAvdFslogixDeployment                    = $True
+	    createAppAttachDeployment                     = $False
+	    fslogixFileShareQuotaSize                     = 1
+	    appAttachFileShareQuotaSize                   = 1
+	    avdDeploySessionHosts                         = $True
+	    deployGpuPolicies                             = $False
+	    avdDeployMonitoring                           = $True
+	    deployAlaWorkspace                            = $True
+	    deployCustomPolicyMonitoring                  = $False
+	    avdAlaWorkspaceDataRetention                  = 90
+	    alaExistingWorkspaceResourceId                = ""
+	    avdDeploySessionHostsCount                    = $VMNumb
+	    avdSessionHostCountIndex                      = 1
+	    availability                                  = "None"
+	    availabilityZones                             = @()
+	    zoneRedundantStorage                          = $False
+	    fslogixStoragePerformance                     = "Premium"
+	    appAttachStoragePerformance                   = "Premium"
+	    diskZeroTrust                                 = $False
+	    avdSessionHostsSize                           = "Standard_D4ads_v5"
+	    avdSessionHostDiskType                        = "Premium_LRS"
+	    customOsDiskSizeGB                            = 0
+	    enableAcceleratedNetworking                   = $True
+	    securityType                                  = "TrustedLaunch"
+	    secureBootEnabled                             = $true
+	    vTpmEnabled                                   = $true
+	    useSharedImage                                = $False
+	    mpImageOffer                                  = "office-365"
+	    mpImageSku                                    = "win11-25h2-avd-m365"
+	    avdCustomImageDefinitionId                    = ""
+	    managementVmOsImage                           = "winServer_2022_Datacenter_smalldisk_g2"
+	    storageOuPath                                 = "OU=AVDAccelerator,OU=$Location,OU=AVD,DC=csa,DC=fr"
+	    avdUseCustomNaming                            = $False
+	    avdServiceObjectsRgCustomName                 = ""
+	    avdNetworkObjectsRgCustomName                 = ""
+	    avdComputeObjectsRgCustomName                 = ""
+	    avdStorageObjectsRgCustomName                 = ""
+	    avdMonitoringRgCustomName                     = ""
+	    avdVnetworkCustomName                         = ""
+	    avdAlaWorkspaceCustomName                     = ""
+	    avdVnetworkSubnetCustomName                   = ""
+	    privateEndpointVnetworkSubnetCustomName       = ""
+	    avdNetworksecurityGroupCustomName             = ""
+	    privateEndpointNetworksecurityGroupCustomName = ""
+	    avdRouteTableCustomName                       = ""
+	    privateEndpointRouteTableCustomName           = ""
+	    avdApplicationSecurityGroupCustomName         = ""
+	    avdWorkSpaceCustomName                        = ""
+	    avdWorkSpaceCustomFriendlyName                = ""
+	    avdHostPoolCustomName                         = ""
+	    avdHostPoolCustomFriendlyName                 = ""
+	    avdScalingPlanCustomName                      = ""
+	    avdApplicationGroupCustomName                 = ""
+	    avdApplicationGroupCustomFriendlyName         = ""
+	    avdSessionHostCustomNamePrefix                = ""
+	    storageAccountPrefixCustomName                = ""
+	    fslogixFileShareCustomName                    = ""
+	    appAttachFileShareCustomName                  = ""
+	    avdWrklKvPrefixCustomName                     = ""
+	    ztDiskEncryptionSetCustomNamePrefix           = "des-zt"
+	    ztKvPrefixCustomName                          = "kv-key"
+	    createResourceTags                            = $False
+	    workloadNameTag                               = ""
+	    workloadTypeTag                               = "Light"
+	    dataClassificationTag                         = "Non-business"
+	    departmentTag                                 = ""
+	    workloadCriticalityTag                        = "Low"
+	    workloadCriticalityCustomValueTag             = "Low"
+	    applicationNameTag                            = ""
+	    workloadSlaTag                                = ""
+	    opsTeamTag                                    = ""
+	    ownerTag                                      = ""
+	    costCenterTag                                 = ""
+	    enableTelemetry                               = $True
+	    enableKvPurgeProtection                       = $True
+	    deployAntiMalwareExt                          = $True
+	    customStaticRoutes                            = @()
+	    deployDefender                                = $False
+	    enableDefForServers                           = $False
+	    enableDefForStorage                           = $False
+	    enableDefForKeyVault                          = $False
+	    enableDefForArm                               = $False
+    }
+
+    #region Cleaning up any existing resource group with same Deployment Prefix and Environment
+    Write-Output -InputObject "Cleaning up any previously existing deployments ..."
+    $null = Get-AzResourceGroup -ResourceGroupName $("rg-avd-{0}-{1}*" -f $TemplateParameterObject.deploymentPrefix, $TemplateParameterObject.deploymentEnvironment).ToLower() | Remove-AzResourceGroup -AsJob -Force | Receive-Job -Wait -AutoRemoveJob
     #endregion
-    
+
+
+    #$SubscriptionDeployment = New-AzSubscriptionDeployment -Name $DeploymentName -Location $Location -TemplateFile $TemplateFile -TemplateParameterFile $TemplateParameterFile  -Verbose
+    Write-Output -InputObject "Deploying ..."
+
+    $SubscriptionDeploymentURI = "https://portal.azure.com/#view/Microsoft_Azure_Resources/DeploymentDetails.MenuView/~/overview/id/subscriptions/{0}/providers/Microsoft.Resources/deployments/{1}" -f $SubscriptionId, $DeploymentName
+    Write-Output -InputObject "`$SubscriptionDeploymentURI: $SubscriptionDeploymentURI"
+
+    #$SubscriptionDeployment = New-AzSubscriptionDeployment -Name $DeploymentName -Location $Location -TemplateFile $TemplateFile -TemplateParameterObject $TemplateParameterObject -Verbose #-DeploymentDebugLogLevel All
+    $SubscriptionDeployment = New-AzSubscriptionDeployment -Name $DeploymentName -Location $Location -TemplateUri $TemplateUri -TemplateParameterObject $TemplateParameterObject -Verbose #-DeploymentDebugLogLevel All
+    $SubscriptionDeployment.ProvisioningState
+    Write-Output -InputObject "ProvisioningState: $($SubscriptionDeployment.ProvisioningState)"
+    if ($SubscriptionDeployment.ProvisioningState -ne "Succeeded") {
+        Write-Error -Message "Deployment Status: $($SubscriptionDeployment.ProvisioningState)" -ErrorAction Stop
+    }
+
     #endregion
 
 }
