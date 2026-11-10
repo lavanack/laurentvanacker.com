@@ -136,7 +136,6 @@ function New-AzAPIAutomationPowerShellRunbook {
         [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
         [string]$Description,
         [Parameter(Mandatory = $false, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
-        [string]$RuntimeEnvironment = "PowerShell72"
     )
     #region Azure Context
     # Log in first with Connect-AzAccount if not using Cloud Shell
@@ -535,7 +534,7 @@ $RunbookName = "{0}-AzureVMImageBuilder" -f $RunBookPrefix
 # Publish the runbook
 #Publish-AzAutomationRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $RunbookName -ResourceGroupName $ResourceGroupName
 
-$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -RunbookName $RunbookName -RuntimeEnvironment $RuntimeEnvironment -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20VM%20Image%20Builder/v2/AzureVMImageBuilderRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Building New Azure Gallery Image Definition Versions" -Verbose 
+$Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -RunbookName $RunbookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/Azure%20VM%20Image%20Builder/v2/AzureVMImageBuilderRunBook.ps1" -Description "PowerShell Azure Automation Runbook for Building New Azure Gallery Image Definition Versions" -Verbose 
 $Runbook | Set-AzAPIAutomationRunbookRuntimeEnvironment -RuntimeEnvironment $RuntimeEnvironment
 #endregion 
 
