@@ -32,18 +32,18 @@ try {
     Write-Output -InputObject "Timestamp: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC')"
     Write-Output -InputObject "Runbook: $($MyInvocation.MyCommand.Name)"
     # Log webhook data for debugging
-    Write-Output "Object Type: $($WebhookData.GetType().FullName)"
-    Write-Output "Webhook Data received: $($WebhookData | ConvertTo-Json -Depth 3 -Compress)"
+    Write-Output -InputObject "Object Type: $($WebhookData.GetType().FullName)"
+    Write-Output -InputObject "Webhook Data received: $($WebhookData | ConvertTo-Json -Depth 3 -Compress)"
     if (-not $WebhookData) {
         throw "No webhook data received. This runbook must be triggered via webhook."
     }
     Write-Output -InputObject "Webhook Name: $($WebhookData.WebhookName)"
-    Write-Output "Request Headers: $($WebhookData.RequestHeader | ConvertTo-Json -Compress)"
+    Write-Output -InputObject "Request Headers: $($WebhookData.RequestHeader | ConvertTo-Json -Compress)"
     # Handle test pane execution (when RequestBody is not present)
     if (-not $WebhookData.RequestBody) {
         Write-Warning "No RequestBody found. Assuming test pane execution - treating WebhookData as direct JSON input."
         $WebhookData = ConvertFrom-Json -InputObject $WebhookData
-        Write-Output "Test pane data: $($WebhookData | ConvertTo-Json -Compress)"
+        Write-Output -InputObject "Test pane data: $($WebhookData | ConvertTo-Json -Compress)"
     }
     #endregion
 
@@ -53,7 +53,7 @@ try {
         try {
             # Parse and validate VM data from request body
             $HostPoolData = ConvertFrom-Json -InputObject $WebhookData.RequestBody -ErrorAction Stop
-            Write-Output "HostPoolData: $($HostPoolData | Out-String)"
+            Write-Output -InputObject "HostPoolData: $($HostPoolData | Out-String)"
 
             if (-not $HostPoolData -or $HostPoolData.Count -eq 0) {
                 throw "Request body contains no HostPool data or is empty."
@@ -65,7 +65,7 @@ try {
             if (-not $HostPoolData.VNET -or -not $HostPoolData.VMNumb) {
                 throw "Invalid VM data: Each VM must have 'VNET' and 'VMNumb' properties. Received: $($HostPoolData | ConvertTo-Json -Compress)"
             }
-            Write-Output "HostPoolData: $($HostPoolData | ConvertTo-Json -Compress)"
+            Write-Output -InputObject "HostPoolData: $($HostPoolData | ConvertTo-Json -Compress)"
         }
         catch {
             Write-Error "Failed to parse or validate request body: $($_.Exception.Message)"
@@ -81,15 +81,15 @@ try {
             #region Azure connection
             # Ensures you do not inherit an AzContext in your dirbook
             $null = Disable-AzContextAutosave -Scope Process
-            Write-Output "Disabled Az context autosave"
+            Write-Output -InputObject "Disabled Az context autosave"
             $connectionResult = Connect-AzAccount -Identity -ErrorAction Stop
             Write-Output -InputObject "Successfully authenticated using managed identity"
-            Write-Output "Connection details: Account=$($connectionResult.Context.Account.Id), Subscription=$($connectionResult.Context.Subscription.Name)"
+            Write-Output -InputObject "Connection details: Account=$($connectionResult.Context.Account.Id), Subscription=$($connectionResult.Context.Subscription.Name)"
             $AzureContext = (Connect-AzAccount -Identity).context
-            Write-Output -InputObject "`$AzureContext: $AzureContext"
+            Write-Output -InputObject "`$AzureContext: $($AzureContext | Out-String)"
             # set and store context
             $AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -DefaultProfile $AzureContext
-            Write-Output -InputObject "`$AzureContext: $AzureContext"
+            Write-Output -InputObject "`$AzureContext: $($AzureContext | Out-String)"
             $SubscriptionID = $AzureContext.Subscription.Id
             Write-Output -InputObject "`$SubscriptionID: $subscriptionID"
             #endregion
@@ -104,6 +104,43 @@ try {
         throw "Request body is empty or missing. Cannot process VM start request."
     }
     #endregion
+
+    #region AVD Accelerator Deployment
+    
+    #region Variables
+    if ($VNET -match '^([A-Za-z]+)(\d{2,})$') {
+        $Letters = $matches[1]
+        Write-Output -InputObject "`$Letters: $Letters"
+        $Numb = $matches[2]
+        Write-Output -InputObject "`$Numb: $Numb"
+        $LastDigit = $Matches[2].Substring($Matches[2].Length-2,2)
+        Write-Output -InputObject "`$LastDigit: $LastDigit"
+        $TRN = ("tr"+$LastDigit).ToLower()
+        Write-Output -InputObject "`$TRN: $TRN"
+    }
+
+    #$TemplateFile = Join-Path -Path $CurrentDir -ChildPath deploy-baseline.json
+    #$TemplateFile = Join-Path -Path $CurrentDir -ChildPath "../avdaccelerator/workload/arm/deploy-baseline.json" -Resolve
+    $TemplateURI = "https://raw.githubusercontent.com/Azure/avdaccelerator/main/workload/arm/deploy-baseline.json"
+    Write-Output -InputObject "`$TemplateURI: $TemplateURI"
+    #$TemplateFile = Join-Path -Path $CurrentDir -ChildPath $(Split-Path -Path $TemplateURI -Leaf)
+    #Invoke-WebRequest -Uri $TemplateURI -UseBasicParsing -OutFile $TemplateFile
+
+     #$TemplateParameterFile = Join-Path -Path $CurrentDir -ChildPath parameters.json
+    $DeploymentName = "AVDAcceleratorDeployment_ARM_{0:yyyyMMddHHmmss}" -f $(Get-Date)
+    Write-Output -InputObject "`$DeploymentName: $DeploymentName"
+
+    $AVDVmLocalAdminCredential = Get-AutomationPSCredential -Name "AVDVmLocalAdminCredential"
+    
+    $AVDUsersEntraIDGroupName = "AVD Users"
+    Write-Output -InputObject "`$AVDUsersEntraIDGroupName: $AVDUsersEntraIDGroupName"
+    $AVDUsersEntraIDGroup = Get-AzADGroup -DisplayName $AccessGroupName
+    $avdSecurityGroups = @(@{"displayName" = $AVDUsersEntraIDGroup.DisplayName; "objectId" = $AVDUsersEntraIDGroup.Id})
+    Write-Output -InputObject "`$AVDUsersEntraIDGroupName: $AVDUsersEntraIDGroupName"
+    #endregion
+    
+    #endregion
+
 }
 catch {
     Write-Error "Runbook execution failed: $($_.Exception.Message)"
