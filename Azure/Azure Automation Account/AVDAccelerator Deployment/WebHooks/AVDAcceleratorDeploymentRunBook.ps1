@@ -85,10 +85,10 @@ try {
             Write-Output -InputObject "Successfully authenticated using managed identity"
             Write-Output -InputObject "Connection details: Account=$($connectionResult.Context.Account.Id), Subscription=$($connectionResult.Context.Subscription.Name)"
             $AzureContext = (Connect-AzAccount -Identity).context
-            Write-Output -InputObject "`$AzureContext: $($AzureContext | Out-String)"
+            Write-Output -InputObject "`$AzureContext: $($AzureContext | ConvertTo-Json -Compress)"
             # set and store context
             $AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -DefaultProfile $AzureContext
-            Write-Output -InputObject "`$AzureContext: $($AzureContext | Out-String)"
+            Write-Output -InputObject "`$AzureContext: $($AzureContext | ConvertTo-Json -Compress)"
             $SubscriptionID = $AzureContext.Subscription.Id
             Write-Output -InputObject "`$SubscriptionID: $subscriptionID"
             #endregion
