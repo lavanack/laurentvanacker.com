@@ -37,9 +37,9 @@ While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
 
 $Location = "centralus"
 #$TemplateFile = Join-Path -Path $CurrentDir -ChildPath deploy-baseline.json
-$TemplateURI = "https://raw.githubusercontent.com/Azure/avdaccelerator/main/workload/arm/deploy-baseline.json"
-$TemplateFile = Join-Path -Path $CurrentDir -ChildPath $(Split-Path -Path $TemplateURI -Leaf)
-Invoke-WebRequest -Uri $TemplateURI -UseBasicParsing -OutFile $TemplateFile
+$TemplateUri = "https://raw.githubusercontent.com/Azure/avdaccelerator/main/workload/arm/deploy-baseline.json"
+#$TemplateFile = Join-Path -Path $CurrentDir -ChildPath $(Split-Path -Path $TemplateUri -Leaf)
+#Invoke-WebRequest -Uri $TemplateUri -UseBasicParsing -OutFile $TemplateFile
 #$TemplateParameterFile = Join-Path -Path $CurrentDir -ChildPath parameters.json
 $DeploymentName = "AVDAcceleratorDeployment_ARM_{0:yyyyMMddHHmmss}" -f $(Get-Date)
 $SubscriptionId = (Get-AzContext).Subscription.Id
@@ -222,9 +222,9 @@ $SubscriptionDeployment
 #>
 $SubscriptionDeploymentURI = "https://portal.azure.com/#view/Microsoft_Azure_Resources/DeploymentDetails.MenuView/~/overview/id/subscriptions/{0}/providers/Microsoft.Resources/deployments/{1}" -f $SubscriptionId, $DeploymentName
 start $SubscriptionDeploymentURI 
-$SubscriptionDeployment = New-AzSubscriptionDeployment -Name $DeploymentName -Location $Location -TemplateFile $TemplateFile -TemplateParameterObject $TemplateParameterObject -Verbose #-DeploymentDebugLogLevel All
+#$SubscriptionDeployment = New-AzSubscriptionDeployment -Name $DeploymentName -Location $Location -TemplateFile $TemplateFile -TemplateParameterObject $TemplateParameterObject -Verbose #-DeploymentDebugLogLevel All
+$SubscriptionDeployment = New-AzSubscriptionDeployment -Name $DeploymentName -Location $Location -TemplateUri $TemplateUri -TemplateParameterObject $TemplateParameterObject -Verbose #-DeploymentDebugLogLevel All
 $SubscriptionDeployment.ProvisioningState
-$null = Remove-Item -Path $TemplateFile -Force
 
 #region Post Deployment Setup
 $ResourceGroupNamePattern = ("rg-avd-*{0}-{1}*" -f $TemplateParameterObject.deploymentEnvironment, $shortNameHT[$Location].shortNameHT).ToLower()
