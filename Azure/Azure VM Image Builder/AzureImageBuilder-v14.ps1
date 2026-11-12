@@ -545,7 +545,7 @@ function New-AzureComputeGallery {
 		UserAssignedIdentityId = $AssignedIdentity.Id
 		VMProfileVmsize        = "Standard_D8s_v6"
 		VMProfileOsdiskSizeGb  = 127
-		BuildTimeoutInMinute   = 240
+		BuildTimeoutInMinute   = 360
 		StagingResourceGroup   = $StagingResourceGroupPowerShell.ResourceId
 		#Tag                    = @{"SecurityControl"="Ignore"}
 	}
