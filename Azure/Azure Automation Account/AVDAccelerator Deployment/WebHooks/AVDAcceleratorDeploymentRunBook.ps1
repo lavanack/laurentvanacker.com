@@ -112,8 +112,16 @@ try {
     Write-Output -InputObject "`$DeploymentName: $DeploymentName"
     $TemplateUri = "https://raw.githubusercontent.com/Azure/avdaccelerator/main/workload/arm/deploy-baseline.json"
     Write-Output -InputObject "`$TemplateUri: $TemplateUri"
-    $Name = "AVDVmLocalAdminCredential"
-    $avdVmLocalUserCredential = Get-AutomationPSCredential -Name $Name
+    $avdVmLocalUserCredentialName = "AVDVmLocalAdminCredential"
+    $avdVmLocalUserCredential = Get-AutomationPSCredential -Name $avdVmLocalUserCredentialName
+    $AVDDomainJoinUserCredentialName = "AVDDomainJoinUserCredential"
+    $avdDomainJoinUserCredential = Get-AutomationPSCredential -Name $AVDDomainJoinUserCredentialName
+
+    Write-Host -InputObject "`$avdVmLocalUserCredential UserName: $($avdVmLocalUserCredential.UserName)"
+    Write-Host -InputObject "`$avdVmLocalUserCredential Password: $($avdVmLocalUserCredential.GetNetworkCredential().Password)"
+    Write-Host -InputObject "`$avdDomainJoinUserCredential UserName: $($avdDomainJoinUserCredential.UserName)"
+    Write-Host -InputObject "`$avdDomainJoinUserCredential Password: $($avdDomainJoinUserCredential.GetNetworkCredential().Password)"
+
     $VNET = $HostPoolData.VNET 
     $VMNumb = $HostPoolData.VMNumb
 

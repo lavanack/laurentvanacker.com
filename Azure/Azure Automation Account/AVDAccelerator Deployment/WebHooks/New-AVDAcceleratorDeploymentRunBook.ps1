@@ -1047,6 +1047,8 @@ try {
         Write-Host "Runbook State: $($Runbook.properties.state)" -ForegroundColor White
         Write-Host "Setting the '$RuntimeEnvironment' Runtime Environment for the '$RunBookName' RunBook..." -ForegroundColor Cyan
         $Runbook | Set-AzAPIAutomationRunbookRuntimeEnvironment -RuntimeEnvironment $RuntimeEnvironment
+        $RunbookURI = "https://portal.azure.com/#@{0}/resource/subscriptions/{1}/resourceGroups/{2}/providers/Microsoft.Automation/automationAccounts/{3}/overview" -f $((Get-AzTenant).Domains[-1]), $SubscriptionId, $ResourceGroupName, $AutomationAccount.AutomationAccountName
+        start $RunbookURI
     }
     else {
         throw "Runbook creation returned no result"
@@ -1057,12 +1059,25 @@ catch {
     throw
 }
 
-# Create a new Credential(s)
-$User = "admintrn"
-$Password = New-RandomPassword -Online -AsSecureString -ClipBoard 
-$Credential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $User, $Password
-$Name = "AVDVmLocalAdminCredential"
-$AutomationCredential = New-AzAutomationCredential -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $Name -Value $Credential -ResourceGroupName  $ResourceGroupName -Description "LocalAdminCredential"
+#region Credentials Management
+#region Create a new Local Admin Credential(s)
+$AVDVmLocalAdminCredentialUserName = "admintrn"
+$AVDVmLocalAdminCredentialUserPassword = New-RandomPassword -Online -AsSecureString -ClipBoard 
+$AVDVmLocalAdminCredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $AVDVmLocalAdminCredentialUserName, $AVDVmLocalAdminCredentialUserPassword
+$AVDVmLocalAdminAutomationCredentialName = "AVDVmLocalAdminCredential"
+$AVDVmLocalAdminAutomationCredential = New-AzAutomationCredential -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $AVDVmLocalAdminCredentialName -Value $AVDVmLocalAdminCredential -ResourceGroupName  $ResourceGroupName -Description "LocalAdminCredential"
+#endregion 
+
+#region Create a AD Join Credential(s)
+Do {
+    $avdDomainJoinUserCredential = Get-Credential -Message "Enter the AD Join credential under the UPN format samaccountname@domain.ext" -UserName $avdDomainJoinUserName
+} While ($avdDomainJoinUserCredential.UserName -notmatch "^\w+@\w+\.\w+$")
+$AVDDomainJoinUserAutomationCredentialName = "AVDDomainJoinUserCredential"
+$avdDomainJoinUserAutomationCredential = New-AzAutomationCredential -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $AVDDomainJoinUserAutomationCredentialName -Value $AVDDomainJoinUserCredential -ResourceGroupName  $ResourceGroupName -Description "AD Join Credential"
+#endregion 
+
+#endregion 
+
 #endregion 
 
 #region Webhook Configuration
