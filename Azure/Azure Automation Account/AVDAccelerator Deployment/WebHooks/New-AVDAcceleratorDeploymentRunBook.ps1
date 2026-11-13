@@ -37,6 +37,10 @@ param
     [string]$Role = 'avdaccelerator',
     
     [Parameter()]
+    [ValidateSet('ADDS', 'EntraIDKerberos')]
+    [string]$Mode = 'EntraIDKerberos',
+
+    [Parameter()]
     [switch]$SkipTesting,
     
     [Parameter()]
@@ -1030,7 +1034,12 @@ Write-Host "Deploying PowerShell runbook..." -ForegroundColor Yellow
 #region Runbook Configuration
 $RunBookName = "{0}-AVDAcceleratorDeploymentRunBook" -f $RunBookPrefix
 #$RunbookScriptURI = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/AVDAccelerator%20Deployment/WebHooks/AVDAcceleratorDeploymentRunBook%20-%20ADDS.ps1"
-$RunbookScriptURI = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/AVDAccelerator%20Deployment/WebHooks/AVDAcceleratorDeploymentRunBook%20-%20EntraIDKerberosEntraIDKerberos.ps1"
+if ($Mode -eq "ADDS") {
+    $RunbookScriptURI = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/AVDAccelerator%20Deployment/WebHooks/AVDAcceleratorDeploymentRunBook%20-%20ADDS.ps1"
+}
+else {
+    $RunbookScriptURI = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/AVDAccelerator%20Deployment/WebHooks/AVDAcceleratorDeploymentRunBook%20-%20EntraIDKerberosEntraIDKerberos.ps1"
+}
 $RunbookDescription = "Enterprise PowerShell Azure Automation Runbook for AVD Accelerator Deployment via webhooks"
 
 Write-Host "Runbook Configuration:" -ForegroundColor Cyan
@@ -1069,16 +1078,17 @@ $AVDVmLocalAdminAutomationCredentialName = "AVDVmLocalAdminCredential"
 $AVDVmLocalAdminAutomationCredential = New-AzAutomationCredential -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $AVDVmLocalAdminAutomationCredentialName -Value $AVDVmLocalAdminCredential -ResourceGroupName  $ResourceGroupName -Description "LocalAdminCredential"
 #endregion 
 
-#region Create a AD Join Credential(s)
-$avdDomainName = "csa.fr"
-$avdDomainJoinUserName = "{0}@{1}" -f $env:USERNAME, $avdDomainName
-Do {
-    $avdDomainJoinUserCredential = Get-Credential -Message "Enter the AD Join credential under the UPN format samaccountname@domain.ext" -UserName $avdDomainJoinUserName
-} While ($avdDomainJoinUserCredential.UserName -notmatch "^\w+@\w+\.\w+$")
-$AVDDomainJoinUserAutomationCredentialName = "AVDDomainJoinUserCredential"
-$avdDomainJoinUserAutomationCredential = New-AzAutomationCredential -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $AVDDomainJoinUserAutomationCredentialName -Value $AVDDomainJoinUserCredential -ResourceGroupName  $ResourceGroupName -Description "AD Join Credential"
-#endregion 
-
+if ($Mode -eq "ADDS") {
+    #region Create a AD Join Credential(s)
+    $avdDomainName = "csa.fr"
+    $avdDomainJoinUserName = "{0}@{1}" -f $env:USERNAME, $avdDomainName
+    Do {
+        $avdDomainJoinUserCredential = Get-Credential -Message "Enter the AD Join credential under the UPN format samaccountname@domain.ext" -UserName $avdDomainJoinUserName
+    } While ($avdDomainJoinUserCredential.UserName -notmatch "^\w+@\w+\.\w+$")
+    $AVDDomainJoinUserAutomationCredentialName = "AVDDomainJoinUserCredential"
+    $avdDomainJoinUserAutomationCredential = New-AzAutomationCredential -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $AVDDomainJoinUserAutomationCredentialName -Value $AVDDomainJoinUserCredential -ResourceGroupName  $ResourceGroupName -Description "AD Join Credential"
+    #endregion 
+}
 #endregion 
 
 #endregion 
