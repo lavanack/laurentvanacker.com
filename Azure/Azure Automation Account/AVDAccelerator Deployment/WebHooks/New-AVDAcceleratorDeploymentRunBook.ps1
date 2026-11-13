@@ -1029,7 +1029,8 @@ Write-Host "Deploying PowerShell runbook..." -ForegroundColor Yellow
 
 #region Runbook Configuration
 $RunBookName = "{0}-AVDAcceleratorDeploymentRunBook" -f $RunBookPrefix
-$RunbookScriptURI = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/AVDAccelerator%20Deployment/WebHooks/AVDAcceleratorDeploymentRunBook.ps1"
+#$RunbookScriptURI = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/AVDAccelerator%20Deployment/WebHooks/AVDAcceleratorDeploymentRunBook%20-%20ADDS.ps1"
+$RunbookScriptURI = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/AVDAccelerator%20Deployment/WebHooks/AVDAcceleratorDeploymentRunBook%20-%20EntraIDKerberosEntraIDKerberos.ps1"
 $RunbookDescription = "Enterprise PowerShell Azure Automation Runbook for AVD Accelerator Deployment via webhooks"
 
 Write-Host "Runbook Configuration:" -ForegroundColor Cyan
