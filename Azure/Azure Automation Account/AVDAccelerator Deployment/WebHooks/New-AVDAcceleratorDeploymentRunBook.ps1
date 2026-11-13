@@ -1065,10 +1065,12 @@ $AVDVmLocalAdminCredentialUserName = "admintrn"
 $AVDVmLocalAdminCredentialUserPassword = New-RandomPassword -Online -AsSecureString -ClipBoard 
 $AVDVmLocalAdminCredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $AVDVmLocalAdminCredentialUserName, $AVDVmLocalAdminCredentialUserPassword
 $AVDVmLocalAdminAutomationCredentialName = "AVDVmLocalAdminCredential"
-$AVDVmLocalAdminAutomationCredential = New-AzAutomationCredential -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $AVDVmLocalAdminCredentialName -Value $AVDVmLocalAdminCredential -ResourceGroupName  $ResourceGroupName -Description "LocalAdminCredential"
+$AVDVmLocalAdminAutomationCredential = New-AzAutomationCredential -AutomationAccountName $AutomationAccount.AutomationAccountName -Name $AVDVmLocalAdminAutomationCredentialName -Value $AVDVmLocalAdminCredential -ResourceGroupName  $ResourceGroupName -Description "LocalAdminCredential"
 #endregion 
 
 #region Create a AD Join Credential(s)
+$avdDomainName = "csa.fr"
+$avdDomainJoinUserName = "{0}@{1}" -f $env:USERNAME, $avdDomainName
 Do {
     $avdDomainJoinUserCredential = Get-Credential -Message "Enter the AD Join credential under the UPN format samaccountname@domain.ext" -UserName $avdDomainJoinUserName
 } While ($avdDomainJoinUserCredential.UserName -notmatch "^\w+@\w+\.\w+$")

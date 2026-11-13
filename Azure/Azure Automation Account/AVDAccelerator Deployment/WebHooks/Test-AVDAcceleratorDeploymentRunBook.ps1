@@ -86,7 +86,7 @@ try {
         # Get job output
         try {
             $JobOutput = foreach ($JobId in $JobIds) {
-                Get-AzAutomationJobOutput -AutomationAccountName $AutomationAccountName -Id $JobId -ResourceGroupName $ResourceGroupName -Stream Output -ErrorAction Stop
+                Get-AzAutomationJobOutput -AutomationAccountName $AutomationAccountName -Id $JobId -ResourceGroupName $ResourceGroupName -Stream Any -ErrorAction Stop
             }
             $Summary = $JobOutput.Summary -join "`r`n"
             $Summary 
