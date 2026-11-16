@@ -110,7 +110,8 @@ try {
 	Write-Output -InputObject "`$Location: $Location"
 	$DeploymentName = "AVDAcceleratorDeployment_ARM_{0:yyyyMMddHHmmss}" -f $(Get-Date)
 	Write-Output -InputObject "`$DeploymentName: $DeploymentName"
-	$TemplateUri = "https://raw.githubusercontent.com/Azure/avdaccelerator/main/workload/arm/deploy-baseline.json"
+	#$TemplateUri = "https://raw.githubusercontent.com/Azure/avdaccelerator/main/workload/arm/deploy-baseline.json"
+    $TemplateUri = "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/refs/heads/master/Azure/Azure%20Automation%20Account/AVDAccelerator%20Deployment/WebHooks/deploy-baseline.json"
 	Write-Output -InputObject "`$TemplateUri: $TemplateUri"
 	$avdVmLocalUserCredentialName = "AVDVmLocalAdminCredential"
 	$avdVmLocalUserCredential = Get-AutomationPSCredential -Name $avdVmLocalUserCredentialName
