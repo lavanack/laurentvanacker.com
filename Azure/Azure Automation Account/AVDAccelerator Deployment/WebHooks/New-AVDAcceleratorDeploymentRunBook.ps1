@@ -17,7 +17,7 @@ of the Sample Code.
 #>
 
 #Requires -Version 5.1
-#Requires -Modules Az.Automation, Az.Resources, Az.Accounts
+#Requires -Modules Az.Accounts, Az.Automation, Az.Resources
 
 [CmdletBinding(SupportsShouldProcess = $true)]
 param
@@ -458,8 +458,8 @@ function New-AzAPIAutomationPowerShellRunbook {
         properties = [ordered]@{
             description        = $Description
             logVerbose         = $LogVerbose.IsPresent
-            logProgress        = $false
-            logActivityTrace   = 1
+            logProgress        = $true
+            logActivityTrace   = ($LogVerbose.IsPresent) -as [int]
             runbookType        = "PowerShell"
             publishContentLink = @{
                 uri         = $RunBookPowerShellScriptURI
@@ -483,11 +483,6 @@ function New-AzAPIAutomationPowerShellRunbook {
             
             $Response = Invoke-RestMethod -Method PUT -Headers $authHeader -Body $jsonBody -ContentType "application/json" -Uri $URI -ErrorAction Stop
             Write-Verbose "Successfully created runbook: $RunbookName"
-            <#
-            if ($LogVerbose) {
-                Set-AzAutomationRunbook -AutomationAccountName $AutomationAccountName -Name $RunbookName -LogVerbose $true -ResourceGroupName $ResourceGroupName
-            }
-            #>
         }
         catch [System.Net.WebException] {   
             # Handle web-specific exceptions with detailed error information
@@ -1051,7 +1046,7 @@ Write-Host "  Description: $RunbookDescription" -ForegroundColor White
 # Deploy runbook using REST API for better control
 try {
     Write-Host "Creating and publishing runbook..." -ForegroundColor Cyan
-    $Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -RunbookName $RunbookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI $RunbookScriptURI -Description $RunbookDescription -LogVerbose -Verbose 
+    $Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -RunbookName $RunbookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI $RunbookScriptURI -Description $RunbookDescription -Verbose #-LogVerbose 
     
     if ($Runbook) {
         Write-Host "Successfully created runbook: $RunBookName" -ForegroundColor Green
@@ -1128,7 +1123,8 @@ catch {
 
 #region Automated Testing Framework
 if (-not $SkipTesting) {
-    & "$CurrentDir\Test-AVDAcceleratorDeploymentRunBook.ps1" -AutomationAccountName $AutomationAccountName -ResourceGroupName $ResourceGroupName -WebhookURI $WebhookURI #-Verbose
+    $Result = & "$CurrentDir\Test-AVDAcceleratorDeploymentRunBook.ps1" -AutomationAccountName $AutomationAccountName -ResourceGroupName $ResourceGroupName -WebhookURI $WebhookURI #-Verbose
+    $Result
 }
 else {
     Write-Host "Testing skipped by user request" -ForegroundColor Yellow

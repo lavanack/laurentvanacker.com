@@ -28,6 +28,9 @@ param
     [ValidatePattern('^https://\w{8}-\w{4}-\w{4}-\w{4}-\w{12}\.webhook\.\w+\.azure-automation\.net/webhooks\?token=.*$')]
     [string] $WebhookURI,
     [Parameter(Mandatory = $false)]
+    [ValidateScript({$_ -in 1..10 })]
+    [uint16]$Attempts = 2,
+    [Parameter(Mandatory = $false)]
     [ValidatePattern("^TRN\d{4}$")]
     [string]$VNET = "TRN{0:D4}" -f $(Get-Random -Minimum 1 -Maximum 1000),
     [ValidateScript({$_ -in 1..9 })]
@@ -49,61 +52,74 @@ $HostPoolData =  [PSCustomObject]@{VNET = $VNET; VMNumb=$VMNumb}
 $Body = $HostPoolData | ConvertTo-Json -Compress
 Write-Verbose "Payload: $Body"
 
-try {
-    $Response = Invoke-WebRequest -Method Post -Uri $WebhookURI -Body $Body -UseBasicParsing -ErrorAction Stop
+foreach ($Attempt in 1..$Attempts) {
+    try {
+        $Percent = ($Attempt / $Attempts * 100)
+        Write-Progress -Id 0 -Activity "[$Attempt/$Attempts] Attempt #$Attempt'" -Status "Percent : $('{0:N0}' -f $Percent)%"
+        $Response = Invoke-WebRequest -Method Post -Uri $WebhookURI -Body $Body -UseBasicParsing -ErrorAction Stop
 
-    if ($Response.StatusCode -eq 202) {
-        Write-Host -Object "Webhook test successful! Status Code: $($Response.StatusCode)" -ForegroundColor Green
-        $JobIds = ($Response.Content | ConvertFrom-Json).JobIds
+        if ($Response.StatusCode -eq 202) {
+            Write-Host -Object "Webhook test successful! Status Code: $($Response.StatusCode)" -ForegroundColor Green
+            $JobIds = ($Response.Content | ConvertFrom-Json).JobIds
 
-        # Monitor job execution
-        Write-Host -Object "Monitoring job execution..."
-        # 30 minutes timeout
-        $timeout = 1800 
-        $elapsed = 0
-        $Step = 30
-        Do {
-            Start-Sleep -Seconds $Step
-            Write-Host -Object "Sleeping $Step seconds ..."
-            $elapsed += $Step
-            $JobCompleted  = $true
-            foreach ($JobId in $JobIds) {
-                try {
-                    $Job = Get-AzAutomationJob -AutomationAccountName $AutomationAccountName -ResourceGroupName $ResourceGroupName -Id $JobId -ErrorAction Stop
-                    Write-Host -Object "JobId : '$JobId' - Status $($Job.Status)"
-                    if ($Job.Status -notin @("Completed", "Failed", "Stopped", "Suspended")) {
-                        $JobCompleted  = $false
-                        #break
+            # Monitor job execution
+            Write-Host -Object "Monitoring job execution..."
+            # 30 minutes timeout
+            $timeout = 1800 
+            $elapsed = 0
+            $Step = 30
+            Do {
+                Start-Sleep -Seconds $Step
+                Write-Host -Object "Sleeping $Step seconds ..."
+                $elapsed += $Step
+                $JobCompleted  = $true
+                $Succeeded = $false
+                foreach ($JobId in $JobIds) {
+                    try {
+                        $Job = Get-AzAutomationJob -AutomationAccountName $AutomationAccountName -ResourceGroupName $ResourceGroupName -Id $JobId -ErrorAction Stop
+                        Write-Host -Object "JobId : '$JobId' - Status $($Job.Status)"
+                        if ($Job.Status -notin @("Completed", "Failed", "Stopped", "Suspended")) {
+                            $JobCompleted  = $false
+                            #break
+                        }
+                        $Succeeded = $Job.Status -eq "Completed"
+                    }
+                    catch {
+                        Write-Warning -Message "Failed to retrieve job status: $($_.Exception.Message)"
+                        break
                     }
                 }
-                catch {
-                    Write-Warning "Failed to retrieve job status: $($_.Exception.Message)"
-                    break
+            } While (($elapsed -lt $timeout) -and (-not($JobCompleted)))
+
+            # Get job output
+            try {
+                $JobOutput = foreach ($JobId in $JobIds) {
+                    Get-AzAutomationJobOutput -AutomationAccountName $AutomationAccountName -Id $JobId -ResourceGroupName $ResourceGroupName -Stream Any -ErrorAction Stop
                 }
+                $Summary = $JobOutput.Summary -join "`r`n"
+                $Summary 
             }
-        } While (($elapsed -lt $timeout) -and (-not($JobCompleted)))
-
-        # Get job output
-        try {
-            $JobOutput = foreach ($JobId in $JobIds) {
-                Get-AzAutomationJobOutput -AutomationAccountName $AutomationAccountName -Id $JobId -ResourceGroupName $ResourceGroupName -Stream Any -ErrorAction Stop
+            catch {
+                Write-Warning -Message "Failed to retrieve job output: $($_.Exception.Message)"
             }
-            $Summary = $JobOutput.Summary -join "`r`n"
-            $Summary 
-        }
-        catch {
-            Write-Warning "Failed to retrieve job output: $($_.Exception.Message)"
-        }
 
-        if (-not($JobCompleted)) {
-            Write-Warning "Job execution timeout reached ($timeout seconds)"
+            if (-not($JobCompleted)) {
+                Write-Warning -Message "Job execution timeout reached ($timeout seconds)"
+            }
+            if ($Succeeded) {
+                break
+            }
+            else  {
+                Write-Warning -Message "The Attempt #$Attempt didn't succeed"
+            }
+        }
+        else {
+            Write-Warning -Message "Webhook test failed with status code: $($Response.StatusCode)"
         }
     }
-    else {
-        Write-Warning "Webhook test failed with status code: $($Response.StatusCode)"
+    catch {
+            Write-Error "Testing failed: $($_.Exception.Message)"
     }
 }
-catch {
-        Write-Error "Testing failed: $($_.Exception.Message)"
-}
+Write-Progress -Id 0 -Activity "Completed !" -Completed
 #endregion
