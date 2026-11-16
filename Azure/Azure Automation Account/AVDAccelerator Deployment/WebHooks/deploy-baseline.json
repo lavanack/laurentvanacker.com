@@ -3948,10 +3948,9 @@
                             ]
                         },
                         {
-                            "condition": "[parameters('deployAlaWorkspace')]",
                             "type": "Microsoft.Resources/deployments",
                             "apiVersion": "2025-04-01",
-                            "name": "[format('Wait-LA-Tables-{0}', parameters('time'))]",
+                            "name": "[format('Retry-Mon-DCR-{0}', parameters('time'))]",
                             "subscriptionId": "[format('{0}', parameters('subscriptionId'))]",
                             "resourceGroup": "[format('{0}', parameters('monitoringRgName'))]",
                             "properties": {
@@ -3960,11 +3959,16 @@
                                 },
                                 "mode": "Incremental",
                                 "parameters": {
-                                    "location": {
-                                        "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', format('{0}', parameters('subscriptionId')), format('{0}', parameters('monitoringRgName'))), 'Microsoft.Resources/deployments', format('LA-Workspace-{0}', parameters('time'))), '2025-04-01').outputs.location.value]"
+                                    "enableRetry": {
+                                        "value": "[parameters('deployAlaWorkspace')]"
                                     },
-                                    "workspaceName": {
-                                        "value": "[parameters('alaWorkspaceName')]"
+                                    "location": "[if(parameters('deployAlaWorkspace'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', format('{0}', parameters('subscriptionId')), format('{0}', parameters('monitoringRgName'))), 'Microsoft.Resources/deployments', format('LA-Workspace-{0}', parameters('time'))), '2025-04-01').outputs.location.value), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', variables('varAlaWorkspaceIdSplitId')[2], variables('varAlaWorkspaceIdSplitId')[4]), 'Microsoft.OperationalInsights/workspaces', variables('varAlaWorkspaceIdSplitId')[8]), '2025-02-01', 'full').location))]",
+                                    "workspaceResourceId": "[if(parameters('deployAlaWorkspace'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', format('{0}', parameters('subscriptionId')), format('{0}', parameters('monitoringRgName'))), 'Microsoft.Resources/deployments', format('LA-Workspace-{0}', parameters('time'))), '2025-04-01').outputs.resourceId.value), createObject('value', parameters('alaWorkspaceId')))]",
+                                    "dcrName": {
+                                        "value": "[parameters('dataCollectionRulesName')]"
+                                    },
+                                    "tags": {
+                                        "value": "[parameters('tags')]"
                                     },
                                     "forceUpdateTag": {
                                         "value": "[parameters('time')]"
@@ -3974,78 +3978,109 @@
                                     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
                                     "contentVersion": "1.0.0.0",
                                     "parameters": {
+                                        "enableRetry": {
+                                            "type": "bool"
+                                        },
                                         "location": {
                                             "type": "string"
                                         },
-                                        "workspaceName": {
+                                        "workspaceResourceId": {
                                             "type": "string"
+                                        },
+                                        "dcrName": {
+                                            "type": "string"
+                                        },
+                                        "tags": {
+                                            "type": "object"
                                         },
                                         "forceUpdateTag": {
                                             "type": "string"
                                         }
                                     },
                                     "variables": {
-                                        "waitIdentityName": "id-avd-monitoring-wait",
-                                        "readerRoleDefinitionId": "acdd72a7-3385-48ef-bd42-f606fba81ae7",
-                                        "waitRoleAssignmentName": "[guid(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('waitIdentityName')), variables('readerRoleDefinitionId'))]"
+                                        "retryIdentityName": "[format('id-dcr-retry-{0}', substring(uniqueString(resourceGroup().id), 0, 8))]"
                                     },
                                     "resources": [
                                         {
+                                            "condition": "[parameters('enableRetry')]",
                                             "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
                                             "apiVersion": "2023-01-31",
-                                            "name": "[variables('waitIdentityName')]",
-                                            "location": "[parameters('location')]"
+                                            "name": "[variables('retryIdentityName')]",
+                                            "location": "[parameters('location')]",
+                                            "tags": "[parameters('tags')]"
                                         },
                                         {
-                                            "type": "Microsoft.OperationalInsights/workspaces/providers/roleAssignments",
+                                            "condition": "[parameters('enableRetry')]",
+                                            "type": "Microsoft.Authorization/roleAssignments",
                                             "apiVersion": "2022-04-01",
-                                            "name": "[format('{0}/Microsoft.Authorization/{1}', parameters('workspaceName'), variables('waitRoleAssignmentName'))]",
+                                            "name": "[guid(resourceGroup().id, variables('retryIdentityName'), 'Monitoring Contributor')]",
                                             "properties": {
-                                                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('readerRoleDefinitionId'))]",
-                                                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('waitIdentityName')), '2023-01-31', 'full').properties.principalId]",
+                                                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '749f88d5-cbae-40b8-bcfc-e573ddc772fa')]",
+                                                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('retryIdentityName')), '2023-01-31').principalId]",
                                                 "principalType": "ServicePrincipal"
                                             },
                                             "dependsOn": [
-                                                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('waitIdentityName'))]"
+                                                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('retryIdentityName'))]"
                                             ]
                                         },
                                         {
+                                            "condition": "[parameters('enableRetry')]",
                                             "type": "Microsoft.Resources/deploymentScripts",
                                             "apiVersion": "2023-08-01",
-                                            "name": "WaitForLogAnalyticsTables",
+                                            "name": "retryDataCollectionRule",
                                             "location": "[parameters('location')]",
                                             "kind": "AzurePowerShell",
                                             "identity": {
                                                 "type": "UserAssigned",
                                                 "userAssignedIdentities": {
-                                                    "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('waitIdentityName'))]": {}
+                                                    "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('retryIdentityName'))]": {}
                                                 }
                                             },
                                             "properties": {
-                                                "azPowerShellVersion": "14.0",
-                                                "timeout": "PT10M",
+                                                "azPowerShellVersion": "16.2",
+                                                "forceUpdateTag": "[parameters('forceUpdateTag')]",
+                                                "timeout": "PT20M",
                                                 "cleanupPreference": "OnSuccess",
                                                 "retentionInterval": "P1D",
-                                                "forceUpdateTag": "[parameters('forceUpdateTag')]",
                                                 "environmentVariables": [
                                                     {
-                                                        "name": "WORKSPACE_RESOURCE_ID",
-                                                        "value": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]"
+                                                        "name": "SubscriptionId",
+                                                        "value": "[subscription().subscriptionId]"
+                                                    },
+                                                    {
+                                                        "name": "ResourceGroupName",
+                                                        "value": "[resourceGroup().name]"
+                                                    },
+                                                    {
+                                                        "name": "DcrName",
+                                                        "value": "[parameters('dcrName')]"
+                                                    },
+                                                    {
+                                                        "name": "Location",
+                                                        "value": "[parameters('location')]"
+                                                    },
+                                                    {
+                                                        "name": "WorkspaceId",
+                                                        "value": "[parameters('workspaceResourceId')]"
+                                                    },
+                                                    {
+                                                        "name": "TagsBase64",
+                                                        "value": "[base64(string(parameters('tags')))]"
                                                     }
                                                 ],
-                                                "scriptContent": "$ErrorActionPreference = 'Stop'\n$tables = @('Perf', 'Event')\n$maxAttempts = 30\n$delaySeconds = 10\n\nfor ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {\n    $missing = @()\n\n    foreach ($table in $tables) {\n        $path = \"$env:WORKSPACE_RESOURCE_ID/tables/${table}?api-version=2025-02-01\"\n        try {\n            $response = Invoke-AzRestMethod -Method GET -Path $path\n            if ($response.StatusCode -ne 200) {\n                $missing += \"$table (HTTP $($response.StatusCode))\"\n            }\n        }\n        catch {\n            $missing += \"$table ($($_.Exception.Message))\"\n        }\n    }\n\n    if ($missing.Count -eq 0) {\n        Write-Output \"Log Analytics tables Perf and Event are ready after attempt $attempt.\"\n        $DeploymentScriptOutputs = @{ tablesReady = $true; attempts = $attempt }\n        exit 0\n    }\n\n    Write-Warning \"Attempt $attempt/$maxAttempts: waiting for $($missing -join ', ').\"\n    if ($attempt -lt $maxAttempts) {\n        Start-Sleep -Seconds $delaySeconds\n    }\n}\n\nthrow \"Log Analytics tables Perf and Event were not available after $maxAttempts attempts.\""
+                                                "scriptContent": "$ErrorActionPreference = 'Stop'\n$maxAttempts = 60\n$delaySeconds = 15\n$lastError = $null\n$workspaceName = ($env:WorkspaceId.TrimEnd('/') -split '/')[-1]\n$payloadJson = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('eyJsb2NhdGlvbiI6IiIsInRhZ3MiOnt9LCJraW5kIjoiV2luZG93cyIsImlkZW50aXR5Ijp7InR5cGUiOiJzeXN0ZW1hc3NpZ25lZCJ9LCJwcm9wZXJ0aWVzIjp7ImRhdGFGbG93cyI6W3sic3RyZWFtcyI6WyJNaWNyb3NvZnQtUGVyZiIsIk1pY3Jvc29mdC1FdmVudCJdLCJkZXN0aW5hdGlvbnMiOlsiIl19XSwiZGF0YVNvdXJjZXMiOnsicGVyZm9ybWFuY2VDb3VudGVycyI6W3sic3RyZWFtcyI6WyJNaWNyb3NvZnQtUGVyZiJdLCJzYW1wbGluZ0ZyZXF1ZW5jeUluU2Vjb25kcyI6MzAsImNvdW50ZXJTcGVjaWZpZXJzIjpbIlxcTG9naWNhbERpc2soQzopXFxBdmcuIERpc2sgUXVldWUgTGVuZ3RoIiwiXFxMb2dpY2FsRGlzayhDOilcXEN1cnJlbnQgRGlzayBRdWV1ZSBMZW5ndGgiLCJcXE1lbW9yeVxcQXZhaWxhYmxlIE1ieXRlcyIsIlxcTWVtb3J5XFxQYWdlIEZhdWx0cy9zZWMiLCJcXE1lbW9yeVxcUGFnZXMvc2VjIiwiXFxNZW1vcnlcXCUgQ29tbWl0dGVkIEJ5dGVzIEluIFVzZSIsIlxcUGh5c2ljYWxEaXNrKCopXFxBdmcuIERpc2sgUXVldWUgTGVuZ3RoIiwiXFxQaHlzaWNhbERpc2soKilcXEF2Zy4gRGlzayBzZWMvUmVhZCIsIlxcUGh5c2ljYWxEaXNrKCopXFxBdmcuIERpc2sgc2VjL1RyYW5zZmVyIiwiXFxQaHlzaWNhbERpc2soKilcXEF2Zy4gRGlzayBzZWMvV3JpdGUiLCJcXFByb2Nlc3NvciBJbmZvcm1hdGlvbihfVG90YWwpXFwlIFByb2Nlc3NvciBUaW1lIiwiXFxVc2VyIElucHV0IERlbGF5IHBlciBQcm9jZXNzKCopXFxNYXggSW5wdXQgRGVsYXkiLCJcXFVzZXIgSW5wdXQgRGVsYXkgcGVyIFNlc3Npb24oKilcXE1heCBJbnB1dCBEZWxheSIsIlxcUmVtb3RlRlggTmV0d29yaygqKVxcQ3VycmVudCBUQ1AgUlRUIiwiXFxSZW1vdGVGWCBOZXR3b3JrKCopXFxDdXJyZW50IFVEUCBCYW5kd2lkdGgiXSwibmFtZSI6InBlcmZDb3VudGVyRGF0YVNvdXJjZTEwIn0seyJzdHJlYW1zIjpbIk1pY3Jvc29mdC1QZXJmIl0sInNhbXBsaW5nRnJlcXVlbmN5SW5TZWNvbmRzIjo2MCwiY291bnRlclNwZWNpZmllcnMiOlsiXFxMb2dpY2FsRGlzayhDOilcXCUgRnJlZSBTcGFjZSIsIlxcTG9naWNhbERpc2soQzopXFxBdmcuIERpc2sgc2VjL1RyYW5zZmVyIiwiXFxUZXJtaW5hbCBTZXJ2aWNlcygqKVxcQWN0aXZlIFNlc3Npb25zIiwiXFxUZXJtaW5hbCBTZXJ2aWNlcygqKVxcSW5hY3RpdmUgU2Vzc2lvbnMiLCJcXFRlcm1pbmFsIFNlcnZpY2VzKCopXFxUb3RhbCBTZXNzaW9ucyJdLCJuYW1lIjoicGVyZkNvdW50ZXJEYXRhU291cmNlMzAifV0sIndpbmRvd3NFdmVudExvZ3MiOlt7InN0cmVhbXMiOlsiTWljcm9zb2Z0LUV2ZW50Il0sInhQYXRoUXVlcmllcyI6WyJNaWNyb3NvZnQtV2luZG93cy1UZXJtaW5hbFNlcnZpY2VzLVJlbW90ZUNvbm5lY3Rpb25NYW5hZ2VyL0FkbWluISpbU3lzdGVtWyhMZXZlbD0yIG9yIExldmVsPTMgb3IgTGV2ZWw9NCBvciBMZXZlbD0wKSBdXSIsIk1pY3Jvc29mdC1XaW5kb3dzLVRlcm1pbmFsU2VydmljZXMtTG9jYWxTZXNzaW9uTWFuYWdlci9PcGVyYXRpb25hbCEqW1N5c3RlbVsoTGV2ZWw9MiBvciBMZXZlbD0zIG9yIExldmVsPTQgb3IgTGV2ZWw9MCldXSIsIlN5c3RlbSEqIiwiTWljcm9zb2Z0LUZTTG9naXgtQXBwcy9PcGVyYXRpb25hbCEqW1N5c3RlbVsoTGV2ZWw9MiBvciBMZXZlbD0zIG9yIExldmVsPTQgb3IgTGV2ZWw9MCldXSIsIkFwcGxpY2F0aW9uISpbU3lzdGVtWyhMZXZlbD0yIG9yIExldmVsPTMpXV0iLCJNaWNyb3NvZnQtRlNMb2dpeC1BcHBzL0FkbWluISpbU3lzdGVtWyhMZXZlbD0yIG9yIExldmVsPTMgb3IgTGV2ZWw9NCBvciBMZXZlbD0wKV1dIl0sIm5hbWUiOiJldmVudExvZ3NEYXRhU291cmNlIn1dfSwiZGVzY3JpcHRpb24iOiJBVkQgSW5zaWdodHMgc2V0dGluZ3MiLCJkZXN0aW5hdGlvbnMiOnsibG9nQW5hbHl0aWNzIjpbeyJuYW1lIjoiIiwid29ya3NwYWNlUmVzb3VyY2VJZCI6IiJ9XX0sInN0cmVhbURlY2xhcmF0aW9ucyI6e319fQ=='))\n$payloadObject = $payloadJson | ConvertFrom-Json\n$payloadObject.location = $env:Location\n$payloadObject.tags = ([System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($env:TagsBase64)) | ConvertFrom-Json)\n$payloadObject.properties.dataFlows[0].destinations[0] = $workspaceName\n$payloadObject.properties.destinations.logAnalytics[0].name = $workspaceName\n$payloadObject.properties.destinations.logAnalytics[0].workspaceResourceId = $env:WorkspaceId\n$payload = $payloadObject | ConvertTo-Json -Depth 30 -Compress\n$resourcePath = \"/subscriptions/$($env:SubscriptionId)/resourceGroups/$($env:ResourceGroupName)/providers/Microsoft.Insights/dataCollectionRules/$($env:DcrName)?api-version=2023-03-11\"\n\nfor ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {\n    try {\n        Write-Output \"DCR deployment attempt $attempt/$maxAttempts.\"\n        $response = Invoke-AzRestMethod -Method PUT -Path $resourcePath -Payload $payload -ErrorAction Stop\n        if ($response.StatusCode -notin @(200, 201, 202)) {\n            throw \"Unexpected HTTP status $($response.StatusCode): $($response.Content)\"\n        }\n\n        for ($poll = 1; $poll -le 24; $poll++) {\n            $getResponse = Invoke-AzRestMethod -Method GET -Path $resourcePath -ErrorAction Stop\n            if ($getResponse.StatusCode -eq 200) {\n                $dcr = $getResponse.Content | ConvertFrom-Json\n                $state = $dcr.properties.provisioningState\n                if ([string]::IsNullOrWhiteSpace($state) -or $state -eq 'Succeeded') {\n                    Write-Output 'The data collection rule is ready.'\n                    exit 0\n                }\n                if ($state -eq 'Failed') {\n                    throw 'The data collection rule entered the Failed provisioning state.'\n                }\n            }\n            Start-Sleep -Seconds 5\n        }\n        throw 'Timed out while waiting for the data collection rule provisioning state.'\n    }\n    catch {\n        $lastError = $_.Exception.Message\n        Write-Warning \"Attempt $attempt failed: $lastError\"\n        if ($attempt -lt $maxAttempts) {\n            Start-Sleep -Seconds $delaySeconds\n        }\n    }\n}\n\nthrow \"Unable to create the data collection rule after $maxAttempts attempts. Last error: $lastError\""
                                             },
                                             "dependsOn": [
-                                                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('waitIdentityName'))]",
-                                                "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.Authorization/roleAssignments', variables('waitRoleAssignmentName'))]"
+                                                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('retryIdentityName'))]",
+                                                "[resourceId('Microsoft.Authorization/roleAssignments', guid(resourceGroup().id, variables('retryIdentityName'), 'Monitoring Contributor'))]"
                                             ]
                                         }
                                     ]
                                 }
                             },
                             "dependsOn": [
-                                "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', format('{0}', parameters('subscriptionId')), format('{0}', parameters('monitoringRgName'))), 'Microsoft.Resources/deployments', format('LA-Workspace-{0}', parameters('time')))]",
-                                "[subscriptionResourceId(parameters('subscriptionId'), 'Microsoft.Resources/deployments', format('Monitoing-RG-{0}', parameters('time')))]"
+                                "[subscriptionResourceId(parameters('subscriptionId'), 'Microsoft.Resources/deployments', format('Monitoing-RG-{0}', parameters('time')))]",
+                                "[if(parameters('deployAlaWorkspace'), extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('subscriptionId'), parameters('monitoringRgName')), 'Microsoft.Resources/deployments', format('LA-Workspace-{0}', parameters('time'))), subscriptionResourceId(parameters('subscriptionId'), 'Microsoft.Resources/deployments', format('Monitoing-RG-{0}', parameters('time'))))]"
                             ]
                         },
                         {
@@ -4211,7 +4246,7 @@
                                 }
                             },
                             "dependsOn": [
-                                "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', format('{0}', parameters('subscriptionId')), format('{0}', parameters('monitoringRgName'))), 'Microsoft.Resources/deployments', format('Wait-LA-Tables-{0}', parameters('time')))]",
+                                "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', format('{0}', parameters('subscriptionId')), format('{0}', parameters('monitoringRgName'))), 'Microsoft.Resources/deployments', format('Retry-Mon-DCR-{0}', parameters('time')))]",
                                 "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', format('{0}', parameters('subscriptionId')), format('{0}', parameters('monitoringRgName'))), 'Microsoft.Resources/deployments', format('LA-Workspace-{0}', parameters('time')))]",
                                 "[subscriptionResourceId(parameters('subscriptionId'), 'Microsoft.Resources/deployments', format('Monitoing-RG-{0}', parameters('time')))]"
                             ]
