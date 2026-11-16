@@ -139,7 +139,11 @@ Invoke-LabCommand -ActivityName 'Windows Virtual Desktop Optimization Tool (VDOT
 #>
 
 Invoke-LabCommand -ActivityName 'Windows Optimization' -ComputerName $Machines -ScriptBlock {
-    Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/Azure/RDS-Templates/refs/heads/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2024-03-27/WindowsOptimization.ps1) } -All" -Verbose
+    $Uri = "https://raw.githubusercontent.com/Azure/RDS-Templates/refs/heads/master/CustomImageTemplateScripts/CustomImageTemplateScripts_2024-03-27/WindowsOptimization.ps1"
+    $OutFile = Join-Path -Path $env:Temp -ChildPath $(Split-Path -Path $Uri -Leaf)
+    Invoke-RestMethod -Uri $Uri -OutFile $OutFile
+    & $OutFile -Optimizations All
+    $null = Remove-Item -Path $OutFile -Force -ErrorAction Ignore
 }
 
 Restart-LabVM -ComputerName $Machines -Wait
@@ -159,7 +163,7 @@ Stop-Transcript
 
 #region RDCMan Setup
 $Servers = foreach ($Machine in $Machines) {
-@"
+    @"
         <server>
             <properties>
             <name>{0}</name>
@@ -231,9 +235,9 @@ catch {
 #endregion
 
 #region Cleaning up the previously existing VMs (if any)
-foreach($Machine in $Machines) {
+foreach ($Machine in $Machines) {
     $Devices = Get-MgBetaDevice -Filter "displayName eq '$($Machine.Name)'" -ErrorAction Ignore
-    foreach($Device in $Devices) {
+    foreach ($Device in $Devices) {
         Remove-MgBetaDevice -DeviceId $Device.Id -ErrorAction Ignore
     }
 }
@@ -371,7 +375,7 @@ Write-Host -Object "``r``nDone ..." -ForegroundColor Green
         }
         #>
         $FilePath | Set-ClipBoard
-		& $RDCManFilePath
+        & $RDCManFilePath
 
         #region Waiting the Waiting the EntraID join and the Azure Arc Onboarding complete
         <#
@@ -401,7 +405,7 @@ Write-Host -Object "``r``nDone ..." -ForegroundColor Green
             $ConnectedMachines = foreach ($MachineName in $Machines.Name) {
                 $Parameters = @{
                     ResourceGroupName = $VMResourceGroup.ResourceGroupName
-                    Name = $MachineName
+                    Name              = $MachineName
                 }
                 #Connecting
                 Get-AzConnectedMachine @Parameters -ErrorAction Ignore
@@ -435,11 +439,11 @@ Write-Host -Object "``r``nDone ..." -ForegroundColor Green
 
         #region Installing the CloudDevice Extension
         # Settings
-        $settings          = @{ isCloudDevice = $false }
+        $settings = @{ isCloudDevice = $false }
         $protectedSettings = @{ registrationToken = $RegistrationToken }
 
         #Installing the CloudDevice Extension
-        foreach($Machine in $Machines) {
+        foreach ($Machine in $Machines) {
             Write-Host "Install the CloudDevice Extension on '$($Machine.Name)' ..."
             New-AzConnectedMachineExtension -Name 'Microsoft.AzureVirtualDesktop.CloudDeviceExtension' -ResourceGroupName $VMResourceGroup.ResourceGroupName -MachineName $Machine.Name -Location $Location -Publisher 'Microsoft.AzureVirtualDesktop' -ExtensionType 'CloudDeviceExtension' -Setting $settings -ProtectedSetting $protectedSettings -verbose
             Get-AzConnectedMachineExtension -ResourceGroupName $VMResourceGroup.ResourceGroupName -MachineName $Machine.Name -Name 'Microsoft.AzureVirtualDesktop.CloudDeviceExtension'
