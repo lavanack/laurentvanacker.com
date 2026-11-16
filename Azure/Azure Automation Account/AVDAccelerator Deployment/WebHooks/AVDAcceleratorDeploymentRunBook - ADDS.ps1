@@ -265,11 +265,12 @@ try {
 		enableDefForArm                               = $False
 	}
 
+    <#
 	#region Cleaning up any existing resource group with same Deployment Prefix and Environment
 	Write-Output -InputObject "Cleaning up any previously existing deployments ..."
 	$null = Get-AzResourceGroup -ResourceGroupName $("rg-avd-{0}-{1}*" -f $TemplateParameterObject.deploymentPrefix, $TemplateParameterObject.deploymentEnvironment).ToLower() | Remove-AzResourceGroup -AsJob -Force | Receive-Job -Wait -AutoRemoveJob
 	#endregion
-
+    #>
 
 	#$SubscriptionDeployment = New-AzSubscriptionDeployment -Name $DeploymentName -Location $Location -TemplateFile $TemplateFile -TemplateParameterFile $TemplateParameterFile  -Verbose
 	Write-Output -InputObject "Deploying ..."
