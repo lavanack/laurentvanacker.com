@@ -457,9 +457,9 @@ function New-AzAPIAutomationPowerShellRunbook {
     $Body = [ordered]@{ 
         properties = [ordered]@{
             description        = $Description
-            logVerbose         = $false
+            logVerbose         = $LogVerbose.IsPresent
             logProgress        = $false
-            logActivityTrace   = 0
+            logActivityTrace   = 1
             runbookType        = "PowerShell"
             publishContentLink = @{
                 uri         = $RunBookPowerShellScriptURI
@@ -483,10 +483,11 @@ function New-AzAPIAutomationPowerShellRunbook {
             
             $Response = Invoke-RestMethod -Method PUT -Headers $authHeader -Body $jsonBody -ContentType "application/json" -Uri $URI -ErrorAction Stop
             Write-Verbose "Successfully created runbook: $RunbookName"
-
+            <#
             if ($LogVerbose) {
                 Set-AzAutomationRunbook -AutomationAccountName $AutomationAccountName -Name $RunbookName -LogVerbose $true -ResourceGroupName $ResourceGroupName
             }
+            #>
         }
         catch [System.Net.WebException] {   
             # Handle web-specific exceptions with detailed error information
@@ -1050,7 +1051,7 @@ Write-Host "  Description: $RunbookDescription" -ForegroundColor White
 # Deploy runbook using REST API for better control
 try {
     Write-Host "Creating and publishing runbook..." -ForegroundColor Cyan
-    $Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -RunbookName $RunbookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI $RunbookScriptURI -Description $RunbookDescription -Verbose 
+    $Runbook = New-AzAPIAutomationPowerShellRunbook -AutomationAccountName $AutomationAccount.AutomationAccountName -RunbookName $RunbookName -ResourceGroupName $ResourceGroupName -Location $Location -RunBookPowerShellScriptURI $RunbookScriptURI -Description $RunbookDescription -LogVerbose -Verbose 
     
     if ($Runbook) {
         Write-Host "Successfully created runbook: $RunBookName" -ForegroundColor Green
