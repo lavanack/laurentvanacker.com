@@ -517,6 +517,17 @@ function New-AzureComputeGallery {
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgJupyterLabPowerShellCustomizerParams.Name)' ..."
 	$JupyterLabCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgJupyterLabPowerShellCustomizerParams 
 
+	$ImgPythonToolsPowerShellCustomizerParams = @{  
+		PowerShellCustomizer = $true  
+		Name                 = 'Install Python Tools'  
+		RunElevated          = $true  
+		runAsSystem          = $true  
+		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-PythonTools.ps1'
+	}
+
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgPythonToolsPowerShellCustomizerParams.Name)' ..."
+	$PythonToolsCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgPythonToolsPowerShellCustomizerParams 
+
 	$ImgGitPowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
 		Name                 = 'Install Git'  
@@ -629,7 +640,7 @@ function New-AzureComputeGallery {
 	$DisableAutoUpdatesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgDisableAutoUpdatesPowerShellCustomizerParams 
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
-	$Customize = $TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $PythonCustomizer, $VisualCPlusPlusRedistributableCustomizer, $VisualCPlusPlusRedistributableWindowsRestartCustomizer, $JupyterLabCustomizer, $GitCustomizer, $AzureCLICustomizer, $AzCopyCustomizer, $DockerCLICustomizer, $DockerBuildXCustomizer, $AzureStorageExplorerCustomizer, $PostmanCustomizer, $PuttyCustomizer, $WindowsUpdateCustomizer, $WindowsUpdateWindowsRestartCustomizer, $DisableAutoUpdatesCustomizer
+	$Customize = $TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $PythonCustomizer, $VisualCPlusPlusRedistributableCustomizer, $VisualCPlusPlusRedistributableWindowsRestartCustomizer, $JupyterLabCustomizer, $PythonToolsCustomizer, $GitCustomizer, $AzureCLICustomizer, $AzCopyCustomizer, $DockerCLICustomizer, $DockerBuildXCustomizer, $AzureStorageExplorerCustomizer, $PostmanCustomizer, $PuttyCustomizer, $WindowsUpdateCustomizer, $WindowsUpdateWindowsRestartCustomizer, $DisableAutoUpdatesCustomizer
 	$ImgTemplateParams = @{
 		ImageTemplateName      = $imageTemplateNamePowerShell
 		ResourceGroupName      = $ResourceGroupName
