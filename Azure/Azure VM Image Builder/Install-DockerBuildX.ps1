@@ -1,4 +1,4 @@
-﻿<#
+<#
 This Sample Code is provided for the purpose of illustration only
 and is not intended to be used in a production environment.  THIS
 SAMPLE CODE AND ANY RELATED INFORMATION ARE PROVIDED "AS IS" WITHOUT
@@ -32,10 +32,11 @@ If (-not(Test-Path -Path $OutFile)) {
 
 #region Installing DockerBuildX 
 #From https://richardbrunt.co.uk/til/installing-docker-buildx-on-windows-without-docker-desktop/
-$DestinationPath = "C:\Tools"
+$DestinationPath = "C:\Tools\docker\bin"
 $null = New-Item -Path $DestinationPath -ItemType Directory -Force
-Rename-Item -Path $OutFile -NewName "docker-buildx.exe" -Force
-Move-Item -Path $OutFile -Destination $DestinationPath -Force
+$NewPath = Move-Item -Path $OutFile -Destination $DestinationPath -Force -PassThru
+Rename-Item -Path $NewPath.FullName -NewName "docker-buildx.exe" -Force
+
 #endregion
 
 #region Updating System Path
