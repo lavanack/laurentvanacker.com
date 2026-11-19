@@ -17,6 +17,52 @@ of the Sample Code.
 #>
 #requires -Version 5 -Modules Az.Accounts, Az.Compute, Az.Network, Az.Resources, Az.Security, Az.Storage, Microsoft.PowerShell.ThreadJob
 
+<#
+.SYNOPSIS
+Provisions sample Windows 11 VMs and their supporting Azure resources.
+
+.DESCRIPTION
+Creates a resource group, storage account, virtual network, subnet, and network
+security group in the selected region. Generates shared administrator credentials,
+copies the password to the clipboard, and deploys Spot VMs in thread jobs.
+Each VM receives a daily shutdown schedule and a local Credential Manager entry.
+
+.PARAMETER VMNumber
+Specifies the number of VMs to deploy. Defaults to 1. Supports the alias Number.
+Use a positive value; zero is not rejected by parameter validation.
+
+.PARAMETER Location
+Specifies the Azure region. Defaults to centralus. Validation queries Get-AzLocation,
+so an authenticated Azure context must be available before parameter binding.
+
+.PARAMETER PublicIP
+Skips NAT gateway setup when specified. The current VM job parameters hard-code
+PublicIP to true, so VMs request public IPs and JIT RDP access regardless of this
+script-level switch.
+
+.EXAMPLE
+.\New-AzSubnetVM.ps1 -VMNumber 2 -Location 'centralus' -PublicIP
+
+Deploys two Spot VMs with public IPs and skips NAT gateway creation.
+
+.INPUTS
+None. This script does not accept pipeline input.
+
+.OUTPUTS
+System.Object
+May emit Azure sign-in output. VM job output is received and discarded; progress
+and host messages report provisioning activity and connection names.
+
+.NOTES
+Sample code only. Creates billable Azure resources. If the generated resource
+group name already exists, deletes that group and all its resources without
+confirmation before recreating it.
+
+Requires Windows, the modules listed in #requires, and access to Azure, the Azure
+Naming Tool repository, DinoPass, Pwned Passwords, and ipv4.seeip.org.
+Changes the current directory to the script directory and clears the error list.
+Job completion does not confirm that the asynchronous VM start has completed.
+#>
 [CmdletBinding(PositionalBinding = $false)]
 param
 (
@@ -185,7 +231,7 @@ function New-RandomPassword {
     # Azure rejects these commonly used passwords even when they satisfy complexity rules.
     $ProhibitedPasswords = @('abc@123', 'iloveyou!', 'P@$$w0rd', 'P@ssw0rd', 'P@ssword123', 'Pa$$word', 'pass@word1', 'Password!', 'Password1', 'Password22')
     $length = Get-Random -Minimum $minLength -Maximum $maxLength
-    # Keep the chosen length for every retry; check breach status only after complexity passes.
+    # Keep the chosen length for every retry; query breach status only after local checks pass.
     Do {
         if ($Online) {
             $URI = "https://www.dinopass.com/password/custom?length={0}&useSymbols=true&useNumbers=true&useCapitals=true" -f $length
@@ -198,9 +244,7 @@ function New-RandomPassword {
         # Check either source identically; -match is case-insensitive for the letter patterns.
     } Until (($RandomPassword -notin $ProhibitedPasswords) -and (($RandomPassword -match '[A-Z]') -and ($RandomPassword -match '[a-z]') -and ($RandomPassword -match '\d') -and ($RandomPassword -match '\W') -and (-not((Test-PwnedPassword -Password $RandomPassword).PasswordCompromised))))
 
-    #Write-Host -Object "The password is : $RandomPassword"
     if ($ClipBoard) {
-        #Write-Verbose -Message "The password has beeen copied into the clipboard (Use Win+V) ..."
         $RandomPassword | Set-Clipboard
     }
     if ($AsSecureString) {
@@ -221,7 +265,8 @@ Creates a Windows 11 virtual machine on an existing subnet.
 Creates a NIC and a Windows 11 Enterprise Trusted Launch VM with a system-assigned
 managed identity, using the supplied administrator credentials. Stores those
 credentials in the local Windows Credential Manager and configures daily shutdown
-at 23:00 in the local computer's time zone. Starts the VM after deployment.
+at 23:00 in the local computer's time zone. Requests VM startup without waiting
+for it to complete and writes the connection name to the host.
 
 .PARAMETER ResourceGroupName
 Specifies the existing resource group in which to create the VM and its resources.
@@ -248,27 +293,35 @@ still occur. Without this switch, requests hibernation for a regular-priority VM
 
 .PARAMETER PublicIP
 Creates a static public IP with a DNS label, configures a JIT RDP policy, and
-requests three hours of access from the caller's public IP.
+requests three hours of access from the public IPv4 address detected on the
+computer running this function.
 
 .EXAMPLE
 New-AzSubnetVM -ResourceGroupName 'rg-demo' -VMName 'vm-demo-01' -Subnet $Subnet -VMSize 'Standard_D2s_v5' -Credential $Credential
 
 Creates a private-only VM on an existing subnet using supplied credentials.
 
+.EXAMPLE
+New-AzSubnetVM -ResourceGroupName 'rg-demo' -VMName 'vm-demo-02' -Subnet $Subnet -VMSize 'Standard_D2s_v5' -Credential $Credential -Spot -PublicIP
+
+Creates a Spot VM with a public DNS name and requests temporary RDP access.
+
 .INPUTS
 None. This function does not accept pipeline input.
 
 .OUTPUTS
 System.Object
-Emits results from the Azure configuration, deployment, shutdown-schedule, and
-start operations, and from the JIT access request when PublicIP is specified.
-Does not return a single consolidated VM object.
+Emits any result returned by Start-AzVM -NoWait. Other Azure operation results
+are captured or discarded. The connection name is written with Write-Host,
+not returned as pipeline output. Does not return a consolidated VM object.
 
 .NOTES
 Requires an authenticated Azure context and Windows tools including cmdkey.
-PublicIP uses $MyPublicIP from the calling scope for the JIT access request;
-that variable must also be available when running the function in a thread job.
+PublicIP detects the caller's public IPv4 address through https://ipv4.seeip.org
+inside the function, including when invoked from a thread job.
 If deployment raises an Azure CloudException, retries once with hibernation disabled.
+Private-only connectivity requires a separate route to the subnet; this function
+does not create a NAT gateway, VPN, or Bastion host.
 #>
 function New-AzSubnetVM {
     [CmdletBinding(PositionalBinding = $false)]
@@ -343,29 +396,29 @@ function New-AzSubnetVM {
         $VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize -SecurityType TrustedLaunch -IdentityType SystemAssigned -HibernationEnabled
     }
 
-    Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
+    $null = Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
 
     # Configure Windows provisioning, administrator credentials, and automatic updates.
-    Set-AzVMOperatingSystem -VM $VMConfig -Windows -ComputerName $VMName -Credential $Credential -ProvisionVMAgent -EnableAutoUpdate #-PatchMode "AutomaticByPlatform"
+    $null = Set-AzVMOperatingSystem -VM $VMConfig -Windows -ComputerName $VMName -Credential $Credential -ProvisionVMAgent -EnableAutoUpdate #-PatchMode "AutomaticByPlatform"
 
     # Enable boot diagnostics using managed storage.
-    Set-AzVMBootDiagnostic -VM $VMConfig -Enable 
+    $null = Set-AzVMBootDiagnostic -VM $VMConfig -Enable 
 
     # Use the latest version of the configured marketplace image.
-    Set-AzVMSourceImage -VM $VMConfig -PublisherName $ImagePublisherName -Offer $ImageOffer -Skus $ImageSku -Version 'latest'
+    $null = Set-AzVMSourceImage -VM $VMConfig -PublisherName $ImagePublisherName -Offer $ImageOffer -Skus $ImageSku -Version 'latest'
 
     # Create the OS disk from the image with the configured capacity and storage tier.
-    Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -CreateOption fromImage
+    $null = Set-AzVMOSDisk -VM $VMConfig -Name $OSDiskName -DiskSizeInGB $OSDiskSize -StorageAccountType $OSDiskType -CreateOption fromImage
 
     # Deploy the VM; retry once with hibernation disabled after an Azure CloudException.
     try {
-        New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig -ErrorAction Stop #-DisableBginfoExtension
+        $null = New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig -ErrorAction Stop #-DisableBginfoExtension
     }
     catch [Microsoft.Rest.Azure.CloudException] {
         Write-Warning -Message $_.Exception.Message
         Write-Warning -Message "Disabling Hibernation ..."
         $VMConfig.AdditionalCapabilities.HibernationEnabled = $false
-        New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig -ErrorAction Stop #-DisableBginfoExtension
+        $null = New-AzVM -ResourceGroupName $ResourceGroupName -Location $Location -VM $VMConfig -ErrorAction Stop #-DisableBginfoExtension
     }
     $VM = Get-AzVM -ResourceGroup $ResourceGroupName -Name $VMName
     if ($PublicIP) {
@@ -395,6 +448,8 @@ function New-AzSubnetVM {
         #endregion
 
         #region Request three hours of RDP access from the caller's public IP
+        # Resolve within the job's scope rather than relying on a parent-scope variable.
+        $MyPublicIp = Invoke-RestMethod -Uri "https://ipv4.seeip.org"
         $JitPolicy = (
             @{
                 id    = $VM.Id
@@ -406,7 +461,7 @@ function New-AzSubnetVM {
             })
         $ActivationVM = @($JitPolicy)
         Write-Host "Requesting Temporary Acces via Just in Time for ($VMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
-        Start-AzJitNetworkAccessPolicy -ResourceGroupName $($VM.ResourceGroupName) -Location $VM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM
+        $null = Start-AzJitNetworkAccessPolicy -ResourceGroupName $($VM.ResourceGroupName) -Location $VM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM
         #endregion
 
         #endregion
@@ -421,18 +476,20 @@ function New-AzSubnetVM {
     $Properties.Add('dailyRecurrence', @{'time' = "2300" })
     $Properties.Add('timeZoneId', (Get-TimeZone).Id)
     $Properties.Add('targetResourceId', $VM.Id)
-    New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Properties $Properties -Force
+    $null = New-AzResource -Location $location -ResourceId $ScheduledShutdownResourceId -Properties $Properties -Force
     #endregion
 
-    # Ensure the deployed VM is running.
-    Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName
+    # Request startup asynchronously; this function does not wait for the running state.
+    Start-AzVM -Name $VMName -ResourceGroupName $ResourceGroupName -NoWait
 
     # Store credentials for the DNS name or VM name, escaping password characters for cmd.exe.
     if ($PublicIP) {
         Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$FQDN /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
+        Write-Host -Object $FQDN
     }
     else {
         Start-Process -FilePath "$env:comspec" -ArgumentList "/c", "cmdkey /generic:$VMName /user:$($Credential.UserName) /pass:$($Credential.GetNetworkCredential().Password -replace "(\W)", '^$1')" -Wait
+        Write-Host -Object $VMName
     }
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
 }
@@ -499,10 +556,10 @@ https://learn.microsoft.com/azure/nat-gateway/quickstart-create-nat-gateway?tabs
 function New-PsAvdNatGatewaySetup {
     [CmdletBinding(PositionalBinding = $false)]
     Param( 
-        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ParameterSetName= 'VirtualNetwork')]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ParameterSetName = 'VirtualNetwork')]
         [Microsoft.Azure.Commands.Network.Models.PSVirtualNetwork] $VirtualNetwork,
 
-        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ParameterSetName= 'Subnet')]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ParameterSetName = 'Subnet')]
         [Alias('Subnet')]
         [Microsoft.Azure.Commands.Network.Models.PSSubnet] $SubnetConfig,
 
@@ -607,10 +664,9 @@ function New-PsAvdNatGatewaySetup {
         if ($SubnetConfig) {
             # Replace the subnet's NAT association without changing its other settings.
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Updating SubNet: $($SubnetConfig.Name)"
-            ($VirtualNetwork.Subnets | Where-Object -FilterScript {$_.Id -eq $SubnetConfig.Id}).NatGateway = $NatGateway
+            ($VirtualNetwork.Subnets | Where-Object -FilterScript { $_.Id -eq $SubnetConfig.Id }).NatGateway = $NatGateway
         }
-        else
-        {
+        else {
             #region Build the new subnet configuration with its NAT gateway and NSG
             $Parameters = @{
                 Name                 = $SubnetName
@@ -772,11 +828,11 @@ $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList
 #endregion
 
 #region VM Provisioning
-# Provision VMs in thread jobs, importing the required functions into each job.
+# Provision VMs in thread jobs, importing the VM function into each job's scope.
 $Jobs = 1..$VMNumber | ForEach-Object -Process {
     $VMName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $VirtualMachinePrefix, $Project, $Role, $LocationShortName, $_                       
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VMName: $VMName"         
-    $PercentComplete = 1/$VMNumber
+    $PercentComplete = 1 / $VMNumber
     Write-Progress -Id 0 -Activity "[$($_)/$($VMNumber)] Creating VMs ..." -CurrentOperation "Creating '$VMName' VM ..." -Status $('{0:N0}%' -f $PercentComplete) -PercentComplete $PercentComplete
     if ($VMName.Length -gt $AzureVMNameMaxLength) {
         Write-Error "'$VMName' exceeds $AzureVMNameMaxLength characters" -ErrorAction Stop
@@ -790,7 +846,7 @@ $Jobs = 1..$VMNumber | ForEach-Object -Process {
         Location          = $Location 
         Spot              = $true
         Verbose           = $true
-        PublicIP          = $PublicIP.IsPresent
+        PublicIP          = $true # Always enabled here, independently of the script-level switch.
         Credential        = $Credential
     }
     #New-AzSubnetVM @Params
@@ -803,7 +859,7 @@ $Jobs = 1..$VMNumber | ForEach-Object -Process {
 }
 Write-Progress -Id 0 -Activity "Completed !" -Completed
 
-# Wait for every job, receive its output, and remove completed jobs.
+# Wait for provisioning jobs and discard their output; VM start requests remain asynchronous.
 Write-Host -Object "Waiting for the creation of the virtual machines to complete ..." 
 $null = $Jobs | Receive-Job -Wait -AutoRemoveJob
 Write-Host -Object "Virtual machine creation complete !" -ForegroundColor Green
