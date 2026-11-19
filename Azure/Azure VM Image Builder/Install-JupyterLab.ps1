@@ -1,4 +1,4 @@
-﻿<#
+<#
 This Sample Code is provided for the purpose of illustration only
 and is not intended to be used in a production environment.  THIS
 SAMPLE CODE AND ANY RELATED INFORMATION ARE PROVIDED "AS IS" WITHOUT
@@ -25,5 +25,5 @@ $Python = "python"
 
 
 & $Python -m pip install --upgrade pip
-& $Python -m pip install --upgrade --no-cache-dir --quiet jupyterlab
+& $Python -m pip install --upgrade --no-cache-dir --quiet jupyterlab --no-warn-script-location
 #endregion 
