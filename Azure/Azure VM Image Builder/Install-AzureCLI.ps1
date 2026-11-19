@@ -31,7 +31,7 @@ If (-not(Test-Path -Path $OutFile)) {
 #endregion 
 
 #region Installing AzureCLI 
-Start-Process msiexec.exe -ArgumentList '/I', $OutFile, '/quiet' -Verb runas -Wait
+Start-Process msiexec.exe -ArgumentList '/I', $OutFile, '/quiet' -Verb runas -Wait -PassThru
 #endregion 
 
 #region Cleanup

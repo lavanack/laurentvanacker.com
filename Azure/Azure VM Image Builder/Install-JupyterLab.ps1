@@ -17,7 +17,13 @@ of the Sample Code.
 #>
 #Installing JupyterLab
 
-#region Installing Python 
-#pip install --no-cache-dir --quiet JupyterLab
-pip install --no-cache-dir JupyterLab
+#region Installing JupyterLab 
+#$Python = (Get-Command -Name python).Source
+$Python = "python"
+& $Python --version
+& $Python -m pip --version
+
+
+& $Python -m pip install --upgrade pip
+& $Python -m pip install --upgrade --no-cache-dir --quiet jupyterlab
 #endregion 

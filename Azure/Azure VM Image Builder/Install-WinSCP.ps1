@@ -33,7 +33,7 @@ If (-not(Test-Path -Path $OutFile)) {
 #endregion 
 
 #region Installing WinSCP 
-Start-Process -FilePath $OutFile -ArgumentList '/SILENT /ALLUSERS' -Verb runas -Wait
+Start-Process -FilePath $OutFile -ArgumentList '/SILENT /ALLUSERS' -Verb runas -Wait -PassThru
 #endregion 
 
 

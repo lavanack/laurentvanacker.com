@@ -30,8 +30,10 @@ If (-not(Test-Path -Path $OutFile)) {
 }
 #endregion 
 
-#region Installing Python 
-Start-Process -FilePath $OutFile -ArgumentList '/quiet' -Verb runas -Wait
+#region Installing Python
+$ArgumentList = @( "/quiet", "InstallAllUsers=1", "PrependPath=1", "Include_pip=1", "Include_launcher=1", "InstallLauncherAllUsers=1", "Include_test=0" )
+
+Start-Process -FilePath $OutFile -ArgumentList $ArgumentList -Verb runas -Wait -PassThru
 #endregion 
 
 #region Cleanup

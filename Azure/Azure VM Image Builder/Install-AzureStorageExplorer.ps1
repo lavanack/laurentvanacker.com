@@ -29,7 +29,7 @@ Invoke-WebRequest -Uri $StorageExplorerURI -OutFile $OutFile
 #endregion
 
 #region Installing Azure Storage Explorer
-Start-Process -FilePath $OutFile -ArgumentList "/SILENT", "/CLOSEAPPLICATIONS", "/ALLUSERS" -Wait
+Start-Process -FilePath $OutFile -ArgumentList "/SILENT", "/CLOSEAPPLICATIONS", "/ALLUSERS" -Wait -PassThru
 #endregion
 
 #region Cleanup

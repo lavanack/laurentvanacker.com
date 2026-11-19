@@ -29,11 +29,11 @@ Invoke-WebRequest -Uri $GitURI -OutFile $OutFile
 #endregion
 
 #region Installing Git
-Start-Process -FilePath $OutFile -ArgumentList "/SILENT", "/CLOSEAPPLICATIONS" -Wait
+Start-Process -FilePath $OutFile -ArgumentList "/SILENT", "/CLOSEAPPLICATIONS" -Wait -PassThru
 #endregion
 
 #region Installing Git LFS
-Push-Location -Path "$env:ProgramFiles\Git\cmd\git.exe"
+Push-Location -Path "$env:ProgramFiles\Git\cmd\"
 git lfs install
 Pop-Location
 #endregion

@@ -25,7 +25,7 @@ $OutFile = Join-Path $TempDir -ChildPath "MMASetup-AMD64.exe"
 $MOMAgentMSIFilePath = Join-Path $TempDir -ChildPath "MOMAgent.msi"
 
 Invoke-WebRequest -Uri $MicrosoftMonitoringAgentX64URI -OutFile $OutFile -UseBasicParsing
-Start-Process -FilePath "$OutFile" -ArgumentList "/c", "/t:$($TempDir)" -Wait
+Start-Process -FilePath "$OutFile" -ArgumentList "/c", "/t:$($TempDir)" -Wait -PassThru
 
 #From https://github.com/brianbar-MSFT/Install-MMA/blob/master/Install-MMA.ps1
 #From https://learn.microsoft.com/en-us/system-center/scom/manage-deploy-windows-agent-manually?view=sc-om-2022#deploy-the-operations-manager-agent-from-the-command-line

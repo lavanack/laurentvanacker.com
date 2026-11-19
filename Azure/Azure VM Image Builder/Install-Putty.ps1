@@ -27,8 +27,4 @@ If (-not(Test-Path -Path $OutFile)) {
     Write-Verbose -Message "Downloading Putty ..."
     Invoke-WebRequest -Uri $PuttyUri -UseBasicParsing -OutFile $OutFile -Verbose
 }
-
-#region Cleanup
-Remove-Item -Path $OutFile -Force
-#endregion 
 #endregion 

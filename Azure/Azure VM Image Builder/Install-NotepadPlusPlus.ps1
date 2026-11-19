@@ -31,7 +31,7 @@ If (-not(Test-Path -Path $OutFile)) {
 #endregion 
 
 #region Installing Notepad++ 
-Start-Process -FilePath $OutFile -ArgumentList '/S' -Verb runas -Wait
+Start-Process -FilePath $OutFile -ArgumentList '/S' -Verb runas -Wait -PassThru
 #endregion 
 
 #region Cleanup

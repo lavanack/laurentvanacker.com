@@ -31,7 +31,7 @@ If (-not(Test-Path -Path $OutFile)) {
 #endregion 
 
 #region Installing  Visual C++ Redistributable 
-Start-Process -FilePath $OutFile -ArgumentList '/install /quiet /norestart' -Verb runas -Wait
+Start-Process -FilePath $OutFile -ArgumentList '/install /quiet /norestart' -Verb runas -Wait -PassThru
 #endregion 
 
 
