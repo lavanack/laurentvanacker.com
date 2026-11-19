@@ -109,14 +109,14 @@ function New-AzureComputeGallery {
 	$SrcObjParamsARM = @{
 		Publisher = 'MicrosoftWindowsDesktop'
 		Offer     = 'Windows-11'    
-		Sku       = 'win11-24h2-avd'  
+		Sku       = 'win11-26h2-ent'  
 		Version   = 'latest'
 	}
 
 	$SrcObjParamsPowerShell = @{
 		Publisher = 'MicrosoftWindowsDesktop'
-		Offer     = 'Office-365'    
-		Sku       = 'win11-24h2-avd-m365'  
+		Offer     = 'windows-ent-cpc'    
+		Sku       = 'win11-26h2-ent-cpc-m365'  
 		Version   = 'latest'
 	}
 	#endregion
@@ -475,7 +475,7 @@ function New-AzureComputeGallery {
 
 	$ImgPythonPowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
-		Name                 = 'Install Python'  
+		Name                 = 'Install Python'
 		RunElevated          = $true  
 		runAsSystem          = $true  
 		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-Python.ps1'
@@ -585,7 +585,7 @@ function New-AzureComputeGallery {
 
 	$ImgPostmanPowerShellCustomizerParams = @{  
 		PowerShellCustomizer = $true  
-		Name                 = 'Install Azure Storage Explorer'  
+		Name                 = 'Install PostMan'  
 		RunElevated          = $true  
 		runAsSystem          = $true  
 		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-PostMan.ps1'
@@ -593,6 +593,18 @@ function New-AzureComputeGallery {
 
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgPostmanPowerShellCustomizerParams.Name)' ..."
 	$PostmanCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgPostmanPowerShellCustomizerParams 
+
+	$ImgPuttyPowerShellCustomizerParams = @{  
+		PowerShellCustomizer = $true  
+		Name                 = 'Install Putty'  
+		RunElevated          = $true  
+		runAsSystem          = $true  
+		ScriptUri            = 'https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-Putty.ps1'
+	}
+
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgPuttyPowerShellCustomizerParams.Name)' ..."
+	$PuttyCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgPuttyPowerShellCustomizerParams 
+
 
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template WindowsUpdate Customizer Object ..."
 	$WindowsUpdateCustomizer = New-AzImageBuilderTemplateCustomizerObject -WindowsUpdateCustomizer -Name 'WindowsUpdate' -Filter @('exclude:$_.Title -like ''*Preview*''', 'include:$true') -SearchCriterion "IsInstalled=0" -UpdateLimit 40
@@ -617,7 +629,7 @@ function New-AzureComputeGallery {
 	$DisableAutoUpdatesCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgDisableAutoUpdatesPowerShellCustomizerParams 
 
 	#Create an Azure Image Builder template and submit the image configuration to the Azure VM Image Builder service:
-	$Customize = $TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $PythonCustomizer, $VisualCPlusPlusRedistributableCustomizer, $VisualCPlusPlusRedistributableWindowsRestartCustomizer, $JupyterLabCustomizer, $GitCustomizer, $AzureCLICustomizer, $AzCopyCustomizer, $DockerCLICustomizer, $DockerBuildXCustomizer, $AzureStorageExplorerCustomizer, $PostmanCustomizer, $WindowsUpdateCustomizer, $WindowsUpdateWindowsRestartCustomizer, $DisableAutoUpdatesCustomizer
+	$Customize = $TimeZoneRedirectionCustomizer, $VSCodeCustomizer, $PythonCustomizer, $VisualCPlusPlusRedistributableCustomizer, $VisualCPlusPlusRedistributableWindowsRestartCustomizer, $JupyterLabCustomizer, $GitCustomizer, $AzureCLICustomizer, $AzCopyCustomizer, $DockerCLICustomizer, $DockerBuildXCustomizer, $AzureStorageExplorerCustomizer, $PostmanCustomizer, $PuttyCustomizer, $WindowsUpdateCustomizer, $WindowsUpdateWindowsRestartCustomizer, $DisableAutoUpdatesCustomizer
 	$ImgTemplateParams = @{
 		ImageTemplateName      = $imageTemplateNamePowerShell
 		ResourceGroupName      = $ResourceGroupName
