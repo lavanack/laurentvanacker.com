@@ -834,7 +834,7 @@ $Jobs = 1..$VMNumber | ForEach-Object -Process {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Index: $Index"      
     $VMName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $VirtualMachinePrefix, $Project, $Role, $LocationShortName, $Index
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VMName: $VMName"      
-    $PercentComplete = 1 / $VMNumber
+    $PercentComplete = 1/$VMNumber*100
     Write-Progress -Id 0 -Activity "[$($_)/$($VMNumber)] Creating VMs ..." -CurrentOperation "Creating '$VMName' VM ..." -Status $('{0:N0}%' -f $PercentComplete) -PercentComplete $PercentComplete
     if ($VMName.Length -gt $AzureVMNameMaxLength) {
         Write-Error "'$VMName' exceeds $AzureVMNameMaxLength characters" -ErrorAction Stop

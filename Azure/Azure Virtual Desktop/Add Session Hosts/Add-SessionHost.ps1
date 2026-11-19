@@ -96,6 +96,10 @@ function Add-SessionHost {
         [ValidateNotNullOrEmpty()]
         [Microsoft.Azure.PowerShell.Cmdlets.DesktopVirtualization.Models.HostPool]$HostPool,
 
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        [Microsoft.Azure.PowerShell.Cmdlets.DesktopVirtualization.Models.RegistrationTokenMinimal] $RegistrationInfoToken,
+
         [switch] $EntraIDJoin
     )
 
@@ -103,12 +107,21 @@ function Add-SessionHost {
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$HostPool: `r`n$($HostPool | Out-String)"
 
-        $RegistrationInfoExpirationTime = (Get-Date).ToUniversalTime().AddDays(1)
-        $RegistrationInfoToken = New-AzWvdRegistrationInfo -ResourceGroupName $HostPool.ResourceGroupName -HostPoolName $HostPool.Name -ExpirationTime $RegistrationInfoExpirationTime -ErrorAction SilentlyContinue
+        if(-not($RegistrationInfoToken)) {
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Checking for an existing Registration Token "
+            $RegistrationInfoToken = Get-AzWvdRegistrationInfo -ResourceGroupName $HostPool.ResourceGroupName -HostPoolName $HostPool.Name
+        }
+
+        if(-not($RegistrationInfoToken) -or ($RegistrationInfoToken.ExpirationTime -le [system.datetime]::Now)) {
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating a new Registration Token "
+            $RegistrationInfoExpirationTime = (Get-Date).ToUniversalTime().AddDays(1)
+            $RegistrationInfoToken = New-AzWvdRegistrationInfo -ResourceGroupName $HostPool.ResourceGroupName -HostPoolName $HostPool.Name -ExpirationTime $RegistrationInfoExpirationTime -ErrorAction SilentlyContinue
+        }
+
         Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$RegistrationInfoToken: `r`n$($RegistrationInfoToken | Out-String)"
 
         #URI updated on : 07/22/2026
-        #To Get the latest version of the zip by looking in the Resource Group Deployement
+        #To Get the latest version of the zip by looking in the Resource Group Deployment
         #$avdModuleLocation = Get-AzWvdHostPool | ForEach-Object -Process { (Get-AzWvdSessionHost -ResourceGroupName $_.ResourceGroupName -HostPoolName $_.Name) | ForEach-Object -Process { $AzResource = Get-AzResource -ResourceId $_.ResourceId; ((Get-AzVMExtension -ResourceGroupName $AzResource.ResourceGroupName -VMName $AzResource.Name -ErrorAction Ignore | Where-Object -FilterScript { $_.ExtensionType -eq "DSC"}).PublicSettings | ConvertFrom-Json -ErrorAction Ignore).ModulesUrl } }
         $avdModuleLocation = "https://wvdportalstorageblob.blob.core.windows.net/galleryartifacts/Configuration_1.0.03448.1358.zip"
         $avdExtensionName = "DSC"
@@ -288,16 +301,23 @@ $Results
 #>
 
 #region Parallel Processing
+#We have to use a unique Registration Token in // mode (because a new Token invalidate the previous one)
+$RegistrationInfoExpirationTime = (Get-Date).ToUniversalTime().AddDays(1)
+$RegistrationInfoToken = New-AzWvdRegistrationInfo -ResourceGroupName $HostPool.ResourceGroupName -HostPoolName $HostPool.Name -ExpirationTime $RegistrationInfoExpirationTime -ErrorAction SilentlyContinue
+
+$VMIndex=0
 $Jobs = foreach ($VM in $VMs) {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VM: $($VM.Id)"         
-    $PercentComplete = 1/$VMs.Count
-    Write-Progress -Id 0 -Activity "[$($_)/$($VMs.Count)] Adding VMs ..." -CurrentOperation "Adding '$($VM.Name)' VM ..." -Status $('{0:N0}%' -f $PercentComplete) -PercentComplete $PercentComplete
+    $VMIndex++
+    $PercentComplete = $VMIndex/$VMs.Count*100
+    Write-Progress -Id 0 -Activity "[$($VMIndex)/$($VMs.Count)] Adding VMs ..." -CurrentOperation "Adding '$($VM.Name)' VM ..." -Status $('{0:N0}%' -f $PercentComplete) -PercentComplete $PercentComplete
 
     $Params = @{
-        VM          = $VM
-        HostPool    = $HostPool
-        EntraIDJoin = $true
-        Verbose     = $true
+        VM                    = $VM
+        HostPool              = $HostPool
+        EntraIDJoin           = $true
+        Verbose               = $true
+        RegistrationInfoToken = $RegistrationInfoToken
     }
 
     $ExportedFunctions = [scriptblock]::Create(@"
@@ -313,7 +333,6 @@ Write-Host -Object "Waiting for the addition of the virtual machines to complete
 $null = $Jobs | Receive-Job -Wait -AutoRemoveJob
 Write-Host -Object "Virtual machines added successfully!" -ForegroundColor Green
 #endregion
-
 break
 
 $Results = $VM | Set-WindowsOptimization -Verbose
