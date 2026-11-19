@@ -18,6 +18,65 @@ of the Sample Code.
 
 
 #region Function definitions
+<#
+.SYNOPSIS
+Creates a NAT gateway and associates it with an existing or new subnet.
+
+.DESCRIPTION
+Creates a Standard static public IP and a Standard NAT gateway with a ten-minute
+idle timeout in the virtual network's resource group and region. With SubnetConfig,
+associates the gateway with that existing subnet. With VirtualNetwork, creates a
+subnet and a dedicated network security group, then associates the gateway.
+Persists the subnet changes by updating the virtual network.
+
+Downloads region and resource abbreviations from the Azure Naming Tool repository
+to derive resource names from the virtual network name.
+
+.PARAMETER VirtualNetwork
+Specifies the existing virtual network in which to create a dedicated NAT-enabled
+subnet and network security group. Accepts a PSVirtualNetwork from the pipeline.
+Cannot be combined with SubnetConfig.
+
+.PARAMETER SubnetConfig
+Specifies an existing subnet to associate with the new NAT gateway. Accepts a
+PSSubnet from the pipeline and supports the alias Subnet. Resolves the parent
+virtual network from the subnet resource ID. Does not create a subnet or NSG.
+Cannot be combined with VirtualNetwork.
+
+.PARAMETER Force
+Passes Force to public IP and NAT gateway creation to suppress confirmation
+prompts for those operations.
+
+.EXAMPLE
+$Subnet | New-PsAvdNatGatewaySetup -Force
+
+Creates a public IP and NAT gateway and associates the gateway with $Subnet.
+
+.EXAMPLE
+New-PsAvdNatGatewaySetup -VirtualNetwork $VirtualNetwork -Verbose
+
+Creates a dedicated subnet, NSG, public IP, and NAT gateway in the virtual network.
+
+.INPUTS
+Microsoft.Azure.Commands.Network.Models.PSVirtualNetwork
+Microsoft.Azure.Commands.Network.Models.PSSubnet
+
+.OUTPUTS
+None. Updates Azure resources without returning an object.
+
+.NOTES
+Requires an authenticated Azure context and access to raw.githubusercontent.com.
+Names assume Azure Naming Tool prefixes and a hyphen-separated virtual network
+naming convention. Existing resources are not checked before creation.
+
+For a new subnet, sorts existing address-prefix strings in descending order,
+increments the third octet of the first prefix, and uses a /24 mask. This is not
+an address-space allocator: verify that the proposed range is valid, lies within
+the virtual network, and does not overlap another subnet before using this mode.
+
+.LINK
+https://learn.microsoft.com/azure/nat-gateway/quickstart-create-nat-gateway?tabs=powershell
+#>
 function New-PsAvdNatGatewaySetup {
     [CmdletBinding(PositionalBinding = $false)]
     Param( 
@@ -52,17 +111,23 @@ function New-PsAvdNatGatewaySetup {
     }
     process {
         #region Defining variables 
-        $ResourceGroupName = $VirtualNetwork.ResourceGroupName
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ResourceGroupName: $ResourceGroupName"
-        $Location = $VirtualNetwork.Location
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Location: $Location"
-        $LocationShortName = $shortNameHT[$Location].shortName
-
         if ($SubnetConfig) {
             $VirtualNetworkId = $SubnetConfig.Id -replace "/subnets/.*"
             $VirtualNetwork = Get-AzResource -ResourceId $VirtualNetworkId | Get-AzVirtualNetwork
+
+            $ResourceGroupName = $VirtualNetwork.ResourceGroupName
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ResourceGroupName: $ResourceGroupName"
+            $Location = $VirtualNetwork.Location
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Location: $Location"
+            $LocationShortName = $shortNameHT[$Location].shortName
         }
         else {
+            $ResourceGroupName = $VirtualNetwork.ResourceGroupName
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ResourceGroupName: $ResourceGroupName"
+            $Location = $VirtualNetwork.Location
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Location: $Location"
+            $LocationShortName = $shortNameHT[$Location].shortName
+
             #If we create a dedicated subnet we also create a dedicated NSG.
             $NetworkSecurityGroupName = $VirtualNetwork.Name -replace $VirtualNetworkPrefix, $NetworkSecurityGroupPrefix -replace "(\w+)-(\w+)-(\w+)-(\w+)-(\d+)", '$1-$2-natgw-$4-$5'
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$NetworkSecurityGroupName: $NetworkSecurityGroupName"
