@@ -749,10 +749,10 @@ $Project = "vm"
 $Role = "rnd"
 #$DigitNumber = 4
 $DigitNumber = $AzureVMNameMaxLength - ($VirtualMachinePrefix + $Project + $Role + $LocationShortName).Length
-
+$Maximum = $([long]([Math]::Pow(10, $DigitNumber)))
 # Choose a shared resource suffix whose storage account name is available.
 Do {
-    $Instance = Get-Random -Minimum 0 -Maximum $([long]([Math]::Pow(10, $DigitNumber)))
+    $Instance = Get-Random -Minimum 0 -Maximum $Maximum
     $StorageAccountName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $StorageAccountPrefix, $Project, $Role, $LocationShortName, $Instance                       
 } While ((-not(Get-AzStorageAccountNameAvailability -Name $StorageAccountName).NameAvailable))
 
@@ -830,8 +830,10 @@ $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList
 #region VM Provisioning
 # Provision VMs in thread jobs, importing the VM function into each job's scope.
 $Jobs = 1..$VMNumber | ForEach-Object -Process {
-    $VMName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $VirtualMachinePrefix, $Project, $Role, $LocationShortName, $_                       
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VMName: $VMName"         
+    $Index = ($_+$Instance-1) % $Maximum
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Index: $Index"      
+    $VMName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $VirtualMachinePrefix, $Project, $Role, $LocationShortName, $Index
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VMName: $VMName"      
     $PercentComplete = 1 / $VMNumber
     Write-Progress -Id 0 -Activity "[$($_)/$($VMNumber)] Creating VMs ..." -CurrentOperation "Creating '$VMName' VM ..." -Status $('{0:N0}%' -f $PercentComplete) -PercentComplete $PercentComplete
     if ($VMName.Length -gt $AzureVMNameMaxLength) {
@@ -862,6 +864,6 @@ Write-Progress -Id 0 -Activity "Completed !" -Completed
 # Wait for provisioning jobs and discard their output; VM start requests remain asynchronous.
 Write-Host -Object "Waiting for the creation of the virtual machines to complete ..." 
 $null = $Jobs | Receive-Job -Wait -AutoRemoveJob
-Write-Host -Object "Virtual machine creation complete !" -ForegroundColor Green
+Write-Host -Object "Virtual machines created successfully!" -ForegroundColor Green
 #endregion
 #endregion

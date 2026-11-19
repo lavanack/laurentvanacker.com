@@ -281,12 +281,14 @@ $VMResourceGroupName= (Get-AzResourceGroup -ResourceGroupName "rg-vm-rnd-*" | Ge
 $VMs = Get-AzVM -ResourceGroupName $VMResourceGroupName
 
 <#
+#region Sequential Processing
 $Results = $VMs | Add-SessionHost -HostPool $HostPool -EntraIDJoin -Verbose
 $Results
-break
+#endregion
 #>
 
-foreach ($VM in $VMs) {
+#region Parallel Processing
+$Jobs = foreach ($VM in $VMs) {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VM: $($VM.Id)"         
     $PercentComplete = 1/$VMs.Count
     Write-Progress -Id 0 -Activity "[$($_)/$($VMs.Count)] Adding VMs ..." -CurrentOperation "Adding '$($VM.Name)' VM ..." -Status $('{0:N0}%' -f $PercentComplete) -PercentComplete $PercentComplete
@@ -305,6 +307,12 @@ foreach ($VM in $VMs) {
     Start-ThreadJob -ScriptBlock { param() Add-SessionHost @using:Params } -InitializationScript $ExportedFunctions -StreamingHost $Host
 }
 Write-Progress -Id 0 -Activity "Completed !" -Completed
+
+# Wait for provisioning jobs and discard their output; VM start requests remain asynchronous.
+Write-Host -Object "Waiting for the addition of the virtual machines to complete ..." 
+$null = $Jobs | Receive-Job -Wait -AutoRemoveJob
+Write-Host -Object "Virtual machines added successfully!" -ForegroundColor Green
+#endregion
 
 break
 
