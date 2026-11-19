@@ -437,13 +437,13 @@ function New-AzSubnetVM {
             })
 
 
-        Write-Host "Get Existing JIT Policy. You can Ignore the error if not found."
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Get Existing JIT Policy. You can Ignore the error if not found."
         $ExistingJITPolicy = (Get-AzJitNetworkAccessPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -ErrorAction Ignore).VirtualMachines
         $UpdatedJITPolicy = $ExistingJITPolicy.Where{ $_.id -ne "$($VM.Id)" } # Replace this VM's entry while retaining entries for other VMs.
         $UpdatedJITPolicy.Add($NewJitPolicy)
 	
         # Save the RDP policy and maximum request duration; access is requested below.
-        Write-Host "Enabling Just in Time VM Access Policy for ($VMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Enabling Just in Time VM Access Policy for ($VMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
         $null = Set-AzJitNetworkAccessPolicy -VirtualMachine $UpdatedJITPolicy -ResourceGroupName $ResourceGroupName -Location $Location -Name $JitPolicyName -Kind "Basic"
         #endregion
 
@@ -460,8 +460,8 @@ function New-AzSubnetVM {
                     })
             })
         $ActivationVM = @($JitPolicy)
-        Write-Host "Requesting Temporary Acces via Just in Time for ($VMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
-        $null = Start-AzJitNetworkAccessPolicy -ResourceGroupName $($VM.ResourceGroupName) -Location $VM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Requesting Temporary Acces via Just in Time for ($VMName) on port number $RDPPort for maximum $JitPolicyTimeInHours hours..."
+        $null = Start-AzJitNetworkAccessPolicy -ResourceGroupName $($VM.ResourceGroupName) -Location $VM.Location -Name $JitPolicyName -VirtualMachine $ActivationVM -ErrorAction Ignore
         #endregion
 
         #endregion
@@ -846,7 +846,7 @@ $Jobs = 1..$VMNumber | ForEach-Object -Process {
         Location          = $Location 
         Spot              = $true
         Verbose           = $true
-        PublicIP          = $true # Always enabled here, independently of the script-level switch.
+        PublicIP          = $PublicIP.IsPresent
         Credential        = $Credential
     }
     #New-AzSubnetVM @Params
@@ -854,8 +854,8 @@ $Jobs = 1..$VMNumber | ForEach-Object -Process {
     $ExportedFunctions = [scriptblock]::Create(@"
         Function New-AzSubnetVM { ${Function:New-AzSubnetVM} }
 "@)
-
-    Start-ThreadJob -ScriptBlock { param() New-AzSubnetVM @using:Params } -InitializationScript $ExportedFunctions -StreamingHost $Host
+    Write-Host -Object "Creating '$VMName' VM ..."
+    Start-ThreadJob -ScriptBlock { param() New-AzSubnetVM @using:Params } -InitializationScript $ExportedFunctions -ThrottleLimit 10 -StreamingHost $Host
 }
 Write-Progress -Id 0 -Activity "Completed !" -Completed
 

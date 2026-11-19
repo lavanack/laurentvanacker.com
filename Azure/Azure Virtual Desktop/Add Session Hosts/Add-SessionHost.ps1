@@ -149,25 +149,45 @@ Restart-Service RDAgentBootLoader
                 Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Result: `r`n$($Result | Out-String)"
             }
 
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Adding '$($CurrentVM.Name)' VM to '$($HostPool.Name)' Host Pool"
-            try {
-                $Result = Set-AzVMExtension @Parameters -Location $CurrentVM.Location -TypeHandlerVersion $avdExtensionVersion -Publisher $avdExtensionPublisher -ExtensionType $avdExtensionName -Settings $avdExtensionSetting -ErrorAction Stop
-                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Result: `r`n$($Result | Out-String)"
-                $Succeeded = $Results.IsSuccessStatusCode
-            }
-            catch {
-                Write-Warning -Message "Exception Message: $($_.Exception.Message)"
-                $Succeeded = $false
-            }
-            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Succeeded: $Succeeded"
-
-            if ($Succeeded) {
-                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The '$($CurrentVM.Name)' VM was added to the '$($HostPool.Name)' Host Pool"
+            if ($EntraIDJoin.IsPresent) {
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Registering '$($CurrentVM.Name)' VM to EntraID"
+                try {
+                    $Result = Set-AzVMExtension -Publisher Microsoft.Azure.ActiveDirectory -Name AADLoginForWindows -ResourceGroupName $CurrentVM.ResourceGroupName -VMName $CurrentVM.Name -ExtensionType AADLoginForWindows -TypeHandlerVersion 2.0
+                    $Succeeded = $Result.IsSuccessStatusCode
+                    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Result: `r`n$($Result | Out-String)"
+                }
+                catch {
+                    Write-Warning -Message "Unable to register the '$($CurrentVM.Name)' VM to EntraID"
+                    Write-Warning -Message "Exception Message: $($_.Exception.Message)"
+                    $Succeeded = $false
+                }
             }
             else {
-                Write-Warning -Message "Unable to add the '$($CurrentVM.Name)' VM to the '$($HostPool.Name)' Host Pool"
+                $Succeeded = $true
             }
-            $Results += [PSCustomObject] @{VM = $CurrentVM.Id; Succeeded = $Succeeded}
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Succeeded: $Succeeded"
+            
+            if ($Succeeded) {
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Adding '$($CurrentVM.Name)' VM to '$($HostPool.Name)' Host Pool"
+                try {
+                    $Result = Set-AzVMExtension @Parameters -Location $CurrentVM.Location -TypeHandlerVersion $avdExtensionVersion -Publisher $avdExtensionPublisher -ExtensionType $avdExtensionName -Settings $avdExtensionSetting -ErrorAction Stop
+                    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Result: `r`n$($Result | Out-String)"
+                    $Succeeded = $Result.IsSuccessStatusCode
+                }
+                catch {
+                    Write-Warning -Message "Exception Message: $($_.Exception.Message)"
+                    $Succeeded = $false
+                }
+                Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Succeeded: $Succeeded"
+
+                if ($Succeeded) {
+                    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] The '$($CurrentVM.Name)' VM was added to the '$($HostPool.Name)' Host Pool"
+                }
+                else {
+                    Write-Warning -Message "Unable to add the '$($CurrentVM.Name)' VM to the '$($HostPool.Name)' Host Pool"
+                }
+                $Results += [PSCustomObject] @{VM = $CurrentVM.Id; Succeeded = $Succeeded}
+            }
         }
     }
     end {
@@ -260,16 +280,19 @@ $HostPool = foreach ($EmptyDemoHostPoolResourceGroup in $EmptyDemoHostPoolResour
 $VMResourceGroupName= (Get-AzResourceGroup -ResourceGroupName "rg-vm-rnd-*" | Get-Random).ResourceGroupName
 $VMs = Get-AzVM -ResourceGroupName $VMResourceGroupName
 
+<#
 $Results = $VMs | Add-SessionHost -HostPool $HostPool -EntraIDJoin -Verbose
 $Results
 break
+#>
 
 foreach ($VM in $VMs) {
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VMName: $($VM.Name)"         
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VM: $($VM.Id)"         
     $PercentComplete = 1/$VMs.Count
     Write-Progress -Id 0 -Activity "[$($_)/$($VMs.Count)] Adding VMs ..." -CurrentOperation "Adding '$($VM.Name)' VM ..." -Status $('{0:N0}%' -f $PercentComplete) -PercentComplete $PercentComplete
 
     $Params = @{
+        VM          = $VM
         HostPool    = $HostPool
         EntraIDJoin = $true
         Verbose     = $true
