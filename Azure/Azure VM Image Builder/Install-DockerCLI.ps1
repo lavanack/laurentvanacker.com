@@ -1,4 +1,4 @@
-﻿<#
+<#
 This Sample Code is provided for the purpose of illustration only
 and is not intended to be used in a production environment.  THIS
 SAMPLE CODE AND ANY RELATED INFORMATION ARE PROVIDED "AS IS" WITHOUT
@@ -19,7 +19,7 @@ of the Sample Code.
 
 #region Getting the latest release of DockerCLI 
 $DockerCLIRootUri = "https://download.docker.com/win/static/stable/x86_64/"
-$DockerCLIUri = (Invoke-WebRequest -Uri $DockerCLIRootUri -UseBasicParsing).Links.href | Sort-Object -Descending | Select-Object -First 1
+$DockerCLIUri = (Invoke-WebRequest -Uri $DockerCLIRootUri -UseBasicParsing).Links.href | Where-Object -FilterScript {$_ -match "docker-cli.*\.zip$"} | Sort-Object -Descending | Select-Object -First 1
 $DockerCLIUri = "{0}{1}" -f $DockerCLIRootUri, $DockerCLIUri
 #endregion 
 
@@ -38,9 +38,10 @@ Expand-Archive -Path $OutFile -DestinationPath $DestinationPath -Force
 #endregion
 
 #region Updating System Path
+$BinDestinationPath = Join-Path -Path $DestinationPath -ChildPath "bin"
 $Path = [Environment]::GetEnvironmentVariable('Path', 'Machine')
-if ($DestinationPath -notin ($Path -split ';')) {
-    [Environment]::SetEnvironmentVariable('Path', "$Path;$DestinationPath", 'Machine')
+if ($BinDestinationPath -notin ($Path -split ';')) {
+    [Environment]::SetEnvironmentVariable('Path', "$Path;$BinDestinationPath", 'Machine')
 }
 #endregion 
 
