@@ -29,26 +29,26 @@ param
     [switch] $PublicIP
 )
 
-
 #region Function definitions
 # Adapted from https://adamtheautomator.com/powershell-random-password/
 
 <#
 .SYNOPSIS
-Generates a password that meets Azure virtual machine complexity requirements.
+Generates and checks a virtual machine administrator password.
 
 .DESCRIPTION
 Creates a random password locally or retrieves one from DinoPass. Retries until
-the candidate contains uppercase and lowercase letters, a digit, and a non-word
-character, is not in the prohibited list, and is not found by the Have I Been
-Pwned range API. The result can be returned as plain text or as a SecureString
-and optionally copied to the clipboard.
+the candidate passes the configured character-pattern and prohibited-password
+checks and is not found by the Have I Been Pwned range API. The result can be
+returned as plain text or as a SecureString and optionally copied to the clipboard.
 
 .PARAMETER minLength
 Specifies the inclusive minimum length used when selecting a random password length.
+Defaults to 12 characters.
 
 .PARAMETER maxLength
 Specifies the exclusive maximum length used when selecting a random password length.
+Must exceed minLength. Defaults to 15 characters.
 
 .PARAMETER AsSecureString
 Returns the generated password as a SecureString instead of plain text.
@@ -57,7 +57,8 @@ Returns the generated password as a SecureString instead of plain text.
 Copies the generated password to the clipboard.
 
 .PARAMETER nonAlphaChars
-Specifies how many non-alphanumeric characters the local generator should include.
+Specifies the minimum number of non-alphanumeric characters for the local
+generator. Defaults to 3. Cannot be combined with Online.
 
 .PARAMETER Online
 Retrieves the password from DinoPass over HTTPS instead of generating it locally.
@@ -68,20 +69,37 @@ New-RandomPassword -Online -AsSecureString
 
 Retrieves and checks a password, then returns it as a SecureString.
 
+.EXAMPLE
+New-RandomPassword -minLength 16 -maxLength 21 -nonAlphaChars 4 -AsSecureString
+
+Generates and checks a local password of 16 through 20 characters.
+
+.INPUTS
+None. This function does not accept pipeline input.
+
 .OUTPUTS
 System.String
 System.Security.SecureString
 Returns plain text by default, or a SecureString when AsSecureString is specified.
+
+.NOTES
+Local generation uses System.Web.Security.Membership and requires .NET Framework.
+Both generation modes call the Pwned Passwords service to check candidates.
+The letter-pattern checks use PowerShell's case-insensitive -match operator;
+they do not independently enforce uppercase and lowercase characters.
+
+.LINK
+https://adamtheautomator.com/powershell-random-password/
 #>
 function New-RandomPassword {
     [CmdletBinding(PositionalBinding = $false, DefaultParameterSetName = 'GeneratePassword')]
     param
     (
         [ValidateRange(12, 122)]
-        [int] $minLength = 12, ## characters
+        [int] $minLength = 12,
         [ValidateRange(13, 123)]
         [ValidateScript({ $_ -gt $minLength })]
-        [int] $maxLength = 15, ## characters
+        [int] $maxLength = 15,
         [switch] $AsSecureString,
         [switch] $ClipBoard,
         [Parameter(ParameterSetName = 'GeneratePassword')]
@@ -112,7 +130,13 @@ function New-RandomPassword {
     .OUTPUTS
     System.Management.Automation.PSCustomObject
     Returns a PSCustomObject with PasswordCompromised (Boolean) and Occurrences
-    (Int64) properties. Occurrences is zero when the password was not found.
+    (integer count) properties. Occurrences is zero when the password was not found.
+
+    .INPUTS
+    None. This function does not accept pipeline input.
+
+    .LINK
+    https://haveibeenpwned.com/API/v3#PwnedPasswords
     #>
     function Test-PwnedPassword {
         [CmdletBinding(PositionalBinding = $false)]
@@ -171,7 +195,7 @@ function New-RandomPassword {
             Add-Type -AssemblyName 'System.Web'
             $RandomPassword = [System.Web.Security.Membership]::GeneratePassword($length, $nonAlphaChars)
         }
-        # Apply the same complexity, prohibited-value, and breach checks to either password source.
+        # Check either source identically; -match is case-insensitive for the letter patterns.
     } Until (($RandomPassword -notin $ProhibitedPasswords) -and (($RandomPassword -match '[A-Z]') -and ($RandomPassword -match '[a-z]') -and ($RandomPassword -match '\d') -and ($RandomPassword -match '\W') -and (-not((Test-PwnedPassword -Password $RandomPassword).PasswordCompromised))))
 
     #Write-Host -Object "The password is : $RandomPassword"
@@ -194,10 +218,10 @@ function New-RandomPassword {
 Creates a Windows 11 virtual machine on an existing subnet.
 
 .DESCRIPTION
-Creates a NIC and a Trusted Launch VM with a system-assigned managed identity.
-Generates an administrator password, copies it to the clipboard, and stores the
-credentials in the local Windows Credential Manager. Configures daily shutdown
-at 23:00 in the local computer's time zone.
+Creates a NIC and a Windows 11 Enterprise Trusted Launch VM with a system-assigned
+managed identity, using the supplied administrator credentials. Stores those
+credentials in the local Windows Credential Manager and configures daily shutdown
+at 23:00 in the local computer's time zone. Starts the VM after deployment.
 
 .PARAMETER ResourceGroupName
 Specifies the existing resource group in which to create the VM and its resources.
@@ -211,6 +235,10 @@ Specifies the existing subnet to which the VM's NIC will be attached.
 .PARAMETER VMSize
 Specifies the Azure VM size.
 
+.PARAMETER Credential
+Specifies the local Windows administrator credentials used to provision the VM
+and saved with cmdkey on the computer running this function.
+
 .PARAMETER Location
 Specifies the Azure region. Defaults to centralus.
 
@@ -222,8 +250,25 @@ still occur. Without this switch, requests hibernation for a regular-priority VM
 Creates a static public IP with a DNS label, configures a JIT RDP policy, and
 requests three hours of access from the caller's public IP.
 
+.EXAMPLE
+New-AzSubnetVM -ResourceGroupName 'rg-demo' -VMName 'vm-demo-01' -Subnet $Subnet -VMSize 'Standard_D2s_v5' -Credential $Credential
+
+Creates a private-only VM on an existing subnet using supplied credentials.
+
+.INPUTS
+None. This function does not accept pipeline input.
+
+.OUTPUTS
+System.Object
+Emits results from the Azure configuration, deployment, shutdown-schedule, and
+start operations, and from the JIT access request when PublicIP is specified.
+Does not return a single consolidated VM object.
+
 .NOTES
-PublicIP uses $MyPublicIP from the calling scope for the JIT access request.
+Requires an authenticated Azure context and Windows tools including cmdkey.
+PublicIP uses $MyPublicIP from the calling scope for the JIT access request;
+that variable must also be available when running the function in a thread job.
+If deployment raises an Azure CloudException, retries once with hibernation disabled.
 #>
 function New-AzSubnetVM {
     [CmdletBinding(PositionalBinding = $false)]
@@ -237,6 +282,8 @@ function New-AzSubnetVM {
         [Microsoft.Azure.Commands.Network.Models.PSSubnet] $Subnet,
         [Parameter(Mandatory = $true)]
         [string] $VMSize,
+        [Parameter(Mandatory = $true)]
+        [PSCredential] $Credential,
         [Parameter(Mandatory = $false)]
         [ValidateScript({ $_ -in (Get-AzLocation).Location })]
         [string] $Location = "centralus",
@@ -262,15 +309,6 @@ function New-AzSubnetVM {
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VMName: $VMName"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$NICName: $NICName"
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$OSDiskName: $OSDiskName"
-    #endregion
-
-    #region Generate administrator credentials and copy the password to the clipboard
-    $Username = $env:USERNAME
-    #$ClearTextPassword = 'I@m@JediLikeMyF@therB4Me'
-    #$ClearTextPassword = New-RandomPassword -ClipBoard -Verbose
-    #$SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
-    $SecurePassword = New-RandomPassword -ClipBoard -AsSecureString -Online -Verbose
-    $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList ($Username, $SecurePassword)
     #endregion
 
     if ($PublicIP) {
@@ -374,7 +412,6 @@ function New-AzSubnetVM {
         #endregion
     }
 
-
     #region Schedule daily shutdown at 23:00 in the local computer's time zone
     $SubscriptionId = ($VM.Id).Split('/')[2]
     $ScheduledShutdownResourceId = "/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroupName/providers/microsoft.devtestlab/schedules/shutdown-computevm-$VMName"
@@ -399,10 +436,206 @@ function New-AzSubnetVM {
     }
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
 }
+
+<#
+.SYNOPSIS
+Creates a NAT gateway and associates it with an existing or new subnet.
+
+.DESCRIPTION
+Creates a Standard static public IP and a Standard NAT gateway with a ten-minute
+idle timeout in the virtual network's resource group and region. With SubnetConfig,
+associates the gateway with that existing subnet. With VirtualNetwork, creates a
+subnet and a dedicated network security group, then associates the gateway.
+Persists the subnet changes by updating the virtual network.
+
+Downloads region and resource abbreviations from the Azure Naming Tool repository
+to derive resource names from the virtual network name.
+
+.PARAMETER VirtualNetwork
+Specifies the existing virtual network in which to create a dedicated NAT-enabled
+subnet and network security group. Accepts a PSVirtualNetwork from the pipeline.
+Cannot be combined with SubnetConfig.
+
+.PARAMETER SubnetConfig
+Specifies an existing subnet to associate with the new NAT gateway. Accepts a
+PSSubnet from the pipeline and supports the alias Subnet. Resolves the parent
+virtual network from the subnet resource ID. Does not create a subnet or NSG.
+Cannot be combined with VirtualNetwork.
+
+.PARAMETER Force
+Passes Force to public IP and NAT gateway creation to suppress confirmation
+prompts for those operations.
+
+.EXAMPLE
+$Subnet | New-PsAvdNatGatewaySetup -Force
+
+Creates a public IP and NAT gateway and associates the gateway with $Subnet.
+
+.EXAMPLE
+New-PsAvdNatGatewaySetup -VirtualNetwork $VirtualNetwork -Verbose
+
+Creates a dedicated subnet, NSG, public IP, and NAT gateway in the virtual network.
+
+.INPUTS
+Microsoft.Azure.Commands.Network.Models.PSVirtualNetwork
+Microsoft.Azure.Commands.Network.Models.PSSubnet
+
+.OUTPUTS
+None. Updates Azure resources without returning an object.
+
+.NOTES
+Requires an authenticated Azure context and access to raw.githubusercontent.com.
+Names assume Azure Naming Tool prefixes and a hyphen-separated virtual network
+naming convention. Existing resources are not checked before creation.
+
+For a new subnet, sorts existing address-prefix strings in descending order,
+increments the third octet of the first prefix, and uses a /24 mask. This is not
+an address-space allocator: verify that the proposed range is valid, lies within
+the virtual network, and does not overlap another subnet before using this mode.
+
+.LINK
+https://learn.microsoft.com/azure/nat-gateway/quickstart-create-nat-gateway?tabs=powershell
+#>
+function New-PsAvdNatGatewaySetup {
+    [CmdletBinding(PositionalBinding = $false)]
+    Param( 
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ParameterSetName= 'VirtualNetwork')]
+        [Microsoft.Azure.Commands.Network.Models.PSVirtualNetwork] $VirtualNetwork,
+
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ParameterSetName= 'Subnet')]
+        [Alias('Subnet')]
+        [Microsoft.Azure.Commands.Network.Models.PSSubnet] $SubnetConfig,
+
+        [Switch] $Force
+    )
+
+    begin {
+        #region Defining variables 
+        #region Map available Azure regions to Azure Naming Tool abbreviations
+        $AzLocation = Get-AzLocation | Select-Object -Property Location, DisplayName | Group-Object -Property DisplayName -AsHashTable -AsString
+        $ANTResourceLocation = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/main/src/repository/resourcelocations.json
+        $shortNameHT = $ANTResourceLocation | Select-Object -Property name, shortName, @{Name = 'Location'; Expression = { $AzLocation[$_.name].Location } } | Where-Object -FilterScript { $_.Location } | Group-Object -Property Location -AsHashTable -AsString
+        #endregion
+
+        #region Load resource abbreviations and name-length limits from Azure Naming Tool
+        $Result = Invoke-RestMethod -Uri https://raw.githubusercontent.com/mspnp/AzureNamingTool/refs/heads/main/src/repository/resourcetypes.json 
+        $ResourceTypeShortNameHT = $Result | Where-Object -FilterScript { $_.property -in @('', 'Windows') } | Select-Object -Property resource, shortName, lengthMax | Group-Object -Property resource -AsHashTable -AsString
+        #endregion
+
+        $PublicIPAddressPrefix = $ResourceTypeShortNameHT["Network/publicIPAddresses"].ShortName
+        $VirtualNetworkPrefix = $ResourceTypeShortNameHT["Network/virtualNetworks"].ShortName
+        $NetworkSecurityGroupPrefix = $ResourceTypeShortNameHT["Network/networkSecurityGroups"].ShortName
+        $SubnetPrefix = $ResourceTypeShortNameHT["Network/virtualnetworks/subnets"].ShortName
+        #endregion
+    }
+    process {
+        #region Defining variables 
+        if ($SubnetConfig) {
+            # Retrieve the parent network so its subnet association can be persisted.
+            $VirtualNetworkId = $SubnetConfig.Id -replace "/subnets/.*"
+            $VirtualNetwork = Get-AzResource -ResourceId $VirtualNetworkId | Get-AzVirtualNetwork
+
+            $ResourceGroupName = $VirtualNetwork.ResourceGroupName
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ResourceGroupName: $ResourceGroupName"
+            $Location = $VirtualNetwork.Location
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Location: $Location"
+            $LocationShortName = $shortNameHT[$Location].shortName
+        }
+        else {
+            $ResourceGroupName = $VirtualNetwork.ResourceGroupName
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$ResourceGroupName: $ResourceGroupName"
+            $Location = $VirtualNetwork.Location
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Location: $Location"
+            $LocationShortName = $shortNameHT[$Location].shortName
+
+            # A new dedicated subnet gets its own NSG; existing subnets retain theirs.
+            $NetworkSecurityGroupName = $VirtualNetwork.Name -replace $VirtualNetworkPrefix, $NetworkSecurityGroupPrefix -replace "(\w+)-(\w+)-(\w+)-(\w+)-(\d+)", '$1-$2-natgw-$4-$5'
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$NetworkSecurityGroupName: $NetworkSecurityGroupName"
+            $NetworkSecurityGroup = New-AzNetworkSecurityGroup -Name $NetworkSecurityGroupName -ResourceGroupName $ResourceGroupName -Location $Location
+        }
+        $NatGatewayPrefix = "natgw"
+        $NatGatewayName = $VirtualNetwork.Name -replace $VirtualNetworkPrefix, $NatGatewayPrefix
+        $SubnetName = $VirtualNetwork.Name -replace $VirtualNetworkPrefix, $SubnetPrefix -replace "(\w+)-(\w+)-(\w+)-(\w+)-(\d+)", '$1-$2-natgw-$4-$5'
+        $NatGatewayPublicIpName = "{0}-{1}" -f $PublicIPAddressPrefix, $NatGatewayName
+
+        #region Derive a candidate /24 by incrementing the third octet of the lexically last prefix
+        # This calculation does not validate network bounds or check for overlapping subnets.
+        $RegExpPattern = "(\d+)\.(\d+).(\d+).(\d+)/(\d{1,2})"
+        $HighestAddressPrefix = ((Get-AzVirtualNetwork -Name $VirtualNetwork.Name).Subnets.AddressPrefix) | Sort-Object -Descending | Select-Object -First 1
+        [int]$Octet3 = ([regex]::match($HighestAddressPrefix, $RegExpPattern).Groups[3].Value)
+        $Octet3++
+        $NatGatewaySubnetAddressPrefix = $HighestAddressPrefix -replace $RegExpPattern, "`$1.`$2.$Octet3.`$4/24"
+
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$NatGatewayName: $NatGatewayName"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$SubnetName: $SubnetName"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$NatGatewayPublicIpName: $NatGatewayPublicIpName"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$NatGatewaySubnetAddressPrefix: $NatGatewaySubnetAddressPrefix"
+        #endregion
+
+        #endregion
+ 
+        #region Create the NAT gateway
+        # Based on https://learn.microsoft.com/azure/nat-gateway/quickstart-create-nat-gateway?tabs=powershell
+        #region Create public IP address for NAT gateway 
+        $IP = @{
+            Name              = $NatGatewayPublicIpName
+            ResourceGroupName = $ResourceGroupName
+            Location          = $Location
+            Sku               = 'Standard'
+            AllocationMethod  = 'Static'
+            Force             = $Force.IsPresent
+            #Zone = 1,2,3
+        }
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Public IP: $NatGatewayPublicIpName"
+        $PublicIp = New-AzPublicIpAddress @IP
+        #endregion 
+
+        #region Create NAT gateway resource 
+        $Nat = @{
+            ResourceGroupName    = $ResourceGroupName
+            Name                 = $NatGatewayName
+            IdleTimeoutInMinutes = '10'
+            Sku                  = 'Standard'
+            Location             = $Location
+            PublicIpAddress      = $PublicIp
+            Force                = $Force.IsPresent
+        }
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating NatGateway: $NatGatewayName"
+        $NatGateway = New-AzNatGateway @Nat
+        #endregion 
+
+        if ($SubnetConfig) {
+            # Replace the subnet's NAT association without changing its other settings.
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Updating SubNet: $($SubnetConfig.Name)"
+            ($VirtualNetwork.Subnets | Where-Object -FilterScript {$_.Id -eq $SubnetConfig.Id}).NatGateway = $NatGateway
+        }
+        else
+        {
+            #region Build the new subnet configuration with its NAT gateway and NSG
+            $Parameters = @{
+                Name                 = $SubnetName
+                AddressPrefix        = $NatGatewaySubnetAddressPrefix
+                NatGateway           = $NatGateway
+                NetworkSecurityGroup = $NetworkSecurityGroup
+            }
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating SubNet: $SubnetName"
+            $SubnetConfig = New-AzVirtualNetworkSubnetConfig @Parameters 
+            #endregion 
+        
+            #region Add the new subnet to the in-memory virtual network
+            $VirtualNetwork.Subnets += $SubnetConfig
+            #endregion
+        }
+        # Commit either the existing subnet association or the new subnet to Azure.
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Updating vNet: $($VirtualNetwork.Name)"
+        $null = $VirtualNetwork | Set-AzVirtualNetwork
+        #endregion
+    }
+    end {}
+}
 #endregion
 
-#endregion
-
+#region Main Code
 Clear-Host
 $Error.Clear()
 
@@ -410,6 +643,11 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 # Resolve relative paths from the script's directory.
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir 
+
+# Suppress Azure PowerShell breaking-change warnings for this process only.
+# See https://aka.ms/azps-changewarnings.
+$null = Update-AzConfig -DisplayBreakingChangeWarning $false -Scope Process
+$PSDefaultParameterValues['Import-Module:DisableNameChecking'] = $true
 
 #region Sign in when no Azure access token is available
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
@@ -450,6 +688,7 @@ $VirtualMachinePrefix = $VirtualMachinePrefix = $ResourceTypeShortNameHT["Comput
 $NetworkSecurityGroupPrefix = $ResourceTypeShortNameHT["Network/networkSecurityGroups"].ShortName
 $VirtualNetworkPrefix = $ResourceTypeShortNameHT["Network/virtualNetworks"].ShortName
 $SubnetPrefix = $ResourceTypeShortNameHT["Network/virtualnetworks/subnets"].ShortName
+$PublicIPAddressPrefix = $ResourceTypeShortNameHT["Network/publicIPAddresses"].ShortName
 $Project = "vm"
 $Role = "rnd"
 #$DigitNumber = 4
@@ -471,6 +710,7 @@ $NetworkSecurityGroupName = $NetworkSecurityGroupName.ToLower()
 $VirtualNetworkName = $VirtualNetworkName.ToLower()
 $SubnetName = $SubnetName.ToLower()
 $ResourceGroupName = $ResourceGroupName.ToLower()
+
 $VirtualNetworkAddressSpace = "10.10.0.0/16" # Virtual network address space in CIDR notation.
 $SubnetIPRange = "10.10.1.0/24" # Subnet address range within the virtual network.
 Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$StorageAccountName: $StorageAccountName"         
@@ -489,13 +729,16 @@ if ($ResourceGroup) {
 $MyPublicIp = Invoke-RestMethod -Uri "https://ipv4.seeip.org"
 #endregion
 
-# Create the resource group shared by the VMs and supporting resources.
+#region  Create the resource group shared by the VMs and supporting resources.
 $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Force
+#endregion
 
-# Create the sample storage account with public blob access and shared-key access allowed.
-New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $true -Tag @{ SecurityControl = "Ignore" }
+#region Create the sample storage account with public blob access and shared-key access allowed.
+$StorageAccount = New-AzStorageAccount -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -Location $Location -SkuName $StorageAccountSkuName -MinimumTlsVersion TLS1_2 -EnableHttpsTrafficOnly $true -PublicNetworkAccess Enabled -AllowBlobPublicAccess $true -AllowSharedKeyAccess $true -Tag @{ SecurityControl = "Ignore" }
+#endregion
 
 #region Network Configuration
+$RDPPort = 3389
 $SecurityRules = @(
     #region Inbound
     # Allow inbound RDP from the caller's public IP.
@@ -509,16 +752,32 @@ $SecurityRules = @(
 $NetworkSecurityGroup = New-AzNetworkSecurityGroup -ResourceGroupName $ResourceGroupName -Location $Location -Name $NetworkSecurityGroupName -SecurityRules $SecurityRules -Force
 
 $VirtualNetwork = New-AzVirtualNetwork -ResourceGroupName $ResourceGroupName -Name $VirtualNetworkName  -AddressPrefix $VirtualNetworkAddressSpace -Location $Location
-Add-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork -AddressPrefix $SubnetIPRange -NetworkSecurityGroupId $NetworkSecurityGroup.Id
+$null = Add-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork -AddressPrefix $SubnetIPRange -NetworkSecurityGroupId $NetworkSecurityGroup.Id
 
 $VirtualNetwork = Set-AzVirtualNetwork -VirtualNetwork $VirtualNetwork
 $Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VirtualNetwork
+if (-not($PublicIP)) {
+    # Provide explicit outbound connectivity for VMs that do not have public IPs.
+    $Subnet | New-PsAvdNatGatewaySetup -Force -Verbose
+}
 #endregion
 
+#region Generate administrator credentials and copy the password to the clipboard
+$Username = $env:USERNAME
+#$ClearTextPassword = 'I@m@JediLikeMyF@therB4Me'
+#$ClearTextPassword = New-RandomPassword -ClipBoard -Verbose
+#$SecurePassword = ConvertTo-SecureString -String $ClearTextPassword -AsPlainText -Force
+$SecurePassword = New-RandomPassword -ClipBoard -AsSecureString -Online -Verbose
+$Credential = New-Object System.Management.Automation.PSCredential -ArgumentList ($Username, $SecurePassword)
+#endregion
+
+#region VM Provisioning
 # Provision VMs in thread jobs, importing the required functions into each job.
 $Jobs = 1..$VMNumber | ForEach-Object -Process {
     $VMName = "{0}{1}{2}{3}{4:D$DigitNumber}" -f $VirtualMachinePrefix, $Project, $Role, $LocationShortName, $_                       
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$StorageAccountName: $StorageAccountName"         
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$VMName: $VMName"         
+    $PercentComplete = 1/$VMNumber
+    Write-Progress -Id 0 -Activity "[$($_)/$($VMNumber)] Creating VMs ..." -CurrentOperation "Creating '$VMName' VM ..." -Status $('{0:N0}%' -f $PercentComplete) -PercentComplete $PercentComplete
     if ($VMName.Length -gt $AzureVMNameMaxLength) {
         Write-Error "'$VMName' exceeds $AzureVMNameMaxLength characters" -ErrorAction Stop
     }
@@ -532,15 +791,21 @@ $Jobs = 1..$VMNumber | ForEach-Object -Process {
         Spot              = $true
         Verbose           = $true
         PublicIP          = $PublicIP.IsPresent
+        Credential        = $Credential
     }
     #New-AzSubnetVM @Params
 
     $ExportedFunctions = [scriptblock]::Create(@"
         Function New-AzSubnetVM { ${Function:New-AzSubnetVM} }
-        Function New-RandomPassword { ${Function:New-RandomPassword} }
 "@)
 
     Start-ThreadJob -ScriptBlock { param() New-AzSubnetVM @using:Params } -InitializationScript $ExportedFunctions -StreamingHost $Host
 }
+Write-Progress -Id 0 -Activity "Completed !" -Completed
+
 # Wait for every job, receive its output, and remove completed jobs.
+Write-Host -Object "Waiting for the creation of the virtual machines to complete ..." 
 $null = $Jobs | Receive-Job -Wait -AutoRemoveJob
+Write-Host -Object "Virtual machine creation complete !" -ForegroundColor Green
+#endregion
+#endregion
