@@ -28,6 +28,10 @@ function Repair-AzImageBuilderTemplate {
     begin {
         $SubscriptionId = (Get-AzContext).Subscription.Id
         $SubscriptionScope = "/subscriptions/{0}" -f $SubscriptionId
+        if (-not(Get-Command -Name az -ErrorAction Ignore)) {
+            Write-Error -Message "Az CLI is not available !" -ErrorAction Stop
+        }
+}
     }
     process {
         foreach ($CurrentResourceGroupName in $ResourceGroupName)  {
@@ -108,6 +112,7 @@ function Repair-AzImageBuilderTemplate {
 
                         #Getting the Azure Image Definition
                         $GalleryImageDefinition = Get-AzGalleryImageDefinition -ResourceGroupName $CurrentResourceGroupName -GalleryName $CurrentAzureComputeGalleryName -Name $CurrentImageName -ErrorAction Ignore
+                        $GUID = (New-Guid).Guid
                         if (-not($GalleryImageDefinition)) {
                             $GalleryParams = @{
                                 GalleryName       = $CurrentAzureComputeGalleryName
@@ -116,9 +121,9 @@ function Repair-AzImageBuilderTemplate {
                                 Name              = $CurrentImageName
                                 OsState           = 'generalized'
                                 OsType            = 'Windows'
-                                Publisher         = "{0}-repair" -f $SrcObjParams.Publisher
-                                Offer             = "{0}-repair" -f $SrcObjParams.Offer
-                                Sku               = "{0}-repair" -f $SrcObjParams.Sku
+                                Publisher         = "{0}-{1}" -f $SrcObjParams.Publisher, $GUID
+                                Offer             = "{0}-{1}" -f $SrcObjParams.Offer, $GUID
+                                Sku               = "{0}-{1}" -f $SrcObjParams.Sku, $GUID
                                 HyperVGeneration  = 'V2'
                             }
                             #Creating the Azure Image Definition
@@ -354,8 +359,8 @@ $ResourceGroupNames = "rg-avd-aib-use2-$TimeStamp"
 
 $ImageBuilderTemplate = Get-AzImageBuilderTemplate | Where-Object -FilterScript { $_.LastRunStatusRunState -notmatch "ing$" }
 $ResourceGroupNames = $ImageBuilderTemplate.ResourceGroupName | Select-Object -Unique
-#$ResourceGroupNames | Repair-AzImageBuilderTemplate  -Remove -Verbose
-Repair-AzImageBuilderTemplateWithRunSpace -ResourceGroupName $ResourceGroupNames -Verbose
+$ResourceGroupNames | Repair-AzImageBuilderTemplate  -Verbose
+#Repair-AzImageBuilderTemplateWithRunSpace -ResourceGroupName $ResourceGroupNames -Verbose
 #Repair-AzImageBuilderTemplateWithRunSpace -ResourceGroupName $ResourceGroupNames -Remove -Verbose
 #Repair-AzImageBuilderTemplateWithThreadJob -ResourceGroupName $ResourceGroupNames -Remove -Verbose
 
