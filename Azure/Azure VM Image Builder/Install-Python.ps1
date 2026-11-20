@@ -16,6 +16,19 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 #Installing Python
+Clear-Host
+$Error.Clear()
+
+$CurrentScript = $MyInvocation.MyCommand.Path
+#Getting the current directory (where this script file resides)
+$CurrentDir = Split-Path -Path $CurrentScript -Parent
+$CurrentScriptName = Split-Path -Path $CurrentScript -Leaf
+$TranscriptDir = "C:\AVDImage"
+$null = New-Item -Path $TranscriptDir -ItemType Directory -Force
+
+$TranscriptFile = Join-Path -Path $TranscriptDir -ChildPath ($CurrentScriptName -replace ".ps1$", "$("_{0}.txt" -f (Get-Date -Format 'yyyyMMddHHmmss'))")
+Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
+
 
 #region Getting the URI of lastest release of Python
 $PythonUri = ((Invoke-WebRequest -Uri "https://www.python.org/downloads/windows" -UseBasicParsing).Links | Where-Object -FilterScript { $_.href -match "-amd64.exe$"}).href | Select-Object -First 1
@@ -44,3 +57,5 @@ Start-Process -FilePath $OutFile -ArgumentList $ArgumentList -Verb runas -Wait -
 #region Cleanup
 Remove-Item -Path $OutFile -Force
 #endregion 
+
+Stop-Transcript
