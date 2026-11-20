@@ -35,7 +35,7 @@ function New-AzureComputeGallery {
 		[Parameter(Mandatory = $false)]
 		[int]$ReplicaCount = 1,
 		[Parameter(Mandatory = $false)]
-		[bool] $excludeFromLatest = $true
+		[bool] $excludeFromLatest = $false
 	)
 
 	#region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool

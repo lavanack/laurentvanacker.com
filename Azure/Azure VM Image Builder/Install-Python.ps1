@@ -50,8 +50,24 @@ If (-not(Test-Path -Path $OutFile)) {
 
 #region Installing Python
 $InstallPath = 'C:\Tools\Python'
-$ArgumentList = @( "/quiet", "InstallAllUsers=1", "TargetDir=$InstallPath", "PrependPath=1", "Include_pip=1", "Include_launcher=1", "InstallLauncherAllUsers=1", "Include_test=0" )
-
+$ArgumentList = @(
+    '/quiet'
+    'InstallAllUsers=1'
+    "TargetDir=$InstallPath"
+    'PrependPath=1'
+    'Include_pip=1'
+    'Include_launcher=1'
+    'Include_test=0'
+    'Include_doc=0'
+    'Include_tcltk=0'
+    'Include_dev=1'
+    'Include_exe=1'
+    'Include_lib=1'
+    'Include_symbols=0'
+    'Include_debug=0'
+    'Shortcuts=0'
+    'CompileAll=1'
+)
 Start-Process -FilePath $OutFile -ArgumentList $ArgumentList -Verb runas -Wait -PassThru
 #endregion 
 
