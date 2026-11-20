@@ -18,7 +18,10 @@ of the Sample Code.
 #Installing Python
 
 #region Getting the URI of lastest release of Python
-$PythonUri = ((Invoke-WebRequest -Uri "https://www.python.org/downloads/windows" -UseBasicParsing).Links | Where-Object -FilterScript { $_.href -match "-amd64.exe$"}).href | Select-Object -First 1
+#$PythonUri = ((Invoke-WebRequest -Uri "https://www.python.org/downloads/windows" -UseBasicParsing).Links | Where-Object -FilterScript { $_.href -match "-amd64.exe$"}).href | Select-Object -First 1
+$null = ((Invoke-WebRequest -Uri "https://www.python.org/downloads/windows" -UseBasicParsing).Links | Where-Object -FilterScript { ($_.OuterHTML -match "Latest Python .* Release - Python (?<LatestVersion>[^<]+)") }).href | Select-Object -First 1
+$LatestVersion = $Matches["LatestVersion"]
+$PythonUri = ((Invoke-WebRequest -Uri "https://www.python.org/downloads/windows" -UseBasicParsing).Links | Where-Object -FilterScript { $_.href -match "$LatestVersion-amd64.exe$"}).href | Select-Object -First 1
 #endregion 
 
 #region Downloading Python
