@@ -23,7 +23,7 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 $CurrentScriptName = Split-Path -Path $CurrentScript -Leaf
-$TranscriptDirPath = "C:\AVDImage"
+$TranscriptDirPath = "C:\Temp"
 $TranscriptDir = New-Item -Path $TranscriptDirPath -ItemType Directory -Force
 
 $TranscriptFile = Join-Path -Path $TranscriptDir -ChildPath ($CurrentScriptName -replace ".ps1$", "$("_{0}.txt" -f (Get-Date -Format 'yyyyMMddHHmmss'))")
