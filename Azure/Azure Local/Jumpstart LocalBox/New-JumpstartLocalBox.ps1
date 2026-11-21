@@ -1143,7 +1143,6 @@ function Set-LocalClusterInsightSetup {
 
     #region Variables
     $SubscriptionId = (Get-AzContext).Subscription.Id
-    $ClusterName = "localboxcluster"
     $LogAnalyticsWorkSpaceName = "LocalBox-Workspace"
     $Location = $ResourceGroup.Location
     $ResourceGroupNamePrefix = $ResourceTypeShortNameHT["Resources/resourcegroups"].ShortName
@@ -1447,6 +1446,9 @@ function New-AzLocalAVD {
         [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [string] $ResourceGroupName,
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string] $ClusterName = "localboxcluster",
         [switch] $AsAJob
     )
 
@@ -1460,7 +1462,6 @@ function New-AzLocalAVD {
     #Building one image per Azure Compute Image Version
     $Jobs += New-AzureLocalVMImageFromAzureComputeGalleryImage -ResourceGroupName $ResourceGroupName -All -AsAJob:$AsAJob.IsPresent
     Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Jobs:`r`n$($Jobs | Out-String)"
-    $ClusterName = "localboxcluster"
     $ImageStatusURI = "https://portal.azure.com/#@{0}/resource/subscriptions/{1}/resourceGroups/{2}/providers/microsoft.azurestackhci/clusters/{3}/vmimages" -f $((Get-AzTenant).Domains[-1]), $SubscriptionId, $ResourceGroupName, $ClusterName
     Start-Process $ImageStatusURI 
 
