@@ -24,7 +24,7 @@ $DestinationFolder = New-Item -Path $DestinationFolderPath -ItemType Directory -
 $PuttyUri = "https://the.earth.li/~sgtatham/putty/latest/w64/putty.exe"
 $OutFile = Join-Path -Path $DestinationFolder -ChildPath $(Split-Path -Path $PuttyUri -Leaf)
 If (-not(Test-Path -Path $OutFile)) {
-    Write-Verbose -Message "Downloading Putty ..."
+    Write-Host -Object "Downloading Putty from '$PuttyUri' ..."
     Invoke-WebRequest -Uri $PuttyUri -UseBasicParsing -OutFile $OutFile -Verbose
 }
 #endregion 

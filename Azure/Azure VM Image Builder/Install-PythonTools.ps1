@@ -51,11 +51,11 @@ foreach ($Key in $PythonTools.Keys){
     $VersionedTool = $PythonTools[$Key]
     Write-Progress -Id 0 -Activity "[$($Index)/$($PythonTools.Count)] Installing Python Tool ..." -CurrentOperation "Installing '$VersionedTool' VM ..." -Status $('{0:N0}%' -f $PercentComplete) -PercentComplete $PercentComplete
 
-    Write-Host "Installing '$VersionedTool' ..."
+    Write-Host -Object "Installing '$VersionedTool' ..."
     & $Python -m pip install $VersionedTool --no-warn-script-location
 
     $Tool = $VersionedTool -replace "==.*"
-    Write-Host "Checking '$Tool' ..." -ForegroundColor Green
+    Write-Host -Object "Checking '$Tool' ..." -ForegroundColor Green
     & $Python -m pip show $Tool
 }
 Write-Progress -Id 0 -Activity "Completed !" -Completed

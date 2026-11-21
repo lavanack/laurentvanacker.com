@@ -24,13 +24,14 @@ $AzCopyUri = "https://aka.ms/downloadazcopy-v10-windows"
 #region Downloading AzCopy
 $OutFile = Join-Path -Path $env:TEMP -ChildPath 'azcopy_windows_amd64_latest.zip'
 If (-not(Test-Path -Path $OutFile)) {
-    Write-Verbose -Message "Downloading AzCopy ..."
+    Write-Host -Object "Downloading AzCopy from '$AzCopyUri' ..."
     Invoke-WebRequest -Uri $AzCopyUri -UseBasicParsing -OutFile $OutFile -Verbose
 }
 #endregion 
 
 #region Installing/Unzipping AzCopy
 $DestinationPath = "C:\Tools"
+Write-Host -Object "Unzipping AzCopy into '$DestinationPath' ..."
 $null = New-Item -Path $DestinationPath -ItemType Directory -Force
 Expand-Archive -Path $OutFile -DestinationPath $DestinationPath -Force
 #endregion 

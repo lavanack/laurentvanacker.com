@@ -25,12 +25,13 @@ $AzureCLIUri = "https://aka.ms/installazurecliwindows"
 $FileName = 'AzureCLI.msi'
 $OutFile = Join-Path -Path $env:TEMP -ChildPath $FileName
 If (-not(Test-Path -Path $OutFile)) {
-    Write-Verbose -Message "Downloading AzureCLI ..."
+    Write-Host -Object "Downloading AzureCLI from '$AzureCLIUri' ..."
     Invoke-WebRequest -Uri $AzureCLIUri -UseBasicParsing -OutFile $OutFile -Verbose
 }
 #endregion 
 
 #region Installing AzureCLI 
+Write-Host -Object "Installing AzureCLI ..."
 Start-Process msiexec.exe -ArgumentList '/I', $OutFile, '/quiet' -Verb runas -Wait -PassThru
 #endregion 
 

@@ -24,16 +24,19 @@ $GitURI = $(((Invoke-RestMethod  -Uri "https://api.github.com/repos/git-for-wind
 #endregion
 
 #region Downloading Git
+Write-Host -Object "Downloading Git from '$GitURI' ..."
 $OutFile = Join-Path -Path $env:Temp -ChildPath $(Split-Path -Path $GitURI -Leaf)
 Invoke-WebRequest -Uri $GitURI -OutFile $OutFile
 #endregion
 
 #region Installing Git
+Write-Host -Object "Installing Git ..."
 Start-Process -FilePath $OutFile -ArgumentList "/SILENT", "/CLOSEAPPLICATIONS" -Wait -PassThru
 #endregion
 
 #region Installing Git LFS
 Push-Location -Path "$env:ProgramFiles\Git\cmd\"
+Write-Host -Object "Installing Git LFS ..."
 git lfs install
 Pop-Location
 #endregion

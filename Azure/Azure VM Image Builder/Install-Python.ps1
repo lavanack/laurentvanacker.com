@@ -23,30 +23,20 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 $CurrentScriptName = Split-Path -Path $CurrentScript -Leaf
-$TranscriptDirPath = "C:\Temp"
-$TranscriptDir = New-Item -Path $TranscriptDirPath -ItemType Directory -Force
 
-$TranscriptFile = Join-Path -Path $TranscriptDir -ChildPath ($CurrentScriptName -replace ".ps1$", "$("_{0}.txt" -f (Get-Date -Format 'yyyyMMddHHmmss'))")
-Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
-
-
-Write-Host -Object "Running '$CurrentScript'"
 
 #region Getting the URI of lastest release of Python
-$PythonUri = ((Invoke-WebRequest -Uri "https://www.python.org/downloads/windows" -UseBasicParsing).Links | Where-Object -FilterScript { $_.href -match "-amd64.exe$"}).href | Select-Object -First 1
-Write-Host -Object "Installing Python from '$PythonUri'"
-<#
+#$PythonUri = ((Invoke-WebRequest -Uri "https://www.python.org/downloads/windows" -UseBasicParsing).Links | Where-Object -FilterScript { $_.href -match "-amd64.exe$"}).href | Select-Object -First 1
 $null = ((Invoke-WebRequest -Uri "https://www.python.org/downloads/windows" -UseBasicParsing).Links | Where-Object -FilterScript { ($_.OuterHTML -match "Latest Python .* Release - Python (?<LatestVersion>[^<]+)") }).href | Select-Object -First 1
 $LatestVersion = $Matches["LatestVersion"]
 $PythonUri = ((Invoke-WebRequest -Uri "https://www.python.org/downloads/windows" -UseBasicParsing).Links | Where-Object -FilterScript { $_.href -match "$LatestVersion-amd64.exe$"}).href | Select-Object -First 1
-#>
 #endregion 
 
 #region Downloading Python
 $FileName = $(Split-Path -Path $PythonUri -Leaf) -replace "\?.+"
 $OutFile = Join-Path -Path $env:TEMP -ChildPath $FileName
 If (-not(Test-Path -Path $OutFile)) {
-    Write-Verbose -Message "Downloading Python ..."
+    Write-Verbose -Message "Downloading Python from '$PythonUri' ..."
     Invoke-WebRequest -Uri $PythonUri -UseBasicParsing -OutFile $OutFile -Verbose
 }
 #endregion 
@@ -71,11 +61,10 @@ $ArgumentList = @(
     'Shortcuts=0'
     'CompileAll=1'
 )
+Write-Verbose -Message "Installing Python into '$InstallPath' ..."
 Start-Process -FilePath $OutFile -ArgumentList $ArgumentList -Verb runas -Wait -PassThru
 #endregion 
 
 #region Cleanup
 Remove-Item -Path $OutFile -Force
 #endregion 
-
-Stop-Transcript

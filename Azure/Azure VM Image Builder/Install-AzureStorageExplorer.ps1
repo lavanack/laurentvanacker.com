@@ -24,11 +24,13 @@ $StorageExplorerURI = $(((Invoke-RestMethod  -Uri "https://api.github.com/repos/
 #endregion
 
 #region Downloading Azure Storage Explorer
+Write-Host -Object "Downloading Azure Storage Explorer from '$StorageExplorerURI' ..."
 $OutFile = Join-Path -Path $env:Temp -ChildPath $(Split-Path -Path $StorageExplorerURI -Leaf)
 Invoke-WebRequest -Uri $StorageExplorerURI -OutFile $OutFile
 #endregion
 
 #region Installing Azure Storage Explorer
+Write-Host -Object "Installing Azure Storage Explorer ..."
 Start-Process -FilePath $OutFile -ArgumentList "/SILENT", "/CLOSEAPPLICATIONS", "/ALLUSERS" -Wait -PassThru
 #endregion
 

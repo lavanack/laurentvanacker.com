@@ -16,4 +16,5 @@ attorneys' fees, that arise or result from the use or distribution
 of the Sample Code.
 #>
 #Installing Powershell 7+ : Silent Install
+Write-Host -Object "Installing Powershell 7+ ..."
 Invoke-Expression -Command "& { $(Invoke-RestMethod https://aka.ms/install-powershell.ps1) } -UseMSI -Quiet"

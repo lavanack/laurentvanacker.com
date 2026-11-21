@@ -25,12 +25,13 @@ $NotepadPlusPlusVersion = (Invoke-RestMethod  -Uri "https://api.github.com/repos
 $NotepadPlusPlusUri = $(((Invoke-RestMethod  -Uri "https://api.github.com/repos/notepad-plus-plus/notepad-plus-plus/releases/latest").assets | Where-Object -FilterScript { $_.name.EndsWith("x64.exe") }).browser_download_url)
 $OutFile = Join-Path -Path $env:TEMP -ChildPath $(Split-Path -Path $NotepadPlusPlusUri -Leaf)
 If (-not(Test-Path -Path $OutFile)) {
-    Write-Verbose -Message "Downloading Notepad++ v$NotepadPlusPlusVersion ..."
+    Write-Host -Object "Downloading Notepad++ v$NotepadPlusPlusVersion from '$NotepadPlusPlusUri' ..."
     Invoke-WebRequest -Uri $NotepadPlusPlusUri -UseBasicParsing -OutFile $OutFile -Verbose
 }
 #endregion 
 
 #region Installing Notepad++ 
+Write-Host -Object "Downloading Notepad++ v$NotepadPlusPlusVersion from '$NotepadPlusPlusUri' ..."
 Start-Process -FilePath $OutFile -ArgumentList '/S' -Verb runas -Wait -PassThru
 #endregion 
 

@@ -64,7 +64,7 @@
                         "name": "Install Python",
                         "runElevated": true,
                         "runAsSystem": true,
-                        "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-PythonTools.ps1"
+                        "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-Python.ps1"
                     },
                     {
                         "type": "PowerShell",

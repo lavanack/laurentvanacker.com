@@ -21,6 +21,6 @@ $Attempts = 0
 $Limit = 5
 While ((-not($IsVSCodeInstalled)) -and ($Attempts -lt $Limit)) {
     $Attempts++
-    Write-Host -Object "Attempt: $Attempts/$Limit"
+    Write-Host -Object "Installing VS Code - Attempt: $Attempts/$Limit"
     Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) }" -Verbose -ErrorAction Ignore
 }
