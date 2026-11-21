@@ -30,8 +30,11 @@ $TranscriptFile = Join-Path -Path $TranscriptDir -ChildPath ($CurrentScriptName 
 Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 
 
+Write-Host -Object "Running '$CurrentScript'"
+
 #region Getting the URI of lastest release of Python
 $PythonUri = ((Invoke-WebRequest -Uri "https://www.python.org/downloads/windows" -UseBasicParsing).Links | Where-Object -FilterScript { $_.href -match "-amd64.exe$"}).href | Select-Object -First 1
+Write-Host -Object "Installing Python from '$PythonUri'"
 <#
 $null = ((Invoke-WebRequest -Uri "https://www.python.org/downloads/windows" -UseBasicParsing).Links | Where-Object -FilterScript { ($_.OuterHTML -match "Latest Python .* Release - Python (?<LatestVersion>[^<]+)") }).href | Select-Object -First 1
 $LatestVersion = $Matches["LatestVersion"]

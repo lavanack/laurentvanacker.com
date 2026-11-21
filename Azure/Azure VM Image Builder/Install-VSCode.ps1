@@ -18,7 +18,9 @@ of the Sample Code.
 #Installing VSCode with Powershell extension (and optional additional ones)
 $IsVSCodeInstalled = Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*' | Where-Object DisplayName -Like '*Visual Studio Code*' | Select-Object DisplayName, DisplayVersion, InstallLocation
 $Attempts = 0
-While ((-not($IsVSCodeInstalled)) -and ($Attempts -lt 5)) {
+$Limit = 5
+While ((-not($IsVSCodeInstalled)) -and ($Attempts -lt $Limit)) {
     $Attempts++
+    Write-Host -Object "Attempt: $Attempts/$Limit"
     Invoke-Expression -Command "& { $(Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/vscode-powershell/master/scripts/Install-VSCode.ps1) }" -Verbose -ErrorAction Ignore
 }
