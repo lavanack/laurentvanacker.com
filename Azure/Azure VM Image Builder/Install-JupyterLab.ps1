@@ -27,4 +27,6 @@ $Python = "python"
 & $Python -m pip install --upgrade pip
 Write-Host -Object "Installing JupyterLab ..."
 & $Python -m pip install --upgrade --no-cache-dir --quiet jupyterlab --no-warn-script-location
+& $Python -m pip show jupyterlab
+& $Python -m jupyterlab --version
 #endregion 
