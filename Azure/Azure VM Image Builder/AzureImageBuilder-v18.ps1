@@ -672,9 +672,10 @@ function New-AzureComputeGallery {
 	#endregion
 
 	#region imageTemplateNameARM status 
+    $runOutputARM = Get-AzImageBuilderTemplateRunOutput -ResourceGroupName $ResourceGroupName -ImageTemplateName $imageTemplateNameARM -Name $runOutputNameARM
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$runOutputARM' ProvisioningErrorCode: $($runOutputARM | Out-String) "
 	#To determine whenever or not the template upload process was successful, run the following command.
 	$getStatusARM = Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateNameARM
-	# Optional - if you have any errors running the preceding command, run:
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNameARM' ProvisioningErrorCode: $($getStatusARM.ProvisioningErrorCode) "
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNameARM' ProvisioningErrorMessage: $($getStatusARM.ProvisioningErrorMessage) "
 	# Shows the status of the build
@@ -696,9 +697,10 @@ function New-AzureComputeGallery {
 	#endregion
 
 	#region imageTemplateNamePowerShell status
+    $runOutputPowerShell = Get-AzImageBuilderTemplateRunOutput -ResourceGroupName $ResourceGroupName -ImageTemplateName $imageTemplateNamePowerShell -Name $runOutputNamePowerShell
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$runOutputPowerShell' ProvisioningErrorCode: $($runOutputPowerShell | Out-String) "
 	#To determine whenever or not the template upload process was successful, run the following command.
 	$getStatusPowerShell = Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateNamePowerShell
-	# Optional - if you have any errors running the preceding command, run:
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNamePowerShell' ProvisioningErrorCode: $($getStatusPowerShell.ProvisioningErrorCode) "
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNamePowerShell' ProvisioningErrorMessage: $($getStatusPowerShell.ProvisioningErrorMessage) "
 	# Shows the status of the build
