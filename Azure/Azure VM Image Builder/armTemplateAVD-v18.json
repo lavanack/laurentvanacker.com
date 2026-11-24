@@ -75,7 +75,7 @@
                     },
                     {
                         "name": "VisualCPlusPlusRedistributableWindowsRestart",
-                        "type": "WindowsRestart",
+                        "type": "Visual C++Redistributable Windows Restart",
                         "restartCheckCommand": "",
                         "restartCommand": "",
                         "restartTimeout": "10m"
@@ -160,7 +160,7 @@
                         "updateLimit": 40
                     },
                     {
-                        "name": "WindowsUpdateWindowsRestart",
+                        "name": "WindowsUpdate Windows Restart",
                         "type": "WindowsRestart"
                     },
                     {
