@@ -255,7 +255,7 @@ function Add-RDPCredential {
         try {
             Do {
                 Start-Sleep -Seconds 1
-                $MSTSCProcess = Get-Process -Id $MSTSCProcess.Id -ErrorAction Ignore
+                $MSTSCProcess = Get-Process -Id $MSTSCProcess.Id -ErrorAction Stop
             } While ([string]::IsNullOrEmpty($MSTSCProcess.MainWindowtitle)) 
             #region Bring the RDP window to the foreground
             $signature = '
@@ -844,7 +844,7 @@ function New-JumpstartLocalBox {
     }
     else {
         Push-Location -Path $(Join-Path -Path $GitDir -ChildPath "azure_arc")
-        git pull
+        git pull 2>$null
         Pop-Location
     }
 
@@ -1446,7 +1446,7 @@ function New-AzLocalAVD {
         [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [string] $ResourceGroupName,
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $false)]
         [ValidateNotNullOrEmpty()]
         [string] $ClusterName = "localboxcluster",
         [switch] $AsAJob
