@@ -641,7 +641,7 @@ Set-Location -Path $CurrentDir
 
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
-	Connect-AzAccount
+	Connect-AzAccount -UseDeviceAuthentication
 }
 #endregion
 
