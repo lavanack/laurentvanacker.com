@@ -964,7 +964,7 @@ Write-Host "Waiting for managed identity propagation..." -ForegroundColor Cyan
 Start-Sleep -Seconds 60
 
 #region Assign the 'Contributor', 'Role Based Access Control Administrator' roles to the Automation Account's managed identity
-$RBACRoles = 'Contributor' , 'Role Based Access Control Administrator'
+$RBACRoles = 'Contributor', 'Role Based Access Control Administrator'
 $maxRbacRetries = 5
 foreach ($RBACRole in $RBACRoles) {
     $rbacRetryCount = 0
