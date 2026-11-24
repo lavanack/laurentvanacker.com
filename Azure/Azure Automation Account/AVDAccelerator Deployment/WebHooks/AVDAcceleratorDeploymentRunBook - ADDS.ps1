@@ -112,18 +112,18 @@ try {
 	Write-Output -InputObject "`$DeploymentName: $DeploymentName"
 	$TemplateUri = "https://raw.githubusercontent.com/Azure/avdaccelerator/main/workload/arm/deploy-baseline.json"
 	Write-Output -InputObject "`$TemplateUri: $TemplateUri"
-	$avdVmLocalUserCredentialName = "AVDVmLocalAdminCredential"
-	$avdVmLocalUserCredential = Get-AutomationPSCredential -Name $avdVmLocalUserCredentialName
+	$AVDVmLocalAdminCredentialName = "AVDVmLocalAdminCredential"
+	$AVDVmLocalAdminCredential = Get-AutomationPSCredential -Name $AVDVmLocalAdminCredentialName
 	$AVDDomainJoinUserCredentialName = "AVDDomainJoinUserCredential"
-	$avdDomainJoinUserCredential = Get-AutomationPSCredential -Name $AVDDomainJoinUserCredentialName
+	$AVDDomainJoinUserCredential = Get-AutomationPSCredential -Name $AVDDomainJoinUserCredentialName
 
-	Write-Host -InputObject "`$avdVmLocalUserCredential UserName: $($avdVmLocalUserCredential.UserName)"
-	Write-Host -InputObject "`$avdVmLocalUserCredential Password: $($avdVmLocalUserCredential.GetNetworkCredential().Password)"
-	Write-Host -InputObject "`$avdDomainJoinUserCredential UserName: $($avdDomainJoinUserCredential.UserName)"
-	Write-Host -InputObject "`$avdDomainJoinUserCredential Password: $($avdDomainJoinUserCredential.GetNetworkCredential().Password)"
+	Write-Output -InputObject "`$AVDVmLocalAdminCredential UserName: $($AVDVmLocalAdminCredential.UserName)"
+	Write-Output -InputObject "`$AVDVmLocalAdminCredential Password: $($AVDVmLocalAdminCredential.GetNetworkCredential().Password)"
+	Write-Output -InputObject "`$AVDDomainJoinUserCredential UserName: $($AVDDomainJoinUserCredential.UserName)"
+	Write-Output -InputObject "`$AVDDomainJoinUserCredential Password: $($AVDDomainJoinUserCredential.GetNetworkCredential().Password)"
 
 	$VNET = $HostPoolData.VNET 
-	$VMNumb = $HostPoolData.VMNumb
+	[int]$VMNumb = $HostPoolData.VMNumb
 
 	if ($VNET -match '^([A-Za-z]+)(\d{2,})$') {
 		$letters = $matches[1]
@@ -144,15 +144,15 @@ try {
 		avdWorkloadSubsId                             = $SubscriptionId
 		avdServicePrincipalObjectId                   = $avdServicePrincipalObjectId
 		avdArmServicePrincipalObjectId                = ""
-		avdVmLocalUserName                            = $avdVmLocalUserCredential.UserName
-		avdVmLocalUserPassword                        = $avdVmLocalUserCredential.Password
+		avdVmLocalUserName                            = $AVDVmLocalAdminCredential.UserName
+		avdVmLocalUserPassword                        = $AVDVmLocalAdminCredential.Password
 		avdIdentityServiceProvider                    = "ADDS"
 		createIntuneEnrollment                        = $False
 		avdSecurityGroups                             = $avdSecurityGroups
 		identityDomainName                            = "csa.fr"
 		identityDomainGuid                            = ""
-		avdDomainJoinUserName                         = $avdDomainJoinUserCredential.UserName
-		avdDomainJoinUserPassword                     = $avdDomainJoinUserCredential.Password
+		avdDomainJoinUserName                         = $AVDDomainJoinUserCredential.UserName
+		avdDomainJoinUserPassword                     = $AVDDomainJoinUserCredential.Password
 		avdOuPath                                     = "OU=AVDAccelerator,OU=$Location,OU=AVD,DC=csa,DC=fr"
 		avdHostPoolType                               = "Pooled"
 		hostPoolPreferredAppGroupType                 = "Desktop"
@@ -264,13 +264,6 @@ try {
 		enableDefForKeyVault                          = $False
 		enableDefForArm                               = $False
 	}
-
-    <#
-	#region Cleaning up any existing resource group with same Deployment Prefix and Environment
-	Write-Output -InputObject "Cleaning up any previously existing deployments ..."
-	$null = Get-AzResourceGroup -ResourceGroupName $("rg-avd-{0}-{1}*" -f $TemplateParameterObject.deploymentPrefix, $TemplateParameterObject.deploymentEnvironment).ToLower() | Remove-AzResourceGroup -AsJob -Force | Receive-Job -Wait -AutoRemoveJob
-	#endregion
-    #>
 
 	#$SubscriptionDeployment = New-AzSubscriptionDeployment -Name $DeploymentName -Location $Location -TemplateFile $TemplateFile -TemplateParameterFile $TemplateParameterFile  -Verbose
 	Write-Output -InputObject "Deploying ..."
