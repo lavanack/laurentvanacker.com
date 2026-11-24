@@ -67,6 +67,7 @@ Write-Progress -Id 0 -Activity "Completed !" -Completed
 $RequirementFilePath = Join-Path -Path $env:TEMP -ChildPath "requirements.txt"
 $PythonTools.Values | Out-File -FilePath $RequirementFilePath -Force
 & $Python -m pip install -r $RequirementFilePath -v
+$null = Remove-Item -Path $RequirementFilePath -Force -ErrorAction Ignore
 #endregion
 #> 
-#endregion 
+#endregion
