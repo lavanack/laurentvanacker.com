@@ -31,15 +31,16 @@ param
     [string] $ResourceGroupName
 )
 
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'" 
     $subscriptionId = (Get-AzContext).Subscription.Id
 
     # All the Arc machines of the RG
     $response = Invoke-AzRestMethod -Method GET -Path "/subscriptions/$subscriptionId/resourceGroups/$ResourceGroupName/providers/Microsoft.HybridCompute/machines?api-version=2026-07-15"
 
     $CurrentVMs = ($response.Content | ConvertFrom-Json).value
+    $CurrentVMs = $CurrentVMs | Where-Object -FilterScript { $_.Kind -eq "HCI"}
     $vms = foreach ($CurrentVM in $CurrentVMs) {
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentVM : $CurrentVM'"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$CurrentVM : $($CurrentVM | Out-String)" 
         $path = "$($CurrentVM.id)/providers/Microsoft.AzureStackHCI/virtualMachineInstances?api-version=2024-01-01"
 
         try {
@@ -63,7 +64,7 @@ param
         }
     }
 
-    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
+    Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'" 
     return $vms
 }
 
@@ -76,7 +77,7 @@ function Register-AzVMEntraIDJoin {
     )
 
     begin {
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Entering function '$($MyInvocation.MyCommand)'" 
         $Settings = @{
             # IMPORTANT: must be present even empty
             mdmId = ""   
@@ -96,6 +97,14 @@ function Register-AzVMEntraIDJoin {
             #endregion
 
             #Connecting
+            $Parameters = @{
+                ResourceGroupName = $VM.ResourceGroupName
+                Name = $VM.Name
+                ProvisionVMAgent = $true
+            }
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters : $($Parameters | Out-String)" 
+            Update-AzStackHCIVMVirtualMachine @Parameters
+            
             Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Registering '($CurrentVM.Name)' into EntraID ..."
             $Parameters = @{
                 Name = "aadlogin"
@@ -106,6 +115,7 @@ function Register-AzVMEntraIDJoin {
                 ExtensionType = "AADLoginForWindows" 
                 Settings = $Settings
             }
+            Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$Parameters : $($Parameters | Out-String)" 
             New-AzConnectedMachineExtension @Parameters
 
             <#
@@ -121,7 +131,7 @@ function Register-AzVMEntraIDJoin {
         }
     }
     end{
-        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'"
+        Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Leaving function '$($MyInvocation.MyCommand)'" 
     }
 
 }
@@ -195,23 +205,28 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 Set-Location -Path $CurrentDir
-$ResourceGroupName = "hp-np-ei-azlocal-demo-*"
+$ResourceGroupName = "rg-az-local-*"
 $ResourceGroup = Get-AzResourceGroup -Name $ResourceGroupName
 if ($ResourceGroup) {
     if ($ResourceGroup.count -gt 1) {
         $ResourceGroup = $ResourceGroup | Out-GridView -OutputMode Single
     }
+
+    <#
+    $ClusterName = "localboxcluster"
+    #$Cluster = Get-AzResource -ResourceType "microsoft.azurestackhci/clusters"
+    $Cluster = Get-AzStackHciCluster -ResourceGroupName $ResourceGroupName -Name $ClusterName
+    if ($Cluster.count -gt 1) {
+        $Cluster = $Cluster | Out-GridView -OutputMode Single
+    }
+    #>
+
+
+    $StackHciClusterVMs = Get-AzStackHciClusterVM -ResourceGroupName $ResourceGroup.ResourceGroupName -Verbose
+    if ($StackHciClusterVMs) {
+        $StackHciClusterVMs | Out-GridView -PassThru | Register-AzVMEntraIDJoin -Verbose
+    }
 }
-
-<#
-$ClusterName = "localboxcluster"
-#$Cluster = Get-AzResource -ResourceType "microsoft.azurestackhci/clusters"
-$Cluster = Get-AzStackHciCluster -ResourceGroupName $ResourceGroupName -Name $ClusterName
-if ($Cluster.count -gt 1) {
-    $Cluster = $Cluster | Out-GridView -OutputMode Single
+else {
+    Write-Warning -Message "No '$ResourceGroupName' ResourceGroup found"
 }
-#>
-
-
-$StackHciClusterVMs = Get-AzStackHciClusterVM -ResourceGroupName $ResourceGroup.ResourceGroupName -Verbose
-$StackHciClusterVMs | Register-AzVMEntraIDJoin -Verbose
