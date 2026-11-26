@@ -74,8 +74,8 @@
                         "scriptUri": "https://raw.githubusercontent.com/lavanack/laurentvanacker.com/master/Azure/Azure%20VM%20Image%20Builder/Install-VisualCPlusPlusRedistributable.ps1"
                     },
                     {
-                        "name": "VisualCPlusPlusRedistributableWindowsRestart",
-                        "type": "Visual C++Redistributable Windows Restart",
+                        "name": "Visual C++Redistributable Windows Restart",
+                        "type": "WindowsRestart",
                         "restartCheckCommand": "",
                         "restartCommand": "",
                         "restartTimeout": "10m"
