@@ -28,7 +28,7 @@ $PythonTools = [ordered] @{
     'PyMuPDF / fitz' = 'pymupdf==2.1'
     'pymupdf4llm'    = 'pymupdf4llm==2.1'
     'MLflow'         = 'mlflow==3.18'
-    'vLLM'           = 'vllm==0.33'
+    #'vLLM'           = 'vllm==0.33'
     'PEFT'           = 'peft==0.21.2'
     'accelerate'     = 'accelerate==1.15'
     'bitsandbytes'   = 'bitsandbytes==0.50.2'

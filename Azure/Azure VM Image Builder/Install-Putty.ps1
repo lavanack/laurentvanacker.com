@@ -28,3 +28,12 @@ If (-not(Test-Path -Path $OutFile)) {
     Invoke-WebRequest -Uri $PuttyUri -UseBasicParsing -OutFile $OutFile -Verbose
 }
 #endregion 
+
+
+#region Updating System Path
+$Path = [Environment]::GetEnvironmentVariable('Path', 'Machine')
+if ($DestinationFolderPath -notin ($Path -split ';')) {
+    Write-Host -Object "Adding '$DestinationFolderPath' to The System Path ..."
+    [Environment]::SetEnvironmentVariable('Path', "$Path;$DestinationFolderPath", 'Machine')
+}
+#endregion 
