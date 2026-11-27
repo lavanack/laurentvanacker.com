@@ -152,7 +152,8 @@ $RandomNumber = Get-Random -Minimum 1 -Maximum 990
 #$HostPools = & "..\1 Azure Region\1_Pooled_EntraID_CloudOnly_FSLogix.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_Hybrid_FSLogix_AzureAppAttach_SSO.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_ScalingPlan.ps1"
-$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_1_Personal_AD_ScalingPlan.ps1"
+#$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_1_Personal_AD_ScalingPlan.ps1"
+$HostPools = & "..\1 Azure Region\1_Pooled_AD_FSLogix_ScalingPlan_AzureAppAttach.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_1_AD_SpotInstance_RemoteApp.ps1"
 #$HostPools = & "..\1 Azure Region\1_Pooled_Intune_FSLogix_ScalingPlan_Watermarking.ps1"
 #$HostPools = & "..\1 Azure Region\2_Pooled_1_Personal_AD_SpotInstance.ps1"
@@ -280,16 +281,21 @@ foreach ($CurrentSkuPartNumber in $SkuPartNumber) {
     #$SubscribedSku = Get-MgBetaSubscribedSku -All -Search "CurrentSkuPartNumber:'$CurrentSkuPartNumber'"
     $SubscribedSku = Get-MgBetaSubscribedSku -All | Where-Object -FilterScript { $_.SkuPartNumber -eq $CurrentSkuPartNumber }
     $SubscribedSkuAvailableLicenses = $SubscribedSku.PrepaidUnits.Enabled - $SubscribedSku.ConsumedUnits
-    Write-Verbose -Message "'$CurrentSkuPartNumber' Available License Number: $SubscribedSkuAvailableLicenses"
-    if ($SubscribedSkuAvailableLicenses -gt 0) {
-        Set-PsAvdMgBetaUsersGroupLicense -GroupDisplayName $AVDUsersGroupName -SkuPartNumber $CurrentSkuPartNumber -Verbose
+    if ($SubscribedSku) {
+        Write-Verbose -Message "'$CurrentSkuPartNumber' Available License Number: $SubscribedSkuAvailableLicenses"
+        if ($SubscribedSkuAvailableLicenses -gt 0) {
+            Set-PsAvdMgBetaUsersGroupLicense -GroupDisplayName $AVDUsersGroupName -SkuPartNumber $CurrentSkuPartNumber -Verbose
+        }
+        else {
+            Write-Verbose -Message "No more licenses availables for '$CurrentSkuPartNumber'"
+            $AssignedLicenses = Get-MgBetaUser -Filter "assignedLicenses/any(x:x/skuId eq $($SubscribedSku.SkuId) )" -ConsistencyLevel eventual -CountVariable e5licensedUserCount -All
+            Write-Verbose -Message "Assigned Licenses for '$CurrentSkuPartNumber': $($AssignedLicenses.DisplayName -join ', ')"
+            $AVDUserGroupMembersWithoutAssignedLicenses = Get-MgBetaUser -Filter "not(assignedLicenses/any(x:x/skuId eq $($SubscribedSku.SkuId))) and UserType eq 'Member'" -ConsistencyLevel eventual -CountVariable e5licensedUserCount -All | Where-Object -FilterScript { $_.Id -in $((Get-MgBetaGroupMember -GroupId $(Get-MgBetaGroup -Filter "DisplayName eq '$AVDUsersGroupName'").Id).Id) }
+            Write-Verbose -Message "'$AVDUsersGroupName' Group Members Without Assigned Licenses for '$CurrentSkuPartNumber': $($AVDUserGroupMembersWithoutAssignedLicenses.DisplayName -join ', ')"
+        }
     }
     else {
-        Write-Verbose -Message "No more licenses availables for '$CurrentSkuPartNumber'"
-        $AssignedLicenses = Get-MgBetaUser -Filter "assignedLicenses/any(x:x/skuId eq $($SubscribedSku.SkuId) )" -ConsistencyLevel eventual -CountVariable e5licensedUserCount -All
-        Write-Verbose -Message "Assigned Licenses for '$CurrentSkuPartNumber': $($AssignedLicenses.DisplayName -join ', ')"
-        $AVDUserGroupMembersWithoutAssignedLicenses = Get-MgBetaUser -Filter "not(assignedLicenses/any(x:x/skuId eq $($SubscribedSku.SkuId))) and UserType eq 'Member'" -ConsistencyLevel eventual -CountVariable e5licensedUserCount -All | Where-Object -FilterScript { $_.Id -in $((Get-MgBetaGroupMember -GroupId $(Get-MgBetaGroup -Filter "DisplayName eq '$AVDUsersGroupName'").Id).Id) }
-        Write-Verbose -Message "'$AVDUsersGroupName' Group Members Without Assigned Licenses for '$CurrentSkuPartNumber': $($AVDUserGroupMembersWithoutAssignedLicenses.DisplayName -join ', ')"
+        Write-Warning -Message "No Subscribed Sku found for '$CurrentSkuPartNumber'"
     }
 }
 #endregion
