@@ -197,7 +197,8 @@ documented by upstream Jumpstart:
 - `-GitDir` defaults to `C:\Source Control\GitHub\Cloned repositories`.
   Supply a writable directory appropriate for your environment. The coordinator
   clones `azure_arc` there if its Bicep directory is missing, or runs `git pull`
-  on an existing checkout.
+  on an existing checkout. The `git pull` call suppresses standard error, so
+  missing Git diagnostics do not confirm that the checkout updated successfully.
 - `-SubscriptionId` defaults to the active Az context's subscription ID and
   selects the subscription used for quota checks. It does **not** switch the
   active Azure context; deployment and provider registration use that context.
@@ -286,6 +287,24 @@ launched. Other deployment choices, including Spot pricing, automatic cluster
 resource upgrades, Bastion, and governance tags, remain set inside the helper
 functions and must be changed there. The script also accepts common PowerShell
 parameters such as `-Verbose`.
+
+### Helper-level cluster selection
+
+The following settings apply to individual helper calls; `ClusterName` is not
+a top-level script parameter:
+
+- `Set-LocalClusterInsightSetup -ClusterName '<cluster-name>'` now honors the
+  supplied cluster name for cluster lookup and Azure Monitor extension setup.
+  It defaults to `localboxcluster`. Its `LogAnalyticsWorkSpaceName` parameter is
+  still overwritten internally with `LocalBox-Workspace`.
+- `New-AzLocalAVD -ClusterName '<cluster-name>'` accepts an optional, non-empty
+  cluster name, defaulting to `localboxcluster`. This value selects the cluster
+  in the Azure portal VM images status URL only. It is not forwarded to the
+  Marketplace or Compute Gallery image-import helpers, which retain their
+  default cluster selection; it does not retarget the entire AVD workflow.
+
+The main workflow calls both helpers without `-ClusterName`, so normal script
+execution continues to use `localboxcluster`.
 
 ## Run the deployment
 
@@ -411,9 +430,11 @@ organization's retention requirements.
   temporary access, stores credentials in Credential Manager, and opens RDP.
   Verify the port, access policy, and network exposure meet your organization's
   requirements. The RDP helper waits for the client's window title before
-  attempting foreground activation and connection-prompt automation; exceptions
-  in that automation are reported as warnings. Verify the connection manually
-  if the prompts are not completed.
+  attempting foreground activation and connection-prompt automation. If the RDP
+  process exits during that wait, `Get-Process -ErrorAction Stop` raises an error
+  that the helper catches and reports as a warning, rather than continuing to
+  poll a missing process. Other exceptions in that automation are also reported
+  as warnings. Verify the connection manually if the prompts are not completed.
 - **Credentials are handled in multiple places.** The Windows administrator
   password is passed to the Bicep deployment and written to the generated
   parameter file. The helper `Add-RDPCredential` also writes the user name and
@@ -467,8 +488,12 @@ the file to import functions also executes its deployment workflow.
 
 All 16 helpers, including the `New-JumpstartLocalBox` coordinator and the nested
 `Test-PwnedPassword` helper, have
-comment-based help with a synopsis, description, documentation for every declared
-parameter, and at least one example. The deployment helper also documents its
+comment-based help with a synopsis, description, and at least one example.
+Some parameter help has not yet caught up with the implementation:
+`New-AzLocalAVD` does not document its new `ClusterName` parameter, and
+`Set-LocalClusterInsightSetup` still describes `ClusterName` as fixed even though
+the supplied value is now honored. See the helper-level cluster selection notes
+above for current behavior. The deployment helper also documents its
 `Credential` parameter set as an alternative to separate administrator username
 and password parameters.
 

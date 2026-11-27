@@ -134,8 +134,7 @@ function New-AzAPIAutomationPowerShellRunbook {
         [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
         [string]$RunBookPowerShellScriptURI,
         [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
-        [string]$Description,
-        [Parameter(Mandatory = $false, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+        [string]$Description
     )
     #region Azure Context
     # Log in first with Connect-AzAccount if not using Cloud Shell
@@ -203,14 +202,14 @@ function New-AzAPIAutomationAccountRuntimeEnvironment {
         [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
         [Microsoft.Azure.Commands.Automation.Model.AutomationAccount] $AutomationAccount,
         [Parameter(Mandatory = $false)]
-        [string] $RuntimeEnvironment = "PowerShell-74",
+        [string] $RuntimeEnvironment = "PowerShell-76",
         [Parameter(Mandatory = $false)]
-        [ValidateSet('5.1', '7.1', '7.4')]
-        [string] $Version = "7.4",
+        [ValidateSet('5.1', '7.2', '7.4', '7.6')]
+        [string] $Version = '7.6',
         [Parameter(Mandatory = $false)]
-        [string[]] $Modules =   @("Az.Accounts", "Az.Compute", "Az.ImageBuilder", "Az.ManagedServiceIdentity", "Az.Resources"),
+        [string[]] $Modules = @("Az.Accounts", "Az.Compute", "Az.ImageBuilder", "Az.ManagedServiceIdentity", "Az.Resources"),
         [Parameter(Mandatory = $false)]
-        [hashtable] $DefaultPackages = @{"Az" = "12.3.0"},
+        [hashtable] $DefaultPackages = @{"Az" = "15.1.0"},
         [Parameter(Mandatory = $false)]
         [string] $API="2024-10-23"
     )
@@ -462,7 +461,7 @@ $ResourceGroup = New-AzResourceGroup -Name $ResourceGroupName -Location $Locatio
 
 #region Automation Account Setup
 $AutomationAccount = New-AzAutomationAccount -Name $AutomationAccountName -Location $Location -ResourceGroupName $ResourceGroupName -AssignSystemIdentity
-$RuntimeEnvironment = "PowerShell-74-AIB" 
+$RuntimeEnvironment = "PowerShell-76-AIB" 
 $AutomationAccount | New-AzAPIAutomationAccountRuntimeEnvironment -RuntimeEnvironment $RuntimeEnvironment -Verbose
 #endregion
 
@@ -499,6 +498,8 @@ $SrcObjParamsPowerShell = @{
 #endregion
 
 #region Staging ResourceGroups
+#$TimeInt = "1778476256"
+$TimeInt = "1795542604"
 $imageDefinitionNamePowerShell = "{0}-posh-softwares" -f $SrcObjParamsPowerShell.Sku
 $imageTemplateNamePowerShell = "{0}-template-{1}" -f $imageDefinitionNamePowerShell, $timeInt
 
@@ -539,9 +540,15 @@ $Runbook | Set-AzAPIAutomationRunbookRuntimeEnvironment -RuntimeEnvironment $Run
 #endregion 
 
 # Link the schedule to the runbook
-$TimeInt = "1781545972"
 $GalleryId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-usc-{1}/providers/Microsoft.Compute/galleries/gal_avd_usc_{1}" -f $SubscriptionId, $TimeInt
 $UserAssignedManagedIdentityId = "/subscriptions/{0}/resourceGroups/rg-avd-aib-usc-{1}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/aibIdentity-{1}" -f $SubscriptionId, $TimeInt
+if (-not(Get-AzResource -ResourceId $GalleryId -ErrorAction Ignore)) {
+    throw "The Gallery with the Id '$GalleryId' doesn't exist"
+}
+if (-not(Get-AzResource -ResourceId $UserAssignedManagedIdentityId -ErrorAction Ignore)) {
+    throw "The User-Assigned Managed Identity with the Id '$UserAssignedManagedIdentityId' doesn't exist"
+}
+
 $Parameters = @{ 
     GalleryId = $GalleryId
     UserAssignedManagedIdentityId = $UserAssignedManagedIdentityId
@@ -563,7 +570,6 @@ $Params = @{
 }
 Register-AzAutomationScheduledRunbook @Params -ScheduleName $Schedule.Name -Parameters $Parameters
 #endregion
-
 
 #region RBAC Assignments
 #region Automation Account System Assigned Identity

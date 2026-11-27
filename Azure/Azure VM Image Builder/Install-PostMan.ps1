@@ -25,6 +25,6 @@ $PostManUri = "https://dl.pstmn.io/download/latest/win64"
 $DestinationPath = "C:\Tools"
 $null = New-Item -Path $DestinationPath -ItemType Directory -Force
 $OutFile = Join-Path -Path $DestinationPath -ChildPath 'Postman (x64).exe'
-Write-Verbose -Message "Downloading PostMan ..."
+Write-Host -Object "Downloading PostMan from '$PostManUri' to '$DestinationPath ' ..."
 Invoke-WebRequest -Uri $PostManUri -UseBasicParsing -OutFile $OutFile -Verbose
 #endregion 

@@ -23,39 +23,48 @@ $CurrentScript = $MyInvocation.MyCommand.Path
 #Getting the current directory (where this script file resides)
 $CurrentDir = Split-Path -Path $CurrentScript -Parent
 $CurrentScriptName = Split-Path -Path $CurrentScript -Leaf
-$TranscriptDir = "C:\AVDImage"
-$null = New-Item -Path $TranscriptDir -ItemType Directory -Force
-
-$TranscriptFile = Join-Path -Path $TranscriptDir -ChildPath ($CurrentScriptName -replace ".ps1$", "$("_{0}.txt" -f (Get-Date -Format 'yyyyMMddHHmmss'))")
-Start-Transcript -Path $TranscriptFile -IncludeInvocationHeader
 
 
 #region Getting the URI of lastest release of Python
-$PythonUri = ((Invoke-WebRequest -Uri "https://www.python.org/downloads/windows" -UseBasicParsing).Links | Where-Object -FilterScript { $_.href -match "-amd64.exe$"}).href | Select-Object -First 1
-<#
+#$PythonUri = ((Invoke-WebRequest -Uri "https://www.python.org/downloads/windows" -UseBasicParsing).Links | Where-Object -FilterScript { $_.href -match "-amd64.exe$"}).href | Select-Object -First 1
 $null = ((Invoke-WebRequest -Uri "https://www.python.org/downloads/windows" -UseBasicParsing).Links | Where-Object -FilterScript { ($_.OuterHTML -match "Latest Python .* Release - Python (?<LatestVersion>[^<]+)") }).href | Select-Object -First 1
 $LatestVersion = $Matches["LatestVersion"]
 $PythonUri = ((Invoke-WebRequest -Uri "https://www.python.org/downloads/windows" -UseBasicParsing).Links | Where-Object -FilterScript { $_.href -match "$LatestVersion-amd64.exe$"}).href | Select-Object -First 1
-#>
 #endregion 
 
 #region Downloading Python
 $FileName = $(Split-Path -Path $PythonUri -Leaf) -replace "\?.+"
 $OutFile = Join-Path -Path $env:TEMP -ChildPath $FileName
 If (-not(Test-Path -Path $OutFile)) {
-    Write-Verbose -Message "Downloading Python ..."
+    Write-Verbose -Message "Downloading Python from '$PythonUri' ..."
     Invoke-WebRequest -Uri $PythonUri -UseBasicParsing -OutFile $OutFile -Verbose
 }
 #endregion 
 
 #region Installing Python
-$ArgumentList = @( "/quiet", "InstallAllUsers=1", "PrependPath=1", "Include_pip=1", "Include_launcher=1", "InstallLauncherAllUsers=1", "Include_test=0" )
-
+$InstallPath = 'C:\Tools\Python'
+$ArgumentList = @(
+    '/quiet'
+    'InstallAllUsers=1'
+    "TargetDir=$InstallPath"
+    'PrependPath=1'
+    'Include_pip=1'
+    'Include_launcher=1'
+    'Include_test=0'
+    'Include_doc=0'
+    'Include_tcltk=0'
+    'Include_dev=1'
+    'Include_exe=1'
+    'Include_lib=1'
+    'Include_symbols=0'
+    'Include_debug=0'
+    'Shortcuts=0'
+    'CompileAll=1'
+)
+Write-Verbose -Message "Installing Python into '$InstallPath' ..."
 Start-Process -FilePath $OutFile -ArgumentList $ArgumentList -Verb runas -Wait -PassThru
 #endregion 
 
 #region Cleanup
 Remove-Item -Path $OutFile -Force
 #endregion 
-
-Stop-Transcript

@@ -302,5 +302,5 @@ $Parameters = @{
     Location = $Location 
     Verbose  = $true
 }
-$PersonalHostPool =New-AzAvdLocalEntraIDPooledHostPoolSetup @Parameters
+$PersonalHostPool = New-AzAvdLocalEntraIDPooledHostPoolSetup @Parameters
 #endregion

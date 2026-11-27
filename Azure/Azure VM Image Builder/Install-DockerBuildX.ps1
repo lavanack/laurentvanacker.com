@@ -25,7 +25,7 @@ $DockerBuildXVersion = (Invoke-RestMethod  -Uri "https://api.github.com/repos/do
 $DockerBuildXUri = $(((Invoke-RestMethod  -Uri "https://api.github.com/repos/docker/buildx/releases/latest").assets | Where-Object -FilterScript { $_.name.EndsWith("amd64.exe") }).browser_download_url)
 $OutFile = Join-Path -Path $env:TEMP -ChildPath $(Split-Path -Path $DockerBuildXUri -Leaf)
 If (-not(Test-Path -Path $OutFile)) {
-    Write-Verbose -Message "Downloading DockerBuildX v$DockerBuildXVersion ..."
+    Write-Verbose -Message "Downloading DockerBuildX from '$DockerBuildXUri' ..."
     Invoke-WebRequest -Uri $DockerBuildXUri -UseBasicParsing -OutFile $OutFile -Verbose
 }
 #endregion 
@@ -35,13 +35,16 @@ If (-not(Test-Path -Path $OutFile)) {
 $DestinationPath = "C:\Tools\docker\bin"
 $null = New-Item -Path $DestinationPath -ItemType Directory -Force
 $NewPath = Move-Item -Path $OutFile -Destination $DestinationPath -Force -PassThru
-Rename-Item -Path $NewPath.FullName -NewName "docker-buildx.exe" -Force
+Rename-Item -Path $NewPath.FullName -NewName "docker-buildx.exe" -Force -PassThru
+Write-Verbose -Message "Copying DockerBuildX into '$DestinationPath' ..."
+
 
 #endregion
 
 #region Updating System Path
 $Path = [Environment]::GetEnvironmentVariable('Path', 'Machine')
 if ($DestinationPath -notin ($Path -split ';')) {
+    Write-Host -Object "Adding '$DestinationPath' to The System Path ..."
     [Environment]::SetEnvironmentVariable('Path', "$Path;$DestinationPath", 'Machine')
 }
 #endregion 

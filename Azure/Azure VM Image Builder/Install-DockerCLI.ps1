@@ -26,13 +26,14 @@ $DockerCLIUri = "{0}{1}" -f $DockerCLIRootUri, $DockerCLIUri
 #region Downloading DockerCLI 
 $OutFile = Join-Path -Path $env:TEMP -ChildPath $(Split-Path -Path $DockerCLIUri -Leaf)
 If (-not(Test-Path -Path $OutFile)) {
-    Write-Verbose -Message "Downloading DockerCLI ..."
+    Write-Host -Object "Downloading DockerCLI from '$DockerCLIUri' ..."
     Invoke-WebRequest -Uri $DockerCLIUri -UseBasicParsing -OutFile $OutFile -Verbose
 }
 #endregion 
 
 #region Installing/Unzipping DockerCLI
 $DestinationPath = "C:\Tools\docker"
+Write-Host -Object "Unzipping '$DockerCLIUri' to '$DestinationPath' ..."
 $null = New-Item -Path $DestinationPath -ItemType Directory -Force
 Expand-Archive -Path $OutFile -DestinationPath $DestinationPath -Force
 #endregion
@@ -41,6 +42,7 @@ Expand-Archive -Path $OutFile -DestinationPath $DestinationPath -Force
 $BinDestinationPath = Join-Path -Path $DestinationPath -ChildPath "bin"
 $Path = [Environment]::GetEnvironmentVariable('Path', 'Machine')
 if ($BinDestinationPath -notin ($Path -split ';')) {
+    Write-Host -Object "Adding '$BinDestinationPath' to The System Path ..."
     [Environment]::SetEnvironmentVariable('Path', "$Path;$BinDestinationPath", 'Machine')
 }
 #endregion 

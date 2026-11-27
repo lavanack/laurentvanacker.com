@@ -23,42 +23,51 @@ $Error.Clear()
 #region Installing Python Tools 
 #$Python = (Get-Command -Name python).Source
 $Python = "python"
-
 #The key is just here for explanation of the software name (Use it as a comment)
 $PythonTools = [ordered] @{
-    'PyMuPDF / fitz' = '"pymupdf==2.1"'
-    'pymupdf4llm'    = '"pymupdf4llm==2.1"'
-    'MLflow'         = '"mlflow==3.18"'
-    'vLLM'           = '"vllm==0.33"'
-    'PEFT'           = '"peft==0.21.2"'
-    'accelerate'     = '"accelerate==1.15"'
-    'bitsandbytes'   = '"bitsandbytes==0.50.2"'
-    'torch'          = '"torch==2.15"'
-    'SGLang'         = '"sglang==0.5.23"'
-    'unsloth'        = '"unsloth==2026.11.4"'
-    'edsnlp'         = '"edsnlp==0.23"'
-    'eds-scikit'     = '"eds-scikit==0.1.8"'
-    'edspdf'         = '"edspdf==0.10"'
-    'eds-pseudo'     = '"git+https://github.com/aphp/eds-pseudo.git@v0.4.0"'
-    'glmocr'         = '"glmocr==0.1.5"'
-    'transformers'   = '"transformers==5.22.2"'
+    'PyMuPDF / fitz' = 'pymupdf==2.1'
+    'pymupdf4llm'    = 'pymupdf4llm==2.1'
+    'MLflow'         = 'mlflow==3.18'
+    #'vLLM'           = 'vllm==0.33'
+    'PEFT'           = 'peft==0.21.2'
+    'accelerate'     = 'accelerate==1.15'
+    'bitsandbytes'   = 'bitsandbytes==0.50.2'
+    'torch'          = 'torch==2.15'
+    'SGLang'         = 'sglang==0.5.23'
+    'unsloth'        = 'unsloth==2026.11.4'
+    'edsnlp'         = 'edsnlp==0.23'
+    'eds-scikit'     = 'eds-scikit==0.1.8'
+    'edspdf'         = 'edspdf==0.10'
+    'eds-pseudo'     = 'git+https://github.com/aphp/eds-pseudo.git@v0.4.0'
+    'glmocr'         = 'glmocr==0.1.5'
+    'transformers'   = 'transformers==5.22.2'
 }
 
-$Index=0
-foreach ($Key in $PythonTools.Keys){
+#region V1
+$Index = 0
+foreach ($Key in $PythonTools.Keys) {
     $Index++
-    $PercentComplete = $Index/$PythonTools.Count*100
+    $PercentComplete = $Index / $PythonTools.Count * 100
     $VersionedTool = $PythonTools[$Key]
     Write-Progress -Id 0 -Activity "[$($Index)/$($PythonTools.Count)] Installing Python Tool ..." -CurrentOperation "Installing '$VersionedTool' VM ..." -Status $('{0:N0}%' -f $PercentComplete) -PercentComplete $PercentComplete
 
-    Write-Host "Installing '$VersionedTool' ..."
-    & $Python -m pip install $VersionedTool --no-warn-script-location
+    Write-Host -Object "Installing '$VersionedTool' ..."
+    & $Python -m pip install --upgrade --no-cache-dir $VersionedTool --no-warn-script-location
 
     $Tool = $VersionedTool -replace "==.*"
-    Write-Host "Checking '$Tool' ..." -ForegroundColor Green
+    Write-Host -Object "Checking '$Tool' ..." -ForegroundColor Green
     & $Python -m pip show $Tool
 }
 Write-Progress -Id 0 -Activity "Completed !" -Completed
-
 #endregion 
 
+
+<#
+#region V2
+$RequirementFilePath = Join-Path -Path $env:TEMP -ChildPath "requirements.txt"
+$PythonTools.Values | Out-File -FilePath $RequirementFilePath -Force
+& $Python -m pip install -r $RequirementFilePath -v
+$null = Remove-Item -Path $RequirementFilePath -Force -ErrorAction Ignore
+#endregion
+#> 
+#endregion

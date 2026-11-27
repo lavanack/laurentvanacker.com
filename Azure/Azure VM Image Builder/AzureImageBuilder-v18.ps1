@@ -22,11 +22,7 @@ of the Sample Code.
 function New-AzureComputeGallery {
 	[CmdletBinding(PositionalBinding = $false)]
 	Param(
-		[Parameter(Mandatory = $true, ParameterSetName = 'GalleryName')]
-		[string]$GalleryName,
-		[Parameter(Mandatory = $true, ParameterSetName = 'GalleryName')]
-		[string]$GalleryResourceGroupName,
-		[Parameter(Mandatory = $false, ParameterSetName = 'GalleryResourceId')]
+		[Parameter(Mandatory = $false)]
 		[string]$GalleryResourceId,
 		[Parameter(Mandatory = $false)]
 		[string]$Location = "EastUS2",
@@ -35,7 +31,7 @@ function New-AzureComputeGallery {
 		[Parameter(Mandatory = $false)]
 		[int]$ReplicaCount = 1,
 		[Parameter(Mandatory = $false)]
-		[bool] $excludeFromLatest = $true
+		[bool] $excludeFromLatest = $false
 	)
 
 	#region Building an Hashtable to get the shortname of every Azure location based on a JSON file on the Github repository of the Azure Naming Tool
@@ -94,9 +90,6 @@ function New-AzureComputeGallery {
 	if ($GalleryResourceId) {
 		$Gallery = Get-AzGallery -ResourceId $GalleryResourceId
 		$ResourceGroupName = $Gallery.ResourceGroupName
-	}
-	elseif ($GalleryName -and $GalleryResourceGroupName) {
-		$ResourceGroupName = $GalleryResourceGroupName
 	}
 	else {
 		$ResourceGroupName = "{0}-{1}-{2}-{3}-{4}" -f $ResourceGroupPrefix, $Project, $Role, $LocationShortName, $TimeInt 
@@ -308,11 +301,9 @@ function New-AzureComputeGallery {
 
 	#region Azure Compute Gallery
 	if ([string]::IsNullOrEmpty($GalleryResourceId)) {
-		if ([string]::IsNullOrEmpty($GalleryName)) {
-			#region Create an Azure Compute Gallery
-			$GalleryName = "{0}_{1}_{2}_{3}" -f $AzureComputeGalleryPrefix, $Project, $LocationShortName, $timeInt
-			Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$GalleryName: $GalleryName"
-		}
+		#region Create an Azure Compute Gallery
+		$GalleryName = "{0}_{1}_{2}_{3}" -f $AzureComputeGalleryPrefix, $Project, $LocationShortName, $timeInt
+		Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] `$GalleryName: $GalleryName"
 
 		# Create the gallery
 		$Parameters = @{
@@ -497,13 +488,13 @@ function New-AzureComputeGallery {
 
 	$ImgVisualCPlusPlusRedistributableWindowsRestartCustomizerParams = @{  
 		RestartCustomizer   = $true  
-		Name                = 'WindowsRestart'
+		Name                = 'Visual C++Redistributable Windows Restart'
 		RestartCommand      = ''
 		RestartCheckCommand = ''
 		RestartTimeout      = '10m'
 	}
 
-	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgWindowsRestartCustomizerParams.Name)' ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgVisualCPlusPlusRedistributableWindowsRestartCustomizerParams.Name)' ..."
 	$VisualCPlusPlusRedistributableWindowsRestartCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgVisualCPlusPlusRedistributableWindowsRestartCustomizerParams 
 
 	$ImgJupyterLabPowerShellCustomizerParams = @{  
@@ -621,11 +612,11 @@ function New-AzureComputeGallery {
 	$WindowsUpdateCustomizer = New-AzImageBuilderTemplateCustomizerObject -WindowsUpdateCustomizer -Name 'WindowsUpdate' -Filter @('exclude:$_.Title -like ''*Preview*''', 'include:$true') -SearchCriterion "IsInstalled=0" -UpdateLimit 40
 
 	$ImgWindowsUpdateWindowsRestartCustomizerParams = @{  
+		Name                = 'WindowsUpdate Windows Restart'
 		RestartCustomizer   = $true  
-		Name                = 'WindowsRestart'
 	}
 
-	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgWindowsRestartCustomizerParams.Name)' ..."
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] Creating Azure Image Builder Template PowerShell Customizer Object for '$($ImgWindowsUpdateWindowsRestartCustomizerParams.Name)' ..."
 	$WindowsUpdateWindowsRestartCustomizer = New-AzImageBuilderTemplateCustomizerObject @ImgWindowsUpdateWindowsRestartCustomizerParams 
 
 	$ImgDisableAutoUpdatesPowerShellCustomizerParams = @{  
@@ -672,9 +663,10 @@ function New-AzureComputeGallery {
 	#endregion
 
 	#region imageTemplateNameARM status 
+    $runOutputARM = Get-AzImageBuilderTemplateRunOutput -ResourceGroupName $ResourceGroupName -ImageTemplateName $imageTemplateNameARM -Name $runOutputNameARM
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$runOutputARM' ProvisioningErrorCode: $($runOutputARM | Out-String) "
 	#To determine whenever or not the template upload process was successful, run the following command.
 	$getStatusARM = Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateNameARM
-	# Optional - if you have any errors running the preceding command, run:
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNameARM' ProvisioningErrorCode: $($getStatusARM.ProvisioningErrorCode) "
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNameARM' ProvisioningErrorMessage: $($getStatusARM.ProvisioningErrorMessage) "
 	# Shows the status of the build
@@ -696,9 +688,10 @@ function New-AzureComputeGallery {
 	#endregion
 
 	#region imageTemplateNamePowerShell status
+    $runOutputPowerShell = Get-AzImageBuilderTemplateRunOutput -ResourceGroupName $ResourceGroupName -ImageTemplateName $imageTemplateNamePowerShell -Name $runOutputNamePowerShell
+	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$runOutputPowerShell' ProvisioningErrorCode: $($runOutputPowerShell | Out-String) "
 	#To determine whenever or not the template upload process was successful, run the following command.
 	$getStatusPowerShell = Get-AzImageBuilderTemplate -ResourceGroupName $ResourceGroupName -Name $imageTemplateNamePowerShell
-	# Optional - if you have any errors running the preceding command, run:
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNamePowerShell' ProvisioningErrorCode: $($getStatusPowerShell.ProvisioningErrorCode) "
 	Write-Verbose -Message "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")][$($MyInvocation.MyCommand)] '$imageTemplateNamePowerShell' ProvisioningErrorMessage: $($getStatusPowerShell.ProvisioningErrorMessage) "
 	# Shows the status of the build
@@ -749,7 +742,7 @@ Set-Location -Path $CurrentDir
 
 #region Login to your Azure subscription.
 While (-not(Get-AzAccessToken -ErrorAction Ignore)) {
-	Connect-AzAccount
+	Connect-AzAccount -UseDeviceAuthentication
 }
 #endregion
 
@@ -766,7 +759,7 @@ While (Get-AzResourceProvider -ProviderNamespace $RequiredResourceProviders | Wh
 }
 $Jobs | Remove-Job -Force
 #endregion
-$timeInt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+$timeInt = 0
 #$timeInt = "1778476256"
 $Location = "CentralUS"
 $TargetRegions = $Location, "EastUS2"
@@ -785,10 +778,6 @@ $GalleryResourceId = (Get-AzGallery -GalleryName $GalleryName -ResourceGroupName
 #We specify an existing Azure Compute Gallery Resource Id
 if ($GalleryResourceId) {
 	$AzureComputeGallery = New-AzureComputeGallery -GalleryResourceId $GalleryResourceId -Location $Location -TargetRegions $TargetRegions -Verbose
-}
-#We specify an Azure Compute Gallery Name and A Resource Group Name. If they exist they will be used, if not they will be created.
-elseif ($GalleryName -and $ResourceGroupName) {
-	$AzureComputeGallery = New-AzureComputeGallery  -GalleryName $GalleryName -GalleryResourceGroupName $ResourceGroupName -Location $Location -TargetRegions $TargetRegions -Verbose
 }
 #We will create a new Azure Compute Gallery (and its related Resource Group)
 else {

@@ -25,12 +25,13 @@ $VCRedistUri = "https://aka.ms/vc14/vc_redist.x64.exe"
 $FileName = $(Split-Path -Path $VCRedistUri -Leaf) -replace "\?.+"
 $OutFile = Join-Path -Path $env:TEMP -ChildPath $FileName
 If (-not(Test-Path -Path $OutFile)) {
-    Write-Verbose -Message "Downloading  Visual C++ Redistributable ..."
+    Write-Host -Object "Downloading  Visual C++ Redistributable from '$VCRedistUri' ..."
     Invoke-WebRequest -Uri $VCRedistUri -UseBasicParsing -OutFile $OutFile -Verbose
 }
 #endregion 
 
 #region Installing  Visual C++ Redistributable 
+Write-Host -Object "Installing Visual C++ Redistributable from ..."
 Start-Process -FilePath $OutFile -ArgumentList '/install /quiet /norestart' -Verb runas -Wait -PassThru
 #endregion 
 
